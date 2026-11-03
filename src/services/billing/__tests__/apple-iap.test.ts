@@ -39,6 +39,7 @@ jest.mock("@/lib/prisma", () => {
     },
     subscription: {
       findUnique: jest.fn(),
+      update: jest.fn(),
       upsert: jest.fn(),
     },
     creemSubscriptionCursor: { upsert: jest.fn() },
@@ -55,7 +56,11 @@ const db = prisma as unknown as {
   $transaction: jest.Mock;
   $executeRaw: jest.Mock;
   user: { findUnique: jest.Mock; updateMany: jest.Mock };
-  subscription: { findUnique: jest.Mock; upsert: jest.Mock };
+  subscription: {
+    findUnique: jest.Mock;
+    update: jest.Mock;
+    upsert: jest.Mock;
+  };
   creemSubscriptionCursor: { upsert: jest.Mock };
   appleNotificationReceipt: {
     createMany: jest.Mock;
@@ -68,6 +73,7 @@ const chain = createTestChain();
 const stranger = createTestChain("Stranger");
 const APP_APPLE_ID = 6400000000;
 const TESTER = "owner@example.test";
+const VERIFIED = new Date("2026-10-01T00:00:00Z");
 /** A Production server, like use.needt.app. */
 const config: AppleIapConfig = {
   environment: "Production",
@@ -310,7 +316,7 @@ describe("POST /api/billing/apple/transactions", () => {
     });
 
     it("an allowlisted tester gets time-boxed Pro", async () => {
-      caller({ email: "Owner@Example.test" });
+      caller({ email: "Owner@Example.test", emailVerified: VERIFIED });
       const result = await processAppleTransactionPost(
         "user_1",
         chain.sign(sandboxTx()),
@@ -323,8 +329,22 @@ describe("POST /api/billing/apple/transactions", () => {
       });
     });
 
+    it("a tester address that was never confirmed gets nothing", async () => {
+      caller({ email: TESTER, emailVerified: null });
+      const result = await processAppleTransactionPost(
+        "user_1",
+        chain.sign(sandboxTx()),
+        verify
+      );
+      expect(result).toMatchObject({
+        status: 400,
+        code: "APPLE_WRONG_ENVIRONMENT",
+      });
+      expect(db.subscription.upsert).not.toHaveBeenCalled();
+    });
+
     it("a Sandbox Lifetime is a day of Pro and takes no seat", async () => {
-      caller({ email: TESTER });
+      caller({ email: TESTER, emailVerified: VERIFIED });
       await processAppleTransactionPost(
         "user_1",
         chain.sign(
@@ -348,7 +368,7 @@ describe("POST /api/billing/apple/transactions", () => {
     });
 
     it("a tester's Sandbox purchase never displaces a paid App Store plan", async () => {
-      caller({ email: TESTER });
+      caller({ email: TESTER, emailVerified: VERIFIED });
       subscriptions(
         appleRow({ appleOriginalTransactionId: "9000000000000001" }),
         null
@@ -775,7 +795,11 @@ describe("POST /api/billing/apple/notifications", () => {
     });
 
     it("EXPIRED reaches a tester's Sandbox plan", async () => {
-      mapToken("user_1", { sandboxKind: null, email: TESTER });
+      mapToken("user_1", {
+        sandboxKind: null,
+        email: TESTER,
+        emailVerified: VERIFIED,
+      });
       subscriptions(
         appleRow({ appleTransactionId: "old", appleEnvironment: "Sandbox" })
       );
@@ -888,6 +912,43 @@ describe("POST /api/billing/apple/notifications", () => {
       verify
     );
     expect(result.body.outcome).toBe("other_subscription");
+    expect(db.subscription.upsert).not.toHaveBeenCalled();
+  });
+
+  it("clears the double-billing flag once the replaced App Store subscription stops", async () => {
+    mapToken("user_1");
+    const creemRow = {
+      provider: "CREEM",
+      plan: "PRO",
+      status: "ACTIVE",
+      currentPeriodEnd: null,
+      creemCustomerId: "cust_1",
+      creemSubscriptionId: "sub_web",
+      creemProductId: "prod_1",
+      appleOriginalTransactionId: "2000000000000001",
+      appleTransactionId: "2000000000000002",
+      appleLastSignedAt: null,
+      appleConflictSince: new Date(Date.now() - day),
+    };
+    subscriptions(creemRow, { userId: "user_1" });
+
+    // Still renewing: the flag stays.
+    await processAppleNotification(notification("DID_RENEW"), verify);
+    expect(db.subscription.update).not.toHaveBeenCalled();
+
+    // Auto-renew turned off in the App Store: the double billing ends.
+    const result = await processAppleNotification(
+      notification("DID_CHANGE_RENEWAL_STATUS", {
+        subtype: "AUTO_RENEW_DISABLED",
+        renewal: { autoRenewStatus: 0 },
+      }),
+      verify
+    );
+    expect(result.body.outcome).toBe("creem_active");
+    expect(db.subscription.update).toHaveBeenCalledWith({
+      where: { userId: "user_1" },
+      data: { appleConflictSince: null },
+    });
     expect(db.subscription.upsert).not.toHaveBeenCalled();
   });
 

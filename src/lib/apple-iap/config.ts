@@ -118,10 +118,17 @@ export function isAppleIapConfigured(config = getAppleIapConfig()): boolean {
  * Every Sandbox grant is time-boxed Pro (`timeBoxSandboxState`).
  */
 export function mayUseAppleSandbox(
-  account: { sandboxKind: string | null; email: string | null },
+  account: {
+    sandboxKind: string | null;
+    email: string | null;
+    emailVerified?: Date | null;
+  },
   config: AppleIapConfig = getAppleIapConfig()
 ): boolean {
   if (account.sandboxKind === "reviewer") return true;
+  // Only a confirmed address: anyone could sign up first with a tester's
+  // address and collect free Sandbox Pro again and again.
+  if (!account.emailVerified) return false;
   const email = account.email?.trim().toLowerCase();
   return Boolean(email && config.sandboxTesters.includes(email));
 }

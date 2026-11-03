@@ -429,6 +429,115 @@ describe("Creem webhook processing", () => {
     );
   });
 
+  describe("a new paid Creem purchase while an App Store Pro renews", () => {
+    const appleRow = {
+      userId: "user_1",
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.ACTIVE,
+      provider: "APPLE",
+      creemSubscriptionId: "sub_replaced",
+      currentPeriodEnd: newDate("2099-08-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      lastCreemEventId: null,
+      lastCreemEventAt: null,
+    };
+
+    beforeEach(() => {
+      (prisma.subscription.findFirst as jest.Mock).mockResolvedValue(appleRow);
+      // The Apple takeover closed the replaced subscription's cursor.
+      (
+        prisma.creemSubscriptionCursor.findUnique as jest.Mock
+      ).mockImplementation(
+        ({ where }: { where: Record<string, Record<string, string>> }) =>
+          Promise.resolve(
+            where.userId_creemSubscriptionId.creemSubscriptionId ===
+              "sub_replaced"
+              ? {
+                  lastEventAt: newDate(1_728_000_000_000),
+                  restrictionLevel: 5,
+                }
+              : null
+          )
+      );
+    });
+
+    it("applies a new paid subscription and flags the App Store side", async () => {
+      const result = await processCreemBillingEvent({
+        id: "evt_new_sub",
+        createdAt: 1_728_734_337_932,
+        eventType: "subscription.active",
+        object: {
+          id: "sub_new",
+          product: { id: products.proMonthly },
+          customer: { id: "cust_1" },
+          metadata: { referenceId: "user_1" },
+        },
+      });
+
+      expect(result.processed).toBe(true);
+      expect(prisma.subscription.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            provider: "CREEM",
+            creemSubscriptionId: "sub_new",
+            appleConflictSince: expect.any(Date),
+          }),
+        })
+      );
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining("both bill"),
+        expect.objectContaining({ userId: "user_1" }),
+        expect.any(String)
+      );
+    });
+
+    it("grants a paid Lifetime (paid Lifetime is always granted)", async () => {
+      const result = await processCreemBillingEvent({
+        id: "evt_new_lifetime",
+        createdAt: 1_728_734_337_932,
+        eventType: "checkout.completed",
+        object: {
+          id: "checkout_late",
+          product: { id: products.lifetime },
+          customer: { id: "cust_1" },
+          metadata: { referenceId: "user_1" },
+        },
+      });
+
+      expect(result.processed).toBe(true);
+      expect(prisma.subscription.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            plan: SubscriptionPlan.LIFETIME,
+            provider: "CREEM",
+            appleConflictSince: expect.any(Date),
+          }),
+        })
+      );
+      // The replaced Creem id is not cancelled again on Apple's behalf.
+      expect(
+        (prisma.subscription.upsert as jest.Mock).mock.calls[0][0].update
+          .pendingCreemCancelId
+      ).toBeUndefined();
+    });
+
+    it("still skips an event that only takes access away", async () => {
+      const result = await processCreemBillingEvent({
+        id: "evt_other_expired",
+        createdAt: 1_728_734_337_932,
+        eventType: "subscription.expired",
+        object: {
+          id: "sub_unrelated",
+          product: { id: products.proMonthly },
+          customer: { id: "cust_1" },
+        },
+      });
+
+      expect(result).toEqual({ processed: false, reason: "apple_active" });
+      expect(prisma.subscription.upsert).not.toHaveBeenCalled();
+    });
+  });
+
   it("allows a more restrictive event at the same provider timestamp", async () => {
     const eventCreatedAt = 1_728_734_337_932;
     (prisma.subscription.findFirst as jest.Mock).mockResolvedValue({

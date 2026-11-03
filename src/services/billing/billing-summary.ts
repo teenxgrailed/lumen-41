@@ -81,6 +81,7 @@ export async function getBillingSummary(userId: string) {
         creemSubscriptionId: true,
         creemProductId: true,
         provider: true,
+        appleConflictSince: true,
         discountApplied: true,
       },
     }),
@@ -134,6 +135,18 @@ export async function getBillingSummary(userId: string) {
     source,
     /** Where to manage an Apple plan ("Manage in App Store"); null otherwise. */
     manageUrl: source === "apple" ? APPLE_MANAGE_SUBSCRIPTIONS_URL : null,
+    /**
+     * A second seller still billing for the same account: a Creem plan was
+     * bought while an App Store subscription renewed. Only the person can
+     * cancel the App Store side, so both are shown until Apple stops.
+     */
+    alsoBilledBy: subscription?.appleConflictSince
+      ? {
+          source: "apple" as const,
+          manageUrl: APPLE_MANAGE_SUBSCRIPTIONS_URL,
+          since: subscription.appleConflictSince,
+        }
+      : null,
     /** Creem reported a discount on this subscription (the student code). */
     discountApplied: subscription?.discountApplied ?? false,
     lifetimeAvailable: lifetime.available,

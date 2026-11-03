@@ -129,6 +129,11 @@ Gains `source: "creem" | "apple" | null` and `manageUrl` (Apple only:
 `https://apps.apple.com/account/subscriptions`; the web shows "Manage in App
 Store"). `canManageBilling` (the Creem portal) is false for an Apple plan.
 
+Also `alsoBilledBy: { source: "apple", manageUrl, since } | null`: set when a
+paid Creem plan was bought while an App Store subscription still renewed (see
+below). Settings shows "Your App Store subscription is still billing as well"
+with the Manage in App Store button.
+
 ## App Store Pro never runs open-ended
 
 For `provider = APPLE`, Pro lasts until `currentPeriodEnd` plus 6 hours,
@@ -145,13 +150,16 @@ A Sandbox purchase costs the buyer nothing, so it is never a real plan.
 - A Production server verifies Sandbox-signed data but honours it only for:
   - the App Review login (`User.sandboxKind = reviewer`), which in turn may
     post **only** Sandbox purchases;
-  - the emails in `APPLE_IAP_SANDBOX_TESTERS` (the owner's TestFlight tests).
+  - the emails in `APPLE_IAP_SANDBOX_TESTERS` (the owner's TestFlight tests),
+    and only once that address is confirmed (`emailVerified`).
 - Every Sandbox grant is time-boxed Pro: CANCELED with
   `currentPeriodEnd = min(expiresDate, now + 24 h)`. A Sandbox Lifetime is a
   day of Pro, never `LIFETIME`, and never counts toward the 300 seats.
 - A Sandbox purchase never displaces a live Production App Store plan.
 - The nightly sandbox reset deletes the reviewer's Apple rows and
-  notification receipts, then restores its comp Pro.
+  notification receipts, then restores its comp Pro. Provisioning on every
+  worker start restores the comp too and clears the Apple columns, so a
+  deploy never leaves the reviewer on an Apple row with no period (Free).
 - `Subscription.appleEnvironment` records which environment each grant came
   from.
 
@@ -161,9 +169,18 @@ A Sandbox purchase costs the buyer nothing, so it is never a real plan.
   app is told to offer nothing.
 - `POST /api/billing/checkout` answers **409 `APPLE_ACTIVE`** (with
   `manageUrl`) while an App Store plan is live, for Pro and Lifetime alike.
-- While an App Store plan is live, Creem webhooks for the old Creem
-  subscription are skipped (receipt outcome `apple_active`), and so are Creem
-  refunds of it.
+- While an App Store plan is live, Creem webhooks for the Creem subscription
+  it replaced (the row's old id, or a cursor the Apple takeover closed) and
+  Creem events that grant nothing are skipped (receipt outcome
+  `apple_active`), and so are Creem refunds.
+- A **new** paid Creem purchase is never dropped, even while an App Store
+  plan is live (a checkout opened before the Apple purchase and paid after
+  it): a new Creem subscription or a paid Lifetime applies (paid Lifetime is
+  always granted). If the App Store subscription still renews, nobody but the
+  buyer can cancel it, so the row gets `appleConflictSince`, an error is
+  logged for the owner, and `GET /api/billing` shows both (`alsoBilledBy`).
+  The flag clears when Apple reports that subscription no longer renews
+  (auto-renew off, expired, refunded).
 - The first Apple grant over a Creem row closes that Creem subscription's
   cursor and, if it still bills (active or in dunning), cancels it at Creem
   through the pending-cancel helper (the worker retries failures).
@@ -171,8 +188,13 @@ A Sandbox purchase costs the buyer nothing, so it is never a real plan.
   subscription is cancelled by the buyer in the App Store. The deletion screen
   (desktop, phone and browser) says so: "Your App Store subscription keeps
   billing until you cancel it in the App Store.", with a Manage in App Store
-  button (`GET /api/account/lifecycle` → `appleSubscription`). A Creem cancel
-  still pending from an Apple takeover is finished during deletion.
+  button (`GET /api/account/lifecycle` → `appleSubscription`). It shows for
+  every App Store Pro that is not CANCELED, billing retry included (no access,
+  but Apple keeps trying to charge), and while `appleConflictSince` is set. A
+  Creem cancel still pending from an Apple takeover is finished during
+  deletion.
+- Admin counts (`admin/overview`) and the MCP trial label use the same
+  period-bounded rule for App Store Pro.
 - Admin comps (`manual-grant`) treat a row with an Apple transaction as paid.
 
 ## Environment

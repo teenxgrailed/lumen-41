@@ -9,6 +9,7 @@ ALTER TABLE "User" ADD COLUMN     "appleAppAccountToken" TEXT;
 
 -- AlterTable
 ALTER TABLE "Subscription" ADD COLUMN     "appleBundleId" TEXT,
+ADD COLUMN     "appleConflictSince" TIMESTAMP(3),
 ADD COLUMN     "appleEnvironment" TEXT,
 ADD COLUMN     "appleLastSignedAt" TIMESTAMP(3),
 ADD COLUMN     "appleOriginalTransactionId" TEXT,

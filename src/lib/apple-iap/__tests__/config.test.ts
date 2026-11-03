@@ -53,15 +53,31 @@ describe("Apple IAP config", () => {
     expect(
       mayUseAppleSandbox({ sandboxKind: "reviewer", email: null }, config)
     ).toBe(true);
+    const verified = new Date("2026-10-01T00:00:00Z");
     expect(
       mayUseAppleSandbox(
-        { sandboxKind: null, email: "owner@example.TEST" },
+        {
+          sandboxKind: null,
+          email: "owner@example.TEST",
+          emailVerified: verified,
+        },
         config
       )
     ).toBe(true);
+    // A tester's address nobody confirmed (signed up first by someone else).
     expect(
       mayUseAppleSandbox(
-        { sandboxKind: null, email: "someone@example.test" },
+        { sandboxKind: null, email: "owner@example.test", emailVerified: null },
+        config
+      )
+    ).toBe(false);
+    expect(
+      mayUseAppleSandbox(
+        {
+          sandboxKind: null,
+          email: "someone@example.test",
+          emailVerified: verified,
+        },
         config
       )
     ).toBe(false);

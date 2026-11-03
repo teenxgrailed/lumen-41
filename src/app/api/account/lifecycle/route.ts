@@ -8,7 +8,6 @@ import {
 
 import { APPLE_MANAGE_SUBSCRIPTIONS_URL } from "@/lib/apple-iap/config";
 import { billingSource } from "@/lib/apple-iap/entitlement";
-import { grantsAccess } from "@/lib/apple-iap/state";
 import { authenticateAccountRequest } from "@/lib/auth/account-request-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -30,21 +29,23 @@ export async function GET(request: NextRequest) {
         provider: true,
         plan: true,
         status: true,
-        currentPeriodEnd: true,
         creemCustomerId: true,
         creemSubscriptionId: true,
+        appleConflictSince: true,
       },
     }),
   ]);
   // Deleting the account does not stop an App Store subscription: only the
   // buyer can cancel it, in the App Store (Apple's account-deletion rules).
+  // That holds in billing retry too (no access, but Apple keeps trying to
+  // charge), and for one a web plan replaced while it still renewed. Only
+  // CANCELED (auto-renew off, or ended) needs no warning.
   const appleSubscription =
     subscription &&
-    billingSource(subscription) === "apple" &&
-    subscription.plan === SubscriptionPlan.PRO &&
-    // CANCELED is auto-renew off: it ends on its own, nothing to warn about.
-    subscription.status !== SubscriptionStatus.CANCELED &&
-    grantsAccess(subscription)
+    ((billingSource(subscription) === "apple" &&
+      subscription.plan === SubscriptionPlan.PRO &&
+      subscription.status !== SubscriptionStatus.CANCELED) ||
+      subscription.appleConflictSince)
       ? { manageUrl: APPLE_MANAGE_SUBSCRIPTIONS_URL }
       : null;
   return NextResponse.json({

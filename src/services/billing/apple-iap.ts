@@ -47,12 +47,16 @@ const LOG_SOURCE = "AppleIap";
  * other sandbox kind is refused like any other billing call.
  */
 
-type Account = { sandboxKind: string | null; email: string | null };
+type Account = {
+  sandboxKind: string | null;
+  email: string | null;
+  emailVerified: Date | null;
+};
 
 async function account(userId: string): Promise<Account | null> {
   return prisma.user.findUnique({
     where: { id: userId },
-    select: { sandboxKind: true, email: true },
+    select: { sandboxKind: true, email: true, emailVerified: true },
   });
 }
 
@@ -179,7 +183,12 @@ export async function processAppleTransactionPost(
   const config = verifyOptions.config ?? getAppleIapConfig();
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { appleAppAccountToken: true, sandboxKind: true, email: true },
+    select: {
+      appleAppAccountToken: true,
+      sandboxKind: true,
+      email: true,
+      emailVerified: true,
+    },
   });
   if (user?.sandboxKind && user.sandboxKind !== "reviewer") {
     const body = sandboxLockedBody("billing");

@@ -3595,6 +3595,10 @@ model Subscription {
   appleEnvironment      String?
   /// signedDate of the newest Apple JWS applied; older ones are stale.
   appleLastSignedAt     DateTime?
+  /// A paid Creem plan replaced a still-renewing App Store subscription,
+  /// which only the buyer can cancel: both bill until they do. Cleared when
+  /// Apple reports it no longer renews.
+  appleConflictSince    DateTime?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 

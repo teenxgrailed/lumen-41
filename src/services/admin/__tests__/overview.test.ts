@@ -66,11 +66,22 @@ describe("getAdminOverview", () => {
     await getAdminOverview(NOW);
     const pro = db.subscription.count.mock.calls[0][0].where;
     expect(pro.plan).toBe(SubscriptionPlan.PRO);
-    expect(pro.OR[0]).toEqual({ status: SubscriptionStatus.ACTIVE });
-    expect(pro.OR[1].currentPeriodEnd).toEqual({ gt: NOW });
-    expect(db.subscription.count.mock.calls[1][0].where.plan).toBe(
-      SubscriptionPlan.LIFETIME
-    );
+    // An App Store Pro counts only until its period end plus the slack,
+    // whatever its status (a missed EXPIRED is not Pro forever).
+    expect(pro.OR[0]).toEqual({
+      provider: "APPLE",
+      currentPeriodEnd: { gt: new Date(NOW.getTime() - 6 * 3600 * 1000) },
+    });
+    // Everything else keeps the old rule.
+    const [providers, legacy] = pro.OR[1].AND;
+    expect(providers).toEqual({
+      OR: [{ provider: null }, { provider: "CREEM" }],
+    });
+    expect(legacy.OR[0]).toEqual({ status: SubscriptionStatus.ACTIVE });
+    expect(legacy.OR[1].currentPeriodEnd).toEqual({ gt: NOW });
+    const lifetime = db.subscription.count.mock.calls[1][0].where;
+    expect(lifetime.plan).toBe(SubscriptionPlan.LIFETIME);
+    expect(lifetime.OR[0]).toEqual({ status: SubscriptionStatus.ACTIVE });
   });
 
   it("never reports a negative Free count", async () => {

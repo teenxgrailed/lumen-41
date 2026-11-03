@@ -233,6 +233,17 @@ export function decideAppleEntitlement(
   return "apply";
 }
 
+/** Apple still charges (or retries charging) for this subscription state. */
+export function keepsBilling(state: AppleEntitlementState): boolean {
+  return (
+    state.plan === SubscriptionPlan.PRO &&
+    !state.revoked &&
+    (state.status === "ACTIVE" ||
+      state.status === "PAST_DUE" ||
+      state.status === "PAYMENT_FAILED")
+  );
+}
+
 const LIVE_CREEM_STATUSES: readonly SubscriptionStatus[] = [
   "ACTIVE",
   "PAST_DUE",
@@ -278,11 +289,26 @@ export async function applyAppleEntitlement(
         appleTransactionId: true,
         appleLastSignedAt: true,
         appleEnvironment: true,
+        appleConflictSince: true,
       },
     });
 
     const decision = decideAppleEntitlement(current, { ...input, state });
     if (decision !== "apply") {
+      // A Creem plan replaced this App Store subscription while it still
+      // renewed. Once Apple says it no longer bills, the double billing is
+      // over and the flag goes.
+      if (
+        decision === "creem_active" &&
+        current?.appleConflictSince &&
+        current.appleOriginalTransactionId === input.originalTransactionId &&
+        !keepsBilling(state)
+      ) {
+        await transaction.subscription.update({
+          where: { userId: input.userId },
+          data: { appleConflictSince: null },
+        });
+      }
       return { outcome: decision, supersededCreem: null };
     }
 
