@@ -1,0 +1,1 @@
+- In a document's style panel, the style, backdrop, colour and cover pickers can now be used from the keyboard: focus moves into a picker when it opens, and Escape returns it to its button.
