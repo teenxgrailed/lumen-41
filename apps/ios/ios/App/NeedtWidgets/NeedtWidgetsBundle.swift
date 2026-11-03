@@ -9,8 +9,21 @@ import WidgetKit
 /// it lives in apps/shared/NeedtWidgetKit; this target is only the entry point.
 @main
 struct NeedtWidgetsMain: WidgetBundle {
+    // Listed here instead of `NeedtWidgetBundle().body`: that bundle wraps the
+    // Controls in `if #available(iOS 18.0, *)`, and in a Release device build
+    // that path leaves the SwiftUI `WidgetBundleBuilder.buildOptional` opaque
+    // type descriptor unresolved at link time (ios-archive, Xcode 26.6). This
+    // target deploys to iOS 18, so the Controls need no availability check.
+    //todo: go back to NeedtWidgetBundle once SwiftUI links that path on device.
     var body: some Widget {
-        NeedtWidgetBundle().body
+        TodayWidget()
+        NextEventWidget()
+        FocusTimerWidget()
+        HabitsWidget()
+        QuickAddWidget()
+        QuickAddControl()
+        StartFocusControl()
+        FocusLiveActivity()
     }
 }
 

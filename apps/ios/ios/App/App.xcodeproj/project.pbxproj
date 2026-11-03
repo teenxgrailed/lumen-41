@@ -23,6 +23,14 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A1B2C3D42FE993A70072D4E8 /* NeedtPlugins.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D52FE993A50072D4E8 /* NeedtPlugins.swift */; };
+		B1D0C0DE0000000000000021 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B1D0C0DE0000000000000020 /* PrivacyInfo.xcprivacy */; };
+		B1D0C0DE0000000000000023 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B1D0C0DE0000000000000022 /* PrivacyInfo.xcprivacy */; };
+		B1D0C0DE0000000000000025 /* OfflineScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1D0C0DE0000000000000024 /* OfflineScreen.swift */; };
+		B1D0C0DE0000000000000027 /* NeedtShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1D0C0DE0000000000000026 /* NeedtShortcuts.swift */; };
+		B1D0C0DE0000000000000029 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1D0C0DE0000000000000028 /* ShareViewController.swift */; };
+		B1D0C0DE000000000000002B /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B1D0C0DE000000000000002A /* PrivacyInfo.xcprivacy */; };
+		B1D0C0DE000000000000002C /* NeedtKit in Frameworks */ = {isa = PBXBuildFile; productRef = B1D0C0DE000000000000002D /* NeedtKit */; };
+		B1D0C0DE000000000000002E /* NeedtShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B1D0C0DE000000000000002F /* NeedtShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,6 +52,15 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		A1B2C3D52FE993A50072D4E8 /* NeedtPlugins.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeedtPlugins.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		B1D0C0DE0000000000000020 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B1D0C0DE0000000000000022 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B1D0C0DE0000000000000024 /* OfflineScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineScreen.swift; sourceTree = "<group>"; };
+		B1D0C0DE0000000000000026 /* NeedtShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeedtShortcuts.swift; sourceTree = "<group>"; };
+		B1D0C0DE0000000000000028 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		B1D0C0DE000000000000002A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		B1D0C0DE000000000000002F /* NeedtShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NeedtShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B1D0C0DE0000000000000030 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B1D0C0DE0000000000000031 /* NeedtShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NeedtShare.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
@@ -53,6 +70,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = B1D0C0DE000000000000000A;
 			remoteInfo = NeedtWidgets;
+		};
+		B1D0C0DE000000000000003A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B1D0C0DE0000000000000036;
+			remoteInfo = NeedtShare;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -64,6 +88,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				B1D0C0DE000000000000000F /* NeedtWidgets.appex in Embed Foundation Extensions */,
+				B1D0C0DE000000000000002E /* NeedtShare.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -89,6 +114,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B1D0C0DE0000000000000034 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1D0C0DE000000000000002C /* NeedtKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -98,6 +131,7 @@
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				B1D0C0DE0000000000000009 /* NeedtWidgets */,
+				B1D0C0DE0000000000000032 /* NeedtShare */,
 				504EC3051FED79650016851F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -107,6 +141,7 @@
 			children = (
 				504EC3041FED79650016851F /* App.app */,
 				B1D0C0DE0000000000000006 /* NeedtWidgets.appex */,
+				B1D0C0DE000000000000002F /* NeedtShare.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -116,6 +151,9 @@
 			children = (
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				A1B2C3D52FE993A50072D4E8 /* NeedtPlugins.swift */,
+				B1D0C0DE0000000000000024 /* OfflineScreen.swift */,
+				B1D0C0DE0000000000000026 /* NeedtShortcuts.swift */,
+				B1D0C0DE0000000000000020 /* PrivacyInfo.xcprivacy */,
 				B1D0C0DE0000000000000007 /* WidgetBridge.swift */,
 				B1D0C0DE0000000000000005 /* App.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
@@ -136,8 +174,20 @@
 				B1D0C0DE0000000000000001 /* NeedtWidgetsBundle.swift */,
 				B1D0C0DE0000000000000003 /* Info.plist */,
 				B1D0C0DE0000000000000004 /* NeedtWidgets.entitlements */,
+				B1D0C0DE0000000000000022 /* PrivacyInfo.xcprivacy */,
 			);
 			path = NeedtWidgets;
+			sourceTree = "<group>";
+		};
+		B1D0C0DE0000000000000032 /* NeedtShare */ = {
+			isa = PBXGroup;
+			children = (
+				B1D0C0DE0000000000000028 /* ShareViewController.swift */,
+				B1D0C0DE0000000000000030 /* Info.plist */,
+				B1D0C0DE0000000000000031 /* NeedtShare.entitlements */,
+				B1D0C0DE000000000000002A /* PrivacyInfo.xcprivacy */,
+			);
+			path = NeedtShare;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -156,6 +206,7 @@
 			);
 			dependencies = (
 				B1D0C0DE0000000000000011 /* PBXTargetDependency */,
+				B1D0C0DE000000000000003B /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -187,6 +238,26 @@
 			productReference = B1D0C0DE0000000000000006 /* NeedtWidgets.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		B1D0C0DE0000000000000036 /* NeedtShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B1D0C0DE0000000000000037 /* Build configuration list for PBXNativeTarget "NeedtShare" */;
+			buildPhases = (
+				B1D0C0DE0000000000000033 /* Sources */,
+				B1D0C0DE0000000000000034 /* Frameworks */,
+				B1D0C0DE0000000000000035 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NeedtShare;
+			packageProductDependencies = (
+				B1D0C0DE000000000000002D /* NeedtKit */,
+			);
+			productName = NeedtShare;
+			productReference = B1D0C0DE000000000000002F /* NeedtShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -202,6 +273,10 @@
 						ProvisioningStyle = Automatic;
 					};
 					B1D0C0DE000000000000000A = {
+						CreatedOnToolsVersion = 26.0;
+						ProvisioningStyle = Automatic;
+					};
+					B1D0C0DE0000000000000036 = {
 						CreatedOnToolsVersion = 26.0;
 						ProvisioningStyle = Automatic;
 					};
@@ -227,6 +302,7 @@
 			targets = (
 				504EC3031FED79650016851F /* App */,
 				B1D0C0DE000000000000000A /* NeedtWidgets */,
+				B1D0C0DE0000000000000036 /* NeedtShare */,
 			);
 		};
 /* End PBXProject section */
@@ -242,6 +318,7 @@
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
+				B1D0C0DE0000000000000021 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -249,6 +326,15 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B1D0C0DE0000000000000023 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B1D0C0DE0000000000000035 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1D0C0DE000000000000002B /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -263,6 +349,8 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A1B2C3D42FE993A70072D4E8 /* NeedtPlugins.swift in Sources */,
 				B1D0C0DE0000000000000008 /* WidgetBridge.swift in Sources */,
+				B1D0C0DE0000000000000025 /* OfflineScreen.swift in Sources */,
+				B1D0C0DE0000000000000027 /* NeedtShortcuts.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -274,6 +362,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B1D0C0DE0000000000000033 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1D0C0DE0000000000000029 /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -281,6 +377,11 @@
 			isa = PBXTargetDependency;
 			target = B1D0C0DE000000000000000A /* NeedtWidgets */;
 			targetProxy = B1D0C0DE0000000000000010 /* PBXContainerItemProxy */;
+		};
+		B1D0C0DE000000000000003B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B1D0C0DE0000000000000036 /* NeedtShare */;
+			targetProxy = B1D0C0DE000000000000003A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -353,7 +454,9 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				CURRENT_PROJECT_VERSION = 1;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -404,7 +507,9 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				CURRENT_PROJECT_VERSION = 1;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -421,14 +526,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-aurora AppIcon-dusk AppIcon-eclipse AppIcon-ember AppIcon-glass AppIcon-halftone AppIcon-ink AppIcon-night AppIcon-orb AppIcon-paper AppIcon-pearl AppIcon-sky";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = App/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = app.needt.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -445,14 +548,12 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES = "AppIcon-aurora AppIcon-dusk AppIcon-eclipse AppIcon-ember AppIcon-glass AppIcon-halftone AppIcon-ink AppIcon-night AppIcon-orb AppIcon-paper AppIcon-pearl AppIcon-sky";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = App/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.needt.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
@@ -466,16 +567,14 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = NeedtWidgets/NeedtWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = NeedtWidgets/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.needt.ios.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -490,17 +589,59 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = NeedtWidgets/NeedtWidgets.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = NeedtWidgets/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.needt.ios.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+			};
+			name = Release;
+		};
+		B1D0C0DE0000000000000038 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = NeedtShare/NeedtShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NeedtShare/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.needt.ios.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+			};
+			name = Debug;
+		};
+		B1D0C0DE0000000000000039 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = NeedtShare/NeedtShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NeedtShare/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.needt.ios.share;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -535,6 +676,15 @@
 			buildConfigurations = (
 				B1D0C0DE0000000000000013 /* Debug */,
 				B1D0C0DE0000000000000014 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B1D0C0DE0000000000000037 /* Build configuration list for PBXNativeTarget "NeedtShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B1D0C0DE0000000000000038 /* Debug */,
+				B1D0C0DE0000000000000039 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -576,6 +726,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B1D0C0DE0000000000000016 /* XCLocalSwiftPackageReference "../../../shared/NeedtWidgetKit" */;
 			productName = NeedtWidgetKit;
+		};
+		B1D0C0DE000000000000002D /* NeedtKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B1D0C0DE0000000000000015 /* XCLocalSwiftPackageReference "../../../shared/NeedtKit" */;
+			productName = NeedtKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

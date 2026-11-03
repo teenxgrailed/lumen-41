@@ -3,11 +3,20 @@ import AuthenticationServices
 import Capacitor
 
 /// Capacitor 6+ no longer auto-registers plugins that live in the app target:
-/// the root view controller registers them (capacitorDidLoad).
+/// the root view controller registers them (capacitorDidLoad). It also puts
+/// the native offline screen (OfflineScreen.swift) in front of the web view
+/// when the main page cannot load.
 class NeedtViewController: CAPBridgeViewController {
+    private var offline: OfflineCoordinator?
+
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(NeedtAppIconPlugin())
         bridge?.registerPluginInstance(NeedtAuthPlugin())
+        if let webView = webView {
+            let coordinator = OfflineCoordinator(host: self, webView: webView)
+            coordinator.install()
+            offline = coordinator
+        }
     }
 }
 

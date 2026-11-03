@@ -33,6 +33,16 @@
 			</array>
 		</dict>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Needt opens the camera only when you choose Take Photo to attach a picture to a task.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Needt uses the microphone only when you tap the mic to dictate into a text field.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Needt saves a picture to your Photos only when you choose Save Image on an image in a page or a task attachment.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Needt turns your speech into text only when you tap the mic to dictate into a text field.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NeedtAppGroup</key>
@@ -64,7 +74,7 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
