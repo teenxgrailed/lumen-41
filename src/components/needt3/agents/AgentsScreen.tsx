@@ -20,6 +20,7 @@ import { StScreen } from "../states/StScreen";
 import { ActivityTab } from "./ActivityTab";
 import { AgBtn, AgEmpty, AgRow, AgSection, type AgTone } from "./AgParts";
 import { ConnectGuide } from "./ConnectGuide";
+import { ItemFiles } from "./ItemFiles";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
 import { hasUnconfirmedRisk } from "./unconfirmed-risk";
 import { WebhooksSection } from "./WebhooksSection";
@@ -926,6 +927,7 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
           {item.result.summary}
         </span>
       ) : null}
+      <ItemFiles id={id} />
       {(item.events ?? []).map((event, index) => (
         <span key={index} className="ag-detail-ev">
           <span>{when(event.at)}</span>
