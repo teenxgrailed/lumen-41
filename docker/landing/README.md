@@ -77,3 +77,12 @@ Edit `design-refs/landing/index.html` and redeploy. There is no build, no
 bundler and no cache to bust: the HTML is served with
 `Cache-Control: no-cache, must-revalidate`, so a redeploy is visible on the next
 request.
+
+## After a deploy: sitemap dates and IndexNow
+
+- Before committing page changes, run `_landing-build/sitemap_v49.py`: every `<lastmod>` comes from that
+  page's last commit (or today for an uncommitted change), never from the future.
+- After the deploy is live, run `NEEDT_SITE=<path to landing-site> python3 -I _landing-build/indexnow.py`
+  (scripts live outside git in `/Users/lol/Needt/_landing-build/`). It sends today's changed sitemap URLs to
+  `https://api.indexnow.org/indexnow` (Bing, Yandex and others). The key is the 32-hex `.txt` file in the
+  site root; it is public by design. 200 or 202 means accepted.
