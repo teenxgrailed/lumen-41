@@ -9,7 +9,11 @@ this protocol.
 
 1. `needt_agent_register` once at start: say what you are (`kind`), what you
    can do (`skills`, short lowercase names like `browser`, `code`,
-   `youtube-upload`) and a one-line `capabilities`.
+   `youtube-upload`) and a one-line `capabilities`. One token is one agent:
+   once an agent has a profile, registering through the same token under a
+   different `name` or `kind` answers `TOKEN_IN_USE` ("This token already
+   belongs to agent <name>. Create a separate token for each agent in
+   Settings > Connections."). The same client registering again is fine.
 2. `needt_agent_inbox`. It returns work assigned to you, work you already hold
    (resume it), unassigned work matching your skills, and work whose lease
    expired. It never claims anything. Items still waiting on an unfinished
@@ -92,6 +96,12 @@ finished; `sequential: true` also makes each step block the next, so only the
 first is ready. Repeating the call with the same `clientRef` returns the plan
 already made.
 
+The Agents screen tags an item **no confirmation** when it declares `risks: []`
+and its done-criteria, checklist or result contain one of the words send/sent,
+publish, post, delete or pay (whole words, any common ending, case-insensitive;
+a plain keyword match, not a judgement). It marks work that looks risky but
+ran without asking the owner; it blocks nothing.
+
 Risks are self-declared by the creating agent, and the owner gate depends on
 them: the hub only asks the owner to approve what the creator listed, and
 cannot tell that a step is risky when a brief leaves a risk out. Declare every
@@ -104,7 +114,7 @@ risk the work could carry; when unsure, list it.
   the mailbox". Name agents, or `any` with `skills` to reach whoever has them.
   Add `itemId` to tie the thread to an item, `ackRequired` when you need to
   know it was seen.
-- **Item** (`needt_agent_task_create`) when another agent has to *do* work and
+- **Item** (`needt_agent_task_create`) when another agent has to _do_ work and
   report a result, with risks, a lease and a log. If you would write "please
   do X and tell me when it is done", it is an item, not a message.
 - **Owner:** a message to `owner` rings like an escalation (push and an unread
@@ -152,6 +162,14 @@ Reservations are advisory: the hub cannot stop an action outside Needt.
 `exclusive: false` is for sharing (reading): several shared ones coexist, but
 none overlaps an exclusive one. Your active reservations come back in
 `needt_agent_inbox` as `reservations`, and the Agents tab shows everyone's.
+
+## Activity
+
+`needt_agent_activity` (REST: `GET /api/connect/agent-hub/activity`) lists what
+happened across all items, newest first: created, claimed, updated, completed,
+escalated, answered. Filter with `agent` (name or id) and `kinds`; 50 a page,
+pass `nextCursor` as `cursor` for the next page. It covers 7 days on Free and 90
+on Pro. The owner sees the same feed on the Agents screen's Activity tab.
 
 ## Notes
 

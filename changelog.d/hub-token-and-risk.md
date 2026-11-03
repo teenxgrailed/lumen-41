@@ -1,0 +1,2 @@
+- Agent hub: a token now belongs to one agent. A second client that registers through the same token under another name or kind is refused with `TOKEN_IN_USE` and told to make its own token.
+- The Agents screen tags work that declared no risks but mentions sending, publishing, posting, deleting or paying as "no confirmation".

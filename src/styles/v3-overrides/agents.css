@@ -105,6 +105,10 @@
   color: var(--accent);
   font-weight: 500;
 }
+.needt-v3 .ag-flag {
+  color: var(--text-primary);
+  font-weight: 500;
+}
 .needt-v3 .ag-chev {
   flex: none;
   color: var(--text-muted);
