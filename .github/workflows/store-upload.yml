@@ -52,6 +52,7 @@ jobs:
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
       VERSION: ${{ inputs.version }}
       BUILD_NUMBER: ${{ github.run_number }}
+      UPLOAD: ${{ inputs.upload }}
     steps:
       - name: Secrets present
         run: |
@@ -114,7 +115,7 @@ jobs:
           cp "$EXPORT_OPTIONS" "$RUNNER_TEMP/ExportOptions.plist"
           plutil -replace teamID -string "$TEAM_ID" "$RUNNER_TEMP/ExportOptions.plist"
           plutil -replace signingStyle -string automatic "$RUNNER_TEMP/ExportOptions.plist"
-          if [ "${{ inputs.upload }}" = "true" ]; then
+          if [ "$UPLOAD" = "true" ]; then
             plutil -replace destination -string upload "$RUNNER_TEMP/ExportOptions.plist"
           else
             plutil -replace destination -string export "$RUNNER_TEMP/ExportOptions.plist"
