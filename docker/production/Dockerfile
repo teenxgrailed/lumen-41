@@ -40,8 +40,8 @@ RUN npm run check:collaboration-runtime && test -s dist/collaboration/index.mjs
 # Production stage
 FROM node:22-alpine3.19 AS runner
 ARG NEEDT_BUILD_SHA=local
-# Install netcat and jq for JSON manipulation
-RUN apk add --no-cache netcat-openbsd jq python3 make g++
+# Install netcat and jq for JSON manipulation; curl for the Coolify healthcheck
+RUN apk add --no-cache netcat-openbsd jq curl python3 make g++
 
 WORKDIR /app
 
@@ -75,6 +75,9 @@ EXPOSE 3000 1234
 # Set environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Next's standalone server exits on SIGTERM by itself; src/instrumentation.ts
+# drains instead (see docs/deploy.md). Only the Next server reads this.
+ENV NEXT_MANUAL_SIG_HANDLE=true
 ENV NEEDT_BUILD_SHA=$NEEDT_BUILD_SHA
 
 # Start the application

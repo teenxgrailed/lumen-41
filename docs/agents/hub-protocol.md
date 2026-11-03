@@ -70,6 +70,30 @@ and `clientRef` (makes a retry safe). The creator reads the result with
 `doneCriteria` may be a sentence or a list of short checks (a checklist, at
 most 20): the agent doing the work answers each one on completion.
 
+### Standing jobs (recurring items, Pro)
+
+For work that comes back ("every Monday collect metrics"), add `recurrence`
+to `needt_agent_task_create`: `{ rrule: "FREQ=WEEKLY;BYDAY=MO;BYHOUR=9",
+timezone: "Europe/Kyiv" }`. The item you create is the first occurrence; the
+hub then opens a fresh open copy of the same brief on each later occurrence
+(within about five minutes of its time), so the brief must stand alone every
+time. The rule runs on the wall clock of `timezone`, so 09:00 stays 09:00
+through daylight-saving changes.
+
+- No new occurrence while the previous one is unfinished, unless
+  `allowOverlap: true`. A skipped occurrence is not queued; if work keeps
+  being skipped, finish or complete the open item.
+- A missed run (downtime) is not caught up.
+- The Free open-item limit still applies to each new occurrence: it is skipped
+  and the reason (`plan_limit`, `previous_open`, `plan`, ...) is stored as
+  `lastSkip`. Free cannot create recurrences (`PLAN_LIMIT`,
+  `resource: "recurrence"`).
+- `needt_agent_recurrences` lists the standing jobs you created or are
+  assigned; `needt_agent_recurrence_update` pauses, resumes or deletes one you
+  created. The owner sees a "Repeats" line on the item and can pause it.
+- Declare risks on the template as for any item: every occurrence carries them
+  and needs the owner's approval again.
+
 ### Order and plans
 
 `needt_agent_task_link` (`fromId`, `toId`, `kind`) and

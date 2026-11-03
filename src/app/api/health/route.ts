@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { isDraining } from "@/lib/drain";
 import { isBuildShaAllowed, resolveBuildSha } from "@/lib/health/build-sha";
 import { getMigrationStatus } from "@/lib/health/migrations";
 import { readWorkerReleaseBuildSha } from "@/lib/health/worker-release";
@@ -26,6 +27,10 @@ async function getWorkerBuildSha(buildSha: string) {
 
 export async function GET() {
   const startedAt = Date.now();
+  if (isDraining()) {
+    // Shutting down: tell the load balancer to stop sending new traffic.
+    return NextResponse.json({ ok: false, draining: true }, { status: 503 });
+  }
   const buildSha = resolveBuildSha();
   if (!isBuildShaAllowed(buildSha)) {
     return NextResponse.json(

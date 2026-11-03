@@ -1,0 +1,1 @@
+- The Agents screen can now connect Claude and ChatGPT without a terminal or token: add Needt as a custom connector at mcp.needt.app and sign in.

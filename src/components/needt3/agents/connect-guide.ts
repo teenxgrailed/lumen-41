@@ -2,7 +2,7 @@
  * The "Connect an agent" guide's text, pure. The MCP URL comes from the same
  * helper Settings, Connections, Needt API uses, so the two never drift.
  */
-import { tokenUrl } from "../connections/mcp";
+import { MCP_OAUTH_URL, tokenUrl } from "../connections/mcp";
 
 export const TOKEN_PLACEHOLDER = "<token>";
 
@@ -15,6 +15,46 @@ export interface GuideSnippet {
 
 /** Where a named token is made: Connections, the Needt API tile. */
 export const TOKENS_HREF = "/connections";
+
+/** The OAuth door: the same Needt MCP, signed in by clicking, no token. */
+export const CONNECTOR_URL = MCP_OAUTH_URL;
+
+export interface ClientSteps {
+  id: "claude" | "chatgpt";
+  title: string;
+  steps: string[];
+}
+
+/**
+ * "Add to Claude": no terminal, no token. The OAuth consent screen asks for
+ * read and write; an OAuth connection reaches the hub with those two scopes
+ * (the `agents.hub` scope belongs to named agent tokens).
+ */
+export function connectorSteps(): ClientSteps[] {
+  return [
+    {
+      id: "claude",
+      title: "Add to Claude",
+      steps: [
+        "Open claude.ai, then Settings > Connectors (Customize > Connectors in newer apps).",
+        'Click "Add custom connector".',
+        `Name it Needt and paste ${CONNECTOR_URL} as the URL.`,
+        'Click "Add", then "Connect" and sign in to Needt.',
+        "On the consent screen, allow what you want the agent to reach.",
+      ],
+    },
+    {
+      id: "chatgpt",
+      title: "Add to ChatGPT",
+      steps: [
+        "Open ChatGPT, then Settings > Apps & Connectors > Advanced, and turn on Developer mode.",
+        "Back in Connectors, click Create and choose MCP server.",
+        `Paste ${CONNECTOR_URL} as the server URL, with OAuth as authentication.`,
+        "Save, then sign in to Needt and allow what you want the agent to reach.",
+      ],
+    },
+  ];
+}
 
 export function guideSnippets(origin: string): GuideSnippet[] {
   const base = origin.replace(/\/$/, "");

@@ -3,17 +3,17 @@ import { z } from "zod";
 import {
   CHECKLIST_MAX_ITEMS,
   HUB_KINDS,
-  MESSAGES_MAX_LIMIT,
-  MESSAGE_BODY_MAX,
-  MESSAGE_RECIPIENTS_MAX,
-  MESSAGE_SUBJECT_MAX,
-  RESERVATION_MAX_MINUTES,
   HUB_RISKS,
   INBOX_MAX_LIMIT,
   LEASE_MAX_MINUTES,
   LINK_KINDS,
+  MESSAGES_MAX_LIMIT,
+  MESSAGE_BODY_MAX,
+  MESSAGE_RECIPIENTS_MAX,
+  MESSAGE_SUBJECT_MAX,
   NOTE_SEARCH_MAX_LIMIT,
   PLAN_MAX_CHILDREN,
+  RESERVATION_MAX_MINUTES,
 } from "./constants";
 import { HubError } from "./errors";
 
@@ -119,6 +119,61 @@ export const createItemInput = z.object({
 });
 export type CreateItemInput = z.infer<typeof createItemInput>;
 
+/** Repeat this brief on a schedule (Pro). The item being created is the first occurrence. */
+export const recurrenceInput = z
+  .object({
+    rrule: z
+      .string()
+      .min(5)
+      .max(200)
+      .describe(
+        "iCalendar RRULE evaluated on the wall clock of timezone, for example FREQ=WEEKLY;BYDAY=MO;BYHOUR=9. FREQ must be DAILY, WEEKLY, MONTHLY or YEARLY; BYHOUR without BYMINUTE means on the hour."
+      ),
+    timezone: z
+      .string()
+      .max(64)
+      .optional()
+      .describe(
+        "IANA time zone such as Europe/Kyiv; defaults to the owner's time zone."
+      ),
+    allowOverlap: z
+      .boolean()
+      .optional()
+      .describe(
+        "Default false: no new occurrence while the previous one is still open."
+      ),
+  })
+  .describe(
+    "Make this a standing job: the hub opens a fresh copy of this brief on each occurrence. Pro plan."
+  );
+export type RecurrenceInput = z.infer<typeof recurrenceInput>;
+
+export const createItemWithRecurrenceInput = createItemInput.extend({
+  recurrence: recurrenceInput.optional(),
+});
+export type CreateItemWithRecurrenceInput = z.infer<
+  typeof createItemWithRecurrenceInput
+>;
+
+export const recurrencesListInput = z.object({
+  includeInactive: z
+    .boolean()
+    .optional()
+    .describe("Also list paused and ended recurrences."),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+export type RecurrencesListInput = z.infer<typeof recurrencesListInput>;
+
+export const recurrenceUpdateInput = z.object({
+  id: z.string().min(1).max(100),
+  action: z
+    .enum(["pause", "resume", "delete"])
+    .describe(
+      "pause stops new occurrences, resume continues from the next one (no catch-up), delete removes the recurrence; items it already opened stay."
+    ),
+});
+export type RecurrenceUpdateInput = z.infer<typeof recurrenceUpdateInput>;
+
 export const inboxInput = z.object({
   view: z
     .enum(["inbox", "created", "ready"])
@@ -171,7 +226,10 @@ export const resultSchema = z.object({
     )
     .max(20)
     .optional(),
-  data: z.record(z.string(), z.unknown()).optional().describe("JSON, at most 8 KB."),
+  data: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe("JSON, at most 8 KB."),
 });
 
 export const completeInput = z.object({
@@ -372,7 +430,10 @@ export const threadReadInput = z.object({
 
 export const ownerMessageInput = z.object({
   threadId: z.string().max(100).optional(),
-  to: z.array(z.string().min(1).max(100)).max(MESSAGE_RECIPIENTS_MAX).optional(),
+  to: z
+    .array(z.string().min(1).max(100))
+    .max(MESSAGE_RECIPIENTS_MAX)
+    .optional(),
   subject: z.string().max(MESSAGE_SUBJECT_MAX).optional(),
   body: z.string().min(1).max(MESSAGE_BODY_MAX),
   importance: z.enum(["normal", "high"]).optional(),
