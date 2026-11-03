@@ -173,7 +173,9 @@ final class AuthFlow: ObservableObject {
         step = .start
         SessionSync.push(force: true)
         AppController.shared.signInFinished()
+        #if !NO_ISLAND
         IslandEntitlement.shared.refresh()
+        #endif
     }
 
     /// The web app wants its sign-in page: the session ended or the person
@@ -186,7 +188,9 @@ final class AuthFlow: ObservableObject {
         timeout?.cancel()
         step = .start
         AppController.shared.tray.reset()
+        #if !NO_ISLAND
         IslandEntitlement.shared.reset()
+        #endif
         AppController.shared.showStartAfterSignOut()
     }
 }

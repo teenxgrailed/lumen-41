@@ -53,14 +53,29 @@ packages:
     url: https://github.com/migueldeicaza/SwiftTerm
     exactVersion: 1.13.0
 
-# One shared scheme for the App Store build, with an Archive action in Release:
+# One shared scheme per App Store build, each with an Archive action in Release:
 # `xcodebuild archive -scheme NeedtAppStore` (CI does this; see README.md,
-# "Mac App Store"). The other targets keep the schemes XcodeGen makes itself.
+# "Mac App Store"). NeedtAppStoreLite is the same app without the notch island.
+# The other targets keep the schemes XcodeGen makes itself.
 schemes:
   NeedtAppStore:
     build:
       targets:
         NeedtAppStore: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+    management:
+      shared: true
+  NeedtAppStoreLite:
+    build:
+      targets:
+        NeedtAppStoreLite: all
     run:
       config: Debug
     profile:
@@ -401,6 +416,85 @@ targets:
         COMBINE_HIDPI_IMAGES: YES
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) APPSTORE"
+
+  # The Mac App Store build without the notch island. The same bundle id as
+  # NeedtAppStore (only one of the two is ever uploaded: store-upload.yml,
+  # input mac_variant). It compiles nothing from Island/ (a fork of Atoll /
+  # boring.notch, GPL v3), links none of the island's packages, and carries no
+  # entitlement or usage string that only the island needed. Needt/Sources code
+  # that talks to the island is behind `#if !NO_ISLAND`. Nothing here is built
+  # unless this target's scheme is: the default store build is NeedtAppStore.
+  NeedtAppStoreLite:
+    type: application
+    platform: macOS
+    sources:
+      - path: Needt/Sources
+      - path: Needt/Resources
+      # Privacy manifest (App Store requirement): the same file as
+      # NeedtAppStore. The Required Reason use is the same (UserDefaults, CA92.1,
+      # from FocusBridge and the Settings pane) and so is the data the service
+      # keeps; scripts/check-appstore-privacy.py --variant lite checks it
+      # against the sources this target compiles.
+      - path: Privacy/AppStore/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    dependencies:
+      - package: NeedtKit
+      - target: NeedtShare
+        embed: true
+      - target: NeedtWidgets
+        embed: true
+    entitlements:
+      path: Generated/NeedtAppStoreLite.entitlements
+      # Each entitlement is here for code compiled into this target;
+      # scripts/check-appstore-bundle.py --variant lite fails when one has no
+      # usage string or is not on its (shorter) allow list.
+      properties:
+        # Mac App Store requirement.
+        com.apple.security.app-sandbox: true
+        # The web app and the Needt API (use.needt.app).
+        com.apple.security.network.client: true
+        # The web app's file inputs (NeedtWebView.runOpenPanel). Read only.
+        com.apple.security.files.user-selected.read-only: true
+        # The web app's dictation (Web Speech API in the web view).
+        com.apple.security.device.audio-input: true
+        # Share and widget extensions read the same session and cache.
+        com.apple.security.application-groups:
+          - $(TeamIdentifierPrefix)app.needt.mac
+        # Left out against NeedtAppStore, because only the island used them:
+        # files.bookmarks.app-scope (island Shelf bookmarks), device.camera
+        # (island webcam mirror; the web app has no camera call),
+        # personal-information.calendars (EventKit is used only in Island/),
+        # scripting-targets for Music and Spotify (island now-playing).
+    info:
+      path: Generated/NeedtAppStoreLite-Info.plist
+      properties:
+        CFBundleName: Needt
+        CFBundleDisplayName: Needt
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: "14.6"
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHumanReadableCopyright: "Needt"
+        NSPrincipalClass: NSApplication
+        ITSAppUsesNonExemptEncryption: false
+        NeedtAppGroup: $(TeamIdentifierPrefix)app.needt.mac
+        CFBundleURLTypes:
+          - CFBundleURLName: app.needt.mac
+            CFBundleURLSchemes: [needt]
+        NSMicrophoneUsageDescription: Needt uses the microphone when you dictate.
+        # No camera, Apple Events, calendar, reminders, audio capture or Apple
+        # Music strings: those belonged to the island.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.needt.mac
+        PRODUCT_NAME: Needt
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CLANG_ENABLE_MODULES: YES
+        CLANG_ENABLE_OBJC_ARC: YES
+        GENERATE_INFOPLIST_FILE: NO
+        COMBINE_HIDPI_IMAGES: YES
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) APPSTORE NO_ISLAND"
 
   # "Add to Needt" in the Share menu: a URL or text becomes a task.
   NeedtShare:

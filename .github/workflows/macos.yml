@@ -7,6 +7,11 @@ name: macOS
 # and NeedtAppStore (sandboxed, no private interfaces, no Sparkle), which is
 # archived the way Xcode archives it (universal, Release) and the .xcarchive is
 # uploaded as needt-macos-appstore-archive for the owner to sign and upload.
+# A third build, NeedtAppStoreLite (the App Store build without the notch island,
+# nothing compiled from apps/macos/Island), is archived by the appstore-lite job
+# on pushes to main, on manual runs, and on pull requests that touch what it
+# compiles (lite-precheck decides): macOS minutes are expensive, and the default
+# store build is NeedtAppStore.
 # Not part of the release pipeline: nothing here signs, notarizes or publishes.
 # The Windows app is still the Tauri one (desktop.yml).
 on:
@@ -22,6 +27,11 @@ on:
       - "apps/shared/**"
       - ".github/workflows/macos.yml"
   workflow_dispatch:
+    inputs:
+      only_lite:
+        description: "Run only the appstore-lite job (skip the direct build and the NeedtAppStore archive)"
+        type: boolean
+        default: false
 
 concurrency:
   group: needt-macos-${{ github.ref }}
@@ -33,6 +43,7 @@ permissions:
 jobs:
   build:
     name: Build Needt.app (unsigned, direct)
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.only_lite) }}
     runs-on: macos-26
     timeout-minutes: 90
     steps:
@@ -309,6 +320,7 @@ jobs:
 
   appstore:
     name: Archive NeedtAppStore (unsigned, universal)
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.only_lite) }}
     runs-on: macos-26
     timeout-minutes: 90
     steps:
@@ -526,4 +538,210 @@ jobs:
             apps/macos/build-appstore.log
             apps/macos/out/export.log
             apps/macos/out/island-sources-in-appstore.txt
+          if-no-files-found: warn
+
+  # Pull requests, cheap (Ubuntu, a few seconds): the Python-only Lite checks run
+  # on every PR that reaches this workflow, and the job says whether the PR
+  # touches what the Lite build compiles, which decides if the macOS archive
+  # below runs on it. The checks read only project.yml and the sources, so they
+  # find an island file or name outside `#if !NO_ISLAND`, a private interface or
+  # an undeclared Required Reason API; they do not replace the compile.
+  lite-precheck:
+    name: NeedtAppStoreLite source checks (no macOS runner)
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      run_lite: ${{ steps.filter.outputs.run_lite }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Lite sources name nothing from Island/
+        working-directory: apps/macos
+        run: python3 scripts/check-lite-no-island.py --sources
+
+      - name: No private interface in the Lite sources
+        working-directory: apps/macos
+        run: python3 scripts/check-appstore-private-api.py --variant lite
+
+      - name: Lite privacy manifest matches the Lite sources
+        working-directory: apps/macos
+        run: python3 scripts/check-appstore-privacy.py --variant lite
+
+      - name: Does this PR touch what the Lite build compiles?
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" | tee "$RUNNER_TEMP/changed.txt"
+          if grep -E '^(apps/macos/(Needt/|Privacy/|scripts/|project\.yml$)|\.github/workflows/macos\.yml$)' "$RUNNER_TEMP/changed.txt"; then
+            echo "run_lite=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_lite=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The App Store build without the island. On pushes to main that touch
+  # apps/macos (the on.push paths above), by hand, and on a pull request only
+  # when lite-precheck finds it touches apps/macos/Needt, Privacy, scripts,
+  # project.yml or this workflow (a macOS run costs real money; the default
+  # store build is NeedtAppStore).
+  appstore-lite:
+    name: Archive NeedtAppStoreLite (unsigned, universal, no island)
+    needs: lite-precheck
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.lite-precheck.outputs.run_lite == 'true') }}
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate the Xcode project
+        working-directory: apps/macos
+        run: xcodegen generate
+
+      - name: NeedtAppStoreLite has a shared scheme with an Archive action
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          SCHEME=Needt.xcodeproj/xcshareddata/xcschemes/NeedtAppStoreLite.xcscheme
+          test -f "$SCHEME"
+          grep -A3 "<ArchiveAction" "$SCHEME" | tee "$RUNNER_TEMP/archive-action.txt"
+          grep -q 'buildConfiguration = "Release"' "$RUNNER_TEMP/archive-action.txt"
+
+      # Before the build, like the appstore job: these read project.yml and the
+      # sources, so a private interface, a missing privacy declaration, an
+      # island file or a bad plist fails in seconds.
+      - name: Nothing from Island/ is listed or named in the Lite sources
+        working-directory: apps/macos
+        run: python3 scripts/check-lite-no-island.py --sources
+
+      - name: No private interface in the sources compiled into NeedtAppStoreLite
+        working-directory: apps/macos
+        run: python3 scripts/check-appstore-private-api.py --variant lite
+
+      - name: Every hosting view has sizingOptions = []
+        working-directory: apps/macos
+        run: python3 scripts/check-hosting-views.py
+
+      - name: Property lists and privacy manifests are valid and match the sources
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          plutil -lint Privacy/*/PrivacyInfo.xcprivacy \
+            Generated/NeedtAppStoreLite.entitlements Generated/NeedtShare.entitlements \
+            Generated/NeedtWidgets.entitlements Generated/NeedtAppStoreLite-Info.plist \
+            Generated/NeedtShare-Info.plist Generated/NeedtWidgets-Info.plist
+          python3 scripts/check-appstore-privacy.py --variant lite
+
+      - name: Cache Swift packages
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: apps/macos/SourcePackages
+          key: spm-macos-${{ hashFiles('apps/macos/project.yml', 'apps/shared/NeedtKit/Package.swift', 'apps/shared/NeedtWidgetKit/Package.swift') }}
+          restore-keys: spm-macos-
+
+      - name: Archive NeedtAppStoreLite (no signing, arm64 + x86_64)
+        working-directory: apps/macos
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Needt.xcodeproj \
+            -scheme NeedtAppStoreLite \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath build-appstore-lite/NeedtAppStoreLite.xcarchive \
+            -derivedDataPath build-appstore-lite/derived \
+            -clonedSourcePackagesDirPath "$PWD/SourcePackages" \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            2>&1 | tee build-appstore-lite.log | tail -n 60
+
+      - name: Compiler errors
+        if: failure()
+        working-directory: apps/macos
+        run: grep -E "error:" build-appstore-lite.log | sort -u | head -120 || true
+
+      - name: Archive contents
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          ARCHIVE=build-appstore-lite/NeedtAppStoreLite.xcarchive
+          APP="$ARCHIVE/Products/Applications/Needt.app"
+          test -d "$APP"
+          test -d "$APP/Contents/PlugIns/NeedtShare.appex"
+          test -d "$APP/Contents/PlugIns/NeedtWidgets.appex"
+          test -d "$ARCHIVE/dSYMs"
+          plutil -p "$ARCHIVE/Info.plist"
+          find "$ARCHIVE" -name PrivacyInfo.xcprivacy
+          # Info.plist, entitlements (the shorter Lite lists), universal binaries, privacy manifests, icon.
+          python3 scripts/check-appstore-bundle.py --variant lite "$APP" Generated/NeedtAppStoreLite.entitlements
+          find build-appstore-lite/derived -name "*.xcent" | head -5 | while read -r f; do echo "$f"; plutil -p "$f"; done
+          # No Sparkle, no private framework, no private interface named in the binary.
+          if [ -e "$APP/Contents/Frameworks/Sparkle.framework" ]; then
+            echo "Sparkle is inside the App Store build"; exit 1
+          fi
+          strings "$APP/Contents/MacOS/Needt" > "$RUNNER_TEMP/lite-strings.txt"
+          if grep -q "SPUStandardUpdaterController" "$RUNNER_TEMP/lite-strings.txt"; then
+            echo "Sparkle symbols are inside the App Store build"; exit 1
+          fi
+          otool -L "$APP/Contents/MacOS/Needt" | tee "$RUNNER_TEMP/lite-libs.txt"
+          if grep -q "PrivateFrameworks" "$RUNNER_TEMP/lite-libs.txt"; then
+            echo "The App Store binary links a private framework"; exit 1
+          fi
+          if grep -E "PrivateFrameworks|SkyLight|MediaRemote|IOReport|DisplayServices|CoreBrightness" "$RUNNER_TEMP/lite-strings.txt" | head -20 | grep .; then
+            echo "A private interface is named in the App Store binary"; exit 1
+          fi
+          if grep -E "Upgrade now|Buy us a coffee|Unlock advanced features" "$RUNNER_TEMP/lite-strings.txt"; then
+            echo "Purchase wording is inside the App Store build"; exit 1
+          fi
+
+      # The point of this build: no file from apps/macos/Island was compiled,
+      # and none of its resources, packages or type names is in the bundle.
+      - name: No file or symbol from Island/ is inside
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          APP=build-appstore-lite/NeedtAppStoreLite.xcarchive/Products/Applications/Needt.app
+          python3 scripts/check-lite-no-island.py --derived build-appstore-lite/derived --app "$APP" \
+            | tee out/lite-no-island.txt
+
+      - name: Required Reason APIs in the Swift packages
+        if: ${{ !cancelled() }}
+        working-directory: apps/macos
+        run: python3 scripts/check-appstore-privacy.py --variant lite --packages SourcePackages/checkouts | sed -n '/Swift packages/,$p'
+
+      - name: Zip the archive
+        if: ${{ !cancelled() }}
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent build-appstore-lite/NeedtAppStoreLite.xcarchive out/NeedtAppStoreLite.xcarchive.zip
+          ls -lh out/NeedtAppStoreLite.xcarchive.zip
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: needt-macos-appstore-lite-archive
+          path: apps/macos/out/NeedtAppStoreLite.xcarchive.zip
+          retention-days: 14
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: needt-macos-appstore-lite-log
+          path: |
+            apps/macos/build-appstore-lite.log
+            apps/macos/out/lite-no-island.txt
           if-no-files-found: warn

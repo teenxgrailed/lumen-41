@@ -3,7 +3,9 @@
 a subprocess or edits system state.
 
 The compiled set is what project.yml says: Needt/Sources, Share/Sources,
-Island/AppStore and Island/Sources minus the NeedtAppStore excludes. Lines that
+Island/AppStore and Island/Sources minus the NeedtAppStore excludes. With
+`--variant lite` (NeedtAppStoreLite) it is Needt/Sources and Share/Sources, read
+with the flag NO_ISLAND set. Lines that
 `#if !APPSTORE` leaves out of the store build are skipped (see
 appstore_sources.active_lines), and so are comment lines (the stand-ins explain
 what they replace). Run from apps/macos.
@@ -13,6 +15,7 @@ Two groups of patterns:
   - what a sandboxed store app must not do: run Process()/NSTask, call system
     binaries (/usr/bin, /usr/sbin, killall), or touch the wallpaper store.
 """
+import argparse
 import os
 import re
 import sys
@@ -35,11 +38,21 @@ SUBPROCESS_AND_SYSTEM = [
 ]
 pattern = re.compile("|".join(PRIVATE + SUBPROCESS_AND_SYSTEM))
 
-if len(src.store_excludes()) < 20:
-    print("could not read the NeedtAppStore excludes from project.yml")
-    sys.exit(2)
+parser = argparse.ArgumentParser()
+parser.add_argument("--variant", choices=("appstore", "lite"), default="appstore")
+args = parser.parse_args()
 
-files = src.app_sources()
+if args.variant == "lite":
+    src.set_no_island(True)
+    files = src.lite_sources()
+    if len(files) < 20:
+        print("could not read the NeedtAppStoreLite sources")
+        sys.exit(2)
+else:
+    if len(src.store_excludes()) < 20:
+        print("could not read the NeedtAppStore excludes from project.yml")
+        sys.exit(2)
+    files = src.app_sources()
 for base in ("Share/Sources",):
     files += sorted(src.walk(base))
 
