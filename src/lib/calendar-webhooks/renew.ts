@@ -1,6 +1,8 @@
+import { calendarProviderNeedsReconnect } from "@/lib/calendar-connection-status";
 import {
   listCalendarWebhooks,
   listPushEnabledCalendarFeeds,
+  recordCalendarFeedSyncFailure,
 } from "@/lib/calendar-db";
 import { registerGoogleWatch } from "@/lib/calendar-webhooks/google";
 import {
@@ -14,12 +16,29 @@ import { CalendarWebhookProvider } from "@/lib/queue/types";
 const LOG_SOURCE = "CalendarWebhookRenewal";
 const RENEWAL_WINDOW_MINUTES = 12 * 60;
 
+/**
+ * Thrown once at the end of a run when feeds failed for a reason a retry could
+ * fix. The name is fixed and the message carries only a count (no feed ids or
+ * user data) so error tracking groups every run into one issue.
+ */
+export class CalendarWebhookRenewalError extends Error {
+  constructor(count: number) {
+    super(`Calendar webhook renewal failed for ${count} feed(s)`);
+    this.name = "CalendarWebhookRenewalError";
+  }
+}
+
+function inBackoff(nextAttemptAt: Date | null | undefined, now: Date) {
+  return Boolean(nextAttemptAt && nextAttemptAt.getTime() > now.getTime());
+}
+
 export async function renewCalendarWebhooks(options?: {
   provider?: CalendarWebhookProvider;
   feedId?: string;
 }) {
   const webhooks = await listCalendarWebhooks(options);
-  const renewalDeadline = addMinutes(newDate(), RENEWAL_WINDOW_MINUTES);
+  const now = newDate();
+  const renewalDeadline = addMinutes(now, RENEWAL_WINDOW_MINUTES);
   const results: Array<{ feedId: string; provider: string; renewed: boolean }> =
     [];
   // One broken feed must not stop the rest from renewing: collect and throw
@@ -30,6 +49,16 @@ export async function renewCalendarWebhooks(options?: {
   for (const webhook of webhooks) {
     const forced = Boolean(options?.feedId);
     if (!forced && !isBefore(webhook.expiration, renewalDeadline)) {
+      results.push({
+        feedId: webhook.feedId,
+        provider: webhook.provider,
+        renewed: false,
+      });
+      continue;
+    }
+    // Backing off (a failed sync, or a sign-in that needs a reconnect): do not
+    // retry every run. An explicit single-feed request still goes through.
+    if (!forced && inBackoff(webhook.feed?.nextSyncAttemptAt, now)) {
       results.push({
         feedId: webhook.feedId,
         provider: webhook.provider,
@@ -50,6 +79,8 @@ export async function renewCalendarWebhooks(options?: {
         renewed: true,
       });
     } catch (error) {
+      if (await handleReconnectFailure(webhook.feedId, webhook.provider, error))
+        continue;
       await logger.error(
         "Calendar webhook renewal failed",
         {
@@ -81,6 +112,7 @@ export async function renewCalendarWebhooks(options?: {
       (candidate) => candidate.webhooks.length === 0
     )) {
       if (options?.provider && feed.type !== options.provider) continue;
+      if (inBackoff(feed.nextSyncAttemptAt, now)) continue;
       try {
         if (feed.type === "GOOGLE") {
           await registerGoogleWatch(feed.id);
@@ -89,6 +121,7 @@ export async function renewCalendarWebhooks(options?: {
         }
         results.push({ feedId: feed.id, provider: feed.type, renewed: true });
       } catch (error) {
+        if (await handleReconnectFailure(feed.id, feed.type, error)) continue;
         await logger.error(
           "Calendar webhook registration failed",
           {
@@ -104,15 +137,28 @@ export async function renewCalendarWebhooks(options?: {
   }
 
   if (failures.length > 0) {
-    const first = failures[0].error;
-    throw new Error(
-      `Calendar webhook renewal failed for ${failures.length} feed(s): ${failures
-        .map((failure) => failure.feedId)
-        .join(", ")}. First error: ${
-        first instanceof Error ? first.message : String(first)
-      }`
-    );
+    throw new CalendarWebhookRenewalError(failures.length);
   }
 
   return results;
+}
+
+/**
+ * A revoked or expired sign-in cannot be fixed by retrying. Record it on the
+ * feed (the account then shows "needs reconnect" and the sweeps back off) and
+ * report it as handled, so it is not a job failure.
+ */
+async function handleReconnectFailure(
+  feedId: string,
+  provider: string,
+  error: unknown
+): Promise<boolean> {
+  if (!calendarProviderNeedsReconnect(error)) return false;
+  await recordCalendarFeedSyncFailure(feedId, error);
+  await logger.warn(
+    "Calendar webhook renewal skipped: the account needs to reconnect",
+    { feedId, provider },
+    LOG_SOURCE
+  );
+  return true;
 }
