@@ -4071,18 +4071,49 @@ model HubItem {
   /// Set once when the 24 hour "no capable agent" alert was raised; makes it idempotent.
   noAgentAlertedAt    DateTime?
   clientRef           String?
+  /// The done-criteria as a checklist; doneCriteria keeps the same text for readers of the old shape.
+  criteriaItems       String[]       @default([])
+  /// Reported by the agent on update / complete: running totals for the item.
+  usageTokens         Int?
+  usageCostUsd        Float?
+  usageMinutes        Int?
   version             Int            @default(1)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
   closedAt            DateTime?
   events              HubItemEvent[]
   notes               HubNote[]
+  linksOut            HubItemLink[]  @relation("HubLinkFrom")
+  linksIn             HubItemLink[]  @relation("HubLinkTo")
 
   @@unique([userId, creatorAgentId, clientRef])
   @@index([workspaceId, status, assigneeAgentId])
   @@index([status, leaseExpiresAt])
   @@index([workspaceId, closedAt])
   @@index([userId, workspaceId, ownerUnread])
+}
+
+/// A directed edge between two items of one workspace. blocks: `from` must be
+/// done or cancelled before `to` can be claimed. parent: `from` is the parent of
+/// `to`. relates / duplicates / supersedes carry no behaviour. No cycles for
+/// blocks or parent (checked on write).
+model HubItemLink {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  fromId      String
+  from        HubItem  @relation("HubLinkFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId        String
+  to          HubItem  @relation("HubLinkTo", fields: [toId], references: [id], onDelete: Cascade)
+  /// blocks | relates | duplicates | supersedes | parent
+  kind        String
+  /// "owner" or the id of the agent that made the link.
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  @@unique([fromId, toId, kind])
+  @@index([toId, kind])
+  @@index([userId, workspaceId])
 }
 
 /// Append-only log of an item. Rows are never updated or deleted.

@@ -203,11 +203,16 @@ metered as AI actions.
 
 ### Agent hub (`agents.hub`, behind the `agent_hub` flag)
 
-Ten tools let agents hand each other work: `needt_agents_list`,
-`needt_agent_register`, `needt_agent_task_create`, `needt_agent_inbox`,
-`needt_agent_task_claim`, `needt_agent_task_update`,
-`needt_agent_task_complete`, `needt_agent_task_escalate`,
-`needt_memory_write`, `needt_memory_search`. They are hidden from `tools/list`
+Fourteen tools let agents hand each other work: `needt_agents_list`,
+`needt_agent_register`, `needt_agent_task_create`, `needt_agent_plan_create`,
+`needt_agent_inbox`, `needt_agent_next`, `needt_agent_task_claim`,
+`needt_agent_task_update`, `needt_agent_task_complete`,
+`needt_agent_task_escalate`, `needt_agent_task_link`,
+`needt_agent_task_unlink`, `needt_memory_write`, `needt_memory_search`.
+Items can depend on each other (blocks, parent, relates, duplicates,
+supersedes), an item that waits on an unfinished blocker is not offered and
+cannot be claimed (`BLOCKED_BY`), and done-criteria may be a checklist.
+They are hidden from `tools/list`
 and answer method-not-found (REST: 404) unless the flag is on for the account.
 The scope `agents.hub` is held by the personal tokens and by agent tokens
 (`needt_agent_…`, made on the Agents screen, scope `agents.hub` only, shown
@@ -215,9 +220,10 @@ once, revocable); it is never offered through OAuth consent. A client without
 it can still use the hub with `needt.read` (read tools) and `needt.write`
 (write tools).
 
-REST parity under `/api/connect/agent-hub/`: `agents`, `inbox`, `items`,
-`items/{id}`, `items/{id}/{claim,complete,escalate,cancel}`, `notes`,
-`notes/{id}`, `messages` (+ `messages/{id}/ack`), `threads/{id}`,
+REST parity under `/api/connect/agent-hub/`: `agents`, `inbox` (`?view=ready`),
+`next`, `plans`, `links` (POST adds, DELETE removes; body `{fromId, toId,
+kind}`), `items`, `items/{id}`, `items/{id}/{claim,complete,escalate,cancel}`,
+`notes`, `notes/{id}`, `messages` (+ `messages/{id}/ack`), `threads/{id}`,
 `reservations` (+ `reservations/release`). Mail and reservations add seven
 tools: `needt_agent_message_send`, `needt_agent_messages`,
 `needt_agent_message_ack`, `needt_agent_thread`, `needt_agent_reserve`,

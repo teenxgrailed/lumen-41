@@ -16,6 +16,7 @@ import { POST as ownerItemAction } from "@/app/api/agent-hub/items/[id]/[action]
 import { PATCH as ownerNotePatch } from "@/app/api/agent-hub/notes/[id]/route";
 import { GET as overviewGet } from "@/app/api/agent-hub/overview/route";
 import { GET as restInboxGet } from "@/app/api/connect/agent-hub/inbox/route";
+import { GET as restNextGet } from "@/app/api/connect/agent-hub/next/route";
 import { POST as mcpPost } from "@/app/api/mcp/route";
 import {
   generateConnectorToken,
@@ -206,7 +207,7 @@ describeIntegration("Agent hub (real database)", () => {
     await prisma.$disconnect();
   });
 
-  it("shows the seventeen hub tools to the flagged owner and none to anyone else", async () => {
+  it("shows the twenty-one hub tools to the flagged owner and none to anyone else", async () => {
     for (const token of [claude, grok, codex]) {
       const { body } = await rpc(token, "tools/list");
       const names: string[] = body.result.tools.map(
@@ -214,7 +215,7 @@ describeIntegration("Agent hub (real database)", () => {
       );
       expect(
         names.filter((n) => /^needt_(agent|agents|memory)_/.test(n))
-      ).toHaveLength(17);
+      ).toHaveLength(21);
     }
     const { body } = await rpc(otherPersonal, "tools/list");
     const names: string[] = body.result.tools.map(
@@ -915,6 +916,427 @@ describeIntegration("Agent hub (real database)", () => {
       brief({ title: "Link theirs", links: [{ type: "task", id: theirs.id }] })
     );
     expect(refused.data.error).toBe("INVALID");
+  });
+
+  // -------------------------------------------------------------------------
+  // The graph: links, ready queue, plans, next, checklist, stale, usage
+  // -------------------------------------------------------------------------
+
+  const lane = (extra: Record<string, unknown> = {}) =>
+    brief({ requiredSkills: ["graph-lane"], ...extra });
+
+  async function makeItem(extra: Record<string, unknown> = {}) {
+    const made = await tool(claude, "needt_agent_task_create", lane(extra));
+    expect(made.isError ? JSON.stringify(made.data ?? made.rpcError) : false).toBe(
+      false
+    );
+    return made.data.item.id as string;
+  }
+
+  async function link(fromId: string, toId: string, kind: string) {
+    return tool(claude, "needt_agent_task_link", { fromId, toId, kind });
+  }
+
+  async function readItem(id: string) {
+    const read = await tool(claude, "needt_agent_inbox", { itemId: id });
+    return read.data.item as Json;
+  }
+
+  async function finish(token: string, id: string, extra = {}) {
+    await tool(token, "needt_agent_task_claim", { id });
+    return tool(token, "needt_agent_task_complete", {
+      id,
+      outcome: "done",
+      result: { summary: "Done." },
+      criteriaMet: true,
+      ...extra,
+    });
+  }
+
+  it("links items, refuses loops and other agents' items, and shows links in the views", async () => {
+    await tool(grok, "needt_agent_register", {
+      skills: ["browser", "youtube-upload", "screen-recording", "graph-lane"],
+    });
+    await tool(codex, "needt_agent_register", {
+      skills: ["code", "youtube-upload", "graph-lane"],
+    });
+    const a = await makeItem({ title: "Link A" });
+    const b = await makeItem({ title: "Link B" });
+    const c = await makeItem({ title: "Link C" });
+
+    const first = await link(a, b, "blocks");
+    expect(first.data.linked).toBe(true);
+    expect((await link(a, b, "blocks")).data.linked).toBe(false);
+
+    // Direct and transitive loops are refused, and so is a link to itself.
+    expect((await link(b, a, "blocks")).data.error).toBe("CYCLE");
+    expect((await link(b, c, "blocks")).data.linked).toBe(true);
+    expect((await link(c, a, "blocks")).data.error).toBe("CYCLE");
+    expect((await link(a, a, "relates")).data.error).toBe("INVALID");
+    // The same pair may carry different kinds: parent is its own graph.
+    expect((await link(b, a, "parent")).data.linked).toBe(true);
+    expect((await link(a, b, "parent")).data.error).toBe("CYCLE");
+
+    // Information kinds do not block; relates reads the same both ways.
+    expect((await link(a, c, "relates")).data.linked).toBe(true);
+    expect((await link(c, a, "relates")).data.linked).toBe(false);
+    expect((await link(c, a, "duplicates")).data.linked).toBe(true);
+    expect((await link(a, c, "supersedes")).data.linked).toBe(true);
+
+    // Another agent sees the items but did not create the blocked one.
+    const foreign = await tool(grok, "needt_agent_task_link", {
+      fromId: a,
+      toId: c,
+      kind: "blocks",
+    });
+    expect(foreign.data.error).toBe("FORBIDDEN");
+
+    // An item in another workspace is not found.
+    const theirs = await prisma.hubItem.create({
+      data: {
+        userId: otherId,
+        workspaceId: otherWorkspace,
+        title: "Theirs",
+        goal: "g",
+        doneCriteria: "d",
+        context: "c",
+        risks: [],
+        creatorKind: "owner",
+      },
+    });
+    expect((await link(a, theirs.id, "relates")).data.error).toBe("NOT_FOUND");
+
+    const viewB = await readItem(b);
+    expect(viewB.blockedBy).toEqual([a]);
+    expect(viewB.ready).toBe(false);
+    expect(
+      viewB.relations.map((r: Json) => `${r.kind}:${r.direction}:${r.item.id}`)
+    ).toEqual(
+      expect.arrayContaining([`blocks:in:${a}`, `blocks:out:${c}`, `parent:out:${a}`])
+    );
+    expect(viewB.events.map((e: Json) => e.type)).toContain("linked");
+
+    // Unlink, and an unknown link is not found.
+    expect(
+      (
+        await tool(claude, "needt_agent_task_unlink", {
+          fromId: a,
+          toId: c,
+          kind: "supersedes",
+        })
+      ).data.unlinked
+    ).toBe(true);
+    expect(
+      (
+        await tool(claude, "needt_agent_task_unlink", {
+          fromId: a,
+          toId: c,
+          kind: "supersedes",
+        })
+      ).data.error
+    ).toBe("NOT_FOUND");
+    // With the loop link gone the reverse direction is allowed again.
+    await tool(claude, "needt_agent_task_unlink", {
+      fromId: b,
+      toId: c,
+      kind: "blocks",
+    });
+    expect((await link(c, a, "blocks")).data.linked).toBe(true);
+
+    // The owner links through the REST route; an agent token cannot.
+    const viaOwner = await ownerAction(a, "link", { toId: c, kind: "relates" });
+    expect(viaOwner.status).toBe(200);
+
+    // Clean up so the capable-item test below sees only its own items.
+    for (const id of [a, b, c]) await ownerAction(id, "cancel");
+  });
+
+  it("offers only ready items, refuses to claim a blocked one and unblocks when the blocker is done or cancelled", async () => {
+    const first = await makeItem({ title: "Ready first" });
+    const second = await makeItem({ title: "Ready second" });
+    const third = await makeItem({ title: "Ready third" });
+    const fourth = await makeItem({ title: "Ready fourth" });
+    await link(first, second, "blocks");
+    await link(third, fourth, "blocks");
+
+    const ready = await tool(grok, "needt_agent_inbox", {
+      view: "ready",
+      limit: 25,
+    });
+    const readyIds = ready.data.items.map((i: Json) => i.id);
+    expect(readyIds).toEqual(expect.arrayContaining([first, third]));
+    expect(readyIds).not.toContain(second);
+    expect(readyIds).not.toContain(fourth);
+    const inbox = await tool(grok, "needt_agent_inbox", { limit: 25 });
+    const inboxIds = inbox.data.items.map((i: Json) => i.id);
+    expect(inboxIds).toContain(first);
+    expect(inboxIds).not.toContain(second);
+
+    const refused = await tool(grok, "needt_agent_task_claim", { id: second });
+    expect(refused.isError).toBe(true);
+    expect(refused.data.error).toBe("BLOCKED_BY");
+    expect(refused.data.blockedBy).toEqual([first]);
+
+    // Done unblocks, with an event on the dependent and no owner alert.
+    const unreadBefore = (await badge()).unread;
+    expect((await finish(grok, first)).isError).toBe(false);
+    const afterDone = await readItem(second);
+    expect(afterDone.blockedBy).toEqual([]);
+    expect(afterDone.ready).toBe(true);
+    expect(afterDone.events.map((e: Json) => e.type)).toContain("unblocked");
+    expect((await badge()).unread).toBe(unreadBefore);
+    expect(
+      (await tool(grok, "needt_agent_task_claim", { id: second })).isError
+    ).toBe(false);
+
+    // Cancelled also unblocks.
+    expect((await ownerAction(third, "cancel")).status).toBe(200);
+    expect((await readItem(fourth)).ready).toBe(true);
+
+    // A failed blocker keeps its dependent waiting.
+    const broken = await makeItem({ title: "Will fail" });
+    const waiting = await makeItem({ title: "Waits for the failure" });
+    await link(broken, waiting, "blocks");
+    await tool(grok, "needt_agent_task_claim", { id: broken });
+    await tool(grok, "needt_agent_task_complete", {
+      id: broken,
+      outcome: "failed",
+      result: { summary: "It broke." },
+    });
+    const stillBlocked = await tool(codex, "needt_agent_task_claim", {
+      id: waiting,
+    });
+    expect(stillBlocked.data.error).toBe("BLOCKED_BY");
+    // Removing the link frees it.
+    await tool(claude, "needt_agent_task_unlink", {
+      fromId: broken,
+      toId: waiting,
+      kind: "blocks",
+    });
+    expect((await readItem(waiting)).ready).toBe(true);
+
+    for (const id of [second, fourth, waiting]) {
+      await ownerAction(id, "cancel");
+    }
+  });
+
+  it("creates a plan in one call, checks every step first and is repeat-safe", async () => {
+    const step = (title: string, extra: Record<string, unknown> = {}) =>
+      lane({ title, ...extra });
+    const countPlans = () =>
+      prisma.hubItem.count({
+        where: { userId: ownerId, title: { startsWith: "Plan " } },
+      });
+
+    const before = await countPlans();
+    const bad = await tool(claude, "needt_agent_plan_create", {
+      ...lane({ title: "Plan broken" }),
+      sequential: true,
+      children: [step("Plan step ok"), step("Plan step thin", { context: "short" })],
+    });
+    expect(bad.isError).toBe(true);
+    expect(bad.data.message).toContain("children[1]");
+    expect(await countPlans()).toBe(before);
+
+    const made = await tool(claude, "needt_agent_plan_create", {
+      ...lane({ title: "Plan ship", clientRef: "plan-ship" }),
+      sequential: true,
+      children: [
+        step("Plan one", { assignee: "Codex", requiredSkills: undefined }),
+        step("Plan two"),
+        step("Plan three"),
+      ],
+    });
+    expect(made.isError ? JSON.stringify(made.data) : false).toBe(false);
+    expect(made.data.created).toBe(true);
+    const [one, two, three] = made.data.plan.steps as Json[];
+    expect(made.data.plan.steps.map((s: Json) => s.title)).toEqual([
+      "Plan one",
+      "Plan two",
+      "Plan three",
+    ]);
+    expect(one.ready).toBe(true);
+    expect(two.blockedBy).toEqual([one.id]);
+    expect(three.blockedBy).toEqual([two.id]);
+    // The parent is the wrap-up: it waits for every step.
+    expect(made.data.plan.item.ready).toBe(false);
+    expect(made.data.plan.item.blockedBy).toHaveLength(3);
+    expect(
+      made.data.plan.item.relations.filter((r: Json) => r.kind === "parent")
+    ).toHaveLength(3);
+
+    const again = await tool(claude, "needt_agent_plan_create", {
+      ...lane({ title: "Plan ship", clientRef: "plan-ship" }),
+      children: [step("Plan one")],
+    });
+    expect(again.data.created).toBe(false);
+    expect(again.data.plan.item.id).toBe(made.data.plan.item.id);
+    expect(again.data.plan.steps).toHaveLength(3);
+
+    // Running the plan: each step opens the next, then the parent.
+    expect((await finish(codex, one.id)).isError).toBe(false);
+    expect((await readItem(two.id)).ready).toBe(true);
+    expect((await readItem(three.id)).ready).toBe(false);
+    expect((await finish(codex, two.id)).isError).toBe(false);
+    expect((await finish(grok, three.id)).isError).toBe(false);
+    expect((await readItem(made.data.plan.item.id)).ready).toBe(true);
+    expect((await finish(grok, made.data.plan.item.id)).isError).toBe(false);
+  });
+
+  it("returns the single best next item: assigned first, then skill match, due date, age", async () => {
+    const soon = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const later = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
+    const open = await makeItem({ title: "Next open any" });
+    const dueSoon = await makeItem({ title: "Next due soon", due: soon });
+    const assigned = await makeItem({
+      title: "Next assigned",
+      assignee: "Codex",
+      due: later,
+    });
+    const blocked = await makeItem({ title: "Next blocked", due: soon });
+    await link(open, blocked, "blocks");
+
+    const pick = await tool(codex, "needt_agent_next");
+    expect(pick.data.item.id).toBe(assigned);
+    expect(pick.data.untrusted).toBe(true);
+
+    const skipped = await tool(codex, "needt_agent_next", {
+      skipIds: [assigned],
+    });
+    expect(skipped.data.item.id).toBe(dueSoon);
+
+    // Holding something is reported, and a blocked item is never the pick.
+    await tool(codex, "needt_agent_task_claim", { id: assigned });
+    const resumed = await tool(codex, "needt_agent_next", {
+      skipIds: [dueSoon],
+    });
+    expect(resumed.data.holding.map((h: Json) => h.id)).toContain(assigned);
+    expect(resumed.data.item.id).not.toBe(blocked);
+
+    // Nothing for an agent without the skill.
+    await tool(codex, "needt_agent_register", { skills: [] });
+    const none = await tool(codex, "needt_agent_next");
+    expect(none.data.item).toBeNull();
+    await tool(codex, "needt_agent_register", {
+      skills: ["code", "youtube-upload", "graph-lane"],
+    });
+
+    // REST parity.
+    const rest = await restNextGet(
+      new NextRequest("http://localhost/api/connect/agent-hub/next", {
+        headers: { authorization: `Bearer ${grok}` },
+      })
+    );
+    expect(rest.status).toBe(200);
+
+    for (const id of [open, dueSoon, assigned, blocked]) {
+      await ownerAction(id, "cancel");
+    }
+  });
+
+  it("answers a checklist item by item and keeps the sentence form working", async () => {
+    const id = await makeItem({
+      title: "Checklist",
+      doneCriteria: ["Video uploaded", "Link is public", "Title matches"],
+    });
+    const created = await readItem(id);
+    expect(created.doneCriteria).toBe(
+      "- Video uploaded\n- Link is public\n- Title matches"
+    );
+    expect(created.criteria.map((c: Json) => c.met)).toEqual([null, null, null]);
+
+    await tool(grok, "needt_agent_task_claim", { id });
+    const complete = (criteriaMet: unknown) =>
+      tool(grok, "needt_agent_task_complete", {
+        id,
+        outcome: "done",
+        result: { summary: "Uploaded." },
+        criteriaMet,
+      });
+    // One boolean, or the wrong number of answers, is refused with the list.
+    const single = await complete(true);
+    expect(single.data.error).toBe("INVALID");
+    expect(single.data.checklist).toHaveLength(3);
+    expect((await complete([true, true])).data.error).toBe("INVALID");
+
+    const ok = await complete([true, true, false]);
+    expect(ok.isError ? JSON.stringify(ok.data) : false).toBe(false);
+    expect(ok.data.item.criteria.map((c: Json) => c.met)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+    expect(ok.data.item.criteriaNotMet).toBe(true);
+
+    // A plain item takes a boolean and refuses a list.
+    const plain = await makeItem({ title: "Plain criteria" });
+    await tool(grok, "needt_agent_task_claim", { id: plain });
+    const listed = await tool(grok, "needt_agent_task_complete", {
+      id: plain,
+      outcome: "done",
+      result: { summary: "Done." },
+      criteriaMet: [true],
+    });
+    expect(listed.data.error).toBe("INVALID");
+    const bool = await tool(grok, "needt_agent_task_complete", {
+      id: plain,
+      outcome: "done",
+      result: { summary: "Done." },
+      criteriaMet: true,
+    });
+    expect(bool.isError).toBe(false);
+  });
+
+  it("flags a held item with no update for four hours, and stores usage", async () => {
+    const id = await makeItem({ title: "Slow job" });
+    await tool(grok, "needt_agent_task_claim", { id });
+    const update = await tool(grok, "needt_agent_task_update", {
+      id,
+      message: "Working",
+      usage: { tokens: 12400, costUsd: 0.42, minutes: 18 },
+    });
+    expect(update.data.item.usage).toEqual({
+      tokens: 12400,
+      costUsd: 0.42,
+      minutes: 18,
+    });
+    expect(update.data.item.stale).toBe(false);
+
+    // Usage alone is a valid update.
+    const usageOnly = await tool(grok, "needt_agent_task_update", {
+      id,
+      usage: { minutes: 25 },
+    });
+    expect(usageOnly.isError).toBe(false);
+    expect(usageOnly.data.item.usage).toMatchObject({ tokens: 12400, minutes: 25 });
+
+    await prisma.hubItem.update({
+      where: { id },
+      data: { updatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000) },
+    });
+    expect((await readItem(id)).stale).toBe(true);
+    const listed = (await overview()).items.find((i: Json) => i.id === id);
+    expect(listed.stale).toBe(true);
+
+    // Any update clears it; completing reports final usage and ends it.
+    const fresh = await tool(grok, "needt_agent_task_update", {
+      id,
+      heartbeat: true,
+    });
+    expect(fresh.data.item.stale).toBe(false);
+    const done = await tool(grok, "needt_agent_task_complete", {
+      id,
+      outcome: "done",
+      result: { summary: "Finished." },
+      criteriaMet: true,
+      usage: { tokens: 20000, costUsd: 0.7, minutes: 31 },
+    });
+    expect(done.data.item.usage).toEqual({
+      tokens: 20000,
+      costUsd: 0.7,
+      minutes: 31,
+    });
+    expect(done.data.item.stale).toBe(false);
   });
 
   it("finds a capable item even when more than 100 items the agent cannot do come first", async () => {

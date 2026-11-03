@@ -249,6 +249,7 @@ function TaskContent(props: TaskProps) {
             ) : null}
           </>
         )}
+        {children}
       </div>
     );
   }

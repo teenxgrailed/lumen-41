@@ -10,6 +10,8 @@ export type HubErrorCode =
   | "NEEDS_OWNER"
   | "APPROVAL_REQUIRED"
   | "NOT_ELIGIBLE"
+  | "BLOCKED_BY"
+  | "CYCLE"
   | "RATE_LIMITED"
   | "CONFLICT";
 
@@ -25,6 +27,8 @@ const STATUS: Record<HubErrorCode, number> = {
   NEEDS_OWNER: 409,
   APPROVAL_REQUIRED: 409,
   NOT_ELIGIBLE: 403,
+  BLOCKED_BY: 409,
+  CYCLE: 409,
   RATE_LIMITED: 429,
   CONFLICT: 409,
 };

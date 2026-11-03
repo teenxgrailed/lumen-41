@@ -124,6 +124,8 @@ export function SSelect({
   width,
   label,
   disabled,
+  align = "end",
+  layer = 1100,
 }: {
   value: string;
   options: readonly (readonly [string, string])[];
@@ -133,6 +135,10 @@ export function SSelect({
   label: string;
   /** Off until the value's source has loaded, so nothing writes blind. */
   disabled?: boolean;
+  /** Which edge of the button the list lines up with. */
+  align?: "start" | "end";
+  /** z-index of the list: above a card that is itself above the page. */
+  layer?: number;
 }) {
   const container = useV3PortalContainer();
   const [open, setOpen] = useState(false);
@@ -171,13 +177,21 @@ export function SSelect({
         <Dropdown.Portal container={container} forceMount>
           <Dropdown.Content
             forceMount
-            align="end"
+            align={align}
+            side="bottom"
             sideOffset={6}
             collisionPadding={8}
-            className={"nx-pop is-right" + (leaving ? " is-leaving" : "")}
+            className={
+              "nx-pop" +
+              (align === "end" ? " is-right" : "") +
+              (leaving ? " is-leaving" : "")
+            }
             style={{
-              zIndex: 1100,
-              minWidth: Math.max(typeof w === "number" ? w : 0, 160),
+              zIndex: layer,
+              minWidth:
+                typeof w === "number"
+                  ? Math.max(w, 160)
+                  : "max(160px, var(--radix-dropdown-menu-trigger-width))",
               maxHeight: 280,
               overflowY: "auto",
               padding: 6,
@@ -186,7 +200,7 @@ export function SSelect({
               background: "var(--surface-raised)",
               boxShadow: "var(--shadow-floating)",
               outline: "none",
-              transformOrigin: "top right",
+              transformOrigin: align === "end" ? "top right" : "top left",
             }}
           >
             <Dropdown.RadioGroup value={value} onValueChange={onChange}>

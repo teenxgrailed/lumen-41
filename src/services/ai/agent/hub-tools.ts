@@ -1,6 +1,7 @@
 import { listAgents } from "@/services/agent-hub/agents";
 import { assistantAgentScope } from "@/services/agent-hub/context";
 import { HubError } from "@/services/agent-hub/errors";
+import { createPlan, linkItems, unlinkItems } from "@/services/agent-hub/graph";
 import {
   cancelItem,
   createItem,
@@ -20,8 +21,10 @@ import {
   createItemInput,
   editItemInput,
   messageSendInput,
+  linkInput,
   noteSearchInput,
   noteWriteInput,
+  planCreateInput,
 } from "@/services/agent-hub/schemas";
 import { z } from "zod";
 
@@ -55,6 +58,9 @@ export const HUB_AGENT_TOOL_NAMES = [
   "hub_create_item",
   "hub_update_item",
   "hub_cancel_item",
+  "hub_link_items",
+  "hub_unlink_items",
+  "hub_create_plan",
   "needt_memory_search",
   "needt_memory_write",
   "hub_read_messages",
@@ -133,6 +139,12 @@ function briefItem(item: ItemRow) {
       (item.approvals as Record<string, unknown>) ?? {}
     ),
     noCapableAgent: item.noCapableAgent,
+    blockedBy: item.blockedBy,
+    ready: item.ready,
+    stale: item.stale,
+    relations: item.relations,
+    criteria: item.criteria,
+    usage: item.usage,
     due: item.due,
     result: item.result,
     latest: item.latestEvent
@@ -163,10 +175,11 @@ export const HUB_AGENT_TOOLS: AgentTool[] = [
     name: "hub_list_items",
     kind: "read",
     progress: "Looking at the agent hub",
-    description: `List the work items on the agent hub (newest change first): what agents are doing, what waits for the person, what finished. Filter by status.${NOT_TASKS}${UNTRUSTED}`,
+    description: `List the work items on the agent hub (newest change first): what agents are doing, what waits for the person, what finished. Filter by status, or ready: true for open items nothing blocks. Each item shows blockedBy, relations, the checklist, usage and stale (held over 4 hours with no update).${NOT_TASKS}${UNTRUSTED}`,
     schema: z
       .object({
         status: z.enum(READ_STATUSES).optional(),
+        ready: z.boolean().optional(),
         limit: z.number().int().min(1).max(50).optional(),
       })
       .strict(),
@@ -178,8 +191,10 @@ export const HUB_AGENT_TOOLS: AgentTool[] = [
         });
         const status = args.status as string | undefined;
         const limit = (args.limit as number | undefined) ?? 20;
+        const ready = args.ready as boolean | undefined;
         const items = (await listItems(scope)).filter(
-          (item) => !status || item.status === status
+          (item) =>
+            (!status || item.status === status) && (!ready || item.ready)
         );
         return done(
           `Read ${Math.min(items.length, limit)} agent ${
@@ -293,6 +308,60 @@ export const HUB_AGENT_TOOLS: AgentTool[] = [
         return done(`Cancelled “${cancelled.item.title}”`, {
           item: cancelled.item,
         });
+      });
+    },
+  },
+  {
+    name: "hub_link_items",
+    kind: "write",
+    progress: "Linking agent items",
+    description: `Link two agent items. blocks: fromId must be done or cancelled before toId can be claimed. parent: fromId is the parent of toId. relates, duplicates (fromId duplicates toId) and supersedes (fromId replaces toId) only inform. blocks and parent never loop. You can hold back (blocks, parent) only items you created.${NOT_OWNER}`,
+    schema: linkInput.strict(),
+    async run(ctx, args) {
+      return guarded(async () => {
+        const scope = await assistantAgentScope({
+          userId: ctx.userId,
+          workspaceId: ctx.workspace.workspaceId,
+        });
+        const made = await linkItems(scope, linkInput.parse(args));
+        return done(made.linked ? "Linked the items" : "Already linked", made);
+      });
+    },
+  },
+  {
+    name: "hub_unlink_items",
+    kind: "write",
+    progress: "Unlinking agent items",
+    description: `Remove a link between two agent items (same fromId, toId and kind). Removing the last blocker makes the item ready.${NOT_OWNER}`,
+    schema: linkInput.strict(),
+    async run(ctx, args) {
+      return guarded(async () => {
+        const scope = await assistantAgentScope({
+          userId: ctx.userId,
+          workspaceId: ctx.workspace.workspaceId,
+        });
+        const gone = await unlinkItems(scope, linkInput.parse(args));
+        return done("Removed the link", gone);
+      });
+    },
+  },
+  {
+    name: "hub_create_plan",
+    kind: "write",
+    progress: "Planning work for agents",
+    description: `Hand a plan to the agents in one call: a parent item and up to 20 ordered steps, each a full standalone brief like hub_create_item (doneCriteria may be a checklist). Every step blocks the parent, which is the wrap-up and becomes ready when all steps are finished; sequential: true makes each step also block the next. All briefs are checked first, so one bad step creates nothing. Repeat-safe with clientRef.${NOT_TASKS}${NOT_OWNER}`,
+    schema: planCreateInput.strict(),
+    async run(ctx, args) {
+      return guarded(async () => {
+        const scope = await assistantAgentScope({
+          userId: ctx.userId,
+          workspaceId: ctx.workspace.workspaceId,
+        });
+        const made = await createPlan(scope, planCreateInput.parse(args));
+        return done(
+          `${made.created ? "Planned" : "Found"} “${made.plan.item.title}” with ${made.plan.steps.length} steps`,
+          { created: made.created, plan: made.plan }
+        );
       });
     },
   },

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  CHECKLIST_MAX_ITEMS,
   HUB_KINDS,
   MESSAGES_MAX_LIMIT,
   MESSAGE_BODY_MAX,
@@ -10,7 +11,9 @@ import {
   HUB_RISKS,
   INBOX_MAX_LIMIT,
   LEASE_MAX_MINUTES,
+  LINK_KINDS,
   NOTE_SEARCH_MAX_LIMIT,
+  PLAN_MAX_CHILDREN,
 } from "./constants";
 import { HubError } from "./errors";
 
@@ -54,10 +57,35 @@ export const registerInput = z.object({
 });
 export type RegisterInput = z.infer<typeof registerInput>;
 
+/**
+ * Done-criteria as one text, or as a checklist: with a list, `complete` must
+ * answer each entry (criteriaMet as one true/false per entry, same order).
+ */
+const doneCriteriaField = z
+  .union([
+    z.string().min(1).max(2000),
+    z.array(z.string().min(1).max(300)).min(1).max(CHECKLIST_MAX_ITEMS),
+  ])
+  .describe(
+    "How the other agent knows it is done: a sentence, or a checklist (list of short checks) answered one by one on completion."
+  );
+
+/** Running totals for an item, reported by the agent doing the work. */
+export const usageSchema = z
+  .object({
+    tokens: z.number().int().min(0).max(1_000_000_000_000).optional(),
+    costUsd: z.number().min(0).max(1_000_000).optional(),
+    minutes: z.number().int().min(0).max(1_000_000).optional(),
+  })
+  .describe(
+    "Optional running totals for this item (tokens, cost in USD, minutes). Each report replaces the last."
+  );
+export type UsageInput = z.infer<typeof usageSchema>;
+
 export const createItemInput = z.object({
   title: z.string().min(1).max(200),
   goal: z.string().min(1).max(4000).describe("At least 20 characters."),
-  doneCriteria: z.string().min(1).max(2000),
+  doneCriteria: doneCriteriaField,
   context: z
     .string()
     .min(1)
@@ -93,10 +121,10 @@ export type CreateItemInput = z.infer<typeof createItemInput>;
 
 export const inboxInput = z.object({
   view: z
-    .enum(["inbox", "created"])
+    .enum(["inbox", "created", "ready"])
     .optional()
     .describe(
-      "inbox (default): work for you. created: items you created, with results, blocks and escalations."
+      "inbox (default): work for you, without items still blocked by an unfinished predecessor. ready: only open items you can claim now, best first. created: items you created, with results, blocks and escalations."
     ),
   itemId: z
     .string()
@@ -127,6 +155,7 @@ export const updateInput = z.object({
     ),
   heartbeat: z.boolean().optional(),
   leaseMinutes: z.number().int().min(1).max(LEASE_MAX_MINUTES).optional(),
+  usage: usageSchema.optional(),
   expectedVersion: z.number().int().min(1).optional(),
 });
 export type UpdateInput = z.infer<typeof updateInput>;
@@ -150,10 +179,13 @@ export const completeInput = z.object({
   outcome: z.enum(["done", "failed"]),
   result: resultSchema,
   criteriaMet: z
-    .boolean()
+    .union([z.boolean(), z.array(z.boolean()).max(CHECKLIST_MAX_ITEMS)])
     .optional()
-    .describe("Required with outcome done: were the done-criteria met?"),
+    .describe(
+      "Required with outcome done: were the done-criteria met? For a checklist, one true/false per entry in the same order."
+    ),
   criteriaNote: z.string().max(300).optional(),
+  usage: usageSchema.optional(),
   expectedVersion: z.number().int().min(1).optional(),
 });
 export type CompleteInput = z.infer<typeof completeInput>;
@@ -177,7 +209,7 @@ export const editItemInput = z.object({
   id: z.string().min(1).max(100),
   title: z.string().min(1).max(200).optional(),
   goal: z.string().min(1).max(4000).optional(),
-  doneCriteria: z.string().min(1).max(2000).optional(),
+  doneCriteria: doneCriteriaField.optional(),
   context: z.string().min(1).max(8000).optional(),
   due: z
     .string()
@@ -187,6 +219,51 @@ export const editItemInput = z.object({
   expectedVersion: z.number().int().min(1).optional(),
 });
 export type EditItemInput = z.infer<typeof editItemInput>;
+
+export const linkInput = z.object({
+  fromId: z.string().min(1).max(100),
+  toId: z.string().min(1).max(100),
+  kind: z
+    .enum(LINK_KINDS)
+    .describe(
+      "blocks: fromId must be done or cancelled before toId can be claimed. parent: fromId is the parent of toId. relates, duplicates (fromId duplicates toId), supersedes (fromId replaces toId): information only."
+    ),
+});
+export type LinkInput = z.infer<typeof linkInput>;
+
+export const ownerLinkInput = linkInput.omit({ fromId: true });
+
+const planStepInput = createItemInput.omit({ clientRef: true });
+
+export const planCreateInput = createItemInput
+  .extend({
+    sequential: z
+      .boolean()
+      .optional()
+      .describe(
+        "true: each step blocks the next, in the order given. Otherwise the steps are independent."
+      ),
+    children: z
+      .array(planStepInput)
+      .min(1)
+      .max(PLAN_MAX_CHILDREN)
+      .describe(
+        "The steps, in order. Each is a full brief that stands alone. Every step also blocks the plan item itself, so it becomes ready when all steps are finished."
+      ),
+  })
+  .describe(
+    "The plan item is the wrap-up: its own brief is what is done when every step is done."
+  );
+export type PlanCreateInput = z.infer<typeof planCreateInput>;
+
+export const nextInput = z.object({
+  skipIds: z
+    .array(z.string().max(100))
+    .max(20)
+    .optional()
+    .describe("Items to pass over (you looked and cannot do them now)."),
+});
+export type NextInput = z.infer<typeof nextInput>;
 
 export const noteWriteInput = z.object({
   text: z.string().min(1).max(2000),
@@ -308,3 +385,12 @@ export const releaseInput = z.object({
   id: z.string().max(100).optional(),
 });
 export type ReleaseInput = z.infer<typeof releaseInput>;
+/** Done-criteria as a sentence or a checklist, in the form we store. */
+export function splitCriteria(value: string | readonly string[]): {
+  text: string;
+  items: string[];
+} {
+  if (typeof value === "string") return { text: value.trim(), items: [] };
+  const items = value.map((entry) => entry.trim()).filter(Boolean);
+  return { text: items.map((entry) => `- ${entry}`).join("\n"), items };
+}

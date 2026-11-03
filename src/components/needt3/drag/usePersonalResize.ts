@@ -153,7 +153,9 @@ export function usePersonalResize(onResize: (request: ResizeRequest) => void) {
         if (e.button !== 0 || e.pointerType === "touch") return;
         // the handle belongs to the resize; the band's own lift must not arm
         e.stopPropagation();
-        const el = e.currentTarget.closest<HTMLElement>("[data-personal-band]");
+        const el = e.currentTarget.closest<HTMLElement>(
+          "[data-personal-band], [data-c2-block]"
+        );
         if (!el) return;
         live.current = {
           blockId,

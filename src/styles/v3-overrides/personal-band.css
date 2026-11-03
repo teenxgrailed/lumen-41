@@ -326,3 +326,12 @@
   font-size: 16px;
   line-height: 1;
 }
+
+/* An event on a calendar that takes writes: picked up and pulled by its
+   bottom edge, with the same handle as a band. */
+.needt-v3 .tk-block[data-drag-src] {
+  cursor: grab;
+}
+.needt-v3 .tk-block:hover .pb-resize::after {
+  opacity: 1;
+}

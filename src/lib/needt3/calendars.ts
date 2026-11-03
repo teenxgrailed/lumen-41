@@ -85,11 +85,18 @@ export function writableFeeds(feeds: readonly ApiFeed[]): ApiFeed[] {
  */
 export function feedSubtitle(feed: ApiFeed): string {
   if (feed.type === "LOCAL") return "Only in Needt";
-  return (
-    feed.account?.email?.trim() ||
-    PROVIDER_NAMES[feed.type] ||
-    feed.type.toLowerCase()
-  );
+  const email = feed.account?.email?.trim();
+  /* A primary Google calendar is named after its account: the email once. */
+  if (email && email.toLowerCase() !== feed.name.trim().toLowerCase())
+    return email;
+  return PROVIDER_NAMES[feed.type] || email || feed.type.toLowerCase();
+}
+
+/** "Name · detail" for one line, the detail left out when it repeats the name. */
+export function calendarLabel(name: string, detail?: string | null) {
+  const d = detail?.trim();
+  if (!d || d.toLowerCase() === name.trim().toLowerCase()) return name;
+  return `${name} · ${d}`;
 }
 
 /**
