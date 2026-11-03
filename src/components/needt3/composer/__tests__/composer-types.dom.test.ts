@@ -87,6 +87,7 @@ jest.mock("@/lib/needt3/hooks/habits", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/settings", () => ({
   useTimeZone: () => "UTC",
+  useWeekStartDay: () => "monday",
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({
