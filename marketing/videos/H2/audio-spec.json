@@ -1,0 +1,84 @@
+{
+  "video": "H2 — see sound.md for the timeline",
+  "outputFormat": "mp3_44100_128",
+  "variants": 3,
+  "sfx": [
+    {
+      "id": "cue1_thud",
+      "seconds": 0.5,
+      "influence": 0.6,
+      "prompt": "soft cardboard card dropping onto a desk, short dull thud"
+    },
+    {
+      "id": "cue2_pin",
+      "seconds": 0.5,
+      "influence": 0.6,
+      "prompt": "small metallic pin pressed into a board, crisp click"
+    },
+    {
+      "id": "cue3_tension",
+      "seconds": 2.6,
+      "influence": 0.6,
+      "prompt": "nervous trembling rattle of a stack of cards over a low tension drone that slowly rises"
+    },
+    {
+      "id": "cue4_pulse",
+      "seconds": 0.6,
+      "influence": 0.6,
+      "prompt": "deep warm digital sonar pulse, single ping"
+    },
+    {
+      "id": "cue5_whoosh",
+      "seconds": 0.5,
+      "influence": 0.6,
+      "prompt": "quick short airy whoosh, fast pass left to right"
+    },
+    {
+      "id": "cue6_bloom",
+      "seconds": 1.6,
+      "influence": 0.6,
+      "prompt": "soft airy bloom, warm pad swell of relief, clean"
+    },
+    {
+      "id": "cue7_tick",
+      "seconds": 0.5,
+      "influence": 0.6,
+      "prompt": "minimal glassy UI tick, very short"
+    },
+    {
+      "id": "cue8_logo",
+      "seconds": 2.2,
+      "influence": 0.6,
+      "prompt": "reverse swell building into a deep cinematic logo hit, short dark tail"
+    }
+  ],
+  "voice": {
+    "name": "Needt Hivemind",
+    "pick": 1,
+    "description": "Native English. Androgynous, ageless. Studio quality. Persona: calm machine hivemind. Emotion: dry, confident, quietly amused. Low close-mic timbre with a faint metallic shimmer, slow deliberate pacing, small pauses between words, as if several voices speak almost in unison.",
+    "previewText": "Tabs. Mail. Code. Calls. Feed it all in. One brain takes it from here. Your agents pick it up, and you just say yes. Needt."
+  },
+  "ttsModel": "eleven_v4",
+  "lines": [
+    {
+      "id": "vo1_nine",
+      "text": "Nine things. One day."
+    },
+    {
+      "id": "vo2_plan",
+      "text": "Let it plan."
+    },
+    {
+      "id": "vo3_sorted",
+      "text": "Your week. Sorted."
+    },
+    {
+      "id": "vo4_showup",
+      "text": "You just show up."
+    },
+    {
+      "id": "vo5_needt",
+      "text": "Needt."
+    }
+  ]
+}

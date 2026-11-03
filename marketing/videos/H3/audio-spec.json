@@ -1,0 +1,94 @@
+{
+  "video": "H3 — see sound.md for the timeline",
+  "outputFormat": "mp3_44100_128",
+  "variants": 3,
+  "sfx": [
+    {
+      "id": "cue1_pop",
+      "seconds": 0.5,
+      "influence": 0.6,
+      "prompt": "soft rounded UI pop, short and clean"
+    },
+    {
+      "id": "cue2_stream",
+      "seconds": 3.5,
+      "influence": 0.6,
+      "prompt": "flowing data stream, soft granular digital whooshes moving inward, continuous, gentle"
+    },
+    {
+      "id": "cue3_pulse",
+      "seconds": 0.6,
+      "influence": 0.6,
+      "prompt": "deep warm digital sonar pulse, single ping"
+    },
+    {
+      "id": "cue4_expand",
+      "seconds": 1.0,
+      "influence": 0.6,
+      "prompt": "smooth glass panel expanding, airy rising whoosh with a soft bloom"
+    },
+    {
+      "id": "cue5_swish",
+      "seconds": 0.5,
+      "influence": 0.6,
+      "prompt": "soft UI panel sliding open, gentle swish"
+    },
+    {
+      "id": "cue6_typing",
+      "seconds": 1.0,
+      "influence": 0.6,
+      "prompt": "light fast typing on a laptop keyboard, about ten keystrokes, close"
+    },
+    {
+      "id": "cue7_tap",
+      "seconds": 0.5,
+      "influence": 0.6,
+      "prompt": "crisp fingertip tap on a glass button"
+    },
+    {
+      "id": "cue8_chime",
+      "seconds": 0.5,
+      "influence": 0.6,
+      "prompt": "minimal glassy UI confirm chime, bright, very short"
+    },
+    {
+      "id": "cue9_logo",
+      "seconds": 2.2,
+      "influence": 0.6,
+      "prompt": "reverse swell building into a deep cinematic logo hit, short dark tail"
+    }
+  ],
+  "voice": {
+    "name": "Needt Hivemind",
+    "pick": 1,
+    "description": "Native English. Androgynous, ageless. Studio quality. Persona: calm machine hivemind. Emotion: dry, confident, quietly amused. Low close-mic timbre with a faint metallic shimmer, slow deliberate pacing, small pauses between words, as if several voices speak almost in unison.",
+    "previewText": "Tabs. Mail. Code. Calls. Feed it all in. One brain takes it from here. Your agents pick it up, and you just say yes. Needt."
+  },
+  "ttsModel": "eleven_v4",
+  "lines": [
+    {
+      "id": "vo1_sources",
+      "text": "Calendars. Mail. Docs. Habits."
+    },
+    {
+      "id": "vo2_sync",
+      "text": "It all syncs in."
+    },
+    {
+      "id": "vo3_place",
+      "text": "One place."
+    },
+    {
+      "id": "vo4_add",
+      "text": "Add one thing…"
+    },
+    {
+      "id": "vo5_everywhere",
+      "text": "…it's everywhere."
+    },
+    {
+      "id": "vo6_needt",
+      "text": "Needt."
+    }
+  ]
+}
