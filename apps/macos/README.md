@@ -259,7 +259,7 @@ entitlements, each with the code that needs it:
 | `device.camera`, `device.audio-input` | the page (camera, voice), island mirror                      |
 | `personal-information.calendars`     | EventKit: calendar and reminders in the island               |
 | `personal-information.location`      | island weather                                               |
-| `scripting-targets`                  | Apple Music (`com.apple.Music.playback`), Spotify (`com.spotify.playback`) |
+| `scripting-targets`                  | Apple Music (`.playback`, `.library.read`), Spotify (`.playback`, `com.spotify.library`) |
 | `application-groups`                 | Share extension and widgets                                  |
 
 CI (`appstore` job in `.github/workflows/macos.yml`) archives `NeedtAppStore`

@@ -318,11 +318,19 @@ targets:
         # Music works for Apple Music and Spotify only, through Apple Events.
         # The group names must exist in each app's scripting definition
         # (sdef); CI prints them from the runner's Music.app and Spotify.app.
+        # playback = play/pause/next and the player state; the library group
+        # covers the track class (name, artist, album, duration, artwork of
+        # the current track), which the now-playing card reads (checked in
+        # each app's sdef on the runner, 2026-11-03: the track class sits in
+        # com.apple.Music.library.read and com.spotify.library). Read-only:
+        # nothing writes to either library.
         com.apple.security.scripting-targets:
           com.apple.Music:
             - com.apple.Music.playback
+            - com.apple.Music.library.read
           com.spotify.client:
             - com.spotify.playback
+            - com.spotify.library
         # Share and widget extensions read the same session and cache.
         com.apple.security.application-groups:
           - $(TeamIdentifierPrefix)app.needt.mac
