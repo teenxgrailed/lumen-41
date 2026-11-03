@@ -1,0 +1,71 @@
+/* hero-b.css — variant B of the home (A/B test from 03.11.26), loaded by index-b.html only.
+   A living background (video), one sentence about the visitor's day with small Needt widgets set
+   into the words, two glass cards. Everything below the hero is the same page as variant A. */
+body.home-b .hero { position: relative; color: #fff; background: #05060a; padding-top: 150px; isolation: isolate; }
+body.home-b .hero::after { background: linear-gradient(to bottom, rgba(5,6,10,0), #fff); height: 220px; }
+.hb-bg { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
+.hb-bg video, .hb-bg img { width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1.06); animation: hbSettle 2.2s cubic-bezier(.22,1,.36,1) both; }
+@keyframes hbSettle { from { transform: scale(1.14); } to { transform: scale(1.06); } }
+.hb-bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 50% at 50% 30%, rgba(0,0,0,.55), rgba(0,0,0,.2) 70%, rgba(0,0,0,.5)); }
+body.home-b .hero h1 { max-width: none; margin-top: 0; font: 600 clamp(28px, 4.2vw, 58px)/1.18 var(--sans); letter-spacing: -0.03em; font-variation-settings: normal !important; color: #fff; text-wrap: balance; text-shadow: 0 2px 30px rgba(0,0,0,.55); }
+.hb-say { display: block; margin: .45em auto 0; max-width: 19em; font-size: .86em; line-height: 1.25; }
+.hb-d { color: rgba(255,255,255,.6); }
+.hb-nw { white-space: nowrap; }
+.hb-say em { font-family: var(--display); font-style: italic; font-weight: 500; color: #a9aaff; letter-spacing: -0.02em; }
+body.home-b .hero .lead, body.home-b .hero .cta-note { color: rgba(255,255,255,.75); text-shadow: 0 1px 20px rgba(0,0,0,.5); }
+.hb-w { display: inline-grid; place-items: center; vertical-align: -0.16em; margin: 0 .12em; height: 1.05em; padding: 0 .28em; border-radius: .26em; background: rgba(255,255,255,.94); color: #0b0c10; font-size: .62em; line-height: 1; letter-spacing: 0; text-shadow: none;
+  box-shadow: 0 .4em 1em -.4em rgba(0,0,0,.45); transform: rotate(var(--r, -3deg)); animation: hbPop .8s cubic-bezier(.22,1,.36,1) var(--d) both; }
+@keyframes hbPop { from { opacity: 0; transform: translateY(.3em) rotate(var(--r, -3deg)) scale(.9); } to { opacity: 1; transform: rotate(var(--r, -3deg)); } }
+.hb-w.clock { width: 1.5em; height: 1.5em; padding: 0; border-radius: 50%; vertical-align: -0.38em; font-size: .7em; }
+.hb-w.clock svg { width: 82%; height: 82%; }
+.hb-w.place { padding: 0 .4em; height: 2.1em; font-size: .5em; }
+.hb-w.place i { width: 1.3em; height: 1.3em; border-radius: .3em; background: linear-gradient(135deg, #dfe8f7, #b9cdee); position: relative; }
+.hb-w.place i::after { content: ""; position: absolute; left: 50%; top: 40%; width: .5em; height: .5em; border-radius: 50% 50% 50% 0; background: #e4572e; transform: translate(-50%, -50%) rotate(-45deg); }
+.hb-w.card { grid-auto-flow: column; gap: .45em; height: auto; padding: .45em .6em; font: 600 .38em/1.2 var(--sans); text-align: left; border-radius: .5em; vertical-align: .05em; }
+.hb-w small { display: block; font-weight: 400; color: rgba(12,14,20,.55); }
+.hb-w .chk { width: 1.15em; height: 1.15em; border-radius: 50%; box-shadow: inset 0 0 0 .14em rgba(12,14,20,.3); }
+.hb-w .bar { width: .22em; align-self: stretch; border-radius: .2em; background: #6d6ff0; }
+.hb-w .av { width: 1.6em; height: 1.6em; border-radius: .45em; display: grid; place-items: center; color: #fff; background: #1b2230; font-weight: 700; }
+.hb-w .ok { color: #0a6b22; background: #e8f5ec; padding: .25em .45em; border-radius: 999px; font-size: .9em; }
+@media (max-width: 760px) { body.home-b .hero { padding-top: 120px; } .hb-w.card { font-size: .5em; } }
+@media (prefers-reduced-motion: reduce) { .hb-bg video { display: none; } .hb-bg img { display: block !important; } .hb-w, .hb-bg img { animation: none; } }
+/* on the dark film the primary turns white and the secondary turns to glass */
+body.home-b .hero .btn-primary { background: #fff; color: #0b0c10; box-shadow: 0 14px 30px -14px rgba(0,0,0,.6); }
+body.home-b .hero .btn-raised { background: rgba(255,255,255,.12); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+
+/* v2 (owner pick, 03.11): the prototype's look. No app window in the hero, two glass cards beside
+   the sentence, "Free to start" under it. The window stays in the DOM (app.js drives it) but is hidden. */
+body.home-b .hero .stage, body.home-b .hero .cta-note, body.home-b .hero .hero-clouds { display: none !important; }
+body.home-b .hero { min-height: 100vh; min-height: 100svh; padding-bottom: 140px; display: flex; flex-direction: column; justify-content: center; }
+body.home-b .hero > .hero-in { width: 100%; }
+body.home-b .hero .lead b { color: #fff; font-weight: 600; white-space: nowrap; }
+.hb-float { position: absolute; z-index: 1; width: clamp(190px, 16vw, 236px); padding: 14px; border-radius: 20px; text-align: left; color: #fff;
+  background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 1px rgba(255,255,255,.28), 0 30px 60px -30px rgba(0,0,0,.5);
+  backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  transform: translate3d(var(--x, 0), var(--y, 0), 0) rotate(var(--r)); transition: transform .9s cubic-bezier(.22,1,.36,1); animation: hbIn 1.2s cubic-bezier(.22,1,.36,1) var(--d) both; }
+@keyframes hbIn { from { opacity: 0; } to { opacity: 1; } }
+.hb-float h4 { margin: 0 0 8px; font: 600 12px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+.hb-float .row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 12px; background: rgba(255,255,255,.12); font: 500 14px/1.25 var(--sans); }
+.hb-float .row + .row { margin-top: 6px; }
+.hb-float .row small { display: block; opacity: .65; font-size: 12px; }
+.hb-float .row i { width: 14px; height: 14px; flex: none; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor; opacity: .7; }
+.hb-float .row i.done { background: #2fbf71; box-shadow: none; opacity: 1; }
+.hb-float .tag { margin-left: auto; font-size: 11px; font-weight: 600; padding: 4px 7px; border-radius: 999px; background: rgba(255,170,120,.25); white-space: nowrap; }
+.hb-f1 { left: 3vw; top: 56%; --r: -4deg; --d: 1.1s; }
+.hb-f2 { right: 3vw; top: 18%; --r: 3deg; --d: 1.3s; }
+@media (max-width: 1180px) { .hb-float { display: none; } }
+
+/* phones: the sentence keeps its two small marks (clock, pin); the three cards leave the line and
+   sit as one glass "Today" card under the buttons, so the words read as words */
+@media (max-width: 640px) {
+  body.home-b .hero { justify-content: flex-start; padding-top: 112px; padding-bottom: 96px; }
+  body.home-b .hero h1 { font-size: clamp(26px, 7.4vw, 32px); line-height: 1.22; }
+  .hb-say { font-size: .9em; max-width: 12em; }
+  .hb-say br { display: none; }
+  .hb-w.card, .hb-fin { display: none; }
+  .hb-bg video, .hb-bg img { object-position: 50% 70%; }
+  .hb-bg::after { background: linear-gradient(rgba(0,0,0,.7), rgba(0,0,0,.35) 55%, rgba(0,0,0,.6)); }
+  body.home-b .hero .lead { font-size: 16px; margin-top: 18px; }
+  body.home-b .hero .cta-row { flex-direction: column; align-items: stretch; width: min(320px, 100%); margin-left: auto; margin-right: auto; }
+  .hb-float.hb-f1 { display: block; position: relative; left: auto; top: auto; width: min(320px, 100%); margin: 26px auto 0; transform: none; order: 2; }
+}
