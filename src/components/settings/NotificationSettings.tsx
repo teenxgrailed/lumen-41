@@ -38,7 +38,7 @@ export function NotificationSettings() {
       typeof window === "undefined" ||
       typeof navigator === "undefined" ||
       !("Notification" in window) ||
-      !("serviceWorker" in navigator)
+      !navigator.serviceWorker
     ) {
       updateNotificationSettings({ webPushEnabled: false });
       return;

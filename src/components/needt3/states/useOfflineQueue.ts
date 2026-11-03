@@ -53,7 +53,7 @@ export function useOfflineQueue() {
       !userId ||
       !workspaceId ||
       !scopeKey ||
-      !("serviceWorker" in navigator)
+      !navigator.serviceWorker
     )
       return;
     let active = true;
