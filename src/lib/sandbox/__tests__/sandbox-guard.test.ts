@@ -32,7 +32,6 @@ const findUnique = prisma.user.findUnique as unknown as jest.Mock;
 /** One request per capability, the way the app (or a tool) would send it. */
 const BLOCKED: Array<[SandboxCapability, string, string]> = [
   ["account_identity", "POST", "/api/auth/reset-password/request"],
-  ["account_delete", "POST", "/api/account/deletion"],
   ["account_export", "POST", "/api/account/export"],
   ["billing", "POST", "/api/billing/checkout"],
   ["billing", "POST", "/api/billing/portal"],
@@ -84,6 +83,11 @@ const ALLOWED: Array<[string, string]> = [
   ["GET", "/api/oauth/connected-apps"],
   ["POST", "/api/mcp"],
   ["POST", "/api/connect/ops/task.create"],
+  // App Review 5.1.1(v): a reviewer schedules and cancels deletion (the
+  // account is never purged), and re-authenticates to do it.
+  ["POST", "/api/account/deletion"],
+  ["DELETE", "/api/account/deletion"],
+  ["POST", "/api/account/reauth"],
 ];
 
 function request(method: string, path: string) {
@@ -134,6 +138,23 @@ describe("middleware lockdown", () => {
     "passes %s through for a normal session (%s %s)",
     async (_capability, method, path) => {
       mockedGetToken.mockResolvedValue({ sub: "user-1", role: "user" });
+      const response = await middleware(request(method, path));
+      expect(response.status).not.toBe(403);
+      expect(response.headers.get("x-middleware-next")).toBe("1");
+    }
+  );
+
+  it.each([
+    ["POST", "/api/account/deletion"],
+    ["DELETE", "/api/account/deletion"],
+    ["POST", "/api/account/reauth"],
+  ])(
+    "lets a sandbox session schedule and cancel deletion (%s %s)",
+    async (method, path) => {
+      mockedGetToken.mockResolvedValue({
+        sub: "sandbox-1",
+        sandboxKind: "reviewer",
+      });
       const response = await middleware(request(method, path));
       expect(response.status).not.toBe(403);
       expect(response.headers.get("x-middleware-next")).toBe("1");

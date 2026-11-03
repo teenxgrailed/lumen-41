@@ -531,10 +531,58 @@ async function removeUnscopedPersonalData(
   ]);
 }
 
+/**
+ * `allowSandbox` is for an admin who typed the sandbox account's email to
+ * retire it. The worker, the sweep and every self-service path leave it off:
+ * a sandbox account (docs/sandbox-accounts.md) may schedule a deletion so a
+ * reviewer can test it, but is never actually purged.
+ */
 export async function finalizeAccountDeletion(
-  requestId: string
+  requestId: string,
+  options: { allowSandbox?: boolean } = {}
 ): Promise<void> {
   try {
+    if (!options.allowSandbox) {
+      const target = await prisma.accountDeletionRequest.findUnique({
+        where: { id: requestId },
+        select: {
+          userId: true,
+          status: true,
+          user: { select: { sandboxKind: true } },
+        },
+      });
+      if (target?.user?.sandboxKind) {
+        // A delayed job for a request the reset already cancelled: nothing to say.
+        if (
+          target.status === AccountDeletionStatus.CANCELED ||
+          target.status === AccountDeletionStatus.COMPLETED
+        ) {
+          return;
+        }
+        await logger.warn(
+          "Account deletion skipped: a sandbox account is never purged",
+          { requestId, userId: target.userId, kind: target.user.sandboxKind },
+          LOG_SOURCE
+        );
+        await prisma.accountDeletionRequest.updateMany({
+          where: {
+            id: requestId,
+            status: {
+              in: [
+                AccountDeletionStatus.SCHEDULED,
+                AccountDeletionStatus.FAILED,
+                AccountDeletionStatus.PROCESSING,
+              ],
+            },
+          },
+          data: {
+            status: AccountDeletionStatus.CANCELED,
+            canceledAt: newDate(),
+          },
+        });
+        return;
+      }
+    }
     const processingCutoff = addMinutes(newDate(), -30);
     const claimed = await prisma.accountDeletionRequest.updateMany({
       where: {
@@ -688,9 +736,11 @@ export async function finalizeAccountDeletion(
     );
     await logger.info("Account deletion finalized", { requestId }, LOG_SOURCE);
   } catch (error) {
+    // Only a request this call claimed may turn FAILED: a failure before the
+    // claim must not flip a CANCELED request into one the sweep would purge.
     await prisma.accountDeletionRequest
-      .update({
-        where: { id: requestId },
+      .updateMany({
+        where: { id: requestId, status: AccountDeletionStatus.PROCESSING },
         data: {
           status: AccountDeletionStatus.FAILED,
           errorCode: "ACCOUNT_DELETION_FAILED",
