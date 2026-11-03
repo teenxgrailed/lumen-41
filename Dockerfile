@@ -7,8 +7,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # the base stage changes on every commit and would invalidate the `npm ci`
 # layers below it, so a CI image build could never reuse its cache.
 
-# Install netcat
-RUN apk add --no-cache netcat-openbsd
+# Install netcat; curl is what Coolify's healthcheck runs inside the container.
+# Without it the check exits "curl: not found" yet reports success, so a
+# rolling update can never tell a dead new container from a live one.
+RUN apk add --no-cache netcat-openbsd curl
 
 # Development stage
 FROM base AS development
@@ -143,6 +145,10 @@ FROM base AS production
 WORKDIR /app
 
 ENV NODE_ENV=production
+# Let src/instrumentation.ts own SIGTERM: the first signal makes /api/health
+# answer 503 so the proxy drains this container before it exits (#585 set
+# this in docker/production/Dockerfile, which the published image never used).
+ENV NEXT_MANUAL_SIG_HANDLE=true
 
 COPY --from=runtime-deps /app/node_modules ./node_modules
 COPY --from=builder /app/public ./public

@@ -1,0 +1,1 @@
+- The published web image now ships curl and hands SIGTERM to the app, so Coolify's healthcheck really checks the new container and a deploy drains the old one first.
