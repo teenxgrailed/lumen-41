@@ -17,7 +17,7 @@
   const CORE_R = SQ ? 175 : 215;
   const CORE_S1 = SQ ? 0.56 : 0.58;
   const cards = SQ
-    ? { x: 400, w: 630, h: 112, gap: 24, y: 280 }
+    ? { x: 400, w: 630, h: 128, gap: 22, y: 270 }
     : { x: 100, w: 880, h: 188, gap: 30, y: 740 };
 
   // ---- helpers --------------------------------------------------------------
@@ -42,10 +42,10 @@
   // ---- fibres + chips -------------------------------------------------------
   const R1 = rng(41);
   const CHIPS = [
-    ['tab', 'Q3 roadmap – Notion'], ['mail', 'Sarah  Re: invoice 8841'], ['cal', 'Standup  9:30'], ['code', 'await sync(feed.id)'],
+    ['tab', 'Q3 roadmap – Notes'], ['mail', 'Sarah  Re: invoice 8841'], ['cal', 'Standup  9:30'], ['code', 'await sync(feed.id)'],
     ['wave', ''], ['thumb', ''], ['tab', 'Inbox (214)'], ['cal', 'Investor call  14:00'], ['code', 'git push origin main'],
-    ['mail', 'Mike  Quick question?'], ['tab', 'Figma – Pricing v3'], ['wave', ''], ['code', 'SELECT * FROM tasks'],
-    ['cal', 'Dentist  16:15'], ['thumb', ''], ['mail', 'Calendly  New booking'], ['tab', 'Stripe Dashboard'], ['code', 'if (!ok) retry(3)'],
+    ['mail', 'Mike  Quick question?'], ['tab', 'Design file – Pricing v3'], ['wave', ''], ['code', 'SELECT * FROM tasks'],
+    ['cal', 'Dentist  16:15'], ['thumb', ''], ['mail', 'Booking link  New booking'], ['tab', 'Payments dashboard'], ['code', 'if (!ok) retry(3)'],
   ];
   const NF = 74;
   const fibres = [];
@@ -262,6 +262,9 @@
     // agent chip + status
     const ch = cur(c.chips, t);
     const rx = w - pad;
+    const GAP = Math.max(12, 16 * S);                  // >= 12px between neighbours
+    const chipBottom = h * .36 - 17 * S + 21 * S * 1.85;
+    const actY = Math.max(h * .73 - 17 * S, chipBottom + GAP);
     if (ch) {
       const pop = back(ramp(t, ch[0], ch[0] + .35));
       const pr = pill(ch[1], rx, h * .36 - 17 * S, 21 * S, '255,255,255', .09, .28, .86, 'right', clamp(pop, 0, 1.08));
@@ -274,12 +277,18 @@
       }
       if (amber) {
         const k = back(ramp(t, c.amber, c.amber + .4));
-        const pb = pill('Needs you → Approve', rx, h * .73 - 17 * S, 20 * S, AMBER, .14, .85, 1, 'right', clamp(k, 0, 1.05));
+        // "Needs you" is a status; "Approve" is its own button, GAP apart.
+        const pb = pill('Approve', rx, actY, 20 * S, AMBER, .14, .85, 1, 'right', clamp(k, 0, 1.05));
+        ctx.save(); ctx.globalAlpha = a * clamp(k);
+        ctx.font = `600 ${20 * S}px ${FONT}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = `rgba(${AMBER},1)`; ctx.fillText('Needs you', pb.cx - pb.w / 2 - GAP, pb.cy + 1);
+        ctx.restore();
         tapInfo = { x: c.x + pb.cx, y: c.y + pb.cy + 26 * (1 - eo3(ap)), c };
+        c.approveAt = { x: c.x + pb.cx, y: c.y + pb.cy };
       }
       if (green) {
         const k = back(ramp(t, c.green, c.green + .4));
-        pill('Approved ✓', rx, h * .73 - 17 * S, 20 * S, GREEN, .14, .85, 1, 'right', clamp(k, 0, 1.05));
+        pill('Approved ✓', rx, actY, 20 * S, GREEN, .14, .85, 1, 'right', clamp(k, 0, 1.05));
       }
     }
     ctx.restore();
@@ -309,7 +318,7 @@
     }
     line('Your AI agents.', E.l1, 11.5, .6, fs, 600, -fs * .02);
     line('One shared brain.', E.l2, 11.95, 1, fs, 600, -fs * .02);
-    line('Needt Agents — free for everyone', E.sub, 12.75, .72, E.subFs, 500);
+    line('Needt Agents — free to start', E.sub, 12.75, .72, E.subFs, 500);
     line('use.needt.app', E.url, 13.25, .5, E.urlFs, 500, 0.5);
   }
 
@@ -379,7 +388,7 @@
       ctx.restore();
     } else if (c4.tap && t > 10.5 && t < 11.3) {
       // after approve the pill is green; keep the ripple alive using stored geometry
-      const cy = c4.y + cards.h * .73 + 26 * 0, ppx = c4.x + cards.w - 26 * S - 120 * S;
+      const cy = c4.approveAt ? c4.approveAt.y : c4.y + cards.h * .73, ppx = c4.approveAt ? c4.approveAt.x : c4.x + cards.w - 26 * S - 60 * S;
       for (let r = 0; r < 2; r++) {
         const k = ramp(t, c4.tap + r * .12, c4.tap + r * .12 + .7);
         if (k > 0 && k < 1) { ctx.beginPath(); ctx.arc(ppx, cy, (14 + 70 * eo3(k)) * S, 0, 7); ctx.lineWidth = 2.2; ctx.strokeStyle = `rgba(255,255,255,${.6 * (1 - k)})`; ctx.stroke(); }
