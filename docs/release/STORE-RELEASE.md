@@ -153,9 +153,10 @@ purchase. Full reference: `docs/billing/apple-iap.md`.
 
 `/terms` §5.7 describes App Store purchases (Apple is the seller, refunds
 only through Apple, cancel in Settings → Apple ID → Subscriptions) and §5.5
-says its 14-day refund covers website purchases only. A store build shows §5.7
-only while the purchase sheet can sell, so nothing changes in the app until
-the flag is on.
+says its 14-day refund covers website purchases only (PR #567). §5.7 appears,
+on the website and in the iOS app, only while `apple_iap` is on for everyone
+(100 %), so nothing changes until you turn it on. Turn it on for everyone, not
+for one account: the terms read the flag for everyone.
 
 **When to turn it on.** Leave the `APPLE_IAP_*` env unset and `apple_iap` off
 until the iOS version is ready to submit (step 10). Then, in this order:
