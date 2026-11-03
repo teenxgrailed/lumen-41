@@ -69,6 +69,10 @@ shoot_device() {
     --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || log "WARN status bar override failed on $label"
   xcrun simctl install "$udid" "$APP" || { log "install failed on $label"; return 1; }
   clear_focus
+  # What the page says when it fails (Capacitor prints JS console output to the
+  # system log): kept per device next to the shots.
+  xcrun simctl spawn "$udid" log stream --style compact --level debug --predicate 'process == "App"' > "$OUT/console-$label.log" 2>&1 &
+  local logpid=$!
 
   local entry n path raw w h
   for entry in "${SCREENS[@]}"; do
@@ -93,18 +97,21 @@ shoot_device() {
     log "shot ${label}_${w}x${h}_${n}.png ($path)"
     [ "$n" = "06-focus" ] && clear_focus
   done
+  kill "$logpid" 2>/dev/null || true
   xcrun simctl shutdown "$udid" || true
   xcrun simctl delete "$udid" || true
 }
 
-shoot_device iphone-69 "iPhone 17 Pro Max|iPhone 16 Pro Max"
-shoot_device iphone-65 "iPhone 14 Plus|iPhone 11 Pro Max|iPhone XS Max|iPhone 15 Plus"
-HAVE_65="$(ls "$OUT"/iphone-65_* 2>/dev/null | wc -l | tr -d ' ')"
-shoot_device ipad-13 "iPad Pro 13-inch (M5)|iPad Pro 13-inch (M4)|iPad Pro (12.9-inch) (6th generation)"
+# STORE_ONLY=<label> runs a single device class (for debugging a run).
+want() { [ -z "${STORE_ONLY:-}" ] || [ "$STORE_ONLY" = "$1" ]; }
+want iphone-69 && shoot_device iphone-69 "iPhone 17 Pro Max|iPhone 16 Pro Max"
+want iphone-65 && shoot_device iphone-65 "iPhone 14 Plus|iPhone 11 Pro Max|iPhone XS Max|iPhone 15 Plus"
+HAVE_65="$(find "$OUT" -name 'iphone-65_*' | wc -l | tr -d ' ')"
+want ipad-13 && shoot_device ipad-13 "iPad Pro 13-inch (M5)|iPad Pro 13-inch (M4)|iPad Pro (12.9-inch) (6th generation)"
 
 # 6.5" slot: App Store Connect also takes the 6.9" set for it; if no 6.5" device
 # exists on this runner, scale the 6.9" shots (0.4% aspect difference) and say so.
-if [ "$HAVE_65" = "0" ]; then
+if [ "$HAVE_65" = "0" ] && want iphone-65; then
   log "NOTE iphone-65: no 6.5-inch device on this runner; scaled from the 6.9-inch shots"
   for f in "$OUT"/iphone-69_*.png; do
     [ -e "$f" ] || continue
