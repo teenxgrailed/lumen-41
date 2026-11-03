@@ -1,0 +1,1 @@
+- Terms now say the Free plan has no AI assistant (the trial lets you try it), matching the product.
