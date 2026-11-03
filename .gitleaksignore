@@ -1,0 +1,6 @@
+# Reviewed false positives (gitleaks fingerprints: commit:file:rule:line).
+# Random UUIDs used as StoreKit appAccountToken test fixtures, not secrets;
+# later commits generate them at runtime instead.
+d2195f00c916393f3dd55081105f2e5d09d7a3ee:src/lib/apple-iap/__tests__/verifier.test.ts:generic-api-key:45
+d2195f00c916393f3dd55081105f2e5d09d7a3ee:src/services/billing/__tests__/apple-iap.test.ts:generic-api-key:66
+d2195f00c916393f3dd55081105f2e5d09d7a3ee:src/services/billing/__tests__/apple-iap.test.ts:generic-api-key:67

@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { createTestChain } from "@/lib/apple-iap/__tests__/test-chain";
 import type { AppleIapConfig } from "@/lib/apple-iap/config";
 import { lifetimeAvailability } from "@/lib/creem/lifetime-cap";
@@ -63,8 +65,9 @@ const config: AppleIapConfig = {
 };
 const verify = { config, rootCertificates: [chain.root] };
 
-const TOKEN = "6f0a6c43-9d55-4a4b-8f39-1f8c1e5b1f00";
-const OTHER_TOKEN = "0b6b0f0e-5c43-4c3c-9d7a-0d1f6b5e2a11";
+// Made per run: a UUID literal named "token" reads as a secret to gitleaks.
+const TOKEN = randomUUID();
+const OTHER_TOKEN = randomUUID();
 const day = 24 * 3600 * 1000;
 const summary = { plan: "PRO", source: "apple" };
 

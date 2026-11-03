@@ -1,4 +1,4 @@
-import { X509Certificate } from "node:crypto";
+import { X509Certificate, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -42,7 +42,7 @@ function transaction(overrides: Record<string, unknown> = {}) {
     expiresDate: now + 30 * 24 * 3600 * 1000,
     signedDate: now,
     environment: "Sandbox",
-    appAccountToken: "6f0a6c43-9d55-4a4b-8f39-1f8c1e5b1f00",
+    appAccountToken: randomUUID(),
     ...overrides,
   };
 }
