@@ -18,6 +18,7 @@ import { StScreen } from "../states/StScreen";
 import { AgBtn, AgEmpty, AgRow, AgSection, type AgTone } from "./AgParts";
 import { ConnectGuide } from "./ConnectGuide";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
+import { hasUnconfirmedRisk } from "./unconfirmed-risk";
 
 type Named = { id?: string; name?: string; kind?: string } | "any" | null;
 
@@ -719,6 +720,11 @@ function itemMeta(item: HubItemRow) {
   return (
     <>
       {item.ownerUnread ? <span className="ag-new">New </span> : null}
+      {hasUnconfirmedRisk(item) ? (
+        <span className="ag-flag" data-ag-no-confirmation="">
+          no confirmation{" "}
+        </span>
+      ) : null}
       {`${latest(item)}${
         item.heldBy
           ? `. Held by ${item.heldBy.name} until ${when(item.leaseExpiresAt)}${
@@ -771,6 +777,13 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
       {(item.relations ?? []).map((relation, index) => (
         <span key={index}>{relationLine(relation)}</span>
       ))}
+      {hasUnconfirmedRisk(item) ? (
+        <span>
+          <span className="ag-detail-k">No confirmation: </span>
+          no risk was declared, yet this item mentions sending, publishing,
+          posting, deleting or paying. It could run without asking you.
+        </span>
+      ) : null}
       {item.usage && usageLine(item.usage) ? (
         <span>{usageLine(item.usage)}</span>
       ) : null}

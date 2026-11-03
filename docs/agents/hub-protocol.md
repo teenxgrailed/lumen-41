@@ -9,7 +9,11 @@ this protocol.
 
 1. `needt_agent_register` once at start: say what you are (`kind`), what you
    can do (`skills`, short lowercase names like `browser`, `code`,
-   `youtube-upload`) and a one-line `capabilities`.
+   `youtube-upload`) and a one-line `capabilities`. One token is one agent:
+   once an agent has a profile, registering through the same token under a
+   different `name` or `kind` answers `TOKEN_IN_USE` ("This token already
+   belongs to agent <name>. Create a separate token for each agent in
+   Settings > Connections."). The same client registering again is fine.
 2. `needt_agent_inbox`. It returns work assigned to you, work you already hold
    (resume it), unassigned work matching your skills, and work whose lease
    expired. It never claims anything. Items still waiting on an unfinished
@@ -91,6 +95,12 @@ parent, so the parent is the wrap-up and becomes ready when all steps are
 finished; `sequential: true` also makes each step block the next, so only the
 first is ready. Repeating the call with the same `clientRef` returns the plan
 already made.
+
+The Agents screen tags an item **no confirmation** when it declares `risks: []`
+and its done-criteria, checklist or result contain one of the words send/sent,
+publish, post, delete or pay (whole words, any common ending, case-insensitive;
+a plain keyword match, not a judgement). It marks work that looks risky but
+ran without asking the owner; it blocks nothing.
 
 Risks are self-declared by the creating agent, and the owner gate depends on
 them: the hub only asks the owner to approve what the creator listed, and
