@@ -9,7 +9,9 @@
   OWNER: replace the two placeholders below with the values Partner Center
   shows under Product management, Product identity (Package/Identity/Name and
   Package/Identity/Publisher). They are case sensitive and must match exactly,
-  or the Store refuses the upload. The package is NOT signed: the Store
+  or the Store refuses the upload. (Hyphens, not underscores, in the Name
+  placeholder: the schema allows only letters, digits, dot and hyphen, and
+  makeappx rejects anything else.) The package is NOT signed: the Store
   re-signs MSIX packages it distributes.
 -->
 <Package
@@ -19,7 +21,7 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="YOUR_PARTNER_CENTER_IDENTITY_NAME"
+    Name="YOUR-PARTNER-CENTER-IDENTITY-NAME"
     Publisher="CN=YOUR-PUBLISHER-ID"
     Version="1.0.0.0"
     ProcessorArchitecture="x64" />

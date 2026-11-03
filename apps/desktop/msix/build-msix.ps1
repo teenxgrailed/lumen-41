@@ -52,7 +52,7 @@ $identity = $xml.SelectSingleNode('/m:Package/m:Identity', $ns)
 $identity.SetAttribute('Version', $msixVersion)
 if ($env:MSIX_IDENTITY_NAME) { $identity.SetAttribute('Name', $env:MSIX_IDENTITY_NAME) }
 if ($env:MSIX_PUBLISHER) { $identity.SetAttribute('Publisher', $env:MSIX_PUBLISHER) }
-$placeholder = ($identity.GetAttribute('Name') -like 'YOUR_*') -or ($identity.GetAttribute('Publisher') -like 'CN=YOUR-*')
+$placeholder = ($identity.GetAttribute('Name') -like 'YOUR-*') -or ($identity.GetAttribute('Publisher') -like 'CN=YOUR-*')
 if ($placeholder) {
   Write-Host "::warning title=MSIX identity is a placeholder::Fill Identity/Name and Identity/Publisher (msix/AppxManifest.xml, or the MSIX_IDENTITY_NAME and MSIX_PUBLISHER Actions variables) from Partner Center before uploading this package."
 }
