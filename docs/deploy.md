@@ -292,6 +292,25 @@ short-lived Redis heartbeat keyed by its SHA, and web exposes that value as
 collaboration health URLs, then accepts a release only when `buildSha`,
 `workerBuildSha`, and the collaboration SHA are the same 40-character commit.
 
+### Draining on SIGTERM (no 502 during a deploy)
+
+Coolify starts the new container, waits for it to be healthy, then runs
+`docker stop` on the old one. Next's standalone server exits the moment it
+gets SIGTERM, so requests the proxy still routes to the old container during
+the switch got a 502. The production image therefore sets
+`NEXT_MANUAL_SIG_HANDLE=true`, which stops Next from registering its own
+SIGTERM/SIGINT exit handlers. `src/instrumentation.ts` registers ours instead
+(`src/lib/drain.ts`): on the first signal the process keeps serving, flips
+`/api/health` to 503 `{ok:false, draining:true}`, and exits after
+`NEEDT_DRAIN_MS` (default 8000, capped at 9000 to stay under Docker's 10 s
+stop timeout). A second signal exits immediately. The variable is read only by
+the Next server; the worker and collaboration processes share the image but do
+not use it. If the hook ever fails to load, a node PID 1 with no handler
+ignores SIGTERM and Docker falls back to SIGKILL after 10 s.
+
+The Next hook file must live in `src/` (the app is in `src/app`); the
+repo-root `instrumentation.ts` is not loaded by Next.
+
 ## 8. Notes
 
 - The app is multi-user. Every user-owned query, worker job, scheduling run,
