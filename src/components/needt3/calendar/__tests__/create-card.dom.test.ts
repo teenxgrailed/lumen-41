@@ -11,6 +11,8 @@ import { act, createRef, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
+import { useNeedt3Ui } from "@/store/needt3-ui";
+
 import { CreateCard, type CreateSpec, pressIsInsideCard } from "../CreateCard";
 
 (
@@ -51,6 +53,8 @@ beforeEach(() => {
       removeEventListener() {},
     }),
   });
+  // the last calendar picked is remembered by the store: start clean
+  useNeedt3Ui.setState({ lastCalendarId: null });
   scrolled = jest.fn();
   Element.prototype.scrollIntoView = scrolled as never;
   onCreate = jest.fn();
