@@ -23,6 +23,7 @@ These are the third parties that process personal data on Needt's behalf. We upd
 | **OpenRouter, Inc.** | Gateway for Needt's included AI features | Prompts and context for each AI request: messages, task and schedule summaries, Memories, and page or email content the assistant looks up | United States | [Privacy](https://openrouter.ai/privacy) |
 | **AI model hosts behind OpenRouter** | Running the AI model | The same, processed transiently and not retained or used for training | Only named hosts in the United States or the EU | Chosen per request by OpenRouter from our allow-list |
 | **Zoho Corporation (Zoho Mail)** | Mailboxes for ${PRIVACY_EMAIL} and support@needt.app | Whatever you write to us | EU data centre | [Privacy](https://www.zoho.com/privacy.html) |
+| **Apple Inc. (Apple Push Notification service)** | Delivering notifications to the iOS app, if you turn them on there | The device token of that install, and each notification's title, text and the Needt address it opens (which can contain a task or item id), not end-to-end encrypted | United States | [Privacy](${APPLE_LINKS.privacy}) |
 
 ## Seller of paid plans
 

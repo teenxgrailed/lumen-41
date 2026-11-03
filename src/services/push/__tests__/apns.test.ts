@@ -149,6 +149,12 @@ describe("deliverNativePush", () => {
     expect(calls).toHaveLength(2);
   });
 
+  it("does not retry a payload Apple calls too large", async () => {
+    const { fn } = transport({ status: 413, reason: "PayloadTooLarge" });
+    await expect(deliverNativePush(target, payload, fn)).resolves.toBe(false);
+    expect(prisma.nativePushToken.deleteMany).not.toHaveBeenCalled();
+  });
+
   it("throws on any other refusal so the job retries", async () => {
     const { fn } = transport({ status: 503, reason: "ServiceUnavailable" });
     await expect(deliverNativePush(target, payload, fn)).rejects.toThrow(
@@ -167,6 +173,18 @@ describe("deliverNativePush", () => {
 });
 
 describe("apnsBody", () => {
+  it("fits emoji text in APNs's byte limit", () => {
+    const body = apnsBody({
+      title: "😀".repeat(500),
+      body: "😀".repeat(1000),
+      url: "/today",
+    });
+    expect(Buffer.byteLength(body)).toBeLessThan(4096);
+    const parsed = JSON.parse(body);
+    expect(Buffer.byteLength(parsed.aps.alert.body)).toBeLessThanOrEqual(2048);
+    expect(parsed.aps.alert.body).not.toMatch(/[\ud800-\udbff]$/);
+  });
+
   it("caps the alert and carries the task id", () => {
     const body = JSON.parse(
       apnsBody({
@@ -176,7 +194,7 @@ describe("apnsBody", () => {
         taskId: "task-9",
       })
     );
-    expect(body.aps.alert.title).toHaveLength(200);
+    expect(body.aps.alert.title).toHaveLength(256);
     expect(body.taskId).toBe("task-9");
   });
 });

@@ -79,17 +79,32 @@ export function resetApnsJwtForTests() {
   cachedJwt = null;
 }
 
+/**
+ * At most `maxBytes` of UTF-8: APNs counts bytes (4 KB per payload), and a
+ * string of emoji is four bytes a character. Never ends on half a surrogate
+ * pair, which JSON would spell out as a six-byte escape.
+ */
+export function clipUtf8(text: string, maxBytes: number) {
+  if (Buffer.byteLength(text) <= maxBytes) return text;
+  let clipped = text.slice(0, maxBytes);
+  while (Buffer.byteLength(clipped) > maxBytes) {
+    clipped = clipped.slice(0, -1);
+  }
+  const last = clipped.charCodeAt(clipped.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? clipped.slice(0, -1) : clipped;
+}
+
 /** The APNs body: the alert, plus `url` and `taskId` for the tap handler. */
 export function apnsBody(payload: NativePushPayload) {
   return JSON.stringify({
     aps: {
       alert: {
-        title: payload.title.slice(0, 200),
-        body: payload.body.slice(0, 1000),
+        title: clipUtf8(payload.title, 256),
+        body: clipUtf8(payload.body, 2048),
       },
       sound: "default",
     },
-    url: payload.url,
+    url: clipUtf8(payload.url, 1024),
     ...(payload.taskId ? { taskId: payload.taskId } : {}),
   });
 }
@@ -118,7 +133,8 @@ const http2Transport: ApnsTransport = (host, path, headers, body) =>
     let settled = false;
     let status = 0;
     let data = "";
-    const request = sessionFor(host).request({
+    const session = sessionFor(host);
+    const request = session.request({
       ":method": "POST",
       ":path": path,
       "content-type": "application/json",
@@ -152,9 +168,21 @@ const http2Transport: ApnsTransport = (host, path, headers, body) =>
       settled = true;
       reject(new Error("APNs request closed without an answer"));
     });
-    request.setTimeout(10_000, () =>
-      request.close(http2.constants.NGHTTP2_CANCEL)
-    );
+    // Settle at once: closing a stream that never connected waits for the
+    // connection, which an unreachable host never gives. A connection that
+    // never came up is dropped too, so the next push does not queue on it.
+    request.setTimeout(10_000, () => {
+      const connecting = request.pending;
+      if (!settled) {
+        settled = true;
+        reject(new Error("APNs did not answer in 10 seconds"));
+      }
+      request.destroy();
+      if (connecting) {
+        if (sessions.get(host) === session) sessions.delete(host);
+        session.destroy();
+      }
+    });
     request.end(body);
   });
 
@@ -242,6 +270,15 @@ export async function deliverNativePush(
         response.reason === "DeviceTokenNotForTopic"))
   ) {
     await forget(target, response.reason ?? String(response.status));
+    return false;
+  }
+  if (response.status === 413) {
+    // The same payload would be refused on every retry.
+    await logger.error(
+      "APNs refused a payload as too large",
+      { bytes: Buffer.byteLength(body) },
+      LOG_SOURCE
+    );
     return false;
   }
   if (response.status !== 200) {

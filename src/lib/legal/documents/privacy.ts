@@ -216,6 +216,7 @@ The full list, with links to each provider's terms, is on the [subprocessors pag
 | OpenRouter, Inc. | Gateway for the included AI | What Section 6.1 lists | United States |
 | AI model hosts reached through OpenRouter | Running the model | The same, processed transiently | United States or EU (Section 6.2) |
 | Zoho Corporation (Zoho Mail) | Our support and privacy mailboxes | Whatever you write to us | EU data centre |
+| Apple Inc. (Apple Push Notification service) | Delivering notifications to the iOS app, if you turn them on there | The device token, and each notification's title, text and the Needt address it opens (which can contain a task or item id); not end-to-end encrypted | United States |
 
 **Creem** (Armitage Labs OÜ, Estonia) sells paid plans as merchant of record. It is the seller in your purchase and handles your payment data as a controller under its own [privacy notice](https://www.creem.io/privacy), not as our processor (Section 3.6).
 
@@ -223,7 +224,7 @@ The full list, with links to each provider's terms, is on the [subprocessors pag
 
 ### 7.2 Services you connect yourself
 
-Google, Microsoft, Apple iCloud, your CalDAV server, your mail provider and any app you import from are not our processors. When you connect them, Needt exchanges data with them on your instruction, and you have your own agreement with each. The same applies to an AI provider whose key you add, and to the push service your browser uses (Google, Mozilla or Apple) to deliver notifications if you turn them on; notification content is encrypted for your browser. In the iOS app, notifications are delivered by Apple Push Notification service, which receives the notification's title and text to show them on your device.
+Google, Microsoft, Apple iCloud, your CalDAV server, your mail provider and any app you import from are not our processors. When you connect them, Needt exchanges data with them on your instruction, and you have your own agreement with each. The same applies to an AI provider whose key you add, and to the push service your browser uses (Google, Mozilla or Apple) to deliver notifications if you turn them on; notification content is encrypted for your browser. Notifications in the iOS app go through Apple Push Notification service, which we use as a processor (Section 7.1).
 
 ### 7.3 Others
 

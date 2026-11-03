@@ -1,4 +1,6 @@
+import { getApnsConfiguration } from "@/lib/apns-config";
 import { prisma } from "@/lib/prisma";
+import { getVapidConfiguration } from "@/lib/push-config";
 
 import { NativePushTarget } from "./apns";
 
@@ -37,4 +39,11 @@ export async function loadPushTargets(userId: string): Promise<PushTarget[]> {
     select: PUSH_TARGET_SELECT,
   });
   return user ? pushTargetsOf(user) : [];
+}
+
+/** Web push or APNs: either key on this server is enough to send. */
+export function pushConfigured() {
+  return (
+    getVapidConfiguration().configured || getApnsConfiguration().configured
+  );
 }

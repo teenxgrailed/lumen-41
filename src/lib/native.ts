@@ -274,6 +274,31 @@ export async function unregisterNativePush(): Promise<void> {
 }
 
 /**
+ * The path of `url` when it stays on this origin, else null. Parsed, not
+ * pattern-matched: the URL parser drops tabs and reads `\` as `/`, so
+ * "/\t/evil.example" would pass a regex and still leave the site.
+ */
+export function sameOriginPath(url: unknown): string | null {
+  if (typeof url !== "string" || !url.startsWith("/") || url.length > 2000) {
+    return null;
+  }
+  try {
+    const origin = window.location.origin;
+    const parsed = new URL(url, origin);
+    return parsed.origin === origin
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The token this install registered with, once Apple has answered. */
+export function currentNativePushToken(): string | null {
+  return lastToken;
+}
+
+/**
  * Calls `open` with the same-origin path a tapped notification carries
  * (`url` in the APNs payload). Anything that is not a path inside the app is
  * dropped. Returns the cleanup; a no-op outside the iOS app.
@@ -288,9 +313,8 @@ export function onNativePushTap(open: (path: string) => void): () => void {
       const url = (
         data as { notification?: { data?: { url?: unknown } } } | null
       )?.notification?.data?.url;
-      if (typeof url === "string" && /^\/(?![/\\])/.test(url)) {
-        open(url.slice(0, 2000));
-      }
+      const path = sameOriginPath(url);
+      if (path) open(path);
     })
   )
     .then((h) => {

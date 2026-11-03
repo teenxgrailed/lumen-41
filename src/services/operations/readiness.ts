@@ -11,6 +11,7 @@ import {
 } from "@/lib/creem/config";
 import { EmailService } from "@/lib/email/email-service";
 import { logger } from "@/lib/logger";
+import { getApnsConfiguration } from "@/lib/apns-config";
 import { getVapidConfiguration } from "@/lib/push-config";
 import { getRedisConnection } from "@/lib/queue/connection";
 import { isQueueConfigured } from "@/lib/queue/enqueue";
@@ -122,6 +123,17 @@ function detectPush(): ServiceReadiness {
     detail: vapid.configured
       ? undefined
       : `Missing: ${vapid.missingVariables.join(", ")}`,
+  };
+}
+
+function detectApns(): ServiceReadiness {
+  const apns = getApnsConfiguration();
+  return {
+    service: "iOS push (APNs)",
+    configured: apns.configured,
+    detail: apns.configured
+      ? undefined
+      : `Missing: ${apns.missingVariables.join(", ")}`,
   };
 }
 
@@ -330,6 +342,7 @@ export async function collectServiceReadiness(): Promise<ServiceReadiness[]> {
     guarded("Resend email", detectEmail),
     guarded("Owner alert email", detectAlertEmail),
     guarded("Web push (VAPID)", detectPush),
+    guarded("iOS push (APNs)", detectApns),
     guarded("OAuth", detectOAuth),
     guarded("Hosted AI", detectHostedAi),
     guarded("Sentry", detectSentry),

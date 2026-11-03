@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  currentNativePushToken,
   isIosApp,
   nativePushPermission,
   nativePushToken,
@@ -297,6 +298,30 @@ export async function syncNativePushToken(): Promise<string | null> {
   if (!token) return null;
   await saveNativeToken(token);
   return token;
+}
+
+/**
+ * Signing out: this phone stops getting the account's notifications, so a
+ * shared phone's lock screen does not keep showing them. Bounded, because it
+ * must never hold the sign-out up; the next account to sign in here saves the
+ * token again for itself.
+ */
+export async function releaseNativePushToken(): Promise<void> {
+  const token = currentNativePushToken();
+  if (!token) return;
+  try {
+    await fetch(
+      `/api/push-subscriptions/native?token=${encodeURIComponent(token)}`,
+      {
+        method: "DELETE",
+        credentials: "same-origin",
+        signal: AbortSignal.timeout(3000),
+      }
+    );
+  } catch {
+    // Offline or slow: the server forgets the token when Apple reports it dead
+    // or the next account takes it over.
+  }
 }
 
 function useNativePush(active: boolean): PushController {

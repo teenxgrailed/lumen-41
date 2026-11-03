@@ -120,6 +120,7 @@ describe("APNs on iOS", () => {
         getPlatform: () => "ios",
         Plugins: { PushNotifications: push },
       },
+      location: { origin: "https://use.needt.app" },
     };
   }
 
@@ -159,6 +160,7 @@ describe("APNs on iOS", () => {
     send("//evil.example/x");
     send("/\\evil.example");
     send("https://evil.example");
+    send("/\t/evil.example");
     send(42);
     expect(open).toHaveBeenCalledTimes(1);
     expect(open).toHaveBeenCalledWith("/today?task=1");

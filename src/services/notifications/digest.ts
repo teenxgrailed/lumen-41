@@ -13,18 +13,17 @@
 import {
   PUSH_TARGET_SELECT,
   PushTarget,
+  pushConfigured,
   pushTargetsOf,
 } from "@/services/push/targets";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
 
-import { getApnsConfiguration } from "@/lib/apns-config";
 import { newDate } from "@/lib/date-utils";
 import { EmailService } from "@/lib/email/email-service";
 import { getDigestTemplate } from "@/lib/email/templates/notifications";
 import { unsubscribeUrl } from "@/lib/email/unsubscribe";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { getVapidConfiguration } from "@/lib/push-config";
 
 import { alertable, digestSummary } from "./alerts";
 import { getNotificationFeed } from "./feed";
@@ -33,13 +32,6 @@ import { digestDue, getNotificationPrefs, typeOfFeedKind } from "./preferences";
 const LOG_SOURCE = "NotificationSweeps";
 const USERS_PER_SWEEP = 200;
 const PUSHES_PER_PERSON = 3;
-
-/** Web push or APNs: either key on this server is enough to send. */
-function pushConfigured() {
-  return (
-    getVapidConfiguration().configured || getApnsConfiguration().configured
-  );
-}
 
 async function pushAll(
   subscriptions: PushTarget[],
