@@ -67,10 +67,10 @@ describe("navigation inside the installed app", () => {
     expect(scan(link, ["legal/LegalHomeLink.tsx"])).toEqual([]);
   });
 
-  it("a same-origin path is not opened in a new window, except the legal pages", () => {
+  it("a same-origin path is not opened in a new window, except the legal and support pages", () => {
     // Terms, Privacy and Subprocessors sit outside the app shell and have no
     // way back; the in-app browser's Done button is that way back.
-    const open = /window\.open\(\s*["']\/(?!terms|privacy|subprocessors)/;
+    const open = /window\.open\(\s*["']\/(?!terms|privacy|subprocessors|support)/;
     expect(scan(open)).toEqual([]);
   });
 

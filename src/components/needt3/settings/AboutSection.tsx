@@ -44,6 +44,9 @@ export function AboutSection() {
       <SRow title="Privacy" onClick={() => window.open("/privacy", "_blank")}>
         <FiExternalLink size={14} aria-hidden />
       </SRow>
+      <SRow title="Support" onClick={() => window.open("/support", "_blank")}>
+        <FiExternalLink size={14} aria-hidden />
+      </SRow>
       <SRow
         title="Subprocessors"
         onClick={() => window.open("/subprocessors", "_blank")}

@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/terms", label: "Terms" },
   { href: "/privacy", label: "Privacy" },
   { href: "/subprocessors", label: "Subprocessors" },
+  { href: "/support", label: "Support" },
 ] as const;
 
 function renderInline(nodes: Inline[]): ReactNode[] {
