@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { mcpHost } from "@/lib/mcp-config";
 import { appRedirectUrl } from "@/lib/public-url";
+import { BUILD_HEADER } from "@/lib/pwa/build-version";
 import {
   isSandboxBlockedPage,
   sandboxApiCapability,
@@ -231,6 +232,15 @@ async function handle(request: NextRequest): Promise<NextResponse> {
   return NextResponse.next();
 }
 
+/** A page (not an API call, a Next asset or a file with an extension). */
+function isDocumentPath(pathname: string): boolean {
+  if (pathname.startsWith("/api/") || pathname.startsWith("/_next/")) {
+    return false;
+  }
+  const last = pathname.slice(pathname.lastIndexOf("/") + 1);
+  return !last.includes(".");
+}
+
 /**
  * The app host is never indexed. The header is also set in next.config.js, but
  * production responses were observed without it, so every response (redirects
@@ -244,6 +254,16 @@ export async function middleware(request: NextRequest) {
   }
   const response = await handle(request);
   response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  // Which build answered: a page from an older build compares this with its
+  // own SHA and offers a reload (src/lib/pwa/build-version.ts).
+  const build =
+    process.env.NEEDT_BUILD_SHA || process.env.NEXT_PUBLIC_NEEDT_BUILD_SHA;
+  if (build) response.headers.set(BUILD_HEADER, build);
+  // A document is never kept by a browser or proxy without asking the server:
+  // after a deploy, old HTML would name CSS/JS chunks that no longer exist.
+  if (isDocumentPath(request.nextUrl.pathname)) {
+    response.headers.set("Cache-Control", "private, no-cache, must-revalidate");
+  }
   // Report-only: browsers report violations to /api/csp-report and block
   // nothing. API responses are not documents, so they go without it.
   if (!request.nextUrl.pathname.startsWith("/api/")) {

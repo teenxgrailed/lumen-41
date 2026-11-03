@@ -204,8 +204,8 @@ it("says so when nothing matches or the suggestions are down", async () => {
   expect(document.body.textContent).toContain("No city found");
   fetchMock.mockResolvedValueOnce({
     ok: false,
-    status: 502,
-    statusText: "Bad Gateway",
+    status: 500,
+    statusText: "Internal Server Error",
     text: async () => JSON.stringify({ error: "City search is unavailable." }),
   });
   await type("zzz");
