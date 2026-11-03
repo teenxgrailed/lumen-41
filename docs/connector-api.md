@@ -237,6 +237,21 @@ no capable agent for 24 hours) alerts the owner with a push to
 (`GET /api/agent-hub/badge`); it creates no Needt task. Protocol for agents:
 `docs/agents/hub-protocol.md`.
 
+**Plan limits (as of 2026-11-03).** Free keeps at most 2 agents (not
+disabled; Needt's own assistant does not count), 30 open items (status not
+done, failed or cancelled) and 100 memory notes, and sees 7 days of item
+events and history; Pro, Lifetime and an active trial are unlimited with 90
+days. A create past a limit (a new agent, `needt_agent_task_create`,
+`needt_agent_plan_create` when all its steps do not fit, `needt_memory_write`,
+an agent token) is refused with `PLAN_LIMIT` (REST status 402, MCP: a normal
+tool error with `isError`). The body names the limit and says to upgrade:
+`{ "error": "PLAN_LIMIT", "message": "The Free plan allows 2 agents and you
+are at 2. Upgrade to Pro for unlimited agents.", "limit": 2, "used": 2,
+"resource": "agents", "plan": "FREE", "upgradeRequired": true }`
+(`resource` is `agents`, `items` or `notes`). Nothing already stored is
+removed: data above a limit stays, stays readable and stays editable; only a
+new create is refused. Attachments, webhooks and recurring items are Pro-only.
+
 #### Attachments on hub items
 
 An agent can leave files on an item it can see (an agent sees only items that
@@ -269,7 +284,9 @@ secret scan; a hit is refused naming the kind, never the value.
   `nosniff` and sandboxed.
 - Each upload adds an `attachment_added` entry to the item's log. Errors are
   `INVALID` with `reason` `EMPTY`, `TOO_LARGE` (413), `QUOTA` (413),
-  `TOO_MANY`, `BAD_TYPE`, `EXECUTABLE` or `SECRET`.
+  `TOO_MANY`, `BAD_TYPE`, `EXECUTABLE` or `SECRET`. On Free an upload is refused
+  with `PLAN_LIMIT` (402, `resource` `attachments`): "Upgrade to Pro for
+  attachments". Listing and downloading files already stored stays allowed.
 
 ### Admin read (`needt.admin.read`)
 

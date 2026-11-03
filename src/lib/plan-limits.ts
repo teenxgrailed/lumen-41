@@ -22,6 +22,20 @@ export interface PlanLimits {
   habits: number | null;
   /** Goals with progress and the weekly check-in (owner decision 2026-10-27). */
   goals: boolean;
+  /** Agents in the hub that are not disabled (owner decision 2026-11-03). */
+  hubAgents: number | null;
+  /** Hub items that are not done, failed or cancelled. */
+  hubOpenItems: number | null;
+  /** Hub memory notes. */
+  hubNotes: number | null;
+  /** Days of hub activity and event history that stay visible. */
+  hubHistoryDays: number;
+  /** Attachments on hub items. */
+  hubAttachments: boolean;
+  /** Webhooks fired by hub events. */
+  hubWebhooks: boolean;
+  /** Recurring hub items. */
+  hubRecurring: boolean;
 }
 
 export const PLAN_LIMITS = {
@@ -39,6 +53,13 @@ export const PLAN_LIMITS = {
     advancedNudges: false,
     habits: 3,
     goals: false,
+    hubAgents: 2,
+    hubOpenItems: 30,
+    hubNotes: 100,
+    hubHistoryDays: 7,
+    hubAttachments: false,
+    hubWebhooks: false,
+    hubRecurring: false,
   },
   PRO: {
     calendars: null,
@@ -54,6 +75,13 @@ export const PLAN_LIMITS = {
     advancedNudges: true,
     habits: null,
     goals: true,
+    hubAgents: null,
+    hubOpenItems: null,
+    hubNotes: null,
+    hubHistoryDays: 90,
+    hubAttachments: true,
+    hubWebhooks: true,
+    hubRecurring: true,
   },
   LIFETIME: {
     calendars: null,
@@ -69,5 +97,12 @@ export const PLAN_LIMITS = {
     advancedNudges: true,
     habits: null,
     goals: true,
+    hubAgents: null,
+    hubOpenItems: null,
+    hubNotes: null,
+    hubHistoryDays: 90,
+    hubAttachments: true,
+    hubWebhooks: true,
+    hubRecurring: true,
   },
 } as const satisfies Record<SubscriptionPlan, PlanLimits>;

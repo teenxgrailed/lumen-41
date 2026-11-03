@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 
 import { ASSISTANT_CONNECTION_KEY } from "./constants";
 import { HubError } from "./errors";
+import { assertHubLimit } from "./limits";
 import { trackHub } from "./metrics";
 
 /** Who is acting: an agent behind one connection, or the signed-in owner. */
@@ -71,6 +72,13 @@ export async function agentForConnection(
   };
   let agent = await prisma.hubAgent.findUnique({ where });
   if (!agent) {
+    // The same connection already counted in another workspace is the same
+    // agent, so it takes no new slot.
+    const sameElsewhere = await prisma.hubAgent.findFirst({
+      where: { userId: auth.userId, connectionKey, disabledAt: null },
+      select: { id: true },
+    });
+    if (!sameElsewhere) await assertHubLimit(auth.userId, "agents");
     try {
       agent = await prisma.hubAgent.create({
         data: {
