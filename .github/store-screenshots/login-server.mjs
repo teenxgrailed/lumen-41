@@ -93,7 +93,9 @@ function pageProbe() {
       var x = new XMLHttpRequest();
       x.open("POST", "/__state", true);
       x.send(JSON.stringify(state()));
-    } catch (e) {}
+    } catch {
+      // the report is best-effort
+    }
   }, 500);
 }
 const PROBE = `<script>(${pageProbe.toString()})();</script>`;
