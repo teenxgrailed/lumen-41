@@ -14,10 +14,7 @@ describe("secret scanner", () => {
     ["Slack token", j("xo", "xb-1234567890-abcdefghij")],
     ["API key", `${j("sk-", "ant-")}${"a".repeat(30)}`],
     ["JSON web token", j("ey", "JhbGciOiJI.", "ey", "JzdWIiOiIx.abcdefghijkl")],
-    [
-      "authorization header",
-      `${j("Author", "ization")}: Bearer ${"a".repeat(30)}`,
-    ],
+    ["authorization header", `${j("Author", "ization")}: Bearer ${"a".repeat(30)}`],
     ["password in a URL", j("https://user:", "hunter2@example.com/x")],
     ["password or key assignment", "password = correcthorsebattery"],
   ];

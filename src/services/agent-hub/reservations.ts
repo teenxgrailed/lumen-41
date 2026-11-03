@@ -27,9 +27,7 @@ export function normalizeResource(raw: string): string {
   const sep = trimmed.indexOf(":");
   // The kind is case-insensitive ("Account:" is "account:").
   const resource =
-    sep > 0
-      ? `${trimmed.slice(0, sep).toLowerCase()}${trimmed.slice(sep)}`
-      : trimmed;
+    sep > 0 ? `${trimmed.slice(0, sep).toLowerCase()}${trimmed.slice(sep)}` : trimmed;
   if (!RESOURCE_FORMAT.test(resource)) {
     throw new HubError(
       "INVALID",
