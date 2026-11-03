@@ -46,7 +46,7 @@ follows the resolved theme. Available but not called yet: `share()`,
 ## Widgets, Controls and the Live Activity
 
 `ios/App/NeedtWidgets` is a WidgetKit extension (bundle id
-`app.needt.ios.widgets`, iOS 17+). It is only an entry point: everything lives in
+`app.needt.ios.widgets`, iOS 18+). It is only an entry point: everything lives in
 `apps/shared/NeedtWidgetKit` (views, widgets, intents, Live Activity) on top of
 the data layer `apps/shared/NeedtKit` (snapshot, models, timelines, cache).
 
@@ -91,7 +91,7 @@ push to `apps/ios/**` or `apps/shared/**`, checks the archive, and keeps it as t
 - **Privacy manifests.** `PrivacyInfo.xcprivacy` in the app, `NeedtWidgets` and `NeedtShare`: no tracking, no tracking domains, collected data as in the privacy notice (name, email, user id, user content, photos, mail, support, purchases, crash data), all App Functionality
 - **Required Reason APIs.** None used. Not in the app, NeedtKit or NeedtWidgetKit sources (no `UserDefaults`, file timestamps, boot time, disk space, active keyboards). Capacitor 8.5.3 stores its keys in files and ships an empty manifest. `verify-archive.sh` lists the symbols the linked binaries reference, so a new dependency that starts using one shows up in CI
 - **Encryption.** `ITSAppUsesNonExemptEncryption = false`: only HTTPS through the system and the keychain; no CryptoKit or custom crypto in the app
-- **Device.** `UIRequiredDeviceCapabilities = arm64`; minimum iOS 17.0 (was 15; the widgets were already 17, and App Shortcuts need it)
+- **Device.** `UIRequiredDeviceCapabilities = arm64`; minimum iOS 18.0 (was 15; the Release build of the widget bundle does not link below 18 because of the `if #available(iOS 18.0, *)` around the Controls in `NeedtWidgetBundle`; the app target follows so host and extension agree)
 - **Usage strings.** Camera (Take Photo in the file picker), microphone and speech (dictation in text fields), Photos add (Save Image)
 - **Entitlements.** App Group only, on all three targets. No `aps-environment`: push is not wired (`AppDelegate` does not forward the device token and nothing calls `registerNativePush`). No `applesignin`: sign-in is the web flow in `ASWebAuthenticationSession`. Add each with its capability when the feature is built
 - **Icon, launch.** 1024 px icon and all 12 alternates have no alpha (checked by `scripts/check-static.sh`); `LaunchScreen.storyboard` exists
