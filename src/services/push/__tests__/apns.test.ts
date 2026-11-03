@@ -181,8 +181,17 @@ describe("apnsBody", () => {
     });
     expect(Buffer.byteLength(body)).toBeLessThan(4096);
     const parsed = JSON.parse(body);
-    expect(Buffer.byteLength(parsed.aps.alert.body)).toBeLessThanOrEqual(2048);
+    expect(Buffer.byteLength(parsed.aps.alert.body)).toBeLessThanOrEqual(1500);
     expect(parsed.aps.alert.body).not.toMatch(/[\ud800-\udbff]$/);
+  });
+
+  it("stays under 4 KB when the text is all characters JSON escapes", () => {
+    const body = apnsBody({
+      title: '"'.repeat(400),
+      body: '"\\\n'.repeat(1000),
+      url: "/".padEnd(1000, "a"),
+    });
+    expect(Buffer.byteLength(body)).toBeLessThan(4096);
   });
 
   it("caps the alert and carries the task id", () => {

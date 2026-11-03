@@ -100,7 +100,9 @@ export function apnsBody(payload: NativePushPayload) {
     aps: {
       alert: {
         title: clipUtf8(payload.title, 256),
-        body: clipUtf8(payload.body, 2048),
+        // Quotes, backslashes and newlines double when JSON escapes them, so
+        // the budget leaves room for that under the 4 KB payload limit.
+        body: clipUtf8(payload.body, 1500),
       },
       sound: "default",
     },
@@ -172,7 +174,10 @@ const http2Transport: ApnsTransport = (host, path, headers, body) =>
     // connection, which an unreachable host never gives. A connection that
     // never came up is dropped too, so the next push does not queue on it.
     request.setTimeout(10_000, () => {
-      const connecting = request.pending;
+      // `pending` is also true for a stream queued on a live connection
+      // (APNs allows one stream at first); only a connection that never
+      // came up is dropped.
+      const connecting = request.pending && !session.connected;
       if (!settled) {
         settled = true;
         reject(new Error("APNs did not answer in 10 seconds"));

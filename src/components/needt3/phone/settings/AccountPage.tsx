@@ -8,6 +8,7 @@ import { LuKey, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
 
 import { AccountSettings } from "@/components/settings/AccountSettings";
 
+import { releaseNativePushToken } from "@/lib/needt3/hooks/push";
 import { notify } from "@/lib/notifications";
 import { clearNeedtOfflineData } from "@/lib/pwa/offline-client";
 
@@ -37,6 +38,7 @@ export function useSignOut() {
     if (going.current) return;
     going.current = true;
     try {
+      await releaseNativePushToken();
       await clearNeedtOfflineData();
       await signOut({ callbackUrl: "/auth/signin" });
     } finally {
