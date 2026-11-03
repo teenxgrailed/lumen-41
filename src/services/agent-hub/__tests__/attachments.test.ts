@@ -41,6 +41,10 @@ jest.mock("@/lib/prisma", () => ({
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
+const canUseHubAttachments = jest.fn();
+jest.mock("@/lib/entitlements", () => ({
+  canUseHubAttachments: (userId: string) => canUseHubAttachments(userId),
+}));
 jest.mock("../items", () => ({
   visibleToAgent: (item: { assigneeAgentId: string | null }, agent: HubAgent) =>
     item.assigneeAgentId === agent.id,
@@ -98,6 +102,67 @@ beforeEach(() => {
   db.hubItemAttachment.count.mockResolvedValue(0);
   db.hubItemAttachment.aggregate.mockResolvedValue({ _sum: { size: 0 } });
   db.hubItemAttachment.create.mockResolvedValue(row());
+  canUseHubAttachments.mockResolvedValue({
+    allowed: true,
+    upgradeRequired: false,
+    plan: "PRO",
+  });
+});
+
+describe("hub attachments on the Free plan", () => {
+  beforeEach(() => {
+    canUseHubAttachments.mockResolvedValue({
+      allowed: false,
+      upgradeRequired: true,
+      plan: "FREE",
+    });
+  });
+
+  const planLimit = {
+    code: "PLAN_LIMIT",
+    status: 402,
+    message: "Upgrade to Pro for attachments",
+    extra: { resource: "attachments", plan: "FREE", upgradeRequired: true },
+  };
+
+  it("refuses an inline upload with PLAN_LIMIT (402)", async () => {
+    await expect(
+      addAttachment(scope, {
+        itemId: "item-1",
+        name: "a.txt",
+        contentBase64: b64([65]),
+      })
+    ).rejects.toMatchObject(planLimit);
+    expect(db.hubItemAttachmentBlob.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses an upload link", async () => {
+    await expect(
+      prepareUpload(scope, { itemId: "item-1", name: "a.txt" })
+    ).rejects.toMatchObject(planLimit);
+  });
+
+  it("refuses the PUT when the plan dropped after the link was made", async () => {
+    canUseHubAttachments.mockResolvedValueOnce({
+      allowed: true,
+      upgradeRequired: false,
+      plan: "PRO",
+    });
+    const { uploadUrl } = await prepareUpload(scope, {
+      itemId: "item-1",
+      name: "a.txt",
+    });
+    const token = new URL(uploadUrl, "http://x").searchParams.get("t");
+    await expect(receiveUpload(token, Buffer.from([65]))).rejects.toMatchObject(
+      planLimit
+    );
+    expect(db.hubItemAttachmentBlob.create).not.toHaveBeenCalled();
+  });
+
+  it("still lists files already stored", async () => {
+    db.hubItemAttachment.findMany.mockResolvedValue([row()]);
+    await expect(listAttachments(scope, "item-1")).resolves.toBeDefined();
+  });
 });
 
 const b64 = (bytes: number[]) => Buffer.from(bytes).toString("base64");

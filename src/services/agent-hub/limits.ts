@@ -2,6 +2,7 @@ import { newDate } from "@/lib/date-utils";
 import {
   type HubLimitKind,
   canAddToHub,
+  canUseHubAttachments,
   hubHistoryWindow,
 } from "@/lib/entitlements";
 
@@ -65,6 +66,18 @@ export async function assertHubLimitFor(
     return;
   }
   await assertHubLimit(userId, kind, adding);
+}
+
+/** Attachments on hub items are Pro: Free gets PLAN_LIMIT (402). Reading
+ *  files already stored stays allowed. */
+export async function assertHubAttachments(userId: string) {
+  const status = await canUseHubAttachments(userId);
+  if (status.allowed) return;
+  throw new HubError("PLAN_LIMIT", "Upgrade to Pro for attachments", {
+    resource: "attachments",
+    plan: status.plan,
+    upgradeRequired: true,
+  });
 }
 
 /** What a person can see of the hub history, resolved once per request. */

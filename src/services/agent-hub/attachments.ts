@@ -25,6 +25,7 @@ import {
 import type { HubScope } from "./context";
 import { HubError } from "./errors";
 import { visibleToAgent } from "./items";
+import { assertHubAttachments } from "./limits";
 import { assertNoSecrets } from "./secret-scan";
 
 /**
@@ -223,6 +224,7 @@ export async function addAttachment(
   }
 ) {
   await visibleItem(scope, input.itemId);
+  await assertHubAttachments(scope.userId);
   let bytes = input.bytes;
   if (!bytes) {
     const text = (input.contentBase64 ?? "").replace(/^data:[^,]*,/, "");
@@ -256,6 +258,7 @@ export async function prepareUpload(
   input: { itemId: string; name: string; mime?: string }
 ) {
   await visibleItem(scope, input.itemId);
+  await assertHubAttachments(scope.userId);
   const name = safeAttachmentName(input.name);
   if (!name) throw refusal("BAD_TYPE", "The file needs a name.");
   assertNoSecrets({ name });
@@ -313,6 +316,8 @@ export async function receiveUpload(
     select: { id: true },
   });
   if (!item) throw new HubError("NOT_FOUND", "Item not found.");
+  // The plan may have changed between prepareUpload and this PUT.
+  await assertHubAttachments(claims.u);
   const { name, mime } = validateAttachment({
     name: claims.n,
     bytes,

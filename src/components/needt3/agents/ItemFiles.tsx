@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/needt3/hooks/core";
 import { notify } from "@/lib/notifications";
 
+import { ProGate, useIsPro } from "../paywall/Pro";
 import { AgBtn } from "./AgParts";
 
 interface HubFile {
@@ -28,6 +29,7 @@ function sizeText(bytes: number) {
 
 /** The files on one hub item: a download link per file and an upload button. */
 export function ItemFiles({ id }: { id: string }) {
+  const pro = useIsPro();
   const client = useQueryClient();
   const input = useRef<HTMLInputElement>(null);
   const key = ["agent-hub", "item", id, "files"];
@@ -92,13 +94,19 @@ export function ItemFiles({ id }: { id: string }) {
             if (file) upload.mutate(file);
           }}
         />
-        <AgBtn
-          tone="secondary"
-          disabled={upload.isPending}
-          onClick={() => input.current?.click()}
-        >
-          {upload.isPending ? "Uploading" : "Attach a file"}
-        </AgBtn>
+        {pro ? (
+          <AgBtn
+            tone="secondary"
+            disabled={upload.isPending}
+            onClick={() => input.current?.click()}
+          >
+            {upload.isPending ? "Uploading" : "Attach a file"}
+          </AgBtn>
+        ) : (
+          <ProGate feature="attachments">
+            <AgBtn tone="secondary">Attach a file</AgBtn>
+          </ProGate>
+        )}
       </span>
     </>
   );
