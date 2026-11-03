@@ -4,21 +4,18 @@ import { type CSSProperties, type ReactNode } from "react";
 
 import { LuFolder } from "react-icons/lu";
 
+import { colourName } from "@/lib/needt3/colour-names";
 import type { V3Project } from "@/lib/needt3/map";
 
-import { projectHue } from "../../work/model";
+import { useNeedt3Ui } from "@/store/needt3-ui";
+
+import { PROJECT_SWATCHES, projectHue } from "../../work/model";
 import { PkButton, PkField, PkSheet, pkCx } from "../kit";
 import { nameTaken } from "./model";
 import { copy } from "./strings";
 
-/** The five project colours, under the prototype's names (PTK_SWATCHES). */
-const PTK_SWATCHES: readonly (readonly [string, string])[] = [
-  ["Lavender", "var(--accent)"],
-  ["Blue", "var(--info)"],
-  ["Green", "var(--success)"],
-  ["Red", "var(--destructive)"],
-  ["Grey", "var(--text-muted)"],
-];
+/** The five project colours: the desktop sheet's, named from one map. */
+const PTK_SWATCHES: readonly (readonly [string, string])[] = PROJECT_SWATCHES;
 
 /** The hue custom property the vendored ptk-* rules read. */
 const hueStyle = (hue: string | undefined) =>
@@ -192,7 +189,11 @@ export function PtkEditSheet({
   const clean = name.trim();
   const dupe = nameTaken(clean, projects, p?.id);
   const ok = !!clean && !dupe;
-  const swatches: [string, string][] = PTK_SWATCHES.map(([k, v]) => [k, v]);
+  const accent = useNeedt3Ui((st) => st.accent);
+  const swatches: [string, string][] = PTK_SWATCHES.map(([k, v]) => [
+    colourName(k, accent),
+    v,
+  ]);
   if (p?.color && !swatches.some((s) => s[1] === p.color))
     swatches.unshift(["Current", p.color]);
   const save = () => {

@@ -96,6 +96,7 @@ import {
   repeatKey,
   repeatLabel,
 } from "@/lib/needt3/repeat";
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 import { notify } from "@/lib/notifications";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
@@ -235,6 +236,7 @@ export function TaskDialog({
   task: V3Task;
   onClose: () => void;
 }) {
+  const hint = useShortcutHint();
   const container = useV3PortalContainer();
   const qc = useQueryClient();
   const pro = useIsPro();
@@ -1354,7 +1356,7 @@ export function TaskDialog({
                 role="checkbox"
                 aria-checked={t.done}
                 aria-label={t.done ? "Mark not done" : "Mark done"}
-                title={`${t.done ? "Reopen" : "Done"} · ⌘↵`}
+                title={`${t.done ? "Reopen" : "Done"} · ${hint("⌘↵")}`}
                 onClick={toggleDone}
               >
                 {t.done ? <LuCheck size={14} aria-hidden /> : null}

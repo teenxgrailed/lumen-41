@@ -6,6 +6,8 @@ import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { FiCheck, FiLock } from "react-icons/fi";
 import { LuChevronsUpDown } from "react-icons/lu";
 
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
+
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
 import { lockedBadgeProps } from "../paywall/Pro";
@@ -351,5 +353,6 @@ export function ProPill({
 }
 
 export function Kbd({ k }: { k: string }) {
-  return <span className="settings-kbd-grid">{k}</span>;
+  const hint = useShortcutHint();
+  return <span className="settings-kbd-grid">{hint(k)}</span>;
 }

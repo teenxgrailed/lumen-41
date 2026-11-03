@@ -11,6 +11,8 @@ import {
   useState,
 } from "react";
 
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
+
 import { noteTipHidden, tipDelay } from "./tip-timing";
 
 export type TooltipSide =
@@ -41,6 +43,7 @@ export function Tooltip({
   style?: CSSProperties;
   children: ReactNode;
 }) {
+  const hint = useShortcutHint();
   const [open, setOpen] = useState(false);
   // Waiting or showing: the window is listened to only then.
   const [engaged, setEngaged] = useState(false);
@@ -129,7 +132,7 @@ export function Tooltip({
         data-open={open ? "" : undefined}
       >
         {label}
-        {keys ? <kbd className="nt-tooltip-key">{keys}</kbd> : null}
+        {keys ? <kbd className="nt-tooltip-key">{hint(keys)}</kbd> : null}
       </span>
     </span>
   );

@@ -1,0 +1,22 @@
+/* Design v3 - the due date on a task row. HAND-WRITTEN.
+ * The agenda row's chip geometry (.tk-ag-chip: 20px, fill-2 ground, 12px meta); overdue turns
+ * the text destructive and nothing else, so no new fill and no accent. */
+.needt-v3 .tk-due {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--fill-2);
+  color: var(--text-secondary);
+  font: var(--type-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.needt-v3 .tk-due.is-late {
+  color: var(--destructive);
+}
+.needt-v3 .tk-cell-due {
+  min-width: 0;
+}

@@ -4,6 +4,8 @@ import { type ReactNode, useState } from "react";
 
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
+
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
 import { Art, type ArtName } from "./Art";
@@ -31,6 +33,7 @@ type Row = Exclude<RichMenuItem, { sep: true }>;
 
 /** Big row: 40px picture, title and one line of why, hairline below. */
 function RichRow({ it, i, last }: { it: Row; i: number; last: boolean }) {
+  const hint = useShortcutHint();
   const [hot, setHot] = useState(false);
   return (
     <Dropdown.Item
@@ -72,7 +75,7 @@ function RichRow({ it, i, last }: { it: Row; i: number; last: boolean }) {
         {it.sub ? <span className="shell-rich-row-text">{it.sub}</span> : null}
       </span>
       {it.kbd ? (
-        <span className="base-meta shell-rich-row-text-2">{it.kbd}</span>
+        <span className="base-meta shell-rich-row-text-2">{hint(it.kbd)}</span>
       ) : null}
       {!last ? (
         <span className="shell-rich-row-layer" aria-hidden="true" />
@@ -83,6 +86,7 @@ function RichRow({ it, i, last }: { it: Row; i: number; last: boolean }) {
 
 /** Compact row: 22px picture and a 13px title (import, convert, pick one). */
 function SmallRow({ it, i }: { it: Row; i: number }) {
+  const hint = useShortcutHint();
   const [hot, setHot] = useState(false);
   return (
     <Dropdown.Item
@@ -122,7 +126,7 @@ function SmallRow({ it, i }: { it: Row; i: number }) {
         )}
       </span>
       {it.kbd ? (
-        <span className="base-meta shell-rich-row-text-2">{it.kbd}</span>
+        <span className="base-meta shell-rich-row-text-2">{hint(it.kbd)}</span>
       ) : null}
     </Dropdown.Item>
   );

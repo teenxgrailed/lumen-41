@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 
 import { FiArrowUpRight, FiCheck, FiX } from "react-icons/fi";
 
+import { isMacApp } from "@/lib/desktop";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 import { offersTrial } from "@/lib/needt3/paywall";
@@ -48,13 +49,13 @@ import { PlanSection } from "./PlanSection";
 import { FocusSection, GeneralSection, TasksSection } from "./PrefSections";
 import { MarkProvider } from "./SettingsContext";
 import {
-  NAV_FLAT,
   SECTION_TITLES,
-  SETTINGS_NAV,
   type SectionId,
   accentFromPrefs,
   isDesktopSection,
   isPro,
+  navFlatFor,
+  navFor,
   planInfo,
   sectionOf,
 } from "./derive";
@@ -198,6 +199,11 @@ export function SettingsSheet() {
   const [menu, setMenu] = useState(false);
   const [pill, setPill] = useState<MenuPlaceId[] | null>(null);
   const [saved, setSaved] = useState(0);
+  // Decided after mount so the server render and a browser tab agree: the
+  // Desktop group is only listed inside the Mac app.
+  const [mac, setMac] = useState(false);
+  useEffect(() => setMac(isMacApp()), []);
+  const nav = navFor(mac);
   // The section body mounts two frames after the sheet, the sky after its
   // entrance (it is parked until then: no frames drawn while the sheet moves).
   const bodyReady = useAfterOpen(open, { frames: 2 });
@@ -270,14 +276,15 @@ export function SettingsSheet() {
   const pro = isPro(kind);
 
   const navKeys = (e: KeyboardEvent) => {
-    const at = NAV_FLAT.indexOf(section);
+    const flat = navFlatFor(mac);
+    const at = flat.indexOf(section);
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      pick(NAV_FLAT[Math.min(at + 1, NAV_FLAT.length - 1)]);
+      pick(flat[Math.min(at + 1, flat.length - 1)]);
     }
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      pick(NAV_FLAT[Math.max(at - 1, 0)]);
+      pick(flat[Math.max(at - 1, 0)]);
     }
   };
 
@@ -389,7 +396,7 @@ export function SettingsSheet() {
               </span>
             </span>
           </button>
-          {SETTINGS_NAV.map((g) => (
+          {nav.map((g) => (
             <div className="base-stack settings-stack-2" key={g.items[0].id}>
               {g.group ? (
                 <span className="settings-text-3">{g.group}</span>
