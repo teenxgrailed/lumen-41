@@ -13,7 +13,7 @@
   --white: #ffffff;
   --ink: #0e1520;
   --ink-2: rgba(14, 21, 32, .68);
-  --ink-3: rgba(14, 21, 32, .46);
+  --ink-3: rgba(14, 21, 32, .6);
   --line: rgba(10, 13, 18, .08);
   --line-2: rgba(10, 13, 18, .14);
   --card: #ffffff;
@@ -1164,3 +1164,8 @@ a, button, [role="button"], summary { touch-action: manipulation; }
   .soc:hover, .sx-btn:hover, .tile:hover, .tile:hover .go, .up-row:hover i, .xpanel.is-open .xp-card:hover, a.bx-site:hover, a.rcard:hover, .nav-x-btn:hover .nx-orb, .live-ck:hover::before { transform: none !important; }
   .mx-bud:hover > img { transform: rotate(4deg) !important; }
 }
+
+/* Skip link: first focusable element, visible only on focus. */
+.skip-link { position: absolute; left: 12px; top: -64px; z-index: 1000; padding: 10px 16px; border-radius: 10px; background: #0e1520; color: #fff; font: 600 14px/1.2 var(--sans); text-decoration: none; transition: top .15s; }
+.skip-link:focus, .skip-link:focus-visible { top: 12px; outline: 2px solid #fff; outline-offset: 2px; box-shadow: 0 0 0 4px #5a5ce2; }
+main:focus { outline: none; }

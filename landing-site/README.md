@@ -14,7 +14,7 @@ so the folder also opens from disk (`site.js` rewrites folder links to `index.ht
 | `/blog/` + 3 posts | `five-tabs-one-plan`, `plan-your-day-in-five-minutes`, `ai-assistant-calendar-mcp` |
 | `/pricing/` | Free / Pro $7 or $59 / Lifetime $149, compare table, FAQ |
 | `/compare/` + 6 | motion, sunsama, akiflow, reclaim, ticktick, todoist-notion (prices checked 11 Oct 2026) |
-| `/changelog/` `/download/` `/help/` `/security/` `/privacy/` `/terms/` | — |
+| `/changelog/` `/download/` `/help/` `/security/` (`/privacy/` and `/terms/` 301 to use.needt.app) | — |
 | `/404.html` | Absolute links (served from any path). nginx needs `error_page 404 /404.html;` |
 
 ## Shared parts
