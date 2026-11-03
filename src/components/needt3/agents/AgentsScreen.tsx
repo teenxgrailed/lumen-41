@@ -12,7 +12,7 @@ import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 import { PLAN_LIMITS } from "@/lib/plan-limits";
 
-import { ProLimit } from "../paywall/Pro";
+import { ProGate, ProLimit, useIsPro } from "../paywall/Pro";
 import { PlaceHeader } from "../places/PlaceHeader";
 import { MemoriesGroup } from "../settings/MemoriesGroup";
 import { Segmented } from "../shell/Segmented";
@@ -338,12 +338,20 @@ export function AgentsScreen() {
   const tags = Array.from(new Set(notes.flatMap((n) => n.tags))).sort();
 
   const recurrences = useRecurrences().data;
+  const pro = useIsPro();
   const repeatToggle = (item: HubItemRow) => {
     const recurrence = item.recurrenceId
       ? recurrences?.get(item.recurrenceId)
       : undefined;
     if (!recurrence || recurrence.state === "ended") return null;
     const action = recurrence.state === "active" ? "pause" : "resume";
+    // Resuming a repeat is Pro (the server answers PLAN_LIMIT); pausing stays free.
+    if (action === "resume" && !pro)
+      return (
+        <ProGate feature="recurring hub items">
+          <AgBtn>Resume repeat</AgBtn>
+        </ProGate>
+      );
     return (
       <AgBtn
         onClick={() =>

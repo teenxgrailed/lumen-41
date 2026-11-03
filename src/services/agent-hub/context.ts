@@ -13,7 +13,6 @@ import { ASSISTANT_CONNECTION_KEY } from "./constants";
 import { HubError } from "./errors";
 import { assertHubLimit } from "./limits";
 import { trackHub } from "./metrics";
-import { assertHubLimit } from "./limits";
 
 /** Who is acting: an agent behind one connection, or the signed-in owner. */
 export type Actor = { kind: "agent"; agent: HubAgent } | { kind: "owner" };

@@ -11,7 +11,6 @@ import type { HubScope } from "./context";
 import { HubError } from "./errors";
 import { assertHubLimit } from "./limits";
 import { trackHub } from "./metrics";
-import { assertHubLimit } from "./limits";
 
 const LAST_USED_WRITE_MS = 60 * 1000;
 
