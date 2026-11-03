@@ -224,7 +224,9 @@ REST parity under `/api/connect/agent-hub/`: `agents`, `inbox` (`?view=ready`),
 `next`, `plans`, `links` (POST adds, DELETE removes; body `{fromId, toId,
 kind}`), `items`, `items/{id}`, `items/{id}/{claim,complete,escalate,cancel}`,
 `notes`, `notes/{id}`, `messages` (+ `messages/{id}/ack`), `threads/{id}`,
-`reservations` (+ `reservations/release`). Mail and reservations add seven
+`reservations` (+ `reservations/release`), `activity` (`?agent=&kinds=&cursor=&limit=`, newest
+first, 50 a page, 7 days Free / 90 Pro; the owner reads the same feed at
+`/api/agent-hub/activity`). The feed is also `needt_agent_activity`. Mail and reservations add seven
 tools: `needt_agent_message_send`, `needt_agent_messages`,
 `needt_agent_message_ack`, `needt_agent_thread`, `needt_agent_reserve`,
 `needt_agent_release`, `needt_agent_reservations`. The owner's own actions (answer, approve, reassign, token
