@@ -57,10 +57,7 @@ import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
 import { PromoCard } from "../paywall";
 import { personalMenuItems } from "../personal/menu-items";
-import {
-  ProjectDeleteHost,
-  askDeleteProject,
-} from "../work/ProjectDeleteHost";
+import { ProjectDeleteHost, askDeleteProject } from "../work/ProjectDeleteHost";
 import { PROJECT_SWATCHES } from "../work/model";
 import { AccountMenu } from "./AccountMenu";
 import { ImportMenu } from "./ImportMenu";
@@ -360,6 +357,7 @@ function Fold({ shut, children }: { shut: boolean; children: ReactNode }) {
     <div
       className={`nx-fold${shut ? " is-shut" : ""}`}
       aria-hidden={shut || undefined}
+      inert={shut || undefined}
     >
       <div className="base-stack">{children}</div>
     </div>
