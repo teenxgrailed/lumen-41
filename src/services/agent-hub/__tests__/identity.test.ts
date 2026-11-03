@@ -7,11 +7,18 @@ import { trackHub } from "../metrics";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    hubAgent: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+    hubAgent: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
     oAuthClient: { findUnique: jest.fn() },
   },
 }));
 jest.mock("@/lib/feature-flags", () => ({ agentHubEnabled: jest.fn() }));
+// Plan limits have their own tests (plan-limits.test.ts).
+jest.mock("../limits", () => ({ assertHubLimit: jest.fn() }));
 jest.mock("../metrics", () => ({ trackHub: jest.fn() }));
 
 const findUnique = prisma.hubAgent.findUnique as jest.Mock;

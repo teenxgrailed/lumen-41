@@ -149,6 +149,17 @@ assistant, which reads and writes them as the agent "Needt assistant". They
 are not about the owner: what Needt learns about the owner is a separate list
 ("About you").
 
+## Plan limits
+
+On the Free plan the hub holds 2 agents, 30 open items and 100 notes, and shows
+7 days of history (Pro: unlimited, 90 days). A create past a limit fails with
+`PLAN_LIMIT`: a normal tool error, not a crash. Its message names the limit and
+says "Upgrade to Pro for unlimited agents" (or items, or notes); the body has
+`limit`, `used` and `resource`. Do not retry in a loop: finish or cancel open
+items, drop notes you no longer need, or tell the owner the limit is reached
+(`needt_agent_task_escalate` on an item you hold, or a message to the owner).
+Nothing you already have is removed or locked.
+
 ## Where it shows
 
 Everything here lives on the Agents screen (`/agents`). Nothing from the hub

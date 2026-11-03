@@ -36,6 +36,7 @@ import {
   openBlockers,
 } from "./deps";
 import { HubError } from "./errors";
+import { type HistoryWindow, assertHubLimitFor, historyWindow } from "./limits";
 import {
   assertHttpUrl,
   assertProjectInWorkspace,
@@ -234,28 +235,64 @@ export function itemView(item: HubItem, options: ItemViewOptions) {
   };
 }
 
-async function latestEvents(itemIds: readonly string[]) {
+/**
+ * The latest event of each item inside the history window. `keepIds` are items
+ * that must still show their single latest event when it is older than the
+ * window (Free: an open item keeps its last escalation visible).
+ */
+async function latestEvents(
+  itemIds: readonly string[],
+  since?: Date,
+  keepIds: readonly string[] = []
+) {
   if (!itemIds.length) return new Map<string, HubItemEvent>();
   const rows = await prisma.hubItemEvent.findMany({
-    where: { itemId: { in: [...itemIds] } },
+    where: {
+      itemId: { in: [...itemIds] },
+      ...(since ? { at: { gte: since } } : {}),
+    },
     orderBy: [{ at: "desc" }],
     distinct: ["itemId"],
   });
-  return new Map(rows.map((row) => [row.itemId, row]));
+  const found = new Map(rows.map((row) => [row.itemId, row]));
+  const missing = since
+    ? keepIds.filter((id) => itemIds.includes(id) && !found.has(id))
+    : [];
+  if (missing.length) {
+    const older = await prisma.hubItemEvent.findMany({
+      where: { itemId: { in: missing } },
+      orderBy: [{ at: "desc" }],
+      distinct: ["itemId"],
+    });
+    for (const row of older) found.set(row.itemId, row);
+  }
+  return found;
 }
 
-async function recentEvents(itemId: string, take: number) {
+/** Ids of items that are not finished: they keep their latest event on Free. */
+function unfinishedIds(
+  items: readonly { id: string; status: string }[],
+  hist: HistoryWindow
+) {
+  return hist.limited
+    ? items
+        .filter((item) => !TERMINAL_STATUSES.includes(item.status))
+        .map((item) => item.id)
+    : [];
+}
+
+async function recentEvents(itemId: string, take: number, since?: Date) {
   const rows = await prisma.hubItemEvent.findMany({
-    where: { itemId },
+    where: { itemId, ...(since ? { at: { gte: since } } : {}) },
     orderBy: [{ at: "desc" }],
     take,
   });
   return rows.reverse();
 }
 
-async function allEvents(itemId: string) {
+async function allEvents(itemId: string, since?: Date) {
   return prisma.hubItemEvent.findMany({
-    where: { itemId },
+    where: { itemId, ...(since ? { at: { gte: since } } : {}) },
     orderBy: [{ at: "asc" }],
   });
 }
@@ -400,16 +437,29 @@ async function mutateItem(
 async function viewOne(
   scope: WorkspaceKey,
   item: HubItem,
-  extra: Partial<ItemViewOptions> & { fullLog?: boolean; recent?: number } = {}
+  {
+    window: given,
+    ...extra
+  }: Partial<ItemViewOptions> & {
+    fullLog?: boolean;
+    recent?: number;
+    /** The history window, when the caller already resolved it. */
+    window?: HistoryWindow;
+  } = {}
 ) {
+  // Free sees 7 days of history, Pro 90; older events stay stored.
+  const hist = given ?? (await historyWindow(item.userId));
+  const since = hist.since;
   const events = extra.fullLog
-    ? await allEvents(item.id)
+    ? await allEvents(item.id, since)
     : extra.recent
-      ? await recentEvents(item.id, extra.recent)
+      ? await recentEvents(item.id, extra.recent, since)
       : undefined;
   const latest = events?.length
     ? events[events.length - 1]
-    : ((await latestEvents([item.id])).get(item.id) ?? null);
+    : ((await latestEvents([item.id], since, unfinishedIds([item], hist))).get(
+        item.id
+      ) ?? null);
   const names = await agentNames(scope, [
     item.assigneeAgentId,
     item.creatorAgentId,
@@ -633,6 +683,7 @@ export async function createItem(scope: HubScope, input: CreateItemInput) {
     }
   }
 
+  await assertHubLimitFor(scope.userId, scope.actor, "items");
   const now = newDate();
   try {
     const item = await prisma.$transaction(async (tx) => {
@@ -1534,8 +1585,13 @@ export async function listItems(
     orderBy: [{ updatedAt: "desc" }],
     take: Math.min(options.limit ?? 200, 500),
   });
+  const hist = await historyWindow(key.userId);
   const [latest, unmatched, names] = await Promise.all([
-    latestEvents(items.map((item) => item.id)),
+    latestEvents(
+      items.map((item) => item.id),
+      hist.since,
+      unfinishedIds(items, hist)
+    ),
     unmatchedItemIds(key, items),
     agentNames(
       key,
