@@ -67,6 +67,9 @@ import { ProBadge } from "../paywall/Pro";
 import { openPaywall } from "../paywall/store";
 
 const copy = docsCopy.DcStylePanel;
+const FOCUSABLE =
+  'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
+
 /** What the paywall says was asked for (prototype `DC_PRO_FEATURE`). */
 const PRO_FEATURE = "Document themes";
 
@@ -75,7 +78,7 @@ const PRO_FEATURE = "Document themes";
  * and kept inside the window; portalled into the v3 scope so the panel's
  * scroller never clips it.
  */
-function DcPop({
+export function DcPop({
   trigger,
   width,
   label,
@@ -116,7 +119,12 @@ function DcPop({
       setOpen(false);
     };
     const esc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      /* back to the trigger, so the keyboard does not lose its place */
+      tRef.current
+        ?.querySelector<HTMLElement>(FOCUSABLE)
+        ?.focus({ preventScroll: true });
     };
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", esc);
@@ -127,6 +135,15 @@ function DcPop({
       window.removeEventListener("resize", place);
     };
   }, [open]);
+  /* The popover is portalled away from its trigger, so Tab would never reach
+     it: move focus in when it opens. */
+  useEffect(() => {
+    const p = pRef.current;
+    if (!open || !shown || !p) return;
+    (p.querySelector<HTMLElement>(FOCUSABLE) ?? p).focus({
+      preventScroll: true,
+    });
+  }, [open, shown]);
   const close = () => setOpen(false);
   return (
     <>
@@ -146,6 +163,7 @@ function DcPop({
               ref={pRef}
               role="dialog"
               aria-label={label}
+              tabIndex={-1}
               className={
                 "docs-dc-pop-2 nx-pop is-right" + (leaving ? " is-leaving" : "")
               }
