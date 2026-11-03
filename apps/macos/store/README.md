@@ -11,7 +11,7 @@ the same as on iPhone.
 - Age rating: `apps/ios/store/age-rating.md` (same answers, same 16+ override).
 - Screenshots: the `needt-store-screenshots` artifact of `.github/workflows/store-screenshots.yml`,
   files `mac_2880x1800_*.png`.
-- Bundle ids and signing: `apps/macos/README.md`, "Mac App Store" (`NeedtAppStore`,
+- Bundle ids and signing: `apps/macos/README.md`, "Mac App Store" (`NeedtAppStoreLite` by default, `NeedtAppStore` with the island,
   `app.needt.mac`; needs the owner's Apple Developer team).
 - Limits: name 5 of 30, subtitle 30 of 30, keywords 96 of 100, promotional text 150 of 170,
   description 2085 of 4000.

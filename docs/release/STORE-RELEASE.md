@@ -20,39 +20,39 @@ itself; you import nothing.
 
 ---
 
-## Decisions only you can make (before step 1)
+## Decisions made (2026-11-03)
 
-1. **Sell Pro inside the app or not.** App Review 3.1.3(b) lets an app unlock
-   Pro bought on the website only "provided those items are also available as
-   in-app purchases within the app"; 3.1.3(f) (no IAP needed) covers VoIP, cloud
-   storage, email and web hosting companions, not a planner.
+1. **Pro is sold inside the iOS app with In-App Purchase.** App Review
+   3.1.3(b) lets an app unlock Pro bought on the website only "provided those
+   items are also available as in-app purchases within the app"; 3.1.3(f) (no
+   IAP needed) covers VoIP, cloud storage, email and web hosting companions,
+   not a planner.
    [Guidelines, updated 2026-10-16](https://developer.apple.com/app-store/review/guidelines/).
-   - The IAP code is in the repository behind the server flag `apple_iap`
-     (off). Turning it on needs the products in step 6 and the flag.
-   - Without IAP the app ships with no purchase anywhere (store mode hides
-     every price, checkout and upgrade button). Free works fully in the app.
-     That is the strongest case without IAP, but a rejection under 3.1.1 is
-     possible; the answer then is to turn IAP on.
+   - The IAP code is in the repository behind the server flag `apple_iap`,
+     which stays off until you submit for review (step 6 says when to turn it
+     on).
    - Apple keeps 15 % in the Small Business Program (enrol before the first
      sale, under 1 M USD proceeds a year), otherwise 30 % in a subscription's
      first year and 15 % after.
      [Apple, subscriptions](https://developer.apple.com/help/app-store-connect/manage-subscriptions/offer-auto-renewable-subscriptions).
-2. **The notch island in the Mac App Store build.** `apps/macos/Island` is a
-   fork of Atoll / boring.notch under GPL v3; 241 of its files are compiled into
-   `NeedtAppStore` (list: `island-sources-in-appstore.txt` in artifact
-   `needt-macos-appstore-log`). The
-   FSF holds that App Store terms conflict with the GPL, and VLC was pulled from
+   - The 14-day refund in Terms §5.5 covers website purchases only; App Store
+     purchases are refunded by Apple alone (Terms §5.7).
+2. **The Mac App Store gets the build without the notch island.**
+   `apps/macos/Island` is a fork of Atoll / boring.notch under GPL v3, and the
+   FSF holds that App Store terms conflict with the GPL; VLC was pulled from
    the App Store in 2011 after one contributor complained
    ([FSF 2010](https://www.fsf.org/news/2010-05-app-store-compliance),
    [Engadget 2011](https://www.engadget.com/2011-01-09-the-gpl-the-app-store-and-you.html)).
-   You do not own that code, so you cannot grant the exception yourself.
-   Options: ship it and accept a takedown risk, ask the Atoll authors for a
-   written exception, or exclude `Island/` from `NeedtAppStore` (the direct
-   build keeps it). To ship without the island: run store-upload with
-   mac_variant=appstore-lite. That builds the `NeedtAppStoreLite` scheme, which
-   compiles nothing from `Island/` (CI proves it in the `appstore-lite` job of
-   `macos.yml`); the default, `appstore`, is unchanged.
-3. **Partner Center account type** (individual or company). The operator is a
+   store-upload builds the `NeedtAppStoreLite` scheme by default
+   (`mac_variant=appstore-lite`), which compiles nothing from `Island/`; CI
+   proves it in the `appstore-lite` job of `macos.yml` and again on the
+   uploaded archive. The island ships only in the direct download (scheme
+   `Needt`, Developer ID, Sparkle). `mac_variant=appstore` still builds the
+   store app with the island, for a written exception from the Atoll authors.
+
+## Decision only you can make (before step 1)
+
+1. **Partner Center account type** (individual or company). The operator is a
    sole proprietor; a company account needs business verification.
 
 ---
@@ -151,14 +151,26 @@ Sandbox purchase from TestFlight on production (a Sandbox purchase gives at most
 With the environment unset the IAP routes answer 503 and the app shows no
 purchase. Full reference: `docs/billing/apple-iap.md`.
 
-Before the `apple_iap` flag goes on, `/terms` §5 must describe App Store
-purchases (charged and refunded by Apple, cancelled in Settings → Apple ID →
-Subscriptions). Today the app version of §5.1–5.2 says "Needt Pro is not sold
-in this app", which is true only while the flag is off. The purchase sheet
-itself links Apple's standard EULA as Terms of Use.
+`/terms` §5.7 describes App Store purchases (Apple is the seller, refunds
+only through Apple, cancel in Settings → Apple ID → Subscriptions) and §5.5
+says its 14-day refund covers website purchases only. A store build shows §5.7
+only while the purchase sheet can sell, so nothing changes in the app until
+the flag is on.
 
-Then turn `apple_iap` on (System Settings → Feature flags, for everyone or for
-the reviewer account first).
+**When to turn it on.** Leave the `APPLE_IAP_*` env unset and `apple_iap` off
+until the iOS version is ready to submit (step 10). Then, in this order:
+
+1. The three products show **Ready to Submit** and are added to the version
+   (the version page → In-App Purchases and Subscriptions). The first IAP
+   must go to review together with an app version.
+2. Set the `APPLE_IAP_*` env above on `needt` and `need-worker` and redeploy.
+3. Turn `apple_iap` on (System Settings → Feature flags) for everyone. The iOS
+   app is not public until you release it, so only TestFlight and the reviewer
+   see the purchase sheet; the website and the Mac app ignore the flag.
+4. In TestFlight, open Pro: the sheet lists the three products with prices.
+   If it says the App Store is unavailable, the env or the products are not
+   ready; do not submit.
+5. Submit (step 10).
 
 Small Business Program: <https://developer.apple.com/app-store/small-business-program/>
 before the first sale. IAP is on iOS only; the Mac App Store build has no
@@ -185,6 +197,9 @@ gh workflow run store-upload.yml -R teenxgrailed/lumen-41 -f target=ios -f versi
 ```bash
 gh workflow run store-upload.yml -R teenxgrailed/lumen-41 -f target=mac -f version=1.0.0 -f upload=true
 ```
+
+The Mac command builds the store app without the island
+(`mac_variant=appstore-lite`, the default).
 
 ```bash
 gh run watch -R teenxgrailed/lumen-41
@@ -340,6 +355,6 @@ Look before uploading:
 | Risk | Guideline | What is done | What is left |
 | --- | --- | --- | --- |
 | Web view of the live site | 4.2 | widgets, Live Activity, Controls, Shortcuts, Share extension, native offline screen, system sign-in, alternate icons, haptics; review notes list them | none in code; answer the reviewer with the notes if it comes |
-| Pro unlocked by an account bought elsewhere | 3.1.1 / 3.1.3(b) | IAP built, flag off | your decision (step 6) |
+| Pro unlocked by an account bought elsewhere | 3.1.1 / 3.1.3(b) | IAP built, Terms §5.7 | turn it on before submitting (step 6) |
 | Sign in with Apple not configured | 4.8, 2.1 | button drawn | step 3 |
-| GPL v3 island in the Mac App Store build | licence, not a guideline | MAS island cut to 241 files, no private API | your decision |
+| GPL v3 island in the Mac App Store build | licence, not a guideline | store-upload builds the Mac App Store app without the island by default | none |

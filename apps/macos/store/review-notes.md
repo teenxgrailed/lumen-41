@@ -1,4 +1,4 @@
-# App Review notes, Needt for Mac (Mac App Store build `NeedtAppStore`)
+# App Review notes, Needt for Mac (Mac App Store build `NeedtAppStoreLite`)
 
 Same structure as `apps/ios/store/review-notes.md`: Part 1 is pasted into App Store
 Connect > App Review Information > Notes (no credentials, ever), Part 2 is ours. The server
@@ -38,7 +38,7 @@ WHAT TO LOOK AT
 8. Offline: turn Wi-Fi off. A native screen shows the last day and task list read-only with "Offline" and the time of the last update, and retries on its own.
 
 PRIVACY
-No ads, no analytics, no tracking. Policy: https://use.needt.app/privacy. The minimum age is 16 (section 13); the age rating uses the "higher age rating" override. The app is sandboxed and asks only for network access, user-selected files (read-only), and camera and microphone for the web page when a feature asks for them.
+No ads, no analytics, no tracking. Policy: https://use.needt.app/privacy. The minimum age is 16 (section 13); the age rating uses the "higher age rating" override. The app is sandboxed and asks only for network access, user-selected files (read-only), and the microphone for the web page's dictation.
 ```
 
 ## Part 2
@@ -51,21 +51,19 @@ No ads, no analytics, no tracking. Policy: https://use.needt.app/privacy. The mi
   for Restore Purchases. Until then do not use it. The Mac store build relies on the native
   shell injecting `distribution: "appstore"` before the page runs (#537, known gap): see the
   window carry it on the first launch before submitting.
-- The Mac store build excludes Sparkle and part of the notch island (`apps/macos/README.md`,
-  "Mac App Store"). The island is Pro-only and off unless switched on in Settings; do not
-  describe it in the listing or the notes until the store build's island behaviour has been
-  seen on a real Mac.
+- The Mac App Store gets `NeedtAppStoreLite` (store-upload's default, owner decision
+  2026-11-03): no Sparkle and nothing from the GPL v3 notch island. Do not mention the island
+  in the listing or the notes; it ships only in the direct download.
 - Sign-in uses `NSWorkspace.open` and the default browser, not `ASWebAuthenticationSession`
   (`apps/macos/Needt/Sources/AuthFlow.swift`). Guideline 4.8 is met by offering Sign in with
   Apple on that page; see item 3 in the iOS file.
-- Camera and microphone entitlements are there "for the page"; Part 1 says so because Review
-  reads entitlements. If no web feature uses them, remove them from the entitlements instead
-  of explaining them.
+- The microphone entitlement is there for the page's dictation; Part 1 says so because Review
+  reads entitlements. If no web feature uses it, remove it instead of explaining it.
 - Everything native in this build has so far been built in CI only; nobody has run it on a
   real Mac (`apps/macos/README.md`, "What needs the owner").
-- **Lite variant (`NeedtAppStoreLite`, built when store-upload runs with `mac_variant=appstore-lite`).**
-  No notch island, no camera, no calendar or reminders access, no Apple Events (no Music or
-  Spotify control). The sandbox entitlements are network, user-selected files (read-only),
-  the app group and the microphone, which the web page uses for dictation only. If this
-  variant is the one submitted, in Part 1 PRIVACY replace "camera and microphone for the web
-  page" with "the microphone for the web page's dictation", and skip the island in the notes.
+- **What Lite leaves out** compared with `NeedtAppStore` (still built with
+  `mac_variant=appstore`): the notch island, the camera, calendar and reminders access, and
+  Apple Events (Music or Spotify control). Its sandbox entitlements are network,
+  user-selected files (read-only), the app group and the microphone. If `NeedtAppStore` is
+  ever submitted instead (only with a written GPL exception from the Atoll authors), Part 1
+  PRIVACY must say "camera and microphone for the web page".
