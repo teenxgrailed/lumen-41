@@ -1,0 +1,1 @@
+- Webhook renewal no longer fails every run for an account whose Google or Microsoft access was revoked: that feed is marked as needing a reconnect (and backs off for a day) instead of being retried hourly, and feeds already backing off are skipped. Other renewal failures are still reported once per run under a stable error name.

@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 
+import { canUseAgentHub } from "@/lib/entitlements";
 import { AGENT_HUB } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
 
@@ -39,7 +40,12 @@ export async function isFeatureEnabledForEveryone(flagKey: string) {
   return Boolean(flag?.enabled) && (flag?.rolloutPercentage ?? 0) >= 100;
 }
 
-/** The agent hub is on for this account (server-side only; see `AGENT_HUB`). */
-export function agentHubEnabled(userId: string) {
-  return isFeatureEnabled(AGENT_HUB, userId);
+/**
+ * The agent hub is on for this account (server-side only; see `AGENT_HUB`):
+ * the flag, and the plan check from `canUseAgentHub`. The flag is read first,
+ * so an account without it never costs a plan lookup.
+ */
+export async function agentHubEnabled(userId: string) {
+  if (!(await isFeatureEnabled(AGENT_HUB, userId))) return false;
+  return (await canUseAgentHub(userId)).allowed;
 }

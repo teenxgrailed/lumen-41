@@ -28,6 +28,11 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
+jest.mock("@/services/oauth/safe-fetch", () => ({
+  UnsafeFetchError: class UnsafeFetchError extends Error {},
+  assertPublicHost: jest.fn(async () => undefined),
+}));
+
 jest.mock("@/lib/logger", () => ({
   logger: {
     debug: jest.fn(),

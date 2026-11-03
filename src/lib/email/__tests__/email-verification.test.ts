@@ -1,4 +1,5 @@
 import { revokeConnectorTokens } from "@/services/connectors/auth";
+import { revokeNamedPersonalTokens } from "@/services/connectors/personal-tokens";
 
 import { forgetSessionState } from "@/lib/auth/session-version";
 import { newDate } from "@/lib/date-utils";
@@ -44,6 +45,9 @@ jest.mock("bcryptjs", () => ({
 }));
 jest.mock("@/services/connectors/auth", () => ({
   revokeConnectorTokens: jest.fn().mockResolvedValue({ count: 0 }),
+}));
+jest.mock("@/services/connectors/personal-tokens", () => ({
+  revokeNamedPersonalTokens: jest.fn().mockResolvedValue({ count: 0 }),
 }));
 jest.mock("@/lib/auth/session-version", () => ({
   forgetSessionState: jest.fn(),
@@ -170,6 +174,7 @@ describe("email verification confirmation", () => {
       });
       expect(forgetSessionState).toHaveBeenCalledWith("user-1");
       expect(revokeConnectorTokens).toHaveBeenCalledWith("user-1");
+      expect(revokeNamedPersonalTokens).toHaveBeenCalledWith("user-1");
     });
 
     it("an account with no password (provider sign-up) confirms anywhere", async () => {

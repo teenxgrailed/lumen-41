@@ -8,6 +8,11 @@ import { newDate, newDateFromYMD } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
+import {
+  UnsafeFetchError,
+  assertPublicHost,
+} from "@/services/oauth/safe-fetch";
+
 import { CalendarEventWithFeed } from "@/types/calendar";
 
 import { convertVEventToCalendarEvent } from "./caldav-helpers";
@@ -138,6 +143,22 @@ export class CalDAVCalendarService {
     // The stored password is encrypted; decrypt once here so every request
     // below authenticates with the plaintext. Client is created when needed.
     this.account = openConnectedAccountTokens(account);
+  }
+
+  /**
+   * Every raw request to the CalDAV server goes through here. The address
+   * check at connect time is not enough on its own: the stored server URL can
+   * later resolve somewhere internal, and event hrefs come from the server's
+   * own answers. So each request is limited to the account's own origin (the
+   * only place the Basic credentials may go), the host is re-checked as public
+   * right now, and redirects are not followed.
+   */
+  private async davFetch(
+    url: string,
+    init: RequestInit = {}
+  ): Promise<Response> {
+    const target = await assertCalDAVRequestUrl(url, this.account.caldavUrl);
+    return fetch(target, { ...init, redirect: "manual" });
   }
 
   /**
@@ -735,7 +756,7 @@ export class CalDAVCalendarService {
       let response;
       try {
         // Try using PUT method first (works better with some CalDAV servers like Fastmail)
-        response = await fetch(eventUrl, {
+        response = await this.davFetch(eventUrl, {
           method: "PUT",
           headers: {
             "Content-Type": "text/calendar; charset=utf-8",
@@ -882,7 +903,7 @@ export class CalDAVCalendarService {
           this.account.accessToken
         }`
       ).toString("base64");
-    const masterResponse = await fetch(masterEventUrl, {
+    const masterResponse = await this.davFetch(masterEventUrl, {
       headers: { Authorization: authorization },
     });
 
@@ -961,7 +982,7 @@ export class CalDAVCalendarService {
     }
     vcalendar.addSubcomponent(exceptionVevent);
 
-    const updateResponse = await fetch(masterEventUrl, {
+    const updateResponse = await this.davFetch(masterEventUrl, {
       method: "PUT",
       headers: {
         "Content-Type": "text/calendar; charset=utf-8",
@@ -1031,7 +1052,7 @@ export class CalDAVCalendarService {
       let response;
       try {
         // Try using DELETE method first (works better with some CalDAV servers like Fastmail)
-        response = await fetch(eventUrl, {
+        response = await this.davFetch(eventUrl, {
           method: "DELETE",
           headers: {
             Authorization:
@@ -1154,7 +1175,7 @@ export class CalDAVCalendarService {
           this.account.accessToken
         }`
       ).toString("base64");
-    const masterResponse = await fetch(masterEventUrl, {
+    const masterResponse = await this.davFetch(masterEventUrl, {
       headers: { Authorization: authorization },
     });
     if (!masterResponse.ok) {
@@ -1208,7 +1229,7 @@ export class CalDAVCalendarService {
       }
     }
 
-    const updateResponse = await fetch(masterEventUrl, {
+    const updateResponse = await this.davFetch(masterEventUrl, {
       method: "PUT",
       headers: {
         "Content-Type": "text/calendar; charset=utf-8",
@@ -1413,7 +1434,7 @@ export class CalDAVCalendarService {
       let response;
       try {
         // Try using PUT method first (works better with some CalDAV servers like Fastmail)
-        response = await fetch(eventUrl, {
+        response = await this.davFetch(eventUrl, {
           method: "PUT",
           headers: {
             "Content-Type": "text/calendar; charset=utf-8",
@@ -1820,4 +1841,34 @@ export class CalDAVCalendarService {
       processedUids.add(uid);
     }
   }
+}
+
+/**
+ * Refuses a CalDAV request URL that is not on the account's own origin or
+ * whose host is not public at this moment. Throws `UnsafeFetchError`.
+ * Returns the absolute URL to request (a relative href resolves against the
+ * account's server).
+ */
+export async function assertCalDAVRequestUrl(
+  url: string,
+  accountUrl: string | null | undefined
+): Promise<string> {
+  let target: URL;
+  let account: URL;
+  try {
+    account = new URL(String(accountUrl));
+    target = new URL(url, account);
+  } catch {
+    throw new UnsafeFetchError("The CalDAV address is not a valid URL.");
+  }
+  if (target.protocol !== "https:" && target.protocol !== "http:") {
+    throw new UnsafeFetchError("Only http(s) CalDAV addresses are allowed.");
+  }
+  if (target.origin !== account.origin) {
+    throw new UnsafeFetchError(
+      "The CalDAV request points away from the account's server."
+    );
+  }
+  await assertPublicHost(target.hostname);
+  return target.toString();
 }

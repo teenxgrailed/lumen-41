@@ -173,6 +173,7 @@ model User {
   agentActions           AgentAction[]
   aiUsage                AiUsage[]
   connectorSettings      ConnectorSettings?
+  personalApiTokens      PersonalApiToken[]
   timeEntries            TimeEntry[]
   scheduledBlocks        ScheduledBlock[]
   focusSessions          FocusSession[]
@@ -2613,6 +2614,9 @@ model ConnectorSettings {
   /// When the personal token stops working. Null: a token made before
   /// expiry existed, which keeps working until it is rotated.
   tokenExpiresAt      DateTime?
+  /// Last call made with the legacy token ("Default" in the token list).
+  /// Written at most once a minute.
+  tokenLastUsedAt     DateTime?
   webhookUrl          String?
   webhookSchedule     Boolean   @default(false)
   webhookTaskComplete Boolean   @default(false)
@@ -2621,6 +2625,25 @@ model ConnectorSettings {
 
   @@index([userId])
   @@index([tokenHash])
+}
+
+/// A named personal access token (`needt_...`): one per tool (Grok Bot, the
+/// Chrome extension, a script), so making one never breaks another. Shown once,
+/// stored only as a sha256. Same scopes as the legacy ConnectorSettings token
+/// (never admin). Each is its own agent in the agent hub: `token:<id>`.
+model PersonalApiToken {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  tokenHash    String    @unique
+  tokenPreview String
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, revokedAt])
 }
 
 model Tag {
@@ -4034,20 +4057,61 @@ model HubItem {
   question            String?
   taskId              String?
   projectId           String?
+  /// Legacy: escalations and the "no capable agent" alert used to create a Needt
+  /// task and store its id here. Nothing writes these any more (owner decision
+  /// 2026-11-03: the hub is separate from the person's tasks); old rows keep the id.
+  //todo: drop escalationTaskId and noAgentTaskId (contract step) once no row has them.
   escalationTaskId    String?
   noAgentTaskId       String?
+  /// The owner has an alert on this item they have not opened yet (escalation or no capable agent).
+  ownerUnread         Boolean        @default(false)
+  ownerAlertedAt      DateTime?
+  /// Set once when the 24 hour "no capable agent" alert was raised; makes it idempotent.
+  noAgentAlertedAt    DateTime?
   clientRef           String?
+  /// The done-criteria as a checklist; doneCriteria keeps the same text for readers of the old shape.
+  criteriaItems       String[]       @default([])
+  /// Reported by the agent on update / complete: running totals for the item.
+  usageTokens         Int?
+  usageCostUsd        Float?
+  usageMinutes        Int?
   version             Int            @default(1)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
   closedAt            DateTime?
   events              HubItemEvent[]
   notes               HubNote[]
+  linksOut            HubItemLink[]  @relation("HubLinkFrom")
+  linksIn             HubItemLink[]  @relation("HubLinkTo")
 
   @@unique([userId, creatorAgentId, clientRef])
   @@index([workspaceId, status, assigneeAgentId])
   @@index([status, leaseExpiresAt])
   @@index([workspaceId, closedAt])
+  @@index([userId, workspaceId, ownerUnread])
+}
+
+/// A directed edge between two items of one workspace. blocks: `from` must be
+/// done or cancelled before `to` can be claimed. parent: `from` is the parent of
+/// `to`. relates / duplicates / supersedes carry no behaviour. No cycles for
+/// blocks or parent (checked on write).
+model HubItemLink {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  fromId      String
+  from        HubItem  @relation("HubLinkFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId        String
+  to          HubItem  @relation("HubLinkTo", fields: [toId], references: [id], onDelete: Cascade)
+  /// blocks | relates | duplicates | supersedes | parent
+  kind        String
+  /// "owner" or the id of the agent that made the link.
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  @@unique([fromId, toId, kind])
+  @@index([toId, kind])
+  @@index([userId, workspaceId])
 }
 
 /// Append-only log of an item. Rows are never updated or deleted.

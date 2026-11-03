@@ -34,6 +34,11 @@ export interface MenuCounts {
   /** Connected accounts, and the ones that are not (by label). */
   connected?: number;
   connectionsDown?: readonly string[];
+  /**
+   * Present only while the agent hub is on for the person: the Agents row
+   * exists for them, with the alerts they have not opened.
+   */
+  agents?: { unread: number };
 }
 
 export interface MenuStatus {
@@ -106,6 +111,13 @@ export function menuStatus(id: MenuPlaceId, c: MenuCounts = {}): MenuStatus {
               ? `${c.connected} connected`
               : "Nothing connected yet",
           };
+    case "agents":
+      return c.agents?.unread
+        ? {
+            text: `${plural(c.agents.unread, "agent needs", "agents need")} you`,
+            alert: true,
+          }
+        : sub;
     default:
       // ask, templates, shared, trash, settings: what the place is for
       return sub;

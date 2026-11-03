@@ -7,20 +7,30 @@
   <style>
     body { width: 340px; padding: 12px; display: grid; gap: 8px; }
     .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    #tasks { display: grid; gap: 8px; }
+    #tasks[hidden] { display: none; }
+    .yt { display: grid; gap: 2px; }
+    .yt label { display: flex; gap: 8px; align-items: center; min-height: 26px; }
+    .yt input { width: auto; }
+    .yt h2 { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--text-quaternary); margin: 0 0 2px; }
     .hint { font-size: 12px; line-height: 16px; color: var(--text-muted); }
   </style>
 </head>
 <body>
-  <input id="title" placeholder="Task… tomorrow 2h #project !high" autofocus />
-  <div id="chips" class="chips"></div>
-  <select id="project"><option value="">No project</option></select>
-  <div class="actions">
-    <button id="add" class="primary">Add task</button>
-    <button id="page">Add this page</button>
-    <button id="tabs">Save tabs to project</button>
+  <div id="yt" class="yt"></div>
+  <div id="tasks" hidden>
+    <input id="title" placeholder="Task… tomorrow 2h #project !high" />
+    <div id="chips" class="chips"></div>
+    <select id="project"><option value="">No project</option></select>
+    <div class="actions">
+      <button id="add" class="primary">Add task</button>
+      <button id="page">Add this page</button>
+      <button id="tabs">Save tabs to project</button>
+    </div>
   </div>
   <div id="status" class="status"></div>
-  <div class="hint">Alt+Shift+N opens this. Right-click a selection or a link to add it.</div>
+  <div id="hint" class="hint">Alt+Shift+N opens this. Right-click a selection or a link to add it.</div>
+  <a id="options" class="hint" href="options.html" target="_blank">More YouTube settings and block lists</a>
   <script type="module" src="popup.js"></script>
 </body>
 </html>

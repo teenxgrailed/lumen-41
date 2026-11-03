@@ -1,4 +1,5 @@
 import { revokeConnectorTokens } from "@/services/connectors/auth";
+import { revokeNamedPersonalTokens } from "@/services/connectors/personal-tokens";
 import { hash as hashPassword } from "bcryptjs";
 import { createHash, randomBytes } from "node:crypto";
 
@@ -164,6 +165,7 @@ export async function confirmEmailVerification(input: {
   if (result.status === "verified" && result.sessionsRevoked) {
     forgetSessionState(result.userId);
     await revokeConnectorTokens(result.userId);
+    await revokeNamedPersonalTokens(result.userId);
   }
   if (result.status === "verified") {
     await sendWelcomeEmail({

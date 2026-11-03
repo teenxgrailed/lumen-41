@@ -241,7 +241,7 @@ export function Menu(props: MenuProps) {
   const { side, screen, tiles, counts, me, away, morph, focus, focusOn } =
     props;
   const top = tiles.slice(0, 3);
-  const rows = menuRows(top);
+  const rows = menuRows(top, { agents: counts?.agents !== undefined });
   const [mode, setMode] = useState<NvaMode>("pill");
   const [hint, setHint] = useState<"more" | "tuck" | null>(null);
   const [holding, setHolding] = useState(false);

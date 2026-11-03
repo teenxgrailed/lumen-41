@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { findListItem } from "@/lib/needt3/hooks/core";
+import { useUpdateEvent } from "@/lib/needt3/hooks/events";
 import {
   usePersonalBands,
   usePersonalBlocks,
@@ -21,7 +22,7 @@ import {
 } from "@/lib/needt3/hooks/personal";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
-import type { V3Task } from "@/lib/needt3/map";
+import type { V3Event, V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 import { daysOfRule } from "@/lib/personal-time";
@@ -32,6 +33,11 @@ import {
   PersonalDropConfirm,
 } from "../personal/PersonalDropConfirm";
 import { dropPatch } from "./drop";
+import {
+  EVENT_DRAG_PREFIX,
+  type EventGesture,
+  eventGesturePatch,
+} from "./event-drop";
 import {
   type BandGesture,
   PERSONAL_DRAG_PREFIX,
@@ -84,6 +90,7 @@ export function V3DragProvider({ children }: PropsWithChildren) {
   const personal = usePersonalBands();
   const blocks = usePersonalBlocks().data?.blocks;
   const updatePersonal = useUpdatePersonal();
+  const { mutateAsync: mutateEvent } = useUpdateEvent();
   /* A drop into personal time, or a change to a whole repeat, waits for a yes. */
   const [asking, setAsking] = useState<{
     ask: PersonalDropAsk;
@@ -136,20 +143,77 @@ export function V3DragProvider({ children }: PropsWithChildren) {
     [blocks, tz, updatePersonal]
   );
 
+  /* Move or resize a calendar event. A synced calendar's event is written at
+     the provider (useUpdateEvent); undo puts the old times back. */
+  const changeEvent = useCallback(
+    (
+      eventId: string,
+      gesture: EventGesture,
+      hours: number,
+      back?: () => void,
+      dayDelta = 0
+    ) => {
+      const event = findListItem<V3Event>(qc, qk.events(), eventId);
+      const patch = event
+        ? eventGesturePatch(event, gesture, hours, dayDelta)
+        : null;
+      if (!event || !patch) {
+        back?.();
+        return;
+      }
+      void mutateEvent({ id: event.id, patch, isAllDay: false })
+        .then(({ undo }) =>
+          notify.success(
+            `${gesture === "move" ? "Moved" : "Resized"} “${event.title}”`,
+            { action: { label: "Undo", onClick: () => void undo() } }
+          )
+        )
+        .catch((error: unknown) => {
+          // the mutation says "could not ..." and reverts; the block goes back
+          back?.();
+          void logger.warn(
+            "Event drop was not saved",
+            { error: error instanceof Error ? error.message : String(error) },
+            LOG_SOURCE
+          );
+        });
+    },
+    [qc, mutateEvent]
+  );
+
   const onResize = useCallback(
     (request: ResizeRequest) =>
-      changeBlock(
-        request.blockId,
-        "resize",
-        request.deltaHours,
-        request.revert
-      ),
-    [changeBlock]
+      request.blockId.startsWith(EVENT_DRAG_PREFIX)
+        ? changeEvent(
+            request.blockId.slice(EVENT_DRAG_PREFIX.length),
+            "resize",
+            request.deltaHours,
+            request.revert
+          )
+        : changeBlock(
+            request.blockId,
+            "resize",
+            request.deltaHours,
+            request.revert
+          ),
+    [changeBlock, changeEvent]
   );
   const { resizeProps } = usePersonalResize(onResize);
 
   const onDrop = useCallback<DropHandler>(
     (item, over, _mode, grab) => {
+      if (item.id.startsWith(EVENT_DRAG_PREFIX)) {
+        // an event moves by how far the hand travelled on the grid
+        if (over.kind === "timeline" && over.time != null && grab.time != null)
+          changeEvent(
+            item.id.slice(EVENT_DRAG_PREFIX.length),
+            "move",
+            over.time - grab.time,
+            undefined,
+            over.date && grab.date ? dayDeltaBetween(grab.date, over.date) : 0
+          );
+        return;
+      }
       if (item.id.startsWith(PERSONAL_DRAG_PREFIX)) {
         // a personal band moves by how far the hand travelled on the grid
         if (over.kind === "timeline" && over.time != null && grab.time != null)
@@ -192,7 +256,7 @@ export function V3DragProvider({ children }: PropsWithChildren) {
       if (band) setAsking({ ask: { taskTitle: task.title, band }, run: write });
       else write();
     },
-    [qc, tz, mutateAsync, personal, changeBlock]
+    [qc, tz, mutateAsync, personal, changeBlock, changeEvent]
   );
 
   const { drag, dragProps } = useDrag(onDrop, container);

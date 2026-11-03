@@ -56,6 +56,10 @@ export function TimeField({
   const [active, setActive] = useState(-1);
   const [up, setUp] = useState(false);
   const walked = useRef(false);
+  /* The row under the pointer lit up because the hand moved there. Scrolling
+     it into view would slide the list under a pointer that has not moved, and
+     the press would land on the next row. Only keys and opening scroll. */
+  const lit = useRef(false);
 
   useEffect(() => {
     setText(formatClock(value, use12h));
@@ -63,6 +67,10 @@ export function TimeField({
 
   useEffect(() => {
     if (!open) return;
+    if (lit.current) {
+      lit.current = false;
+      return;
+    }
     list.current
       ?.querySelector("[data-active]")
       ?.scrollIntoView?.({ block: "nearest" });
@@ -72,6 +80,7 @@ export function TimeField({
     if (open) return;
     const r = input.current?.getBoundingClientRect();
     setUp(!!r && r.bottom + 4 + LIST_H > window.innerHeight - 8);
+    lit.current = false;
     setActive(nearestStep(options, value));
     walked.current = false;
     setOpen(true);
@@ -137,6 +146,7 @@ export function TimeField({
               return;
             }
             walked.current = true;
+            lit.current = false;
             const step = e.key === "ArrowDown" ? 1 : -1;
             setActive((i) =>
               Math.min(options.length - 1, Math.max(0, (i < 0 ? 0 : i) + step))
@@ -181,7 +191,11 @@ export function TimeField({
               aria-selected={m === value}
               data-active={i === active ? "" : undefined}
               className="c2-tf-row"
-              onMouseMove={() => i !== active && setActive(i)}
+              onMouseMove={() => {
+                if (i === active) return;
+                lit.current = true;
+                setActive(i);
+              }}
               onClick={() => pick(m)}
             >
               <span>{formatClock(m, use12h)}</span>
