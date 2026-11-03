@@ -1,0 +1,1 @@
+- Agents: Free keeps 2 agents, 30 open agent tasks and 100 memory notes, and shows 7 days of agent history. Pro keeps everything, with 90 days of history. Nothing you already have is removed; only adding more past the limit is paused, and the Agents screen shows where you stand.

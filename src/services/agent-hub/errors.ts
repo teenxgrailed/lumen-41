@@ -13,7 +13,8 @@ export type HubErrorCode =
   | "BLOCKED_BY"
   | "CYCLE"
   | "RATE_LIMITED"
-  | "CONFLICT";
+  | "CONFLICT"
+  | "PLAN_LIMIT";
 
 const STATUS: Record<HubErrorCode, number> = {
   NOT_FOUND: 404,
@@ -31,6 +32,7 @@ const STATUS: Record<HubErrorCode, number> = {
   CYCLE: 409,
   RATE_LIMITED: 429,
   CONFLICT: 409,
+  PLAN_LIMIT: 402,
 };
 
 /** A refusal a caller can act on: a code, a status and what to do next. */
