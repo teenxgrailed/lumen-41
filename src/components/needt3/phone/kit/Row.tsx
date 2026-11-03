@@ -521,7 +521,11 @@ export function PkTaskRow({
   const h = hourAt(t);
   const time = h != null ? clock(h) : null;
   const line = [
-    late ? `Since ${dueLabel(t) ?? ""}`.trim() : null,
+    late
+      ? `Since ${dueLabel(t) ?? ""}`.trim()
+      : !t.done && dueLabel(t)
+        ? `Due ${dueLabel(t)}`
+        : null,
     durLabel(t.estimatedMinutes) || null,
   ]
     .filter(Boolean)

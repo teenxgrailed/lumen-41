@@ -5,6 +5,7 @@ import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { LuArrowRight, LuChevronDown, LuPanelLeft } from "react-icons/lu";
 
 import { useDoc } from "@/lib/needt3/hooks/docs";
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -30,6 +31,7 @@ const btn: CSSProperties = {
 
 /** Top-left: the icon toggles the rail, the chevron opens the small menu. */
 function SidebarToggle() {
+  const hint = useShortcutHint();
   const shell = useShellApi();
   const [open, setOpen] = useState(false);
   const [shown, leaving] = useExit(open, 130);
@@ -111,7 +113,7 @@ function SidebarToggle() {
             >
               {label}
               <span className="base-meta-muted shell-sidebar-toggle-text">
-                {kbd}
+                {hint(kbd)}
               </span>
             </button>
           ))}
@@ -133,6 +135,7 @@ function CommandBar({
   onClick: () => void;
   crumb?: string | null;
 }) {
+  const hint = useShortcutHint();
   return (
     <button
       type="button"
@@ -175,7 +178,7 @@ function CommandBar({
             fontVariantNumeric: "tabular-nums",
           }}
         >
-          ⌘K
+          {hint("⌘K")}
         </span>
       ) : null}
     </button>

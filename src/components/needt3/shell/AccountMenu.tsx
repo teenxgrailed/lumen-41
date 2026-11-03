@@ -26,6 +26,7 @@ import {
 import { openHelp } from "@/lib/needt3/help";
 import { type V3PlanKind, usePlan } from "@/lib/needt3/hooks/plan";
 import { useWhatsNewUnseen } from "@/lib/needt3/hooks/whats-new";
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 import { THEMES, type ThemeChoice } from "@/lib/needt3/theme";
 import { notify } from "@/lib/notifications";
 
@@ -88,6 +89,7 @@ function AcctRow({
   /** The row opens another site in a new tab. */
   out?: boolean;
 }) {
+  const hint = useShortcutHint();
   return (
     <button
       type="button"
@@ -103,7 +105,7 @@ function AcctRow({
       {soon ? (
         <span className="sb-acct-soon">Soon</span>
       ) : kbd ? (
-        <kbd className="sb-acct-kbd">{kbd}</kbd>
+        <kbd className="sb-acct-kbd">{hint(kbd)}</kbd>
       ) : out ? (
         <span className="sb-acct-kbd sb-acct-out" aria-hidden="true">
           <LuArrowUpRight size={14} />

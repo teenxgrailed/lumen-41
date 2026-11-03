@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 
+import { colourName } from "@/lib/needt3/colour-names";
 import type { V3Project } from "@/lib/needt3/map";
+
+import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { Sheet } from "../ctx/Sheet";
 import { PROJECT_SWATCHES, nameTaken } from "./model";
@@ -37,6 +40,7 @@ export function ProjectSheet({
   values?: { name: string; color: string } | null;
   onValues?: (v: { name: string; color: string }) => void;
 }) {
+  const accent = useNeedt3Ui((st) => st.accent);
   const [ownName, setOwnName] = useState("");
   const [ownHue, setOwnHue] = useState<string>(PROJECT_SWATCHES[0][1]);
   const held = !!values && !!onValues;
@@ -85,7 +89,8 @@ export function ProjectSheet({
           <button
             key={k}
             type="button"
-            aria-label={k}
+            aria-label={colourName(k, accent)}
+            title={colourName(k, accent)}
             aria-pressed={hue === v}
             onClick={() => setHue(v)}
             className="nx-press wk-swatch"

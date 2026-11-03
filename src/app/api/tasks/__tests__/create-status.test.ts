@@ -3,11 +3,12 @@ import { NextRequest } from "next/server";
 import { POST } from "../route";
 
 const create = jest.fn();
+const createReminders = jest.fn();
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     task: { create: (args: unknown) => create(args) },
-    taskReminder: { createMany: jest.fn() },
+    taskReminder: { createMany: (args: unknown) => createReminders(args) },
   },
 }));
 jest.mock("@/lib/auth/api-auth", () => ({
@@ -39,6 +40,7 @@ function post(body: Record<string, unknown>) {
 describe("POST /api/tasks status", () => {
   beforeEach(() => {
     create.mockReset();
+    createReminders.mockReset();
     create.mockImplementation(async ({ data }) => ({
       id: "t1",
       deadline: null,
@@ -61,5 +63,26 @@ describe("POST /api/tasks status", () => {
     const res = await post({ title: "Done already", status: "completed" });
     expect(res?.status).toBe(200);
     expect(create.mock.calls[0][0].data.status).toBe("completed");
+  });
+
+  it("gives a new task the plan's default reminders", async () => {
+    const res = await post({ title: "Call Anna" });
+    expect(res?.status).toBe(200);
+    expect(createReminders).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds no reminder when the app opts out with defaultReminders: false", async () => {
+    const res = await post({
+      title: "Call Anna",
+      priority: "none",
+      defaultReminders: false,
+    });
+    expect(res?.status).toBe(200);
+    expect(createReminders).not.toHaveBeenCalled();
+    // the opt-out is not a column: it never reaches the database
+    expect(create.mock.calls[0][0].data).not.toHaveProperty(
+      "defaultReminders"
+    );
+    expect(create.mock.calls[0][0].data.priority).toBe("none");
   });
 });

@@ -1180,7 +1180,17 @@ export function PageWorkspace({
       openLinkDialog();
       return true;
     }
-    if (event.key === "Escape") setSlash(null);
+    if (event.key === "Escape") {
+      if (slash && editor && canEdit) {
+        // Escape cancels the command: the "/" it was opened with (and what
+        // was typed after it) goes too, so no stray "/" is saved.
+        event.preventDefault();
+        removeSlashText(editor).run();
+        setSlash(null);
+        return true;
+      }
+      setSlash(null);
+    }
     return false;
   };
 

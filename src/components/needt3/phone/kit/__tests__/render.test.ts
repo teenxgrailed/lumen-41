@@ -95,6 +95,14 @@ describe("kit markup", () => {
     ).not.toContain("Resale");
   });
 
+  it("PkTaskRow names the due day when the task is not late, but not once done", () => {
+    const ahead = html(h(PkTaskRow, { t: task }));
+    expect(ahead).toContain("Due 30 Aug");
+    expect(ahead).not.toContain("Since");
+    const done = html(h(PkTaskRow, { t: { ...task, done: true } as V3Task }));
+    expect(done).not.toContain("Due 30 Aug");
+  });
+
   it("PkSection folds", () => {
     const open = html(
       h(PkSection, { title: "Today", count: 3, onFold: () => {} }, "rows")

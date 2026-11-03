@@ -33,6 +33,7 @@ import {
 import { useCatalog } from "@/lib/needt3/hooks/catalog";
 import { usePinterestStatus } from "@/lib/needt3/hooks/pinterest";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 import { notify } from "@/lib/notifications";
 
 import { Art } from "../../menu/Art";
@@ -273,6 +274,7 @@ function Card({
  * shared with the phone page.
  */
 export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
+  const hint = useShortcutHint();
   const boards = useBoards();
   const board = useBoard(id);
   const itemsQuery = useBoardItems(id);
@@ -630,7 +632,7 @@ export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
                 <span className="pl-mb-grid-2">
                   <Art name="page" size={16} />
                 </span>
-                <span className="pl-strong">Paste with ⌘V</span>
+                <span className="pl-strong">Paste with {hint("⌘V")}</span>
                 <span className="pl-mb-el-2">
                   An image or any link — Figma, a shop, an article
                 </span>

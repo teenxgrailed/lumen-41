@@ -299,11 +299,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const plan = await getPlan(userId);
-    await prisma.taskReminder.createMany({
-      data: defaultTaskReminderRows(plan, task, schedulingUserId),
-      skipDuplicates: true,
-    });
+    // The app creates tasks with `defaultReminders: false`: its reminders and
+    // priority are the person's choice. Other clients keep the defaults.
+    const wantsDefaults =
+      !body ||
+      typeof body !== "object" ||
+      (body as { defaultReminders?: unknown }).defaultReminders !== false;
+    if (wantsDefaults) {
+      const plan = await getPlan(userId);
+      await prisma.taskReminder.createMany({
+        data: defaultTaskReminderRows(plan, task, schedulingUserId),
+        skipDuplicates: true,
+      });
+    }
 
     // Track the creation for sync purposes if the task is in a mapped project
     if (mappingId) {

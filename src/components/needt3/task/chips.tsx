@@ -89,10 +89,38 @@ export function PinMark({ view }: { view: TaskView }) {
   );
 }
 
+/**
+ * The due date as a chip (`tk-due`): "30 Aug" in ink, destructive text when
+ * the task is overdue. Nothing for a done task or one without a due date.
+ */
+export function DueChip({ view }: { view: TaskView }) {
+  if (!view.due || view.done) return null;
+  const label = view.overdue ? view.lateTitle : `Due ${view.due}`;
+  return (
+    <span
+      className={`tk-due${view.overdue ? " is-late" : ""}`}
+      data-task-due=""
+      title={label}
+      aria-label={label}
+    >
+      {view.due}
+    </span>
+  );
+}
+
 export function TaskValue({ view }: { view: TaskView }) {
   return view.value ? (
     <span className="tk-value">CHF {view.value.toLocaleString("de-CH")}</span>
   ) : null;
+}
+
+function DueCell({ view }: { view: TaskView }) {
+  if (!view.due || view.done) return null;
+  return (
+    <span className="tk-cell tk-cell-due">
+      <DueChip view={view} />
+    </span>
+  );
 }
 
 export function DeskMeta({
@@ -114,6 +142,7 @@ export function DeskMeta({
         transition: "color var(--transition-hover)",
       }}
     >
+      {late && v.due ? null : <DueCell view={v} />}
       <span className="tk-cell tk-cell-time">
         {late && v.due ? (
           <span
@@ -161,9 +190,11 @@ export function LineMeta({
   late?: boolean;
   hideProject?: boolean;
 }) {
+  const showDue = !!v.due && !v.done && !late;
   if (
     !v.time &&
     !(late && v.due) &&
+    !showDue &&
     !v.minutes &&
     !v.source &&
     (!v.projectName || hideProject)
@@ -178,6 +209,7 @@ export function LineMeta({
       ) : v.time ? (
         <span>{v.time}</span>
       ) : null}
+      {showDue ? <DueChip view={v} /> : null}
       {v.minutes ? <span>{v.dur}</span> : null}
       <SourceChip view={v} />
       {v.projectName && !hideProject ? (

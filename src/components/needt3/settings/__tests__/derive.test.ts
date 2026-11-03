@@ -13,6 +13,8 @@ import {
   hourOptions,
   isDesktopSection,
   isPro,
+  navFlatFor,
+  navFor,
   parseWorkDays,
   planInfo,
   planningSummary,
@@ -69,6 +71,16 @@ describe("deep links", () => {
     expect(
       desktop?.items.every((i) => isDesktopSection(i.id as SectionId))
     ).toBe(true);
+  });
+  it("outside the Mac app the rail has no Desktop group and the arrows skip it", () => {
+    const web = navFor(false).flatMap((g) => g.items.map((i) => i.id));
+    for (const id of ["app", "island", "mfocus", "widgets", "siri"])
+      expect(web).not.toContain(id);
+    expect(navFor(false).map((g) => g.group)).not.toContain("Desktop");
+    expect(navFlatFor(false)).not.toContain("island");
+    expect(navFlatFor(false)).toContain("keys");
+    expect(navFor(true)).toBe(SETTINGS_NAV);
+    expect(navFlatFor(true)).toEqual(NAV_FLAT);
   });
   it("every nav row is a titled section or a jump", () => {
     for (const g of SETTINGS_NAV)

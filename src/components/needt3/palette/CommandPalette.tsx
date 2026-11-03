@@ -35,6 +35,7 @@ import { useCreateDoc, useDocs } from "@/lib/needt3/hooks/docs";
 import { useMail } from "@/lib/needt3/hooks/mail";
 import { type V3SearchKind, useSearch } from "@/lib/needt3/hooks/search";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -126,8 +127,9 @@ function Lead({ kind, icon }: { kind: Kind; icon?: ReactNode }) {
   );
 }
 
-function Kbd({ children }: { children: ReactNode }) {
-  return <span className="shell-kbd-span">{children}</span>;
+function Kbd({ children }: { children: string }) {
+  const hint = useShortcutHint();
+  return <span className="shell-kbd-span">{hint(children)}</span>;
 }
 
 function Hl({ text, idx }: { text: string; idx?: number[] }) {

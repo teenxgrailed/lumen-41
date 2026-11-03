@@ -1103,8 +1103,9 @@ because the scheduler commits its own work before the log row is written.
 
 Notes on specific operations:
 
-- `task.create` sets the same defaults as the app: default reminders for
-  your plan, `MEDIUM` priority, and `autoSchedule: true` (the scheduler may
+- `task.create` sets the defaults of `POST /api/tasks` (the app opts out of
+  them): default reminders for your plan, `MEDIUM` priority, and
+  `autoSchedule: true` (the scheduler may
   place it). Without `start` it does not schedule; the task is placed by
   `schedule.auto` or the next scheduler run. `notes` are sanitized like the
   app's editor.

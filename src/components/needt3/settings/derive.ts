@@ -111,6 +111,23 @@ export const isDesktopSection = (id: SectionId): id is DesktopSectionId =>
   id === "widgets" ||
   id === "siri";
 
+/**
+ * The rail for this surface. The Desktop group (island, widgets, Siri...)
+ * configures the native Mac app, so a browser tab on Linux or Windows
+ * does not list it; a `#island` deep link still lands on the "these live in
+ * the Mac app" row.
+ */
+export function navFor(mac: boolean): typeof SETTINGS_NAV {
+  return mac ? SETTINGS_NAV : SETTINGS_NAV.filter((g) => g.group !== "Desktop");
+}
+
+/** `NAV_FLAT` for this surface (what the arrow keys walk). */
+export function navFlatFor(mac: boolean): readonly SectionId[] {
+  return navFor(mac).flatMap((g) =>
+    g.items.filter((i) => !i.jump).map((i) => i.id as SectionId)
+  );
+}
+
 export const DEFAULT_SECTION: SectionId = "account";
 
 /** Old settings anchors the app still links to, mapped to a section. */
