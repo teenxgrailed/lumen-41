@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 
 import { ASSISTANT_CONNECTION_KEY } from "./constants";
 import { HubError } from "./errors";
+import { assertHubLimit } from "./limits";
 import { trackHub } from "./metrics";
 import { assertHubLimit } from "./limits";
 
