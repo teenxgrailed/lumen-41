@@ -5,9 +5,11 @@
  * free-trial sections are one neutral sentence; the rest of the document is
  * unchanged. A browser reads the full text. /privacy is the same in both.
  *
- * With Apple In-App Purchase on (the iOS app, the NeedtStore plugin, and the
- * server listing products) the neutral sentence would be false: the App Store
- * subsection (5.7) takes its place. A browser shows the web text and 5.7.
+ * With App Store purchases on (the server's `apple_iap` flag, passed in as
+ * `appleIap`) the iOS app, which has the StoreKit bridge, shows section 5.7 in
+ * place of the neutral sentence and the website billing text. A browser shows
+ * 5.7 next to the website text only while the flag is on. The answer comes
+ * from the flag and the build alone, never from a request.
  */
 import { act, createElement as h } from "react";
 
@@ -46,8 +48,8 @@ const asStore = () => {
     distribution: "appstore",
   };
 };
-const render = (markdown: string) =>
-  act(() => root.render(h(LegalDocument, { markdown })));
+const render = (markdown: string, appleIap = false) =>
+  act(() => root.render(h(LegalDocument, { markdown, appleIap })));
 
 const APP_STORE_HEADING = "5-7-purchases-in-the-app-store";
 const WEB_PRICES = /\$\s?\d|per month|per year|Free trial/;
@@ -67,15 +69,9 @@ const asIosApp = () => {
   };
 };
 
-/** What GET /api/billing/apple/account-token answers. */
-const serverAnswers = (enabled: boolean, products: string[]) => {
-  global.fetch = jest.fn(async () => ({
-    ok: true,
-    json: async () => ({ appAccountToken: "t", enabled, products }),
-  })) as unknown as typeof fetch;
-};
-
-const settle = () => act(async () => void (await Promise.resolve()));
+beforeEach(() => {
+  global.fetch = jest.fn() as unknown as typeof fetch;
+});
 
 describe("/terms", () => {
   it("browser: the full plans, prices and trial", () => {
@@ -86,8 +82,17 @@ describe("/terms", () => {
     expect(host.textContent).not.toContain(STORE_PLANS_NOTICE);
   });
 
-  it("browser: the web section 5 and the App Store subsection together", () => {
+  it("browser, apple_iap off: no App Store subsection", () => {
     render(termsMarkdown());
+    expect(host.querySelector(`[id="${APP_STORE_HEADING}"]`)).toBeNull();
+    expect(host.textContent).not.toContain("Apple is the seller");
+    expect(host.textContent).toContain(
+      "Paid plans bought on the website are sold by"
+    );
+  });
+
+  it("browser, apple_iap on: the web section 5 and the App Store subsection together", () => {
+    render(termsMarkdown(), true);
     const text = host.textContent ?? "";
     expect(host.querySelector("[id='5-1-plans']")).not.toBeNull();
     expect(
@@ -101,7 +106,7 @@ describe("/terms", () => {
       "Needt cannot refund or reverse an App Store purchase"
     );
     expect(text).toContain("Licensed Application End User License Agreement");
-    expect(text).toContain("still billing as well");
+    expect(text).toContain("Needt cannot apply");
   });
 
   it("store build: one neutral sentence in place of 5.1 and 5.2", () => {
@@ -116,11 +121,9 @@ describe("/terms", () => {
     expect(text).not.toContain("Apple is the seller");
   });
 
-  it("store build without IAP (flag off): the old sentence, no App Store subsection", async () => {
+  it("iOS app with apple_iap off: the neutral sentence, no App Store subsection", () => {
     asIosApp();
-    serverAnswers(false, []);
-    render(termsMarkdown());
-    await settle();
+    render(termsMarkdown(), false);
     const text = host.textContent ?? "";
     expect(text).toContain(STORE_PLANS_NOTICE);
     expect(host.querySelector(`[id="${APP_STORE_HEADING}"]`)).toBeNull();
@@ -128,43 +131,30 @@ describe("/terms", () => {
     expect(text).not.toMatch(WEB_PRICES);
   });
 
-  it("store build without IAP (server lists no products): the old sentence", async () => {
-    asIosApp();
-    serverAnswers(true, []);
-    render(termsMarkdown());
-    await settle();
-    expect(host.textContent).toContain(STORE_PLANS_NOTICE);
-    expect(host.querySelector(`[id="${APP_STORE_HEADING}"]`)).toBeNull();
-  });
-
-  it("Mac App Store build (no StoreKit bridge): the old sentence", async () => {
+  it("Mac App Store build (no StoreKit bridge) with apple_iap on: the neutral sentence", () => {
     asStore();
-    serverAnswers(true, ["app.needt.pro.monthly"]);
-    render(termsMarkdown());
-    await settle();
+    render(termsMarkdown(), true);
     expect(host.textContent).toContain(STORE_PLANS_NOTICE);
     expect(host.querySelector(`[id="${APP_STORE_HEADING}"]`)).toBeNull();
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(
+      host.querySelector("[id='5-3-who-sells-to-you-creem']")
+    ).not.toBeNull();
   });
 
-  it("iOS app with the NeedtStore plugin missing: the old sentence", async () => {
+  it("iOS app with the NeedtStore plugin missing: the neutral sentence", () => {
     (window as unknown as { Capacitor?: unknown }).Capacitor = {
       isNativePlatform: () => true,
       getPlatform: () => "ios",
       Plugins: {},
     };
-    serverAnswers(true, ["app.needt.pro.monthly"]);
-    render(termsMarkdown());
-    await settle();
+    render(termsMarkdown(), true);
     expect(host.textContent).toContain(STORE_PLANS_NOTICE);
     expect(host.querySelector(`[id="${APP_STORE_HEADING}"]`)).toBeNull();
   });
 
-  it("store build with the purchase sheet available: the App Store subsection, no web buying text", async () => {
+  it("iOS app with apple_iap on: the App Store subsection, no web buying text, no request", () => {
     asIosApp();
-    serverAnswers(true, ["app.needt.pro.monthly", "app.needt.lifetime"]);
-    render(termsMarkdown());
-    await settle();
+    render(termsMarkdown(), true);
     const text = host.textContent ?? "";
     expect(host.querySelector(`[id="${APP_STORE_HEADING}"]`)).not.toBeNull();
     expect(text).toContain("Apple is the seller");
@@ -181,6 +171,8 @@ describe("/terms", () => {
       host.querySelector("[id='5-5-refunds-and-the-right-of-withdrawal']")
     ).toBeNull();
     expect(host.querySelector("a[href='https://needt.app']")).toBeNull();
+    // the same answer for a signed-out reader or any account: no request
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it("store build: the rest of the document stays, including sections 5 and 6", () => {

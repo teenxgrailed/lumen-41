@@ -1,4 +1,4 @@
-import { createElement as h } from "react";
+import type { ReactElement } from "react";
 
 import PrivacyPage from "@/app/privacy/page";
 import SubprocessorsPage from "@/app/subprocessors/page";
@@ -22,15 +22,21 @@ const PAGES = {
   subprocessors: SubprocessorsPage,
 } as const;
 
-function render(name: keyof typeof PAGES): string {
-  return renderToStaticMarkup(h(PAGES[name]));
+// The terms page reads the `apple_iap` flag when it is served.
+jest.mock("@/lib/feature-flags", () => ({
+  isFeatureEnabledForEveryone: jest.fn(async () => false),
+}));
+
+async function render(name: keyof typeof PAGES): Promise<string> {
+  const page = PAGES[name] as () => ReactElement | Promise<ReactElement>;
+  return renderToStaticMarkup(await page());
 }
 
 describe("published legal pages", () => {
   it.each(Object.keys(PAGES) as (keyof typeof PAGES)[])(
     "%s renders a finished document",
-    (name) => {
-      const html = render(name);
+    async (name) => {
+      const html = await render(name);
       expect(html).toContain("<h1");
       expect(html).toContain(formatLegalDate(LEGAL_EFFECTIVE_DATE));
       // No review marker and no raw template placeholder reaches a reader:
@@ -64,9 +70,9 @@ describe("published legal pages", () => {
     expect(subs).not.toContain("no analytics or tracking scripts in the app");
   });
 
-  it("names the operator, the seller and the governing law", () => {
-    const privacy = render("privacy");
-    const terms = render("terms");
+  it("names the operator, the seller and the governing law", async () => {
+    const privacy = await render("privacy");
+    const terms = await render("terms");
     expect(privacy).toContain("privacy@needt.app");
     expect(privacy).not.toContain("DataRep");
     expect(terms).toContain("Armitage Labs OÜ");
@@ -75,9 +81,9 @@ describe("published legal pages", () => {
     expect(terms).toContain("90 days");
   });
 
-  it("links the three documents to each other", () => {
+  it("links the three documents to each other", async () => {
     for (const name of Object.keys(PAGES) as (keyof typeof PAGES)[]) {
-      const html = render(name);
+      const html = await render(name);
       expect(html).toContain('href="/terms"');
       expect(html).toContain('href="/privacy"');
       expect(html).toContain('href="/subprocessors"');
@@ -150,6 +156,24 @@ describe("web-only blocks", () => {
       "Licensed Application End User License Agreement"
     );
     expect(section).not.toMatch(/\$\s?\d|CHF|EUR|€/);
+  });
+
+  it("the website billing sections say they cover website purchases only", () => {
+    const terms = termsMarkdown();
+    const start = terms.indexOf("### 5.3 ");
+    const end = terms.indexOf("### 5.7 ");
+    const web = terms.slice(start, end);
+    expect(web).toContain("Paid plans bought on the website are sold by");
+    expect(web).toContain("A Pro subscription bought on the website renews");
+    expect(web).toContain(
+      "An App Store subscription is not cancelled by deleting your account"
+    );
+    expect(web).toContain(
+      "It does **not** cover a plan bought in the iOS app through the App Store"
+    );
+    expect(web).toContain("Within 14 days of any payment on the website");
+    expect(web).toContain("We may change the website prices");
+    expect(web).not.toContain("section 5.7");
   });
 
   it("privacy and subprocessors name Apple next to Creem", () => {
@@ -235,10 +259,14 @@ describe("legal date", () => {
 });
 
 describe("operator name", () => {
-  it("is filled and printed on both documents", () => {
+  it("is filled and printed on both documents", async () => {
     expect(isUnfilled(LEGAL_PLACEHOLDERS.OPERATOR_FULL_NAME)).toBe(false);
-    expect(render("privacy")).toContain(LEGAL_PLACEHOLDERS.OPERATOR_FULL_NAME);
-    expect(render("terms")).toContain(LEGAL_PLACEHOLDERS.OPERATOR_FULL_NAME);
+    expect(await render("privacy")).toContain(
+      LEGAL_PLACEHOLDERS.OPERATOR_FULL_NAME
+    );
+    expect(await render("terms")).toContain(
+      LEGAL_PLACEHOLDERS.OPERATOR_FULL_NAME
+    );
   });
 });
 
@@ -257,15 +285,15 @@ describe("DMCA section of the Terms", () => {
     expect(terms).toContain("## 19. Contact");
   });
 
-  it("prints no registration claim until DMCA_AGENT_REG_NO is set", () => {
+  it("prints no registration claim until DMCA_AGENT_REG_NO is set", async () => {
     delete process.env.DMCA_AGENT_REG_NO;
     expect(termsMarkdown()).not.toContain("registration number");
-    expect(render("terms")).not.toContain("registration number");
+    expect(await render("terms")).not.toContain("registration number");
   });
 
-  it("prints the registration number once it is set", () => {
+  it("prints the registration number once it is set", async () => {
     process.env.DMCA_AGENT_REG_NO = "DMCA-1234567";
     expect(termsMarkdown()).toContain("registration number **DMCA-1234567**");
-    expect(render("terms")).toContain("DMCA-1234567");
+    expect(await render("terms")).toContain("DMCA-1234567");
   });
 });

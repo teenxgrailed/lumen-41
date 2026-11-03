@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { isStoreDistribution } from "@/lib/native";
-import { isAppleStoreAvailable, loadAppleOffer } from "@/lib/native-store";
+import { isAppleStoreAvailable } from "@/lib/native-store";
 
 const noSubscribe = () => () => undefined;
 
@@ -43,26 +43,20 @@ export function useMarkStoreDistribution(): void {
 }
 
 /**
- * True when the App Store purchase sheet can sell Pro in this window: the iOS
- * app, the `NeedtStore` plugin present, and the server (`apple_iap` on for this
- * account) listing products that StoreKit knows. This is the test the Pro
- * sheet uses, so the terms describe App Store purchases exactly when the app
- * offers them. False on the server, in a browser, in the Mac App Store build
- * (no StoreKit bridge), and until the answer is in.
+ * True when this window can sell Pro through the App Store: a store build
+ * with the `NeedtStore` StoreKit bridge (the iOS app), and `appleIap`, the
+ * server's `apple_iap` flag, which the page reads when it is served. The
+ * answer is the same for every reader and every block on the page: it does
+ * not depend on the account or on a request, so the terms never show both
+ * the website and the App Store wording, or neither. False on the server and
+ * during hydration, like `useStoreDistribution`.
  */
-export function useAppleSheetAvailable(): boolean {
-  const [available, setAvailable] = useState(false);
-  useEffect(() => {
-    if (!isStoreDistribution() || !isAppleStoreAvailable()) return undefined;
-    let live = true;
-    loadAppleOffer()
-      .then((products) => {
-        if (live) setAvailable(products.length > 0);
-      })
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, []);
-  return available;
+export function useAppStoreSells(appleIap: boolean): boolean {
+  const store = useStoreDistribution();
+  const bridge = useSyncExternalStore(
+    noSubscribe,
+    isAppleStoreAvailable,
+    () => false
+  );
+  return appleIap && store && bridge;
 }

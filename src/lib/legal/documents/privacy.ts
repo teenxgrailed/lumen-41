@@ -96,7 +96,7 @@ Needt connects to another service only when you ask it to.
 
 Creem collects your payment details, billing name, address and tax information under its own privacy policy. From Creem we receive a customer ID, a subscription ID, the product, amount, billing interval, status, period end, and payment, refund and dispute events. We never receive your card number.
 
-If you buy in the iOS app, Apple collects your payment details under its own [Privacy Policy](${APPLE_LINKS.privacy}). When the app starts the purchase it passes Apple an account token: a random identifier we create for your Needt account, which contains no personal data. From Apple we receive, as a signed record, a transaction identifier, the product, the purchase, renewal and expiry dates, the status (renewed, cancelled, refunded) and that account token, so we can match the purchase to your account. We never receive your card number, your Apple ID or your billing address.
+If you buy in the iOS app, Apple collects your payment details under its own [Privacy Policy](${APPLE_LINKS.privacy}). When the app starts the purchase it passes Apple an account token: a random identifier we create for your Needt account, which contains no personal data. From Apple we receive, as signed records, the transaction identifier and the original transaction identifier (one for the whole subscription), the product, the purchase, renewal and expiry dates, the status (renewed, cancelled, refunded), whether it was a real or a test (Sandbox) purchase, and that account token, so we can match the purchase to your account. Apple also sends us a notification each time the subscription changes; we keep each one with those identifiers. We never receive your card number, your Apple ID or your billing address.
 
 ### 3.7 Trial
 
@@ -247,6 +247,7 @@ Google, Microsoft, Apple iCloud, your CalDAV server, your mail provider and any 
 | Rate-limit counters | Minutes to hours |
 | Trial record | As a hash only (Section 3.7), until two years after the trial ended |
 | Billing records | Creem and Apple keep invoices and tax records as the law requires them to. We keep your plan history while your account exists |
+| App Store notifications | While your account exists. A notification that arrives after you delete your account is linked to no account; it holds only Apple's identifiers and dates, and we keep it as a billing record |
 | Waitlist entry | Until you create an account, ask us to remove it, or we close the waitlist |
 | Bug reports | Until you delete your account, or sooner if you ask us |
 | Support email | Two years after the conversation ends |

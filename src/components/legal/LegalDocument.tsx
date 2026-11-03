@@ -51,7 +51,12 @@ function renderInline(nodes: Inline[]): ReactNode[] {
   });
 }
 
-function renderBlock(block: Block, index: number): ReactNode {
+function renderBlock(
+  block: Block,
+  index: number,
+  appleIap: boolean
+): ReactNode {
+  const render = (child: Block, i: number) => renderBlock(child, i, appleIap);
   switch (block.type) {
     case "heading":
       if (block.level === 1) {
@@ -142,21 +147,25 @@ function renderBlock(block: Block, index: number): ReactNode {
           key={index}
           className="mt-4 border-l-2 border-[var(--border)] pl-4"
         >
-          {block.children.map(renderBlock)}
+          {block.children.map(render)}
         </blockquote>
       );
     case "web-only":
-      return <WebOnly key={index}>{block.children.map(renderBlock)}</WebOnly>;
+      return (
+        <WebOnly key={index} appleIap={appleIap}>
+          {block.children.map(render)}
+        </WebOnly>
+      );
     case "app-store":
       return (
-        <AppStoreOnly key={index}>
-          {block.children.map(renderBlock)}
+        <AppStoreOnly key={index} appleIap={appleIap}>
+          {block.children.map(render)}
         </AppStoreOnly>
       );
     case "web-billing":
       return (
-        <WebBillingOnly key={index}>
-          {block.children.map(renderBlock)}
+        <WebBillingOnly key={index} appleIap={appleIap}>
+          {block.children.map(render)}
         </WebBillingOnly>
       );
     case "rule":
@@ -169,7 +178,18 @@ function renderBlock(block: Block, index: number): ReactNode {
  * set for reading. A server component with plain links, so the pages render
  * without the app shell or a session.
  */
-export function LegalDocument({ markdown }: { markdown: string }) {
+/**
+ * `appleIap`: App Store purchases are on (the `apple_iap` flag for everyone),
+ * read by the page when it is served. Only the terms have text that depends on
+ * it; the other documents leave it off.
+ */
+export function LegalDocument({
+  markdown,
+  appleIap = false,
+}: {
+  markdown: string;
+  appleIap?: boolean;
+}) {
   const blocks = parseMarkdown(markdown);
   return (
     <main className="min-h-dvh bg-[var(--surface-canvas)] px-4 py-12 text-[var(--text-primary)] sm:px-6 sm:py-16">
@@ -185,7 +205,7 @@ export function LegalDocument({ markdown }: { markdown: string }) {
             </a>
           ))}
         </nav>
-        {blocks.map(renderBlock)}
+        {blocks.map((block, index) => renderBlock(block, index, appleIap))}
       </article>
     </main>
   );

@@ -26,7 +26,7 @@ export const SUPPORT_EMAIL = "support@needt.app";
  * Effective date of the Privacy Notice, the Terms and the subprocessor list,
  * as YYYY-MM-DD. Set it to the day the publishing change is merged.
  */
-export const LEGAL_EFFECTIVE_DATE = "2026-11-03";
+export const LEGAL_EFFECTIVE_DATE = "2026-11-04";
 
 const PLACEHOLDER = /^\{\{[A-Z_]+\}\}$/;
 
