@@ -36,7 +36,11 @@ import { useCreateDoc, useDocs, useUpdateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import { useMail } from "@/lib/needt3/hooks/mail";
 import { useQuickPersonal } from "@/lib/needt3/hooks/personal";
-import { useProjects } from "@/lib/needt3/hooks/projects";
+import {
+  useArchiveProject,
+  useProjects,
+  useUpdateProject,
+} from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import { notify } from "@/lib/notifications";
@@ -44,7 +48,7 @@ import { notify } from "@/lib/notifications";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
-import { registerCtx } from "../ctx/registry";
+import { type CtxMenu, registerCtx } from "../ctx/registry";
 import { DocThumb, useDocTokens } from "../docs/DocParts";
 import { DocSwitch } from "../document/DocRail";
 import { useOpenDocId } from "../document/open-doc";
@@ -53,6 +57,11 @@ import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
 import { PromoCard } from "../paywall";
 import { personalMenuItems } from "../personal/menu-items";
+import {
+  ProjectDeleteHost,
+  askDeleteProject,
+} from "../work/ProjectDeleteHost";
+import { PROJECT_SWATCHES } from "../work/model";
 import { AccountMenu } from "./AccountMenu";
 import { ImportMenu } from "./ImportMenu";
 import { PlaceGlyph } from "./PlaceGlyph";
@@ -623,6 +632,8 @@ export function Sidebar() {
   const keepPersonal = useQuickPersonal();
   const updateDoc = useUpdateDoc();
   const projects = useProjects();
+  const updateProject = useUpdateProject();
+  const archiveProject = useArchiveProject();
   const connections = useConnections();
   const agentsItem = agentsNavItem(useAgentHubNav());
   const showMail = tiles.some((p) => p.id === "mail");
@@ -722,25 +733,70 @@ export function Sidebar() {
       registerCtx("section", () => [
         [{ label: "Customize Sidebar…", run: shell.openCustomize }],
       ]),
-      registerCtx("project", ({ id }) =>
-        id
-          ? [
-              [
-                {
-                  label: "Open",
-                  run: () => router.push(`/projects/${encodeURIComponent(id)}`),
+      registerCtx("project", ({ id }) => {
+        const project = id
+          ? (projects.data ?? []).find((x) => x.id === id)
+          : undefined;
+        if (!id) return null;
+        const open = `/projects/${encodeURIComponent(id)}`;
+        const groups: CtxMenu = [
+          [{ label: "Open", run: () => router.push(open) }],
+          [
+            { label: "New Task", run: () => setComposerOpen(true) },
+            {
+              label: "New Doc",
+              run: () => newDoc(id),
+            },
+          ],
+        ];
+        // Project names and colours belong to the project; a stale row (the
+        // project is gone from the list) keeps only Open and the New rows.
+        if (!project) return groups;
+        groups.push(
+          [
+            // The project page opens its rename sheet from this flag.
+            { label: "Rename", run: () => router.push(`${open}?rename=1`) },
+            {
+              label: "Color…",
+              sub: PROJECT_SWATCHES.map(([name, value]) => ({
+                label: name.charAt(0).toUpperCase() + name.slice(1),
+                run: () => {
+                  if (project.color === value) return;
+                  void updateProject
+                    .mutateAsync({ id, patch: { color: value } })
+                    .then(({ undo }) =>
+                      notify.success("Color changed", {
+                        action: { label: "Undo", onClick: () => void undo() },
+                      })
+                    )
+                    .catch(() => undefined);
                 },
-              ],
-              [
-                { label: "New Task", run: () => setComposerOpen(true) },
-                {
-                  label: "New Doc",
-                  run: () => newDoc(id),
-                },
-              ],
-            ]
-          : null
-      ),
+              })),
+            },
+          ],
+          [
+            {
+              label: "Archive",
+              run: () => {
+                void archiveProject
+                  .archive(id)
+                  .then(({ undo }) =>
+                    notify.success(`Archived “${project.name}”`, {
+                      action: { label: "Undo", onClick: () => void undo() },
+                    })
+                  )
+                  .catch(() => undefined);
+              },
+            },
+            {
+              label: "Delete",
+              tone: "danger",
+              run: () => askDeleteProject(project),
+            },
+          ]
+        );
+        return groups;
+      }),
       registerCtx("doc", ({ id }) => {
         const d = (docs.data ?? []).find((x) => x.id === id);
         if (!d) return null;
@@ -1098,6 +1154,7 @@ export function Sidebar() {
         {/* A document is open but the rail shows places: the switcher stays at
             the bottom-left, so the document's panel is one click away. */}
         {docOpen ? <DocSwitch value="app" /> : null}
+        <ProjectDeleteHost />
       </div>
     </aside>
   );

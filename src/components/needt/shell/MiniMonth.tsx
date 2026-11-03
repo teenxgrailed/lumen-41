@@ -32,12 +32,14 @@ import {
 import { addCalendarDays, newDateFromYMD, startOfDay } from "@/lib/date-utils";
 import { parseDueDate } from "@/lib/needt/derive";
 import { MONTHS } from "@/lib/needt/fixture";
+import { useWeekStartDay } from "@/lib/needt3/hooks/settings";
 import type { NeedtTask } from "@/lib/needt/types";
 
 import { Glyph, IconButton } from "./chrome";
 
 /** Monday first: the product's week starts where the working week does. */
 const DOW = ["M", "T", "W", "T", "F", "S", "S"] as const;
+const DOW_SUNDAY = ["S", "M", "T", "W", "T", "F", "S"] as const;
 
 /** An eleven-hour day. The denominator the load dot is a fraction of. */
 const DAY_MINUTES = 660;
@@ -173,15 +175,16 @@ interface Cell {
   outside: boolean;
 }
 
-/** The 5- or 6-row grid the month is drawn on, Monday first. */
-function monthCells(month: Date): Cell[] {
+/** The 5- or 6-row grid the month is drawn on, from the week-start day. */
+function monthCells(month: Date, sunday: boolean): Cell[] {
   const year = month.getFullYear();
   const index = month.getMonth();
   const first = newDateFromYMD(year, index, 1);
   /* Day 0 of the next month is the last day of this one. */
   const last = newDateFromYMD(year, index + 1, 0);
-  const lead = (first.getDay() + 6) % 7;
-  const trail = 6 - ((last.getDay() + 6) % 7);
+  const shift = sunday ? 0 : 6;
+  const lead = (first.getDay() + shift) % 7;
+  const trail = 6 - ((last.getDay() + shift) % 7);
   const start = addCalendarDays(first, -lead);
   const total = lead + last.getDate() + trail;
 
@@ -238,7 +241,11 @@ export function MiniMonth({
   const [hover, setHover] = React.useState<string | null>(null);
   const [menu, setMenu] = React.useState<MenuAt | null>(null);
 
-  const cells = React.useMemo(() => monthCells(month), [month]);
+  const sunday = useWeekStartDay() === "sunday";
+  const cells = React.useMemo(
+    () => monthCells(month, sunday),
+    [month, sunday]
+  );
   const load = React.useMemo(() => loadByDay(tasks, today), [tasks, today]);
 
   const todayKey = dayKey(today);
@@ -303,7 +310,7 @@ export function MiniMonth({
           gap: 1,
         }}
       >
-        {DOW.map((letter, i) => (
+        {(sunday ? DOW_SUNDAY : DOW).map((letter, i) => (
           <span
             key={`${letter}${i}`}
             style={{

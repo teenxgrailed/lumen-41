@@ -4,9 +4,14 @@ import { useState } from "react";
 
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 
-import { TD_DOW, monthCells, monthTitle } from "./TaskDialogModel";
+import { useWeekStartDay } from "@/lib/needt3/hooks/settings";
 
-/** A month grid ($P/Dialogs.jsx TdCalendar): Monday first, today marked. */
+import { monthCells, monthTitle, tdDowRow } from "./TaskDialogModel";
+
+/**
+ * A month grid ($P/Dialogs.jsx TdCalendar): the week starts on the day set in
+ * Settings (the same setting every other calendar reads), today marked.
+ */
 export function TaskDialogCalendar({
   value,
   today,
@@ -17,6 +22,7 @@ export function TaskDialogCalendar({
   today: string;
   onPick: (day: string) => void;
 }) {
+  const startDay = useWeekStartDay();
   const base = value || today;
   const [ym, setYm] = useState(() => ({
     y: +base.slice(0, 4),
@@ -49,12 +55,12 @@ export function TaskDialogCalendar({
         </button>
       </div>
       <div className="tdc-cal-grid" role="grid">
-        {TD_DOW.map((d) => (
+        {tdDowRow(startDay).map((d) => (
           <span key={d} className="tdc-cal-dow">
             {d}
           </span>
         ))}
-        {monthCells(ym.y, ym.m).map((c, i) =>
+        {monthCells(ym.y, ym.m, startDay).map((c, i) =>
           c ? (
             <button
               key={c}

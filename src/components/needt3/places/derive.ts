@@ -244,10 +244,18 @@ export function trashSections(counts: {
   pages: number;
   tasks: number;
   boards: number;
+  /** Projects moved to Trash (restore only). */
+  projects?: number;
 }) {
-  const filled = [counts.pages, counts.tasks, counts.boards].filter(Boolean);
+  const projects = counts.projects ?? 0;
+  const filled = [
+    counts.pages,
+    counts.tasks,
+    counts.boards,
+    projects,
+  ].filter(Boolean);
   return {
-    total: counts.pages + counts.tasks + counts.boards,
+    total: counts.pages + counts.tasks + counts.boards + projects,
     /** Headings show once two kinds share the list; a lone Tasks list keeps its own. */
     headings: filled.length > 1,
   };

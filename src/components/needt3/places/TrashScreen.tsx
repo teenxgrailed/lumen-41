@@ -75,7 +75,7 @@ function TrashRow({
   );
 }
 
-const iconThumb = (icon: "task" | "stack") => (
+const iconThumb = (icon: "task" | "stack" | "folder") => (
   <span className="pl-trash-task" aria-hidden="true">
     <Art name={icon} size={30} />
   </span>
@@ -103,7 +103,9 @@ export function TrashScreen({ c }: { c: TrashController }) {
     dead,
     gone,
     pages,
+    goneProjects,
     projectName,
+    restoreProject,
     restoreTask,
     restoreBoard,
     restorePage,
@@ -116,6 +118,7 @@ export function TrashScreen({ c }: { c: TrashController }) {
     pages: pages.length,
     tasks: dead.length,
     boards: gone.length,
+    projects: goneProjects.length,
   });
   const canEmpty = pages.length + dead.length + gone.length > 0;
 
@@ -133,6 +136,12 @@ export function TrashScreen({ c }: { c: TrashController }) {
         ? [[{ label: "Restore", run: () => void restoreTask(t.id, t.title) }]]
         : null;
     });
+    const offProject = registerCtx("trash-project", ({ id }) => {
+      const p = goneProjects.find((x) => x.id === id);
+      return p
+        ? [[{ label: "Restore", run: () => void restoreProject(p.id, p.name) }]]
+        : null;
+    });
     const offBoard = registerCtx("trash", ({ id }) => {
       const b = gone.find((x) => x.id === id);
       return b
@@ -142,11 +151,12 @@ export function TrashScreen({ c }: { c: TrashController }) {
     return () => {
       offPage();
       offTask();
+      offProject();
       offBoard();
     };
     // The restore handlers only read stable mutation handles.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pages, dead, gone]);
+  }, [pages, dead, gone, goneProjects]);
 
   return (
     <div className="scroll-inner pl-page" data-v3-screen="trash">
@@ -168,7 +178,7 @@ export function TrashScreen({ c }: { c: TrashController }) {
         }
       />
       <StScreen
-        query={mergeQueries([tasks, boards, docs])}
+        query={mergeQueries([tasks, boards, docs, c.trashedProjects])}
         kind="list"
         screen="trash"
       >
@@ -230,13 +240,28 @@ export function TrashScreen({ c }: { c: TrashController }) {
                 }
               />
             ))}
+            {goneProjects.length && headings ? (
+              <h2 className="pl-trash-h">Projects</h2>
+            ) : null}
+            {goneProjects.map((p, i) => (
+              <TrashRow
+                key={p.id}
+                i={pages.length + dead.length + i}
+                ctx="trash-project"
+                id={p.id}
+                thumb={iconThumb("folder")}
+                title={p.name || tr.untitled}
+                meta={trashMeta(p.trashedAt!, now, timeZone)}
+                onRestore={() => void restoreProject(p.id, p.name)}
+              />
+            ))}
             {gone.length && headings ? (
               <h2 className="pl-trash-h">{tr.moodboards}</h2>
             ) : null}
             {gone.map((b, i) => (
               <TrashRow
                 key={b.id}
-                i={pages.length + dead.length + i}
+                i={pages.length + dead.length + goneProjects.length + i}
                 ctx="trash"
                 id={b.id}
                 thumb={iconThumb("stack")}

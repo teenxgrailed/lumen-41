@@ -23,9 +23,8 @@ import {
   startOfWeek,
   subDays,
 } from "@/lib/date-utils";
+import { useWeekStartDay } from "@/lib/needt3/hooks/settings";
 import { cn } from "@/lib/utils";
-
-import { useSettingsStore } from "@/store/settings";
 
 interface MiniCalendarProps {
   currentDate: Date;
@@ -51,7 +50,7 @@ export function MiniCalendar({
   // the today-styled day cell. Only trust it once mounted on the client.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const weekStartDay = useSettingsStore((state) => state.user.weekStartDay);
+  const weekStartDay = useWeekStartDay();
   const weekStartsOn = weekStartDay === "monday" ? 1 : 0;
   const weekdays = useMemo(
     () => (weekStartsOn === 1 ? [...WEEKDAYS.slice(1), WEEKDAYS[0]] : WEEKDAYS),

@@ -47,6 +47,7 @@ let root: Root;
 beforeEach(() => {
   runAsk.mockClear();
   restorePage.mockClear();
+  restoreProject.mockClear();
   host = document.createElement("div");
   host.className = "needt-v3";
   document.body.appendChild(host);
@@ -70,6 +71,7 @@ const body = () => document.body;
 
 const runAsk = jest.fn();
 const restorePage = jest.fn();
+const restoreProject = jest.fn();
 
 /** A controller whose confirm state is real, so the dialog opens and closes. */
 function Trash({ over = {} as Partial<TrashController> }) {
@@ -98,6 +100,9 @@ function Trash({ over = {} as Partial<TrashController> }) {
         style: null,
       },
     ],
+    goneProjects: [],
+    trashedProjects: ok([]),
+    restoreProject,
     projectName: () => undefined,
     restoreTask: jest.fn(),
     restoreBoard: jest.fn(),
@@ -130,6 +135,35 @@ describe("TrashScreen", () => {
       $$(".pl-trash-row")[1].querySelector("[data-trash-forever]")
     ).not.toBeNull();
     expect($("[data-trash-empty]")?.textContent).toBe("Empty Trash");
+  });
+
+  it("a deleted project sits in Trash with Restore and no Delete forever", () => {
+    act(() =>
+      root.render(
+        h(Trash, {
+          over: {
+            goneProjects: [
+              {
+                id: "pr1",
+                name: "Old launch",
+                trashedAt: "2026-10-20T09:00:00.000Z",
+              },
+            ],
+          } as unknown as Partial<TrashController>,
+        })
+      )
+    );
+    expect($$(".pl-trash-h").map((e) => e.textContent)).toContain("Projects");
+    const row = $$(".pl-trash-row").find((r) =>
+      r.textContent?.includes("Old launch")
+    )!;
+    expect(row.querySelector("[data-trash-forever]")).toBeNull();
+    click(
+      Array.from(row.querySelectorAll("button")).find(
+        (b) => b.textContent === "Restore"
+      ) ?? null
+    );
+    expect(restoreProject).toHaveBeenCalledWith("pr1", "Old launch");
   });
 
   it("Delete forever opens a confirm that says there is no Undo; Cancel leaves everything", () => {

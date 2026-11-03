@@ -159,6 +159,58 @@ export function aiExhausted(plan: V3Plan | undefined) {
   );
 }
 
+/**
+ * Why Ask Needt cannot answer from Needt's own AI, as the panel words it.
+ * "pro": the plan has no hosted AI (Free; `NEEDT_AI_FREE_ACTION_CAP=0`).
+ * "allowance": a paid plan's monthly allowance is used up; `until` is the day
+ * it renews (the 1st, UTC: the same month key the server counts by).
+ */
+export type AiGate = { kind: "pro" } | { kind: "allowance"; until: string };
+
+const MONTH_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** The plan the hosted allowance is counted for (`usage.aiActions.plan`). */
+function aiPlanName(plan: V3Plan | undefined): unknown {
+  const usage = (plan as { usage?: unknown } | undefined)?.usage;
+  if (!usage || typeof usage !== "object" || !("aiActions" in usage))
+    return undefined;
+  const ai = usage.aiActions;
+  return ai && typeof ai === "object" && "plan" in ai ? ai.plan : undefined;
+}
+
+/** "1 Dec": the first day of the month after `now`'s (UTC). */
+export function allowanceRenewsOn(now: number): string {
+  const d = newDate(now);
+  return `1 ${MONTH_SHORT[(d.getUTCMonth() + 1) % 12]}`;
+}
+
+/**
+ * Null while Ask can answer. A key of their own (`ownKey === true`) always
+ * can, whatever the plan; otherwise an exhausted hosted allowance gates it.
+ */
+export function aiGate(
+  plan: V3Plan | undefined,
+  now: number,
+  ownKey: boolean | undefined
+): AiGate | null {
+  if (ownKey !== false || !aiExhausted(plan)) return null;
+  if (aiPlanName(plan) === "FREE") return { kind: "pro" };
+  return { kind: "allowance", until: allowanceRenewsOn(now) };
+}
+
 export type BannerIcon =
   | "card"
   | "clock"
@@ -261,12 +313,23 @@ export function bannerSpecs(
   if (screen === "today" && aiExhausted(plan))
     // //todo the prototype says "AI paused until 14:00"; no reset time is
     // exposed yet, so the title drops it rather than inventing one.
-    out.push({
-      id: "ai",
-      tone: "neutral",
-      icon: "clock",
-      title: "AI paused — your tasks and calendar still work",
-    });
+    // A Free plan has no hosted AI at all: that is "part of Pro", not paused.
+    out.push(
+      aiPlanName(plan) === "FREE"
+        ? {
+            id: "ai",
+            tone: "neutral",
+            icon: "sparkles",
+            title: "AI is part of Pro — your tasks and calendar still work",
+            action: { kind: "upgrade", label: specCopy.upgrade },
+          }
+        : {
+            id: "ai",
+            tone: "neutral",
+            icon: "clock",
+            title: `AI allowance used until ${allowanceRenewsOn(now)} — your tasks and calendar still work`,
+          }
+    );
   // "AI is temporarily unavailable" reads the one operator switch there is
   // (no hosted key and no key of their own); never infer it from an error.
   if (screen === "today" && signals.aiDown && !aiExhausted(plan))

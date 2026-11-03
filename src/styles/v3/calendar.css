@@ -74,8 +74,6 @@
 
 /* Days view. */
 .needt-v3 .c2-days-bar { flex: none; display: flex; align-items: center; gap: 8px; }
-.needt-v3 .nx-btn.c2-days-page { width: 28px; padding: 0; }
-.needt-v3 .c2-days-range { font: var(--type-ui-medium); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .needt-v3 .c2-days-seg { margin-left: auto; width: 210px; }
 .needt-v3 .c2-days-grid { flex: 1; min-height: 0; display: grid; gap: 10px; }
 .needt-v3 .c2-col { min-height: 0; display: flex; flex-direction: column; border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow-ring); overflow: hidden; }

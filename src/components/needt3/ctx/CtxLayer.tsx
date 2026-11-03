@@ -14,6 +14,9 @@ import {
 } from "./registry";
 import { useExit } from "./useExit";
 
+/** Above the floating rail and the shell's sheets (shell.css: up to 1100). */
+export const CTX_MENU_Z = 1200;
+
 interface Open {
   x: number;
   y: number;
@@ -127,7 +130,13 @@ export function CtxLayer() {
           className={`base-menu shell-ctx-layer-menu nx-pop${leaving ? " is-leaving" : ""}`}
           onContextMenu={(e) => e.preventDefault()}
           style={{
-            position: "static",
+            // Positioned, with a z-index: Radix copies the content's computed
+            // z-index onto its fixed wrapper. A static menu has none, so the
+            // wrapper sat at "auto" under the sidebar rail: invisible, and
+            // the row under the pointer took the clicks.
+            position: "relative",
+            zIndex: CTX_MENU_Z,
+            pointerEvents: "auto",
             transformOrigin: m.flip ? "bottom left" : "top left",
             outline: "none",
           }}

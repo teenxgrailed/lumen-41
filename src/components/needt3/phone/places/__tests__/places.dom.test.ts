@@ -156,6 +156,8 @@ jest.mock("@/lib/needt3/hooks/boards", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({ data: [{ id: "p1", name: "Home" }] }),
+  useTrashedProjects: () => ({ data: [] }),
+  useTrashProject: () => ({ trash: jest.fn(), restore: jest.fn() }),
 }));
 
 const entry = (

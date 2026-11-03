@@ -9,6 +9,7 @@ import { logger } from "@/lib/logger";
 import {
   parseV3Fields,
   projectV3FieldsSchema,
+  trashedAtFrom,
 } from "@/lib/needt3/api-fields";
 import { prisma } from "@/lib/prisma";
 import { deriveProjectProgress } from "@/lib/projects/progress";
@@ -104,9 +105,12 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
 
     const json = (await request.json()) as Record<string, unknown>;
+    const onlyKey = Object.keys(json).length === 1;
     if (
       existing.status === ProjectStatus.ARCHIVED &&
-      (json.status !== ProjectStatus.ACTIVE || Object.keys(json).length !== 1)
+      // An archived project can only be un-archived or moved to/from Trash.
+      !(onlyKey && json.status === ProjectStatus.ACTIVE) &&
+      !(onlyKey && typeof json.trashed === "boolean")
     ) {
       return NextResponse.json({ error: "PROJECT_ARCHIVED" }, { status: 409 });
     }
@@ -138,9 +142,11 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       );
     }
 
+    const { trashed, ...v3Fields } = v3.data;
     const project = await prisma.project.update({
       where: { id, ...workspaceDataScopeWhere(auth.workspace, auth.userId) },
       data: {
+        trashedAt: trashedAtFrom(trashed),
         name: typeof json.name === "string" ? json.name.trim() : undefined,
         description:
           typeof json.description === "string"
@@ -167,7 +173,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
           json.status === ProjectStatus.ARCHIVED
             ? json.status
             : undefined,
-        ...v3.data,
+        ...v3Fields,
       },
       include: {
         tasks: {

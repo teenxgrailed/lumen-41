@@ -81,6 +81,40 @@ export function nowScrollTop(
   return Math.min(Math.max(0, want), Math.max(0, contentH - viewportH));
 }
 
+/** The first working hour of the week (earliest range start), or null. */
+export function workStartHour(hours: WorkHours | null | undefined) {
+  if (!hours) return null;
+  if (hours.byDay) {
+    const starts = Object.values(hours.byDay).flatMap((ranges) =>
+      ranges.map((r) => r[0])
+    );
+    return starts.length ? Math.min(...starts) : null;
+  }
+  return hours.start;
+}
+
+/**
+ * Where the week grid opens vertically: a third down from "now" while now is
+ * inside working hours (or there are none to go by), otherwise the start of
+ * working hours, half an hour below the top edge so its line shows. At 01:30
+ * the grid opens on the working day, not on the small hours.
+ */
+export function openScrollTop(
+  nowHour: number | null,
+  hours: WorkHours | null | undefined,
+  hourH: number,
+  viewportH: number,
+  contentH: number
+) {
+  const start = workStartHour(hours);
+  const end = hours?.end ?? 24;
+  const inside =
+    nowHour != null && (start == null || (nowHour >= start && nowHour < end));
+  if (inside) return nowScrollTop(nowHour, hourH, viewportH, contentH);
+  const want = (start ?? 8) * hourH - hourH / 2;
+  return Math.min(Math.max(0, want), Math.max(0, contentH - viewportH));
+}
+
 /** What the grid needs of the person's working hours. */
 export interface WorkHours {
   /** Weekdays that are working days, 0 = Sunday … 6 = Saturday. */

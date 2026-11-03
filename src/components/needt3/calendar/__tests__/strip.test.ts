@@ -11,6 +11,7 @@ import {
   nowScrollTop,
   offHours,
   offsetOf,
+  openScrollTop,
   stripDate,
   stripIndex,
   workHoursOf,
@@ -116,6 +117,40 @@ describe("opening position", () => {
     expect(nowScrollTop(0.5, 52, 600, 24 * 52)).toBe(0);
     expect(nowScrollTop(23.9, 52, 600, 24 * 52)).toBe(24 * 52 - 600);
     expect(nowScrollTop(12, 52, 2000, 24 * 52)).toBe(0);
+  });
+});
+
+describe("opening position with working hours", () => {
+  const nineToFive = { days: [1, 2, 3, 4, 5], start: 9, end: 17 };
+  const H = 52;
+
+  it("follows now while now is inside working hours", () => {
+    expect(openScrollTop(12, nineToFive, H, 600, 24 * H)).toBe(
+      nowScrollTop(12, H, 600, 24 * H)
+    );
+  });
+
+  it("opens on the start of the working day in the small hours", () => {
+    // 01:30 must not open on midnight: 09:00 sits half an hour under the top
+    expect(openScrollTop(1.5, nineToFive, H, 600, 24 * H)).toBe(9 * H - H / 2);
+  });
+
+  it("opens on the working day in the evening too", () => {
+    expect(openScrollTop(21, nineToFive, H, 600, 24 * H)).toBe(9 * H - H / 2);
+  });
+
+  it("uses the earliest range of a per-day schedule", () => {
+    const week = {
+      ...nineToFive,
+      byDay: { 1: [[10, 12]], 2: [[8, 17]] },
+    } as const;
+    expect(openScrollTop(null, week, H, 600, 24 * H)).toBe(8 * H - H / 2);
+  });
+
+  it("falls back to 8:00 without hours or a clock, never past the end", () => {
+    expect(openScrollTop(null, null, H, 600, 24 * H)).toBe(8 * H - H / 2);
+    const late = { days: [], start: 23, end: 24 };
+    expect(openScrollTop(null, late, H, 600, 24 * H)).toBe(24 * H - 600);
   });
 });
 

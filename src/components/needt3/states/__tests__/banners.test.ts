@@ -1,7 +1,14 @@
 import { newDate } from "@/lib/date-utils";
 import type { V3Plan } from "@/lib/needt3/hooks/plan";
 
-import { bannerSpecs, errorText, lockRules, offlineCount } from "../status";
+import {
+  aiGate,
+  allowanceRenewsOn,
+  bannerSpecs,
+  errorText,
+  lockRules,
+  offlineCount,
+} from "../status";
 
 const now = newDate("2026-10-10T12:00:00Z").getTime();
 const base = {
@@ -10,12 +17,12 @@ const base = {
   trialDaysLeft: null,
   paymentFailed: false,
 } as V3Plan;
-const withAi = (exhausted: boolean) =>
+const withAi = (exhausted: boolean, aiPlan = "PRO") =>
   ({
     ...base,
     usage: {
       aiActions: {
-        plan: "PRO",
+        plan: aiPlan,
         allowed: !exhausted,
         slowMode: false,
         exhausted,
@@ -160,7 +167,40 @@ describe("connection and AI-availability banners", () => {
     expect(bannerSpecs(base, "tasks", now, { aiDown: true })).toEqual([]);
     const both = bannerSpecs(withAi(true), "today", now, { aiDown: true });
     expect(both).toHaveLength(1);
-    expect(both[0].title).toMatch(/AI paused/);
+    expect(both[0].title).toMatch(/AI allowance used until 1 Nov/);
+  });
+});
+
+describe("AI gate (allowance, not a provider error)", () => {
+  it("renews on the 1st of next month, UTC", () => {
+    expect(allowanceRenewsOn(now)).toBe("1 Nov");
+    expect(allowanceRenewsOn(newDate("2026-12-31T23:30:00Z").getTime())).toBe(
+      "1 Jan"
+    );
+  });
+
+  it("Free has no hosted AI: it is part of Pro, with an upgrade", () => {
+    const free = withAi(true, "FREE");
+    expect(aiGate(free, now, false)).toEqual({ kind: "pro" });
+    expect(bannerSpecs(free, "today", now)[0]).toMatchObject({
+      id: "ai",
+      title: "AI is part of Pro — your tasks and calendar still work",
+      action: { kind: "upgrade" },
+    });
+  });
+
+  it("a paid plan out of allowance names the renewal day", () => {
+    expect(aiGate(withAi(true), now, false)).toEqual({
+      kind: "allowance",
+      until: "1 Nov",
+    });
+  });
+
+  it("a key of their own, an unread key or a healthy plan never gate", () => {
+    expect(aiGate(withAi(true, "FREE"), now, true)).toBeNull();
+    expect(aiGate(withAi(true, "FREE"), now, undefined)).toBeNull();
+    expect(aiGate(withAi(false), now, false)).toBeNull();
+    expect(aiGate(undefined, now, false)).toBeNull();
   });
 });
 

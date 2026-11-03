@@ -502,6 +502,7 @@ export interface ApiProject {
   position?: number;
   status?: string;
   description?: string | null;
+  trashedAt?: string | null;
 }
 
 export interface V3Project {
@@ -512,6 +513,8 @@ export interface V3Project {
   ground: string | null;
   position: number;
   archived: boolean;
+  /** When it went to Trash, or null while it is live. */
+  trashedAt?: string | null;
 }
 
 export function projectFromApi(row: ApiProject): V3Project {
@@ -523,6 +526,7 @@ export function projectFromApi(row: ApiProject): V3Project {
     ground: row.ground ?? null,
     position: row.position ?? 0,
     archived: row.status === "archived",
+    trashedAt: row.trashedAt ?? null,
   };
 }
 
@@ -534,6 +538,7 @@ export function projectPatchToApi(
     if (k in patch) out[k] = patch[k];
   }
   if ("archived" in patch) out.status = patch.archived ? "archived" : "active";
+  if ("trashedAt" in patch) out.trashed = patch.trashedAt != null;
   return out;
 }
 

@@ -42,6 +42,7 @@ import { newDate } from "@/lib/date-utils";
 
 import { useExit } from "../ctx/useExit";
 import { AiOrb } from "../orb/AiOrb";
+import type { AiGate } from "../states/status";
 import { AskActivity, AskText } from "./AskActivity";
 import {
   type AskScope,
@@ -127,6 +128,29 @@ export interface ChatPanelProps {
   /** Undo one thing Ask did, or everything one reply did. */
   onUndo?: (messageId: string, actionId: string) => void;
   onUndoAll?: (messageId: string, runId: string) => void;
+  /**
+   * Set when Needt's own AI cannot answer this person (Free has none; a paid
+   * allowance is used up). The composer and the cards then stop looking like
+   * working controls and the reason, with the way forward, takes their place.
+   */
+  gate?: AiGate | null;
+  /** "See Pro": opens the paywall. */
+  onUpgrade?: () => void;
+  /** "Use your own AI": opens the AI tools tab of Connections. */
+  onOwnAi?: () => void;
+}
+
+/** What a gated panel says: the notice line and the composer placeholder. */
+export function gateCopy(gate: AiGate) {
+  return gate.kind === "pro"
+    ? {
+        text: "AI is part of Pro. Your tasks and calendar work as before.",
+        placeholder: "AI is part of Pro",
+      }
+    : {
+        text: `Your AI allowance is used until ${gate.until}. Connect your own AI tool to keep going.`,
+        placeholder: `AI allowance used until ${gate.until}`,
+      };
 }
 
 /** The messages mounted while the panel is still flying in; the rest follow. */
@@ -167,6 +191,9 @@ export function ChatPanel({
   onPopLast,
   onUndo,
   onUndoAll,
+  gate = null,
+  onUpgrade,
+  onOwnAi,
 }: ChatPanelProps) {
   const [draft, setDraft] = React.useState("");
   const [chips, setChips] = React.useState<Mention[]>([]);
@@ -180,6 +207,8 @@ export function ChatPanel({
   const field = React.useRef<HTMLTextAreaElement>(null);
   const scroller = React.useRef<HTMLDivElement>(null);
   const busy = phase !== "idle";
+  const locked = gate !== null;
+  const lockCopy = gate ? gateCopy(gate) : null;
   const last = messages[messages.length - 1];
   const empty = messages.length === 0;
   const settled = useSettled(messages.length > OPEN_TAIL);
@@ -222,7 +251,7 @@ export function ChatPanel({
 
   const send = (line = draft) => {
     const text = line.trim();
-    if (!text || busy) return;
+    if (!text || busy || locked) return;
     if (editing) onPopLast();
     const shown = [text, ...chips.map((c) => `@${c.label}`)].join(" ");
     onSend(withMentions(text, chips), false, shown);
@@ -408,6 +437,7 @@ export function ChatPanel({
                     type="button"
                     className="chat-suggest-card"
                     data-chat-suggest={s.id}
+                    disabled={locked}
                     onClick={() => suggest(s)}
                   >
                     <i className="chat-suggest-icon">
@@ -574,6 +604,31 @@ export function ChatPanel({
                 })}
           </div>
         ) : null}
+        {gate && lockCopy ? (
+          <div className="chat-upsell" role="status" data-chat-gate={gate.kind}>
+            <span>{lockCopy.text}</span>
+            {gate.kind === "pro" && onUpgrade ? (
+              <button
+                type="button"
+                className="nx-btn nx-btn-secondary nx-btn-sm nx-press"
+                data-chat-gate-upgrade
+                onClick={onUpgrade}
+              >
+                See Pro
+              </button>
+            ) : null}
+            {onOwnAi ? (
+              <button
+                type="button"
+                className="nx-btn nx-btn-secondary nx-btn-sm nx-press"
+                data-chat-gate-own
+                onClick={onOwnAi}
+              >
+                Use your own AI
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {editing ? (
           <div className="chat-editing" data-chat-editing>
             <LuPencil size={12} />
@@ -614,8 +669,13 @@ export function ChatPanel({
             rows={1}
             value={draft}
             data-chat-input
+            disabled={locked}
             placeholder={
-              editing ? "Edit and press Enter" : "Ask, or type / for commands"
+              lockCopy
+                ? lockCopy.placeholder
+                : editing
+                  ? "Edit and press Enter"
+                  : "Ask, or type / for commands"
             }
             onChange={(e) => {
               setDraft(e.target.value);
@@ -641,6 +701,7 @@ export function ChatPanel({
               title="Mention a task, doc or project (@)"
               className="chat-tool"
               data-chat-at
+              disabled={locked}
               onClick={() => {
                 setDraft((d) => (d && !/\s$/.test(d) ? `${d} @` : `${d}@`));
                 setMenuOff(null);
@@ -655,6 +716,7 @@ export function ChatPanel({
               title="Commands (/)"
               className="chat-tool is-text"
               data-chat-slash
+              disabled={locked}
               onClick={() => {
                 setDraft("/");
                 setMenuOff(null);
@@ -681,7 +743,7 @@ export function ChatPanel({
                 className="chat-send"
                 aria-label="Send"
                 data-chat-send
-                disabled={!draft.trim()}
+                disabled={locked || !draft.trim()}
                 onClick={() => send()}
               >
                 <LuArrowUp size={15} />

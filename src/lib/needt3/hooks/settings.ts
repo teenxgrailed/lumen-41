@@ -54,6 +54,16 @@ export function useSettings() {
   });
 }
 
+/**
+ * The one week-start setting every date picker and calendar reads
+ * (Settings > Day). "monday" until the saved value loads, so no picker ever
+ * disagrees with another because one read a different default.
+ */
+export function useWeekStartDay(): "monday" | "sunday" {
+  const settings = useSettings();
+  return settings.data?.weekStartDay === "sunday" ? "sunday" : "monday";
+}
+
 /** The person's IANA zone: the saved one once loaded, else the browser's. */
 export function useTimeZone() {
   const qc = useQueryClient();

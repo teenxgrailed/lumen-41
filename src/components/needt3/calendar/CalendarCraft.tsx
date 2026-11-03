@@ -607,7 +607,6 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               today={today}
               n={n}
               onN={setN}
-              onPage={page}
               projects={projects}
               onOpen={onOpen}
               dragProps={drag?.dragProps}

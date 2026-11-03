@@ -12,7 +12,11 @@ import {
   useTrashDoc,
   useTrashedDocs,
 } from "@/lib/needt3/hooks/docs";
-import { useProjects } from "@/lib/needt3/hooks/projects";
+import {
+  useProjects,
+  useTrashProject,
+  useTrashedProjects,
+} from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import {
   useDeleteTaskForever,
@@ -44,6 +48,8 @@ export function useTrashController() {
   const boards = useBoards();
   const docs = useTrashedDocs();
   const projects = useProjects();
+  const trashedProjects = useTrashedProjects();
+  const trashProject = useTrashProject();
   const trashTask = useTrashTask();
   const trashBoard = useTrashBoard();
   const trashDoc = useTrashDoc();
@@ -60,6 +66,10 @@ export function useTrashController() {
   );
   const dead = useMemo(() => tasks.data ?? [], [tasks.data]);
   const pages = useMemo(() => docs.data ?? [], [docs.data]);
+  const goneProjects = useMemo(
+    () => trashedProjects.data ?? [],
+    [trashedProjects.data]
+  );
 
   // One write per item at a time: a second tap while the write is in flight
   // would send it twice and stack two notices.
@@ -80,6 +90,17 @@ export function useTrashController() {
       notify.success(`Restored “${title || tr.untitled}”`, {
         action: { label: "Undo", onClick: () => void back.undo() },
       });
+    });
+  const restoreProject = (id: string, name: string) =>
+    once(`project:${id}`, async () => {
+      try {
+        const back = await trashProject.restore(id);
+        notify.success(`Restored “${name || tr.untitled}”`, {
+          action: { label: "Undo", onClick: () => void back.undo() },
+        });
+      } catch {
+        /* the hook told the person and put the project back */
+      }
     });
   const restoreBoard = (id: string, title: string) =>
     once(`board:${id}`, async () => {
@@ -153,6 +174,7 @@ export function useTrashController() {
         ...gone.map((b) =>
           trashBoard.mutateAsync({ id: b.id, trashed: false })
         ),
+        ...goneProjects.map((p) => trashProject.restore(p.id)),
       ];
       const done = await Promise.allSettled(jobs);
       const n = done.filter((r) => r.status === "fulfilled").length;
@@ -184,7 +206,9 @@ export function useTrashController() {
     dead,
     gone,
     pages,
+    goneProjects,
     projectName,
+    restoreProject,
     restoreTask,
     restoreBoard,
     restorePage,

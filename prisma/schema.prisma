@@ -650,6 +650,10 @@ model Project {
   pages      Page[]
   moodboards Moodboard[]
 
+  // Soft delete: a trashed project leaves every list and sits in Trash until
+  // it is restored. Archive (status) is a different, quieter state.
+  trashedAt DateTime?
+
   @@index([status])
   @@index([userId])
   @@index([workspaceId])
