@@ -7,6 +7,7 @@ import { WifiOff } from "lucide-react";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useAppSession } from "@/components/providers/app-session-context";
 
+import { NEW_VERSION_EVENT } from "@/lib/pwa/build-version";
 import {
   clearIfSignedOut,
   clearNeedtOfflineData,
@@ -57,8 +58,13 @@ export function PWARegister() {
           )
           .catch(() => undefined);
       } else {
+        // The build SHA in the URL makes every deploy a new worker (and a new
+        // static cache), even if sw.js itself did not change.
+        const build = process.env.NEXT_PUBLIC_NEEDT_BUILD_SHA || "dev";
         void navigator.serviceWorker
-          .register("/sw.js", { updateViaCache: "none" })
+          .register(`/sw.js?v=${encodeURIComponent(build)}`, {
+            updateViaCache: "none",
+          })
           .then(async (registration) => {
             await registration.update();
             window.dispatchEvent(new Event("needt-service-worker-ready"));
@@ -66,6 +72,24 @@ export function PWARegister() {
           .catch(() => undefined);
       }
     }
+
+    // A new worker takes over (skipWaiting + claim): the open page is from the
+    // build before it. Hidden tabs reload at once; a visible one is asked.
+    const hadController = Boolean(navigator.serviceWorker?.controller);
+    let reloading = false;
+    const onControllerChange = () => {
+      if (!hadController || reloading) return;
+      if (document.visibilityState === "hidden") {
+        reloading = true;
+        window.location.reload();
+      } else {
+        window.dispatchEvent(new Event(NEW_VERSION_EVENT));
+      }
+    };
+    navigator.serviceWorker?.addEventListener(
+      "controllerchange",
+      onControllerChange
+    );
 
     const updateOnline = () => {
       if (typeof navigator === "undefined") return;
@@ -82,6 +106,10 @@ export function PWARegister() {
     window.addEventListener("offline", updateOnline);
 
     return () => {
+      navigator.serviceWorker?.removeEventListener(
+        "controllerchange",
+        onControllerChange
+      );
       window.removeEventListener("online", updateOnline);
       window.removeEventListener("offline", updateOnline);
     };

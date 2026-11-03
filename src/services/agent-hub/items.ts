@@ -27,6 +27,14 @@ import {
   type WorkspaceKey,
   actorAgentId,
 } from "./context";
+import {
+  EMPTY_DEPS,
+  type ItemDeps,
+  isStale,
+  loadDeps,
+  noteUnblocked,
+  openBlockers,
+} from "./deps";
 import { HubError } from "./errors";
 import {
   assertHttpUrl,
@@ -42,7 +50,9 @@ import {
   type EditItemInput,
   type EscalateInput,
   type UpdateInput,
+  type UsageInput,
   normalizeTags,
+  splitCriteria,
 } from "./schemas";
 import { assertNoSecrets } from "./secret-scan";
 
@@ -101,8 +111,42 @@ export function eventView(event: HubItemEvent, names: Map<string, string>) {
   };
 }
 
+/** What the agent said about each checklist entry once the item is done. */
+function checklistView(item: HubItem) {
+  const entries = item.criteriaItems ?? [];
+  const result =
+    item.result &&
+    typeof item.result === "object" &&
+    !Array.isArray(item.result)
+      ? (item.result as { checklist?: unknown })
+      : {};
+  const met = Array.isArray(result.checklist)
+    ? (result.checklist as { met?: unknown }[])
+    : [];
+  return entries.map((text, index) => ({
+    text,
+    met: typeof met[index]?.met === "boolean" ? Boolean(met[index].met) : null,
+  }));
+}
+
+function usageView(item: HubItem) {
+  if (
+    item.usageTokens == null &&
+    item.usageCostUsd == null &&
+    item.usageMinutes == null
+  ) {
+    return null;
+  }
+  return {
+    tokens: item.usageTokens,
+    costUsd: item.usageCostUsd,
+    minutes: item.usageMinutes,
+  };
+}
+
 export interface ItemViewOptions {
   names: Map<string, string>;
+  deps?: ItemDeps;
   events?: HubItemEvent[];
   latest?: HubItemEvent | null;
   noCapableAgent?: boolean;
@@ -113,6 +157,7 @@ export interface ItemViewOptions {
 
 export function itemView(item: HubItem, options: ItemViewOptions) {
   const { names } = options;
+  const deps = options.deps ?? EMPTY_DEPS;
   const now = options.now ?? newDate();
   const leaseExpired =
     HELD_STATUSES.includes(item.status) &&
@@ -125,8 +170,14 @@ export function itemView(item: HubItem, options: ItemViewOptions) {
     status: item.status,
     goal: item.goal,
     doneCriteria: item.doneCriteria,
+    criteria: checklistView(item),
     context: item.context,
     links: item.links,
+    relations: deps.relations,
+    blockedBy: deps.blockedBy,
+    ready: item.status === "open" && deps.blockedBy.length === 0,
+    stale: isStale(item, now),
+    usage: usageView(item),
     risks: item.risks,
     approvals: item.approvals,
     assignee: item.assigneeAgentId
@@ -365,8 +416,10 @@ async function viewOne(
     ...(events ?? []).map((event) => event.actorAgentId),
   ]);
   const unmatched = await unmatchedItemIds(scope, [item]);
+  const deps = (await loadDeps(scope, [item.id])).get(item.id);
   return itemView(item, {
     names,
+    deps,
     events,
     latest,
     noCapableAgent: unmatched.has(item.id),
@@ -450,7 +503,7 @@ function assertBrief(input: CreateItemInput) {
     "describe the goal in at least 20 characters."
   );
   need(
-    input.doneCriteria.trim().length > 0,
+    splitCriteria(input.doneCriteria).text.length > 0,
     "doneCriteria",
     "say how the other agent knows it is done."
   );
@@ -466,7 +519,21 @@ function assertBrief(input: CreateItemInput) {
   );
 }
 
-export async function createItem(scope: HubScope, input: CreateItemInput) {
+/** A validated brief, ready to insert. Nothing is written yet. */
+export interface PreparedItem {
+  data: Prisma.HubItemUncheckedCreateInput;
+  assigneeAgentId: string | null;
+  requiredSkills: string[];
+}
+
+/**
+ * Checks a brief (secrets, assignee, references, due) and builds the row. Used
+ * by createItem and by plans, which validate every step before writing any.
+ */
+export async function prepareItem(
+  scope: HubScope,
+  input: CreateItemInput
+): Promise<PreparedItem> {
   assertBrief(input);
   assertNoSecrets({
     title: input.title,
@@ -477,22 +544,6 @@ export async function createItem(scope: HubScope, input: CreateItemInput) {
     clientRef: input.clientRef,
   });
   const creatorAgentId = actorAgentId(scope.actor);
-
-  if (creatorAgentId && input.clientRef) {
-    const existing = await prisma.hubItem.findFirst({
-      where: {
-        userId: scope.userId,
-        creatorAgentId,
-        clientRef: input.clientRef,
-      },
-    });
-    if (existing) {
-      return {
-        created: false,
-        item: await viewOne(scope, existing, { recent: 5, untrusted: true }),
-      };
-    }
-  }
 
   let assigneeAgentId: string | null = null;
   let requiredSkills: string[] = [];
@@ -528,45 +579,68 @@ export async function createItem(scope: HubScope, input: CreateItemInput) {
   const links = await normalizeLinks(scope, input.links);
   if (input.taskId) await assertTaskInWorkspace(scope, input.taskId);
   if (input.projectId) await assertProjectInWorkspace(scope, input.projectId);
-  const due = parseDue(input.due);
-  const now = newDate();
+  const criteria = splitCriteria(input.doneCriteria);
+  return {
+    assigneeAgentId,
+    requiredSkills,
+    data: {
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      title: input.title.trim(),
+      goal: input.goal.trim(),
+      doneCriteria: criteria.text,
+      criteriaItems: criteria.items,
+      context: input.context.trim(),
+      links,
+      risks: [...new Set(input.risks)],
+      status: "open",
+      assigneeAgentId,
+      requiredSkills,
+      creatorKind: scope.actor.kind,
+      creatorAgentId,
+      due: parseDue(input.due),
+      taskId: input.taskId ?? null,
+      projectId: input.projectId ?? null,
+      clientRef: input.clientRef ?? null,
+    },
+  };
+}
 
+export function createdMessage(prepared: PreparedItem) {
+  return prepared.assigneeAgentId
+    ? "Created and assigned."
+    : `Created for any agent with: ${prepared.requiredSkills.join(", ")}.`;
+}
+
+export async function createItem(scope: HubScope, input: CreateItemInput) {
+  const prepared = await prepareItem(scope, input);
+  const creatorAgentId = actorAgentId(scope.actor);
+
+  if (creatorAgentId && input.clientRef) {
+    const existing = await prisma.hubItem.findFirst({
+      where: {
+        userId: scope.userId,
+        creatorAgentId,
+        clientRef: input.clientRef,
+      },
+    });
+    if (existing) {
+      return {
+        created: false,
+        item: await viewOne(scope, existing, { recent: 5, untrusted: true }),
+      };
+    }
+  }
+
+  const now = newDate();
   try {
     const item = await prisma.$transaction(async (tx) => {
-      const created = await tx.hubItem.create({
-        data: {
-          userId: scope.userId,
-          workspaceId: scope.workspaceId,
-          title: input.title.trim(),
-          goal: input.goal.trim(),
-          doneCriteria: input.doneCriteria.trim(),
-          context: input.context.trim(),
-          links,
-          risks: [...new Set(input.risks)],
-          status: "open",
-          assigneeAgentId,
-          requiredSkills,
-          creatorKind: scope.actor.kind,
-          creatorAgentId,
-          due,
-          taskId: input.taskId ?? null,
-          projectId: input.projectId ?? null,
-          clientRef: input.clientRef ?? null,
-        },
-      });
+      const created = await tx.hubItem.create({ data: prepared.data });
       await writeEvents(
         tx,
         created.id,
         scope.actor,
-        [
-          {
-            type: "created",
-            to: "open",
-            message: assigneeAgentId
-              ? "Created and assigned."
-              : `Created for any agent with: ${requiredSkills.join(", ")}.`,
-          },
-        ],
+        [{ type: "created", to: "open", message: createdMessage(prepared) }],
         now
       );
       return created;
@@ -659,6 +733,16 @@ export async function claimItem(scope: AgentScope, input: ClaimInput) {
     );
   }
   assertEligible(item, agent);
+  if (item.claimedByAgentId !== agent.id) {
+    const blockedBy = await openBlockers(prisma, item.id);
+    if (blockedBy.length) {
+      throw new HubError(
+        "BLOCKED_BY",
+        `This item waits for ${blockedBy.length} unfinished ${blockedBy.length === 1 ? "item" : "items"} (${blockedBy.join(", ")}). It becomes claimable when they are done or cancelled; see needt_agent_inbox view "ready".`,
+        { blockedBy }
+      );
+    }
+  }
 
   const now = newDate();
   const mine = item.claimedByAgentId === agent.id;
@@ -780,14 +864,30 @@ function assertHolder(item: HubItem, agent: HubAgent) {
   }
 }
 
+/** Columns for the reported usage; only the fields that were sent. */
+function usageData(usage: UsageInput | undefined) {
+  if (!usage) return {};
+  return {
+    ...(usage.tokens !== undefined ? { usageTokens: usage.tokens } : {}),
+    ...(usage.costUsd !== undefined ? { usageCostUsd: usage.costUsd } : {}),
+    ...(usage.minutes !== undefined ? { usageMinutes: usage.minutes } : {}),
+  };
+}
+
 /** A progress message, a status change (working or blocked), or a heartbeat. */
 export async function updateItem(scope: AgentScope, input: UpdateInput) {
   const agent = scope.actor.agent;
   const message = input.message?.trim() ?? "";
-  if (!message && !input.status && !input.heartbeat) {
+  const usage = usageData(input.usage);
+  if (
+    !message &&
+    !input.status &&
+    !input.heartbeat &&
+    !Object.keys(usage).length
+  ) {
     throw new HubError(
       "INVALID",
-      "Send a message, a status, or heartbeat: true."
+      "Send a message, a status, usage, or heartbeat: true."
     );
   }
   if (input.status === "blocked" && !input.blockedOn?.trim()) {
@@ -819,14 +919,22 @@ export async function updateItem(scope: AgentScope, input: UpdateInput) {
             next === "blocked"
               ? (input.blockedOn?.trim() ?? item.blockedOn)
               : null,
+          ...usage,
         },
         events: [
           {
-            type: changed ? "status" : message ? "update" : "heartbeat",
+            type: changed
+              ? "status"
+              : message || Object.keys(usage).length
+                ? "update"
+                : "heartbeat",
             from: item.status,
             to: next,
             message,
-            data: { leaseExpiresAt: leaseEnd.toISOString() },
+            data: {
+              leaseExpiresAt: leaseEnd.toISOString(),
+              ...(input.usage ? { usage: input.usage } : {}),
+            },
           },
         ],
       };
@@ -895,6 +1003,31 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
     input.expectedVersion,
     (item, _tx, now) => {
       assertHolder(item, agent);
+      const entries = item.criteriaItems ?? [];
+      let checks: boolean[] | null = null;
+      if (entries.length && input.criteriaMet !== undefined) {
+        if (
+          !Array.isArray(input.criteriaMet) ||
+          input.criteriaMet.length !== entries.length
+        ) {
+          throw new HubError(
+            "INVALID",
+            `criteriaMet: this item has a checklist of ${entries.length}; send one true/false per entry, in order: ${entries.map((entry, index) => `${index + 1}. ${entry}`).join(" | ")}`,
+            { field: "criteriaMet", checklist: entries }
+          );
+        }
+        checks = input.criteriaMet;
+      } else if (Array.isArray(input.criteriaMet)) {
+        throw new HubError(
+          "INVALID",
+          "criteriaMet: this item has no checklist; send true or false.",
+          { field: "criteriaMet" }
+        );
+      }
+      const answers = checks;
+      const met = answers
+        ? answers.every(Boolean)
+        : (input.criteriaMet as boolean | undefined);
       if (input.outcome === "done") {
         const missing = approvalsMissing(item);
         if (missing.length) {
@@ -912,10 +1045,18 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
         ...(input.result.data
           ? { data: input.result.data as Prisma.InputJsonObject }
           : {}),
-        ...(input.criteriaMet !== undefined
+        ...(met !== undefined
           ? {
-              criteriaMet: input.criteriaMet,
+              criteriaMet: met,
               criteriaNote: input.criteriaNote?.trim() ?? "",
+            }
+          : {}),
+        ...(answers
+          ? {
+              checklist: entries.map((text, index) => ({
+                text,
+                met: answers[index],
+              })),
             }
           : {}),
       };
@@ -927,7 +1068,14 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
           leaseExpiredNotedAt: null,
           blockedOn: null,
           closedAt: now,
+          ...usageData(input.usage),
         },
+        after:
+          input.outcome === "done"
+            ? async (tx: Tx) => {
+                await noteUnblocked(tx, item, newDate(now.getTime() + 5));
+              }
+            : undefined,
         events: [
           {
             type: input.outcome === "done" ? "completed" : "failed",
@@ -935,9 +1083,9 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
             to: input.outcome,
             message: summary,
             data: {
-              ...(input.criteriaMet !== undefined
-                ? { criteriaMet: input.criteriaMet }
-                : {}),
+              ...(met !== undefined ? { criteriaMet: met } : {}),
+              ...(answers ? { checklist: answers } : {}),
+              ...(input.usage ? { usage: input.usage } : {}),
               links,
             },
           },
@@ -1060,6 +1208,9 @@ export async function cancelItem(scope: HubScope, input: CancelInput) {
             message: input.reason?.trim() ?? "",
           },
         ],
+        after: async (tx: Tx) => {
+          await noteUnblocked(tx, item, newDate(now.getTime() + 5));
+        },
       };
     }
   );
@@ -1082,7 +1233,13 @@ export async function editItem(scope: HubScope, input: EditItemInput) {
     ...(input.title !== undefined ? { title: input.title.trim() } : {}),
     ...(input.goal !== undefined ? { goal: input.goal.trim() } : {}),
     ...(input.doneCriteria !== undefined
-      ? { doneCriteria: input.doneCriteria.trim() }
+      ? (() => {
+          const criteria = splitCriteria(input.doneCriteria);
+          return {
+            doneCriteria: criteria.text,
+            criteriaItems: criteria.items,
+          };
+        })()
       : {}),
     ...(input.context !== undefined ? { context: input.context.trim() } : {}),
   };
@@ -1382,10 +1539,15 @@ export async function listItems(
     [...latest.values()].map((event) => event.actorAgentId)
   );
   for (const [id, name] of eventNames) names.set(id, name);
+  const deps = await loadDeps(
+    key,
+    items.map((item) => item.id)
+  );
   const now = newDate();
   return items.map((item) =>
     itemView(item, {
       names,
+      deps: deps.get(item.id),
       latest: latest.get(item.id) ?? null,
       noCapableAgent: unmatched.has(item.id),
       now,
@@ -1399,4 +1561,11 @@ async function sweepForList(key: WorkspaceKey) {
   await sweepHub(key);
 }
 
-export { mutateItem, latestEvents, recentEvents, viewOne };
+export {
+  mutateItem,
+  latestEvents,
+  recentEvents,
+  viewOne,
+  visibleToAgent,
+  writeEvents,
+};

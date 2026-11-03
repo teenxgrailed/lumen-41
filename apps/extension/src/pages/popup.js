@@ -1,9 +1,33 @@
 // @ts-check
-import { listProjects } from "../lib/api.js";
+import { getSettings, listProjects } from "../lib/api.js";
 import { parseQuickAdd } from "../lib/quick-add.js";
+import { normalizeYt, YT_KEY, YT_TOGGLES } from "../lib/youtube-rules.js";
 
 const $ = (id) => /** @type {HTMLInputElement} */ (document.getElementById(id));
 const status = (text) => ($("status").textContent = text);
+
+// YouTube toggles come first and need no token: they show before anything is fetched.
+const yt = normalizeYt((await chrome.storage.sync.get(YT_KEY))[YT_KEY]);
+$("yt").append(Object.assign(document.createElement("h2"), { textContent: "YouTube" }));
+for (const [key, label] of YT_TOGGLES) {
+  const box = Object.assign(document.createElement("input"), { type: "checkbox", checked: yt[key] });
+  box.addEventListener("change", async () => {
+    const current = normalizeYt((await chrome.storage.sync.get(YT_KEY))[YT_KEY]);
+    await chrome.storage.sync.set({ [YT_KEY]: { ...current, [key]: box.checked } });
+  });
+  const row = document.createElement("label");
+  row.append(box, label);
+  $("yt").append(row);
+}
+
+// Without a token there is no task form, only the toggles and a pointer to the options.
+if (!(await getSettings()).token) {
+  $("hint").textContent = "To add tasks and block sites during focus, connect Needt in the options.";
+} else {
+  $("tasks").hidden = false;
+  $("title").focus();
+  await import("./popup-tasks.js");
+}
 
 let projects = [];
 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

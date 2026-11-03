@@ -46,6 +46,9 @@ export interface CalBlock {
   event?: boolean;
   /** The person's own event (a Needt calendar of theirs): editable here. */
   own?: boolean;
+  /** The event's calendar takes writes (a Needt one, or a synced one the
+   *  account can write to): the person can edit, move, resize and delete it. */
+  writable?: boolean;
   /** Part of a recurring series: read-only until occurrences are expanded. */
   recurring?: boolean;
   /** Project name (tasks) for the slot list. */

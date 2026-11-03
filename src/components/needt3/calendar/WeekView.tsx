@@ -17,6 +17,7 @@ import { type ProjectLike, weekday } from "@/lib/needt3/derive";
 import { type DayBand, bandTimeLabel } from "@/lib/personal-time-days";
 
 import { useExit } from "../ctx/useExit";
+import { EVENT_DRAG_PREFIX } from "../drag/event-drop";
 import { PERSONAL_DRAG_PREFIX, bandIsDraggable } from "../drag/personal-drop";
 import type { DragProps } from "../drag/useDrag";
 import type { ResizeProps } from "../drag/usePersonalResize";
@@ -28,7 +29,7 @@ import {
   type CreateSpec,
   type WritableCalendar,
 } from "./CreateCard";
-import type { CalItem, CalTimed } from "./blocks";
+import { type CalItem, type CalTimed, canEditEvent } from "./blocks";
 import {
   C2_CAP,
   C2_H,
@@ -42,6 +43,7 @@ import {
 } from "./layout";
 import {
   type Anchor,
+  type EventEdit,
   MoreChip,
   POP_EXIT_MS,
   Peek,
@@ -202,6 +204,7 @@ function Block({
   peek,
   hover,
   dragProps,
+  resizeProps,
 }: {
   b: CalTimed;
   pos: Placed<CalTimed>;
@@ -209,6 +212,7 @@ function Block({
   peek: boolean;
   hover: Hover;
   dragProps?: DragProps;
+  resizeProps?: ResizeProps;
 }) {
   const [hot, setHot] = useState(false);
   const lit = hot || peek;
@@ -217,6 +221,9 @@ function Block({
   const place =
     lit && pos.split ? { left: 4 + (pos.base ?? 0), width: pos.full } : pos;
   const range = `${c2Time(b.at)}–${c2Time(b.at + b.len / 60)}`;
+  const editable = !b.event || canEditEvent(b);
+  const pullable =
+    !!b.event && editable && !!resizeProps && b.at + b.len / 60 < 24;
   const events = {
     "data-c2-block": b.id,
     tabIndex: 0,
@@ -243,8 +250,16 @@ function Block({
       setHot(false);
       hover.leave();
     },
-    ...(!b.event && dragProps
-      ? dragProps({ id: b.id, title: b.title }, "move")
+    /* A task, or an event on a calendar that takes writes, can be picked up
+       and moved; a read-only event stays put. */
+    ...(dragProps && editable
+      ? dragProps(
+          {
+            id: b.event ? `${EVENT_DRAG_PREFIX}${b.id}` : b.id,
+            title: b.title,
+          },
+          "move"
+        )
       : {}),
   } as HTMLAttributes<HTMLDivElement>;
   return (
@@ -268,7 +283,21 @@ function Block({
         height: h,
       }}
       events={events}
-    />
+    >
+      {pullable && resizeProps ? (
+        <span
+          aria-hidden="true"
+          className="pb-resize"
+          data-pb-resize={`${EVENT_DRAG_PREFIX}${b.id}`}
+          onPointerDown={
+            resizeProps({
+              blockId: `${EVENT_DRAG_PREFIX}${b.id}`,
+              hourH: C2_H,
+            }).onPointerDown
+          }
+        />
+      ) : null}
+    </Task>
   );
 }
 
@@ -308,6 +337,8 @@ export interface WeekViewProps {
   onOpen?: (id: string) => void;
   onDone: (b: CalItem) => void;
   onRename: (b: CalItem, title: string) => void;
+  /** Retitle and reschedule an event in one save (the peek's form). */
+  onEdit?: (b: CalItem, fields: EventEdit) => void;
   onDelete: (b: CalItem) => void;
   dragProps?: DragProps;
   /** The bottom-edge handle of a personal time band (the drag host's). */
@@ -530,6 +561,7 @@ const DayColumn = memo(function DayColumn({
             hover={hover}
             peek={peekId === pos.b.id}
             dragProps={dragProps}
+            resizeProps={resizeProps}
           />
         )
       )}
@@ -617,6 +649,7 @@ export function WeekView({
   onOpen,
   onDone,
   onRename,
+  onEdit,
   onDelete,
   dragProps,
   resizeProps,
@@ -1109,6 +1142,7 @@ export function WeekView({
           onOpen={onOpen}
           onDone={onDone}
           onRename={onRename}
+          onEdit={onEdit}
           onDelete={onDelete}
           onPersonal={onMarkPersonal}
         />

@@ -40,6 +40,9 @@ export interface CalendarInput {
    *  person's own only on one of these — workspace busy blocks
    *  (feedId "workspace-busy") are not. */
   ownCalendarIds?: ReadonlySet<string>;
+  /** Ids of the calendars that take writes (`isWritableFeed`): the Needt
+   *  ones and the synced ones the account can write to. */
+  writableCalendarIds?: ReadonlySet<string>;
   /** "YYYY-MM-DD", the person's day. */
   today: string;
   hideDone: boolean;
@@ -68,15 +71,17 @@ function taskItem(
 const BUSY_NAME = "Workspace";
 
 /**
- * Whether the calendar may retitle, move, resize or delete this block: only
- * the person's own local, non-recurring event, and any task.
- * //todo: synced provider events stay read-only until PATCH writes back to
- * Google / Outlook / CalDAV.
+ * Whether the calendar may retitle, move, resize or delete this block: any
+ * task, and a non-recurring event on a calendar that takes writes (the
+ * person's own Needt calendar, or a synced Google / Outlook / CalDAV one the
+ * account can write to; the writes go through the provider routes). Holiday,
+ * contacts and subscribed feeds, and workspace busy blocks, stay read-only.
  * //todo: recurring events stay read-only until occurrences are expanded and
  * an edit can say "this one or the series".
  */
-export const canEditEvent = (b: Pick<CalItem, "event" | "own" | "recurring">) =>
-  !b.event || (!!b.own && !b.recurring);
+export const canEditEvent = (
+  b: Pick<CalItem, "event" | "own" | "writable" | "recurring">
+) => !b.event || ((!!b.own || !!b.writable) && !b.recurring);
 
 function eventItem(
   e: V3Event,
@@ -84,7 +89,8 @@ function eventItem(
   at: number | null,
   len: number,
   calendarName: string,
-  own: boolean
+  own: boolean,
+  writable: boolean
 ): CalItem {
   return {
     id: e.id,
@@ -94,6 +100,7 @@ function eventItem(
     title: e.title,
     event: true,
     own,
+    writable,
     recurring: !!e.isRecurring,
     entry: {
       kind: "event",
@@ -113,6 +120,7 @@ export function calendarItems({
   projects = [],
   calendarNames,
   ownCalendarIds,
+  writableCalendarIds,
   today,
   hideDone,
 }: CalendarInput) {
@@ -135,6 +143,7 @@ export function calendarItems({
   events.forEach((e) => {
     if (!e.startAt) return;
     const own = e.source === "needt" && !!ownCalendarIds?.has(e.calendarId);
+    const writable = own || !!writableCalendarIds?.has(e.calendarId);
     const name =
       calendarNames?.get(e.calendarId) ??
       (e.source === "needt" && !own ? BUSY_NAME : SOURCE_NAME[e.source]) ??
@@ -144,15 +153,16 @@ export function calendarItems({
       // one all-day row on every day it covers (end exclusive)
       const last = e.endAt ? e.endAt.slice(0, 10) : addDays(day, 1);
       for (let d = day, i = 0; d < last && i < 62; d = addDays(d, 1), i++)
-        loose.push(eventItem(e, d, null, 0, name, own));
-      if (last <= day) loose.push(eventItem(e, day, null, 0, name, own));
+        loose.push(eventItem(e, d, null, 0, name, own, writable));
+      if (last <= day)
+        loose.push(eventItem(e, day, null, 0, name, own, writable));
       return;
     }
     const at = hourOf(e.startAt) ?? 0;
     const minutes = e.endAt ? minutesBetween(e.startAt, e.endAt) : 30;
     // a timed event past midnight is drawn on its first day, to the day's end
     const len = Math.max(15, Math.min(minutes, (24 - at) * 60));
-    timed.push(eventItem(e, day, at, len, name, own) as CalTimed);
+    timed.push(eventItem(e, day, at, len, name, own, writable) as CalTimed);
   });
 
   const doneHidden = hideDone

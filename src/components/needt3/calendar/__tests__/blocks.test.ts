@@ -180,6 +180,33 @@ describe("calendarItems", () => {
     expect(canEditEvent(by.get("series")!)).toBe(false);
   });
 
+  it("an event on a writable synced calendar is editable; read-only feeds are not", () => {
+    const { timed } = calendarItems({
+      tasks: [],
+      events: [
+        ev({ id: "goog", calendarId: "goog-cal" }),
+        ev({ id: "holiday", calendarId: "holiday-cal" }),
+        ev({
+          id: "series",
+          calendarId: "goog-cal",
+          isRecurring: true,
+          recurrenceRule: "FREQ=WEEKLY",
+        }),
+      ],
+      ownCalendarIds: new Set(["goog-cal", "holiday-cal"]),
+      // what isWritableFeed says: the holiday calendar is not in the set
+      writableCalendarIds: new Set(["goog-cal"]),
+      today,
+      hideDone: false,
+    });
+    const by = new Map(timed.map((b) => [b.id, b]));
+    expect(by.get("goog")).toMatchObject({ own: false, writable: true });
+    expect(canEditEvent(by.get("goog")!)).toBe(true);
+    expect(canEditEvent(by.get("holiday")!)).toBe(false);
+    // a series stays read-only until occurrences are expanded
+    expect(canEditEvent(by.get("series")!)).toBe(false);
+  });
+
   it("puts an all-day event on every day it covers", () => {
     const { loose } = calendarItems({
       tasks: [],

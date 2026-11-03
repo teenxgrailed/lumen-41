@@ -63,6 +63,7 @@ import {
 } from "./blocks";
 import { calendarEmptyState } from "./empty";
 import { daySpan, freeSlot, spanLabel, weekStart } from "./layout";
+import type { EventEdit } from "./popovers";
 import { workHoursOf } from "./strip";
 
 type View = "week" | "days";
@@ -221,6 +222,10 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
     () => new Set((calendars ?? []).map((c) => c.id)),
     [calendars]
   );
+  const writableCalendarIds = useMemo(
+    () => new Set(writableFeeds(calendars ?? []).map((c) => c.id)),
+    [calendars]
+  );
   // the task view's Completed setting, on top of this screen's Hide done
   const taskView = useTaskView();
   // a ticked task still playing its exit stays on the grid until it is done
@@ -239,6 +244,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
         projects,
         calendarNames,
         ownCalendarIds,
+        writableCalendarIds,
         today,
         hideDone,
       }),
@@ -248,6 +254,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
       projects,
       calendarNames,
       ownCalendarIds,
+      writableCalendarIds,
       today,
       hideDone,
     ]
@@ -299,12 +306,22 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
   const onDone = (b: CalItem) =>
     completion.check({ id: b.id, done: !!b.done, title: b.title });
   const onRename = (b: CalItem, title: string) => {
-    //todo: PATCH /api/events/[id] writes the local copy only; until it writes
-    // back to the provider, synced events are read-only here (canEditEvent).
+    // useUpdateEvent writes a synced calendar's event at the provider first.
     if (!canEditEvent(b)) return;
     void updateEvent
       .mutateAsync({ id: b.id, patch: { title } })
       .then(({ undo }) => undoable(`Renamed to ${quote(title)}`, undo))
+      .catch(ignore);
+  };
+  const onEdit = (b: CalItem, f: EventEdit) => {
+    if (!b.event || !canEditEvent(b)) return;
+    void updateEvent
+      .mutateAsync({
+        id: b.id,
+        patch: { title: f.title, startAt: f.startAt, endAt: f.endAt },
+        isAllDay: false,
+      })
+      .then(({ undo }) => undoable(`Updated ${quote(f.title)}`, undo))
       .catch(ignore);
   };
   const onDelete = (b: CalItem) => {
@@ -590,6 +607,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               onOpen={onOpen}
               onDone={onDone}
               onRename={onRename}
+              onEdit={onEdit}
               onDelete={onDelete}
               dragProps={drag?.dragProps}
               resizeProps={drag?.resizeProps}

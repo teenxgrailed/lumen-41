@@ -5,6 +5,7 @@ import "@excalidraw/excalidraw/index.css";
 import { AmbientBackdrop } from "@/components/liquid";
 import { Providers } from "@/components/providers";
 
+import { CHUNK_RELOAD_SCRIPT } from "@/lib/pwa/chunk-reload";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-init";
 
 import "./globals.css";
@@ -49,6 +50,13 @@ export default function RootLayout({
           id="theme-init"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
+        {/* A page from one build whose CSS/JS chunks are gone (a deploy swapped
+         * the container) reloads once instead of staying blank. */}
+        <Script
+          id="chunk-reload"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: CHUNK_RELOAD_SCRIPT }}
         />
         {/* ?edgedebug loads a panel that reports what sits at the screen
          * edges (Safari 26 bar bands). Nothing loads without the param. */}
