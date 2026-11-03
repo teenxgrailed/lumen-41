@@ -107,9 +107,11 @@ class QuickShareService: ObservableObject {
                 providers.insert(ad, at: 0)
             }
 
+#if !APPSTORE
             if !providers.contains(where: { $0.id == "LocalSend" }) {
                 providers.insert(QuickShareProvider(id: "LocalSend", imageData: nil, supportsRawText: true), at: min(1, providers.count))
             }
+#endif
 
             // System Share Menu fallback
             if !providers.contains(where: { $0.id == "System Share Menu" }) {

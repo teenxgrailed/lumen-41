@@ -950,6 +950,7 @@ final class IslandAppDelegate: NSObject {
             }
         }
 
+#if !APPSTORE
         KeyboardShortcuts.onKeyDown(for: .screenAssistantPanel) { [weak self] in
             guard let self else { return }
             guard Defaults[.enableShortcuts], Defaults[.enableScreenAssistant] else { return }
@@ -968,6 +969,7 @@ final class IslandAppDelegate: NSObject {
                 }
             }
         }
+#endif
     }
 
     @MainActor
@@ -975,7 +977,9 @@ final class IslandAppDelegate: NSObject {
         updateShortcut(.startDemoTimer, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableTimerFeature])
         updateShortcut(.clipboardHistoryPanel, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableClipboardManager])
         updateShortcut(.colorPickerPanel, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableColorPickerFeature])
+#if !APPSTORE
         updateShortcut(.screenAssistantPanel, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableScreenAssistant])
+#endif
         updateShortcut(.toggleTerminalTab, isEnabled: Defaults[.enableShortcuts] && Defaults[.enableTerminalFeature])
     }
 

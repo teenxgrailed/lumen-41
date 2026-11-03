@@ -99,10 +99,14 @@ final class MainMenuBuilder: NSObject, NSMenuItemValidation {
         main.addItem(window)
         NSApp.windowsMenu = window.submenu
 
-        // Help
-        main.addItem(submenu("Help", [
-            item("Needt Website", #selector(openWebsite), target: self),
-        ]))
+        // Help: a link to the site. The App Store build has none, because the
+        // site sells Pro and a link to it is a call to action outside in-app
+        // purchase (App Review 3.1.1).
+        if !MainMenuBuilder.appStoreBuild {
+            main.addItem(submenu("Help", [
+                item("Needt Website", #selector(openWebsite), target: self),
+            ]))
+        }
 
         return main
     }

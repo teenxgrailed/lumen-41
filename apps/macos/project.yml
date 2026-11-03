@@ -53,6 +53,25 @@ packages:
     url: https://github.com/migueldeicaza/SwiftTerm
     exactVersion: 1.13.0
 
+# One shared scheme for the App Store build, with an Archive action in Release:
+# `xcodebuild archive -scheme NeedtAppStore` (CI does this; see README.md,
+# "Mac App Store"). The other targets keep the schemes XcodeGen makes itself.
+schemes:
+  NeedtAppStore:
+    build:
+      targets:
+        NeedtAppStore: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+    management:
+      shared: true
+
 targets:
   # The direct-download build (Developer ID, Sparkle updates).
   Needt:
@@ -247,7 +266,38 @@ targets:
           # private SwiftUI symbol, private glass material
           - extensions/Image+InternalSystemName.swift
           - helpers/LiquidGlassBackground.swift
+          # upstream "Upgrade now" tips and a "Buy us a coffee" button: nothing
+          # in Needt shows them, and App Review 3.1.1 must not find the words
+          - components/Tips/TipStore.swift
+          - components/Onboarding/ProOnboarding.swift
+          # --- Mac App Store: the island is the Needt modules, the calendar and
+          # music through AppleScript. Nothing that runs a subprocess, edits
+          # system state, listens on a socket or sends data to a third party.
+          # Spotify web player token (third-party secrets) and canvas endpoints
+          - managers/SpotifyAuthManager.swift
+          # Screen Assistant: screencapture subprocess and four LLM APIs
+          - components/ScreenAssistant/**
+          - managers/ScreenAssistantManager.swift
+          - managers/ScreenAssistantPanelManager.swift
+          # lock screen artwork wallpaper: edits the wallpaper Index.plist, killall
+          - managers/FullScreenArtworkWindowManager.swift
+          # LocalSend: multicast discovery, arp subprocess, a local server
+          - components/Shelf/Services/LocalSendService.swift
+          - components/Shelf/Views/LocalSendLiveActivity.swift
+          - managers/LocalSendDevicePickerWindowManager.swift
+          # Chromium download watcher: watches ~/Downloads, outside the sandbox
+          - managers/DownloadManager.swift
+          - components/Downloads/**
+          # third-party extension API: websocket server (NWListener) and XPC listener
+          - services/Extensions/ExtensionRPCServer.swift
+          - services/Extensions/ExtensionRPCService.swift
+          - services/Extensions/ExtensionRPCMessages.swift
+          - services/Extensions/ExtensionXPCService.swift
+          - services/Extensions/ExtensionXPCServiceHost.swift
       - path: Island/AppStore
+      # Privacy manifest (App Store requirement); see Privacy/AppStore.
+      - path: Privacy/AppStore/PrivacyInfo.xcprivacy
+        buildPhase: resources
       - path: Island/LottieAnimations
       - path: Island/LICENSE.txt
       - path: Island/ACKNOWLEDGEMENTS.md
@@ -265,20 +315,47 @@ targets:
         embed: true
     entitlements:
       path: Generated/NeedtAppStore.entitlements
+      # Each entitlement is here for code compiled into this target;
+      # scripts/check-appstore-bundle.py fails when one has no usage string.
       properties:
+        # Mac App Store requirement.
         com.apple.security.app-sandbox: true
+        # The web app and the Needt API (use.needt.app), plus Apple's own
+        # services for the now-playing card (iTunes Search for cover art, MusicKit
+        # for animated covers). No weather, lyrics, Spotify web or downloads in
+        # this build.
         com.apple.security.network.client: true
+        # The web app's file inputs (NeedtWebView.runOpenPanel) and the island
+        # Shelf (drop, open panel). Read only: nothing writes to those files
+        # (the Shelf's Rename and Compress items are not in this build).
         com.apple.security.files.user-selected.read-only: true
+        # The Shelf keeps files as security-scoped bookmarks
+        # (Island/Sources/components/Shelf/Models/Bookmark.swift); the sandbox
+        # refuses .withSecurityScope bookmarks without this.
+        com.apple.security.files.bookmarks.app-scope: true
+        # Island webcam mirror (WebcamManager) and the web app's camera inputs.
         com.apple.security.device.camera: true
+        # The web app's dictation (getUserMedia).
         com.apple.security.device.audio-input: true
+        # EventKit events and reminders for the island (CalendarManager).
         com.apple.security.personal-information.calendars: true
-        com.apple.security.personal-information.location: true
         # Music works for Apple Music and Spotify only, through Apple Events.
+        # The group names must exist in each app's scripting definition
+        # (sdef); CI prints them from the runner's Music.app and Spotify.app.
+        # playback = play/pause/next and the player state; the library group
+        # covers the track class (name, artist, album, duration, artwork of
+        # the current track), which the now-playing card reads (checked in
+        # each app's sdef on the runner, 2026-11-03: the track class sits in
+        # com.apple.Music.library.read and com.spotify.library). Read-only:
+        # nothing writes to either library.
         com.apple.security.scripting-targets:
           com.apple.Music:
             - com.apple.Music.playback
+            - com.apple.Music.library.read
           com.spotify.client:
-            - com.spotify.client.playback
+            - com.spotify.playback
+            - com.spotify.library
+        # Share and widget extensions read the same session and cache.
         com.apple.security.application-groups:
           - $(TeamIdentifierPrefix)app.needt.mac
     info:
@@ -292,6 +369,10 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: "Needt"
         NSPrincipalClass: NSApplication
+        # Only HTTPS through the system and hashing (CryptoKit SHA-256 for the
+        # sign-in challenge): exempt. No Bluetooth, Desktop, Documents,
+        # Downloads or screen strings: the sandbox build has neither the
+        # entitlement nor the code for them. No NSAppTransportSecurity.
         ITSAppUsesNonExemptEncryption: false
         NeedtAppGroup: $(TeamIdentifierPrefix)app.needt.mac
         CFBundleURLTypes:
@@ -300,18 +381,11 @@ targets:
         NSMicrophoneUsageDescription: Needt uses the microphone when you dictate.
         NSCameraUsageDescription: Needt uses the camera when you attach a photo and for the island mirror.
         NSAppleEventsUsageDescription: Needt uses AppleScript to show and control what Spotify and Apple Music are playing.
-        NSBluetoothAlwaysUsageDescription: Needt shows when audio devices connect and their battery level in the island.
         NSCalendarsUsageDescription: Needt shows your next event in the island.
         NSCalendarsFullAccessUsageDescription: Needt shows your next event in the island.
         NSRemindersUsageDescription: Needt shows your reminders in the island.
         NSRemindersFullAccessUsageDescription: Needt shows your reminders in the island.
-        NSLocationUsageDescription: Needt uses your location for the weather on the lock screen widget.
-        NSLocationWhenInUseUsageDescription: Needt uses your location for the weather on the lock screen widget.
-        NSDesktopFolderUsageDescription: Needt saves screenshots to your Desktop.
-        NSDocumentsFolderUsageDescription: Needt saves and reads files you drop on the island shelf.
-        NSDownloadsFolderUsageDescription: Needt reads your Downloads folder to show download progress in the island.
         NSAudioCaptureUsageDescription: Needt listens to system audio to draw the live music visualizer.
-        NSScreenCaptureUsageDescription: Needt captures the screen when you ask the island assistant about it.
         NSAppleMusicUsageDescription: Needt looks up the moving cover art for the song playing in the island. It asks only after you turn on Animated cover art in Settings, Island, Music.
     settings:
       base:
@@ -334,6 +408,8 @@ targets:
     platform: macOS
     sources:
       - path: Share/Sources
+      - path: Privacy/Share/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - package: NeedtKit
     entitlements:
@@ -375,6 +451,8 @@ targets:
     platform: macOS
     sources:
       - path: Widgets/Sources
+      - path: Privacy/Widgets/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - package: NeedtKit
       - package: NeedtWidgetKit

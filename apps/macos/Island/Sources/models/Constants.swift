@@ -1081,7 +1081,12 @@ extension Defaults.Keys {
     
     // MARK: Terminal Feature
     static let enableTerminalFeature = Key<Bool>("enableTerminalFeature", default: false)
+#if APPSTORE
+    // Mac App Store build: the terminal is not compiled; the key only keeps the settings view building.
+    static let terminalShellPath = Key<String>("terminalShellPath", default: "")
+#else
     static let terminalShellPath = Key<String>("terminalShellPath", default: "/bin/zsh")
+#endif
     static let terminalFontFamily = Key<String>("terminalFontFamily", default: "")
     static let terminalFontSize = Key<Double>("terminalFontSize", default: 12.0)
     static let terminalOpacity = Key<Double>("terminalOpacity", default: 1.0)

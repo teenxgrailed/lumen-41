@@ -16,9 +16,19 @@ import WebKit
 ///
 /// `__TAURI__` here is only a shim carrying those two namespaces; there is no
 /// Tauri in this app. `window.__needtNative` marks the Swift app for any code
-/// that must tell the two shells apart.
+/// that must tell the two shells apart; its `distribution` says whether this is
+/// the Mac App Store build ("appstore") or the direct download ("direct").
 enum WebBridge {
     static let handlerName = "needt"
+
+    /// "appstore" when compiled with APPSTORE (project.yml, NeedtAppStore).
+    static let distribution: String = {
+        #if APPSTORE
+        return "appstore"
+        #else
+        return "direct"
+        #endif
+    }()
 
     private static let source = #"""
     (function () {
@@ -34,7 +44,10 @@ enum WebBridge {
       var queue = [];
       var handler = null;
       function deliver(command) { try { handler(command); } catch (_) {} }
-      window.__needtNative = { platform: 'mac-swift' };
+      // distribution: "appstore" for the Mac App Store build, "direct" for the
+      // download from needt.app. The web app hides every purchase call to
+      // action for "appstore" (App Review 3.1.1).
+      window.__needtNative = { platform: 'mac-swift', distribution: boot.distribution === 'appstore' ? 'appstore' : 'direct' };
       window.__needtDesktop = {
         platform: 'mac',
         // Off: the window is opaque (App Store build), so the page never marks
@@ -126,6 +139,7 @@ enum WebBridge {
         let boot: [String: Any] = [
             "home": Config.homeURL.absoluteString,
             "devHost": Config.base.host ?? "",
+            "distribution": distribution,
         ]
         let data = (try? JSONSerialization.data(withJSONObject: boot)) ?? Data("{}".utf8)
         let json = String(data: data, encoding: .utf8) ?? "{}"

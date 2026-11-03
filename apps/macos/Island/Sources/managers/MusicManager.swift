@@ -261,6 +261,10 @@ private actor SpotifyExplicitnessResolver {
     }
 
     private static func fetchExplicitness(for key: LookupKey, using session: URLSession) async -> Bool? {
+#if APPSTORE
+        // Mac App Store build: no scraping of open.spotify.com.
+        return nil
+#else
         guard let url = URL(string: "https://open.spotify.com/embed/track/\(key.trackID)") else {
             return nil
         }
@@ -287,6 +291,7 @@ private actor SpotifyExplicitnessResolver {
         } catch {
             return nil
         }
+#endif
     }
 
     private static func extractNextDataJSON(from html: String) -> String? {
@@ -1388,6 +1393,10 @@ class MusicManager: ObservableObject {
     }
 
     private func fetchLyricsFromAPI(artist: String, title: String, album: String) async throws -> [LyricLine] {
+#if APPSTORE
+        // Mac App Store build: no lyrics lookup, so the track and artist never leave the Mac.
+        return []
+#else
         guard !artist.isEmpty, !title.isEmpty else { return [] }
 
         // Normalize input and percent-encode
@@ -1448,6 +1457,7 @@ class MusicManager: ObservableObject {
         } else {
             return []
         }
+#endif
     }
 
     private func currentLyricsLookupContext() -> (key: LyricsLookupKey, requestArtist: String, requestTitle: String, requestAlbum: String)? {
