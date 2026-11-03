@@ -4,13 +4,15 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 
 import { createPortal } from "react-dom";
 
+import { newDate, toLocalDateKey } from "@/lib/date-utils";
 import { clockSteps, snapQuarter } from "@/lib/needt3/clock-input";
-import type { ProjectLike } from "@/lib/needt3/derive";
+import { type ProjectLike, dayLabel } from "@/lib/needt3/derive";
 import { PERSONAL_PRESETS, type PersonalPreset } from "@/lib/personal-time";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
+import { TaskDialogCalendar } from "../dialogs/TaskDialogCalendar";
 import { SSelect, V3Switch } from "../settings/kit";
 import { Seg2 } from "./Seg2";
 import { TimeField, useClock12 } from "./TimeField";
@@ -74,6 +76,22 @@ export type CreateSpec =
     };
 
 const CARD_W = 320;
+
+/**
+ * Menus the card opens (the Project and Calendar lists) are drawn in the
+ * shell's portal, outside the card's own node. A press on one is a press in
+ * the card, not outside it.
+ */
+const CARD_POPUPS = "[data-radix-popper-content-wrapper], [role='menu']";
+export function pressIsInsideCard(
+  target: Node | null,
+  card: Node | null,
+  ghost: Node | null
+) {
+  if (!target) return true;
+  if (card?.contains(target) || ghost?.contains(target)) return true;
+  return !!(target as Element).closest?.(CARD_POPUPS);
+}
 const QUARTER = 0.25;
 /** The start can be any quarter hour of the day; an end may also be 24:00. */
 const STARTS = clockSteps(0, 24 * 60 - 15);
@@ -150,6 +168,9 @@ export function CreateCard({
     width: number;
   } | null>(null);
   const [title, setTitle] = useState("");
+  // A day picked on the month grid; it overrules the day the ghost is on.
+  const [picked, setPicked] = useState<string | null>(null);
+  const [calOpen, setCalOpen] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [pin, setPin] = useState(true);
   const lastCalendarId = useNeedt3Ui((s) => s.lastCalendarId);
@@ -166,6 +187,11 @@ export function CreateCard({
     range.current = { at, end };
   }, [at, end]);
   const done = useRef(false);
+  // the ghost moved to another day: the card follows it
+  useEffect(() => {
+    setPicked(null);
+  }, [date]);
+  const day = picked ?? date;
 
   // Beside the ghost, flipped near the window's edge; follows it on scroll.
   useEffect(() => {
@@ -177,11 +203,20 @@ export function CreateCard({
       // never wider than the window (a phone is 320 wide at its narrowest)
       const w = Math.min(CARD_W, window.innerWidth - 16);
       const right = r.right + 8 + w <= window.innerWidth - 8;
-      setPos({
+      const next = {
         left: right ? r.right + 8 : Math.max(8, r.left - 8 - w),
         top: Math.max(8, Math.min(r.top, window.innerHeight - 8 - h)),
         width: w,
-      });
+      };
+      // a scroll inside the card (a time list) must not re-render it
+      setPos((cur) =>
+        cur &&
+        cur.left === next.left &&
+        cur.top === next.top &&
+        cur.width === next.width
+          ? cur
+          : next
+      );
     };
     place();
     window.addEventListener("scroll", place, true);
@@ -190,7 +225,7 @@ export function CreateCard({
       window.removeEventListener("scroll", place, true);
       window.removeEventListener("resize", place);
     };
-  }, [anchor, at, end, kind]);
+  }, [anchor, at, end, kind, calOpen]);
 
   useEffect(() => {
     if (!pos) return;
@@ -202,9 +237,10 @@ export function CreateCard({
   // A press outside the card and its ghost drops the draft.
   useEffect(() => {
     const down = (e: MouseEvent) => {
-      const t = e.target as Node | null;
-      if (!t) return;
-      if (card.current?.contains(t) || anchor.current?.contains(t)) return;
+      if (
+        pressIsInsideCard(e.target as Node | null, card.current, anchor.current)
+      )
+        return;
       cancel();
     };
     document.addEventListener("mousedown", down, true);
@@ -232,7 +268,14 @@ export function CreateCard({
       done.current = true;
       // a click (no range drawn) keeps the preset's own length
       const until = sized ? end : Math.min(24, at + preset.minutes / 60);
-      onCreate({ kind: "personal", title: t, date, at, end: until, preset });
+      onCreate({
+        kind: "personal",
+        title: t,
+        date: day,
+        at,
+        end: until,
+        preset,
+      });
       return;
     }
     if (kind !== "personal" && !t) {
@@ -241,12 +284,13 @@ export function CreateCard({
     }
     done.current = true;
     if (kind === "task")
-      onCreate({ kind, title: t, date, at, end, projectId, pin });
+      onCreate({ kind, title: t, date: day, at, end, projectId, pin });
     else if (kind === "event")
-      onCreate({ kind, title: t, date, at, end, calendarId });
-    else onCreate({ kind, title: t, date, at, end, preset: null });
+      onCreate({ kind, title: t, date: day, at, end, calendarId });
+    else onCreate({ kind, title: t, date: day, at, end, preset: null });
   }
 
+  const today = toLocalDateKey(newDate());
   const minutes = Math.round((end - at) * 60);
   const startMin = Math.round(at * 60);
   const endSteps = clockSteps(startMin + 15, 24 * 60);
@@ -308,6 +352,34 @@ export function CreateCard({
         className="nt-input"
       />
       <div className="nt-form c2-create-form">
+        <div className="nt-row">
+          <span className="nt-row-label">Date</span>
+          <div className="nt-row-control">
+            <span className="settings-sselect-row" style={{ width: "100%" }}>
+              <button
+                type="button"
+                className="settings-sselect-select"
+                aria-label="Date"
+                aria-expanded={calOpen}
+                data-c2-create-date=""
+                onClick={() => setCalOpen((o) => !o)}
+              >
+                {dayLabel(day)}
+                {day === today ? " · Today" : ""}
+              </button>
+            </span>
+          </div>
+        </div>
+        {calOpen ? (
+          <TaskDialogCalendar
+            value={day}
+            today={today}
+            onPick={(d) => {
+              setPicked(d);
+              setCalOpen(false);
+            }}
+          />
+        ) : null}
         <div className="nt-row">
           <span className="nt-row-label">Time</span>
           <div className="nt-row-control c2-create-range">

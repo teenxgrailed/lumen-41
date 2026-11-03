@@ -221,6 +221,10 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
     () => new Set((calendars ?? []).map((c) => c.id)),
     [calendars]
   );
+  const writableCalendarIds = useMemo(
+    () => new Set(writableFeeds(calendars ?? []).map((c) => c.id)),
+    [calendars]
+  );
   // the task view's Completed setting, on top of this screen's Hide done
   const taskView = useTaskView();
   // a ticked task still playing its exit stays on the grid until it is done
@@ -239,6 +243,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
         projects,
         calendarNames,
         ownCalendarIds,
+        writableCalendarIds,
         today,
         hideDone,
       }),
@@ -248,6 +253,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
       projects,
       calendarNames,
       ownCalendarIds,
+      writableCalendarIds,
       today,
       hideDone,
     ]
@@ -299,8 +305,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
   const onDone = (b: CalItem) =>
     completion.check({ id: b.id, done: !!b.done, title: b.title });
   const onRename = (b: CalItem, title: string) => {
-    //todo: PATCH /api/events/[id] writes the local copy only; until it writes
-    // back to the provider, synced events are read-only here (canEditEvent).
+    // useUpdateEvent writes a synced calendar's event at the provider first.
     if (!canEditEvent(b)) return;
     void updateEvent
       .mutateAsync({ id: b.id, patch: { title } })

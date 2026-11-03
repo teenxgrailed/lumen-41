@@ -171,8 +171,9 @@ export function Peek({
       {steps ? <StepsBlock steps={steps} badge /> : null}
       <div className="c2-peek-acts">
         {b.event ? (
-          // only the person's own, non-recurring local event is editable;
-          // synced and recurring events and busy blocks get no edit actions.
+          // an event on a calendar that takes writes (Needt, or a synced one
+          // the account can write to) is editable unless it recurs; holiday,
+          // contacts and ICS feeds, recurring events and busy blocks are not.
           // Any of the person's own events can be marked as personal time.
           <>
             {canEditEvent(b) ? (
