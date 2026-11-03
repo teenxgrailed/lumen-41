@@ -1,0 +1,1 @@
+- Calendar uses the app's 13px text in day headers, the event peek and the slot list, and lighter hour lines from the standard greys.

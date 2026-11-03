@@ -41,7 +41,7 @@
 .needt-v3 .c2-week-head { flex: none; display: grid; box-shadow: var(--border) 0 -1px 0 0 inset; }
 .needt-v3 .c2-dayhead { display: flex; align-items: center; justify-content: center; gap: 6px; height: 48px; }
 .needt-v3 .c2-dayhead-wd { font: var(--type-meta-medium); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
-.needt-v3 .c2-dayhead-n { min-width: 26px; height: 26px; display: grid; place-items: center; border-radius: 13px; font: 600 14px/1 var(--font-sans); background: transparent; color: var(--text-primary); }
+.needt-v3 .c2-dayhead-n { min-width: 26px; height: 26px; display: grid; place-items: center; border-radius: 13px; font: 600 13px/1 var(--font-sans); background: transparent; color: var(--text-primary); }
 .needt-v3 .c2-dayhead.is-today .c2-dayhead-wd { color: var(--accent); }
 .needt-v3 .c2-dayhead.is-today .c2-dayhead-n { background: var(--fill-accent); color: var(--accent); }
 .needt-v3 .c2-week-scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 72px; }
@@ -50,7 +50,7 @@
 .needt-v3 .c2-daycol { position: relative; cursor: default; box-shadow: var(--border) 1px 0 0 0 inset; background: transparent; }
 .needt-v3 .c2-daycol.is-today { background: color-mix(in oklch, var(--accent) 3%, transparent); }
 .needt-v3 .c2-daycol.is-weekend { background: var(--fill-1); }
-.needt-v3 .c2-hline { position: absolute; left: 0; right: 0; height: 1px; background: var(--border); opacity: 0.7; }
+.needt-v3 .c2-hline { position: absolute; left: 0; right: 0; height: 1px; background: var(--fill-4); }
 .needt-v3 .c2-now { position: absolute; left: -4px; right: 0; height: 2px; background: var(--destructive); border-radius: 1px; z-index: 1; pointer-events: none; }
 .needt-v3 .c2-now-dot { position: absolute; left: -1px; top: -3px; z-index: 3; width: 8px; height: 8px; border-radius: 4px; background: var(--destructive); }
 .needt-v3 .c2-block { position: absolute; }
@@ -64,10 +64,10 @@
 /* Peek card. */
 .needt-v3 .c2-peek { position: fixed; z-index: 1200; box-sizing: border-box; padding: 12px 12px 10px; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-floating);
   display: flex; flex-direction: column; gap: 8px; }
-.needt-v3 .c2-peek-input { width: 100%; box-sizing: border-box; margin: -3px 0; padding: 3px 6px; border: 0; border-radius: 6px; outline: none; background: var(--fill-3); font: 600 14px/19px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .c2-peek-input { width: 100%; box-sizing: border-box; margin: -3px 0; padding: 3px 6px; border: 0; border-radius: 6px; outline: none; background: var(--fill-3); font: 600 13px/18px var(--font-sans); color: var(--text-primary); }
 .needt-v3 .c2-peek-when { display: flex; gap: 6px; }
 .needt-v3 .c2-peek-when .nt-input { flex: 1 1 0; min-width: 0; padding: 0 6px; font-variant-numeric: tabular-nums; }
-.needt-v3 .c2-peek-title { font: 600 14px/19px var(--font-sans); color: var(--text-primary); overflow-wrap: anywhere; text-decoration: none; }
+.needt-v3 .c2-peek-title { font: 600 13px/18px var(--font-sans); color: var(--text-primary); overflow-wrap: anywhere; text-decoration: none; }
 .needt-v3 .c2-peek-title.is-done { text-decoration: line-through; }
 .needt-v3 .c2-peek-time { font: var(--type-meta); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .needt-v3 .c2-peek-where { display: flex; align-items: center; gap: 7px; font: var(--type-meta); color: var(--text-secondary); }
@@ -104,7 +104,7 @@
 .needt-v3 .c2-slot-pop { position: fixed; z-index: 1200; box-sizing: border-box; max-height: min(420px, calc(100vh - 16px)); display: flex; flex-direction: column;
   padding: 10px 6px 6px; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--shadow-floating); }
 .needt-v3 .c2-slot-head { flex: none; display: flex; align-items: baseline; gap: 8px; padding: 0 8px 8px; }
-.needt-v3 .c2-slot-when { font: 600 14px/19px var(--font-sans); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.needt-v3 .c2-slot-when { font: 600 13px/18px var(--font-sans); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .needt-v3 .c2-slot-count { margin-left: auto; font: var(--type-meta); color: var(--text-tertiary); }
 .needt-v3 .c2-slot-list { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .needt-v3 .c2-slot-row { position: relative; display: flex; align-items: flex-start; gap: 9px; width: 100%; min-height: 40px; padding: 6px 8px; border: 0; cursor: default;
