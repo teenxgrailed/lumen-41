@@ -19,7 +19,7 @@
 <link rel="preload" href="assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/sky-tokens.css?v=27">
 <link rel="stylesheet" href="styles.css?v=63">
-<link rel="stylesheet" href="hero-b.css?v=1">
+<link rel="stylesheet" href="hero-b.css?v=2">
 <link rel="canonical" href="https://needt.app/">
 <!-- Analytics (Umami, self-hosted). Enabled at deploy: set the website ID and allow stats.needt.app in the CSP.
 <script defer src="https://stats.needt.app/script.js" data-do-not-track="true" data-website-id="__UMAMI_SITE_ID__"></script>
@@ -90,7 +90,7 @@
 
 <!-- ── 1 · Hero (the app's own sky) ───────────────────── -->
 <section class="hero" aria-labelledby="hero-h" data-px-scope>
-    <div class="hb-bg" aria-hidden="true"><video muted loop playsinline autoplay preload="auto" poster="assets/hero/garden.jpg" width="1280" height="960"><source src="assets/hero/garden.mp4" type="video/mp4"></video><img src="assets/hero/garden.jpg" alt="" hidden></div>
+    <div class="hb-bg" aria-hidden="true"><video muted loop playsinline autoplay preload="auto" poster="assets/hero/garden.jpg?v=2" width="1664" height="1244"><source src="assets/hero/garden-sm.mp4?v=2" type="video/mp4" media="(max-width: 760px)"><source src="assets/hero/garden.mp4?v=2" type="video/mp4"></video><img src="assets/hero/garden.jpg?v=2" alt="" hidden></div>
   <div class="hb-float hb-f1" aria-hidden="true"><h4>Today</h4>
     <div class="row"><i class="done"></i><span>Answer the client email<small>Done 08:12</small></span></div>
     <div class="row"><i></i><span>Pack the orders<small>10:00 · 25 min</small></span></div>
@@ -319,7 +319,7 @@
 
 <!-- ── 4 · AI rebuilds the day (sky) — desktop only (v25) ── -->
 <section class="ai" id="ai" aria-labelledby="ai-h" data-px-scope>
-  <div class="sky-wrap"><div class="sky" data-sky="lavender" data-variant="a"></div></div>
+  <div class="sky-wrap hb-scene-wrap"><div class="hb-scene is-mist"><img src="assets/hero/garden.jpg?v=2" alt="" loading="lazy" decoding="async"></div></div>
   <div class="wrap ai-grid">
     <div class="ai-copy">
       <span class="eyebrow on-sky rv">Planning</span>
@@ -454,7 +454,7 @@
   </div>
 </section>
 <div class="night-zone" data-px-scope>
-  <div class="sky-wrap"><div class="sky" data-sky="night" data-variant="c" data-calm-only="1"></div><div class="dusk-veil" id="dusk-veil"></div></div>
+  <div class="sky-wrap hb-scene-wrap"><div class="hb-scene is-night"><img src="assets/hero/garden.jpg?v=2" alt="" loading="lazy" decoding="async"></div><div class="dusk-veil" id="dusk-veil"></div></div>
 <section class="night" id="night" aria-labelledby="night-h">
   <div class="night-pin">
     <div class="wrap">
