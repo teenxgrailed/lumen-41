@@ -11,6 +11,7 @@ import { Art } from "../menu/Art";
 import { StScreen } from "../states/StScreen";
 import { PlaceHeader } from "./PlaceHeader";
 import { TrashConfirm } from "./TrashConfirm";
+import { TrashRowGuard } from "./TrashRowGuard";
 import { trashMeta, trashSections } from "./derive";
 import { mergeQueries } from "./query";
 import type { TrashController } from "./useTrashController";
@@ -180,73 +181,76 @@ export function TrashScreen({ c }: { c: TrashController }) {
           </div>
         ) : (
           <div className="pl-trash-col-2">
-            {pages.length && headings ? (
+            {pages.length > 0 && headings ? (
               <h2 className="pl-trash-h">{tr.pages}</h2>
             ) : null}
             {pages.map((p, i) => (
-              <TrashRow
-                key={p.id}
-                i={i}
-                ctx="trash-page"
-                id={p.id}
-                thumb={<DocThumb doc={p} read={read} w={30} h={38} />}
-                title={p.title || tr.untitled}
-                meta={trashMeta(
-                  p.trashedAt!,
-                  now,
-                  timeZone,
-                  projectName(p.projectId)
-                    ? `from ${projectName(p.projectId)}`
-                    : undefined
-                )}
-                onRestore={() => void restorePage(p.id, p.title)}
-                onDeleteForever={() =>
-                  setAsk({ kind: "page", id: p.id, title: p.title })
-                }
-              />
+              <TrashRowGuard key={p.id} kind="page" id={p.id}>
+                <TrashRow
+                  i={i}
+                  ctx="trash-page"
+                  id={p.id}
+                  thumb={<DocThumb doc={p} read={read} w={30} h={38} />}
+                  title={p.title || tr.untitled}
+                  meta={trashMeta(
+                    p.trashedAt,
+                    now,
+                    timeZone,
+                    projectName(p.projectId)
+                      ? `from ${projectName(p.projectId)}`
+                      : undefined
+                  )}
+                  onRestore={() => void restorePage(p.id, p.title)}
+                  onDeleteForever={() =>
+                    setAsk({ kind: "page", id: p.id, title: p.title })
+                  }
+                />
+              </TrashRowGuard>
             ))}
-            {dead.length && (headings || !gone.length) ? (
+            {dead.length > 0 && (headings || !gone.length) ? (
               <h2 className="pl-trash-h">{tr.tasks}</h2>
             ) : null}
             {dead.map((t, i) => (
-              <TrashRow
-                key={t.id}
-                i={pages.length + i}
-                ctx="trash-task"
-                id={t.id}
-                thumb={iconThumb("task")}
-                title={t.title || tr.untitled}
-                meta={trashMeta(
-                  t.trashedAt!,
-                  now,
-                  timeZone,
-                  projectName(t.projectId)
-                    ? `from ${projectName(t.projectId)}`
-                    : undefined
-                )}
-                onRestore={() => void restoreTask(t.id, t.title)}
-                onDeleteForever={() =>
-                  setAsk({ kind: "task", id: t.id, title: t.title })
-                }
-              />
+              <TrashRowGuard key={t.id} kind="task" id={t.id}>
+                <TrashRow
+                  i={pages.length + i}
+                  ctx="trash-task"
+                  id={t.id}
+                  thumb={iconThumb("task")}
+                  title={t.title || tr.untitled}
+                  meta={trashMeta(
+                    t.trashedAt,
+                    now,
+                    timeZone,
+                    projectName(t.projectId)
+                      ? `from ${projectName(t.projectId)}`
+                      : undefined
+                  )}
+                  onRestore={() => void restoreTask(t.id, t.title)}
+                  onDeleteForever={() =>
+                    setAsk({ kind: "task", id: t.id, title: t.title })
+                  }
+                />
+              </TrashRowGuard>
             ))}
-            {gone.length && headings ? (
+            {gone.length > 0 && headings ? (
               <h2 className="pl-trash-h">{tr.moodboards}</h2>
             ) : null}
             {gone.map((b, i) => (
-              <TrashRow
-                key={b.id}
-                i={pages.length + dead.length + i}
-                ctx="trash"
-                id={b.id}
-                thumb={iconThumb("stack")}
-                title={b.title || tr.untitled_moodboard}
-                meta={trashMeta(b.trashedAt!, now, timeZone)}
-                onRestore={() => void restoreBoard(b.id, b.title)}
-                onDeleteForever={() =>
-                  setAsk({ kind: "board", id: b.id, title: b.title })
-                }
-              />
+              <TrashRowGuard key={b.id} kind="board" id={b.id}>
+                <TrashRow
+                  i={pages.length + dead.length + i}
+                  ctx="trash"
+                  id={b.id}
+                  thumb={iconThumb("stack")}
+                  title={b.title || tr.untitled_moodboard}
+                  meta={trashMeta(b.trashedAt, now, timeZone)}
+                  onRestore={() => void restoreBoard(b.id, b.title)}
+                  onDeleteForever={() =>
+                    setAsk({ kind: "board", id: b.id, title: b.title })
+                  }
+                />
+              </TrashRowGuard>
             ))}
           </div>
         )}

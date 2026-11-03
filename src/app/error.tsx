@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 
 import Link from "next/link";
 
+import * as Sentry from "@sentry/nextjs";
+
 import { APP_NAME } from "@/lib/app-config";
 import { logger } from "@/lib/logger";
 import { getAppVersion, getVersionHref } from "@/lib/version";
@@ -24,6 +26,12 @@ export default function Error({
     setMounted(true);
     // Set document title on the client side
     document.title = `Error - ${APP_NAME}`;
+    // The logger buffers to the server and prints nothing, which is why the
+    // console stayed empty on a crash; the exception itself goes to Sentry
+    // (its beforeSend strips the message) and to the console for the person
+    // who has DevTools open.
+    Sentry.captureException(error, { tags: { route: "root-error" } });
+    console.error("[Needt] unhandled render error", error);
     void logger.error(
       "Application error boundary rendered",
       { error: error.message, digest: error.digest ?? null },

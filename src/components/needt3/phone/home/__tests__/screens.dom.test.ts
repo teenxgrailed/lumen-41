@@ -468,7 +468,14 @@ describe("Home", () => {
 
   it("a failed load says so with Retry, and Retry asks again", async () => {
     client.removeQueries({ queryKey: qk.tasks({}) });
-    fetchMock.mockImplementation(() => Promise.reject(new Error("down")));
+    fetchMock.mockImplementation(() =>
+      Promise.resolve({
+        ok: false,
+        status: 500,
+        statusText: "down",
+        text: async () => "",
+      })
+    );
     mount(PhoneHome);
     await flush();
     expect(q("[data-p5-state]").getAttribute("data-p5-state")).toBe("error");

@@ -9,6 +9,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 
+import { resilientFetch } from "@/lib/api/resilient-fetch";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { notify } from "@/lib/notifications";
@@ -30,7 +31,7 @@ export async function fetchJson<T>(
   url: string,
   init?: RequestInit
 ): Promise<T> {
-  const res = await fetch(url, {
+  const res = await resilientFetch(url, {
     ...init,
     headers: {
       ...(init?.body ? { "Content-Type": "application/json" } : {}),

@@ -87,4 +87,34 @@ describe("offline privacy and replay contract", () => {
     expect(offlineServer).toContain("OFFLINE_REVISION_CONFLICT");
     expect(offlineServer).toContain("IdempotencyStatus.SUCCEEDED");
   });
+
+  it("versions the static cache by build and drops older ones on activate", () => {
+    expect(serviceWorker).toContain('searchParams.get("v")');
+    expect(serviceWorker).toContain("`needt-static-v8-${BUILD}`");
+    expect(serviceWorker).toMatch(
+      /key !== STATIC_CACHE_NAME &&\s+!key\.startsWith\(PRIVATE_CACHE_PREFIX\)/
+    );
+    expect(serviceWorker).toContain("self.skipWaiting()");
+    expect(serviceWorker).toContain("self.clients.claim()");
+  });
+
+  it("asks the server first for pages and keeps the saved copy for outages only", () => {
+    const nav = serviceWorker.slice(
+      serviceWorker.indexOf("async function networkFirstPrivate")
+    );
+    expect(nav.indexOf('fetch(request, { cache: "no-cache" })')).toBeLessThan(
+      nav.indexOf("fallback()")
+    );
+    // Only HTML is kept, and only a good answer; a 5xx falls back to the copy.
+    expect(nav).toContain("response.ok && cacheName && isHtml(response)");
+    expect(nav).toContain("response.status >= 500");
+    expect(nav).toContain("response.status >= 502 && response.status <= 504");
+  });
+
+  it("never keeps an HTML answer as a static file", () => {
+    const fn = serviceWorker.slice(
+      serviceWorker.indexOf("async function cacheFirstStatic")
+    );
+    expect(fn).toContain('!type.includes("text/html")');
+  });
 });
