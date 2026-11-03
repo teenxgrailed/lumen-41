@@ -9,8 +9,9 @@ name: macOS
 # uploaded as needt-macos-appstore-archive for the owner to sign and upload.
 # A third build, NeedtAppStoreLite (the App Store build without the notch island,
 # nothing compiled from apps/macos/Island), is archived by the appstore-lite job
-# on pushes to main and on manual runs only: macOS minutes are expensive, and
-# the default store build is NeedtAppStore.
+# on pushes to main, on manual runs, and on pull requests that touch what it
+# compiles (lite-precheck decides): macOS minutes are expensive, and the default
+# store build is NeedtAppStore.
 # Not part of the release pipeline: nothing here signs, notarizes or publishes.
 # The Windows app is still the Tauri one (desktop.yml).
 on:
@@ -539,12 +540,59 @@ jobs:
             apps/macos/out/island-sources-in-appstore.txt
           if-no-files-found: warn
 
-  # The App Store build without the island. Not on pull requests (a macOS run
-  # costs real money, and the default store build is NeedtAppStore): on pushes
-  # to main that touch apps/macos (the on.push paths above) and by hand.
+  # Pull requests, cheap (Ubuntu, a few seconds): the Python-only Lite checks run
+  # on every PR that reaches this workflow, and the job says whether the PR
+  # touches what the Lite build compiles, which decides if the macOS archive
+  # below runs on it. The checks read only project.yml and the sources, so they
+  # find an island file or name outside `#if !NO_ISLAND`, a private interface or
+  # an undeclared Required Reason API; they do not replace the compile.
+  lite-precheck:
+    name: NeedtAppStoreLite source checks (no macOS runner)
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      run_lite: ${{ steps.filter.outputs.run_lite }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Lite sources name nothing from Island/
+        working-directory: apps/macos
+        run: python3 scripts/check-lite-no-island.py --sources
+
+      - name: No private interface in the Lite sources
+        working-directory: apps/macos
+        run: python3 scripts/check-appstore-private-api.py --variant lite
+
+      - name: Lite privacy manifest matches the Lite sources
+        working-directory: apps/macos
+        run: python3 scripts/check-appstore-privacy.py --variant lite
+
+      - name: Does this PR touch what the Lite build compiles?
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" | tee "$RUNNER_TEMP/changed.txt"
+          if grep -E '^(apps/macos/(Needt/|Privacy/|scripts/|project\.yml$)|\.github/workflows/macos\.yml$)' "$RUNNER_TEMP/changed.txt"; then
+            echo "run_lite=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_lite=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The App Store build without the island. On pushes to main that touch
+  # apps/macos (the on.push paths above), by hand, and on a pull request only
+  # when lite-precheck finds it touches apps/macos/Needt, Privacy, scripts,
+  # project.yml or this workflow (a macOS run costs real money; the default
+  # store build is NeedtAppStore).
   appstore-lite:
     name: Archive NeedtAppStoreLite (unsigned, universal, no island)
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'push' }}
+    needs: lite-precheck
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || needs.lite-precheck.outputs.run_lite == 'true') }}
     runs-on: macos-26
     timeout-minutes: 90
     steps:

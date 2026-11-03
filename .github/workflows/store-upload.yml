@@ -157,6 +157,18 @@ jobs:
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             | tail -n 80
 
+      # The Lite variant must hold nothing from the island. The same checks as
+      # macos.yml (appstore-lite), run on the signed archive that is uploaded.
+      - name: Lite archive holds nothing from the island
+        if: inputs.target == 'mac' && inputs.mac_variant == 'appstore-lite'
+        working-directory: apps/macos
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/Needt.xcarchive/Products/Applications/Needt.app"
+          test -d "$APP"
+          python3 scripts/check-appstore-bundle.py --variant lite "$APP" Generated/NeedtAppStoreLite.entitlements
+          python3 scripts/check-lite-no-island.py --app "$APP"
+
       - name: Export and upload
         run: |
           set -o pipefail

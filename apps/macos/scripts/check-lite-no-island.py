@@ -77,7 +77,7 @@ def check_sources():
             fail(f"project.yml: the Lite target links the package {match.group(1)}")
     if "-Bridging-Header" in text[start:text.index("\n  # \"Add to Needt\"", start)]:
         fail("project.yml: the Lite target sets a bridging header (the island's)")
-    if "NO_ISLAND" not in text[start:]:
+    if "NO_ISLAND" not in text[start:text.index("\n  # \"Add to Needt\"", start)]:
         fail("project.yml: the Lite target does not set NO_ISLAND")
 
     src.set_no_island(True)
@@ -141,6 +141,8 @@ def check_app(app):
         island_assets |= set(names)
     for sub in ("audio-feedback.m4a", "dynamic.m4a", "lock.mp3", "lowbattery.mp3"):
         island_assets.add(sub)
+    if not island_assets:
+        fail("Island/LottieAnimations is missing or empty: the resource check would pass on nothing")
     leaked = sorted(island_assets & shipped)
     if leaked:
         fail(f"island resources in the bundle: {leaked[:10]}")

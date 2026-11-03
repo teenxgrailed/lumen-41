@@ -63,3 +63,9 @@ No ads, no analytics, no tracking. Policy: https://use.needt.app/privacy. The mi
   of explaining them.
 - Everything native in this build has so far been built in CI only; nobody has run it on a
   real Mac (`apps/macos/README.md`, "What needs the owner").
+- **Lite variant (`NeedtAppStoreLite`, built when store-upload runs with `mac_variant=appstore-lite`).**
+  No notch island, no camera, no calendar or reminders access, no Apple Events (no Music or
+  Spotify control). The sandbox entitlements are network, user-selected files (read-only),
+  the app group and the microphone, which the web page uses for dictation only. If this
+  variant is the one submitted, in Part 1 PRIVACY replace "camera and microphone for the web
+  page" with "the microphone for the web page's dictation", and skip the island in the notes.
