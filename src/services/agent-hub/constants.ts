@@ -47,8 +47,8 @@ export const HELD_STATUSES: readonly string[] = [
 export const LEASE_DEFAULT_MINUTES = 30;
 export const LEASE_MAX_MINUTES = 240;
 
-/** An open "any capable" item nobody can do creates one owner task after this. */
-export const NO_AGENT_TASK_AFTER_MS = 24 * 60 * 60 * 1000;
+/** An open "any capable" item nobody can do raises one owner alert after this. */
+export const NO_AGENT_ALERT_AFTER_MS = 24 * 60 * 60 * 1000;
 /** Finished items leave the default view after this; they are never deleted. */
 export const ARCHIVE_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
 

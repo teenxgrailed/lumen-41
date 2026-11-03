@@ -27,6 +27,7 @@ import { WorkspaceRole } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { newDate } from "@/lib/date-utils";
+import { agentHubEnabled } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
@@ -278,7 +279,11 @@ export async function POST(request: NextRequest) {
     // write is an op (logged, undoable) and progress streams as it happens.
     return agentChatResponse({
       ai,
-      settings,
+      // The agent hub tools exist only for people the flag is on for.
+      settings: {
+        ...settings,
+        hub: await agentHubEnabled(auth.userId).catch(() => false),
+      },
       conversationId: conversation.id,
       userId: auth.userId,
       workspace: auth.workspace!,

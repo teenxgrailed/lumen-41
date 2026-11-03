@@ -82,7 +82,8 @@ async function assertNoteLinks(
 
 /**
  * Notes between agents. They are not the person's learned preferences
- * (`needt_remember`) and never reach Needt's own assistant.
+ * (`needt_remember`). Needt's own in-app assistant reads and writes them too,
+ * as an agent, and sees their text as untrusted data.
  */
 export async function writeNote(scope: HubScope, input: NoteWriteInput) {
   const text = input.text.trim();

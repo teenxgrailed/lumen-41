@@ -1,5 +1,6 @@
 import { PLACES } from "../../../shell/places";
 import {
+  AGENTS_HREF,
   CONNECTIONS_HREF,
   DEFAULT_TILES,
   MENU_ORDER,
@@ -18,6 +19,7 @@ describe("menu places and the route map", () => {
       const a = menuAction(id);
       if (a.kind !== "route") continue;
       if (id === "connections") expect(a.href).toBe(CONNECTIONS_HREF);
+      else if (id === "agents") expect(a.href).toBe(AGENTS_HREF);
       else expect(PLACES.map((p) => p.href)).toContain(a.href);
     }
   });
@@ -40,9 +42,9 @@ describe("menu places and the route map", () => {
     expect(menuAction("settings")).toEqual({ kind: "settings" });
   });
 
-  it("the order is the prototype's plus Goals: 15 entries, Settings last", () => {
-    expect(MENU_ORDER).toHaveLength(15);
-    expect(new Set(MENU_ORDER).size).toBe(15);
+  it("the order is the prototype's plus Goals and Agents: 16 entries, Settings last", () => {
+    expect(MENU_ORDER).toHaveLength(16);
+    expect(new Set(MENU_ORDER).size).toBe(16);
     expect(MENU_ORDER[MENU_ORDER.length - 1]).toBe("settings");
     expect(MENU_ORDER.slice(0, 6)).toEqual([
       "home",

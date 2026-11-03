@@ -27,6 +27,7 @@ export type MenuPlaceId =
   | "shared"
   | "trash"
   | "connections"
+  | "agents"
   | "settings";
 
 /**
@@ -48,6 +49,7 @@ export const MENU_ORDER: readonly MenuPlaceId[] = [
   "shared",
   "trash",
   "connections",
+  "agents",
   "settings",
 ];
 
@@ -70,6 +72,12 @@ const SHELL_ID: Partial<Record<MenuPlaceId, PlaceId>> = {
 /** The route of Connections (route map §2.4: a new place, not in `PLACES`). */
 export const CONNECTIONS_HREF = "/connections";
 
+/**
+ * The route of Agents. Like Connections it is not in `PLACES`, and it is a row
+ * only while the agent hub is on for the person (`menuRows`).
+ */
+export const AGENTS_HREF = "/agents";
+
 /** The one big word of a row. */
 export function menuWord(id: MenuPlaceId): string {
   switch (id) {
@@ -77,6 +85,8 @@ export function menuWord(id: MenuPlaceId): string {
       return "Ask Needt";
     case "connections":
       return "Connections";
+    case "agents":
+      return "Agents";
     case "settings":
       return "Settings";
     default: {
@@ -93,6 +103,8 @@ export function menuSub(id: MenuPlaceId): string {
       return "Plans with your calendar and tasks";
     case "connections":
       return "Calendars, mail and tools";
+    case "agents":
+      return "Work you hand to agents";
     case "settings":
       return "Theme, hours, notifications";
     default:
@@ -110,6 +122,7 @@ export function menuAction(id: MenuPlaceId): MenuAction {
   if (id === "ask") return { kind: "ask" };
   if (id === "settings") return { kind: "settings" };
   if (id === "connections") return { kind: "route", href: CONNECTIONS_HREF };
+  if (id === "agents") return { kind: "route", href: AGENTS_HREF };
   const sid = SHELL_ID[id] as PlaceId;
   const place = PLACES.find((p) => p.id === sid);
   return { kind: "route", href: place ? place.href : "/today" };
@@ -122,6 +135,8 @@ export function menuIdForPath(pathname: string): MenuPlaceId | null {
     pathname.startsWith(`${CONNECTIONS_HREF}/`)
   )
     return "connections";
+  if (pathname === AGENTS_HREF || pathname.startsWith(`${AGENTS_HREF}/`))
+    return "agents";
   const sid = placeForPath(pathname);
   if (!sid) return null;
   for (const id of MENU_ORDER) if (SHELL_ID[id] === sid) return id;
@@ -170,9 +185,18 @@ export function menuTilesFrom(prefs: unknown): MenuPlaceId[] {
   return out.length >= 3 ? out.slice(0, 3) : DEFAULT_TILES.slice();
 }
 
-/** The rows of the card: every place that is not one of the three. */
-export function menuRows(top: readonly MenuPlaceId[]): MenuPlaceId[] {
-  return MENU_ORDER.filter((id) => !top.includes(id));
+/**
+ * The rows of the card: every place that is not one of the three. Agents is a
+ * row only while the agent hub is on for the person (`agents: true`); without
+ * the flag the card is exactly what it was.
+ */
+export function menuRows(
+  top: readonly MenuPlaceId[],
+  options: { agents?: boolean } = {}
+): MenuPlaceId[] {
+  return MENU_ORDER.filter(
+    (id) => !top.includes(id) && (id !== "agents" || options.agents === true)
+  );
 }
 
 /** The shell registry's glyph id for a place that has a drawn mark, else null. */

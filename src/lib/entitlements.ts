@@ -127,8 +127,7 @@ export async function withHabitSlot<T>(
   userId: string,
   write: (tx: Prisma.TransactionClient) => Promise<T>
 ): Promise<
-  | { allowed: true; value: T }
-  | { allowed: false; entitlement: LimitStatus }
+  { allowed: true; value: T } | { allowed: false; entitlement: LimitStatus }
 > {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRaw(
@@ -299,4 +298,28 @@ export async function canUseGoals(userId: string) {
     upgradeRequired: !PLAN_LIMITS[plan].goals,
     plan,
   };
+}
+
+/** Plans the agent hub is for once it is opened beyond its owner-only trial. */
+export const AGENT_HUB_PLANS: readonly SubscriptionPlan[] = [
+  SubscriptionPlan.PRO,
+  SubscriptionPlan.LIFETIME,
+];
+
+/**
+ * Whether the agent hub also needs a plan. Off while `agent_hub` is an
+ * owner-only override: the flag alone decides, and the owner's own plan does
+ * not matter. When the flag is opened to everyone, turn this on (Pro and
+ * Lifetime then keep it, Free loses it) without touching a call site.
+ */
+export const AGENT_HUB_REQUIRES_PLAN = false;
+
+/** The plan side of the agent hub's access; the `agent_hub` flag is still required. */
+export async function canUseAgentHub(userId: string) {
+  if (!AGENT_HUB_REQUIRES_PLAN) {
+    return { allowed: true, upgradeRequired: false };
+  }
+  const plan = await getPlan(userId);
+  const allowed = AGENT_HUB_PLANS.includes(plan);
+  return { allowed, upgradeRequired: !allowed, plan };
 }

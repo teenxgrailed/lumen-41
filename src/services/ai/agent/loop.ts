@@ -5,12 +5,14 @@ import { WorkspaceRole } from "@prisma/client";
 import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { logger } from "@/lib/logger";
 
+import { zodToJsonSchema } from "../../ops/json-schema";
 import {
   getAgentToolDefinitions,
   validateAgentToolCall,
 } from "../tool-catalog";
 import type { AIChatToolDefinition, AgentMessage, SchedulerAI } from "../types";
 import type { AgentStreamEvent } from "./events";
+import { HUB_AGENT_TOOLS, getHubAgentTool } from "./hub-tools";
 import { type ToolResult, executeTool } from "./legacy-tools";
 import {
   type AgentActionRef,
@@ -49,12 +51,17 @@ const READ_ONLY_LEGACY_TOOLS = new Set([
   "parse_brain_dump",
 ]);
 
+/** The op-backed tools, and the agent hub's own set. */
+function findTool(name: string) {
+  return getAgentTool(name) ?? getHubAgentTool(name);
+}
+
 /** Whether a call changes something. Unknown tools count as changes. */
 export function isMutatingToolCall(
   name: string,
   args: Record<string, unknown>
 ) {
-  const own = getAgentTool(name);
+  const own = findTool(name);
   if (own) return own.kind !== "read";
   if (READ_ONLY_LEGACY_TOOLS.has(name)) return false;
   if (name === "manage_projects" && args.action === "list") return false;
@@ -66,13 +73,30 @@ export const WRITE_LIMIT_MESSAGE = `I stopped after ${MAX_WRITES_PER_TURN} chang
 export interface AgentSettings {
   allowParseTasks: boolean;
   allowFullAuto: boolean;
+  /**
+   * The agent hub tools are offered and run. Set per request from the
+   * `agent_hub` flag; absent means off, so a caller that forgets it gives the
+   * assistant no hub at all.
+   */
+  hub?: boolean;
+}
+
+function hubToolDefinitions(): AIChatToolDefinition[] {
+  return HUB_AGENT_TOOLS.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    parameters: zodToJsonSchema(tool.schema),
+  }));
 }
 
 /** Everything the model may call: the op-backed tools plus the legacy rest. */
 export function allAgentToolDefinitions(
   settings: AgentSettings
 ): AIChatToolDefinition[] {
-  const own = agentToolDefinitions();
+  const own = [
+    ...agentToolDefinitions(),
+    ...(settings.hub ? hubToolDefinitions() : []),
+  ];
   const taken = new Set(own.map((tool) => tool.name));
   const legacy = getAgentToolDefinitions(settings).filter(
     (tool) => !SUPERSEDED_LEGACY_TOOLS.has(tool.name) && !taken.has(tool.name)
@@ -152,7 +176,20 @@ export async function runAgentToolCall(
   rawArguments: Record<string, unknown>,
   options: { confirmed: boolean; settings: AgentSettings }
 ): Promise<AgentToolOutcome> {
-  const tool = getAgentTool(name);
+  const hubTool = getHubAgentTool(name);
+  if (hubTool && !options.settings.hub) {
+    // The hub is off for this person: the tool does not exist for the model.
+    return {
+      ok: false,
+      summary: "That tool is not available.",
+      modelText: modelJson({
+        ok: false,
+        error: `Unknown tool or arguments: ${name}`,
+      }),
+      changed: false,
+    };
+  }
+  const tool = getAgentTool(name) ?? hubTool;
   if (tool) {
     const parsed = tool.schema.safeParse(rawArguments);
     if (!parsed.success) {
@@ -316,7 +353,7 @@ export async function runAgentTurn(input: TurnInput): Promise<AgentTurnResult> {
           }
           writes += 1;
         }
-        const meta = getAgentTool(call.name);
+        const meta = findTool(call.name);
         const label = meta?.progress ?? "Working";
         input.emit({
           type: "tool",
@@ -422,7 +459,7 @@ export async function runConfirmedToolCall(
     type: "tool",
     id: "confirmed",
     name: tool.name,
-    label: getAgentTool(tool.name)?.progress ?? "Working",
+    label: findTool(tool.name)?.progress ?? "Working",
     status: "running",
   });
   let outcome: AgentToolOutcome;
