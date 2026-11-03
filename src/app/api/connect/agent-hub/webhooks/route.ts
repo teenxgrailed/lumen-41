@@ -11,6 +11,6 @@ export async function GET(request: NextRequest) {
   return hubRoute(async () => {
     const auth = await authenticateHubAgent(request, false);
     if ("response" in auth) return auth.response;
-    return NextResponse.json(await listWebhooks(auth.scope));
+    return NextResponse.json(await listWebhooks(auth.scope, false));
   });
 }

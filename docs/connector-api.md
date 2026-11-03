@@ -260,7 +260,7 @@ changing, removing and testing a webhook is session-only
 bearer token reads: `GET /api/connect/agent-hub/webhooks` (url, events, active,
 failure count; never the secret) and
 `GET /api/connect/agent-hub/webhooks/{id}/deliveries` (the last 20), and the
-MCP tool `needt_agent_webhooks` lists them. Free gets `402 PLAN_LIMIT`
+MCP tool `needt_agent_webhooks` lists them. Agents see only the origin of each address (`https://hooks.zapier.com/…`), because services like n8n, Zapier and Make carry the credential in the path; the owner's session sees the full URL. Free gets `402 PLAN_LIMIT`
 (`resource: "webhooks"`) on create; the list answers `allowed: false`.
 
 The signing secret (`whsec_…`) is in the create answer once. Events:
@@ -324,6 +324,11 @@ turns it on again. Only public https addresses on port 443 are accepted: a
 private, loopback, link-local or metadata address, a URL with credentials, and
 redirects are refused, and the address is checked again at every delivery.
 Delivery is at least once and not ordered; dedupe on `X-Needt-Delivery`.
+A "Send test" is one try with no retries and does not count toward the 20.
+Each webhook holds at most 500 undelivered events; beyond that new events for it
+are dropped until it catches up. Events queued before a downgrade from Pro are
+not sent. Deliveries (and the event text in them) are deleted 14 days after
+they finish.
 
 ### Admin read (`needt.admin.read`)
 

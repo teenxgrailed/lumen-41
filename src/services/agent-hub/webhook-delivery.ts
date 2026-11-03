@@ -8,6 +8,7 @@ import { createHmac } from "node:crypto";
 import https from "node:https";
 
 import { newDate } from "@/lib/date-utils";
+import { canUseHubWebhooks } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { decryptSecret } from "@/lib/security/secret-encryption";
@@ -69,9 +70,17 @@ export async function assertWebhookUrl(
     return await assertPublicHttpsUrl(raw, resolve);
   } catch (error) {
     if (error instanceof SafeFetchError) {
+      // One message for every reason: telling "could not be resolved" from
+      // "not public" would let a caller probe internal DNS. The reason goes to
+      // the log only.
+      await logger.info(
+        "Hub webhook URL refused",
+        { code: error.code, reason: error.message },
+        LOG_SOURCE
+      );
       throw new HubError(
         "INVALID",
-        `Webhook URL refused: ${error.message} Use a public https address.`,
+        "Webhook URL refused. Use a public https address on port 443, without a login in the URL.",
         { field: "url" }
       );
     }
@@ -157,12 +166,14 @@ export async function attemptDelivery(
   if (!delivery || delivery.status !== "pending") return { state: "skipped" };
   const webhook = delivery.webhook;
   const attempts = delivery.attempts + 1;
+  // A test is one try and never touches the failure streak of real events.
+  const isTest = delivery.event === HUB_WEBHOOK_TEST_EVENT;
 
   const fail = async (
     error: string,
     lastStatus: number | null
   ): Promise<DeliveryOutcome> => {
-    const delayMs = nextRetryDelayMs(attempts);
+    const delayMs = isTest ? null : nextRetryDelayMs(attempts);
     if (delayMs !== null) {
       const nextAttemptAt = new Date(now.getTime() + delayMs);
       await prisma.hubWebhookDelivery.update({
@@ -181,6 +192,7 @@ export async function attemptDelivery(
         nextAttemptAt: null,
       },
     });
+    if (isTest) return { state: "failed", disabled: false };
     const updated = await prisma.hubWebhook.update({
       where: { id: webhook.id },
       data: { consecutiveFailures: { increment: 1 }, lastDeliveryAt: now },
@@ -208,12 +220,26 @@ export async function attemptDelivery(
 
   // A webhook switched off (or removed from the plan) after the event was
   // queued does not get it.
-  if (!webhook.active && delivery.event !== HUB_WEBHOOK_TEST_EVENT) {
+  if (!webhook.active && !isTest) {
     await prisma.hubWebhookDelivery.update({
       where: { id: delivery.id },
       data: {
         status: "failed",
         lastError: "Webhook is switched off.",
+        nextAttemptAt: null,
+      },
+    });
+    return { state: "skipped" };
+  }
+
+  // The plan was checked when the event was queued; a downgrade since then
+  // stops it (and its retries) here. Not the endpoint's fault: no strike.
+  if (!isTest && !(await canUseHubWebhooks(webhook.userId)).allowed) {
+    await prisma.hubWebhookDelivery.update({
+      where: { id: delivery.id },
+      data: {
+        status: "failed",
+        lastError: "Plan has no webhooks.",
         nextAttemptAt: null,
       },
     });
@@ -252,10 +278,12 @@ export async function attemptDelivery(
           nextAttemptAt: null,
         },
       });
-      await prisma.hubWebhook.update({
-        where: { id: webhook.id },
-        data: { consecutiveFailures: 0, lastDeliveryAt: now },
-      });
+      if (!isTest) {
+        await prisma.hubWebhook.update({
+          where: { id: webhook.id },
+          data: { consecutiveFailures: 0, lastDeliveryAt: now },
+        });
+      }
       return { state: "success" };
     }
     return fail(`The endpoint answered ${response.status}.`, response.status);

@@ -264,8 +264,9 @@ export async function enqueueHubWebhookDelivery(
       // One job per attempt: a repeated enqueue of the same attempt is a no-op.
       jobId: `hub-webhook-${deliveryId}-${attempt}`,
       delay: delayMs,
+      // A failed job must not keep its id, or the sweep cannot re-queue that attempt.
       removeOnComplete: true,
-      removeOnFail: 100,
+      removeOnFail: true,
     }
   );
 }

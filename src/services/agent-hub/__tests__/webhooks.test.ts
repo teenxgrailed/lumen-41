@@ -7,13 +7,21 @@ import type { HubWebhook } from "@prisma/client";
 import { decryptSecret } from "@/lib/security/secret-encryption";
 
 import type { AgentScope, HubScope } from "../context";
+import { attemptDelivery } from "../webhook-delivery";
 import {
+  DELIVERY_RETENTION_DAYS,
+  MAX_PENDING_PER_WEBHOOK,
   createWebhook,
   deleteWebhook,
+  itemPayload,
   listDeliveries,
   listWebhooks,
+  maskWebhookUrl,
+  messagePayload,
+  processWebhookDelivery,
   queueHubEvent,
   sendTestEvent,
+  sweepPendingDeliveries,
   updateWebhook,
   webhookView,
 } from "../webhooks";
@@ -27,7 +35,14 @@ const db = {
     update: jest.fn(),
     delete: jest.fn(),
   },
-  hubWebhookDelivery: { create: jest.fn(), findMany: jest.fn() },
+  hubWebhookDelivery: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    count: jest.fn(),
+    update: jest.fn(),
+    deleteMany: jest.fn(),
+  },
 };
 jest.mock("@/lib/prisma", () => ({
   get prisma() {
@@ -44,6 +59,10 @@ jest.mock("@/lib/entitlements", () => ({
 const enqueue = jest.fn();
 jest.mock("@/lib/queue/enqueue", () => ({
   enqueueHubWebhookDelivery: (...args: unknown[]) => enqueue(...args),
+}));
+jest.mock("../webhook-delivery", () => ({
+  ...jest.requireActual("../webhook-delivery"),
+  attemptDelivery: jest.fn(),
 }));
 jest.mock("@/services/imports/safe-fetch", () => {
   const actual = jest.requireActual("@/services/imports/safe-fetch");
@@ -88,6 +107,10 @@ beforeEach(() => {
   db.hubWebhook.count.mockResolvedValue(0);
   db.hubWebhook.create.mockImplementation(async ({ data }) => row(data));
   db.hubWebhook.findMany.mockResolvedValue([]);
+  enqueue.mockResolvedValue({ id: "job" });
+  db.hubWebhookDelivery.count.mockResolvedValue(0);
+  db.hubWebhookDelivery.update.mockResolvedValue({});
+  db.hubWebhookDelivery.deleteMany.mockResolvedValue({ count: 0 });
   db.hubWebhookDelivery.create.mockImplementation(async ({ data }) => ({
     id: "d1",
     attempts: 0,
@@ -128,7 +151,7 @@ describe("Pro gate", () => {
   });
 
   it("Free can still see the list (locked) and remove what it has", async () => {
-    expect((await listWebhooks(owner())).allowed).toBe(false);
+    expect((await listWebhooks(owner(), true)).allowed).toBe(false);
     db.hubWebhook.findFirst.mockResolvedValue(row());
     await expect(deleteWebhook(owner(), "h1")).resolves.toEqual({
       deleted: true,
@@ -212,7 +235,7 @@ describe("create", () => {
 
 describe("workspace isolation", () => {
   it("lists only the caller's user and workspace", async () => {
-    await listWebhooks(owner("u1", "w1"));
+    await listWebhooks(owner("u1", "w1"), true);
     expect(db.hubWebhook.findMany.mock.calls[0][0].where).toEqual({
       userId: "u1",
       workspaceId: "w1",
@@ -273,5 +296,194 @@ describe("workspace isolation", () => {
 describe("views", () => {
   it("never include the secret", () => {
     expect(Object.keys(webhookView(row()))).not.toContain("secret");
+  });
+});
+
+describe("what agents see (M1)", () => {
+  it("masks the path: n8n, Zapier and Make carry the credential there", () => {
+    expect(maskWebhookUrl("https://hooks.zapier.com/hooks/catch/1/abc/")).toBe(
+      "https://hooks.zapier.com/…"
+    );
+    expect(maskWebhookUrl("https://n8n.example.com/webhook/uuid?token=t")).toBe(
+      "https://n8n.example.com/…"
+    );
+    expect(maskWebhookUrl("https://example.com/")).toBe("https://example.com");
+    expect(maskWebhookUrl("nonsense")).toBe("");
+  });
+
+  it("the owner's list has the full address, an agent's list only the origin", async () => {
+    db.hubWebhook.findMany.mockResolvedValue([
+      row({ url: "https://hooks.zapier.com/hooks/catch/1/secretpath/" }),
+    ]);
+    const owners = await listWebhooks(owner(), true);
+    expect(owners.webhooks[0].url).toContain("secretpath");
+    const agents = await listWebhooks(agent, false);
+    expect(JSON.stringify(agents)).not.toContain("secretpath");
+    expect(agents.webhooks[0].url).toBe("https://hooks.zapier.com/…");
+  });
+});
+
+describe("volume and the queue (M4, L2)", () => {
+  it("drops events for a webhook with a full backlog, but still sends a test", async () => {
+    db.hubWebhook.findMany.mockResolvedValue([row()]);
+    db.hubWebhookDelivery.count.mockResolvedValue(MAX_PENDING_PER_WEBHOOK);
+    expect(await queueHubEvent(owner(), "item.created", {})).toBe(0);
+    expect(db.hubWebhookDelivery.create).not.toHaveBeenCalled();
+    expect(db.hubWebhookDelivery.count.mock.calls[0][0].where).toEqual({
+      webhookId: "h1",
+      status: "pending",
+    });
+
+    db.hubWebhook.findFirst.mockResolvedValue(row());
+    await sendTestEvent(owner(), "h1");
+    expect(db.hubWebhookDelivery.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("without a queue the delivery is failed, not left pending forever", async () => {
+    db.hubWebhook.findMany.mockResolvedValue([row()]);
+    enqueue.mockResolvedValue(null);
+    await queueHubEvent(owner(), "item.created", {});
+    expect(db.hubWebhookDelivery.update.mock.calls[0][0]).toMatchObject({
+      where: { id: "d1" },
+      data: { status: "failed", nextAttemptAt: null },
+    });
+  });
+});
+
+describe("processWebhookDelivery", () => {
+  it("queues the next attempt with the retry delay and the next attempt number", async () => {
+    (attemptDelivery as jest.Mock).mockResolvedValue({
+      state: "retry",
+      delayMs: 300_000,
+      nextAttemptAt: new Date(),
+    });
+    db.hubWebhookDelivery.findUnique.mockResolvedValue({ attempts: 2 });
+    await processWebhookDelivery("d1");
+    expect(enqueue).toHaveBeenCalledWith("d1", 3, 300_000);
+  });
+
+  it("queues nothing after a success or a final failure", async () => {
+    for (const outcome of [
+      { state: "success" },
+      { state: "failed", disabled: false },
+    ]) {
+      (attemptDelivery as jest.Mock).mockResolvedValue(outcome);
+      await processWebhookDelivery("d1");
+    }
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+});
+
+describe("sweepPendingDeliveries", () => {
+  it("re-queues a lost pending delivery as its next attempt", async () => {
+    db.hubWebhookDelivery.findMany.mockResolvedValue([
+      { id: "d1", attempts: 0 },
+      { id: "d2", attempts: 3 },
+    ]);
+    const result = await sweepPendingDeliveries();
+    expect(result.requeued).toBe(2);
+    expect(enqueue).toHaveBeenCalledWith("d1", 1);
+    expect(enqueue).toHaveBeenCalledWith("d2", 4);
+  });
+
+  it("only looks at pending deliveries whose time passed, never a future retry", async () => {
+    const before = Date.now();
+    await sweepPendingDeliveries();
+    const where = db.hubWebhookDelivery.findMany.mock.calls[0][0].where;
+    expect(where.status).toBe("pending");
+    const cutoff = where.nextAttemptAt.lt as Date;
+    // Two minutes of grace: a retry due in the next minutes is left alone.
+    expect(before - cutoff.getTime()).toBeGreaterThanOrEqual(2 * 60_000 - 50);
+    expect(before - cutoff.getTime()).toBeLessThan(2 * 60_000 + 5_000);
+  });
+
+  it(`deletes finished deliveries older than ${DELIVERY_RETENTION_DAYS} days, never pending ones`, async () => {
+    db.hubWebhookDelivery.deleteMany.mockResolvedValue({ count: 7 });
+    const before = Date.now();
+    const result = await sweepPendingDeliveries();
+    expect(result.pruned).toBe(7);
+    const where = db.hubWebhookDelivery.deleteMany.mock.calls[0][0].where;
+    expect(where.status).toEqual({ not: "pending" });
+    const age = before - (where.createdAt.lt as Date).getTime();
+    expect(age).toBeGreaterThanOrEqual(
+      DELIVERY_RETENTION_DAYS * 86_400_000 - 50
+    );
+    expect(age).toBeLessThan(DELIVERY_RETENTION_DAYS * 86_400_000 + 5_000);
+  });
+});
+
+describe("payload shape", () => {
+  it("an item carries ids, status and the question only: no goal, context, criteria, result or notes", () => {
+    const payload = itemPayload({
+      id: "i1",
+      title: "Upload",
+      goal: "SECRET GOAL TEXT",
+      context: "SECRET CONTEXT",
+      doneCriteria: "SECRET CRITERIA",
+      result: { summary: "SECRET RESULT" },
+      status: "open",
+      risks: ["publish"],
+      assigneeAgentId: null,
+      claimedByAgentId: null,
+      creatorKind: "owner",
+      creatorAgentId: null,
+      due: null,
+      question: "Ship it?",
+    } as never);
+    expect(Object.keys(payload).sort()).toEqual(
+      [
+        "claimedByAgentId",
+        "assigneeAgentId",
+        "creatorAgentId",
+        "creatorKind",
+        "due",
+        "id",
+        "question",
+        "risks",
+        "status",
+        "title",
+        "url",
+      ].sort()
+    );
+    expect(JSON.stringify(payload)).not.toContain("SECRET");
+  });
+
+  it("a message carries its text and routing, nothing from the thread beyond subject and item", () => {
+    const payload = messagePayload(
+      {
+        id: "m1",
+        threadId: "t1",
+        fromKind: "agent",
+        fromAgentId: "a1",
+        toAgentIds: [],
+        toOwner: true,
+        toAny: false,
+        body: "hello",
+        importance: "normal",
+        ackRequired: false,
+        // not part of the payload type; must never leak through
+        userId: "SECRET-USER",
+      } as never,
+      { subject: "Hi", itemId: null }
+    );
+    expect(Object.keys(payload).sort()).toEqual(
+      [
+        "ackRequired",
+        "body",
+        "fromAgentId",
+        "fromKind",
+        "id",
+        "importance",
+        "itemId",
+        "subject",
+        "threadId",
+        "toAgentIds",
+        "toAny",
+        "toOwner",
+        "untrusted",
+        "url",
+      ].sort()
+    );
+    expect(payload.untrusted).toBe(true);
   });
 });

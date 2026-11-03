@@ -6,6 +6,7 @@
  */
 import { createHmac, randomBytes } from "node:crypto";
 
+import { canUseHubWebhooks } from "@/lib/entitlements";
 import { encryptSecret } from "@/lib/security/secret-encryption";
 
 import {
@@ -15,6 +16,7 @@ import {
   WEBHOOK_RETRY_DELAYS_MS,
   assertWebhookUrl,
   attemptDelivery,
+  httpsWebhookTransport,
   nextRetryDelayMs,
   signWebhookBody,
 } from "../webhook-delivery";
@@ -28,6 +30,7 @@ jest.mock("@/lib/prisma", () => ({
     return db;
   },
 }));
+jest.mock("@/lib/entitlements", () => ({ canUseHubWebhooks: jest.fn() }));
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
@@ -46,6 +49,7 @@ function delivery(over: Record<string, unknown> = {}, hook: object = {}) {
     attempts: 0,
     webhook: {
       id: "w1",
+      userId: "u1",
       url: "https://hooks.example.com/needt",
       secret: encryptSecret(SECRET),
       active: true,
@@ -58,6 +62,7 @@ function delivery(over: Record<string, unknown> = {}, hook: object = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  (canUseHubWebhooks as jest.Mock).mockResolvedValue({ allowed: true });
   db.hubWebhookDelivery.update.mockResolvedValue({});
   db.hubWebhook.update.mockResolvedValue({
     consecutiveFailures: 1,
@@ -309,5 +314,99 @@ describe("success and auto-disable", () => {
     const transport = jest.fn();
     expect((await attemptDelivery("d1", { transport })).state).toBe("skipped");
     expect(transport).not.toHaveBeenCalled();
+  });
+});
+
+describe("one message for every refusal (L3)", () => {
+  it("does not tell an unresolvable name from a private address", async () => {
+    const unresolvable = await assertWebhookUrl(
+      "https://nope.example.com/x",
+      async () => {
+        throw new Error("ENOTFOUND");
+      }
+    ).catch((e) => e);
+    const privateHost = await assertWebhookUrl(
+      "https://sneaky.example.com/x",
+      async () => ["10.0.0.9"]
+    ).catch((e) => e);
+    const literal = await assertWebhookUrl(
+      "https://10.0.0.9/x",
+      publicHost
+    ).catch((e) => e);
+    expect(unresolvable.code).toBe("INVALID");
+    expect(privateHost.message).toBe(unresolvable.message);
+    expect(literal.message).toBe(unresolvable.message);
+    expect(unresolvable.message).not.toMatch(
+      /resolve|private|public address\./i
+    );
+  });
+});
+
+describe("plan downgrade mid-retry (M3)", () => {
+  it("a queued event and its retries stop when the plan has no webhooks, with no strike", async () => {
+    (canUseHubWebhooks as jest.Mock).mockResolvedValue({ allowed: false });
+    db.hubWebhookDelivery.findUnique.mockResolvedValue(
+      delivery({ attempts: 2 })
+    );
+    const transport = jest.fn();
+    const outcome = await attemptDelivery("d1", {
+      transport,
+      resolve: publicHost,
+      now: () => NOW,
+    });
+    expect(outcome.state).toBe("skipped");
+    expect(transport).not.toHaveBeenCalled();
+    expect(db.hubWebhookDelivery.update.mock.calls[0][0].data).toMatchObject({
+      status: "failed",
+      lastError: "Plan has no webhooks.",
+      nextAttemptAt: null,
+    });
+    expect(db.hubWebhook.update).not.toHaveBeenCalled();
+    expect(canUseHubWebhooks).toHaveBeenCalledWith("u1");
+  });
+});
+
+describe("test events do not touch the real failure streak (L1)", () => {
+  const testDelivery = (hook: object = {}) =>
+    delivery({ event: HUB_WEBHOOK_TEST_EVENT }, { userId: "u1", ...hook });
+
+  it("a failing test is one try, is not retried and adds no strike", async () => {
+    db.hubWebhookDelivery.findUnique.mockResolvedValue(testDelivery());
+    const outcome = await attemptDelivery("d1", {
+      transport: jest.fn().mockResolvedValue({ status: 500 }),
+      resolve: publicHost,
+      now: () => NOW,
+    });
+    expect(outcome).toEqual({ state: "failed", disabled: false });
+    expect(db.hubWebhookDelivery.update.mock.calls[0][0].data).toMatchObject({
+      status: "failed",
+      nextAttemptAt: null,
+    });
+    expect(db.hubWebhook.update).not.toHaveBeenCalled();
+  });
+
+  it("a passing test does not reset a real streak", async () => {
+    db.hubWebhookDelivery.findUnique.mockResolvedValue(
+      testDelivery({ consecutiveFailures: 12 })
+    );
+    const outcome = await attemptDelivery("d1", {
+      transport: jest.fn().mockResolvedValue({ status: 200 }),
+      resolve: publicHost,
+      now: () => NOW,
+    });
+    expect(outcome.state).toBe("success");
+    expect(db.hubWebhook.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("the real transport", () => {
+  it("refuses to connect to a name that resolves to a private address", async () => {
+    // localhost resolves to loopback; guardedLookup must stop the connection.
+    await expect(
+      httpsWebhookTransport(new URL("https://localhost/x"), {
+        body: "{}",
+        headers: {},
+      })
+    ).rejects.toMatchObject({ code: "EBLOCKED" });
   });
 });

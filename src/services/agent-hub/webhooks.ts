@@ -38,6 +38,14 @@ export const WEBHOOKS_MAX_PER_WORKSPACE = 10;
 export const WEBHOOK_DELIVERIES_SHOWN = 20;
 /** A pending delivery whose scheduled time passed this long ago was lost by the queue. */
 const SWEEP_GRACE_MS = 2 * 60_000;
+/** Finished deliveries (and the event text in their payload) are kept this long. */
+export const DELIVERY_RETENTION_DAYS = 14;
+/**
+ * Deliveries a single webhook may have waiting. A looping agent (or a dead
+ * endpoint on a long retry) cannot grow the table past this: later events for
+ * that webhook are dropped and logged until the backlog clears.
+ */
+export const MAX_PENDING_PER_WEBHOOK = 500;
 
 export const webhookCreateInput = z.object({
   url: z.string().min(1).max(500),
@@ -58,11 +66,24 @@ export const webhookUpdateInput = z.object({
 export type WebhookCreateInput = z.infer<typeof webhookCreateInput>;
 export type WebhookUpdateInput = z.infer<typeof webhookUpdateInput>;
 
-export function webhookView(row: HubWebhook) {
+/**
+ * What an agent may see of a webhook address. n8n, Zapier and Make put the
+ * credential in the path, so agents get the origin only.
+ */
+export function maskWebhookUrl(raw: string): string {
+  try {
+    const url = new URL(raw);
+    return url.pathname === "/" && !url.search ? url.origin : `${url.origin}/…`;
+  } catch {
+    return "";
+  }
+}
+
+export function webhookView(row: HubWebhook, exposeUrl = true) {
   // The secret never leaves the server after creation.
   return {
     id: row.id,
-    url: row.url,
+    url: exposeUrl ? row.url : maskWebhookUrl(row.url),
     events: row.events,
     active: row.active,
     consecutiveFailures: row.consecutiveFailures,
@@ -104,8 +125,12 @@ async function loadWebhook(scope: WorkspaceKey, id: string) {
   return row;
 }
 
-/** Webhooks of the workspace, and whether this plan can have them. */
-export async function listWebhooks(scope: WorkspaceKey) {
+/**
+ * Webhooks of the workspace, and whether this plan can have them. `exposeUrl`
+ * is true only for the owner's own session; agents (bearer REST, MCP) get the
+ * origin, not the path.
+ */
+export async function listWebhooks(scope: WorkspaceKey, exposeUrl: boolean) {
   const [rows, status] = await Promise.all([
     prisma.hubWebhook.findMany({
       where: ownerOf(scope),
@@ -116,10 +141,11 @@ export async function listWebhooks(scope: WorkspaceKey) {
   return {
     allowed: status.allowed,
     events: HUB_WEBHOOK_EVENTS,
-    webhooks: rows.map(webhookView),
+    webhooks: rows.map((row) => webhookView(row, exposeUrl)),
   };
 }
 
+//todo: POST /api/agent-hub/webhooks/[id]/rotate (owner-only, Pro): a new secret, returned once. Today a leaked secret means delete and re-create.
 /** The new webhook and its signing secret, which is returned this once. */
 export async function createWebhook(
   scope: HubScope,
@@ -200,6 +226,8 @@ export async function sendTestEvent(scope: HubScope, id: string) {
   const delivery = await queueDelivery(webhook, HUB_WEBHOOK_TEST_EVENT, {
     message: "This is a test event from Needt.",
   });
+  if (!delivery)
+    throw new HubError("CONFLICT", "The test could not be queued.");
   return { delivery: deliveryView(delivery) };
 }
 
@@ -225,6 +253,19 @@ async function queueDelivery(
   event: string,
   data: Record<string, unknown>
 ) {
+  if (event !== HUB_WEBHOOK_TEST_EVENT) {
+    const waiting = await prisma.hubWebhookDelivery.count({
+      where: { webhookId: webhook.id, status: "pending" },
+    });
+    if (waiting >= MAX_PENDING_PER_WEBHOOK) {
+      await logger.warn(
+        "Hub webhook backlog is full; event dropped",
+        { webhookId: webhook.id, event, waiting },
+        LOG_SOURCE
+      );
+      return null;
+    }
+  }
   const delivery = await prisma.hubWebhookDelivery.create({
     data: {
       webhookId: webhook.id,
@@ -233,8 +274,20 @@ async function queueDelivery(
       nextAttemptAt: newDate(),
     },
   });
-  await enqueueHubWebhookDelivery(delivery.id, 1);
+  const queued = await enqueueHubWebhookDelivery(delivery.id, 1);
+  if (queued === null) {
+    // No Redis: nothing will ever deliver this, so say so instead of leaving
+    // it pending forever.
+    return failQueued(delivery.id, "Delivery queue is not configured.");
+  }
   return delivery;
+}
+
+async function failQueued(id: string, reason: string) {
+  return prisma.hubWebhookDelivery.update({
+    where: { id },
+    data: { status: "failed", lastError: reason, nextAttemptAt: null },
+  });
 }
 
 /** The item as a webhook receiver sees it: ids, status and the people involved. */
@@ -318,10 +371,10 @@ export async function queueHubEvent(
   });
   if (webhooks.length === 0) return 0;
   if (!(await canUseHubWebhooks(key.userId)).allowed) return 0;
-  await Promise.all(
+  const queued = await Promise.all(
     webhooks.map((webhook) => queueDelivery(webhook, event, data))
   );
-  return webhooks.length;
+  return queued.filter(Boolean).length;
 }
 
 // ---------------------------------------------------------------------------
@@ -336,18 +389,22 @@ export async function processWebhookDelivery(deliveryId: string) {
       where: { id: deliveryId },
       select: { attempts: true },
     });
-    await enqueueHubWebhookDelivery(
+    const queued = await enqueueHubWebhookDelivery(
       deliveryId,
       (row?.attempts ?? 0) + 1,
       outcome.delayMs
     );
+    if (queued === null) {
+      await failQueued(deliveryId, "Delivery queue is not configured.");
+    }
   }
   return outcome;
 }
 
 /**
- * Re-queue pending deliveries the queue lost (a Redis restart). Job ids carry
- * the attempt number, so a delivery that is still queued is not doubled.
+ * Re-queue pending deliveries the queue lost (a Redis restart; job ids carry
+ * the attempt number, so a delivery that is still queued is not doubled), and
+ * delete finished deliveries past the retention window.
  */
 export async function sweepPendingDeliveries() {
   const cutoff = new Date(newDate().getTime() - SWEEP_GRACE_MS);
@@ -359,5 +416,13 @@ export async function sweepPendingDeliveries() {
   for (const row of lost) {
     await enqueueHubWebhookDelivery(row.id, row.attempts + 1);
   }
-  return lost.length;
+  // Retention: finished deliveries carry event text (titles, questions,
+  // message bodies), so they do not stay forever.
+  const old = new Date(
+    newDate().getTime() - DELIVERY_RETENTION_DAYS * 24 * 60 * 60_000
+  );
+  const pruned = await prisma.hubWebhookDelivery.deleteMany({
+    where: { status: { not: "pending" }, createdAt: { lt: old } },
+  });
+  return { requeued: lost.length, pruned: pruned.count };
 }

@@ -355,9 +355,9 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
 
 async function processHubWebhooks(job: Job<HubWebhookJobData>) {
   if (job.data.kind === "sweep") {
-    const requeued = await sweepPendingDeliveries();
-    if (requeued > 0) {
-      await logger.info("Hub webhook sweep", { requeued }, LOG_SOURCE);
+    const { requeued, pruned } = await sweepPendingDeliveries();
+    if (requeued > 0 || pruned > 0) {
+      await logger.info("Hub webhook sweep", { requeued, pruned }, LOG_SOURCE);
     }
     return;
   }

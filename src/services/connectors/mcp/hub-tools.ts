@@ -128,7 +128,8 @@ export const HUB_TOOLS: McpTool[] = [
       input: z.object({}),
       write: false,
     },
-    (scope) => listWebhooks(scope)
+    // Agents see the origin of each address only; the path can hold a credential.
+    (scope) => listWebhooks(scope, false)
   ),
   hubTool(
     {
