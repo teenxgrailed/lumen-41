@@ -38,14 +38,28 @@ export function normalizeResource(raw: string): string {
   return kind === "file" ? `file:${name}` : `${kind}:${name.toLowerCase()}`;
 }
 
-function globToRegExp(glob: string): RegExp {
-  let out = "";
-  for (const char of glob) {
-    if (char === "*") out += "[^/]*";
-    else if (char === "?") out += "[^/]";
-    else out += char.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+/** Whether a literal `text` matches a one-segment glob (`*` and `?` only). */
+function segmentMatches(glob: string, text: string): boolean {
+  let g = 0;
+  let t = 0;
+  let star = -1;
+  let mark = 0;
+  while (t < text.length) {
+    if (g < glob.length && (glob[g] === "?" || glob[g] === text[t])) {
+      g++;
+      t++;
+    } else if (g < glob.length && glob[g] === "*") {
+      star = g++;
+      mark = t;
+    } else if (star >= 0) {
+      g = star + 1;
+      t = ++mark;
+    } else {
+      return false;
+    }
   }
-  return new RegExp(`^${out}$`);
+  while (g < glob.length && glob[g] === "*") g++;
+  return g === glob.length;
 }
 
 /** Whether two path segments (each a literal or a glob) can match the same name. */
@@ -54,8 +68,8 @@ function segmentsOverlap(a: string, b: string): boolean {
   const aGlob = GLOB_CHARS.test(a);
   const bGlob = GLOB_CHARS.test(b);
   if (aGlob && bGlob) return true; // conservative: two patterns may meet
-  if (aGlob) return globToRegExp(a).test(b);
-  if (bGlob) return globToRegExp(b).test(a);
+  if (aGlob) return segmentMatches(a, b);
+  if (bGlob) return segmentMatches(b, a);
   return false;
 }
 
