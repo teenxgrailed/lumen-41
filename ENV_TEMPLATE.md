@@ -237,6 +237,22 @@ CREEM_STUDENT_DISCOUNT_CODE=""
 - Creem acts as merchant of record for checkout, invoices, subscription
   management, and applicable sales tax.
 
+## Apple In-App Purchase
+
+Optional, and behind the `apple_iap` feature flag (off by default). Needs no
+secret: every App Store JWS is verified against Apple's root certificates,
+which ship in `src/lib/apple-iap/certs/`. See `docs/billing/apple-iap.md`.
+
+```bash
+APPLE_IAP_ENVIRONMENT="Production"   # or Sandbox (the default)
+APPLE_IAP_BUNDLE_IDS="app.needt.ios,app.needt.mac"
+APPLE_IAP_APP_APPLE_ID="1234567890"  # App Store Connect → App Information
+APPLE_IAP_ALLOW_SANDBOX="true"       # Production only; needed for App Review
+```
+
+- App Store Server Notifications V2 URL (Production and Sandbox):
+  `${NEXTAUTH_URL}/api/billing/apple/notifications`.
+
 ## Web Push
 
 ```bash

@@ -1,4 +1,5 @@
 import {
+  BillingProvider,
   Prisma,
   SubscriptionPlan,
   type SubscriptionStatus,
@@ -355,11 +356,13 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
       create: {
         userId,
         ...subscriptionData,
+        provider: BillingProvider.CREEM,
         lastCreemEventId: eventId,
         lastCreemEventAt: eventCreatedAt,
       },
       update: {
         ...subscriptionData,
+        provider: BillingProvider.CREEM,
         lastCreemEventId: eventId,
         lastCreemEventAt: eventCreatedAt,
         // Same transaction as the grant: if the post-commit cancel never runs,

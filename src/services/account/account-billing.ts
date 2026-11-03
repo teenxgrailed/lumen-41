@@ -1,7 +1,14 @@
-import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
+import {
+  BillingProvider,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from "@prisma/client";
 
 import { getCreemClient } from "@/lib/creem/client";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+
+const LOG_SOURCE = "AccountBilling";
 
 /** Creem no longer has the subscription, or it has already ended. */
 function isAlreadyGone(error: unknown): boolean {
@@ -29,8 +36,29 @@ export async function cancelRecurringBillingForDeletion(
       creemSubscriptionId: true,
       plan: true,
       status: true,
+      provider: true,
+      appleOriginalTransactionId: true,
     },
   });
+  if (subscription?.provider === BillingProvider.APPLE) {
+    // An App Store subscription cannot be cancelled by the seller: the buyer
+    // cancels it in iOS Settings. Never send its row to Creem; record that it
+    // was left running so support can tell the person if they write in.
+    if (
+      subscription.plan === SubscriptionPlan.PRO &&
+      subscription.status !== SubscriptionStatus.CANCELED
+    ) {
+      await logger.info(
+        "Account deletion left an App Store subscription to the buyer",
+        {
+          userId,
+          appleOriginalTransactionId: subscription.appleOriginalTransactionId,
+        },
+        LOG_SOURCE
+      );
+    }
+    return;
+  }
   if (
     !subscription?.creemSubscriptionId ||
     subscription.plan !== SubscriptionPlan.PRO ||

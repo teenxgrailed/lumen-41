@@ -65,6 +65,15 @@ export const SANDBOX_ACCOUNTS = "sandbox_accounts";
  */
 export const AGENT_HUB = "agent_hub";
 
+/**
+ * Apple In-App Purchase (StoreKit 2) for the iOS and Mac App Store apps:
+ * `/api/billing/apple/*` (docs/billing/apple-iap.md). Off unless a FeatureFlag
+ * row turns it on; per-user rollout and overrides apply to the account-token
+ * and transactions routes. App Store Server Notifications are always verified
+ * and recorded, so a purchase made while the flag was on is never lost.
+ */
+export const APPLE_IAP = "apple_iap";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -73,6 +82,7 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [ONBOARDING_V3]: "New accounts start in /start instead of /setup.",
   [SANDBOX_ACCOUNTS]:
     "Reviewer sandbox account from env, reset nightly (needs 100% rollout).",
+  [APPLE_IAP]: "Apple In-App Purchase in the iOS / Mac App Store apps.",
   [AGENT_HUB]:
     "Agent hub: handoffs and notes between agents (per-user override).",
 };

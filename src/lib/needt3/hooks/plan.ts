@@ -18,6 +18,10 @@ export interface ApiBilling {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
   canManageBilling: boolean;
+  /** Who sells the plan: "creem", "apple", or null (Free or a comp). */
+  source?: "creem" | "apple" | null;
+  /** Set for an App Store plan: managed and cancelled in the App Store. */
+  manageUrl?: string | null;
   /** The running subscription carries a discount (the student price). */
   discountApplied?: boolean;
   lifetimeAvailable: boolean;

@@ -123,6 +123,7 @@ export async function getAdminUserDetail(
           creemProductId: true,
           stripeCustomerId: true,
           stripePaymentIntentId: true,
+          appleOriginalTransactionId: true,
         },
       },
       trialGrant: { select: { endsAt: true } },

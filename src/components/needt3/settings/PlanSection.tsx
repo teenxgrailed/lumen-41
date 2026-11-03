@@ -287,6 +287,17 @@ export function PlanSection() {
               </SBtn>
             </span>
           ) : null}
+          {b?.manageUrl ? (
+            <span className="settings-grid-3 is-one">
+              <SBtn
+                onClick={() =>
+                  window.open(b.manageUrl ?? "", "_blank", "noopener")
+                }
+              >
+                Manage in App Store
+              </SBtn>
+            </span>
+          ) : null}
           {P.student && (!pro || kind === "trial") ? (
             <span className="base-meta" data-settings-student-prices="">
               {P.studentLine}. Lifetime is not discounted.

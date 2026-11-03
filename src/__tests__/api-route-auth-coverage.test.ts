@@ -59,6 +59,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "auth/email-verification/confirm/route.ts": "single-use token",
   "account/export/download/route.ts": "single-use hashed token, expires",
   "billing/webhook/route.ts": "Creem webhook, signature verified by SDK",
+  "billing/apple/notifications/route.ts":
+    "App Store Server Notifications V2, JWS chain verified to Apple's root",
   "csp-report/route.ts":
     "browsers post CSP reports without credentials; logs a reduced line only, size capped, rate limited",
   "webhooks/google/route.ts": "Google channel id, resource id and token match",

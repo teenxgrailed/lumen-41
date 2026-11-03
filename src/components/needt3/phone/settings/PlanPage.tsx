@@ -243,6 +243,15 @@ export function PlanPage() {
               data={{ "data-ps-portal": "" }}
             />
           ) : null}
+          {b?.manageUrl ? (
+            <PsRow
+              title="Manage in App Store"
+              onOpen={() =>
+                window.open(b.manageUrl ?? "", "_blank", "noopener")
+              }
+              data={{ "data-ps-app-store": "" }}
+            />
+          ) : null}
         </PsGroup>
       )}
       {panel ? (

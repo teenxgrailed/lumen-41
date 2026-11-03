@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 import { z } from "zod";
 
+import { APPLE_MANAGE_SUBSCRIPTIONS_URL } from "@/lib/apple-iap/config";
+import { billingSource } from "@/lib/apple-iap/entitlement";
+import { grantsAccess } from "@/lib/apple-iap/state";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { WITHDRAWAL_WAIVER_REQUIRED_MESSAGE } from "@/lib/billing/withdrawal-waiver";
 import { getCreemClient } from "@/lib/creem/client";
@@ -156,8 +159,31 @@ export async function POST(request: NextRequest) {
     // nothing. Pro to Lifetime is the one allowed upgrade.
     const current = await prisma.subscription.findUnique({
       where: { userId: auth.userId },
-      select: { plan: true, status: true },
+      select: {
+        plan: true,
+        status: true,
+        currentPeriodEnd: true,
+        provider: true,
+        creemCustomerId: true,
+        creemSubscriptionId: true,
+      },
     });
+    // One seller at a time: a live App Store plan is changed or cancelled in
+    // the App Store, and a Creem purchase on top would bill twice.
+    if (
+      current &&
+      billingSource(current) === "apple" &&
+      grantsAccess(current)
+    ) {
+      return NextResponse.json(
+        {
+          error: "This plan was bought in the App Store. Manage it there.",
+          code: "APPLE_ACTIVE",
+          manageUrl: APPLE_MANAGE_SUBSCRIPTIONS_URL,
+        },
+        { status: 409 }
+      );
+    }
     if (current?.plan === SubscriptionPlan.LIFETIME) {
       return NextResponse.json(
         {

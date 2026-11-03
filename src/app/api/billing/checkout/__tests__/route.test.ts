@@ -104,6 +104,50 @@ describe("Lifetime checkout route", () => {
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
+  it("refuses every Creem checkout while an App Store plan is live", async () => {
+    // Auto-renew off in iOS: CANCELED, but paid through next week.
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      plan: "PRO",
+      status: "CANCELED",
+      currentPeriodEnd: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      provider: "APPLE",
+      creemCustomerId: null,
+      creemSubscriptionId: null,
+    });
+
+    for (const request of [proRequest(), lifetimeRequest()]) {
+      const response = await POST(request);
+      expect(response!.status).toBe(409);
+      const body = await response!.json();
+      expect(body.code).toBe("APPLE_ACTIVE");
+      expect(body.manageUrl).toBe(
+        "https://apps.apple.com/account/subscriptions"
+      );
+    }
+    expect(createCheckout).not.toHaveBeenCalled();
+    expect(reserveLifetimeCheckout).not.toHaveBeenCalled();
+  });
+
+  it("lets a lapsed App Store subscriber buy on the web", async () => {
+    (prisma.subscription.findUnique as jest.Mock).mockResolvedValue({
+      plan: "PRO",
+      status: "CANCELED",
+      currentPeriodEnd: null,
+      provider: "APPLE",
+      creemCustomerId: null,
+      creemSubscriptionId: null,
+    });
+    createCheckout.mockResolvedValue({
+      id: "checkout_pro",
+      checkoutUrl: "https://creem.test/checkout_pro",
+    });
+
+    const response = await POST(proRequest());
+
+    expect(response!.status).toBe(200);
+    expect(createCheckout).toHaveBeenCalledTimes(1);
+  });
+
   it.each(["ACTIVE", "PAST_DUE", "PAYMENT_FAILED"])(
     "refuses a Pro checkout while Pro is %s",
     async (status) => {
