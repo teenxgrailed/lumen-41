@@ -160,6 +160,60 @@ export async function resolveAgentScope(input: {
   };
 }
 
+/** The connection key of the in-app assistant's own agent row. */
+export const ASSISTANT_CONNECTION_KEY = "assistant";
+
+/**
+ * The scope for Needt's own in-app assistant (Ask). It is an agent like any
+ * other: a registered row with its own name, so what it creates and writes is
+ * attributed to it, and it can change or cancel only what it created. It is
+ * never the owner, so it cannot answer an escalation or approve a risk;
+ * those stay clicks on the Agents screen. The flag is checked here again,
+ * whatever the caller already decided.
+ */
+export async function assistantAgentScope(
+  key: WorkspaceKey
+): Promise<AgentScope> {
+  await assertHubEnabled(key.userId);
+  const where = {
+    userId_workspaceId_connectionKey: {
+      userId: key.userId,
+      workspaceId: key.workspaceId,
+      connectionKey: ASSISTANT_CONNECTION_KEY,
+    },
+  };
+  let agent = await prisma.hubAgent.findUnique({ where });
+  if (!agent) {
+    try {
+      agent = await prisma.hubAgent.create({
+        data: {
+          userId: key.userId,
+          workspaceId: key.workspaceId,
+          connectionKey: ASSISTANT_CONNECTION_KEY,
+          name: "Needt assistant",
+          kind: "other",
+          capabilities:
+            "The assistant inside Needt (Ask). It hands work to other agents and tracks it; it does not take work itself.",
+          skills: [],
+          lastSeenAt: newDate(),
+        },
+      });
+    } catch (error) {
+      // Two first calls at once: the loser reads the winner's row.
+      agent = await prisma.hubAgent.findUnique({ where });
+      if (!agent) throw error;
+    }
+  }
+  if (agent.disabledAt) {
+    throw new HubError("FORBIDDEN", "The Needt assistant is disabled here.");
+  }
+  return {
+    userId: key.userId,
+    workspaceId: key.workspaceId,
+    actor: { kind: "agent", agent },
+  };
+}
+
 export function actorAgentId(actor: Actor): string | null {
   return actor.kind === "agent" ? actor.agent.id : null;
 }

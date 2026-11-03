@@ -3,14 +3,15 @@
  * the owner route handlers: register → create (assigned and "any capable") →
  * inbox by capability → claim (a live lease refuses a second claim) → update
  * extends the lease → complete with a result → memory search finds it;
- * escalate → exactly one owner task; owner approve and answer; a connection
- * without the flag sees no hub tools. Runs with AGENT_HUB_INTEGRATION=1 (CI
+ * escalate → an owner alert (unread badge, no Needt task); owner approve and
+ * answer; a connection without the flag sees no hub tools. Runs with AGENT_HUB_INTEGRATION=1 (CI
  * sets it next to Postgres).
  */
 import { NextRequest } from "next/server";
 
 import { DELETE as agentDelete } from "@/app/api/agent-hub/agents/[id]/route";
 import { POST as agentsPost } from "@/app/api/agent-hub/agents/route";
+import { GET as badgeGet } from "@/app/api/agent-hub/badge/route";
 import { POST as ownerItemAction } from "@/app/api/agent-hub/items/[id]/[action]/route";
 import { PATCH as ownerNotePatch } from "@/app/api/agent-hub/notes/[id]/route";
 import { GET as overviewGet } from "@/app/api/agent-hub/overview/route";
@@ -120,6 +121,11 @@ async function overview(includeArchived = false) {
     )
   );
   return (await response.json()) as Json;
+}
+
+async function badge(): Promise<{ enabled: boolean; unread: number }> {
+  const response = await badgeGet(ownerRequest("/api/agent-hub/badge", "GET"));
+  return (await response.json()) as { enabled: boolean; unread: number };
 }
 
 const brief = (extra: Record<string, unknown> = {}) => ({
@@ -540,11 +546,12 @@ describeIntegration("Agent hub (real database)", () => {
     expect(secret.data.message).not.toContain(AWS_KEY);
   });
 
-  it("escalates to exactly one owner task; only the owner answers or approves", async () => {
+  it("escalates with an owner alert and no Needt task; only the owner answers or approves", async () => {
     const claimed = await tool(grok, "needt_agent_task_claim", { id: itemA });
     expect(claimed.data.risks).toEqual(["publish"]);
     expect(claimed.data.notice).toContain("escalate");
 
+    const unreadBefore = (await badge()).unread;
     const esc = await tool(grok, "needt_agent_task_escalate", {
       id: itemA,
       question: "Which account should publish the video?",
@@ -557,12 +564,23 @@ describeIntegration("Agent hub (real database)", () => {
     expect(esc.data.item.status).toBe("needs_owner");
     expect(esc.data.item.heldBy).toBeNull();
 
-    const tasks = await prisma.task.findMany({
-      where: { workspaceId: ownerWorkspace, title: { startsWith: "Decide:" } },
-    });
-    expect(tasks).toHaveLength(1);
-    expect(tasks[0].id).toBe(esc.data.ownerTaskId);
-    expect(tasks[0].description).toContain(`/agents?item=${itemA}`);
+    // The hub is separate from the person's tasks: no Needt task, an unread
+    // alert (the badge on Agents) instead.
+    expect(
+      await prisma.task.count({
+        where: {
+          workspaceId: ownerWorkspace,
+          title: { startsWith: "Decide:" },
+        },
+      })
+    ).toBe(0);
+    expect(esc.data.ownerTaskId).toBeUndefined();
+    expect(esc.data.item.ownerUnread).toBe(true);
+    expect((await badge()).unread).toBe(unreadBefore + 1);
+    // Opening the item reads the alert; nothing else about it changes.
+    expect((await ownerAction(itemA, "seen")).data.seen).toBe(true);
+    expect((await badge()).unread).toBe(unreadBefore);
+    expect((await ownerAction(itemA, "seen")).data.seen).toBe(false);
 
     // An agent cannot leave needs_owner, and the item is not in any inbox.
     const self = await tool(grok, "needt_agent_task_update", {
@@ -574,20 +592,6 @@ describeIntegration("Agent hub (real database)", () => {
     expect(
       (await tool(grok, "needt_agent_inbox")).data.items.map((i: Json) => i.id)
     ).not.toContain(itemA);
-
-    // Ticking the linked Needt task answers nothing.
-    await prisma.task.update({
-      where: { id: tasks[0].id },
-      data: { status: "completed", completedAt: new Date() },
-    });
-    const still = await prisma.hubItem.findUniqueOrThrow({
-      where: { id: itemA },
-    });
-    expect(still.status).toBe("needs_owner");
-    await prisma.task.update({
-      where: { id: tasks[0].id },
-      data: { status: "todo", completedAt: null },
-    });
 
     // No agent credential, not even the personal token, is an owner.
     for (const token of [grok, claude]) {
@@ -612,17 +616,13 @@ describeIntegration("Agent hub (real database)", () => {
         .approvals
     ).toEqual({});
 
-    // Owner answers; the item is open again for the same agent, the task done.
+    // Owner answers; the item is open again for the same agent.
     const answered = await ownerAction(itemA, "answer", {
       answer: "Use the brand channel.",
     });
     expect(answered.status).toBe(200);
     expect(answered.data.item.status).toBe("open");
     expect(answered.data.item.assignee.name).toBe("Grok Bot");
-    expect(
-      (await prisma.task.findUniqueOrThrow({ where: { id: tasks[0].id } }))
-        .status
-    ).toBe("completed");
     const inbox = await tool(grok, "needt_agent_inbox");
     const row = inbox.data.items.find((i: Json) => i.id === itemA);
     expect(
@@ -661,7 +661,7 @@ describeIntegration("Agent hub (real database)", () => {
     expect(noRisk.status).toBe(400);
   });
 
-  it("flags an unmatched any-capable item and raises one owner task after 24 hours", async () => {
+  it("flags an unmatched any-capable item and raises one owner alert (no task) after 24 hours", async () => {
     const made = await tool(
       claude,
       "needt_agent_task_create",
@@ -673,7 +673,8 @@ describeIntegration("Agent hub (real database)", () => {
     const id = made.data.item.id as string;
     const first = (await overview()).items.find((i: Json) => i.id === id);
     expect(first.noCapableAgent).toBe(true);
-    expect(first.noAgentTaskId).toBeNull();
+    expect(first.ownerUnread).toBe(false);
+    const unreadBefore = (await badge()).unread;
 
     await prisma.hubItem.update({
       where: { id },
@@ -682,7 +683,18 @@ describeIntegration("Agent hub (real database)", () => {
     await overview();
     await overview();
     const second = (await overview()).items.find((i: Json) => i.id === id);
-    expect(second.noAgentTaskId).toBeTruthy();
+    expect(second.ownerUnread).toBe(true);
+    expect(
+      (await prisma.hubItem.findUniqueOrThrow({ where: { id } }))
+        .noAgentAlertedAt
+    ).toBeTruthy();
+    // Exactly one alert, however many readers swept, and no Needt task.
+    expect(
+      await prisma.hubItemEvent.count({
+        where: { itemId: id, type: "no_capable_agent" },
+      })
+    ).toBe(1);
+    expect((await badge()).unread).toBe(unreadBefore + 1);
     expect(
       await prisma.task.count({
         where: {
@@ -690,7 +702,7 @@ describeIntegration("Agent hub (real database)", () => {
           title: { startsWith: "No agent for:" },
         },
       })
-    ).toBe(1);
+    ).toBe(0);
   });
 
   it("hides finished items after 14 days without deleting them", async () => {
@@ -836,7 +848,7 @@ describeIntegration("Agent hub (real database)", () => {
     ).toBeNull();
   });
 
-  it("completes the owner task when a needs_owner item is cancelled", async () => {
+  it("clears the alert when a needs_owner item is cancelled, and touches no task", async () => {
     const made = await tool(
       grok,
       "needt_agent_task_create",
@@ -847,23 +859,28 @@ describeIntegration("Agent hub (real database)", () => {
       })
     );
     const id = made.data.item.id as string;
+    const unreadBefore = (await badge()).unread;
     const esc = await tool(grok, "needt_agent_task_escalate", {
       id,
       question: "Proceed?",
     });
-    const taskId = esc.data.ownerTaskId as string;
-    expect(
-      (await prisma.task.findUniqueOrThrow({ where: { id: taskId } })).status
-    ).not.toBe("completed");
+    expect(esc.data.ownerTaskId).toBeUndefined();
+    expect((await badge()).unread).toBe(unreadBefore + 1);
 
     const cancelled = await ownerAction(id, "cancel", {
       reason: "No longer needed",
     });
     expect(cancelled.status).toBe(200);
     expect(cancelled.data.item.status).toBe("cancelled");
+    expect((await badge()).unread).toBe(unreadBefore);
     expect(
-      (await prisma.task.findUniqueOrThrow({ where: { id: taskId } })).status
-    ).toBe("completed");
+      await prisma.task.count({
+        where: {
+          workspaceId: ownerWorkspace,
+          title: { startsWith: "Decide:" },
+        },
+      })
+    ).toBe(0);
   });
 
   it("links only the owner's own tasks", async () => {

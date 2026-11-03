@@ -4034,8 +4034,17 @@ model HubItem {
   question            String?
   taskId              String?
   projectId           String?
+  /// Legacy: escalations and the "no capable agent" alert used to create a Needt
+  /// task and store its id here. Nothing writes these any more (owner decision
+  /// 2026-11-03: the hub is separate from the person's tasks); old rows keep the id.
+  //todo: drop escalationTaskId and noAgentTaskId (contract step) once no row has them.
   escalationTaskId    String?
   noAgentTaskId       String?
+  /// The owner has an alert on this item they have not opened yet (escalation or no capable agent).
+  ownerUnread         Boolean        @default(false)
+  ownerAlertedAt      DateTime?
+  /// Set once when the 24 hour "no capable agent" alert was raised; makes it idempotent.
+  noAgentAlertedAt    DateTime?
   clientRef           String?
   version             Int            @default(1)
   createdAt           DateTime       @default(now())
@@ -4048,6 +4057,7 @@ model HubItem {
   @@index([workspaceId, status, assigneeAgentId])
   @@index([status, leaseExpiresAt])
   @@index([workspaceId, closedAt])
+  @@index([userId, workspaceId, ownerUnread])
 }
 
 /// Append-only log of an item. Rows are never updated or deleted.

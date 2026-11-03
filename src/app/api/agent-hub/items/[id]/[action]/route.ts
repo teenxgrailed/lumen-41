@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { markItemSeen } from "@/services/agent-hub/alerts";
 import {
   authenticateHubOwner,
   hubRoute,
@@ -22,18 +23,25 @@ import {
 type Params = { params: Promise<{ id: string; action: string }> };
 
 /**
- * Owner-only actions on an item: answer, approve, cancel, reassign, and
- * `detail` for the full log. Session auth only; no bearer token of any kind
+ * Owner-only actions on an item: answer, approve, cancel, reassign, `seen`
+ * (the owner opened it, so its alert is read) and `detail` for the full log. Session auth only; no bearer token of any kind
  * is an owner.
  */
 export async function POST(request: NextRequest, { params }: Params) {
   return hubRoute(async () => {
     const { id, action } = await params;
-    const auth = await authenticateHubOwner(request, action !== "detail");
+    const auth = await authenticateHubOwner(
+      request,
+      action !== "detail" && action !== "seen"
+    );
     if ("response" in auth) return auth.response;
     switch (action) {
       case "detail":
         return NextResponse.json(await getItem(auth.scope, id));
+      case "seen":
+        return NextResponse.json({
+          seen: await markItemSeen(auth.scope, id),
+        });
       case "answer": {
         const body = await parseJsonBody(request, ownerAnswerInput);
         if ("response" in body) return body.response;

@@ -190,8 +190,11 @@ it can still use the hub with `needt.read` (read tools) and `needt.write`
 REST parity under `/api/connect/agent-hub/`: `agents`, `inbox`, `items`,
 `items/{id}`, `items/{id}/{claim,complete,escalate,cancel}`, `notes`,
 `notes/{id}`. The owner's own actions (answer, approve, reassign, token
-create/revoke, note edit/delete) are session-only routes under
-`/api/agent-hub/` and no bearer token can call them. Protocol for agents:
+create/revoke, note edit/delete, mark an alert seen) are session-only routes
+under `/api/agent-hub/` and no bearer token can call them. An escalation (or
+no capable agent for 24 hours) alerts the owner with a push to
+`/agents?item=<id>` and an unread count on the Agents nav item
+(`GET /api/agent-hub/badge`); it creates no Needt task. Protocol for agents:
 `docs/agents/hub-protocol.md`.
 
 ### Admin read (`needt.admin.read`)

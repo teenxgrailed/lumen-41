@@ -17,6 +17,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { createPortal } from "react-dom";
 import {
+  LuBot,
   LuCheck,
   LuChevronDown,
   LuCloud,
@@ -29,6 +30,7 @@ import {
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { clockOf } from "@/lib/needt3/focus";
+import { useAgentHubNav } from "@/lib/needt3/hooks/agent-hub";
 import { useConnections } from "@/lib/needt3/hooks/connections";
 import { useCreateDoc, useDocs, useUpdateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
@@ -55,6 +57,7 @@ import { AccountMenu } from "./AccountMenu";
 import { ImportMenu } from "./ImportMenu";
 import { PlaceGlyph } from "./PlaceGlyph";
 import { useShellApi } from "./ShellContext";
+import { agentsNavItem, isAgentsPath } from "./agents-nav";
 import {
   dayProgress,
   nextEventBadge,
@@ -621,6 +624,7 @@ export function Sidebar() {
   const updateDoc = useUpdateDoc();
   const projects = useProjects();
   const connections = useConnections();
+  const agentsItem = agentsNavItem(useAgentHubNav());
   const showMail = tiles.some((p) => p.id === "mail");
   const showCal = tiles.some((p) => p.id === "calendar");
   const mail = useMail("inbox");
@@ -874,6 +878,24 @@ export function Sidebar() {
             }
           />
         </div>
+
+        {/* Agents: a place of its own, shown only while the agent hub is on
+            for this person; the count is alerts they have not opened. */}
+        {agentsItem ? (
+          <div
+            className="sb-tile shell-sidebar-sb-agents"
+            data-sb-agents=""
+            title={agentsItem.title}
+          >
+            <SbRow
+              href={agentsItem.href}
+              label={agentsItem.label}
+              current={isAgentsPath(pathname)}
+              icon={<LuBot size={16} />}
+              trailing={agentsItem.badge}
+            />
+          </div>
+        ) : null}
 
         {sections.map((sec) =>
           sec.id === "starred" ? (

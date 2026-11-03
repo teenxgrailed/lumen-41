@@ -138,6 +138,25 @@ function OwnGlyph({ id }: { id: MenuPlaceId }) {
           <circle cx="16" cy="12" r="3" fill={S} />
         </>
       );
+    case "agents":
+      // a small robot head: antenna, face plate, two eyes
+      return svg(
+        <>
+          <rect x="11" y="2.6" width="2" height="3.6" rx="1" fill={A} />
+          <circle cx="12" cy="3.2" r="1.6" fill={I} />
+          <rect
+            x="3.4"
+            y="6.2"
+            width="17.2"
+            height="13.6"
+            rx="4.4"
+            fill={tint(I, 35)}
+          />
+          <circle cx="8.8" cy="12.6" r="2" fill={W} />
+          <circle cx="15.2" cy="12.6" r="2" fill={W} />
+          <rect x="8.6" y="16" width="6.8" height="1.8" rx=".9" fill={I} />
+        </>
+      );
     default:
       // settings: three sliders
       return svg(
