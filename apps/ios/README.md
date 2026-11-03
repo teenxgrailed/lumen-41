@@ -79,7 +79,7 @@ the data layer `apps/shared/NeedtKit` (snapshot, models, timelines, cache).
 | Push (APNs)               | Needs the Push Notifications capability and an APNs key; add `aps-environment` entitlement, send the device token to the server, deliver from the worker. Web push stays as it is meanwhile |
 | TestFlight / App Store    | Needs App Store Connect record, distribution signing, privacy answers and review notes                                                                                                      |
 | Bundle id registration    | `app.needt.ios`, `app.needt.ios.widgets` and `app.needt.ios.share` must be registered, each with the App Groups capability and `group.app.needt.ios`                                        |
-| Sign in with Apple        | No entitlement needed (web flow). The Apple provider must be configured in production before submission: App Review 4.8 and 2.1 (see Icon, launch screen, sign-in)                       |
+| Sign in with Apple        | No entitlement needed (web flow). The Apple provider must be configured in production before submission: App Review 4.8 and 2.1 (see Icon, launch screen, sign-in)                          |
 
 ## Store readiness
 
@@ -140,6 +140,7 @@ The three bundle ids to register, each with the App Groups capability and
    `verify-archive.sh` checks the three agree. App Store Connect rejects a second
    upload of the same version and build number. Or Product > Archive in Xcode with
    the team set on the three targets and the build number raised on the project.
+
 4. Upload `build/export/App.ipa` with Transporter (or Xcode Organizer), fill the
    App Store Connect privacy answers from the table above, add review notes and a
    reviewer login (see `docs/operations`), submit.
@@ -212,8 +213,8 @@ isFamilyShareable }] }`
   server answered 2xx
 - `restore()` runs `AppStore.sync()` and returns `{ transactions }` (all current
   entitlements); `entitlements()` is the same without sync
-- `pendingTransactions()` returns `{ transactions }`: verified updates not
-  finished yet
+- `pendingTransactions()` returns `{ transactions }`: `Transaction.unfinished`
+  (a purchase whose post failed, survives restarts) plus updates since launch
 - `manageSubscriptions()` opens the system subscription sheet
 - event `transactionUpdated` carries `{ signedTransaction, productId,
 transactionId }` for every verified `Transaction.updates` entry
@@ -229,6 +230,16 @@ the iOS app, they never throw) and the flows `buyWithApple(productId)`,
 `restoreApplePurchases()` and `subscribeAppleTransactionUpdates()`, which use
 `GET /api/billing/apple/account-token` and `POST /api/billing/apple/transactions`.
 No paywall UI is wired yet.
+
+`purchase` rejects when `appAccountToken` is missing or not a UUID. The flows
+return `{ ok: true, ... }` or `{ ok: false, reason, status?, code?, message,
+manageUrl? }` (`status` and `code` are the server's). A transaction is
+finished after a 2xx and after a permanent refusal (403
+`APPLE_ACCOUNT_MISMATCH`, 409 `CREEM_ACTIVE` / `APPLE_TRANSACTION_IN_USE`, 400
+`APPLE_UNKNOWN_PRODUCT` / `APPLE_MALFORMED` / `APPLE_INVALID_SIGNATURE`), never
+after 401, 429, 5xx, a network error or the retryable codes. Unfinished ones are
+looked up on subscribe, on visibility change and after a purchase, at most once
+per 60 s (a purchase ignores the gap).
 
 Local testing: `ios/App/Needt.storekit` holds the three products ($7, $59,
 $149) and is referenced only by the shared `App` scheme's Run action (not
