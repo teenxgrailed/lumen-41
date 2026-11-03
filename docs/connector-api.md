@@ -282,8 +282,16 @@ secret scan; a hit is refused naming the kind, never the value.
   the `POST` body is the tool's input), `PUT /api/connect/agent-hub/uploads?t=`
   and `GET /api/connect/agent-hub/files?t=` (signed). Owner (session only):
   `GET` and `POST` (multipart `file`) `/api/agent-hub/items/{id}/attachments`
-  and `GET /api/agent-hub/attachments/{id}`. Downloads are `attachment`,
+  `GET` and `DELETE /api/agent-hub/attachments/{id}` (the owner removes a
+  file and gets its storage back). Downloads are `attachment`,
   `nosniff` and sandboxed.
+- A file's bytes must start like its type (a `.png` is checked for the PNG
+  signature, and so on); a name and content that disagree are `BAD_TYPE`.
+  Signed links are re-checked when used: the hub flag, and for an upload link
+  the agent (not disabled, token not revoked or expired, item still its own).
+  Writes with a file are limited to 6 a minute per account; signed routes are
+  limited per address. Uploads for one account are serialized, so the 10-file
+  and 500 MB limits hold under concurrent writes.
 - Each upload adds an `attachment_added` entry to the item's log. Errors are
   `INVALID` with `reason` `EMPTY`, `TOO_LARGE` (413), `QUOTA` (413),
   `TOO_MANY`, `BAD_TYPE`, `EXECUTABLE` or `SECRET`. On Free an upload is refused

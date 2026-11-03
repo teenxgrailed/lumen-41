@@ -10,6 +10,7 @@ import {
 } from "../attachment-rules";
 import {
   addAttachment,
+  deleteAttachment,
   listAttachments,
   prepareUpload,
   readAsOwner,
@@ -17,6 +18,7 @@ import {
   receiveUpload,
 } from "../attachments";
 import type { AgentScope, HubScope } from "../context";
+import { HubError } from "../errors";
 
 const db = {
   hubItem: { findFirst: jest.fn() },
@@ -27,10 +29,13 @@ const db = {
     findMany: jest.fn(),
     findFirst: jest.fn(),
     findUnique: jest.fn(),
+    delete: jest.fn(),
   },
+  hubAgent: { findFirst: jest.fn() },
   hubItemAttachmentBlob: { create: jest.fn(), findUnique: jest.fn() },
   hubItemEvent: { create: jest.fn() },
   $transaction: jest.fn(),
+  $executeRaw: jest.fn(),
 };
 
 jest.mock("@/lib/prisma", () => ({
@@ -44,6 +49,10 @@ jest.mock("@/lib/logger", () => ({
 const canUseHubAttachments = jest.fn();
 jest.mock("@/lib/entitlements", () => ({
   canUseHubAttachments: (userId: string) => canUseHubAttachments(userId),
+}));
+const assertHubEnabled = jest.fn();
+jest.mock("../context", () => ({
+  assertHubEnabled: (userId: string) => assertHubEnabled(userId),
 }));
 jest.mock("../items", () => ({
   visibleToAgent: (item: { assigneeAgentId: string | null }, agent: HubAgent) =>
@@ -99,6 +108,12 @@ beforeEach(() => {
         ? item
         : null
   );
+  assertHubEnabled.mockResolvedValue(undefined);
+  db.hubAgent.findFirst.mockResolvedValue({
+    id: "a-grok",
+    disabledAt: null,
+    token: null,
+  });
   db.hubItemAttachment.count.mockResolvedValue(0);
   db.hubItemAttachment.aggregate.mockResolvedValue({ _sum: { size: 0 } });
   db.hubItemAttachment.create.mockResolvedValue(row());
@@ -166,13 +181,18 @@ describe("hub attachments on the Free plan", () => {
 });
 
 const b64 = (bytes: number[]) => Buffer.from(bytes).toString("base64");
+/** The start of an MP4: a box size, then "ftyp". */
+const MP4 = Buffer.concat([
+  Buffer.from([0, 0, 0, 24]),
+  Buffer.from("ftypmp42"),
+]);
 
 describe("hub attachments", () => {
   it("stores a file, writes the bytes and logs an event", async () => {
     const { attachment } = await addAttachment(scope, {
       itemId: "item-1",
       name: "clip.mp4",
-      contentBase64: b64([1, 2, 3, 4]),
+      contentBase64: MP4.toString("base64"),
     });
     expect(attachment.url).toContain("/api/connect/agent-hub/files?t=");
     expect(db.hubItemAttachmentBlob.create).toHaveBeenCalledTimes(1);
@@ -343,14 +363,10 @@ describe("hub attachments", () => {
       });
       const token = new URL(prepared.uploadUrl).searchParams.get("t");
       await expect(
-        receiveUpload(
-          token,
-          Buffer.from([1, 2, 3, 4]),
-          newDate().getTime() + 16 * 60_000
-        )
+        receiveUpload(token, MP4, newDate().getTime() + 16 * 60_000)
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
       expect(db.hubItemAttachmentBlob.create).not.toHaveBeenCalled();
-      await receiveUpload(token, Buffer.from([1, 2, 3, 4]));
+      await receiveUpload(token, MP4);
       expect(db.hubItemAttachmentBlob.create).toHaveBeenCalledTimes(1);
     });
 
@@ -363,6 +379,147 @@ describe("hub attachments", () => {
       await expect(
         receiveUpload(token, Buffer.from([0x4d, 0x5a, 0, 0]))
       ).rejects.toMatchObject({ extra: { reason: "EXECUTABLE" } });
+    });
+  });
+
+  describe("who may use a signed link", () => {
+    const token = async () => {
+      const prepared = await prepareUpload(scope, {
+        itemId: "item-1",
+        name: "demo.mp4",
+      });
+      return new URL(prepared.uploadUrl).searchParams.get("t");
+    };
+
+    it("is refused when the hub is switched off for the account", async () => {
+      const t = await token();
+      assertHubEnabled.mockRejectedValue(
+        new HubError("NOT_FOUND", "Not found")
+      );
+      await expect(receiveUpload(t, MP4)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      const get = signLink("get", { a: "att-1", u: USER }, 1000, 1_000).token;
+      await expect(readSigned(get, 1_500)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+      expect(db.hubItemAttachmentBlob.create).not.toHaveBeenCalled();
+      expect(db.hubItemAttachment.findFirst).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["the agent is gone", null],
+      [
+        "the agent is disabled",
+        { id: "a-grok", disabledAt: new Date(), token: null },
+      ],
+      [
+        "the agent token was revoked",
+        {
+          id: "a-grok",
+          disabledAt: null,
+          token: { revokedAt: new Date(), expiresAt: null },
+        },
+      ],
+      [
+        "the agent token expired",
+        {
+          id: "a-grok",
+          disabledAt: null,
+          token: { revokedAt: null, expiresAt: new Date(1) },
+        },
+      ],
+    ])("is refused when %s", async (_why, agent) => {
+      const t = await token();
+      db.hubAgent.findFirst.mockResolvedValue(agent);
+      await expect(receiveUpload(t, MP4)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+      expect(db.hubItemAttachmentBlob.create).not.toHaveBeenCalled();
+    });
+
+    it("is refused when the item was reassigned away from the agent", async () => {
+      const t = await token();
+      db.hubAgent.findFirst.mockResolvedValue({
+        id: "a-someone-else",
+        disabledAt: null,
+        token: null,
+      });
+      await expect(receiveUpload(t, MP4)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+    });
+
+    it("an owner link needs no agent", async () => {
+      const prepared = await prepareUpload(owner, {
+        itemId: "item-1",
+        name: "demo.mp4",
+      });
+      const t = new URL(prepared.uploadUrl).searchParams.get("t");
+      await receiveUpload(t, MP4);
+      expect(db.hubAgent.findFirst).not.toHaveBeenCalled();
+      expect(db.hubItemAttachmentBlob.create).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("concurrency and replay", () => {
+    it("takes the account lock before counting", async () => {
+      const order: string[] = [];
+      db.$executeRaw.mockImplementation(async () => order.push("lock"));
+      db.hubItemAttachment.count.mockImplementation(async () => {
+        order.push("count");
+        return 0;
+      });
+      await addAttachment(scope, {
+        itemId: "item-1",
+        name: "a.txt",
+        contentBase64: b64([65]),
+      });
+      expect(order).toEqual(["lock", "count"]);
+    });
+
+    it("a replayed PUT at the item cap returns the first file", async () => {
+      const prepared = await prepareUpload(scope, {
+        itemId: "item-1",
+        name: "demo.mp4",
+      });
+      const t = new URL(prepared.uploadUrl).searchParams.get("t");
+      db.hubItemAttachment.count.mockResolvedValue(HUB_ATTACHMENT_MAX_PER_ITEM);
+      db.hubItemAttachment.findUnique.mockResolvedValue(row("att-first"));
+      const { attachment } = await receiveUpload(t, MP4);
+      expect(attachment.id).toBe("att-first");
+      expect(db.hubItemAttachment.count).not.toHaveBeenCalled();
+      expect(db.hubItemAttachmentBlob.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("removing a file", () => {
+    it("lets the owner remove it, logs it, and the blob goes by cascade", async () => {
+      db.hubItemAttachment.findFirst.mockResolvedValue({
+        id: "att-1",
+        itemId: "item-1",
+        name: "clip.mp4",
+      });
+      await expect(deleteAttachment(owner, "att-1")).resolves.toEqual({
+        deleted: true,
+      });
+      expect(db.hubItemAttachment.delete).toHaveBeenCalledWith({
+        where: { id: "att-1" },
+      });
+      expect(db.hubItemEvent.create.mock.calls[0][0].data.type).toBe(
+        "attachment_removed"
+      );
+    });
+
+    it("is refused for an agent and invisible from another workspace", async () => {
+      await expect(deleteAttachment(scope, "att-1")).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+      db.hubItemAttachment.findFirst.mockResolvedValue(null);
+      await expect(
+        deleteAttachment({ ...owner, workspaceId: "ws-other" }, "att-1")
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      expect(db.hubItemAttachment.delete).not.toHaveBeenCalled();
     });
   });
 });

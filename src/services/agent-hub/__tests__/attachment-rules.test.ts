@@ -1,5 +1,6 @@
 import {
   HUB_ATTACHMENT_MAX_BYTES,
+  resolveAttachmentType,
   validateAttachment,
 } from "../attachment-rules";
 import { HubError } from "../errors";
@@ -7,6 +8,18 @@ import { HubError } from "../errors";
 // Built at run time so secret scanners do not flag the fixture.
 const AWS_KEY = ["AK", "IA", "ABCDEFGHIJKLMNOP"].join("");
 const text = (value: string) => Buffer.from(value, "utf8");
+/** Real starting bytes per extension. */
+const SIGNATURE: Record<string, Buffer> = {
+  mp4: Buffer.concat([Buffer.from([0, 0, 0, 24]), text("ftypmp42")]),
+  mov: Buffer.concat([Buffer.from([0, 0, 0, 20]), text("ftypqt  ")]),
+  webm: Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 1, 2]),
+  mp3: text("ID3\x04\x00"),
+  png: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]),
+  pdf: text("%PDF-1.7\n"),
+  zip: Buffer.from([0x50, 0x4b, 0x03, 0x04, 0]),
+};
+const sig = (name: string) =>
+  SIGNATURE[name.split(".").pop()!.toLowerCase()] ?? Buffer.from([1, 2, 3, 4]);
 
 function reason(fn: () => unknown): string | undefined {
   try {
@@ -30,10 +43,12 @@ describe("hub attachment rules", () => {
 
     it("accepts exactly 25 MB and refuses one byte more", () => {
       const ok = Buffer.alloc(HUB_ATTACHMENT_MAX_BYTES, 0x61);
+      SIGNATURE.zip.copy(ok);
       expect(() =>
         validateAttachment({ name: "big.zip", bytes: ok })
       ).not.toThrow();
       const over = Buffer.alloc(HUB_ATTACHMENT_MAX_BYTES + 1, 0x61);
+      SIGNATURE.zip.copy(over);
       expect(
         reason(() => validateAttachment({ name: "big.zip", bytes: over }))
       ).toBe("TOO_LARGE");
@@ -53,9 +68,7 @@ describe("hub attachment rules", () => {
       ["data.json", "application/json"],
       ["all.zip", "application/zip"],
     ])("allows %s as %s", (name, mime) => {
-      expect(
-        validateAttachment({ name, bytes: Buffer.from([1, 2, 3, 4]) }).mime
-      ).toBe(mime);
+      expect(validateAttachment({ name, bytes: sig(name) }).mime).toBe(mime);
     });
 
     it.each([
@@ -101,7 +114,7 @@ describe("hub attachment rules", () => {
         reason(() =>
           validateAttachment({
             name: "a.mp4",
-            bytes: text("x"),
+            bytes: SIGNATURE.mp4,
             declaredMime: "text/html",
           })
         )
@@ -109,9 +122,34 @@ describe("hub attachment rules", () => {
       expect(() =>
         validateAttachment({
           name: "a.mp4",
-          bytes: text("x"),
+          bytes: SIGNATURE.mp4,
           declaredMime: "video/mp4",
         })
+      ).not.toThrow();
+    });
+  });
+
+  describe("signature", () => {
+    it.each(["a.mp4", "a.png", "a.pdf", "a.zip", "a.webm", "a.mp3"])(
+      "refuses %s whose bytes are something else",
+      (name) => {
+        expect(
+          reason(() => validateAttachment({ name, bytes: text("hello world") }))
+        ).toBe("BAD_TYPE");
+      }
+    );
+
+    it("refuses a png that is really a pdf", () => {
+      expect(
+        reason(() =>
+          validateAttachment({ name: "a.png", bytes: SIGNATURE.pdf })
+        )
+      ).toBe("BAD_TYPE");
+    });
+
+    it("does not check the signature when only the name is known", () => {
+      expect(() =>
+        resolveAttachmentType("demo.mp4", new Uint8Array(0))
       ).not.toThrow();
     });
   });
@@ -144,7 +182,10 @@ describe("hub attachment rules", () => {
         ).toBe("SECRET");
       }
       expect(() =>
-        validateAttachment({ name: "a.mp4", bytes: text(AWS_KEY) })
+        validateAttachment({
+          name: "a.mp4",
+          bytes: Buffer.concat([SIGNATURE.mp4, text(AWS_KEY)]),
+        })
       ).not.toThrow();
     });
 

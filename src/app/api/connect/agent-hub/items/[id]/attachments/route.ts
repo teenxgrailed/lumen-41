@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { limitAttachmentWrites } from "@/services/agent-hub/attachment-http";
 import {
   addAttachment,
   listAttachments,
@@ -39,6 +40,10 @@ export async function POST(request: NextRequest, { params }: Params) {
     );
     if ("response" in body) return body.response;
     const input = { ...body.data, itemId: id };
+    if (input.contentBase64) {
+      const limited = await limitAttachmentWrites(request, auth.scope.userId);
+      if (limited) return limited;
+    }
     return NextResponse.json(
       input.contentBase64
         ? await addAttachment(auth.scope, input)

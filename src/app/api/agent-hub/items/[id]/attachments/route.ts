@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { readBodyCapped } from "@/services/agent-hub/attachment-http";
+import {
+  limitAttachmentWrites,
+  readBodyCapped,
+} from "@/services/agent-hub/attachment-http";
 import { HUB_ATTACHMENT_MAX_BYTES } from "@/services/agent-hub/attachment-rules";
 import {
   addAttachment,
@@ -28,6 +31,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   return hubRoute(async () => {
     const auth = await authenticateHubOwner(request, true);
     if ("response" in auth) return auth.response;
+    const limited = await limitAttachmentWrites(request, auth.scope.userId);
+    if (limited) return limited;
     const { id } = await params;
     const body = await readBodyCapped(
       request,

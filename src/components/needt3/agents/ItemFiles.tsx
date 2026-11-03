@@ -63,6 +63,19 @@ export function ItemFiles({ id }: { id: string }) {
         error instanceof Error ? error.message : "Could not attach the file."
       ),
   });
+  const remove = useMutation({
+    mutationFn: async (fileId: string) => {
+      const res = await fetch(`/api/agent-hub/attachments/${fileId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Could not remove the file.");
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: key }),
+    onError: (error) =>
+      notify.error(
+        error instanceof Error ? error.message : "Could not remove the file."
+      ),
+  });
   const list = files.data?.attachments ?? [];
   return (
     <>
@@ -78,6 +91,13 @@ export function ItemFiles({ id }: { id: string }) {
           <span className="ag-detail-k">
             {`${sizeText(file.size)}, from ${file.uploadedBy}`}
           </span>
+          <AgBtn
+            tone="text"
+            disabled={remove.isPending}
+            onClick={() => remove.mutate(file.id)}
+          >
+            Remove
+          </AgBtn>
         </span>
       ))}
       {!list.length && !files.isLoading ? (

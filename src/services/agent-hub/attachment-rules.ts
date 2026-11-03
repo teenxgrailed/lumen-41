@@ -164,6 +164,14 @@ export function resolveAttachmentType(
   if (looksExecutable(bytes)) {
     throw refusal("EXECUTABLE", "The file content is a program or script.");
   }
+  // A name and a type that the bytes contradict is a file in disguise. The
+  // name-only check at upload-link time passes no bytes.
+  if (bytes.length > 0 && !matchesSignature(mime, bytes)) {
+    throw refusal(
+      "BAD_TYPE",
+      `The file content does not look like ${mime}; the name and the bytes must agree.`
+    );
+  }
   const claimed = declared?.split(";")[0].trim().toLowerCase();
   if (
     claimed &&
@@ -178,6 +186,55 @@ export function resolveAttachmentType(
     );
   }
   return mime;
+}
+
+const ascii = (b: Uint8Array, at: number, text: string) =>
+  b.length >= at + text.length &&
+  [...text].every((ch, i) => b[at + i] === ch.charCodeAt(0));
+const starts = (b: Uint8Array, ...bytes: number[]) =>
+  b.length >= bytes.length && bytes.every((v, i) => b[i] === v);
+
+/** Whether the bytes start the way a file of this type does. Text types have no signature. */
+export function matchesSignature(mime: string, b: Uint8Array): boolean {
+  switch (mime) {
+    case "image/png":
+      return starts(b, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+    case "image/jpeg":
+      return starts(b, 0xff, 0xd8, 0xff);
+    case "image/gif":
+      return ascii(b, 0, "GIF8");
+    case "image/webp":
+      return ascii(b, 0, "RIFF") && ascii(b, 8, "WEBP");
+    case "audio/wav":
+      return ascii(b, 0, "RIFF") && ascii(b, 8, "WAVE");
+    case "image/avif":
+    case "image/heic":
+    case "video/mp4":
+    case "video/quicktime":
+    case "audio/mp4":
+      return ascii(b, 4, "ftyp");
+    case "video/webm":
+      return starts(b, 0x1a, 0x45, 0xdf, 0xa3);
+    case "audio/ogg":
+      return ascii(b, 0, "OggS");
+    case "audio/flac":
+      return ascii(b, 0, "fLaC");
+    case "audio/mpeg":
+      return (
+        ascii(b, 0, "ID3") ||
+        (b.length >= 2 && b[0] === 0xff && (b[1] & 0xe0) === 0xe0)
+      );
+    case "audio/aac":
+      return b.length >= 2 && b[0] === 0xff && (b[1] & 0xf0) === 0xf0;
+    case "application/pdf":
+      return ascii(b, 0, "%PDF-");
+    case "application/zip":
+      return (
+        starts(b, 0x50, 0x4b, 0x03, 0x04) || starts(b, 0x50, 0x4b, 0x05, 0x06)
+      );
+    default:
+      return true;
+  }
 }
 
 const SCAN_CHUNK = 1024 * 1024;

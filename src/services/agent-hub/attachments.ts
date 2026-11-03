@@ -23,6 +23,7 @@ import {
   validateAttachment,
 } from "./attachment-rules";
 import type { HubScope } from "./context";
+import { assertHubEnabled } from "./context";
 import { HubError } from "./errors";
 import { visibleToAgent } from "./items";
 import { assertHubAttachments } from "./limits";
@@ -140,8 +141,23 @@ async function store(
   }
 ) {
   const storageKey = input.storageKey ?? `hub-${randomUUID()}`;
+  const replay = async (db: Pick<typeof prisma, "hubItemAttachment">) =>
+    input.storageKey
+      ? db.hubItemAttachment.findUnique({
+          where: { storageKey: input.storageKey },
+          select,
+        })
+      : null;
+  // A replayed upload link returns the first result, also at the caps.
+  const first = await replay(prisma);
+  if (first) return attachmentView(first, upload.userId, newDate().getTime());
   try {
     const row = await prisma.$transaction(async (tx) => {
+      // One upload at a time per account, so the count and the quota below
+      // cannot both pass for two concurrent files.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${upload.userId}))`;
+      const raced = await replay(tx);
+      if (raced) return raced;
       const count = await tx.hubItemAttachment.count({
         where: { itemId: input.itemId },
       });
@@ -311,11 +327,32 @@ export async function receiveUpload(
       "This upload link is invalid or has expired."
     );
   }
+  // A signed link is no bearer token: the flag and the actor are checked again.
+  await assertHubEnabled(claims.u);
   const item = await prisma.hubItem.findFirst({
     where: { id: claims.i, userId: claims.u, workspaceId: claims.w },
-    select: { id: true },
   });
   if (!item) throw new HubError("NOT_FOUND", "Item not found.");
+  if (claims.k === "agent") {
+    const agent = claims.g
+      ? await prisma.hubAgent.findFirst({
+          where: { id: claims.g, userId: claims.u, workspaceId: claims.w },
+          include: { token: { select: { revokedAt: true, expiresAt: true } } },
+        })
+      : null;
+    if (
+      !agent ||
+      agent.disabledAt ||
+      agent.token?.revokedAt ||
+      (agent.token?.expiresAt && agent.token.expiresAt.getTime() <= nowMs) ||
+      !visibleToAgent(item, agent)
+    ) {
+      throw new HubError(
+        "FORBIDDEN",
+        "This agent can no longer attach files to this item."
+      );
+    }
+  }
   // The plan may have changed between prepareUpload and this PUT.
   await assertHubAttachments(claims.u);
   const { name, mime } = validateAttachment({
@@ -352,6 +389,7 @@ export async function readSigned(
       "This download link is invalid or has expired."
     );
   }
+  await assertHubEnabled(claims.u);
   return readOne(claims.a, claims.u);
 }
 
@@ -373,6 +411,34 @@ export async function readAsOwner(scope: HubScope, id: string) {
   });
   if (!row) throw new HubError("NOT_FOUND", "Attachment not found.");
   return readOne(id, scope.userId);
+}
+
+/**
+ * The owner removes a file. The blob goes with it (cascade), which gives the
+ * account its quota back.
+ */
+export async function deleteAttachment(scope: HubScope, id: string) {
+  if (scope.actor.kind !== "owner") {
+    throw new HubError("FORBIDDEN", "Only the owner removes attachments.");
+  }
+  const row = await prisma.hubItemAttachment.findFirst({
+    where: { id, userId: scope.userId, workspaceId: scope.workspaceId },
+    select: { id: true, itemId: true, name: true },
+  });
+  if (!row) throw new HubError("NOT_FOUND", "Attachment not found.");
+  await prisma.$transaction(async (tx) => {
+    await tx.hubItemAttachment.delete({ where: { id } });
+    await tx.hubItemEvent.create({
+      data: {
+        itemId: row.itemId,
+        actorKind: "owner",
+        type: "attachment_removed",
+        message: `Removed ${row.name}.`,
+        data: { attachmentId: id },
+      },
+    });
+  });
+  return { deleted: true };
 }
 
 export type { HubAgent };
