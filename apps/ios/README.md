@@ -32,7 +32,8 @@ xcodebuild -project ios/App/App.xcodeproj -scheme App -sdk iphonesimulator \
 
 CI does the same on every push to `apps/ios/**`: `.github/workflows/ios-sim.yml`
 builds, boots a Simulator, launches the app, and uploads the `.app` and a
-screenshot as the `needt-ios-simulator` artifact.
+screenshot as the `needt-ios-simulator` artifact. `.github/workflows/ios-archive.yml`
+archives the Release build (see Store readiness).
 
 ## Web side
 
@@ -77,8 +78,80 @@ the data layer `apps/shared/NeedtKit` (snapshot, models, timelines, cache).
 | Signing and a real device | Needs a team id and a development certificate                                                                                                                                               |
 | Push (APNs)               | Needs the Push Notifications capability and an APNs key; add `aps-environment` entitlement, send the device token to the server, deliver from the worker. Web push stays as it is meanwhile |
 | TestFlight / App Store    | Needs App Store Connect record, distribution signing, privacy answers and review notes                                                                                                      |
-| Bundle id registration    | `app.needt.ios` and `app.needt.ios.widgets` must be registered, both with the App Groups capability and `group.app.needt.ios`                                                                                                                                  |
+| Bundle id registration    | `app.needt.ios`, `app.needt.ios.widgets` and `app.needt.ios.share` must be registered, each with the App Groups capability and `group.app.needt.ios`                                        |
 | Sign in with Apple        | Required by App Review if other social logins are offered                                                                                                                                   |
+
+## Store readiness
+
+What is in the repo so the owner only adds a Team ID, signs, uploads and submits.
+`ios-archive.yml` (macOS runner, no signing) archives the Release build on every
+push to `apps/ios/**` or `apps/shared/**`, checks the archive, and keeps it as the
+`needt-ios-archive` artifact.
+
+- **Privacy manifests.** `PrivacyInfo.xcprivacy` in the app, `NeedtWidgets` and `NeedtShare`: no tracking, no tracking domains, collected data as in the privacy notice (name, email, user id, user content, photos, mail, support, purchases, crash data), all App Functionality
+- **Required Reason APIs.** None used. Not in the app, NeedtKit or NeedtWidgetKit sources (no `UserDefaults`, file timestamps, boot time, disk space, active keyboards). Capacitor 8.5.3 stores its keys in files and ships an empty manifest. `verify-archive.sh` lists the symbols the linked binaries reference, so a new dependency that starts using one shows up in CI
+- **Encryption.** `ITSAppUsesNonExemptEncryption = false`: only HTTPS through the system and the keychain; no CryptoKit or custom crypto in the app
+- **Device.** `UIRequiredDeviceCapabilities = arm64`; minimum iOS 17.0 (was 15; the widgets were already 17, and App Shortcuts need it)
+- **Usage strings.** Camera (Take Photo in the file picker), microphone and speech (dictation in text fields), Photos add (Save Image)
+- **Entitlements.** App Group only, on all three targets. No `aps-environment`: push is not wired (`AppDelegate` does not forward the device token and nothing calls `registerNativePush`). No `applesignin`: sign-in is the web flow in `ASWebAuthenticationSession`. Add each with its capability when the feature is built
+- **Icon, launch.** 1024 px icon and all 12 alternates have no alpha (checked by `scripts/check-static.sh`); `LaunchScreen.storyboard` exists
+- **4.2, not just a website.** Native offline screen, App Shortcuts (add task, start focus, what is today), Share extension (link or text becomes a task), widgets, Controls, Live Activity, alternate icons, haptics
+
+The three bundle ids to register, each with the App Groups capability and
+`group.app.needt.ios`: `app.needt.ios`, `app.needt.ios.widgets`,
+`app.needt.ios.share`. Sign in with Apple and Push stay off until built.
+
+### Native pieces added for review
+
+- Offline screen (`OfflineScreen.swift`): `NeedtViewController` wraps the web view's
+  navigation delegate; when the main page fails with a network error (offline,
+  host unreachable, timeout, TLS) a SwiftUI screen covers the web view with the
+  last Today list from the widgets' cache (read-only, only while a session
+  exists), a Try again button, and an automatic retry when `NWPathMonitor`
+  reports a usable path. A cancelled load or a redirect never shows it.
+- App Shortcuts (`NeedtShortcuts.swift`): Add task, Start focus, What is today.
+  They call the API with the vault session and do not open the app. The widget
+  intents in `NeedtWidgetKit` are not reused: linking that package would put
+  every widget view in the app binary.
+- Share extension (`ios/App/NeedtShare`, bundle id `app.needt.ios.share`): a
+  shared link or text becomes a task through NeedtKit. Same behaviour as
+  `apps/macos/Share`.
+
+### What the owner does
+
+1. developer.apple.com: register the three App IDs above and the App Group, then
+   create the app in App Store Connect (bundle id `app.needt.ios`).
+2. Put the Team ID in `ExportOptions-AppStore.plist` (`YOUR_TEAM_ID`).
+3. Archive and export (needs the Mac signed in to the Apple Developer account):
+
+   ```bash
+   cd apps/ios && npm ci && npx cap sync ios
+   TEAM=ABCDE12345   # your Team ID
+   xcodebuild archive -project ios/App/App.xcodeproj -scheme App -configuration Release \
+     -destination 'generic/platform=iOS' -archivePath build/Needt.xcarchive \
+     DEVELOPMENT_TEAM=$TEAM -allowProvisioningUpdates
+   xcodebuild -exportArchive -archivePath build/Needt.xcarchive -exportPath build/export \
+     -exportOptionsPlist ExportOptions-AppStore.plist -allowProvisioningUpdates
+   ```
+
+   Or Product > Archive in Xcode with the team set on the three targets.
+4. Upload `build/export/App.ipa` with Transporter (or Xcode Organizer), fill the
+   App Store Connect privacy answers from the table above, add review notes and a
+   reviewer login (see `docs/operations`), submit.
+
+### What CI proves, and what it cannot
+
+- Proven on every run: the Release build archives; the archive holds `App.app` with
+  `NeedtWidgets.appex` and `NeedtShare.appex`, a valid `PrivacyInfo.xcprivacy` in
+  all three, the Info.plist keys above, 12 alternate icons, the compiled launch
+  screen and the App Shortcuts metadata; plists lint; icons have no alpha.
+- `xcodebuild -exportArchive` cannot succeed in CI: it needs an Apple Distribution
+  certificate and profiles. CI runs it anyway and asserts (`scripts/check-export-log.sh`)
+  that it fails on signing and not on `ExportOptions-AppStore.plist`. That shows the
+  options file is read by the real tool; it does not show your certificates work.
+- Not proven: signing, the entitlements actually embedded in a signed build, how the
+  offline screen, shortcuts and Share sheet behave on a device, App Store Connect's
+  own validation (it may still ask about a Required Reason API in a dependency).
 
 ## Icon, launch screen, sign-in
 
