@@ -19,7 +19,7 @@
 <link rel="preload" href="assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/sky-tokens.css?v=27">
 <link rel="stylesheet" href="styles.css?v=63">
-<link rel="stylesheet" href="hero-b.css?v=4">
+<link rel="stylesheet" href="hero-b.css?v=5">
 <link rel="canonical" href="https://needt.app/">
 <!-- Analytics (Umami, self-hosted). Enabled at deploy: set the website ID and allow stats.needt.app in the CSP.
 <script defer src="https://stats.needt.app/script.js" data-do-not-track="true" data-website-id="__UMAMI_SITE_ID__"></script>
@@ -475,6 +475,7 @@
 </section>
 
 <section class="final" aria-labelledby="final-h">
+  <div class="hb-final-bg" aria-hidden="true"><video muted loop playsinline preload="none" data-hb-lazy poster="assets/hero/garden.jpg?v=2" width="1664" height="1244"><source src="assets/hero/garden-sm.mp4?v=2" type="video/mp4" media="(max-width: 760px)"><source src="assets/hero/garden.mp4?v=2" type="video/mp4"></video></div>
   <div class="wrap final-in">
     <img class="icon3d rv" src="assets/icon-dark.svg" alt="" loading="lazy" decoding="async">
     <h2 id="final-h" class="display split" data-split data-px-calm>Your day, <i>finally planned.</i></h2>
@@ -511,7 +512,7 @@
       <div class="foot-featured" aria-label="Featured on"><span class="foot-featured-label">Featured on</span><a href="https://fazier.com/launches/needt.app" target="_blank" rel="noopener"><img src="https://fazier.com/api/v1//public/badges/launch_badges.svg?badge_type=launched&theme=dark" width="94" height="40" alt="Fazier badge" loading="lazy" decoding="async" /></a><a href="https://twelve.tools" target="_blank" rel="noopener"><img src="https://twelve.tools/badge0-dark.svg" width="148" height="40" alt="Featured on Twelve Tools" loading="lazy" decoding="async"></a><a href="https://dofollow.tools" target="_blank" rel="noopener"><img src="https://dofollow.tools/badge/badge_dark.svg" width="139" height="40" alt="Featured on Dofollow.Tools" loading="lazy" decoding="async"></a><a class="foot-featured-pill" href="https://dang.ai/" target="_blank" rel="noopener">Featured on Dang.ai</a></div>
       <div class="foot-base"><span>Made by one person.</span><span>© 2026 <a href="./">Needt</a>. Built for one day at a time.</span></div>
     </div>
-    <div class="floor" aria-hidden="true"><span class="floor-word" id="floor-word">Needt</span></div>
+    <div class="floor" aria-hidden="true"><span class="floor-word" id="floor-word">Needt</span></div><div class="hb-grass" aria-hidden="true"></div>
   </footer>
 </section>
 </div>
@@ -530,6 +531,6 @@ document.addEventListener("click",function(e){var a=e.target.closest&&e.target.c
 document.getElementById("hb-greet").innerHTML=p+'<span class="hb-d">, happy '+n.toLocaleDateString("en-US",{weekday:"long"})+".</span>";
 function t(){var d=new Date(),m=d.getMinutes();document.getElementById("hb-time").textContent=d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
 document.getElementById("hb-mh").setAttribute("transform","rotate("+m*6+" 20 20)");document.getElementById("hb-hh").setAttribute("transform","rotate("+(d.getHours()%12+m/60)*30+" 20 20)");}
-t();setInterval(t,15000);var fl=document.querySelectorAll('.hb-float');if(matchMedia('(hover: hover)').matches&&!matchMedia('(prefers-reduced-motion: reduce)').matches)addEventListener('pointermove',function(e){var x=e.clientX/innerWidth-.5,y=e.clientY/innerHeight-.5;fl.forEach(function(f,i){var k=i?-18:24;f.style.setProperty('--x',x*k+'px');f.style.setProperty('--y',y*k+'px');});});try{var c=(Intl.DateTimeFormat().resolvedOptions().timeZone||"").split("/").pop().replace(/_/g," ");if(c&&!/UTC|GMT/.test(c))document.getElementById("hb-city").textContent=c;}catch(e){}})();</script>
+t();setInterval(t,15000);var lv=document.querySelector('[data-hb-lazy]');if(lv&&'IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduce)').matches)new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){lv.preload='auto';lv.play().catch(function(){});}else lv.pause();});},{rootMargin:'200px'}).observe(lv);var fl=document.querySelectorAll('.hb-float');if(matchMedia('(hover: hover)').matches&&!matchMedia('(prefers-reduced-motion: reduce)').matches)addEventListener('pointermove',function(e){var x=e.clientX/innerWidth-.5,y=e.clientY/innerHeight-.5;fl.forEach(function(f,i){var k=i?-18:24;f.style.setProperty('--x',x*k+'px');f.style.setProperty('--y',y*k+'px');});});try{var c=(Intl.DateTimeFormat().resolvedOptions().timeZone||"").split("/").pop().replace(/_/g," ");if(c&&!/UTC|GMT/.test(c))document.getElementById("hb-city").textContent=c;}catch(e){}})();</script>
 </body>
 </html>
