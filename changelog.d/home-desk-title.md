@@ -1,0 +1,1 @@
+- Home on the desktop uses the app's 22px page title in its cards and sheets.
