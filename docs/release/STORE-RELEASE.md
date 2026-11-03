@@ -167,7 +167,10 @@ until the iOS version is ready to submit (step 10). Then, in this order:
 2. Set the `APPLE_IAP_*` env above on `needt` and `need-worker` and redeploy.
 3. Turn `apple_iap` on (System Settings → Feature flags) for everyone. The iOS
    app is not public until you release it, so only TestFlight and the reviewer
-   see the purchase sheet; the website and the Mac app ignore the flag.
+   see the purchase sheet; the website and the Mac app ignore the flag. Do not
+   turn it on for the reviewer account alone: the app's Terms link opens in
+   Safari, signed out, and a signed-out reader gets §5.7 only from the flag
+   for everyone.
 4. In TestFlight, open Pro: the sheet lists the three products with prices.
    If it says the App Store is unavailable, the env or the products are not
    ready; do not submit.
