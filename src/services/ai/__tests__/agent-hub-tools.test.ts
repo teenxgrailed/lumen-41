@@ -32,6 +32,7 @@ const agentRow: HubAgent = {
   kind: "other",
   capabilities: "",
   skills: [],
+  limits: null,
   lastSeenAt: null,
   disabledAt: null,
   createdAt: new Date(0),

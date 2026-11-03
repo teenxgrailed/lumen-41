@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { agentLimitsSchema } from "@/services/agent-hub/agent-limits";
 import { ownerUpdateAgent } from "@/services/agent-hub/agents";
 import {
   authenticateHubOwner,
@@ -12,9 +13,14 @@ import { z } from "zod";
 
 type Params = { params: Promise<{ id: string }> };
 
-const patchInput = registerInput.extend({ disabled: z.boolean().optional() });
+// `limits` is owner-only: registerInput (what agents send) has no such field.
+// null clears every limit; leaving it out keeps them.
+const patchInput = registerInput.extend({
+  disabled: z.boolean().optional(),
+  limits: agentLimitsSchema.nullable().optional(),
+});
 
-/** The owner edits any agent's profile or disables it. */
+/** The owner edits any agent's profile, workload limits, or disables it. */
 export async function PATCH(request: NextRequest, { params }: Params) {
   return hubRoute(async () => {
     const auth = await authenticateHubOwner(request, true);

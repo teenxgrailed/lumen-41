@@ -106,6 +106,12 @@ export const createItemInput = z.object({
     .max(100)
     .describe('An agent id or name, or "any" with requiredSkills.'),
   requiredSkills: skills.optional(),
+  large: z
+    .boolean()
+    .optional()
+    .describe(
+      "true for a big job (long or expensive to run). Agents the owner limits to smaller work are not offered it until the owner approves."
+    ),
   due: z.string().max(40).optional().describe("ISO 8601 date or date-time."),
   taskId: z.string().max(100).optional(),
   projectId: z.string().max(100).optional(),
@@ -368,6 +374,10 @@ export const ownerAnswerInput = z.object({
 export const ownerApproveInput = z.object({
   risks: z.array(z.enum(HUB_RISKS)).min(1).max(4),
   note: z.string().max(300).optional(),
+});
+
+export const ownerApproveLargeInput = z.object({
+  approved: z.boolean().optional().default(true),
 });
 
 export const ownerReassignInput = z.object({

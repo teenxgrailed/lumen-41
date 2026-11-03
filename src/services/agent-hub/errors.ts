@@ -15,7 +15,8 @@ export type HubErrorCode =
   | "RATE_LIMITED"
   | "CONFLICT"
   | "TOKEN_IN_USE"
-  | "PLAN_LIMIT";
+  | "PLAN_LIMIT"
+  | "AGENT_LIMIT";
 
 const STATUS: Record<HubErrorCode, number> = {
   NOT_FOUND: 404,
@@ -35,6 +36,7 @@ const STATUS: Record<HubErrorCode, number> = {
   CONFLICT: 409,
   TOKEN_IN_USE: 409,
   PLAN_LIMIT: 402,
+  AGENT_LIMIT: 429,
 };
 
 /** A refusal a caller can act on: a code, a status and what to do next. */

@@ -28,7 +28,13 @@ const HUB_WRITE_LIMIT_PER_MINUTE = 30;
 
 export function hubErrorResponse(error: unknown): NextResponse {
   if (error instanceof HubError) {
-    return NextResponse.json(error.body(), { status: error.status });
+    const retryAfter = error.extra?.retryAfterSeconds;
+    return NextResponse.json(error.body(), {
+      status: error.status,
+      ...(typeof retryAfter === "number"
+        ? { headers: { "Retry-After": String(retryAfter) } }
+        : {}),
+    });
   }
   throw error;
 }

@@ -19,11 +19,12 @@ import { Segmented } from "../shell/Segmented";
 import { StScreen } from "../states/StScreen";
 import { ActivityTab } from "./ActivityTab";
 import { AgBtn, AgEmpty, AgRow, AgSection, type AgTone } from "./AgParts";
+import { AgentLimits, type AgentLimitsValue, limitsLine } from "./AgentLimits";
 import { ConnectGuide } from "./ConnectGuide";
 import { ItemFiles } from "./ItemFiles";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
-import { hasUnconfirmedRisk } from "./unconfirmed-risk";
 import { WebhooksSection } from "./WebhooksSection";
+import { hasUnconfirmedRisk } from "./unconfirmed-risk";
 
 type Named = { id?: string; name?: string; kind?: string } | "any" | null;
 
@@ -73,6 +74,9 @@ interface HubItemRow {
   } | null;
   risks: string[];
   approvals: Record<string, unknown>;
+  /** Flagged as a big job; agents limited to smaller work wait for approval. */
+  large?: boolean;
+  largeApproved?: boolean;
   assignee: Named;
   heldBy: { name: string } | null;
   leaseExpiresAt: string | null;
@@ -98,6 +102,7 @@ interface HubAgentRow {
   lastSeenAt: string | null;
   disabledAt?: string | null;
   disabled?: boolean;
+  limits?: AgentLimitsValue | null;
   token: {
     preview: string;
     revoked: boolean;
@@ -292,6 +297,8 @@ export function AgentsScreen() {
       qc.invalidateQueries({ queryKey: ["agent-hub"] }),
       qc.invalidateQueries({ queryKey: qk.agentHubNav() }),
     ]);
+  const [limitsFor, setLimitsFor] = useState<string | null>(null);
+
   const run = async (task: () => Promise<unknown>, done?: string) => {
     try {
       await task();
@@ -398,6 +405,23 @@ export function AgentsScreen() {
         isActive(item) || repeatToggle(item) ? (
           <>
             {repeatToggle(item)}
+            {item.large && !item.largeApproved && isActive(item) ? (
+              <AgBtn
+                onClick={() =>
+                  run(
+                    () =>
+                      sendJson(
+                        `/api/agent-hub/items/${item.id}/approve-large`,
+                        "POST",
+                        {}
+                      ),
+                    "Large item approved"
+                  )
+                }
+              >
+                Approve large
+              </AgBtn>
+            ) : null}
             {isActive(item) ? (
               <AgBtn
                 tone="danger"
@@ -570,11 +594,31 @@ export function AgentsScreen() {
                   key={agent.id}
                   title={agent.name}
                   tone={agentTone(agent)}
+                  expanded={limitsFor === agent.id}
+                  onToggle={() =>
+                    setLimitsFor(limitsFor === agent.id ? null : agent.id)
+                  }
+                  detail={
+                    <AgentLimits
+                      limits={agent.limits ?? null}
+                      onSave={(body) =>
+                        run(
+                          () =>
+                            sendJson(
+                              `/api/agent-hub/agents/${agent.id}`,
+                              "PATCH",
+                              { limits: body }
+                            ),
+                          body ? "Limits saved" : "Limits removed"
+                        )
+                      }
+                    />
+                  }
                   meta={`${agent.kind}, ${agent.connection}, skills: ${
                     agent.skills.join(", ") || "none"
                   }. ${agent.openItems} open, ${agent.heldItems} held. Last seen ${when(
                     agent.lastSeenAt
-                  )}.${
+                  )}.${limitsLine(agent.limits ?? null)}${
                     agent.token
                       ? ` Token ${agent.token.preview}${
                           agent.token.revoked ? " (revoked)" : ""

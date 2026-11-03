@@ -77,6 +77,7 @@ function agent(): HubAgent {
     kind: "grok",
     capabilities: "",
     skills: ["browser"],
+    limits: null,
     lastSeenAt: null,
     disabledAt: null,
     createdAt: newDate(),

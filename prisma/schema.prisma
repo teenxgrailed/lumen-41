@@ -4078,6 +4078,10 @@ model HubAgent {
   capabilities  String         @default("")
   /// Lowercase tags the agent keeps about itself; "any capable" items match on them.
   skills        String[]
+  /// Owner-set workload limits: { maxInProgress?, maxClaimsPerDay?, inboxLimit?,
+  /// acceptsLarge? }. Null means no limits. Written only by the owner
+  /// (src/services/agent-hub/agent-limits.ts).
+  limits        Json?
   lastSeenAt    DateTime?
   disabledAt    DateTime?
   createdAt     DateTime       @default(now())
@@ -4157,6 +4161,10 @@ model HubItem {
   usageTokens         Int?
   usageCostUsd        Float?
   usageMinutes        Int?
+  /// A big job. An agent with limits.acceptsLarge = false is not offered it
+  /// unless the owner approved it (largeApprovedAt).
+  large               Boolean        @default(false)
+  largeApprovedAt     DateTime?
   version             Int            @default(1)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
@@ -4255,6 +4263,7 @@ model HubItemEvent {
   data         Json?
 
   @@index([itemId, at])
+  @@index([actorAgentId, type, at])
 }
 
 /// A file one agent (or the owner) leaves on a hub item. Metadata only: the

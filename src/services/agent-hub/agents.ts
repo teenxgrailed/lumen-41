@@ -3,6 +3,11 @@ import type { HubAgent } from "@prisma/client";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
+import {
+  type AgentLimitsInput,
+  limitsColumn,
+  limitsView,
+} from "./agent-limits";
 import { ASSISTANT_CONNECTION_KEY, HELD_STATUSES } from "./constants";
 import type { AgentScope, HubScope, WorkspaceKey } from "./context";
 import { HubError } from "./errors";
@@ -85,14 +90,18 @@ export async function registerAgent(scope: AgentScope, input: RegisterInput) {
   const agent = Object.keys(patch).length
     ? await prisma.hubAgent.update({ where: { id: self.id }, data: patch })
     : self;
-  return { ...agentView(agent), self: true };
+  return { ...agentView(agent), limits: limitsView(agent), self: true };
 }
 
 /** The owner edits any agent's profile (or disables it). */
 export async function ownerUpdateAgent(
   scope: HubScope,
   agentId: string,
-  input: RegisterInput & { disabled?: boolean }
+  input: RegisterInput & {
+    disabled?: boolean;
+    /** Owner only: undefined keeps the limits, null clears them. */
+    limits?: AgentLimitsInput | null;
+  }
 ) {
   if (scope.actor.kind !== "owner") {
     throw new HubError("FORBIDDEN", "Only the owner can edit another agent.");
@@ -122,9 +131,12 @@ export async function ownerUpdateAgent(
       ...(input.disabled !== undefined
         ? { disabledAt: input.disabled ? newDate() : null }
         : {}),
+      ...(input.limits !== undefined
+        ? { limits: limitsColumn(input.limits) }
+        : {}),
     },
   });
-  return agentView(agent);
+  return { ...agentView(agent), limits: limitsView(agent) };
 }
 
 async function itemCounts(key: WorkspaceKey) {
@@ -185,6 +197,7 @@ export async function listAgentsForOwner(key: WorkspaceKey) {
   ]);
   return agents.map((agent) => ({
     ...agentView(agent),
+    limits: limitsView(agent),
     self: false,
     openItems: counts.open.get(agent.id) ?? 0,
     heldItems: counts.held.get(agent.id) ?? 0,

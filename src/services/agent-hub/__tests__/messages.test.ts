@@ -65,6 +65,7 @@ function agent(id: string, name: string, skills: string[] = []): HubAgent {
     kind: "other",
     capabilities: "",
     skills,
+    limits: null,
     lastSeenAt: null,
     disabledAt: null,
     createdAt: newDate(),
