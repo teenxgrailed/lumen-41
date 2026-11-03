@@ -179,6 +179,11 @@
   word-break: break-all;
   user-select: all;
 }
+.needt-v3 .ag-token code.ag-code {
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
 .needt-v3 .ag-token-row {
   display: flex;
   align-items: center;
