@@ -79,7 +79,10 @@ body.home-b .hero { min-height: 118vh; min-height: 118svh; justify-content: flex
 .hb-scene.is-mist img { filter: saturate(.8) blur(2px); }
 /* night zone: the garden as it is, a little darker */
 .hb-scene.is-night { background: #05060a; }
+/* under the garden still the night zone stays dark to the end (the phone layout otherwise shows paper) */
+body.home-b .night-zone { background: #05060a; }
 .hb-scene.is-night::after { content: ""; position: absolute; inset: 0; background: rgba(5,6,10,.45); }
+.hb-scene.is-night img { -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent); mask-image: linear-gradient(to bottom, #000 70%, transparent); }
 @media (max-width: 640px) { body.home-b .hero { min-height: 112svh; padding-top: 112px; } }
 
 /* v2.2 (03.11): ground at the bottom. The page ends on the floor of the same garden: moss, stems and
@@ -88,4 +91,14 @@ body.home-b .final { position: relative; isolation: isolate; }
 body.home-b .final::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: min(70vh, 720px); z-index: -1; pointer-events: none;
   background: linear-gradient(to bottom, rgba(5,6,10,.25), rgba(5,6,10,.5) 60%, rgba(5,6,10,.15)), url("assets/hero/garden.jpg?v=2") 50% 100% / cover no-repeat;
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 45%); mask-image: linear-gradient(to bottom, transparent, #000 45%); }
-@media (max-width: 640px) { body.home-b .final::after { height: 60vh; } }
+/* phones (owner, 03.11): no side insets on the footer, and the garden floor rises much higher */
+@media (max-width: 640px) {
+  body.home-b .final::after { height: 150vh; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%); mask-image: linear-gradient(to bottom, transparent, #000 22%);
+    background: linear-gradient(to bottom, rgba(5,6,10,.3), rgba(5,6,10,.55) 50%, rgba(5,6,10,.15)), url("assets/hero/garden.jpg?v=2") 50% 100% / auto 100% no-repeat; }
+  body.home-b .foot > .wrap { padding-left: 0; padding-right: 0; }
+  /* the phone layout frames the night zone 8px in with rounded corners; on B it runs edge to edge */
+  body.home-b .night-zone { clip-path: none; }
+  body.home-b .night-zone > .sky-wrap { inset: 0; }
+  body.home-b .foot-top { border-radius: 0; padding-left: 24px; padding-right: 24px; }
+  body.home-b .foot-featured, body.home-b .foot-base { padding-left: 24px; padding-right: 24px; }
+}
