@@ -7,11 +7,9 @@ import {
 
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
-import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
-
-import { TaskStatus } from "@/types/task";
 
 import { findAgentByRef } from "./agents";
+import { pushOwnerAlert } from "./alerts";
 import {
   ARCHIVE_AFTER_MS,
   HELD_STATUSES,
@@ -22,6 +20,7 @@ import {
   TERMINAL_STATUSES,
 } from "./constants";
 import {
+  ASSISTANT_CONNECTION_KEY,
   type Actor,
   type AgentScope,
   type HubScope,
@@ -40,6 +39,7 @@ import {
   type ClaimInput,
   type CompleteInput,
   type CreateItemInput,
+  type EditItemInput,
   type EscalateInput,
   type UpdateInput,
   normalizeTags,
@@ -168,8 +168,7 @@ export function itemView(item: HubItem, options: ItemViewOptions) {
     question: item.question,
     taskId: item.taskId,
     projectId: item.projectId,
-    escalationTaskId: item.escalationTaskId,
-    noAgentTaskId: item.noAgentTaskId,
+    ownerUnread: item.ownerUnread,
     noCapableAgent: options.noCapableAgent ?? false,
     version: item.version,
     createdAt: item.createdAt.toISOString(),
@@ -326,7 +325,12 @@ async function mutateItem(
     const { data, events, after } = await plan(item, tx, now);
     const written = await tx.hubItem.updateMany({
       where: { id, version: item.version },
-      data: { ...data, version: { increment: 1 } },
+      data: {
+        // Whatever the owner does to an item counts as having seen it.
+        ...(scope.actor.kind === "owner" ? { ownerUnread: false } : {}),
+        ...data,
+        version: { increment: 1 },
+      },
     });
     if (written.count === 0) {
       throw new HubError(
@@ -503,6 +507,13 @@ export async function createItem(scope: HubScope, input: CreateItemInput) {
     }
   } else {
     const agent = await findAgentByRef(scope, input.assignee);
+    if (agent?.connectionKey === ASSISTANT_CONNECTION_KEY) {
+      throw new HubError(
+        "INVALID",
+        'assignee: the Needt assistant does not take work. Pick another agent, or use "any" with requiredSkills.',
+        { field: "assignee" }
+      );
+    }
     if (!agent || agent.disabledAt) {
       throw new HubError(
         "INVALID",
@@ -939,46 +950,12 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
   };
 }
 
-/** A normal Needt task for the owner, created inside the caller's transaction. */
-async function createOwnerTask(
-  tx: Tx,
-  input: {
-    id?: string;
-    userId: string;
-    workspaceId: string;
-    title: string;
-    description: string;
-  }
-) {
-  return tx.task.create({
-    data: {
-      ...(input.id ? { id: input.id } : {}),
-      userId: input.userId,
-      workspaceId: input.workspaceId,
-      assigneeId: input.userId,
-      title: input.title.slice(0, 120),
-      description: input.description,
-      status: TaskStatus.TODO,
-      isAutoScheduled: false,
-      autoScheduled: false,
-      activities: {
-        create: {
-          workspaceId: input.workspaceId,
-          actorId: input.userId,
-          action: "CREATED",
-        },
-      },
-    },
-    select: { id: true },
-  });
-}
-
-const itemLink = (id: string) => `/agents?item=${id}`;
-
 /**
  * The agent cannot go on without the owner: sets needs_owner, releases the
- * lease, and creates exactly one Needt task for the person. Completing that
- * task does not answer or approve; only the Agents screen does.
+ * lease and raises an owner alert (an unread badge on the Agents item and a
+ * push that opens /agents?item=<id>). It creates no Needt task: the hub is
+ * separate from the person's own tasks. Only the Agents screen answers or
+ * approves.
  */
 export async function escalateItem(scope: AgentScope, input: EscalateInput) {
   const agent = scope.actor.agent;
@@ -988,7 +965,7 @@ export async function escalateItem(scope: AgentScope, input: EscalateInput) {
     scope,
     input.id,
     input.expectedVersion,
-    async (item, tx) => {
+    async (item, _tx, now) => {
       assertOpenForAgents(item);
       const holds = item.claimedByAgentId === agent.id;
       // While open, the assignee escalates; the creator only when nobody is
@@ -1006,19 +983,6 @@ export async function escalateItem(scope: AgentScope, input: EscalateInput) {
         );
       }
       const options = (input.options ?? []).map((option) => option.trim());
-      const task = await createOwnerTask(tx, {
-        userId: scope.userId,
-        workspaceId: scope.workspaceId,
-        title: `Decide: ${item.title}`,
-        description: [
-          `${agent.name} asks: ${question}`,
-          options.length ? `Options: ${options.join(" / ")}` : null,
-          input.risk ? `Risk: ${input.risk}` : null,
-          `Answer or approve on the Agents screen: ${itemLink(item.id)}`,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      });
       return {
         data: {
           status: "needs_owner",
@@ -1029,7 +993,8 @@ export async function escalateItem(scope: AgentScope, input: EscalateInput) {
           // The answer returns to the agent that asked: the holder, who was
           // assigned or took an unassigned item. Otherwise the assignee stays.
           ...(holds ? { assigneeAgentId: agent.id } : {}),
-          escalationTaskId: task.id,
+          ownerUnread: true,
+          ownerAlertedAt: now,
           blockedOn: null,
         },
         events: [
@@ -1041,17 +1006,20 @@ export async function escalateItem(scope: AgentScope, input: EscalateInput) {
             data: {
               ...(options.length ? { options } : {}),
               ...(input.risk ? { risk: input.risk } : {}),
-              taskId: task.id,
             },
           },
         ],
       };
     }
   );
-  await publishRealtimeEventSafe(scope.userId, "tasks-updated");
+  const notified = await pushOwnerAlert(scope.userId, {
+    title: "An agent needs you",
+    body: `${agent.name}: ${updated.title}`,
+    itemId: updated.id,
+  });
   return {
     item: await viewOne(scope, updated, { recent: 3, untrusted: true }),
-    ownerTaskId: updated.escalationTaskId,
+    ownerNotified: notified,
   };
 }
 
@@ -1062,7 +1030,7 @@ export async function cancelItem(scope: HubScope, input: CancelInput) {
     scope,
     input.id,
     undefined,
-    async (item, tx, now) => {
+    async (item, _tx, now) => {
       if (TERMINAL_STATUSES.includes(item.status)) {
         throw new HubError("TERMINAL", `This item is already ${item.status}.`);
       }
@@ -1075,24 +1043,13 @@ export async function cancelItem(scope: HubScope, input: CancelInput) {
           "Only the agent that created an item (or the owner) can cancel it."
         );
       }
-      // A withdrawn item has nothing left to decide: close the owner's task.
-      let taskCompleted = false;
-      if (item.status === "needs_owner" && item.escalationTaskId) {
-        const done = await tx.task.updateMany({
-          where: {
-            id: item.escalationTaskId,
-            status: { not: TaskStatus.COMPLETED },
-          },
-          data: { status: TaskStatus.COMPLETED, completedAt: now },
-        });
-        taskCompleted = done.count > 0;
-      }
       return {
         data: {
           status: "cancelled",
           claimedByAgentId: null,
           leaseExpiresAt: null,
           leaseExpiredNotedAt: null,
+          ownerUnread: false,
           closedAt: now,
         },
         events: [
@@ -1101,13 +1058,87 @@ export async function cancelItem(scope: HubScope, input: CancelInput) {
             from: item.status,
             to: "cancelled",
             message: input.reason?.trim() ?? "",
-            ...(taskCompleted ? { data: { taskCompleted } } : {}),
           },
         ],
       };
     }
   );
-  await publishRealtimeEventSafe(scope.userId, "tasks-updated");
+  return {
+    item: await viewOne(scope, updated, {
+      recent: 3,
+      untrusted: scope.actor.kind === "agent",
+    }),
+  };
+}
+
+/**
+ * The creator changes the brief of an item nobody has taken yet: title, goal,
+ * done-criteria, context or due date. Risks, assignee and skills are not
+ * editable here (changing a risk after the fact would dodge the owner's
+ * approval; cancel and create a new item instead).
+ */
+export async function editItem(scope: HubScope, input: EditItemInput) {
+  const patch = {
+    ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+    ...(input.goal !== undefined ? { goal: input.goal.trim() } : {}),
+    ...(input.doneCriteria !== undefined
+      ? { doneCriteria: input.doneCriteria.trim() }
+      : {}),
+    ...(input.context !== undefined ? { context: input.context.trim() } : {}),
+  };
+  if (!Object.keys(patch).length && input.due === undefined) {
+    throw new HubError("INVALID", "Nothing to change.");
+  }
+  assertNoSecrets(patch);
+  const due = input.due === undefined ? undefined : parseDue(input.due);
+  const updated = await mutateItem(
+    scope,
+    input.id,
+    input.expectedVersion,
+    (item) => {
+      if (
+        scope.actor.kind === "agent" &&
+        item.creatorAgentId !== scope.actor.agent.id
+      ) {
+        throw new HubError(
+          "FORBIDDEN",
+          "Only the agent that created an item can change it."
+        );
+      }
+      if (item.status !== "open") {
+        throw new HubError(
+          "INVALID",
+          "Only an open item can be changed; this one is " +
+            item.status +
+            ". Cancel it and create a new one."
+        );
+      }
+      const brief = { ...item, ...patch };
+      assertBrief({
+        title: brief.title,
+        goal: brief.goal,
+        doneCriteria: brief.doneCriteria,
+        context: brief.context,
+        risks: item.risks as CreateItemInput["risks"],
+        assignee: "any",
+      } as CreateItemInput);
+      const changed = [
+        ...Object.keys(patch),
+        ...(due !== undefined ? ["due"] : []),
+      ];
+      return {
+        data: { ...patch, ...(due !== undefined ? { due } : {}) },
+        events: [
+          {
+            type: "edited",
+            from: item.status,
+            to: item.status,
+            message: "Changed: " + changed.join(", ") + ".",
+          },
+        ],
+      };
+    }
+  );
   return {
     item: await viewOne(scope, updated, {
       recent: 3,
@@ -1131,50 +1162,29 @@ function assertOwner(scope: HubScope) {
 
 /**
  * The owner answers a needs_owner item with text: it returns to open for the
- * agent that escalated, and the linked Needt task is completed.
+ * agent that escalated.
  */
 export async function ownerAnswer(scope: HubScope, id: string, answer: string) {
   assertOwner(scope);
   const text = answer.trim();
   if (!text) throw new HubError("INVALID", "answer cannot be empty.");
   assertNoSecrets({ answer: text });
-  const updated = await mutateItem(
-    scope,
-    id,
-    undefined,
-    async (item, tx, now) => {
-      if (item.status !== "needs_owner") {
-        throw new HubError(
-          "NOT_HELD",
-          "This item is not waiting for an answer."
-        );
-      }
-      let taskCompleted = false;
-      if (item.escalationTaskId) {
-        const done = await tx.task.updateMany({
-          where: {
-            id: item.escalationTaskId,
-            status: { not: TaskStatus.COMPLETED },
-          },
-          data: { status: TaskStatus.COMPLETED, completedAt: now },
-        });
-        taskCompleted = done.count > 0;
-      }
-      return {
-        data: { status: "open", question: null },
-        events: [
-          {
-            type: "owner_answer",
-            from: "needs_owner",
-            to: "open",
-            message: text,
-            data: { taskCompleted },
-          },
-        ],
-      };
+  const updated = await mutateItem(scope, id, undefined, async (item) => {
+    if (item.status !== "needs_owner") {
+      throw new HubError("NOT_HELD", "This item is not waiting for an answer.");
     }
-  );
-  await publishRealtimeEventSafe(scope.userId, "tasks-updated");
+    return {
+      data: { status: "open", question: null },
+      events: [
+        {
+          type: "owner_answer",
+          from: "needs_owner",
+          to: "open",
+          message: text,
+        },
+      ],
+    };
+  });
   return { item: await viewOne(scope, updated, { recent: 5 }) };
 }
 
@@ -1252,7 +1262,11 @@ export async function ownerReassign(
     }
   } else {
     const agent = await findAgentByRef(scope, input.assignee);
-    if (!agent || agent.disabledAt) {
+    if (
+      !agent ||
+      agent.disabledAt ||
+      agent.connectionKey === ASSISTANT_CONNECTION_KEY
+    ) {
       throw new HubError("INVALID", `No agent "${input.assignee}".`);
     }
     assigneeAgentId = agent.id;
@@ -1322,6 +1336,14 @@ export async function getItem(scope: HubScope, id: string) {
   };
 }
 
+/**
+ * One item with its full log for the owner's own assistant: read-only, and it
+ * sees every item of the owner (an agent sees only the ones that concern it).
+ */
+export function readItemAsOwner(key: WorkspaceKey, id: string) {
+  return getItem({ ...key, actor: { kind: "owner" } }, id);
+}
+
 function archiveWhere(includeArchived: boolean): Prisma.HubItemWhereInput {
   if (includeArchived) return {};
   const cutoff = newDate(newDate().getTime() - ARCHIVE_AFTER_MS);
@@ -1377,4 +1399,4 @@ async function sweepForList(key: WorkspaceKey) {
   await sweepHub(key);
 }
 
-export { createOwnerTask, mutateItem, latestEvents, recentEvents, viewOne };
+export { mutateItem, latestEvents, recentEvents, viewOne };

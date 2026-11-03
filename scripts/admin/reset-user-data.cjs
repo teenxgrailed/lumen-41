@@ -259,6 +259,7 @@ function buildPlan(userId, workspaceId) {
     ["PinterestConnection", "pinterestConnection", uid],
     ["ExternalIntegration", "externalIntegration", uid],
     ["ConnectorSettings", "connectorSettings", uid],
+    ["PersonalApiToken", "personalApiToken", uid],
     ["AccessLink", "accessLink", uid],
     ["PushSubscription", "pushSubscription", uid],
     ["Notification", "notification", uid],

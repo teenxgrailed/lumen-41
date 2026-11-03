@@ -17,9 +17,13 @@ import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { prisma } from "@/lib/prisma";
 import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
+jest.mock("@/lib/logger", () => ({
+  logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn() },
+}));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    connectorSettings: { findUnique: jest.fn() },
+    connectorSettings: { findUnique: jest.fn(), update: jest.fn() },
+    personalApiToken: { findUnique: jest.fn(), update: jest.fn() },
     // An unknown OAuth access token: the built-in resolver finds nothing.
     oAuthToken: { findUnique: jest.fn().mockResolvedValue(null) },
   },
@@ -39,6 +43,19 @@ jest.mock("@/lib/security/rate-limit", () => ({
 }));
 
 const findUnique = prisma.connectorSettings.findUnique as jest.Mock;
+const legacyUpdate = prisma.connectorSettings.update as jest.Mock;
+const namedFind = prisma.personalApiToken.findUnique as jest.Mock;
+const namedUpdate = prisma.personalApiToken.update as jest.Mock;
+const NAMED = "needt_named-chrome-token-value";
+const REVOKED = "needt_revoked-named-token-value";
+const NAMED_ROW = {
+  id: "tok-chrome",
+  userId: "user-1",
+  name: "Chrome",
+  expiresAt: null as Date | null,
+  revokedAt: null as Date | null,
+  lastUsedAt: null as Date | null,
+};
 const PERSONAL = "needt_personal-connector-token-value";
 const OAUTH = "ext_other-kind-token-value";
 const WRITER = "ext_writer-without-mail-token";
@@ -75,6 +92,13 @@ registerBearerResolver(async (token) =>
 
 beforeEach(() => {
   jest.clearAllMocks();
+  namedFind.mockImplementation(async ({ where }) => {
+    if (where.tokenHash === hashConnectorToken(NAMED)) return NAMED_ROW;
+    if (where.tokenHash === hashConnectorToken(REVOKED)) {
+      return { ...NAMED_ROW, id: "tok-old", revokedAt: new Date() };
+    }
+    return null;
+  });
   findUnique.mockImplementation(async ({ where }) =>
     where.tokenHash === hashConnectorToken(PERSONAL)
       ? { userId: "user-1" }
@@ -134,8 +158,77 @@ describe("authenticateBearer", () => {
     ).resolves.toMatchObject({ userId: "user-1" });
     expect(findUnique).toHaveBeenLastCalledWith({
       where: { tokenHash: hashConnectorToken(PERSONAL) },
-      select: { userId: true, tokenExpiresAt: true },
+      select: { userId: true, tokenExpiresAt: true, tokenLastUsedAt: true },
     });
+  });
+
+  it("reads a named personal token with the personal scopes and its id and name", async () => {
+    await expect(
+      authenticateBearer(request(`Bearer ${NAMED}`))
+    ).resolves.toEqual({
+      userId: "user-1",
+      kind: "personal",
+      scopes: PERSONAL_TOKEN_SCOPES,
+      personalTokenId: "tok-chrome",
+      personalTokenName: "Chrome",
+    });
+    // Never the admin scope, like the Default token.
+    expect(PERSONAL_TOKEN_SCOPES).not.toContain("needt.admin.read");
+  });
+
+  it("refuses a revoked or expired named token, an unknown one stays null", async () => {
+    await expect(
+      authenticateBearer(request(`Bearer ${REVOKED}`))
+    ).resolves.toBeNull();
+    namedFind.mockResolvedValueOnce({
+      ...NAMED_ROW,
+      expiresAt: new Date(Date.now() - 1_000),
+    });
+    await expect(
+      authenticateBearer(request(`Bearer ${NAMED}`))
+    ).resolves.toBeNull();
+  });
+
+  it("keeps the Default token working beside named ones", async () => {
+    const [def, named] = await Promise.all([
+      authenticateBearer(request(`Bearer ${PERSONAL}`)),
+      authenticateBearer(request(`Bearer ${NAMED}`)),
+    ]);
+    expect(def).toMatchObject({ userId: "user-1", kind: "personal" });
+    expect(def?.personalTokenId).toBeUndefined();
+    expect(named?.personalTokenId).toBe("tok-chrome");
+  });
+
+  it("records last use at most once a minute", async () => {
+    await authenticateBearer(request(`Bearer ${NAMED}`));
+    expect(namedUpdate).toHaveBeenCalledTimes(1);
+    expect(namedUpdate).toHaveBeenCalledWith({
+      where: { id: "tok-chrome" },
+      data: { lastUsedAt: expect.any(Date) },
+    });
+
+    namedUpdate.mockClear();
+    namedFind.mockResolvedValueOnce({ ...NAMED_ROW, lastUsedAt: new Date() });
+    await authenticateBearer(request(`Bearer ${NAMED}`));
+    expect(namedUpdate).not.toHaveBeenCalled();
+
+    await authenticateBearer(request(`Bearer ${PERSONAL}`));
+    expect(legacyUpdate).toHaveBeenCalledTimes(1);
+    legacyUpdate.mockClear();
+    findUnique.mockResolvedValueOnce({
+      userId: "user-1",
+      tokenExpiresAt: null,
+      tokenLastUsedAt: new Date(),
+    });
+    await authenticateBearer(request(`Bearer ${PERSONAL}`));
+    expect(legacyUpdate).not.toHaveBeenCalled();
+  });
+
+  it("still authenticates when recording last use fails", async () => {
+    namedUpdate.mockRejectedValueOnce(new Error("db down"));
+    await expect(
+      authenticateBearer(request(`Bearer ${NAMED}`))
+    ).resolves.toMatchObject({ personalTokenId: "tok-chrome" });
   });
 
   it("accepts the scheme in any case and refuses anything else", async () => {

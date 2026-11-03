@@ -19,15 +19,18 @@ jest.mock("@/lib/notifications", () => ({
   notify: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
 
-const makeToken = jest.fn();
+const makeToken = jest.fn().mockResolvedValue(true);
 const mcp = {
   apps: [],
   failed: false,
   reload: jest.fn(),
   hasToken: false,
+  tokens: [],
   token: null,
+  tokenName: null,
   making: false,
   makeToken,
+  revokeToken: jest.fn(),
   disconnectApp: jest.fn(),
   url: "https://use.needt.app/api/mcp",
   oauthUrl: "https://mcp.needt.app/mcp",
@@ -55,11 +58,25 @@ describe("the Needt API sheet", () => {
     expect(host.querySelectorAll("[data-cn-copy-url]").length).toBe(2);
   });
 
-  it("creates an access token through the existing route's hook", () => {
+  it("asks for a name, then creates a named token through the hook", async () => {
+    act(() =>
+      host.querySelector<HTMLButtonElement>("[data-cn-newkey]")?.click()
+    );
+    const input = host.querySelector<HTMLInputElement>("#cn-token-name");
+    expect(input?.placeholder).toBe("Chrome");
     const button = host.querySelector<HTMLButtonElement>("[data-cn-genkey]");
-    expect(button?.textContent).toContain("Create token");
-    act(() => button?.click());
-    expect(makeToken).toHaveBeenCalledTimes(1);
+    expect(button?.disabled).toBe(true);
+    act(() => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value"
+      )?.set?.call(input, " Grok Bot ");
+      input?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      host.querySelector<HTMLButtonElement>("[data-cn-genkey]")?.click();
+    });
+    expect(makeToken).toHaveBeenCalledWith("Grok Bot");
   });
 
   it("links to the connector API docs", () => {

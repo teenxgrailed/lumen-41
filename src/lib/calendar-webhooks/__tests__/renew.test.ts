@@ -1,10 +1,15 @@
 import {
   listCalendarWebhooks,
   listPushEnabledCalendarFeeds,
+  recordCalendarFeedSyncFailure,
 } from "@/lib/calendar-db";
 import { registerGoogleWatch } from "@/lib/calendar-webhooks/google";
 import { renewOutlookSubscription } from "@/lib/calendar-webhooks/outlook";
-import { renewCalendarWebhooks } from "@/lib/calendar-webhooks/renew";
+import { registerOutlookSubscription } from "@/lib/calendar-webhooks/outlook";
+import {
+  CalendarWebhookRenewalError,
+  renewCalendarWebhooks,
+} from "@/lib/calendar-webhooks/renew";
 
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -12,6 +17,7 @@ jest.mock("@/lib/logger", () => ({
 jest.mock("@/lib/calendar-db", () => ({
   listCalendarWebhooks: jest.fn(),
   listPushEnabledCalendarFeeds: jest.fn(),
+  recordCalendarFeedSyncFailure: jest.fn(),
 }));
 jest.mock("@/lib/calendar-webhooks/google", () => ({
   registerGoogleWatch: jest.fn(),
@@ -39,9 +45,11 @@ describe("renewCalendarWebhooks", () => {
       if (id === "bad") throw new Error("revoked");
     });
 
-    await expect(renewCalendarWebhooks()).rejects.toThrow(
-      /1 feed\(s\): bad.*revoked/
-    );
+    const error = await renewCalendarWebhooks().catch((e) => e);
+    expect(error).toBeInstanceOf(CalendarWebhookRenewalError);
+    expect(error.name).toBe("CalendarWebhookRenewalError");
+    expect(error.message).toBe("Calendar webhook renewal failed for 1 feed(s)");
+    expect(recordCalendarFeedSyncFailure).not.toHaveBeenCalled();
     expect(registerGoogleWatch).toHaveBeenCalledWith("good-g");
     expect(renewOutlookSubscription).toHaveBeenCalledWith("good-o");
   });
@@ -53,5 +61,63 @@ describe("renewCalendarWebhooks", () => {
     await expect(renewCalendarWebhooks()).resolves.toEqual([
       { feedId: "a", provider: "GOOGLE", renewed: true },
     ]);
+  });
+
+  it("records a revoked token as needs-reconnect and does not throw", async () => {
+    (listCalendarWebhooks as jest.Mock).mockResolvedValue([
+      { feedId: "revoked", provider: "GOOGLE", expiration: soon },
+      { feedId: "good-o", provider: "OUTLOOK", expiration: soon },
+    ]);
+    const revoked = Object.assign(new Error("invalid_grant"), {
+      code: "invalid_grant",
+    });
+    (registerGoogleWatch as jest.Mock).mockRejectedValue(revoked);
+
+    await expect(renewCalendarWebhooks()).resolves.toEqual([
+      { feedId: "good-o", provider: "OUTLOOK", renewed: true },
+    ]);
+    expect(recordCalendarFeedSyncFailure).toHaveBeenCalledWith(
+      "revoked",
+      revoked
+    );
+  });
+
+  it("treats a revoked token while registering a missing watch the same way", async () => {
+    (listCalendarWebhooks as jest.Mock).mockResolvedValue([]);
+    (listPushEnabledCalendarFeeds as jest.Mock).mockResolvedValue([
+      { id: "new", type: "OUTLOOK", webhooks: [], nextSyncAttemptAt: null },
+    ]);
+    const unauthorized = Object.assign(new Error("nope"), { status: 401 });
+    (registerOutlookSubscription as jest.Mock).mockRejectedValue(unauthorized);
+
+    await expect(renewCalendarWebhooks()).resolves.toEqual([]);
+    expect(recordCalendarFeedSyncFailure).toHaveBeenCalledWith(
+      "new",
+      unauthorized
+    );
+  });
+
+  it("skips feeds that are backing off in both loops", async () => {
+    const later = new Date(Date.now() + 3_600_000);
+    (listCalendarWebhooks as jest.Mock).mockResolvedValue([
+      {
+        feedId: "waiting",
+        provider: "GOOGLE",
+        expiration: soon,
+        feed: { nextSyncAttemptAt: later },
+      },
+    ]);
+    (listPushEnabledCalendarFeeds as jest.Mock).mockResolvedValue([
+      {
+        id: "waiting-new",
+        type: "OUTLOOK",
+        webhooks: [],
+        nextSyncAttemptAt: later,
+      },
+    ]);
+
+    await renewCalendarWebhooks();
+    expect(registerGoogleWatch).not.toHaveBeenCalled();
+    expect(registerOutlookSubscription).not.toHaveBeenCalled();
   });
 });

@@ -30,6 +30,8 @@ const LOCAL_FUNCTION =
  */
 const PUBLIC_ROUTES: Record<string, string> = {
   "health/route.ts": "liveness probe, returns no data",
+  "[...missing]/route.ts":
+    "unknown /api/* address, answers 404 and reads nothing",
   "setup/route.ts":
     "first-run admin creation; refuses once any user exists (see route)",
   "setup/check/route.ts": "first-run probe, returns a boolean",

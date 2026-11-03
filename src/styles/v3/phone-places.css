@@ -25,7 +25,7 @@
 .needt-v3 .ppl-row-meta.is-late .pk-alert-dot { margin-top: 6px; }
 .needt-v3 .ppl-row-meta.is-late .ppl-row-meta-text { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .needt-v3 .ppl-row-act { flex: none; display: flex; align-items: center; }
-.needt-v3 .ppl-act.pk-btn.is-small { height: 38px; padding: 0 15px; border-radius: 19px; font-size: 14px; flex: none; }
+.needt-v3 .ppl-act.pk-btn.is-small { height: 38px; padding: 0 15px; border-radius: 19px; font-size: 13px; flex: none; }
 
 /* sections keep the kit's label; a little air between groups */
 .needt-v3 .ppl-sec + .ppl-sec { margin-top: 22px; }
@@ -62,7 +62,7 @@
 .needt-v3 .ppl-card-text { display: flex; flex-direction: column; gap: 2px; padding: 0 6px; min-width: 0; }
 .needt-v3 .ppl-card-title { font: 600 16px/20px var(--font-sans); letter-spacing: -0.02em; color: var(--v2p-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .needt-v3 .ppl-card-meta { font: 400 12px/16px var(--font-sans); color: var(--v2p-ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.needt-v3 .ppl-card-use.pk-btn.is-small { flex: none; align-self: flex-start; height: 36px; margin-left: 4px; padding: 0 18px; border-radius: 18px; font-size: 14px; }
+.needt-v3 .ppl-card-use.pk-btn.is-small { flex: none; align-self: flex-start; height: 36px; margin-left: 4px; padding: 0 18px; border-radius: 18px; font-size: 13px; }
 
 .needt-v3 .ppl-cover { display: block; padding: 14px 14px 0; height: 104px; box-sizing: border-box; border-radius: 19px; background: var(--ppl-cover-ground); overflow: hidden; }
 .needt-v3 .ppl-cover-page { display: flex; flex-direction: column; gap: 7px; height: 100%; padding: 12px 12px 0; box-sizing: border-box; border-radius: 10px 10px 0 0; background: var(--ppl-page); box-shadow: var(--ppl-page-shadow); }

@@ -25,9 +25,9 @@ const buttonVariants = cva(
       size: {
         // Motion sizes, measured 1:1: default = settings/modal action (Save task),
         // sm = toolbar/inline action (New), lg = prominent CTA.
-        default: "h-[30px] px-[7px] text-[14px] leading-[18px]",
+        default: "h-[30px] px-[7px] text-[13px] leading-[18px]",
         sm: "h-[25px] px-1.5 text-[13px] leading-[17px]",
-        lg: "h-9 px-3 text-[14px] leading-[18px]",
+        lg: "h-9 px-3 text-[13px] leading-[18px]",
         icon: "h-[30px] w-[30px] px-0",
       },
     },

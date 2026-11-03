@@ -1,27 +1,28 @@
-import { randomUUID } from "crypto";
-
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
-import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 
-import { NO_AGENT_TASK_AFTER_MS } from "./constants";
+import { pushOwnerAlert } from "./alerts";
+import { NO_AGENT_ALERT_AFTER_MS } from "./constants";
 import type { WorkspaceKey } from "./context";
-import { createOwnerTask, noteExpiredLeases, skillsCover } from "./items";
+import { noteExpiredLeases, skillsCover } from "./items";
 
 /**
  * An open "any capable" item that no registered, enabled agent can do for 24
- * hours creates exactly one owner task, stored on the item. The check is lazy
+ * hours raises exactly one owner alert (an unread badge on the Agents item and
+ * a push to `/agents?item=<id>`). It creates no Needt task. The check is lazy
  * (it runs on hub reads) and idempotent: the conditional update below can
- * succeed for one reader only, so a second reader creates no second task.
+ * succeed for one reader only, so a second reader raises no second alert.
  */
 export async function raiseNoCapableAgent(key: WorkspaceKey) {
-  const cutoff = newDate(newDate().getTime() - NO_AGENT_TASK_AFTER_MS);
+  const cutoff = newDate(newDate().getTime() - NO_AGENT_ALERT_AFTER_MS);
   const stale = await prisma.hubItem.findMany({
     where: {
       userId: key.userId,
       workspaceId: key.workspaceId,
       status: "open",
       assigneeAgentId: null,
+      noAgentAlertedAt: null,
+      // Rows from before alerts replaced tasks already got their task.
       noAgentTaskId: null,
       createdAt: { lt: cutoff },
     },
@@ -43,30 +44,23 @@ export async function raiseNoCapableAgent(key: WorkspaceKey) {
     ) {
       continue;
     }
-    const taskId = randomUUID();
     const now = newDate();
     const made = await prisma.$transaction(async (tx) => {
       const claimed = await tx.hubItem.updateMany({
         where: {
           id: item.id,
-          noAgentTaskId: null,
+          noAgentAlertedAt: null,
           status: "open",
           assigneeAgentId: null,
         },
-        data: { noAgentTaskId: taskId, version: { increment: 1 } },
+        data: {
+          noAgentAlertedAt: now,
+          ownerUnread: true,
+          ownerAlertedAt: now,
+          version: { increment: 1 },
+        },
       });
       if (claimed.count === 0) return false;
-      await createOwnerTask(tx, {
-        id: taskId,
-        userId: key.userId,
-        workspaceId: key.workspaceId,
-        title: `No agent for: ${item.title}`,
-        description: [
-          `No connected agent has the skills this item needs (${item.requiredSkills.join(", ")}) after 24 hours.`,
-          "Connect an agent that can do it, change the skills, or cancel the item on the Agents screen:",
-          `/agents?item=${item.id}`,
-        ].join("\n"),
-      });
       await tx.hubItemEvent.create({
         data: {
           itemId: item.id,
@@ -76,15 +70,21 @@ export async function raiseNoCapableAgent(key: WorkspaceKey) {
           fromStatus: "open",
           toStatus: "open",
           message:
-            "No registered agent has the required skills after 24 hours; an owner task was created.",
-          data: { taskId, requiredSkills: item.requiredSkills },
+            "No registered agent has the required skills after 24 hours; the owner was alerted.",
+          data: { requiredSkills: item.requiredSkills },
         },
       });
       return true;
     });
-    if (made) raised += 1;
+    if (made) {
+      raised += 1;
+      await pushOwnerAlert(key.userId, {
+        title: "No agent for a task",
+        body: item.title,
+        itemId: item.id,
+      });
+    }
   }
-  if (raised) await publishRealtimeEventSafe(key.userId, "tasks-updated");
   return raised;
 }
 

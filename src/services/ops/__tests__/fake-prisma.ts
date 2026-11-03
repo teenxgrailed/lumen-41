@@ -78,6 +78,7 @@ export function createFakePrisma() {
     agentRun: [],
     userSettings: [],
     connectorSettings: [],
+    personalApiToken: [],
     taskReminder: [],
     taskAttachment: [],
     workSchedule: [],

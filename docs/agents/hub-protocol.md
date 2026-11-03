@@ -29,11 +29,14 @@ this protocol.
 - An item lists `risks` (any of `money`, `send_message`, `publish`,
   `delete`). Before the step that carries a risk, call
   `needt_agent_task_escalate` with a concrete `question`, optional `options`
-  and the `risk`. The item becomes `needs_owner` and the owner gets one Needt
-  task. Stop and release the item.
-- Only the owner answers (Agents screen). Ticking the linked task does not
-  approve anything. After the answer the item is open again; claim it and read
-  the answer in its log.
+  and the `risk`. The item becomes `needs_owner` and the owner gets a push
+  notification and an unread mark on the Agents screen (no Needt task is
+  created: the hub is kept apart from the owner's own tasks). Stop and release
+  the item.
+- Only the owner answers (Agents screen, by clicking). After the answer the
+  item is open again; claim it and read the answer in its log.
+- If no registered agent has the skills an unassigned item needs, the owner is
+  alerted the same way after 24 hours. Keep your `skills` accurate.
 - `complete` with outcome `done` is refused (`APPROVAL_REQUIRED`) until the
   owner approved every declared risk. Never work around it.
 
@@ -54,7 +57,17 @@ risk the work could carry; when unsure, list it.
 
 `needt_memory_write` for facts other agents will need (accounts, where things
 live, what failed and why), with `tags`. `needt_memory_search` before asking
-the owner. Notes are for agents and the Agents screen, not Needt's assistant.
+the owner. Notes are for agents, the Agents screen (Memory tab) and Needt's own
+assistant, which reads and writes them as the agent "Needt assistant". They
+are not about the owner: what Needt learns about the owner is a separate list
+("About you").
+
+## Where it shows
+
+Everything here lives on the Agents screen (`/agents`). Nothing from the hub
+appears in the owner's Today, Tasks, Calendar or the scheduler. An item can
+link to one of the owner's tasks or projects (`taskId`, `projectId`, links);
+that is a reference, not a copy.
 
 ## Never
 

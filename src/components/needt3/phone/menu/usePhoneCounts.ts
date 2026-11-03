@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { useAgentHubNav } from "@/lib/needt3/hooks/agent-hub";
 import { useBoards } from "@/lib/needt3/hooks/boards";
 import { useConnections } from "@/lib/needt3/hooks/connections";
 import { useDocs } from "@/lib/needt3/hooks/docs";
@@ -55,6 +56,7 @@ export function usePhoneCounts(): MenuCounts {
   const habits = useHabits();
   const checkins = useCheckins();
   const connections = useConnections();
+  const agentHub = useAgentHubNav();
 
   const docEditedMs = useMemo(() => {
     const m = new Map<string, number>();
@@ -64,8 +66,8 @@ export function usePhoneCounts(): MenuCounts {
   }, [docs.data]);
 
   return useMemo(
-    () =>
-      buildMenuCounts({
+    () => ({
+      ...buildMenuCounts({
         now: now.stamp,
         nowMs: now.ms,
         tasks: tasks.data,
@@ -79,6 +81,8 @@ export function usePhoneCounts(): MenuCounts {
         checkins: checkins.data,
         connections: connections.data,
       }),
+      ...(agentHub.enabled ? { agents: { unread: agentHub.unread } } : {}),
+    }),
     [
       now,
       tasks.data,
@@ -91,6 +95,8 @@ export function usePhoneCounts(): MenuCounts {
       habits.data,
       checkins.data,
       connections.data,
+      agentHub.enabled,
+      agentHub.unread,
     ]
   );
 }

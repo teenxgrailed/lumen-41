@@ -1,0 +1,1 @@
+- Interface text that was 14px is now 13px (buttons, date picker, command palette, Starter game controls, phone mail time), matching the 13/12 type scale.

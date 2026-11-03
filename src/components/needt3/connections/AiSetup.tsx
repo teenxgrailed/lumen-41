@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { FiCopy, FiKey } from "react-icons/fi";
 
 import { formatShortDate } from "@/lib/date-utils";
@@ -7,7 +9,7 @@ import { notify } from "@/lib/notifications";
 
 import { BrandIcon, brandIdFor } from "../brand";
 import { AI_META, type AiToolId, maskToken, richParts, stepData } from "./mcp";
-import type { McpConnect, TokenExpiry } from "./useMcpConnect";
+import type { McpConnect, PersonalToken } from "./useMcpConnect";
 
 async function copy(text: string, what: string) {
   try {
@@ -37,59 +39,166 @@ export function CopyRow({ value, what }: { value: string; what: string }) {
   );
 }
 
-/**
- * When the current token stops working. A token made before expiry existed has
- * no date and keeps working until it is rotated.
- */
-function expiryLine(expiry: TokenExpiry | null): string {
-  if (!expiry) return "";
-  if (!expiry.at) return "It does not expire. ";
-  const when = formatShortDate(expiry.at, true);
-  return expiry.expired ? `It expired ${when}. ` : `It expires ${when}. `;
+const day = (v: string | null) =>
+  v ? formatShortDate(new Date(v), true) : "never";
+
+/** One line under a token's name: preview, last use, expiry. */
+function tokenMeta(t: PersonalToken): string {
+  const expiry = !t.expiresAt
+    ? "does not expire"
+    : t.expired
+      ? `expired ${day(t.expiresAt)}`
+      : `expires ${day(t.expiresAt)}`;
+  return `${t.tokenPreview} · last used ${day(t.lastUsedAt)} · ${expiry}`;
 }
 
-/** The access token: one click makes it, shown once with Copy. */
+function TokenRow({
+  token: t,
+  onRevoke,
+}: {
+  token: PersonalToken;
+  onRevoke: () => void;
+}) {
+  return (
+    <div className="cn-app-row" data-cn-token-row={t.id}>
+      <span className="cn-setup-col">
+        <span className="cn-c-name">{t.name}</span>
+        <span className="cn-meta" data-cn-token-meta="">
+          {tokenMeta(t)}
+        </span>
+      </span>
+      <button
+        type="button"
+        className="nx-btn nx-btn-secondary nx-btn-sm"
+        data-cn-token-revoke={t.id}
+        onClick={onRevoke}
+      >
+        Revoke
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Personal access tokens: one per tool, so making one never disconnects
+ * another. Each is listed with its name, preview and last use; a new one asks
+ * for a name and is shown once with Copy.
+ */
 export function TokenStep({ mcp }: { mcp: McpConnect }) {
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState("");
+  const tokens = mcp.tokens ?? [];
+  const create = async () => {
+    if (!name.trim() || mcp.making) return;
+    if (await mcp.makeToken(name.trim())) {
+      setNaming(false);
+      setName("");
+    }
+  };
   return (
     <div className="cn-key-col">
       {mcp.token ? (
-        <div className="cn-copy-row-row">
-          <span className="cn-url" data-cn-token="shown">
-            {mcp.token}
+        <div className="cn-key-col">
+          <span className="cn-meta" data-cn-token-name="">
+            {mcp.tokenName}
           </span>
+          <div className="cn-copy-row-row">
+            <span className="cn-url" data-cn-token="shown">
+              {mcp.token}
+            </span>
+            <button
+              type="button"
+              className="nx-btn nx-btn-secondary nx-btn-sm"
+              data-cn-copy-key=""
+              onClick={() => void copy(mcp.token ?? "", "Token")}
+            >
+              <FiCopy size={13} aria-hidden />
+              Copy
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {tokens.length ? (
+        <div data-cn-tokens="">
+          {tokens.map((t) => (
+            <TokenRow
+              key={t.id}
+              token={t}
+              onRevoke={() => void mcp.revokeToken(t)}
+            />
+          ))}
+        </div>
+      ) : null}
+      {naming ? (
+        <form
+          className="nt-form"
+          data-cn-token-form=""
+          onSubmit={(e) => {
+            e.preventDefault();
+            void create();
+          }}
+        >
+          <div className="nt-row">
+            <label className="nt-row-label" htmlFor="cn-token-name">
+              Name
+            </label>
+            <div className="nt-row-control">
+              <input
+                id="cn-token-name"
+                className="nt-input"
+                name="token-name"
+                maxLength={60}
+                autoComplete="off"
+                autoFocus
+                spellCheck={false}
+                placeholder="Chrome"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="cn-key-row">
+            <button
+              type="submit"
+              className="nx-btn nx-btn-secondary nx-btn-sm"
+              data-cn-genkey=""
+              disabled={mcp.making || !name.trim()}
+            >
+              <FiKey size={13} aria-hidden />
+              Create token
+            </button>
+            <button
+              type="button"
+              className="nx-btn nx-btn-secondary nx-btn-sm"
+              data-cn-token-cancel=""
+              onClick={() => {
+                setNaming(false);
+                setName("");
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="cn-key-row">
           <button
             type="button"
             className="nx-btn nx-btn-secondary nx-btn-sm"
-            data-cn-copy-key=""
-            onClick={() => void copy(mcp.token ?? "", "Token")}
+            data-cn-newkey=""
+            onClick={() => setNaming(true)}
           >
-            <FiCopy size={13} aria-hidden />
-            Copy
+            <FiKey size={13} aria-hidden />
+            New token
           </button>
         </div>
-      ) : null}
-      <div className="cn-key-row">
-        <button
-          type="button"
-          className="nx-btn nx-btn-secondary nx-btn-sm"
-          data-cn-genkey=""
-          disabled={mcp.making}
-          onClick={() => void mcp.makeToken()}
-        >
-          <FiKey size={13} aria-hidden />
-          {mcp.hasToken || mcp.token ? "Create a new token" : "Create token"}
-        </button>
-      </div>
+      )}
       <span className="cn-meta">
         {mcp.token
           ? `Copy it now, it is not shown again (${maskToken(mcp.token)}).`
-          : mcp.tokenExpiry?.expired
-            ? "Tools using your token are disconnected."
-            : mcp.hasToken
-              ? "You already have a token; it can't be shown again."
-              : "Treat it like a password."}{" "}
-        <span data-cn-token-expiry="">{expiryLine(mcp.tokenExpiry)}</span>A new
-        token disconnects every agent using the old one.
+          : "Treat a token like a password."}{" "}
+        Name it after the tool that will use it (Grok Bot, Chrome, a script).
+        Revoking one leaves the others connected.
       </span>
     </div>
   );

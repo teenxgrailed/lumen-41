@@ -153,7 +153,9 @@ export async function listAgentsForOwner(key: WorkspaceKey) {
       ? "agent token"
       : agent.connectionKey.startsWith("oauth:")
         ? "OAuth app"
-        : "personal token",
+        : agent.connectionKey === "assistant"
+          ? "Needt assistant"
+          : "personal token",
     sharesPersonalToken: agent.connectionKey === "personal",
     token: agent.token
       ? {

@@ -50,12 +50,19 @@ export function normalizeYt(raw) {
  * channels). A broken regex is ignored instead of throwing.
  * @returns {{ re: RegExp } | { text: string } | null}
  */
+/** Longest /regex/ body accepted in a block list. */
+export const MAX_PATTERN_LENGTH = 200;
+
 export function parseEntry(line) {
   const text = String(line ?? "").trim();
   if (!text) return null;
   const m = /^\/(.+)\/([a-z]*)$/.exec(text);
   if (m) {
+    // The person types their own block-list patterns; they only ever run on
+    // their own device. Cap the length so a pasted pattern stays cheap.
+    if (m[1].length > MAX_PATTERN_LENGTH) return null;
     try {
+      // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
       return { re: new RegExp(m[1], m[2].includes("i") ? m[2] : m[2] + "i") };
     } catch {
       return null;

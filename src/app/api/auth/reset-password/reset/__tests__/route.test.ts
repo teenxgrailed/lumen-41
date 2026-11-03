@@ -16,6 +16,7 @@ jest.mock("@/lib/prisma", () => ({
     $transaction: jest.fn(),
     account: { update: jest.fn() },
     connectorSettings: { updateMany: jest.fn() },
+    personalApiToken: { updateMany: jest.fn() },
     passwordReset: { findFirst: jest.fn(), update: jest.fn() },
     user: { update: jest.fn() },
   },
@@ -25,6 +26,7 @@ const mocked = prisma as unknown as {
   $transaction: jest.Mock;
   account: { update: jest.Mock };
   connectorSettings: { updateMany: jest.Mock };
+  personalApiToken: { updateMany: jest.Mock };
   passwordReset: { findFirst: jest.Mock; update: jest.Mock };
   user: { update: jest.Mock };
 };
@@ -44,6 +46,7 @@ describe("POST /api/auth/reset-password/reset", () => {
     mocked.passwordReset.update.mockReturnValue("token-write");
     mocked.user.update.mockReturnValue("session-version-write");
     mocked.connectorSettings.updateMany.mockReturnValue("connector-revoke");
+    mocked.personalApiToken.updateMany.mockReturnValue("named-revoke");
     mocked.$transaction.mockResolvedValue([]);
   });
 
@@ -74,12 +77,22 @@ describe("POST /api/auth/reset-password/reset", () => {
       expect.arrayContaining([
         "session-version-write",
         "connector-revoke",
+        "named-revoke",
         "account-write",
       ])
     );
     expect(mocked.connectorSettings.updateMany).toHaveBeenCalledWith({
       where: { userId: "user-1", tokenHash: { not: null } },
-      data: { tokenHash: null, tokenPreview: null, tokenExpiresAt: null },
+      data: {
+        tokenHash: null,
+        tokenPreview: null,
+        tokenExpiresAt: null,
+        tokenLastUsedAt: null,
+      },
+    });
+    expect(mocked.personalApiToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
     });
   });
 

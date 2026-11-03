@@ -17,7 +17,7 @@ The extension does not offer settings for profiles. People keep them with the ag
 ## Run it
 
 1. `chrome://extensions` → Developer mode → Load unpacked → this folder.
-2. Options → paste a token from Needt Settings → Personal API → Save and check.
+2. In Needt, Connections → AI tools → New token, name it e.g. `Chrome` and copy it (shown once). Options → paste it → Save and check. The extension has its own token, so revoking or making others never disconnects it.
 
 The YouTube part needs no token: it works right after install.
 

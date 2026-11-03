@@ -51,6 +51,7 @@ const BLOCKED: Array<[SandboxCapability, string, string]> = [
   ["providers", "PUT", "/api/ai-settings"],
   ["webhooks", "PATCH", "/api/connector-settings"],
   ["api_tokens", "POST", "/api/connector-settings"],
+  ["api_tokens", "POST", "/api/personal-tokens"],
   ["invites", "POST", "/api/workspaces/ws_1/invites"],
   ["public_share", "POST", "/api/pages/page_1/publication"],
   ["public_share", "PUT", "/api/pages/page_1/permissions"],

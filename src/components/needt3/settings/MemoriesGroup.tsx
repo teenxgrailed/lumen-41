@@ -13,15 +13,19 @@ import {
  * memories on the list asks whether to keep or delete them. The list is
  * readable either way, and every line can be edited or deleted.
  */
-export function MemoriesGroup() {
+export function MemoriesGroup({
+  title = "Memories",
+  hint = "What Needt knows about you, so Ask and the planner fit you better.",
+}: {
+  /** The Agents screen shows the same list as its "About you" layer. */
+  title?: string;
+  hint?: string;
+} = {}) {
   const m = useMemoriesControl();
   const { editing } = m;
 
   return (
-    <SGroup
-      title="Memories"
-      hint="What Needt knows about you, so Ask and the planner fit you better."
-    >
+    <SGroup title={title} hint={hint}>
       <SRow
         title="Let Needt learn about me"
         desc="Learns your work habits from your tasks, the preferences you tell Ask, and short facts from your documents and mail subjects. Never mail bodies. Off, nothing is learned and nothing learned is used."

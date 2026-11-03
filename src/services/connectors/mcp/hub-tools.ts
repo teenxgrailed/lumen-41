@@ -30,7 +30,9 @@ import type { McpTool, McpToolContext, McpToolResult } from "./tools";
 
 /**
  * The agent hub tools (openspec add-agent-hub). Handoffs and notes between
- * agents: not tasks for the person, and not `needt_remember` memories.
+ * agents: not tasks for the person (nothing here ever creates one, and nothing
+ * here shows in Today, Tasks, Calendar or the scheduler), and not
+ * `needt_remember` memories.
  *
  * They exist only for accounts with the `agent_hub` flag: `tools/list` hides
  * them and a call answers method-not-found otherwise. The scope rule
@@ -184,7 +186,7 @@ export const HUB_TOOLS: McpTool[] = [
       name: "needt_agent_task_escalate",
       title: "Ask the owner",
       description:
-        "Stop and ask the owner: sets the item to needs_owner, releases your lease and creates one Needt task for the person linking back to it. Only the owner can answer or approve, on the Agents screen; completing the Needt task does not. Use it before any money, message, publish or delete step. Agent hub only.",
+        "Stop and ask the owner: sets the item to needs_owner, releases your lease and alerts the owner (a push and an unread mark on the Agents screen, not a Needt task). Only the owner can answer or approve, on the Agents screen. Use it before any money, message, publish or delete step. Agent hub only.",
       input: escalateInput,
       write: true,
     },

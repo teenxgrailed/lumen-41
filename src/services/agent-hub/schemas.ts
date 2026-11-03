@@ -168,6 +168,21 @@ export const cancelInput = z.object({
 });
 export type CancelInput = z.infer<typeof cancelInput>;
 
+export const editItemInput = z.object({
+  id: z.string().min(1).max(100),
+  title: z.string().min(1).max(200).optional(),
+  goal: z.string().min(1).max(4000).optional(),
+  doneCriteria: z.string().min(1).max(2000).optional(),
+  context: z.string().min(1).max(8000).optional(),
+  due: z
+    .string()
+    .max(40)
+    .optional()
+    .describe("ISO 8601 date or date-time; an empty string clears it."),
+  expectedVersion: z.number().int().min(1).optional(),
+});
+export type EditItemInput = z.infer<typeof editItemInput>;
+
 export const noteWriteInput = z.object({
   text: z.string().min(1).max(2000),
   tags: z.array(z.string().min(1).max(40)).max(10).optional(),

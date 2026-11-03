@@ -33,6 +33,9 @@ export function connectionKeyOf(auth: BearerAuth): string {
     return `token:${auth.agentTokenId}`;
   }
   if (auth.kind === "oauth" && auth.clientId) return `oauth:${auth.clientId}`;
+  if (auth.kind === "personal" && auth.personalTokenId) {
+    return `token:${auth.personalTokenId}`;
+  }
   return "personal";
 }
 
@@ -43,6 +46,9 @@ async function defaultAgentName(auth: BearerAuth): Promise<string> {
       select: { name: true },
     });
     if (client?.name.trim()) return client.name.trim().slice(0, 60);
+  }
+  if (auth.kind === "personal" && auth.personalTokenName?.trim()) {
+    return auth.personalTokenName.trim().slice(0, 60);
   }
   if (auth.kind === "agent") return "Agent";
   return auth.kind === "oauth" ? "OAuth client" : "Personal token";
@@ -156,6 +162,60 @@ export async function resolveAgentScope(input: {
   return {
     userId: auth.userId,
     workspaceId,
+    actor: { kind: "agent", agent },
+  };
+}
+
+/** The connection key of the in-app assistant's own agent row. */
+export const ASSISTANT_CONNECTION_KEY = "assistant";
+
+/**
+ * The scope for Needt's own in-app assistant (Ask). It is an agent like any
+ * other: a registered row with its own name, so what it creates and writes is
+ * attributed to it, and it can change or cancel only what it created. It is
+ * never the owner, so it cannot answer an escalation or approve a risk;
+ * those stay clicks on the Agents screen. The flag is checked here again,
+ * whatever the caller already decided.
+ */
+export async function assistantAgentScope(
+  key: WorkspaceKey
+): Promise<AgentScope> {
+  await assertHubEnabled(key.userId);
+  const where = {
+    userId_workspaceId_connectionKey: {
+      userId: key.userId,
+      workspaceId: key.workspaceId,
+      connectionKey: ASSISTANT_CONNECTION_KEY,
+    },
+  };
+  let agent = await prisma.hubAgent.findUnique({ where });
+  if (!agent) {
+    try {
+      agent = await prisma.hubAgent.create({
+        data: {
+          userId: key.userId,
+          workspaceId: key.workspaceId,
+          connectionKey: ASSISTANT_CONNECTION_KEY,
+          name: "Needt assistant",
+          kind: "other",
+          capabilities:
+            "The assistant inside Needt (Ask). It hands work to other agents and tracks it; it does not take work itself.",
+          skills: [],
+          lastSeenAt: newDate(),
+        },
+      });
+    } catch (error) {
+      // Two first calls at once: the loser reads the winner's row.
+      agent = await prisma.hubAgent.findUnique({ where });
+      if (!agent) throw error;
+    }
+  }
+  if (agent.disabledAt) {
+    throw new HubError("FORBIDDEN", "The Needt assistant is disabled here.");
+  }
+  return {
+    userId: key.userId,
+    workspaceId: key.workspaceId,
     actor: { kind: "agent", agent },
   };
 }

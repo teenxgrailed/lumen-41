@@ -102,6 +102,8 @@ export const qk = {
   focusStats: () => [V3, "focus", "stats"] as const,
 
   connections: () => [V3, "connections"] as const,
+  /** Whether the Agents item shows, and its unread count (`GET /api/agent-hub/badge`). */
+  agentHubNav: () => [V3, "agent-hub-nav"] as const,
   settings: () => [V3, "settings"] as const,
   /** The changelog feed and what is unseen (`GET /api/whats-new`). */
   whatsNew: () => [V3, "whats-new"] as const,
