@@ -69,6 +69,14 @@ jest.mock("@/services/agent-hub/items", () => ({
   listItems: (...args: unknown[]) => listItems(...args),
   readItemAsOwner: (...args: unknown[]) => readItemAsOwner(...args),
 }));
+const linkItems = jest.fn();
+const unlinkItems = jest.fn();
+const createPlan = jest.fn();
+jest.mock("@/services/agent-hub/graph", () => ({
+  linkItems: (...args: unknown[]) => linkItems(...args),
+  unlinkItems: (...args: unknown[]) => unlinkItems(...args),
+  createPlan: (...args: unknown[]) => createPlan(...args),
+}));
 const writeNote = jest.fn();
 const searchNotes = jest.fn();
 jest.mock("@/services/agent-hub/notes", () => ({
@@ -229,6 +237,78 @@ describe("the assistant can use the hub", () => {
     expect(agents.modelText).toContain("Grok Bot");
   });
 
+  it("links items, plans work and lists only what is ready, as its own agent", async () => {
+    linkItems.mockResolvedValue({ linked: true, link: {}, items: [] });
+    unlinkItems.mockResolvedValue({ unlinked: true, items: [] });
+    createPlan.mockResolvedValue({
+      created: true,
+      plan: { item: { id: "p", title: "Ship it" }, steps: [{}, {}] },
+    });
+    const options = { confirmed: false, settings: SETTINGS_ON };
+    const linked = await runAgentToolCall(
+      context(),
+      "hub_link_items",
+      { fromId: "a", toId: "b", kind: "blocks" },
+      options
+    );
+    expect(linked.ok).toBe(true);
+    expect(linked.changed).toBe(false);
+    expect(linkItems.mock.calls[0][0].actor).toEqual({
+      kind: "agent",
+      agent: agentRow,
+    });
+    expect(linkItems.mock.calls[0][1]).toEqual({
+      fromId: "a",
+      toId: "b",
+      kind: "blocks",
+    });
+    const bad = await runAgentToolCall(
+      context(),
+      "hub_link_items",
+      { fromId: "a", toId: "b", kind: "follows" },
+      options
+    );
+    expect(bad.ok).toBe(false);
+    expect(linkItems).toHaveBeenCalledTimes(1);
+
+    const unlinked = await runAgentToolCall(
+      context(),
+      "hub_unlink_items",
+      { fromId: "a", toId: "b", kind: "blocks" },
+      options
+    );
+    expect(unlinked.ok).toBe(true);
+
+    const plan = await runAgentToolCall(
+      context(),
+      "hub_create_plan",
+      { ...brief, children: [{ ...brief, title: "Step one" }] },
+      options
+    );
+    expect(plan.ok).toBe(true);
+    expect(plan.summary).toBe("Planned “Ship it” with 2 steps");
+    expect(createPlan.mock.calls[0][0].actor.kind).toBe("agent");
+
+    listItems.mockResolvedValue([
+      { id: "r", title: "Ready", status: "open", ready: true, blockedBy: [] },
+      {
+        id: "w",
+        title: "Waiting",
+        status: "open",
+        ready: false,
+        blockedBy: ["r"],
+      },
+    ]);
+    const ready = await runAgentToolCall(
+      context(),
+      "hub_list_items",
+      { ready: true },
+      options
+    );
+    expect(ready.modelText).toContain('"id":"r"');
+    expect(ready.modelText).not.toContain('"id":"w"');
+  });
+
   it("reads and writes agent notes", async () => {
     searchNotes.mockResolvedValue({ notes: [{ id: "n1", text: "hi" }] });
     writeNote.mockResolvedValue({ note: { id: "n2" } });
@@ -307,6 +387,8 @@ describe("the assistant can use the hub", () => {
     expect(isMutatingToolCall("hub_create_item", {})).toBe(true);
     expect(isMutatingToolCall("needt_memory_write", {})).toBe(true);
     expect(isMutatingToolCall("hub_cancel_item", {})).toBe(true);
+    expect(isMutatingToolCall("hub_link_items", {})).toBe(true);
+    expect(isMutatingToolCall("hub_create_plan", {})).toBe(true);
   });
 });
 
@@ -336,6 +418,9 @@ describe("the assistant cannot decide for the owner", () => {
       "hub_create_item",
       "hub_update_item",
       "hub_cancel_item",
+      "hub_link_items",
+      "hub_unlink_items",
+      "hub_create_plan",
     ]) {
       expect(getHubAgentTool(name)?.description).toContain(
         "cannot approve a risk or answer an escalation"

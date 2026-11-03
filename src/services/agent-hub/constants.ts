@@ -66,3 +66,22 @@ export const SUGGESTED_POLL_SECONDS_IDLE = 300;
 
 /** Events returned with each inbox row, newest last. */
 export const INBOX_EVENTS_PER_ITEM = 5;
+
+/** Link kinds between items. Only `blocks` changes what can be claimed. */
+export const LINK_KINDS = [
+  "blocks",
+  "relates",
+  "duplicates",
+  "supersedes",
+  "parent",
+] as const;
+export type LinkKind = (typeof LINK_KINDS)[number];
+/** Kinds that must stay acyclic. */
+export const ACYCLIC_LINK_KINDS: readonly string[] = ["blocks", "parent"];
+export const MAX_LINKS_PER_ITEM = 50;
+/** Steps of a plan, and checklist items of one item. */
+export const PLAN_MAX_CHILDREN = 20;
+export const CHECKLIST_MAX_ITEMS = 20;
+
+/** A held item with no update for this long is flagged stale in views. */
+export const STALE_AFTER_MS = 4 * 60 * 60 * 1000;

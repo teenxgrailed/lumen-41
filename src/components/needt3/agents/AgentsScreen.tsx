@@ -24,12 +24,30 @@ interface HubEvent {
   actor: { kind: string; name?: string } | null;
 }
 
+interface HubRelation {
+  kind: string;
+  /** out: this item is the source (it blocks, is the parent of, ...). */
+  direction: "out" | "in";
+  item: { id: string; title: string; status: string };
+}
+
 interface HubItemRow {
   id: string;
   title: string;
   status: string;
   goal: string;
   doneCriteria: string;
+  /** The done-criteria as a checklist; `met` is null until the item is done. */
+  criteria?: { text: string; met: boolean | null }[];
+  relations?: HubRelation[];
+  blockedBy?: string[];
+  /** Held for over four hours with no update. */
+  stale?: boolean;
+  usage?: {
+    tokens: number | null;
+    costUsd: number | null;
+    minutes: number | null;
+  } | null;
   risks: string[];
   approvals: Record<string, unknown>;
   assignee: Named;
@@ -103,6 +121,39 @@ const STATUS_LABEL: Record<string, string> = {
 function when(iso: string | null | undefined) {
   if (!iso) return "never";
   return formatDateToLocal(newDate(iso));
+}
+
+const RELATION_OUT: Record<string, string> = {
+  blocks: "Blocks",
+  parent: "Parent of",
+  relates: "Relates to",
+  duplicates: "Duplicates",
+  supersedes: "Supersedes",
+};
+
+const RELATION_IN: Record<string, string> = {
+  blocks: "Blocked by",
+  parent: "Part of",
+  relates: "Relates to",
+  duplicates: "Duplicated by",
+  supersedes: "Superseded by",
+};
+
+function relationLine(relation: HubRelation) {
+  const label = (relation.direction === "out" ? RELATION_OUT : RELATION_IN)[
+    relation.kind
+  ];
+  const status = STATUS_LABEL[relation.item.status] ?? relation.item.status;
+  return `${label ?? relation.kind}: ${relation.item.title} (${status})`;
+}
+
+function usageLine(usage: NonNullable<HubItemRow["usage"]>) {
+  const parts = [
+    usage.tokens != null ? `${usage.tokens.toLocaleString("en")} tokens` : "",
+    usage.costUsd != null ? `$${usage.costUsd.toFixed(2)}` : "",
+    usage.minutes != null ? `${usage.minutes} min` : "",
+  ].filter(Boolean);
+  return parts.length ? `Usage: ${parts.join(", ")}` : "";
 }
 
 function latest(item: HubItemRow) {
@@ -237,7 +288,9 @@ export function AgentsScreen() {
               item.leaseExpired ? " (expired)" : ""
             }.`
           : ""
-      }${item.noCapableAgent ? " No capable agent." : ""}`}
+      }${item.noCapableAgent ? " No capable agent." : ""}${
+        item.blockedBy?.length ? ` Waiting on ${item.blockedBy.length}.` : ""
+      }${item.stale ? " No update for over 4 hours." : ""}`}
       expanded={open === item.id}
       onClick={async () => {
         const next = open === item.id ? null : item.id;
@@ -545,7 +598,24 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
   return (
     <div className="base-stack base-meta">
       <span>{`Goal: ${item.goal}`}</span>
-      <span>{`Done when: ${item.doneCriteria}`}</span>
+      {item.criteria?.length ? (
+        <>
+          <span>Done when:</span>
+          {item.criteria.map((entry, index) => (
+            <span key={index}>
+              {`${entry.met === null ? "Open" : entry.met ? "Met" : "Not met"}: ${entry.text}`}
+            </span>
+          ))}
+        </>
+      ) : (
+        <span>{`Done when: ${item.doneCriteria}`}</span>
+      )}
+      {(item.relations ?? []).map((relation, index) => (
+        <span key={index}>{relationLine(relation)}</span>
+      ))}
+      {item.usage && usageLine(item.usage) ? (
+        <span>{usageLine(item.usage)}</span>
+      ) : null}
       {item.result?.summary ? (
         <span>{`Result: ${item.result.summary}`}</span>
       ) : null}
