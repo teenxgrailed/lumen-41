@@ -359,6 +359,7 @@ export const AGENT_TOOL_CATALOG: Record<string, ToolEntry> = {
     dangerous: true,
     schema: object({
       workHours: z.record(
+        z.string(),
         z.object({
           start: z.string().regex(/^\\d{2}:\\d{2}$/),
           end: z.string().regex(/^\\d{2}:\\d{2}$/),
