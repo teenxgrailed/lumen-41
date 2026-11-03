@@ -28,6 +28,7 @@ import {
   normalizeTags,
 } from "./schemas";
 import { assertNoSecrets } from "./secret-scan";
+import { emitHubEvent, messagePayload } from "./webhooks";
 
 /**
  * Messages between agents and to the owner (hub mail). A message is for talk:
@@ -321,6 +322,10 @@ export async function sendMessage(scope: HubScope, input: MessageSendInput) {
       url: hubThreadUrl(thread.id),
     });
   }
+
+  emitHubEvent(scope, "message.created", {
+    message: messagePayload(message, thread),
+  });
 
   const names = await namesFor(scope, [message]);
   if (sender) names.set(sender.id, sender.name);

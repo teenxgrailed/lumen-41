@@ -5,6 +5,7 @@ import {
   getBugReportSyncQueue,
   getCalendarSyncQueue,
   getFocusQueue,
+  getHubWebhookQueue,
   getImportQueue,
   getMailSyncQueue,
   getReminderQueue,
@@ -247,4 +248,25 @@ export async function cancelFocusEnd(sessionId: string) {
   if (!job) return false;
   await job.remove().catch(() => undefined);
   return true;
+}
+
+/** Queue one webhook delivery attempt, now or `delayMs` from now. */
+export async function enqueueHubWebhookDelivery(
+  deliveryId: string,
+  attempt: number,
+  delayMs = 0
+) {
+  if (await skipWhenUnconfigured("hub-webhook-delivery")) return null;
+  return getHubWebhookQueue().add(
+    "deliver",
+    { kind: "deliver", deliveryId },
+    {
+      // One job per attempt: a repeated enqueue of the same attempt is a no-op.
+      jobId: `hub-webhook-${deliveryId}-${attempt}`,
+      delay: delayMs,
+      // A failed job must not keep its id, or the sweep cannot re-queue that attempt.
+      removeOnComplete: true,
+      removeOnFail: true,
+    }
+  );
 }

@@ -111,11 +111,12 @@ function buildPlan(userId, workspaceId) {
     ["AiConversation", "aiConversation", wsOnly],
     ["AgentMemory", "agentMemory", wsOnly],
     // Agent hub. HubItemEvent, HubAgentToken, HubMessage and receipts go with
-    // their parents (cascade).
+    // their parents (cascade); HubWebhookDelivery goes with its webhook.
     ["HubReservation", "hubReservation", wsOnly],
     ["HubThread", "hubThread", wsOnly],
     ["HubRecurrence", "hubRecurrence", wsOnly],
     ["HubNote", "hubNote", wsOnly],
+    ["HubWebhook", "hubWebhook", wsOnly],
     ["HubItem", "hubItem", wsOnly],
     ["HubAgent", "hubAgent", wsOnly],
     ["AiUsage", "aiUsage", uid],

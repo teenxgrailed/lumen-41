@@ -41,6 +41,7 @@ import {
   registerInput,
   updateInput,
 } from "@/services/agent-hub/schemas";
+import { listWebhooks } from "@/services/agent-hub/webhooks";
 import { z } from "zod";
 
 import { buildHubMailTools } from "./hub-mail-tools";
@@ -130,6 +131,18 @@ export const HUB_TOOLS: McpTool[] = [
     },
     (scope) =>
       listAgents(scope, scope.actor.agent.id).then((agents) => ({ agents }))
+  ),
+  hubTool(
+    {
+      name: "needt_agent_webhooks",
+      title: "List webhooks",
+      description:
+        "List the webhooks the owner set up for hub events (url, subscribed events, active, consecutive failures; never the secret) and whether the plan has them. Read-only: only the owner creates or changes webhooks, on the Agents screen. Agent hub only.",
+      input: z.object({}),
+      write: false,
+    },
+    // Agents see the origin of each address only; the path can hold a credential.
+    (scope) => listWebhooks(scope, false)
   ),
   hubTool(
     {

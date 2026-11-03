@@ -21,6 +21,7 @@ import {
 } from "./items";
 import { assertHubLimitFor, historyWindow } from "./limits";
 import type { LinkInput, PlanCreateInput } from "./schemas";
+import { emitHubEvent, itemPayload } from "./webhooks";
 
 /**
  * Links between items and plans (a parent item with ordered steps). The rules
@@ -304,8 +305,10 @@ export async function createPlan(scope: HubScope, input: PlanCreateInput) {
   await assertHubLimitFor(scope.userId, scope.actor, "items", 1 + steps.length);
   const now = newDate();
   const author = createdBy(scope);
+  const createdItems: HubItem[] = [];
   const parentId = await prisma.$transaction(async (tx) => {
     const made = await tx.hubItem.create({ data: parent.data });
+    createdItems.push(made);
     await writeEvents(
       tx,
       made.id,
@@ -322,6 +325,7 @@ export async function createPlan(scope: HubScope, input: PlanCreateInput) {
     const ids: string[] = [];
     for (const [index, step] of steps.entries()) {
       const created = await tx.hubItem.create({ data: step.data });
+      createdItems.push(created);
       ids.push(created.id);
       await writeEvents(
         tx,
@@ -361,5 +365,8 @@ export async function createPlan(scope: HubScope, input: PlanCreateInput) {
     await tx.hubItemLink.createMany({ data: links });
     return made.id;
   });
+  for (const item of createdItems) {
+    emitHubEvent(scope, "item.created", { item: itemPayload(item) });
+  }
   return { created: true, plan: await planView(scope, parentId) };
 }

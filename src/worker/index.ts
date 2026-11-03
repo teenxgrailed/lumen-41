@@ -7,6 +7,10 @@ import {
   processAccountExport,
 } from "@/services/account/account-export";
 import { deleteExpiredReauthentications } from "@/services/account/account-reauthentication";
+import {
+  processWebhookDelivery,
+  sweepPendingDeliveries,
+} from "@/services/agent-hub/webhooks";
 import { RECURRENCE_SWEEP_INTERVAL_MS } from "@/services/agent-hub/constants";
 import { spawnDueRecurrences } from "@/services/agent-hub/recurrences";
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
@@ -110,6 +114,7 @@ import {
   getBugReportSyncQueue,
   getCalendarSyncQueue,
   getEmailLifecycleQueue,
+  getHubWebhookQueue,
   getHubRecurrenceQueue,
   getImportQueue,
   getLifetimeCheckoutReconciliationQueue,
@@ -125,6 +130,7 @@ import {
   CalendarSyncJobData,
   EmailLifecycleJobData,
   FocusJobData,
+  HubWebhookJobData,
   HubRecurrenceJobData,
   ImportJobData,
   LifetimeCheckoutReconciliationJobData,
@@ -355,6 +361,17 @@ async function processAccountLifecycle(job: Job<AccountLifecycleJobData>) {
   }
 }
 
+async function processHubWebhooks(job: Job<HubWebhookJobData>) {
+  if (job.data.kind === "sweep") {
+    const { requeued, pruned } = await sweepPendingDeliveries();
+    if (requeued > 0 || pruned > 0) {
+      await logger.info("Hub webhook sweep", { requeued, pruned }, LOG_SOURCE);
+    }
+    return;
+  }
+  await processWebhookDelivery(job.data.deliveryId);
+}
+
 async function processEmailLifecycle(job: Job<EmailLifecycleJobData>) {
   if (job.data.kind === "gifts") {
     await expireProGifts();
@@ -453,6 +470,10 @@ const workers = [
     processEmailLifecycle,
     { connection, concurrency: 1 }
   ),
+  new Worker<HubWebhookJobData>(QUEUE_NAMES.hubWebhooks, processHubWebhooks, {
+    connection,
+    concurrency: 5,
+  }),
   // One import at a time: a full Todoist account is thousands of writes.
   new Worker<ImportJobData>(QUEUE_NAMES.imports, processImport, {
     connection,
@@ -619,6 +640,11 @@ export async function start(): Promise<void> {
     "email-broadcast-sender",
     { every: 60_000 },
     { name: "broadcasts", data: { kind: "broadcasts" } }
+  );
+  await getHubWebhookQueue().upsertJobScheduler(
+    "hub-webhook-sweep",
+    { every: 5 * 60_000 },
+    { name: "sweep-hub-webhooks", data: { kind: "sweep" } }
   );
   await getImportQueue().upsertJobScheduler(
     "import-stuck-run-sweep",

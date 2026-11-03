@@ -23,6 +23,7 @@ import { ConnectGuide } from "./ConnectGuide";
 import { ItemFiles } from "./ItemFiles";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
 import { hasUnconfirmedRisk } from "./unconfirmed-risk";
+import { WebhooksSection } from "./WebhooksSection";
 
 type Named = { id?: string; name?: string; kind?: string } | "any" | null;
 
@@ -620,6 +621,7 @@ export function AgentsScreen() {
                 onClose={manualOpen ? () => setManualOpen(false) : undefined}
               />
             ) : null}
+            <WebhooksSection />
             {reservations.length > 0 ? (
               <AgSection
                 title="Reserved now"

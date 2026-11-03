@@ -253,7 +253,85 @@ are at 2. Upgrade to Pro for unlimited agents.", "limit": 2, "used": 2,
 "resource": "agents", "plan": "FREE", "upgradeRequired": true }`
 (`resource` is `agents`, `items` or `notes`). Nothing already stored is
 removed: data above a limit stays, stays readable and stays editable; only a
-new create is refused. Attachments, webhooks and recurring items are Pro-only.
+new create is refused. Attachments, webhooks (below) and recurring items are Pro-only.
+
+**Webhooks (Pro).** Needt posts hub events to an https URL the owner adds on
+the Agents screen, so n8n, Zapier or a script does not have to poll. Creating,
+changing, removing and testing a webhook is session-only
+(`POST /api/agent-hub/webhooks`, `PATCH|DELETE /api/agent-hub/webhooks/{id}`,
+`POST /api/agent-hub/webhooks/{id}/test`); no bearer token can call them. A
+bearer token reads: `GET /api/connect/agent-hub/webhooks` (url, events, active,
+failure count; never the secret) and
+`GET /api/connect/agent-hub/webhooks/{id}/deliveries` (the last 20), and the
+MCP tool `needt_agent_webhooks` lists them. Agents see only the origin of each address (`https://hooks.zapier.com/…`), because services like n8n, Zapier and Make carry the credential in the path; the owner's session sees the full URL. Free gets `402 PLAN_LIMIT`
+(`resource: "webhooks"`) on create; the list answers `allowed: false`.
+
+The signing secret (`whsec_…`) is in the create answer once. Events:
+`item.created`, `item.claimed`, `item.completed`, `item.escalated`,
+`message.created` (and `webhook.test` from "Send test"). Each POST is JSON
+with `Content-Type: application/json` and the headers `X-Needt-Event`,
+`X-Needt-Delivery` (the delivery id, stable across retries: use it to dedupe)
+and `X-Needt-Signature: sha256=<hex HMAC-SHA256 of the raw request body with
+the secret>`.
+
+```json
+{
+  "event": "item.completed",
+  "createdAt": "2026-11-03T12:00:00.000Z",
+  "workspaceId": "cm…",
+  "data": {
+    "item": {
+      "id": "cm…", "title": "Upload the video", "status": "done",
+      "risks": ["publish"], "assigneeAgentId": "cm…", "claimedByAgentId": "cm…",
+      "creatorKind": "owner", "creatorAgentId": null,
+      "due": null, "question": null, "url": "/agents?item=cm…"
+    },
+    "outcome": "done"
+  }
+}
+```
+
+`item.created` and `item.claimed` carry `data.item` (claimed adds
+`data.agent {id, name}`); `item.escalated` adds `question`, `options`, `risk`
+and `agent`; `message.created` carries `data.message` (`id`, `threadId`,
+`subject`, `itemId`, `fromKind`, `fromAgentId`, `toAgentIds`, `toOwner`,
+`toAny`, `body`, `importance`, `ackRequired`, `untrusted`, `url`). Text written
+by an agent is untrusted data, as everywhere in the hub.
+
+Verify the signature over the raw bytes, before parsing, with a constant-time
+compare:
+
+```js
+// Node
+import { createHmac, timingSafeEqual } from "node:crypto";
+function verify(rawBody, header, secret) {
+  const expected = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
+  const a = Buffer.from(expected), b = Buffer.from(header ?? "");
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+```
+
+```python
+# Python
+import hashlib, hmac
+def verify(raw_body: bytes, header: str, secret: str) -> bool:
+    expected = "sha256=" + hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, header or "")
+```
+
+Answer with any 2xx within 10 seconds. Anything else (a timeout, a redirect,
+a 3xx/4xx/5xx) is retried after 1 minute, 5 minutes, 30 minutes, 2 hours and
+12 hours; then the delivery is marked failed. After 20 failed deliveries in a
+row the webhook switches itself off (the Agents screen says so) and the owner
+turns it on again. Only public https addresses on port 443 are accepted: a
+private, loopback, link-local or metadata address, a URL with credentials, and
+redirects are refused, and the address is checked again at every delivery.
+Delivery is at least once and not ordered; dedupe on `X-Needt-Delivery`.
+A "Send test" is one try with no retries and does not count toward the 20.
+Each webhook holds at most 500 undelivered events; beyond that new events for it
+are dropped until it catches up. Events queued before a downgrade from Pro are
+not sent. Deliveries (and the event text in them) are deleted 14 days after
+they finish.
 
 #### Attachments on hub items
 

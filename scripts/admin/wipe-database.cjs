@@ -79,6 +79,7 @@ const QUEUE_NAMES = Object.freeze([
   "imports",
   "focus",
   "email-lifecycle",
+  "hub-webhooks",
   "hub-recurrence",
 ]);
 

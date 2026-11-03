@@ -174,6 +174,7 @@ model User {
   hubAgents              HubAgent[]
   hubItems               HubItem[]
   hubNotes               HubNote[]
+  hubWebhooks            HubWebhook[]
   hubRecurrences         HubRecurrence[]
   hubThreads             HubThread[]
   hubReservations        HubReservation[]
@@ -4363,4 +4364,54 @@ model HubReservation {
 
   @@index([userId, workspaceId, expiresAt])
   @@index([agentId, releasedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Agent hub webhooks (additive): the owner's endpoints for hub events.
+// ---------------------------------------------------------------------------
+
+/// An https endpoint the owner wants hub events posted to. The signing secret
+/// is stored encrypted (secret-encryption helper) and shown once at creation.
+model HubWebhook {
+  id                  String               @id @default(cuid())
+  userId              String
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId         String
+  url                 String
+  /// `enc:v1:...` AES-GCM ciphertext of the signing secret.
+  secret              String
+  /// item.created | item.claimed | item.completed | item.escalated | message.created
+  events              String[]
+  active              Boolean              @default(true)
+  /// Failures in a row; 20 switches the webhook off (active=false, disabledReason set).
+  consecutiveFailures Int                  @default(0)
+  disabledReason      String?
+  lastDeliveryAt      DateTime?
+  /// Events dropped because the backlog was full (see MAX_PENDING_PER_WEBHOOK), and when last.
+  droppedCount        Int                  @default(0)
+  lastDroppedAt       DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  deliveries          HubWebhookDelivery[]
+
+  @@index([userId, workspaceId, active])
+}
+
+/// One event for one webhook. status: pending | success | failed.
+model HubWebhookDelivery {
+  id            String     @id @default(cuid())
+  webhookId     String
+  webhook       HubWebhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event         String
+  payload       Json
+  status        String     @default("pending")
+  attempts      Int        @default(0)
+  lastError     String?
+  lastStatus    Int?
+  nextAttemptAt DateTime?
+  createdAt     DateTime   @default(now())
+
+  @@index([webhookId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
 }
