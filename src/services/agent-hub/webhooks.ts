@@ -46,6 +46,11 @@ export const DELIVERY_RETENTION_DAYS = 14;
  * that webhook are dropped and logged until the backlog clears.
  */
 export const MAX_PENDING_PER_WEBHOOK = 500;
+/** At most one "backlog full" log line per webhook in this window. */
+const DROP_LOG_WINDOW_MS = 5 * 60_000;
+/** Retention deletes this many rows per statement, this many statements per run. */
+export const PRUNE_BATCH_SIZE = 1000;
+export const PRUNE_MAX_BATCHES = 10;
 
 export const webhookCreateInput = z.object({
   url: z.string().min(1).max(500),
@@ -79,7 +84,7 @@ export function maskWebhookUrl(raw: string): string {
   }
 }
 
-export function webhookView(row: HubWebhook, exposeUrl = true) {
+export function webhookView(row: HubWebhook, exposeUrl: boolean) {
   // The secret never leaves the server after creation.
   return {
     id: row.id,
@@ -89,6 +94,8 @@ export function webhookView(row: HubWebhook, exposeUrl = true) {
     consecutiveFailures: row.consecutiveFailures,
     disabledReason: row.disabledReason,
     lastDeliveryAt: row.lastDeliveryAt?.toISOString() ?? null,
+    droppedCount: row.droppedCount,
+    lastDroppedAt: row.lastDroppedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -170,7 +177,7 @@ export async function createWebhook(
       events: [...new Set(input.events)],
     },
   });
-  return { webhook: webhookView(row), secret };
+  return { webhook: webhookView(row, true), secret };
 }
 
 export async function updateWebhook(
@@ -197,7 +204,7 @@ export async function updateWebhook(
     }
   }
   const row = await prisma.hubWebhook.update({ where: { id }, data });
-  return { webhook: webhookView(row) };
+  return { webhook: webhookView(row, true) };
 }
 
 export async function deleteWebhook(scope: HubScope, id: string) {
@@ -257,12 +264,23 @@ async function queueDelivery(
     const waiting = await prisma.hubWebhookDelivery.count({
       where: { webhookId: webhook.id, status: "pending" },
     });
+    // A soft cap: the count and the create are not one statement, so events
+    // arriving at the same moment can overshoot it a little.
     if (waiting >= MAX_PENDING_PER_WEBHOOK) {
-      await logger.warn(
-        "Hub webhook backlog is full; event dropped",
-        { webhookId: webhook.id, event, waiting },
-        LOG_SOURCE
-      );
+      const now = newDate();
+      await prisma.hubWebhook.update({
+        where: { id: webhook.id },
+        data: { droppedCount: { increment: 1 }, lastDroppedAt: now },
+      });
+      // One log line per webhook per window, not one per dropped event.
+      const last = webhook.lastDroppedAt?.getTime() ?? 0;
+      if (now.getTime() - last > DROP_LOG_WINDOW_MS) {
+        await logger.warn(
+          "Hub webhook backlog is full; events are being dropped",
+          { webhookId: webhook.id, event, waiting },
+          LOG_SOURCE
+        );
+      }
       return null;
     }
   }
@@ -421,8 +439,23 @@ export async function sweepPendingDeliveries() {
   const old = new Date(
     newDate().getTime() - DELIVERY_RETENTION_DAYS * 24 * 60 * 60_000
   );
-  const pruned = await prisma.hubWebhookDelivery.deleteMany({
-    where: { status: { not: "pending" }, createdAt: { lt: old } },
-  });
-  return { requeued: lost.length, pruned: pruned.count };
+  // In batches, oldest first through the createdAt index, so a first run
+  // after a long gap is a few small statements over several sweeps, not one
+  // big delete.
+  let pruned = 0;
+  for (let batch = 0; batch < PRUNE_MAX_BATCHES; batch += 1) {
+    const ids = await prisma.hubWebhookDelivery.findMany({
+      where: { createdAt: { lt: old }, status: { not: "pending" } },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+      take: PRUNE_BATCH_SIZE,
+    });
+    if (ids.length === 0) break;
+    const removed = await prisma.hubWebhookDelivery.deleteMany({
+      where: { id: { in: ids.map((row) => row.id) } },
+    });
+    pruned += removed.count;
+    if (ids.length < PRUNE_BATCH_SIZE) break;
+  }
+  return { requeued: lost.length, pruned };
 }

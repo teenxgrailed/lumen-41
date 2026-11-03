@@ -4307,6 +4307,9 @@ model HubWebhook {
   consecutiveFailures Int                  @default(0)
   disabledReason      String?
   lastDeliveryAt      DateTime?
+  /// Events dropped because the backlog was full (see MAX_PENDING_PER_WEBHOOK), and when last.
+  droppedCount        Int                  @default(0)
+  lastDroppedAt       DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   deliveries          HubWebhookDelivery[]
@@ -4330,4 +4333,5 @@ model HubWebhookDelivery {
 
   @@index([webhookId, createdAt])
   @@index([status, nextAttemptAt])
+  @@index([createdAt])
 }

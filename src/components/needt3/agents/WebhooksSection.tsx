@@ -22,6 +22,8 @@ interface WebhookRow {
   consecutiveFailures: number;
   disabledReason: string | null;
   lastDeliveryAt: string | null;
+  droppedCount: number;
+  lastDroppedAt: string | null;
 }
 interface WebhooksAnswer {
   allowed: boolean;
@@ -162,6 +164,16 @@ export function WebhooksSection() {
                 ? ` ${hook.consecutiveFailures} failed in a row.`
                 : ""
               : ` Off. ${hook.disabledReason ?? ""}`
+          }${
+            hook.droppedCount > 0
+              ? ` ${hook.droppedCount} ${
+                  hook.droppedCount === 1 ? "event was" : "events were"
+                } dropped while it was behind${
+                  hook.lastDroppedAt
+                    ? `, last ${formatDateToLocal(new Date(hook.lastDroppedAt))}`
+                    : ""
+                }.`
+              : ""
           }`}
           expanded={open === hook.id}
           onToggle={() => setOpen(open === hook.id ? null : hook.id)}

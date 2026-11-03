@@ -11,6 +11,8 @@ import { attemptDelivery } from "../webhook-delivery";
 import {
   DELIVERY_RETENTION_DAYS,
   MAX_PENDING_PER_WEBHOOK,
+  PRUNE_BATCH_SIZE,
+  PRUNE_MAX_BATCHES,
   createWebhook,
   deleteWebhook,
   itemPayload,
@@ -96,6 +98,8 @@ const row = (over: Partial<HubWebhook> = {}): HubWebhook => ({
   consecutiveFailures: 0,
   disabledReason: null,
   lastDeliveryAt: null,
+  droppedCount: 0,
+  lastDroppedAt: null,
   createdAt: new Date("2026-11-03T10:00:00Z"),
   updatedAt: new Date("2026-11-03T10:00:00Z"),
   ...over,
@@ -295,7 +299,7 @@ describe("workspace isolation", () => {
 
 describe("views", () => {
   it("never include the secret", () => {
-    expect(Object.keys(webhookView(row()))).not.toContain("secret");
+    expect(Object.keys(webhookView(row(), true))).not.toContain("secret");
   });
 });
 
@@ -337,6 +341,41 @@ describe("volume and the queue (M4, L2)", () => {
     db.hubWebhook.findFirst.mockResolvedValue(row());
     await sendTestEvent(owner(), "h1");
     expect(db.hubWebhookDelivery.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("records every drop on the webhook and logs once per window, not per event", async () => {
+    const { logger } = jest.requireMock("@/lib/logger");
+    db.hubWebhookDelivery.count.mockResolvedValue(MAX_PENDING_PER_WEBHOOK);
+    db.hubWebhook.update.mockResolvedValue({});
+    // First drop: never dropped before, so it logs.
+    db.hubWebhook.findMany.mockResolvedValue([row()]);
+    await queueHubEvent(owner(), "item.created", {});
+    expect(db.hubWebhook.update.mock.calls[0][0]).toMatchObject({
+      where: { id: "h1" },
+      data: { droppedCount: { increment: 1 } },
+    });
+    expect(
+      db.hubWebhook.update.mock.calls[0][0].data.lastDroppedAt
+    ).toBeInstanceOf(Date);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    // Dropped a moment ago: counted again, not logged again.
+    db.hubWebhook.findMany.mockResolvedValue([
+      row({ lastDroppedAt: new Date() }),
+    ]);
+    await queueHubEvent(owner(), "item.created", {});
+    expect(db.hubWebhook.update).toHaveBeenCalledTimes(2);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the owner the drop count and when it last happened", () => {
+    const view = webhookView(
+      row({ droppedCount: 3, lastDroppedAt: new Date("2026-11-03T11:00:00Z") }),
+      true
+    );
+    expect(view).toMatchObject({
+      droppedCount: 3,
+      lastDroppedAt: "2026-11-03T11:00:00.000Z",
+    });
   });
 
   it("without a queue the delivery is failed, not left pending forever", async () => {
@@ -397,18 +436,50 @@ describe("sweepPendingDeliveries", () => {
     expect(before - cutoff.getTime()).toBeLessThan(2 * 60_000 + 5_000);
   });
 
-  it(`deletes finished deliveries older than ${DELIVERY_RETENTION_DAYS} days, never pending ones`, async () => {
-    db.hubWebhookDelivery.deleteMany.mockResolvedValue({ count: 7 });
+  it(`deletes finished deliveries older than ${DELIVERY_RETENTION_DAYS} days in batches, never pending ones`, async () => {
     const before = Date.now();
+    const full = Array.from({ length: PRUNE_BATCH_SIZE }, (_, i) => ({
+      id: `old${i}`,
+    }));
+    const prune = db.hubWebhookDelivery.findMany;
+    prune
+      .mockResolvedValueOnce([]) // the lost-delivery lookup
+      .mockResolvedValueOnce(full)
+      .mockResolvedValueOnce([{ id: "last" }]);
+    db.hubWebhookDelivery.deleteMany
+      .mockResolvedValueOnce({ count: PRUNE_BATCH_SIZE })
+      .mockResolvedValueOnce({ count: 1 });
     const result = await sweepPendingDeliveries();
-    expect(result.pruned).toBe(7);
-    const where = db.hubWebhookDelivery.deleteMany.mock.calls[0][0].where;
-    expect(where.status).toEqual({ not: "pending" });
-    const age = before - (where.createdAt.lt as Date).getTime();
+    expect(result.pruned).toBe(PRUNE_BATCH_SIZE + 1);
+    const query = prune.mock.calls[1][0];
+    expect(query.where.status).toEqual({ not: "pending" });
+    expect(query.take).toBe(PRUNE_BATCH_SIZE);
+    expect(query.orderBy).toEqual({ createdAt: "asc" });
+    const age = before - (query.where.createdAt.lt as Date).getTime();
     expect(age).toBeGreaterThanOrEqual(
       DELIVERY_RETENTION_DAYS * 86_400_000 - 50
     );
     expect(age).toBeLessThan(DELIVERY_RETENTION_DAYS * 86_400_000 + 5_000);
+    // Deleted by id, a batch at a time: never one statement for the whole age.
+    const where = db.hubWebhookDelivery.deleteMany.mock.calls[0][0].where;
+    expect(where).toEqual({ id: { in: full.map((r) => r.id) } });
+    expect(db.hubWebhookDelivery.deleteMany).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops after the batch limit so one run stays bounded", async () => {
+    const full = Array.from({ length: PRUNE_BATCH_SIZE }, (_, i) => ({
+      id: `old${i}`,
+    }));
+    db.hubWebhookDelivery.findMany.mockResolvedValue(full);
+    db.hubWebhookDelivery.deleteMany.mockResolvedValue({
+      count: PRUNE_BATCH_SIZE,
+    });
+    const result = await sweepPendingDeliveries();
+    // findMany serves the lost-delivery lookup once, then the prune batches.
+    expect(db.hubWebhookDelivery.deleteMany).toHaveBeenCalledTimes(
+      PRUNE_MAX_BATCHES
+    );
+    expect(result.pruned).toBe(PRUNE_BATCH_SIZE * PRUNE_MAX_BATCHES);
   });
 });
 
