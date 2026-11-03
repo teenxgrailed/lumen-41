@@ -15,7 +15,7 @@ Voice: the same "Needt Hivemind" as H1. Copy `H1/v3/audio/voice.json` into `H2/a
 | 2.9 | "n" mark appears | — | — |
 | 3.6 / 4.1 / 4.6 | mark pulses | #4 sonar pulse on each | 3.7 "Let it plan." |
 | 4.6 → 7.06 | task i leaves at 4.6 + 0.22·i, lands 0.7 s later | #5 short whoosh on each leave; quiet tick on each land | — |
-| 7.3 | free time lights up | #6 relief bloom | 7.4 "Your week. Sorted." |
+| 7.3 | free time lights up | #6 relief bloom | 7.4 "All nine placed. Now watch today." |
 | 7.9–9.9 | "now" line runs down Today, ticks tasks it passes | #7 glassy tick on each tick (sync to `passed()`); the pin stays put, no sound on it | — |
 | 10.1–10.6 | calendar fades out | near-silence | — |
 | 10.7 / 10.9 / 11.35 | end mark, "It plans the day." / "You just show up." | #8 reverse swell into hit on 10.9 | 11.35 "You just show up." |

@@ -8,7 +8,7 @@ Voice: the same "Needt Hivemind" as H1. Copy `H1/v3/audio/voice.json` into `H3/a
 
 | t, s | Visual | Sound | Voice |
 |---|---|---|---|
-| 0.4 / 0.6 / 0.8 / 1.0 | labels Calendars, Mail, Docs, Habits pop in | #1 soft pop on each, +2 st each | 1.1 "Calendars. Mail. Docs. Habits." |
+| 0.4 / 0.6 / 0.8 / 1.0 | labels Calendars, Mail, Docs, Habits pop in | #1 soft pop on each, +2 st each | 1.1 "Four places. Which one did you write it in?" |
 | 0.5–4.0 | chips stream to the centre, sync arrows turn | #2 inward data stream bed | — |
 | 2.6 | "n" mark appears | — | — |
 | 3.4 / 3.9 | mark pulses | #3 sonar pulse (same as H2 #4) | 3.5 "It all syncs in." |
