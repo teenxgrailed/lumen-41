@@ -11,6 +11,9 @@ name: store-upload
 # managed) and the App Store profiles for every bundle id. The key needs the
 # Admin role for that (App Manager cannot create certificates).
 #
+# mac_variant picks the Mac build: appstore (default, with the notch island) or
+# appstore-lite (without it). It does nothing for target ios.
+#
 # Repository settings (docs/release/STORE-RELEASE.md, step 4):
 #   variable APPLE_TEAM_ID        10-character Team ID
 #   secret   ASC_KEY_ID           App Store Connect API key id
@@ -24,6 +27,12 @@ on:
         required: true
         type: choice
         options: [ios, mac]
+      mac_variant:
+        description: "Mac only: appstore (with the notch island, scheme NeedtAppStore) or appstore-lite (no island, scheme NeedtAppStoreLite)"
+        required: true
+        type: choice
+        options: [appstore, appstore-lite]
+        default: appstore
       version:
         description: "Marketing version, e.g. 1.0.0"
         required: true
@@ -53,6 +62,7 @@ jobs:
       VERSION: ${{ inputs.version }}
       BUILD_NUMBER: ${{ github.run_number }}
       UPLOAD: ${{ inputs.upload }}
+      MAC_VARIANT: ${{ inputs.mac_variant }}
     steps:
       - name: Secrets present
         run: |
@@ -105,7 +115,13 @@ jobs:
           brew install xcodegen
           xcodegen generate
           echo "PROJECT=apps/macos/Needt.xcodeproj" >> "$GITHUB_ENV"
-          echo "SCHEME=NeedtAppStore" >> "$GITHUB_ENV"
+          # appstore (default): the store build with the island. appstore-lite: the
+          # same app without it (nothing compiled from apps/macos/Island).
+          if [ "$MAC_VARIANT" = "appstore-lite" ]; then
+            echo "SCHEME=NeedtAppStoreLite" >> "$GITHUB_ENV"
+          else
+            echo "SCHEME=NeedtAppStore" >> "$GITHUB_ENV"
+          fi
           echo "DESTINATION=generic/platform=macOS" >> "$GITHUB_ENV"
           echo "EXPORT_OPTIONS=apps/macos/ExportOptions-AppStore.plist" >> "$GITHUB_ENV"
 
