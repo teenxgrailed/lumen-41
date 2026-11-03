@@ -25,7 +25,7 @@ jest.mock("../../ctx/PortalScope", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/settings", () => ({
   ...jest.requireActual("@/lib/needt3/hooks/settings"),
-  useWeekStartDay: () => 1,
+  useWeekStartDay: () => "monday",
 }));
 
 class RO {
