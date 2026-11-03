@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
+import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
 import {
   downloadUrl,
@@ -17,6 +18,7 @@ import {
   HUB_ATTACHMENT_MAX_PER_ITEM,
   HUB_ATTACHMENT_UPLOAD_TTL_MS,
   HUB_ATTACHMENT_URL_TTL_MS,
+  HUB_ATTACHMENT_WRITES_PER_MINUTE,
   refusal,
   resolveAttachmentType,
   safeAttachmentName,
@@ -345,6 +347,27 @@ export async function receiveUpload(
   }
   // A signed link is no bearer token: the flag and the actor are checked again.
   await assertHubEnabled(claims.u);
+  // The same per-account budget as the other attachment writes, so bandwidth
+  // is bounded per account on this path too (the route only knows the address).
+  const limited = await enforceRateLimits(
+    [
+      accountRule(
+        claims.u,
+        "hub-attachment:write",
+        HUB_ATTACHMENT_WRITES_PER_MINUTE,
+        60
+      ),
+    ],
+    { route: "/api/connect/agent-hub/uploads", userId: claims.u }
+  );
+  if (limited) {
+    const retry = Number(limited.headers.get("retry-after"));
+    throw new HubError(
+      "RATE_LIMITED",
+      "Too many attachment uploads for this account. Retry shortly.",
+      Number.isFinite(retry) && retry > 0 ? { retryAfterSeconds: retry } : {}
+    );
+  }
   const item = await prisma.hubItem.findFirst({
     where: { id: claims.i, userId: claims.u, workspaceId: claims.w },
   });

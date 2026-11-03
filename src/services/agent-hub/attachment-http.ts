@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 
 import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
-import { HUB_ATTACHMENT_MAX_BYTES } from "./attachment-rules";
+import {
+  HUB_ATTACHMENT_MAX_BYTES,
+  HUB_ATTACHMENT_WRITES_PER_MINUTE,
+} from "./attachment-rules";
 
 /** A stored file as a download: never rendered, never sniffed, never scripted. */
 export function fileResponse(file: {
@@ -47,16 +50,13 @@ export async function readBodyCapped(
   return Buffer.concat(chunks);
 }
 
-/** Attachment writes carry up to 25 MB each: a tighter limit than other hub writes. */
-const ATTACHMENT_WRITES_PER_MINUTE = 6;
-
 export function limitAttachmentWrites(request: Request, userId: string) {
   return enforceRateLimits(
     [
       accountRule(
         userId,
         "hub-attachment:write",
-        ATTACHMENT_WRITES_PER_MINUTE,
+        HUB_ATTACHMENT_WRITES_PER_MINUTE,
         60
       ),
     ],

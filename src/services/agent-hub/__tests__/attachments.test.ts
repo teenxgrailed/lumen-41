@@ -51,6 +51,15 @@ const canUseHubAttachments = jest.fn();
 jest.mock("@/lib/entitlements", () => ({
   canUseHubAttachments: (userId: string) => canUseHubAttachments(userId),
 }));
+const enforceRateLimits = jest.fn();
+jest.mock("@/lib/security/rate-limit", () => ({
+  enforceRateLimits: (...args: unknown[]) => enforceRateLimits(...args),
+  accountRule: (value: string, namespace: string, limit: number) => ({
+    value,
+    namespace,
+    limit,
+  }),
+}));
 const assertHubEnabled = jest.fn();
 jest.mock("../context", () => ({
   assertHubEnabled: (userId: string) => assertHubEnabled(userId),
@@ -110,6 +119,7 @@ beforeEach(() => {
         : null
   );
   assertHubEnabled.mockResolvedValue(undefined);
+  enforceRateLimits.mockResolvedValue(null);
   db.hubAgent.findFirst.mockResolvedValue({
     id: "a-grok",
     disabledAt: null,
@@ -449,6 +459,24 @@ describe("hub attachments", () => {
       await expect(receiveUpload(t, MP4)).rejects.toMatchObject({
         code: "FORBIDDEN",
       });
+    });
+
+    it("is limited per account like the other attachment writes", async () => {
+      const t = await token();
+      enforceRateLimits.mockResolvedValue(
+        new Response(null, { status: 429, headers: { "retry-after": "12" } })
+      );
+      await expect(receiveUpload(t, MP4)).rejects.toMatchObject({
+        code: "RATE_LIMITED",
+        status: 429,
+        extra: { retryAfterSeconds: 12 },
+      });
+      expect(enforceRateLimits.mock.calls[0][0][0]).toMatchObject({
+        value: USER,
+        namespace: "hub-attachment:write",
+        limit: 6,
+      });
+      expect(db.hubItemAttachmentBlob.create).not.toHaveBeenCalled();
     });
 
     it("an owner link needs no agent", async () => {

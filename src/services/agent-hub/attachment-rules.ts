@@ -11,6 +11,8 @@ export const HUB_ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
 export const HUB_ATTACHMENT_MAX_PER_ITEM = 10;
 export const HUB_ATTACHMENT_ACCOUNT_QUOTA_BYTES = 500 * 1024 * 1024;
 /** A signed download link lives this long; an upload link is shorter. */
+/** Writes that carry a file, per account a minute: each can be 25 MB. */
+export const HUB_ATTACHMENT_WRITES_PER_MINUTE = 6;
 export const HUB_ATTACHMENT_URL_TTL_MS = 24 * 60 * 60 * 1000;
 export const HUB_ATTACHMENT_UPLOAD_TTL_MS = 15 * 60 * 1000;
 
