@@ -798,10 +798,10 @@ export function WeekView({
 
   /* The scrollbar is hidden, so the card says there is more: a soft fade on
      the edge that has hours past it (data-more-above / data-more-below). */
-  const card = useRef<HTMLDivElement>(null);
+  const weekCard = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = scroller.current;
-    const root = card.current;
+    const root = weekCard.current;
     if (!el || !root) return undefined;
     const mark = () => {
       const below = el.scrollHeight - el.clientHeight - el.scrollTop > 4;
@@ -1011,7 +1011,7 @@ export function WeekView({
   );
 
   return (
-    <div ref={card} className="c2-week" data-c2-strip="">
+    <div ref={weekCard} className="c2-week" data-c2-strip="">
       <div
         ref={scroller}
         className="c2-wscroll"

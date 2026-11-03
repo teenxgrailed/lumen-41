@@ -90,7 +90,6 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile(640);
-  const weekStartsOn = useWeekStartDay() === "sunday" ? 0 : 1;
 
   const trigger = (
     <button
@@ -171,6 +170,7 @@ function DatePickerPanel({
   onDone: () => void;
   mobile?: boolean;
 }) {
+  const weekStartsOn = useWeekStartDay() === "sunday" ? 0 : 1;
   const shortcuts = useMemo(
     () => shortcutDates(weekStartsOn),
     [weekStartsOn]

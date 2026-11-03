@@ -207,6 +207,7 @@ export function useTrashController() {
     gone,
     pages,
     goneProjects,
+    trashedProjects,
     projectName,
     restoreProject,
     restoreTask,
