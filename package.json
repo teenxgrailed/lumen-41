@@ -190,7 +190,9 @@
     },
     "@excalidraw/mermaid-to-excalidraw": {
       "nanoid": "^5.1.16"
-    }
+    },
+    "katex": "^0.18.2",
+    "uuid": "$uuid"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
