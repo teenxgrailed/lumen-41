@@ -43,7 +43,8 @@ jest.mock("@/lib/logger", () => ({
 // Plan limits have their own tests (plan-limits.test.ts).
 jest.mock("../limits", () => ({
   assertHubLimit: jest.fn(),
-  historySince: jest.fn(async () => new Date(0)),
+  assertHubLimitFor: jest.fn(),
+  historyWindow: jest.fn(async () => ({ since: new Date(0), limited: false })),
 }));
 
 const getPrefs = jest.fn();

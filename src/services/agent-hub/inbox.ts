@@ -20,27 +20,35 @@ import {
   rankReady,
 } from "./deps";
 import { agentNames, getItem, itemView, unmatchedItemIds } from "./items";
-import { historySince } from "./limits";
+import { type HistoryWindow, historyWindow } from "./limits";
 import { unreadMessageCount } from "./messages";
 import { myReservations } from "./reservations";
 import type { InboxInput, NextInput } from "./schemas";
 import { sweepHub } from "./sweep";
 
 async function eventsFor(userId: string, itemIds: readonly string[]) {
-  const since = await historySince(userId);
+  const window = await historyWindow(userId);
   const byItem = new Map<string, Awaited<ReturnType<typeof fetchEvents>>>();
-  for (const id of itemIds) byItem.set(id, await fetchEvents(id, since));
+  for (const id of itemIds) byItem.set(id, await fetchEvents(id, window));
   return byItem;
 }
 
-function fetchEvents(itemId: string, since: Date) {
-  return prisma.hubItemEvent
-    .findMany({
-      where: { itemId, at: { gte: since } },
+async function fetchEvents(itemId: string, window: HistoryWindow) {
+  const rows = await prisma.hubItemEvent.findMany({
+    where: { itemId, at: { gte: window.since } },
+    orderBy: [{ at: "desc" }],
+    take: INBOX_EVENTS_PER_ITEM,
+  });
+  // Free: an item the agent can still act on keeps its single latest event
+  // (why it waits), even when it is older than the window.
+  if (!rows.length && window.limited) {
+    return prisma.hubItemEvent.findMany({
+      where: { itemId },
       orderBy: [{ at: "desc" }],
-      take: INBOX_EVENTS_PER_ITEM,
-    })
-    .then((rows) => rows.reverse());
+      take: 1,
+    });
+  }
+  return rows.reverse();
 }
 
 /**

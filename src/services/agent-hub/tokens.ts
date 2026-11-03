@@ -154,11 +154,22 @@ export async function revokeAgentToken(scope: HubScope, agentId: string) {
     select: { id: true, revokedAt: true },
   });
   if (!token) throw new HubError("NOT_FOUND", "Agent token not found.");
-  if (!token.revokedAt) {
-    await prisma.hubAgentToken.update({
-      where: { id: token.id },
-      data: { revokedAt: newDate() },
-    });
-  }
+  const now = newDate();
+  // The agent is disabled with its token, in the same transaction, so a
+  // revoked token frees its plan slot. Disabling is idempotent.
+  await prisma.$transaction([
+    ...(token.revokedAt
+      ? []
+      : [
+          prisma.hubAgentToken.update({
+            where: { id: token.id },
+            data: { revokedAt: now },
+          }),
+        ]),
+    prisma.hubAgent.updateMany({
+      where: { id: agentId, disabledAt: null },
+      data: { disabledAt: now },
+    }),
+  ]);
   return { revoked: true };
 }

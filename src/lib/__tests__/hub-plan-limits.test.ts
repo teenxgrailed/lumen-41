@@ -13,7 +13,7 @@ import { prisma } from "@/lib/prisma";
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: jest.fn() },
-    hubAgent: { count: jest.fn() },
+    hubAgent: { findMany: jest.fn() },
     hubItem: { count: jest.fn() },
     hubNote: { count: jest.fn() },
   },
@@ -21,7 +21,7 @@ jest.mock("@/lib/prisma", () => ({
 
 const db = prisma as unknown as {
   user: { findUnique: jest.Mock };
-  hubAgent: { count: jest.Mock };
+  hubAgent: { findMany: jest.Mock };
   hubItem: { count: jest.Mock };
   hubNote: { count: jest.Mock };
 };
@@ -43,9 +43,18 @@ function as(kind: "free" | "pro" | "lifetime" | "trial") {
   });
 }
 
+/** `n` distinct active agent connections, as hubUsage reads them. */
+function agents(n: number) {
+  db.hubAgent.findMany.mockResolvedValue(
+    Array.from({ length: n }, (_, index) => ({
+      connectionKey: `token:${index}`,
+    }))
+  );
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
-  db.hubAgent.count.mockResolvedValue(0);
+  agents(0);
   db.hubItem.count.mockResolvedValue(0);
   db.hubNote.count.mockResolvedValue(0);
 });
@@ -81,9 +90,9 @@ describe("hub numbers in the plan table", () => {
 describe("canAddToHub", () => {
   it("blocks the 3rd agent on Free and allows the 2nd", async () => {
     as("free");
-    db.hubAgent.count.mockResolvedValue(1);
+    agents(1);
     expect((await canAddToHub("u", "agents")).allowed).toBe(true);
-    db.hubAgent.count.mockResolvedValue(2);
+    agents(2);
     const status = await canAddToHub("u", "agents");
     expect(status).toMatchObject({
       allowed: false,
@@ -116,7 +125,7 @@ describe("canAddToHub", () => {
 
   it("stays blocked, never an error, when data is already over the limit", async () => {
     as("free");
-    db.hubAgent.count.mockResolvedValue(9);
+    agents(9);
     const status = await canAddToHub("u", "agents");
     expect(status).toMatchObject({ allowed: false, used: 9, remaining: 0 });
   });
@@ -125,7 +134,7 @@ describe("canAddToHub", () => {
     "is unlimited on %s",
     async (kind) => {
       as(kind);
-      db.hubAgent.count.mockResolvedValue(1000);
+      agents(1000);
       db.hubItem.count.mockResolvedValue(1000);
       db.hubNote.count.mockResolvedValue(1000);
       for (const resource of ["agents", "items", "notes"] as const) {
@@ -134,6 +143,34 @@ describe("canAddToHub", () => {
       }
     }
   );
+});
+
+describe("hubUsage where-clauses", () => {
+  it("counts distinct connections per person, active only, without the assistant", async () => {
+    as("free");
+    agents(1);
+    await canAddToHub("u", "agents");
+    expect(db.hubAgent.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: "u",
+        disabledAt: null,
+        NOT: { connectionKey: "assistant" },
+      },
+      distinct: ["connectionKey"],
+      select: { connectionKey: true },
+    });
+  });
+
+  it("counts open items per person, not done, failed or cancelled", async () => {
+    as("free");
+    await canAddToHub("u", "items");
+    expect(db.hubItem.count).toHaveBeenCalledWith({
+      where: {
+        userId: "u",
+        status: { notIn: ["done", "failed", "cancelled"] },
+      },
+    });
+  });
 });
 
 describe("Pro-only hub features", () => {

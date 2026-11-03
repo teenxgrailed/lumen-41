@@ -393,13 +393,21 @@ export async function canUseHubRecurring(userId: string) {
  */
 export async function hubUsage(userId: string, db: EntitlementHubDb = prisma) {
   const [agents, openItems, notes] = await Promise.all([
-    db.hubAgent.count({
-      where: {
-        userId,
-        disabledAt: null,
-        NOT: { connectionKey: "assistant" },
-      },
-    }),
+    // The limit is per person, but an agent row exists per (person,
+    // workspace, connection). One token used in two workspaces is one agent,
+    // so count distinct connection keys. A revoked token disables its agent,
+    // so a disabled row never counts.
+    db.hubAgent
+      .findMany({
+        where: {
+          userId,
+          disabledAt: null,
+          NOT: { connectionKey: "assistant" },
+        },
+        distinct: ["connectionKey"],
+        select: { connectionKey: true },
+      })
+      .then((rows) => rows.length),
     db.hubItem.count({
       where: {
         userId,
@@ -452,4 +460,18 @@ export async function canAddToHub(
 export async function hubHistoryDays(userId: string): Promise<number> {
   const plan = await getPlan(userId);
   return PLAN_LIMITS[plan].hubHistoryDays;
+}
+
+/**
+ * The history window for one request: its length, and whether the plan is
+ * limited (Free), where an open item still shows its latest event.
+ */
+export async function hubHistoryWindow(
+  userId: string
+): Promise<{ days: number; limited: boolean }> {
+  const plan = await getPlan(userId);
+  return {
+    days: PLAN_LIMITS[plan].hubHistoryDays,
+    limited: plan === SubscriptionPlan.FREE,
+  };
 }

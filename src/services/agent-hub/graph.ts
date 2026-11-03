@@ -19,7 +19,7 @@ import {
   visibleToAgent,
   writeEvents,
 } from "./items";
-import { assertHubLimit } from "./limits";
+import { assertHubLimitFor, historyWindow } from "./limits";
 import type { LinkInput, PlanCreateInput } from "./schemas";
 
 /**
@@ -251,11 +251,12 @@ async function planView(scope: HubScope, parentId: string) {
     const row = byId.get(link.toId);
     if (row) steps.push(row);
   }
+  // The plan is read once, not once per step.
+  const window = await historyWindow(parent.userId);
+  const view = { recent: 3, untrusted: true, window };
   return {
-    item: await viewOne(scope, parent, { recent: 3, untrusted: true }),
-    steps: await Promise.all(
-      steps.map((step) => viewOne(scope, step, { recent: 3, untrusted: true }))
-    ),
+    item: await viewOne(scope, parent, view),
+    steps: await Promise.all(steps.map((step) => viewOne(scope, step, view))),
   };
 }
 
@@ -300,7 +301,7 @@ export async function createPlan(scope: HubScope, input: PlanCreateInput) {
     }
   }
 
-  await assertHubLimit(scope.userId, "items", 1 + steps.length);
+  await assertHubLimitFor(scope.userId, scope.actor, "items", 1 + steps.length);
   const now = newDate();
   const author = createdBy(scope);
   const parentId = await prisma.$transaction(async (tx) => {

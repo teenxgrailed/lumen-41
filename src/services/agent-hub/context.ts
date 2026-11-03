@@ -9,6 +9,7 @@ import { newDate } from "@/lib/date-utils";
 import { agentHubEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
+import { ASSISTANT_CONNECTION_KEY } from "./constants";
 import { HubError } from "./errors";
 import { assertHubLimit } from "./limits";
 
@@ -70,7 +71,13 @@ export async function agentForConnection(
   };
   let agent = await prisma.hubAgent.findUnique({ where });
   if (!agent) {
-    await assertHubLimit(auth.userId, "agents");
+    // The same connection already counted in another workspace is the same
+    // agent, so it takes no new slot.
+    const sameElsewhere = await prisma.hubAgent.findFirst({
+      where: { userId: auth.userId, connectionKey, disabledAt: null },
+      select: { id: true },
+    });
+    if (!sameElsewhere) await assertHubLimit(auth.userId, "agents");
     try {
       agent = await prisma.hubAgent.create({
         data: {
@@ -168,8 +175,7 @@ export async function resolveAgentScope(input: {
   };
 }
 
-/** The connection key of the in-app assistant's own agent row. */
-export const ASSISTANT_CONNECTION_KEY = "assistant";
+export { ASSISTANT_CONNECTION_KEY };
 
 /**
  * The scope for Needt's own in-app assistant (Ask). It is an agent like any

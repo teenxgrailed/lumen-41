@@ -6,7 +6,12 @@ import { agentForConnection, connectionKeyOf } from "../context";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    hubAgent: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+    hubAgent: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
     oAuthClient: { findUnique: jest.fn() },
   },
 }));

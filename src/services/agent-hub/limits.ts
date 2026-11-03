@@ -2,9 +2,11 @@ import { newDate } from "@/lib/date-utils";
 import {
   type HubLimitKind,
   canAddToHub,
-  hubHistoryDays,
+  hubHistoryWindow,
 } from "@/lib/entitlements";
 
+import { ASSISTANT_CONNECTION_KEY } from "./constants";
+import type { Actor } from "./context";
 import { HubError } from "./errors";
 
 /**
@@ -46,8 +48,41 @@ export async function assertHubLimit(
   );
 }
 
+/**
+ * assertHubLimit for a create made by `actor`. Needt's own assistant (Ask) is
+ * never blocked: a full Free account must not break its hand-off.
+ */
+export async function assertHubLimitFor(
+  userId: string,
+  actor: Actor,
+  kind: HubLimitKind,
+  adding = 1
+) {
+  if (
+    actor.kind === "agent" &&
+    actor.agent.connectionKey === ASSISTANT_CONNECTION_KEY
+  ) {
+    return;
+  }
+  await assertHubLimit(userId, kind, adding);
+}
+
+/** What a person can see of the hub history, resolved once per request. */
+export interface HistoryWindow {
+  since: Date;
+  /** Free: an open item still shows its single latest event past the window. */
+  limited: boolean;
+}
+
+export async function historyWindow(userId: string): Promise<HistoryWindow> {
+  const { days, limited } = await hubHistoryWindow(userId);
+  return {
+    since: newDate(newDate().getTime() - days * 24 * 60 * 60 * 1000),
+    limited,
+  };
+}
+
 /** The earliest moment of hub history this person can see. */
 export async function historySince(userId: string): Promise<Date> {
-  const days = await hubHistoryDays(userId);
-  return newDate(newDate().getTime() - days * 24 * 60 * 60 * 1000);
+  return (await historyWindow(userId)).since;
 }
