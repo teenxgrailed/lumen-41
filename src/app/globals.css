@@ -464,7 +464,7 @@
     background-color: var(--surface-canvas);
     background-image: var(--page-background);
     color: var(--text-primary);
-    font-size: 14px;
+    font-size: 13px;
     font-family:
       -apple-system, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -1458,7 +1458,7 @@ html[data-needt-motion="off"] .needt-aurora-blob {
 .command-palette-root [cmdk-input] {
   border: none;
   width: 100%;
-  font-size: 14px;
+  font-size: 13px;
   padding: 12px;
   outline: none;
   background: transparent;
@@ -1482,7 +1482,7 @@ html[data-needt-motion="off"] .needt-aurora-blob {
   cursor: pointer;
   height: 36px;
   border-radius: 2px;
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1675,7 +1675,7 @@ html[data-needt-motion="off"] .needt-aurora-blob {
 .task-rich-text-editor {
   color: var(--text-primary);
   caret-color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .task-rich-text-editor p.is-editor-empty:first-child::before {
@@ -1914,7 +1914,7 @@ html[data-needt-motion="off"] .needt-aurora-blob {
   border-radius: 11px;
   background: none;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
 }

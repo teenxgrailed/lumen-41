@@ -111,7 +111,7 @@
 .sg-desk .sg-btn.is-lg {
   height: 40px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: 13px;
 }
 .sg-btn[disabled] {
   opacity: 0.4;
@@ -535,7 +535,7 @@
   padding: 8px 0;
 }
 .sg-desk .sg-field textarea {
-  font-size: 14px;
+  font-size: 13px;
 }
 .sg-field textarea::placeholder {
   color: var(--sg-ink-3);
