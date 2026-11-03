@@ -10,6 +10,7 @@ import { AGENT_TOKEN_PREFIX, HUB_SCOPE, type HubKind } from "./constants";
 import type { HubScope } from "./context";
 import { HubError } from "./errors";
 import { trackHub } from "./metrics";
+import { assertHubLimit } from "./limits";
 
 const LAST_USED_WRITE_MS = 60 * 1000;
 
@@ -103,6 +104,7 @@ export async function createAgentToken(
   ) {
     throw new HubError("INVALID", "expiresInDays must be 1 to 730.");
   }
+  await assertHubLimit(scope.userId, "agents");
   const tokenId = crypto.randomUUID();
   const token = generateAgentToken();
   const agent = await prisma.hubAgent.create({
@@ -154,11 +156,22 @@ export async function revokeAgentToken(scope: HubScope, agentId: string) {
     select: { id: true, revokedAt: true },
   });
   if (!token) throw new HubError("NOT_FOUND", "Agent token not found.");
-  if (!token.revokedAt) {
-    await prisma.hubAgentToken.update({
-      where: { id: token.id },
-      data: { revokedAt: newDate() },
-    });
-  }
+  const now = newDate();
+  // The agent is disabled with its token, in the same transaction, so a
+  // revoked token frees its plan slot. Disabling is idempotent.
+  await prisma.$transaction([
+    ...(token.revokedAt
+      ? []
+      : [
+          prisma.hubAgentToken.update({
+            where: { id: token.id },
+            data: { revokedAt: now },
+          }),
+        ]),
+    prisma.hubAgent.updateMany({
+      where: { id: agentId, disabledAt: null },
+      data: { disabledAt: now },
+    }),
+  ]);
   return { revoked: true };
 }

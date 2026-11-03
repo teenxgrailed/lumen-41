@@ -354,3 +354,124 @@ export async function canUseAgentHub(userId: string) {
   const allowed = AGENT_HUB_PLANS.includes(plan);
   return { allowed, upgradeRequired: !allowed, plan };
 }
+
+/** Attachments on hub items are Pro. Free cannot add them. */
+export async function canUseHubAttachments(userId: string) {
+  const plan = await getPlan(userId);
+  return {
+    allowed: PLAN_LIMITS[plan].hubAttachments,
+    upgradeRequired: !PLAN_LIMITS[plan].hubAttachments,
+    plan,
+  };
+}
+
+/** Hub webhooks are Pro. Free cannot add them. */
+export async function canUseHubWebhooks(userId: string) {
+  const plan = await getPlan(userId);
+  return {
+    allowed: PLAN_LIMITS[plan].hubWebhooks,
+    upgradeRequired: !PLAN_LIMITS[plan].hubWebhooks,
+    plan,
+  };
+}
+
+/** Recurring hub items are Pro. Free cannot add them. */
+export async function canUseHubRecurring(userId: string) {
+  const plan = await getPlan(userId);
+  return {
+    allowed: PLAN_LIMITS[plan].hubRecurring,
+    upgradeRequired: !PLAN_LIMITS[plan].hubRecurring,
+    plan,
+  };
+}
+
+/**
+ * The hub's counted allowances for one person: agents (not disabled, the
+ * Needt assistant's own row excluded), open items and memory notes. Existing
+ * data above a limit after a downgrade is never removed; only a new create is
+ * refused, which `limitStatus` reports as not allowed.
+ */
+export async function hubUsage(userId: string, db: EntitlementHubDb = prisma) {
+  const [agents, openItems, notes] = await Promise.all([
+    // The limit is per person, but an agent row exists per (person,
+    // workspace, connection). One token used in two workspaces is one agent,
+    // so count distinct connection keys. A revoked token disables its agent,
+    // so a disabled row never counts.
+    db.hubAgent
+      .findMany({
+        where: {
+          userId,
+          disabledAt: null,
+          NOT: { connectionKey: "assistant" },
+        },
+        distinct: ["connectionKey"],
+        select: { connectionKey: true },
+      })
+      .then((rows) => rows.length),
+    db.hubItem.count({
+      where: {
+        userId,
+        status: { notIn: ["done", "failed", "cancelled"] },
+      },
+    }),
+    db.hubNote.count({ where: { userId } }),
+  ]);
+  return { agents, openItems, notes };
+}
+
+type EntitlementHubDb = Pick<
+  Prisma.TransactionClient,
+  "hubAgent" | "hubItem" | "hubNote"
+>;
+
+export type HubLimitKind = "agents" | "items" | "notes";
+
+/**
+ * Whether `adding` more of a hub resource fits the plan. `adding` is 1 for a
+ * single create and the step count for a plan.
+ */
+export async function canAddToHub(
+  userId: string,
+  kind: HubLimitKind,
+  adding = 1,
+  db: EntitlementHubDb = prisma
+): Promise<LimitStatus> {
+  const [plan, usage] = await Promise.all([
+    getPlan(userId),
+    hubUsage(userId, db),
+  ]);
+  const limits = PLAN_LIMITS[plan];
+  const [limit, used] =
+    kind === "agents"
+      ? [limits.hubAgents, usage.agents]
+      : kind === "items"
+        ? [limits.hubOpenItems, usage.openItems]
+        : [limits.hubNotes, usage.notes];
+  const status = limitStatus(plan, limit, used);
+  if (limit === null || used + Math.max(1, adding) <= limit) return status;
+  return {
+    ...status,
+    allowed: false,
+    upgradeRequired: plan === SubscriptionPlan.FREE,
+  };
+}
+
+/** How many days of hub history the person sees (7 on Free, 90 on Pro). */
+export async function hubHistoryDays(userId: string): Promise<number> {
+  const plan = await getPlan(userId);
+  return PLAN_LIMITS[plan].hubHistoryDays;
+}
+
+/**
+ * The history window for one request: its length, and whether the plan is
+ * limited (Free), where an open item still shows its latest event.
+ */
+export async function hubHistoryWindow(
+  userId: string
+): Promise<{ days: number; limited: boolean }> {
+  const plan = await getPlan(userId);
+  return {
+    days: PLAN_LIMITS[plan].hubHistoryDays,
+    limited: plan === SubscriptionPlan.FREE,
+  };
+}
