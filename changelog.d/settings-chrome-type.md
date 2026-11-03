@@ -1,0 +1,1 @@
+- Settings uses the app's 13px text in group titles, account values and plan rows.

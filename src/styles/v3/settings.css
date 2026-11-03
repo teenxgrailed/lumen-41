@@ -10,7 +10,7 @@
 .needt-v3 .settings-theme-thumb-span { display: block; border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-ring); transition: box-shadow var(--transition-hover); }
 .needt-v3 .settings-theme-thumb-row { display: flex; align-items: center; gap: 5px; font: var(--type-meta); color: var(--text-tertiary); }
 .needt-v3 .settings-account-row-span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.needt-v3 .settings-sgroup-text { font: 600 14px/16px var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .settings-sgroup-text { font: 600 13px/16px var(--font-sans); color: var(--text-secondary); }
 .needt-v3 .settings-sgroup-text-2 { text-wrap: pretty; }
 .needt-v3 .settings-sgroup { display: flex; flex-direction: column; gap: 8px; }
 .needt-v3 .settings-sgroup-stack { display: flex; flex-direction: column; gap: 2px; border-radius: var(--radius-lg); overflow: hidden; }
@@ -68,7 +68,7 @@
 .needt-v3 .settings-row-5 { color: var(--text-tertiary); display: flex; }
 .needt-v3 .settings-stack-3 { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; background: var(--surface-raised); }
 .needt-v3 .settings-row-6 { flex: none; display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 16px 0 24px; box-shadow: var(--border) 0 -1px 0 0 inset; }
-.needt-v3 .settings-text-4 { margin: 0; font: 600 14px/16px var(--font-sans); color: var(--text-secondary); }
+.needt-v3 .settings-text-4 { margin: 0; font: 600 13px/16px var(--font-sans); color: var(--text-secondary); }
 .needt-v3 .settings-saved-pop { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: var(--radius-pill); background: var(--fill-accent); color: var(--accent); font: var(--type-meta-medium); }
 .needt-v3 .settings-close-settings { margin-left: auto; width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-pill); background: var(--fill-5); color: var(--text-tertiary); cursor: default; }
 .needt-v3 .settings-enter-2 { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 24px 24px 32px; display: flex; flex-direction: column; gap: 28px; }
@@ -84,17 +84,17 @@
 .needt-v3 .settings-row-11 + .settings-row-11 { box-shadow: var(--border) 0 1px 0 0 inset; }
 .needt-v3 .settings-stack-5 { flex: 1 1 auto; display: flex; flex-direction: column; gap: 3px; }
 .needt-v3 .settings-text-5 { font: 500 11px/13px var(--font-sans); color: var(--text-tertiary); }
-.needt-v3 .settings-text-6 { font: 500 14px/18px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .settings-text-6 { font: 500 13px/17px var(--font-sans); color: var(--text-primary); }
 .needt-v3 .settings-plan-card { display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--fill-3); }
 .needt-v3 .settings-row-12 { display: flex; align-items: center; gap: 12px; }
 .needt-v3 .settings-stack-6 { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.needt-v3 .settings-text-7 { font: 600 14px/18px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .settings-text-7 { font: 600 13px/17px var(--font-sans); color: var(--text-primary); }
 .needt-v3 .settings-text-8 { font: var(--type-ui); color: var(--text-tertiary); }
 .needt-v3 .settings-text-9 { margin-left: auto; flex: none; font: 600 12px/16px var(--font-sans); color: var(--text-secondary); }
 .needt-v3 .settings-grid-2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .needt-v3 .settings-price { padding: 10px 12px; border: 0; border-radius: var(--radius-md); background: var(--fill-3); text-align: left; cursor: default; }
 .needt-v3 .settings-text-10 { font: 500 12px/16px var(--font-sans); color: var(--text-tertiary); }
-.needt-v3 .settings-text-11 { font: 600 14px/18px var(--font-sans); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.needt-v3 .settings-text-11 { font: 600 13px/17px var(--font-sans); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .needt-v3 .settings-text-12 { font: var(--type-meta); color: var(--text-tertiary); }
 .needt-v3 .settings-text-12.is-save { color: var(--success); }
 .needt-v3 .settings-row-13 { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--fill-3); font: var(--type-ui); color: var(--text-secondary); }
