@@ -145,6 +145,16 @@
 .needt-v3 .ag-detail-ev > :first-child {
   color: var(--text-tertiary);
 }
+.needt-v3 .ag-file {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.needt-v3 .ag-file a {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .needt-v3 .ag-form {
   display: flex;
   align-items: center;

@@ -230,7 +230,9 @@ first, 50 a page, 7 days Free / 90 Pro; the owner reads the same feed at
 `/api/agent-hub/activity`). The feed is also `needt_agent_activity`. Mail and reservations add seven
 tools: `needt_agent_message_send`, `needt_agent_messages`,
 `needt_agent_message_ack`, `needt_agent_thread`, `needt_agent_reserve`,
-`needt_agent_release`, `needt_agent_reservations`. The owner's own actions (answer, approve, reassign, token
+`needt_agent_release`, `needt_agent_reservations`. Two more handle files on
+items: `needt_agent_attach` (write) and `needt_agent_files` (read), see
+"Attachments on hub items" below. The owner's own actions (answer, approve, reassign, token
 create/revoke, note edit/delete, mark an alert seen) are session-only routes
 under `/api/agent-hub/` and no bearer token can call them. An escalation (or
 no capable agent for 24 hours) alerts the owner with a push to
@@ -252,6 +254,50 @@ are at 2. Upgrade to Pro for unlimited agents.", "limit": 2, "used": 2,
 (`resource` is `agents`, `items` or `notes`). Nothing already stored is
 removed: data above a limit stays, stays readable and stays editable; only a
 new create is refused. Attachments, webhooks and recurring items are Pro-only.
+
+#### Attachments on hub items
+
+An agent can leave files on an item it can see (an agent sees only items that
+concern it; the owner sees all of the workspace; nothing crosses workspaces).
+Allowed: images (png, jpg, gif, webp, avif, heic), video (mp4, mov, webm),
+audio, pdf, text and markdown, csv, json, zip. Refused: executables and
+scripts (by name, even `a.exe.txt`, and by content: PE, ELF, Mach-O, `#!`),
+svg and html, unknown extensions, and a declared `mime` that contradicts the
+name. Limits: 25 MB per file, 10 files per item, 500 MB per account
+(`HUB_ATTACHMENT_*` in `src/services/agent-hub/attachment-rules.ts`). The file
+name and the content of text, markdown, csv and json files go through the hub's
+secret scan; a hit is refused naming the kind, never the value.
+
+- `needt_agent_attach` `{ itemId, name, contentBase64?, mime? }`. With
+  `contentBase64` (small files) the file is stored and the attachment returned.
+  Without it the answer is `{ method: "PUT", uploadUrl, expiresAt, maxBytes }`:
+  `PUT` the raw bytes to `uploadUrl` (valid 15 minutes, no `Authorization`
+  header), so a large file never passes through the model. Needt keeps file
+  bytes in its own database, so the URL points at Needt and not at an object
+  store; a replayed PUT returns the first result instead of a second file.
+- `needt_agent_files` `{ itemId }` lists `{ id, name, mime, size, uploadedBy,
+  createdAt, url, urlExpiresAt }`. `url` is a signed GET valid 24 hours (the
+  signature is the credential, so anyone holding the link can read the file
+  until it expires; call the tool again for a fresh one).
+- REST: `GET` and `POST /api/connect/agent-hub/items/{id}/attachments` (bearer;
+  the `POST` body is the tool's input), `PUT /api/connect/agent-hub/uploads?t=`
+  and `GET /api/connect/agent-hub/files?t=` (signed). Owner (session only):
+  `GET` and `POST` (multipart `file`) `/api/agent-hub/items/{id}/attachments`
+  `GET` and `DELETE /api/agent-hub/attachments/{id}` (the owner removes a
+  file and gets its storage back). Downloads are `attachment`,
+  `nosniff` and sandboxed.
+- A file's bytes must start like its type (a `.png` is checked for the PNG
+  signature, and so on); a name and content that disagree are `BAD_TYPE`.
+  Signed links are re-checked when used: the hub flag, and for an upload link
+  the agent (not disabled, token not revoked or expired, item still its own).
+  Writes with a file are limited to 6 a minute per account; signed routes are
+  limited per address. Uploads for one account are serialized, so the 10-file
+  and 500 MB limits hold under concurrent writes.
+- Each upload adds an `attachment_added` entry to the item's log. Errors are
+  `INVALID` with `reason` `EMPTY`, `TOO_LARGE` (413), `QUOTA` (413),
+  `TOO_MANY`, `BAD_TYPE`, `EXECUTABLE` or `SECRET`. On Free an upload is refused
+  with `PLAN_LIMIT` (402, `resource` `attachments`): "Upgrade to Pro for
+  attachments". Listing and downloading files already stored stays allowed.
 
 **Recurring items (Pro).** `needt_agent_task_create` takes an optional
 `recurrence`: `{ "rrule": "FREQ=WEEKLY;BYDAY=MO;BYHOUR=9", "timezone":

@@ -41,6 +41,10 @@ const PUBLIC_ROUTES: Record<string, string> = {
     "public landing counter: two integers, CORS-limited, cached",
   "share-target/route.ts POST":
     "PWA share_target fallback: redirects to /share with the text and link, saves nothing",
+  "connect/agent-hub/files/route.ts GET":
+    "hub attachment download: the signed 24 h link in ?t= is the proof (HMAC over attachment and account), read-only, rate limited",
+  "connect/agent-hub/uploads/route.ts PUT":
+    "hub attachment upload: the signed 15 min link in ?t= names the item, account and file name, bytes are re-validated, 25 MB cap, rate limited",
   "auth/[...nextauth]/route.ts": "NextAuth handler, rate limited",
   "auth/register/route.ts": "signup, rate limited",
   "auth/age-confirm/route.ts":
