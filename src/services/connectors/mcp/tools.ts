@@ -2280,7 +2280,12 @@ MCP_TOOLS.unshift(
             name: true,
             email: true,
             subscription: {
-              select: { plan: true, status: true, currentPeriodEnd: true },
+              select: {
+                plan: true,
+                status: true,
+                currentPeriodEnd: true,
+                provider: true,
+              },
             },
             trialGrant: { select: { endsAt: true } },
           },

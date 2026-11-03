@@ -7,7 +7,6 @@ import { isFeatureEnabled } from "@/lib/feature-flags";
 import { APPLE_IAP } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { publicRequestUrl } from "@/lib/public-url";
-import { refuseSandbox } from "@/lib/sandbox/guard";
 import {
   accountRule,
   enforceRateLimits,
@@ -36,10 +35,8 @@ export async function POST(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
 
-  // App Review buys with Apple's sandbox Apple ID on a real account it creates
-  // (docs/billing/apple-iap.md); a Needt sandbox account never buys.
-  const locked = await refuseSandbox(auth.userId, "billing");
-  if (locked) return locked;
+  // Sandbox accounts are sorted out in the service: the App Review login
+  // may post Sandbox-signed purchases only; every other kind is refused.
 
   if (!isSameOriginJson(request)) {
     return NextResponse.json(

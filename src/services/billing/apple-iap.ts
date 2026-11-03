@@ -4,7 +4,11 @@ import { SubscriptionPlan } from "@prisma/client";
 import {
   APPLE_PRODUCTS,
   APPLE_PRODUCT_IDS,
+  type AppleIapConfig,
   applePlanForProduct,
+  getAppleIapConfig,
+  isAppleIapConfigured,
+  mayUseAppleSandbox,
 } from "@/lib/apple-iap/config";
 import {
   applyAppleEntitlement,
@@ -30,18 +34,31 @@ import { isFeatureEnabled } from "@/lib/feature-flags";
 import { APPLE_IAP } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { isSandboxUser } from "@/lib/sandbox/guard";
+import { sandboxLockedBody } from "@/lib/sandbox/policy";
 
 const LOG_SOURCE = "AppleIap";
 
 /**
  * Server side of Apple In-App Purchase (docs/billing/apple-iap.md). The
  * routes under /api/billing/apple are thin wrappers over these functions.
+ *
+ * Sandbox accounts: the App Review login (`sandboxKind = reviewer`) may buy,
+ * but only with Sandbox-signed purchases, which are time-boxed Pro. Every
+ * other sandbox kind is refused like any other billing call.
  */
+
+type Account = { sandboxKind: string | null; email: string | null };
+
+async function account(userId: string): Promise<Account | null> {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { sandboxKind: true, email: true },
+  });
+}
 
 /** What the native paywall may offer this account, in App Store product ids. */
 export async function appleOfferedProducts(userId: string): Promise<string[]> {
-  const [subscription, lifetime, sandbox] = await Promise.all([
+  const [subscription, lifetime, user] = await Promise.all([
     prisma.subscription.findUnique({
       where: { userId },
       select: {
@@ -55,27 +72,37 @@ export async function appleOfferedProducts(userId: string): Promise<string[]> {
       },
     }),
     lifetimeAvailability(userId),
-    isSandboxUser(userId),
+    account(userId),
   ]);
-  // A reviewer sandbox account cannot buy (refuseSandbox "billing").
-  if (sandbox) return [];
+  // Only the reviewer sandbox kind may buy (Sandbox-signed, time-boxed).
+  if (user?.sandboxKind && user.sandboxKind !== "reviewer") return [];
   const live = subscription ? grantsAccess(subscription) : false;
+  const source = billingSource(subscription);
   // One seller at a time: a live Creem plan is managed on the web.
-  if (live && billingSource(subscription) === "creem") return [];
-  // Lifetime already owned (here or via Creem): nothing left to buy.
+  if (live && source === "creem") return [];
+  // Lifetime already owned (here, via Creem, or a comp): nothing left to buy.
   if (live && subscription?.plan === SubscriptionPlan.LIFETIME) return [];
+  // While an App Store Pro renews, Lifetime is not offered: Apple would keep
+  // billing the subscription after the upgrade and nothing would say so.
+  const appleProLive =
+    live && source === "apple" && subscription?.plan === SubscriptionPlan.PRO;
   // The 300 seats count Creem and Apple buyers together (Subscription rows at
   // LIFETIME, whoever sold them, plus open Creem checkout holds).
   return APPLE_PRODUCTS.filter(
-    (id) => id !== APPLE_PRODUCT_IDS.lifetime || lifetime.available
+    (id) =>
+      id !== APPLE_PRODUCT_IDS.lifetime || (lifetime.available && !appleProLive)
   );
 }
 
-export async function appleAccountToken(userId: string) {
-  const [appAccountToken, enabled] = await Promise.all([
+export async function appleAccountToken(
+  userId: string,
+  config: AppleIapConfig = getAppleIapConfig()
+) {
+  const [appAccountToken, flag] = await Promise.all([
     getOrCreateAppAccountToken(userId),
     isFeatureEnabled(APPLE_IAP, userId),
   ]);
+  const enabled = flag && isAppleIapConfigured(config);
   return {
     appAccountToken,
     enabled,
@@ -109,6 +136,36 @@ const VERIFICATION_MESSAGES: Record<AppleVerificationError["reason"], string> =
   };
 
 /**
+ * Whether this account may have a purchase from `environment` applied on
+ * this server. Null when it may; the refusal otherwise.
+ */
+function environmentRefusal(
+  user: Account | null,
+  environment: "Production" | "Sandbox",
+  config: AppleIapConfig
+): AppleTransactionPostResult | null {
+  if (user?.sandboxKind === "reviewer" && environment !== "Sandbox") {
+    return refused(
+      403,
+      "APPLE_SANDBOX_ONLY",
+      "This review account can only make App Store Sandbox purchases."
+    );
+  }
+  if (
+    environment === "Sandbox" &&
+    config.environment === "Production" &&
+    !(user && mayUseAppleSandbox(user, config))
+  ) {
+    return refused(
+      400,
+      "APPLE_WRONG_ENVIRONMENT",
+      VERIFICATION_MESSAGES.wrong_environment
+    );
+  }
+  return null;
+}
+
+/**
  * A StoreKit 2 transaction the app posts after a purchase, a restore or a
  * `Transaction.updates` event. Verified, tied to the caller through the
  * appAccountToken, then applied. Posting the same transaction again changes
@@ -119,16 +176,26 @@ export async function processAppleTransactionPost(
   signedTransaction: unknown,
   verifyOptions: AppleVerifyOptions = {}
 ): Promise<AppleTransactionPostResult> {
+  const config = verifyOptions.config ?? getAppleIapConfig();
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { appleAppAccountToken: true, sandboxKind: true, email: true },
+  });
+  if (user?.sandboxKind && user.sandboxKind !== "reviewer") {
+    const body = sandboxLockedBody("billing");
+    return refused(403, body.code, body.error);
+  }
+
   if (typeof signedTransaction !== "string" || !signedTransaction.trim()) {
     return refused(400, "INVALID_BODY", "signedTransaction is required.");
   }
 
   let verified;
   try {
-    verified = await verifyAppleTransaction(
-      signedTransaction.trim(),
-      verifyOptions
-    );
+    verified = await verifyAppleTransaction(signedTransaction.trim(), {
+      ...verifyOptions,
+      config,
+    });
   } catch (error) {
     const reason =
       error instanceof AppleVerificationError
@@ -149,10 +216,16 @@ export async function processAppleTransactionPost(
   }
 
   const { transaction, environment } = verified;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { appleAppAccountToken: true },
-  });
+  const environmentRefused = environmentRefusal(user, environment, config);
+  if (environmentRefused) {
+    await logger.warn(
+      "Refused an Apple transaction from this environment",
+      { userId, environment },
+      LOG_SOURCE
+    );
+    return environmentRefused;
+  }
+
   const expected = user?.appleAppAccountToken?.toLowerCase() ?? null;
   const presented = transaction.appAccountToken?.toLowerCase() ?? null;
   if (!expected || presented !== expected) {
@@ -190,7 +263,7 @@ export async function processAppleTransactionPost(
     productId: transaction.productId,
     bundleId: transaction.bundleId,
     environment,
-    signedAt: newDate(transaction.signedDate ?? Date.now()),
+    signedAt: newDate(transaction.signedDate ?? newDate().getTime()),
     state,
     origin: "device",
   });
@@ -245,6 +318,11 @@ export type AppleNotificationResult = {
  * App Store Server Notifications V2. A bad signature is a 400; anything that
  * verified is a 200 even when it maps to nobody (logged and kept as a
  * receipt), so Apple does not retry what will never apply.
+ *
+ * The receipt is written first with outcome "received" and settled last. A
+ * failure in between (the route answers 500, Apple retries) leaves it at
+ * "received", and the retry processes it again instead of calling it a
+ * replay: applying is idempotent, losing a REFUND is not.
  */
 export async function processAppleNotification(
   signedPayload: unknown,
@@ -253,13 +331,14 @@ export async function processAppleNotification(
   if (typeof signedPayload !== "string" || !signedPayload.trim()) {
     return { status: 400, body: { ok: false, outcome: "invalid_body" } };
   }
+  const config = verifyOptions.config ?? getAppleIapConfig();
 
   let verified;
   try {
-    verified = await verifyAppleNotification(
-      signedPayload.trim(),
-      verifyOptions
-    );
+    verified = await verifyAppleNotification(signedPayload.trim(), {
+      ...verifyOptions,
+      config,
+    });
   } catch (error) {
     const reason =
       error instanceof AppleVerificationError
@@ -280,7 +359,7 @@ export async function processAppleNotification(
   const notificationType = String(notification.notificationType ?? "");
   const subtype = notification.subtype ? String(notification.subtype) : null;
   const notificationUUID = notification.notificationUUID;
-  const signedAt = newDate(notification.signedDate ?? Date.now());
+  const signedAt = newDate(notification.signedDate ?? newDate().getTime());
   const originalTransactionId = transaction?.originalTransactionId ?? null;
 
   if (!notificationUUID) {
@@ -311,13 +390,24 @@ export async function processAppleNotification(
     skipDuplicates: true,
   });
   if (receipt.count === 0) {
-    return { status: 200, body: { ok: true, outcome: "replayed" } };
+    const stored = await prisma.appleNotificationReceipt.findUnique({
+      where: { notificationUUID },
+      select: { outcome: true },
+    });
+    if (stored && stored.outcome !== "received") {
+      return { status: 200, body: { ok: true, outcome: "replayed" } };
+    }
+    await logger.info(
+      "Reprocessing an App Store notification that never settled",
+      { notificationUUID, notificationType },
+      LOG_SOURCE
+    );
   }
 
   const finish = async (outcome: string) => {
     await prisma.appleNotificationReceipt.update({
       where: { notificationUUID },
-      data: { outcome },
+      data: { outcome, userId },
     });
     return { status: 200 as const, body: { ok: true, outcome } };
   };
@@ -356,6 +446,16 @@ export async function processAppleNotification(
     return finish("unmapped");
   }
   if (!applePlanForProduct(transaction.productId)) return finish("ignored");
+
+  const user = await account(userId);
+  if (environmentRefusal(user, environment, config)) {
+    await logger.warn(
+      "App Store notification from an environment this account may not use",
+      { notificationUUID, notificationType, userId, environment },
+      LOG_SOURCE
+    );
+    return finish("sandbox_ignored");
+  }
 
   const { outcome } = await applyAppleEntitlement({
     userId,

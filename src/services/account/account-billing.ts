@@ -38,6 +38,7 @@ export async function cancelRecurringBillingForDeletion(
       status: true,
       provider: true,
       appleOriginalTransactionId: true,
+      pendingCreemCancelId: true,
     },
   });
   if (subscription?.provider === BillingProvider.APPLE) {
@@ -56,6 +57,19 @@ export async function cancelRecurringBillingForDeletion(
         },
         LOG_SOURCE
       );
+    }
+    // A Creem subscription the Apple purchase replaced and Creem has not yet
+    // confirmed cancelled: the worker cannot retry once the row is gone, so
+    // finish it now.
+    if (subscription.pendingCreemCancelId) {
+      try {
+        await getCreemClient().subscriptions.cancel(
+          subscription.pendingCreemCancelId,
+          { mode: "immediate" }
+        );
+      } catch (error) {
+        if (!isAlreadyGone(error)) throw error;
+      }
     }
     return;
   }

@@ -14,6 +14,7 @@ import {
 import { compare, hash } from "bcryptjs";
 
 import { APP_NAME } from "@/lib/app-config";
+import { clearAppleSandboxState } from "@/lib/apple-iap/entitlement";
 import {
   addCalendarDays,
   formatInTimeZone,
@@ -681,6 +682,8 @@ export async function resetSandboxAccount(
       const tokensRevoked = await revokeStaleSandboxTokens(tx, userId, now);
       const deletionsCanceled = await cancelSandboxDeletion(tx, userId, now);
       await wipeSandboxContent(tx, userId);
+      // App Review's Sandbox purchases end with the day, like everything else.
+      await clearAppleSandboxState(tx, userId);
       await ensurePro(tx, userId);
       const workspaceId = await ensureWorkspace(tx, userId);
       const seeded = await seedSandboxContent(tx, {

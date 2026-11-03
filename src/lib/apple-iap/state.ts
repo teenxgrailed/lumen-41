@@ -1,9 +1,13 @@
-import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
+import {
+  type BillingProvider,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 import { effectiveSubscriptionPlan } from "@/lib/entitlements";
 
-import { applePlanForProduct } from "./config";
+import { APPLE_SANDBOX_GRANT_MS, applePlanForProduct } from "./config";
 
 /**
  * Pure mapping from what Apple signed to the `Subscription` columns every
@@ -173,9 +177,11 @@ export function stateFromNotification(
           cancelAtPeriodEnd: false,
         };
       }
+      // Billing retry without a grace period: no access while Apple retries.
       return {
         ...base,
         status: SubscriptionStatus.PAYMENT_FAILED,
+        currentPeriodEnd: null,
         cancelAtPeriodEnd: false,
       };
     }
@@ -200,10 +206,48 @@ export function stateFromNotification(
   }
 }
 
-/** True when this state gives the person a paid plan right now (same rule as getPlan). */
+/**
+ * True when this row or state gives the person a paid plan right now: the
+ * same rule as getPlan, including the period bound on App Store Pro.
+ */
 export function grantsAccess(
-  state: Pick<AppleEntitlementState, "plan" | "status" | "currentPeriodEnd">,
+  state: Pick<AppleEntitlementState, "plan" | "status" | "currentPeriodEnd"> & {
+    provider?: BillingProvider | null;
+  },
   now: Date = newDate()
 ): boolean {
   return effectiveSubscriptionPlan(state, null, now) !== SubscriptionPlan.FREE;
+}
+
+/**
+ * A Sandbox-signed purchase costs the buyer nothing, so it is never a real
+ * plan: at most 24 hours of Pro, stored ending (CANCELED with the end date),
+ * never Lifetime and never a Lifetime seat. Revocations and endings pass
+ * through unchanged.
+ */
+export function timeBoxSandboxState(
+  state: AppleEntitlementState,
+  now: Date = newDate()
+): AppleEntitlementState {
+  if (state.revoked || state.plan === SubscriptionPlan.FREE) return state;
+  const cap = newDate(now.getTime() + APPLE_SANDBOX_GRANT_MS);
+  if (state.plan === SubscriptionPlan.PRO) {
+    if (!state.currentPeriodEnd || state.currentPeriodEnd <= now) {
+      return state;
+    }
+    return {
+      ...state,
+      status: SubscriptionStatus.CANCELED,
+      currentPeriodEnd:
+        state.currentPeriodEnd < cap ? state.currentPeriodEnd : cap,
+    };
+  }
+  return {
+    plan: SubscriptionPlan.PRO,
+    status: SubscriptionStatus.CANCELED,
+    interval: null,
+    currentPeriodEnd: cap,
+    cancelAtPeriodEnd: false,
+    revoked: false,
+  };
 }

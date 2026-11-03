@@ -19,15 +19,15 @@ const stranger = createTestChain("Stranger");
 
 const sandbox: AppleIapConfig = {
   environment: "Sandbox",
-  allowSandbox: false,
   bundleIds: ["app.needt.ios", "app.needt.mac"],
   appAppleId: null,
+  sandboxTesters: [],
 };
 const production: AppleIapConfig = {
   environment: "Production",
-  allowSandbox: false,
   bundleIds: ["app.needt.ios", "app.needt.mac"],
   appAppleId: 6400000000,
+  sandboxTesters: [],
 };
 
 function transaction(overrides: Record<string, unknown> = {}) {
@@ -136,20 +136,39 @@ describe("Apple JWS verification", () => {
     ).toBe("wrong_environment");
   });
 
-  it("rejects a Sandbox transaction on a Production server by default", async () => {
-    expect(
-      await reason(
-        verifyAppleTransaction(chain.sign(transaction()), options(production))
-      )
-    ).toBe("wrong_environment");
-  });
-
-  it("accepts Sandbox on Production only when APPLE_IAP_ALLOW_SANDBOX is set", async () => {
+  it("verifies a Sandbox transaction on a Production server and says so", async () => {
+    // Verified with the Sandbox verifier; whether it is honoured is the
+    // caller's decision (reviewer or tester only, time-boxed).
     const result = await verifyAppleTransaction(
       chain.sign(transaction()),
-      options({ ...production, allowSandbox: true })
+      options(production)
     );
     expect(result.environment).toBe("Sandbox");
+  });
+
+  it.each(["Xcode", "LocalTesting", undefined])(
+    "rejects a transaction claiming the %s environment",
+    async (environment) => {
+      expect(
+        await reason(
+          verifyAppleTransaction(
+            chain.sign(transaction({ environment })),
+            options(production)
+          )
+        )
+      ).toBe("wrong_environment");
+    }
+  );
+
+  it("refuses everything while the environment is not configured", async () => {
+    expect(
+      await reason(
+        verifyAppleTransaction(
+          chain.sign(transaction({ environment: "Production" })),
+          options({ ...production, environment: null })
+        )
+      )
+    ).toBe("not_configured");
   });
 
   it("verifies a Production transaction on a Production server", async () => {
@@ -236,6 +255,64 @@ describe("Apple JWS verification", () => {
           )
         )
       ).toBe("invalid_signature");
+    });
+
+    it("verifies a Sandbox notification on a Production server (Sandbox carries no appAppleId)", async () => {
+      const result = await verifyAppleNotification(
+        chain.sign(notification()),
+        options(production)
+      );
+      expect(result.environment).toBe("Sandbox");
+      expect(result.transaction?.environment).toBe("Sandbox");
+    });
+
+    it("verifies a Production notification on a Production server", async () => {
+      const result = await verifyAppleNotification(
+        chain.sign(
+          notification({
+            environment: "Production",
+            appAppleId: 6400000000,
+            signedTransactionInfo: chain.sign(
+              transaction({ environment: "Production" })
+            ),
+            signedRenewalInfo: chain.sign({
+              originalTransactionId: "2000000000000001",
+              autoRenewStatus: 1,
+              environment: "Production",
+              signedDate: Date.now(),
+            }),
+          })
+        ),
+        options(production)
+      );
+      expect(result.environment).toBe("Production");
+    });
+
+    it("rejects a Production payload that carries a Sandbox transaction", async () => {
+      expect(
+        await reason(
+          verifyAppleNotification(
+            chain.sign(
+              notification({
+                environment: "Production",
+                appAppleId: 6400000000,
+              })
+            ),
+            options(production)
+          )
+        )
+      ).toBe("wrong_environment");
+    });
+
+    it("rejects a Production notification on a Sandbox server", async () => {
+      expect(
+        await reason(
+          verifyAppleNotification(
+            chain.sign(notification({ environment: "Production" })),
+            options(sandbox)
+          )
+        )
+      ).toBe("wrong_environment");
     });
 
     it("rejects a Production notification without our App Apple ID", async () => {

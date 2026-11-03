@@ -133,6 +133,24 @@ describe("processing a Creem revocation", () => {
     );
   });
 
+  it("never takes a live App Store plan away over an old Creem refund", async () => {
+    tx.subscription.findFirst.mockResolvedValue({
+      id: "row_1",
+      userId: "user_1",
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.ACTIVE,
+      currentPeriodEnd: new Date(Date.now() + 86_400_000),
+      provider: "APPLE",
+      creemSubscriptionId: "sub_1",
+    });
+
+    await expect(processCreemRevocationEvent(refundEvent())).resolves.toEqual({
+      processed: false,
+      outcome: "apple_active",
+    });
+    expect(tx.subscription.update).not.toHaveBeenCalled();
+  });
+
   it("drops a disputed buyer to FREE", async () => {
     tx.subscription.findFirst.mockResolvedValue({
       id: "row_2",

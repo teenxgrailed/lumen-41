@@ -279,6 +279,13 @@ describe("reset", () => {
       where: { userId: "sandbox-1" },
     });
     expect(call("aiUsage", "deleteMany")).toHaveBeenCalled();
+    // App Review's Sandbox purchases end with the day.
+    expect(call("subscription", "deleteMany")).toHaveBeenCalledWith({
+      where: { userId: "sandbox-1", provider: "APPLE" },
+    });
+    expect(call("appleNotificationReceipt", "deleteMany")).toHaveBeenCalledWith(
+      { where: { userId: "sandbox-1" } }
+    );
     // ...and the same planner again.
     expect(call("task", "create")).toHaveBeenCalledTimes(SANDBOX_TASKS.length);
     expect(call("calendarEvent", "create")).toHaveBeenCalledTimes(

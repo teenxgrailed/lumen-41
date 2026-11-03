@@ -107,7 +107,7 @@ export const SANDBOX_API_RULES: readonly Rule[] = [
   },
   // Billing
   {
-    pattern: /^\/api\/billing\/(checkout|portal|trial|apple\/transactions)$/,
+    pattern: /^\/api\/billing\/(checkout|portal|trial)$/,
     methods: WRITES,
     capability: "billing",
   },

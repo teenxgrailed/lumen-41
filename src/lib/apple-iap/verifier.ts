@@ -138,29 +138,39 @@ function toVerificationError(error: unknown): AppleVerificationError {
   return new AppleVerificationError("invalid_signature");
 }
 
-/** Environments to try, in order: the configured one, then Sandbox if allowed. */
-function environmentsToTry(config: AppleIapConfig): AppleIapEnvironment[] {
-  return config.allowSandbox
-    ? [config.environment, "Sandbox"]
-    : [config.environment];
+/**
+ * Which verifier to run, from the environment the payload claims. The claim
+ * is only a selector: the chosen verifier then checks it strictly, so a
+ * payload cannot pick an environment it was not signed for.
+ *
+ * A Production server also verifies Sandbox-signed data (App Review and
+ * TestFlight buy in the Sandbox against it). Verifying is not honouring:
+ * the caller grants a Sandbox purchase only to allowed accounts, and only as
+ * time-boxed Pro. A Sandbox server never accepts Production data.
+ */
+function environmentFor(
+  claimed: string | null,
+  config: AppleIapConfig
+): AppleIapEnvironment {
+  if (config.environment === null) {
+    throw new AppleVerificationError(
+      "not_configured",
+      "APPLE_IAP_ENVIRONMENT is not set."
+    );
+  }
+  if (claimed === config.environment) return config.environment;
+  if (config.environment === "Production" && claimed === "Sandbox") {
+    return "Sandbox";
+  }
+  throw new AppleVerificationError("wrong_environment");
 }
 
-async function verifyInEnvironments<T>(
-  config: AppleIapConfig,
-  run: (environment: AppleIapEnvironment) => Promise<T>
-): Promise<{ value: T; environment: AppleIapEnvironment }> {
-  let lastError: AppleVerificationError | null = null;
-  for (const environment of environmentsToTry(config)) {
-    try {
-      return { value: await run(environment), environment };
-    } catch (error) {
-      lastError = toVerificationError(error);
-      // Only a payload signed for the other environment is worth a second
-      // try; a bad signature stays bad whichever verifier reads it.
-      if (lastError.reason !== "wrong_environment") throw lastError;
-    }
+async function verifyWith<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    throw toVerificationError(error);
   }
-  throw lastError ?? new AppleVerificationError("invalid_signature");
 }
 
 export type VerifiedAppleTransaction = {
@@ -173,24 +183,24 @@ export async function verifyAppleTransaction(
   options: AppleVerifyOptions = {}
 ): Promise<VerifiedAppleTransaction> {
   const config = options.config ?? getAppleIapConfig();
-  const bundleId = stringField(
-    unverifiedPayload(signedTransaction),
-    "bundleId"
-  );
+  const payload = unverifiedPayload(signedTransaction);
+  const bundleId = stringField(payload, "bundleId");
   if (!bundleId || !config.bundleIds.includes(bundleId)) {
     throw new AppleVerificationError("wrong_bundle");
   }
-  const { value, environment } = await verifyInEnvironments(
-    config,
-    (environment) =>
-      verifierFor(
-        environment,
-        bundleId,
-        config,
-        options
-      ).verifyAndDecodeTransaction(signedTransaction)
+  const environment = environmentFor(
+    stringField(payload, "environment"),
+    config
   );
-  return { transaction: value, environment };
+  const transaction = await verifyWith(() =>
+    verifierFor(
+      environment,
+      bundleId,
+      config,
+      options
+    ).verifyAndDecodeTransaction(signedTransaction)
+  );
+  return { transaction, environment };
 }
 
 export type VerifiedAppleNotification = {
@@ -213,21 +223,25 @@ export async function verifyAppleNotification(
   if (!bundleId || !config.bundleIds.includes(bundleId)) {
     throw new AppleVerificationError("wrong_bundle");
   }
-  const { value, environment } = await verifyInEnvironments(
-    config,
-    async (environment) => {
-      const verifier = verifierFor(environment, bundleId, config, options);
-      const notification =
-        await verifier.verifyAndDecodeNotification(signedPayload);
-      const data = notification.data;
-      const transaction = data?.signedTransactionInfo
-        ? await verifier.verifyAndDecodeTransaction(data.signedTransactionInfo)
-        : null;
-      const renewalInfo = data?.signedRenewalInfo
-        ? await verifier.verifyAndDecodeRenewalInfo(data.signedRenewalInfo)
-        : null;
-      return { notification, transaction, renewalInfo };
-    }
+  const environment = environmentFor(
+    stringField(payload.data, "environment") ??
+      stringField(payload.summary, "environment"),
+    config
   );
-  return { ...value, environment, bundleId };
+  const verifier = verifierFor(environment, bundleId, config, options);
+  const notification = await verifyWith(() =>
+    verifier.verifyAndDecodeNotification(signedPayload)
+  );
+  const data = notification.data;
+  const transaction = data?.signedTransactionInfo
+    ? await verifyWith(() =>
+        verifier.verifyAndDecodeTransaction(data.signedTransactionInfo!)
+      )
+    : null;
+  const renewalInfo = data?.signedRenewalInfo
+    ? await verifyWith(() =>
+        verifier.verifyAndDecodeRenewalInfo(data.signedRenewalInfo!)
+      )
+    : null;
+  return { notification, transaction, renewalInfo, environment, bundleId };
 }

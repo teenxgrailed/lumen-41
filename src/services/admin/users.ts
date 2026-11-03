@@ -79,7 +79,12 @@ export async function searchAdminUsers(
       lastAuthenticatedAt: true,
       sandboxKind: true,
       subscription: {
-        select: { plan: true, status: true, currentPeriodEnd: true },
+        select: {
+          plan: true,
+          status: true,
+          currentPeriodEnd: true,
+          provider: true,
+        },
       },
       trialGrant: { select: { endsAt: true } },
     },
@@ -118,6 +123,7 @@ export async function getAdminUserDetail(
           plan: true,
           status: true,
           currentPeriodEnd: true,
+          provider: true,
           creemCustomerId: true,
           creemSubscriptionId: true,
           creemProductId: true,

@@ -6,6 +6,7 @@ import {
   type AppleTransactionFields,
   stateFromNotification,
   stateFromTransaction,
+  timeBoxSandboxState,
 } from "../state";
 
 jest.mock("@/lib/prisma", () => ({ prisma: {} }));
@@ -212,5 +213,89 @@ describe("stateFromNotification", () => {
         now
       )
     ).toBeNull();
+  });
+});
+
+describe("timeBoxSandboxState", () => {
+  const cap = new Date(now.getTime() + day);
+
+  it("caps Pro at 24 hours and stores it as ending", () => {
+    const state = timeBoxSandboxState(stateFromTransaction(monthly, now)!, now);
+    expect(state).toMatchObject({
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.CANCELED,
+      currentPeriodEnd: cap,
+    });
+  });
+
+  it("keeps a shorter Sandbox period (a 5-minute renewal)", () => {
+    const soon = now.getTime() + 5 * 60 * 1000;
+    const state = timeBoxSandboxState(
+      stateFromTransaction({ ...monthly, expiresDate: soon }, now)!,
+      now
+    );
+    expect(state.currentPeriodEnd).toEqual(new Date(soon));
+  });
+
+  it("turns a Sandbox Lifetime into a day of Pro, never LIFETIME", () => {
+    const state = timeBoxSandboxState(
+      stateFromTransaction({ productId: "app.needt.lifetime" }, now)!,
+      now
+    );
+    expect(state).toMatchObject({
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.CANCELED,
+      currentPeriodEnd: cap,
+    });
+  });
+
+  it("passes refunds and endings through", () => {
+    const refunded = notify("REFUND")!;
+    expect(timeBoxSandboxState(refunded, now)).toBe(refunded);
+    const expired = notify("EXPIRED")!;
+    expect(timeBoxSandboxState(expired, now)).toBe(expired);
+  });
+});
+
+describe("App Store Pro is bounded by its period", () => {
+  const row = (currentPeriodEnd: Date | null, status = "ACTIVE") => ({
+    plan: SubscriptionPlan.PRO,
+    status: status as SubscriptionStatus,
+    currentPeriodEnd,
+    provider: "APPLE" as const,
+  });
+
+  it("an ACTIVE Apple Pro whose renewal was never heard of ends 6 h after its period", () => {
+    const recent = new Date(now.getTime() - 5 * 3600 * 1000);
+    expect(effectiveSubscriptionPlan(row(recent), null, now)).toBe(
+      SubscriptionPlan.PRO
+    );
+    const longAgo = new Date(now.getTime() - 7 * 3600 * 1000);
+    expect(effectiveSubscriptionPlan(row(longAgo), null, now)).toBe(
+      SubscriptionPlan.FREE
+    );
+  });
+
+  it("an ACTIVE Apple Pro with no period is Free", () => {
+    expect(effectiveSubscriptionPlan(row(null), null, now)).toBe(
+      SubscriptionPlan.FREE
+    );
+  });
+
+  it("the bound applies whatever the status", () => {
+    const later = new Date(now.getTime() + day);
+    expect(effectiveSubscriptionPlan(row(later, "PAST_DUE"), null, now)).toBe(
+      SubscriptionPlan.PRO
+    );
+  });
+
+  it("a Creem ACTIVE Pro keeps its old rule (Creem webhooks own it)", () => {
+    expect(
+      effectiveSubscriptionPlan(
+        { ...row(null), provider: "CREEM" as const },
+        null,
+        now
+      )
+    ).toBe(SubscriptionPlan.PRO);
   });
 });

@@ -72,6 +72,22 @@ describe("account deletion billing", () => {
     );
   });
 
+  it("finishes the Creem cancel an Apple takeover left pending", async () => {
+    jest.mocked(prisma.subscription.findUnique).mockResolvedValue({
+      creemSubscriptionId: "sub_dunning",
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.ACTIVE,
+      provider: "APPLE",
+      appleOriginalTransactionId: "2000000000000001",
+      pendingCreemCancelId: "sub_dunning",
+    } as never);
+    cancel.mockResolvedValue({});
+
+    await cancelRecurringBillingForDeletion("user-1");
+
+    expect(cancel).toHaveBeenCalledWith("sub_dunning", { mode: "immediate" });
+  });
+
   it("does not call Creem for free or lifetime accounts", async () => {
     jest.mocked(prisma.subscription.findUnique).mockResolvedValue({
       creemSubscriptionId: null,

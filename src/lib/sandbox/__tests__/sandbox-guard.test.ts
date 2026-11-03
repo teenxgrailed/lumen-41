@@ -36,7 +36,6 @@ const BLOCKED: Array<[SandboxCapability, string, string]> = [
   ["billing", "POST", "/api/billing/checkout"],
   ["billing", "POST", "/api/billing/portal"],
   ["billing", "POST", "/api/billing/trial"],
-  ["billing", "POST", "/api/billing/apple/transactions"],
   ["providers", "GET", "/api/calendar/google/auth"],
   ["providers", "POST", "/api/calendar/caldav/auth"],
   ["providers", "POST", "/api/calendar/outlook/sync"],
@@ -77,6 +76,8 @@ const ALLOWED: Array<[string, string]> = [
   ["POST", "/api/tasks/task_1/attachments"],
   ["GET", "/api/billing"],
   ["GET", "/api/billing/apple/account-token"],
+  // The App Review login buys Sandbox-only; the route sorts sandbox kinds.
+  ["POST", "/api/billing/apple/transactions"],
   ["POST", "/api/billing/apple/notifications"],
   ["GET", "/api/connector-settings"],
   ["GET", "/api/calendar/google"],

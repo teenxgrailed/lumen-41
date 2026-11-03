@@ -49,46 +49,79 @@ export function applePlanForProduct(
 export type AppleIapEnvironment = "Production" | "Sandbox";
 
 export type AppleIapConfig = {
-  environment: AppleIapEnvironment;
-  /** Production also accepts Sandbox-signed data (App Review buys in Sandbox). */
-  allowSandbox: boolean;
+  /**
+   * The server's App Store environment. Null when it is not configured: in
+   * production an unset APPLE_IAP_ENVIRONMENT must not silently mean Sandbox
+   * (every real purchase would be refused while the buyer is charged).
+   */
+  environment: AppleIapEnvironment | null;
   bundleIds: string[];
   /** Numeric App Apple ID; the library requires it to verify Production. */
   appAppleId: number | null;
+  /**
+   * Lower-cased account emails whose Sandbox (TestFlight) purchases a
+   * Production server honours, as time-boxed Pro. The reviewer sandbox
+   * account is always allowed; see `mayUseAppleSandbox`.
+   */
+  sandboxTesters: string[];
 };
 
 export const DEFAULT_APPLE_BUNDLE_IDS = ["app.needt.ios", "app.needt.mac"];
 
-function parseEnvironment(value: string | undefined): AppleIapEnvironment {
+/** How long a Sandbox-signed purchase keeps Pro at most (never Lifetime). */
+export const APPLE_SANDBOX_GRANT_MS = 24 * 60 * 60 * 1000;
+
+function parseEnvironment(
+  value: string | undefined,
+  nodeEnv: string | undefined
+): AppleIapEnvironment | null {
   const normalized = value?.trim().toLowerCase();
   if (normalized === "production") return "Production";
-  // Anything else, including unset, is Sandbox: a typo must never make the
-  // server trust Production purchases it was not configured for.
-  return "Sandbox";
+  if (normalized === "sandbox") return "Sandbox";
+  // Unset or a typo: not configured in production, Sandbox for development.
+  return nodeEnv === "production" ? null : "Sandbox";
+}
+
+function list(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 export function getAppleIapConfig(
   env: NodeJS.ProcessEnv = process.env
 ): AppleIapConfig {
-  const environment = parseEnvironment(env.APPLE_IAP_ENVIRONMENT);
-  const bundleIds = (env.APPLE_IAP_BUNDLE_IDS ?? "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
+  const bundleIds = list(env.APPLE_IAP_BUNDLE_IDS);
   const appAppleIdRaw = env.APPLE_IAP_APP_APPLE_ID?.trim();
   const appAppleId =
     appAppleIdRaw && /^\d+$/.test(appAppleIdRaw) ? Number(appAppleIdRaw) : null;
   return {
-    environment,
-    allowSandbox:
-      environment === "Production" &&
-      env.APPLE_IAP_ALLOW_SANDBOX?.trim().toLowerCase() === "true",
+    environment: parseEnvironment(env.APPLE_IAP_ENVIRONMENT, env.NODE_ENV),
     bundleIds: bundleIds.length ? bundleIds : DEFAULT_APPLE_BUNDLE_IDS,
     appAppleId,
+    sandboxTesters: list(env.APPLE_IAP_SANDBOX_TESTERS).map((email) =>
+      email.toLowerCase()
+    ),
   };
 }
 
-/** Production verification cannot run without the numeric App Apple ID. */
+/** An environment is set, and Production has its numeric App Apple ID. */
 export function isAppleIapConfigured(config = getAppleIapConfig()): boolean {
+  if (config.environment === null) return false;
   return config.environment === "Sandbox" || config.appAppleId !== null;
+}
+
+/**
+ * Whether a Production server honours this account's Sandbox-signed
+ * purchases: the App Review sandbox login, or an allowlisted tester email.
+ * Every Sandbox grant is time-boxed Pro (`timeBoxSandboxState`).
+ */
+export function mayUseAppleSandbox(
+  account: { sandboxKind: string | null; email: string | null },
+  config: AppleIapConfig = getAppleIapConfig()
+): boolean {
+  if (account.sandboxKind === "reviewer") return true;
+  const email = account.email?.trim().toLowerCase();
+  return Boolean(email && config.sandboxTesters.includes(email));
 }

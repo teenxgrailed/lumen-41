@@ -99,7 +99,12 @@ export async function loadPeople(
       },
       userSettings: { select: { timeZone: true } },
       subscription: {
-        select: { plan: true, status: true, currentPeriodEnd: true },
+        select: {
+          plan: true,
+          status: true,
+          currentPeriodEnd: true,
+          provider: true,
+        },
       },
       trialGrant: {
         select: { startedAt: true, endsAt: true, day11SentAt: true },

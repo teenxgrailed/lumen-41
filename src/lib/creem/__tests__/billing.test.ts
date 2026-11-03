@@ -395,6 +395,40 @@ describe("Creem webhook processing", () => {
     }
   );
 
+  it("skips a late Creem event while an App Store plan is live", async () => {
+    // The row moved to Apple but still names the old Creem subscription.
+    (prisma.subscription.findFirst as jest.Mock).mockResolvedValue({
+      userId: "user_1",
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.ACTIVE,
+      provider: "APPLE",
+      creemSubscriptionId: "sub_1",
+      currentPeriodEnd: newDate("2099-08-01T00:00:00.000Z"),
+      cancelAtPeriodEnd: false,
+      lastCreemEventId: "evt_old",
+      lastCreemEventAt: newDate(1_728_000_000_000),
+    });
+
+    const result = await processCreemBillingEvent({
+      id: "evt_late_expired",
+      createdAt: 1_728_734_337_932,
+      eventType: "subscription.expired",
+      object: {
+        id: "sub_1",
+        product: { id: products.proMonthly },
+        customer: { id: "cust_1" },
+      },
+    });
+
+    expect(result).toEqual({ processed: false, reason: "apple_active" });
+    expect(prisma.subscription.upsert).not.toHaveBeenCalled();
+    expect(prisma.creemWebhookEvent.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [expect.objectContaining({ outcome: "apple_active" })],
+      })
+    );
+  });
+
   it("allows a more restrictive event at the same provider timestamp", async () => {
     const eventCreatedAt = 1_728_734_337_932;
     (prisma.subscription.findFirst as jest.Mock).mockResolvedValue({

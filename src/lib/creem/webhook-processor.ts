@@ -12,6 +12,7 @@ import {
 import { settlePendingCreemCancel } from "@/lib/creem/pending-cancel";
 import { mapCreemEventToSubscription } from "@/lib/creem/webhook-mapping";
 import { newDate } from "@/lib/date-utils";
+import { effectiveSubscriptionPlan } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { purchasePlan, sendUmamiPurchase } from "@/lib/umami-server";
@@ -124,6 +125,7 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
               cancelAtPeriodEnd: true,
               lastCreemEventId: true,
               lastCreemEventAt: true,
+              provider: true,
             },
           })
         : null;
@@ -145,6 +147,7 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
           cancelAtPeriodEnd: true,
           lastCreemEventId: true,
           lastCreemEventAt: true,
+          provider: true,
         },
       }));
     const subscriptionCursor = mutation.creemSubscriptionId
@@ -225,6 +228,13 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
           mutation.creemSubscriptionId
     );
     const lifetimePreserved = Boolean(currentSubscription?.plan === "LIFETIME");
+    // One seller at a time: while an App Store plan is live, a Creem event
+    // (a late one for a subscription the Apple purchase replaced) changes
+    // nothing. The App Store side is cancelled only by the buyer.
+    const appleActive = Boolean(
+      currentSubscription?.provider === BillingProvider.APPLE &&
+        effectiveSubscriptionPlan(currentSubscription) !== SubscriptionPlan.FREE
+    );
     const user = await transaction.user.findUnique({
       where: { id: userId },
       select: { id: true },
@@ -235,6 +245,7 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
 
     const lifetimeAuthorization =
       mutation.data.plan === SubscriptionPlan.LIFETIME &&
+      !appleActive &&
       !lifetimePreserved &&
       !olderThanClaimedSubscription &&
       !weakerAtSameTimestamp
@@ -246,20 +257,22 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
           })
         : null;
     const unreservedLifetime = Boolean(lifetimeAuthorization?.unreserved);
-    const outcome = olderThanClaimedSubscription
-      ? "stale_event"
-      : weakerAtSameTimestamp
-        ? "equal_time_weaker_event"
-        : lifetimePreserved
-          ? "lifetime_preserved"
-          : missingSubscriptionIdentity
-            ? "missing_subscription_identity"
-            : blockedSubscriptionIdentity ||
-                restrictiveEventWithoutEstablishedIdentity
-              ? "subscription_identity_mismatch"
-              : unreservedLifetime
-                ? "processed_without_lifetime_reservation"
-                : "processed";
+    const outcome = appleActive
+      ? "apple_active"
+      : olderThanClaimedSubscription
+        ? "stale_event"
+        : weakerAtSameTimestamp
+          ? "equal_time_weaker_event"
+          : lifetimePreserved
+            ? "lifetime_preserved"
+            : missingSubscriptionIdentity
+              ? "missing_subscription_identity"
+              : blockedSubscriptionIdentity ||
+                  restrictiveEventWithoutEstablishedIdentity
+                ? "subscription_identity_mismatch"
+                : unreservedLifetime
+                  ? "processed_without_lifetime_reservation"
+                  : "processed";
 
     const receipt = await transaction.creemWebhookEvent.createMany({
       data: [
@@ -275,6 +288,14 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
     });
     if (receipt.count === 0) {
       return { processed: false, reason: "replayed_event" as const };
+    }
+    if (appleActive) {
+      void logger.warn(
+        "Creem event skipped: an App Store plan is live",
+        { userId, eventId, eventType: event.eventType },
+        LOG_SOURCE
+      );
+      return { processed: false, reason: "apple_active" as const };
     }
     if (olderThanClaimedSubscription) {
       return { processed: false, reason: "stale_event" as const };
