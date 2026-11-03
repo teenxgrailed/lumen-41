@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type { HubAgent } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
@@ -490,6 +491,40 @@ describe("hub attachments", () => {
       expect(attachment.id).toBe("att-first");
       expect(db.hubItemAttachment.count).not.toHaveBeenCalled();
       expect(db.hubItemAttachmentBlob.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("transaction budget", () => {
+    it("gives the locked transaction 30 s and 10 s to start", async () => {
+      await addAttachment(scope, {
+        itemId: "item-1",
+        name: "a.txt",
+        contentBase64: b64([65]),
+      });
+      expect(db.$transaction.mock.calls[0][1]).toEqual({
+        timeout: 30_000,
+        maxWait: 10_000,
+      });
+    });
+
+    it("answers a transaction timeout (P2028) as a retryable 503, not a 500", async () => {
+      db.$transaction.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError("timed out", {
+          code: "P2028",
+          clientVersion: "test",
+        })
+      );
+      await expect(
+        addAttachment(scope, {
+          itemId: "item-1",
+          name: "a.txt",
+          contentBase64: b64([65]),
+        })
+      ).rejects.toMatchObject({
+        code: "CONFLICT",
+        status: 503,
+        extra: { retryable: true },
+      });
     });
   });
 

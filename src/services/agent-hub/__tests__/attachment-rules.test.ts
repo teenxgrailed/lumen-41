@@ -147,6 +147,19 @@ describe("hub attachment rules", () => {
       ).toBe("BAD_TYPE");
     });
 
+    it.each(["moov", "mdat", "wide", "free", "skip"])(
+      "accepts an mp4 or mov that begins with a %s box",
+      (box) => {
+        const bytes = Buffer.concat([Buffer.from([0, 0, 0, 8]), text(box)]);
+        expect(validateAttachment({ name: "a.mov", bytes }).mime).toBe(
+          "video/quicktime"
+        );
+        expect(validateAttachment({ name: "a.mp4", bytes }).mime).toBe(
+          "video/mp4"
+        );
+      }
+    );
+
     it("does not check the signature when only the name is known", () => {
       expect(() =>
         resolveAttachmentType("demo.mp4", new Uint8Array(0))

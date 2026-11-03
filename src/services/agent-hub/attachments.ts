@@ -152,63 +152,79 @@ async function store(
   const first = await replay(prisma);
   if (first) return attachmentView(first, upload.userId, newDate().getTime());
   try {
-    const row = await prisma.$transaction(async (tx) => {
-      // One upload at a time per account, so the count and the quota below
-      // cannot both pass for two concurrent files.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${upload.userId}))`;
-      const raced = await replay(tx);
-      if (raced) return raced;
-      const count = await tx.hubItemAttachment.count({
-        where: { itemId: input.itemId },
-      });
-      if (count >= HUB_ATTACHMENT_MAX_PER_ITEM) {
-        throw refusal(
-          "TOO_MANY",
-          `An item holds at most ${HUB_ATTACHMENT_MAX_PER_ITEM} files.`
-        );
-      }
-      const used = await tx.hubItemAttachment.aggregate({
-        where: { userId: upload.userId },
-        _sum: { size: true },
-      });
-      if (
-        (used._sum.size ?? 0) + input.bytes.length >
-        HUB_ATTACHMENT_ACCOUNT_QUOTA_BYTES
-      ) {
-        throw refusal(
-          "QUOTA",
-          "This account's attachment storage (500 MB) is full. Ask the owner to free space."
-        );
-      }
-      const created = await tx.hubItemAttachment.create({
-        data: {
-          itemId: input.itemId,
-          userId: upload.userId,
-          workspaceId: upload.workspaceId,
-          uploaderKind: upload.kind,
-          uploaderAgentId: upload.agentId,
-          name: input.name,
-          mime: input.mime,
-          size: input.bytes.length,
-          storageKey,
-        },
-        select,
-      });
-      await putBytes(tx, storageKey, input.bytes);
-      await tx.hubItemEvent.create({
-        data: {
-          itemId: input.itemId,
-          actorKind: upload.kind,
-          actorAgentId: upload.agentId,
-          type: "attachment_added",
-          message: `Attached ${input.name} (${input.mime}, ${input.bytes.length} bytes).`,
-          data: { attachmentId: created.id },
-        },
-      });
-      return created;
-    });
+    const row = await prisma.$transaction(
+      async (tx) => {
+        // One upload at a time per account, so the count and the quota below
+        // cannot both pass for two concurrent files.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${upload.userId}))`;
+        const raced = await replay(tx);
+        if (raced) return raced;
+        const count = await tx.hubItemAttachment.count({
+          where: { itemId: input.itemId },
+        });
+        if (count >= HUB_ATTACHMENT_MAX_PER_ITEM) {
+          throw refusal(
+            "TOO_MANY",
+            `An item holds at most ${HUB_ATTACHMENT_MAX_PER_ITEM} files.`
+          );
+        }
+        const used = await tx.hubItemAttachment.aggregate({
+          where: { userId: upload.userId },
+          _sum: { size: true },
+        });
+        if (
+          (used._sum.size ?? 0) + input.bytes.length >
+          HUB_ATTACHMENT_ACCOUNT_QUOTA_BYTES
+        ) {
+          throw refusal(
+            "QUOTA",
+            "This account's attachment storage (500 MB) is full. Ask the owner to free space."
+          );
+        }
+        const created = await tx.hubItemAttachment.create({
+          data: {
+            itemId: input.itemId,
+            userId: upload.userId,
+            workspaceId: upload.workspaceId,
+            uploaderKind: upload.kind,
+            uploaderAgentId: upload.agentId,
+            name: input.name,
+            mime: input.mime,
+            size: input.bytes.length,
+            storageKey,
+          },
+          select,
+        });
+        await putBytes(tx, storageKey, input.bytes);
+        await tx.hubItemEvent.create({
+          data: {
+            itemId: input.itemId,
+            actorKind: upload.kind,
+            actorAgentId: upload.agentId,
+            type: "attachment_added",
+            message: `Attached ${input.name} (${input.mime}, ${input.bytes.length} bytes).`,
+            data: { attachmentId: created.id },
+          },
+        });
+        return created;
+      },
+      // The 25 MB insert runs under the account lock and a second upload
+      // waits on that lock inside its own budget: Prisma's 5 s default is too short.
+      { timeout: 30_000, maxWait: 10_000 }
+    );
     return attachmentView(row, upload.userId, newDate().getTime());
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2028"
+    ) {
+      throw new HubError(
+        "CONFLICT",
+        "Another upload for this account is still running. Retry in a few seconds.",
+        { retryable: true, retryAfterSeconds: 5 },
+        503
+      );
+    }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002" &&

@@ -209,10 +209,15 @@ export function matchesSignature(mime: string, b: Uint8Array): boolean {
       return ascii(b, 0, "RIFF") && ascii(b, 8, "WAVE");
     case "image/avif":
     case "image/heic":
-    case "video/mp4":
-    case "video/quicktime":
     case "audio/mp4":
       return ascii(b, 4, "ftyp");
+    case "video/mp4":
+    case "video/quicktime":
+      // ISO base media: usually ftyp first; older QuickTime and some mp4 begin
+      // with another top-level box.
+      return ["ftyp", "moov", "mdat", "wide", "free", "skip"].some((box) =>
+        ascii(b, 4, box)
+      );
     case "video/webm":
       return starts(b, 0x1a, 0x45, 0xdf, 0xa3);
     case "audio/ogg":
