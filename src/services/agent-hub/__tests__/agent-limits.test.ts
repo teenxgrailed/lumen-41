@@ -245,8 +245,21 @@ describe("workloadGate", () => {
       where: {
         claimedByAgentId: "grok",
         status: { in: ["claimed", "in_progress", "blocked"] },
+        OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { gte: NOW } }],
       },
     });
+  });
+
+  it("does not count items whose lease already ran out", async () => {
+    db.hubItem.count.mockResolvedValue(0);
+    await workloadGate(agent({ maxInProgress: 2 }), NOW);
+    const arg = db.hubItem.count.mock.calls.at(-1)?.[0] as {
+      where: { OR: unknown };
+    };
+    expect(arg.where.OR).toEqual([
+      { leaseExpiresAt: null },
+      { leaseExpiresAt: { gte: NOW } },
+    ]);
   });
 
   it("blocks at the daily cap with the seconds until 00:00 UTC", async () => {
@@ -482,6 +495,25 @@ describe("readyItems", () => {
     );
     const ready = await readyItems(scopeOf(agent({ acceptsLarge: false })), 10);
     expect(ready.map((i) => i.id)).toEqual(["b", "c"]);
+  });
+
+  it("filters unapproved large items in the database before the take", async () => {
+    queue(["a"]);
+    await readyItems(scopeOf(agent({ acceptsLarge: false })), 10);
+    const where = db.hubItem.findMany.mock.calls[0][0].where;
+    expect(where.AND).toEqual([
+      { OR: [{ large: false }, { largeApprovedAt: { not: null } }] },
+    ]);
+    const sql = (
+      db.$queryRaw.mock.calls[0][0] as { strings: string[] }
+    ).strings.join("?");
+    expect(sql).toContain('("large" = false OR "largeApprovedAt" IS NOT NULL)');
+  });
+
+  it("does not filter large items in the database for an open agent", async () => {
+    queue(["a"]);
+    await readyItems(scopeOf(agent(null)), 10);
+    expect(db.hubItem.findMany.mock.calls[0][0].where.AND).toBeUndefined();
   });
 
   it("still offers large items to an agent without limits", async () => {

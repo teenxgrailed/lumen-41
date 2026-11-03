@@ -138,10 +138,17 @@ export interface WorkloadGate {
   };
 }
 
-/** Items the agent holds right now. */
-export function heldCount(agentId: string) {
+/**
+ * Items the agent holds right now. An item whose lease has run out does not
+ * count: others may take it over, and a dead bot must not fill its own cap.
+ */
+export function heldCount(agentId: string, now: Date = newDate()) {
   return prisma.hubItem.count({
-    where: { claimedByAgentId: agentId, status: { in: [...HELD_STATUSES] } },
+    where: {
+      claimedByAgentId: agentId,
+      status: { in: [...HELD_STATUSES] },
+      OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { gte: now } }],
+    },
   });
 }
 
@@ -168,7 +175,7 @@ export async function workloadGate(
 ): Promise<WorkloadGate> {
   const limits = agentLimits(agent);
   if (limits.maxInProgress !== null) {
-    const used = await heldCount(agent.id);
+    const used = await heldCount(agent.id, now);
     if (used >= limits.maxInProgress) {
       return {
         blocked: {

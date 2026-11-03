@@ -22,9 +22,18 @@ const FIELDS = [
   { key: "inboxLimit", label: "Items shown in inbox", max: 25 },
 ] as const;
 
-function toNumber(text: string): number | null {
-  const n = Number.parseInt(text, 10);
-  return Number.isFinite(n) && n > 0 ? n : null;
+/** Blank is no limit; anything else must be a whole number from 1 to max. */
+function parseField(
+  text: string,
+  max: number
+): { value: number | null; error: string | null } {
+  const trimmed = text.trim();
+  if (!trimmed) return { value: null, error: null };
+  const n = Number(trimmed);
+  if (!Number.isInteger(n) || n < 1 || n > max) {
+    return { value: null, error: `Enter a whole number from 1 to ${max}.` };
+  }
+  return { value: n, error: null };
 }
 
 /** The owner's workload limits for one agent. Agents cannot change these. */
@@ -44,30 +53,51 @@ export function AgentLimits({
     limits?.acceptsLarge ?? true
   );
 
-  const save = () =>
+  const parsed = {
+    maxInProgress: parseField(text.maxInProgress, FIELDS[0].max),
+    maxClaimsPerDay: parseField(text.maxClaimsPerDay, FIELDS[1].max),
+    inboxLimit: parseField(text.inboxLimit, FIELDS[2].max),
+  };
+  const invalid = Object.values(parsed).some((p) => p.error !== null);
+
+  const save = () => {
+    if (invalid) return;
     onSave({
-      maxInProgress: toNumber(text.maxInProgress),
-      maxClaimsPerDay: toNumber(text.maxClaimsPerDay),
-      inboxLimit: toNumber(text.inboxLimit),
+      maxInProgress: parsed.maxInProgress.value,
+      maxClaimsPerDay: parsed.maxClaimsPerDay.value,
+      inboxLimit: parsed.inboxLimit.value,
       acceptsLarge,
     });
+  };
 
   return (
     <div className="ag-form" data-ag-limits="">
-      {FIELDS.map((field) => (
-        <input
-          key={field.key}
-          className="nt-input"
-          type="number"
-          min={1}
-          max={field.max}
-          inputMode="numeric"
-          aria-label={field.label}
-          placeholder={`${field.label}: no limit`}
-          value={text[field.key]}
-          onChange={(e) => setText({ ...text, [field.key]: e.target.value })}
-        />
-      ))}
+      {FIELDS.map((field) => {
+        const error = parsed[field.key].error;
+        return (
+          <div key={field.key}>
+            <input
+              className="nt-input"
+              type="number"
+              min={1}
+              max={field.max}
+              inputMode="numeric"
+              aria-label={field.label}
+              aria-invalid={error ? true : undefined}
+              placeholder={`${field.label}: no limit`}
+              value={text[field.key]}
+              onChange={(e) =>
+                setText({ ...text, [field.key]: e.target.value })
+              }
+            />
+            {error ? (
+              <div className="ag-meta" role="alert">
+                {error}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
       <label className="ag-meta">
         <input
           type="checkbox"
@@ -76,7 +106,9 @@ export function AgentLimits({
         />{" "}
         Accepts large items
       </label>
-      <AgBtn onClick={save}>Save limits</AgBtn>
+      <AgBtn onClick={save} disabled={invalid}>
+        Save limits
+      </AgBtn>
       <AgBtn tone="text" onClick={() => onSave(null)}>
         Remove limits
       </AgBtn>

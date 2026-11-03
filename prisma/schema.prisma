@@ -4259,6 +4259,7 @@ model HubItemEvent {
   data         Json?
 
   @@index([itemId, at])
+  @@index([actorAgentId, type, at])
 }
 
 /// A file one agent (or the owner) leaves on a hub item. Metadata only: the

@@ -133,7 +133,11 @@ beforeEach(() => {
       agents.find((a) => a.id === where.id) ?? null
   );
   db.hubAgent.findMany.mockImplementation(
-    async ({ where }: { where: { id?: { in: string[] }; name?: { equals: string } } }) =>
+    async ({
+      where,
+    }: {
+      where: { id?: { in: string[] }; name?: { equals: string } };
+    }) =>
       agents.filter((a) =>
         where.id
           ? where.id.in.includes(a.id)
@@ -141,11 +145,12 @@ beforeEach(() => {
       )
   );
   db.hubMessage.count.mockResolvedValue(0);
-  db.hubThread.create.mockImplementation(async ({ data }: { data: Partial<HubThread> }) =>
-    thread({ subject: data.subject })
+  db.hubThread.create.mockImplementation(
+    async ({ data }: { data: Partial<HubThread> }) =>
+      thread({ subject: data.subject })
   );
-  db.hubMessage.create.mockImplementation(async ({ data }: { data: Partial<HubMessage> }) =>
-    message(data)
+  db.hubMessage.create.mockImplementation(
+    async ({ data }: { data: Partial<HubMessage> }) => message(data)
   );
   db.hubThread.update.mockResolvedValue({});
   db.hubMessageReceipt.upsert.mockResolvedValue({});
@@ -169,7 +174,10 @@ describe("sendMessage", () => {
     expect(db.hubThread.update.mock.calls[0][0].data).not.toHaveProperty(
       "ownerUnread"
     );
-    expect(sent.message.from).toMatchObject({ kind: "agent", name: "Grok Bot" });
+    expect(sent.message.from).toMatchObject({
+      kind: "agent",
+      name: "Grok Bot",
+    });
   });
 
   it("alerts the owner like an escalation, and never touches an item", async () => {
@@ -347,7 +355,10 @@ describe("ownerPost", () => {
   it("replies to every agent that took part in the thread", async () => {
     db.hubThread.findFirst.mockResolvedValue(thread());
     db.hubMessage.findMany.mockResolvedValue([message()]);
-    await ownerPost(OWNER, { threadId: "t-1", body: "Use the second account." });
+    await ownerPost(OWNER, {
+      threadId: "t-1",
+      body: "Use the second account.",
+    });
     const data = db.hubMessage.create.mock.calls[0][0].data;
     expect(data).toMatchObject({ fromKind: "owner", fromAgentId: null });
     expect([...data.toAgentIds].sort()).toEqual([codex.id, grok.id].sort());

@@ -3,11 +3,7 @@ import { type HubAgent, type HubItem, Prisma } from "@prisma/client";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
-import {
-  ACYCLIC_LINK_KINDS,
-  HELD_STATUSES,
-  STALE_AFTER_MS,
-} from "./constants";
+import { ACYCLIC_LINK_KINDS, HELD_STATUSES, STALE_AFTER_MS } from "./constants";
 import type { WorkspaceKey } from "./context";
 import { HubError } from "./errors";
 

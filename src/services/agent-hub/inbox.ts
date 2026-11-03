@@ -98,6 +98,9 @@ export async function readyItems(
 ): Promise<HubItem[]> {
   const agent = scope.actor.agent;
   const base = { userId: scope.userId, workspaceId: scope.workspaceId };
+  // Filter big jobs in the database, before the take, so old unapproved ones
+  // cannot crowd the claimable items out of the page.
+  const refusesLarge = !agentLimits(agent).acceptsLarge;
   const [assigned, unassigned] = await Promise.all([
     prisma.hubItem.findMany({
       where: {
@@ -105,6 +108,13 @@ export async function readyItems(
         status: "open",
         assigneeAgentId: agent.id,
         ...NOT_BLOCKED_WHERE,
+        ...(refusesLarge
+          ? {
+              AND: [
+                { OR: [{ large: false }, { largeApprovedAt: { not: null } }] },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ due: "asc" }, { createdAt: "asc" }],
       take: INBOX_MAX_LIMIT * 4,
@@ -112,7 +122,9 @@ export async function readyItems(
     capableItems(
       base,
       agent.skills,
-      Prisma.sql`"status" = 'open' AND "assigneeAgentId" IS NULL AND ${NOT_BLOCKED_SQL}`,
+      refusesLarge
+        ? Prisma.sql`"status" = 'open' AND "assigneeAgentId" IS NULL AND ${NOT_BLOCKED_SQL} AND ("large" = false OR "largeApprovedAt" IS NOT NULL)`
+        : Prisma.sql`"status" = 'open' AND "assigneeAgentId" IS NULL AND ${NOT_BLOCKED_SQL}`,
       INBOX_MAX_LIMIT * 4
     ),
   ]);
