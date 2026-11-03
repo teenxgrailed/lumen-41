@@ -1,0 +1,1 @@
+- A folded group (Tasks, Today and the sidebar) no longer keeps its hidden rows in the Tab order: keyboard focus skips a shut fold until it opens.
