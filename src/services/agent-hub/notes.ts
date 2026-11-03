@@ -8,6 +8,7 @@ import type { HubScope, WorkspaceKey } from "./context";
 import { actorAgentId } from "./context";
 import { HubError } from "./errors";
 import { agentNames } from "./items";
+import { assertHubLimit } from "./limits";
 import { assertProjectInWorkspace, assertTaskInWorkspace } from "./links";
 import {
   type NoteSearchInput,
@@ -97,6 +98,7 @@ export async function writeNote(scope: HubScope, input: NoteWriteInput) {
   assertNoSecrets({ text, tags: input.tags });
   const tags = normalizeTags(input.tags, 10);
   await assertNoteLinks(scope, input);
+  await assertHubLimit(scope.userId, "notes");
   const note = await prisma.hubNote.create({
     data: {
       userId: scope.userId,

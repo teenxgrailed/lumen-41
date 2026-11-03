@@ -36,6 +36,7 @@ import {
   openBlockers,
 } from "./deps";
 import { HubError } from "./errors";
+import { assertHubLimit, historySince } from "./limits";
 import {
   assertHttpUrl,
   assertProjectInWorkspace,
@@ -233,28 +234,31 @@ export function itemView(item: HubItem, options: ItemViewOptions) {
   };
 }
 
-async function latestEvents(itemIds: readonly string[]) {
+async function latestEvents(itemIds: readonly string[], since?: Date) {
   if (!itemIds.length) return new Map<string, HubItemEvent>();
   const rows = await prisma.hubItemEvent.findMany({
-    where: { itemId: { in: [...itemIds] } },
+    where: {
+      itemId: { in: [...itemIds] },
+      ...(since ? { at: { gte: since } } : {}),
+    },
     orderBy: [{ at: "desc" }],
     distinct: ["itemId"],
   });
   return new Map(rows.map((row) => [row.itemId, row]));
 }
 
-async function recentEvents(itemId: string, take: number) {
+async function recentEvents(itemId: string, take: number, since?: Date) {
   const rows = await prisma.hubItemEvent.findMany({
-    where: { itemId },
+    where: { itemId, ...(since ? { at: { gte: since } } : {}) },
     orderBy: [{ at: "desc" }],
     take,
   });
   return rows.reverse();
 }
 
-async function allEvents(itemId: string) {
+async function allEvents(itemId: string, since?: Date) {
   return prisma.hubItemEvent.findMany({
-    where: { itemId },
+    where: { itemId, ...(since ? { at: { gte: since } } : {}) },
     orderBy: [{ at: "asc" }],
   });
 }
@@ -401,14 +405,16 @@ async function viewOne(
   item: HubItem,
   extra: Partial<ItemViewOptions> & { fullLog?: boolean; recent?: number } = {}
 ) {
+  // Free sees 7 days of history, Pro 90; older events stay stored.
+  const since = await historySince(item.userId);
   const events = extra.fullLog
-    ? await allEvents(item.id)
+    ? await allEvents(item.id, since)
     : extra.recent
-      ? await recentEvents(item.id, extra.recent)
+      ? await recentEvents(item.id, extra.recent, since)
       : undefined;
   const latest = events?.length
     ? events[events.length - 1]
-    : ((await latestEvents([item.id])).get(item.id) ?? null);
+    : ((await latestEvents([item.id], since)).get(item.id) ?? null);
   const names = await agentNames(scope, [
     item.assigneeAgentId,
     item.creatorAgentId,
@@ -632,6 +638,7 @@ export async function createItem(scope: HubScope, input: CreateItemInput) {
     }
   }
 
+  await assertHubLimit(scope.userId, "items");
   const now = newDate();
   try {
     const item = await prisma.$transaction(async (tx) => {
@@ -1522,8 +1529,12 @@ export async function listItems(
     orderBy: [{ updatedAt: "desc" }],
     take: Math.min(options.limit ?? 200, 500),
   });
+  const since = await historySince(key.userId);
   const [latest, unmatched, names] = await Promise.all([
-    latestEvents(items.map((item) => item.id)),
+    latestEvents(
+      items.map((item) => item.id),
+      since
+    ),
     unmatchedItemIds(key, items),
     agentNames(
       key,

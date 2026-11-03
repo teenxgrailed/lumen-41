@@ -20,21 +20,23 @@ import {
   rankReady,
 } from "./deps";
 import { agentNames, getItem, itemView, unmatchedItemIds } from "./items";
+import { historySince } from "./limits";
 import { unreadMessageCount } from "./messages";
 import { myReservations } from "./reservations";
 import type { InboxInput, NextInput } from "./schemas";
 import { sweepHub } from "./sweep";
 
-async function eventsFor(itemIds: readonly string[]) {
+async function eventsFor(userId: string, itemIds: readonly string[]) {
+  const since = await historySince(userId);
   const byItem = new Map<string, Awaited<ReturnType<typeof fetchEvents>>>();
-  for (const id of itemIds) byItem.set(id, await fetchEvents(id));
+  for (const id of itemIds) byItem.set(id, await fetchEvents(id, since));
   return byItem;
 }
 
-function fetchEvents(itemId: string) {
+function fetchEvents(itemId: string, since: Date) {
   return prisma.hubItemEvent
     .findMany({
-      where: { itemId },
+      where: { itemId, at: { gte: since } },
       orderBy: [{ at: "desc" }],
       take: INBOX_EVENTS_PER_ITEM,
     })
@@ -117,7 +119,10 @@ async function viewItems(scope: AgentScope, items: HubItem[], now: Date) {
         item.claimedByAgentId,
       ])
     ),
-    eventsFor(items.map((item) => item.id)),
+    eventsFor(
+      scope.userId,
+      items.map((item) => item.id)
+    ),
     unmatchedItemIds(scope, items),
     loadDeps(
       scope,

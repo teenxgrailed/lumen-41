@@ -11,6 +11,8 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 jest.mock("@/lib/feature-flags", () => ({ agentHubEnabled: jest.fn() }));
+// Plan limits have their own tests (plan-limits.test.ts).
+jest.mock("../limits", () => ({ assertHubLimit: jest.fn() }));
 
 const findUnique = prisma.hubAgent.findUnique as jest.Mock;
 const create = prisma.hubAgent.create as jest.Mock;

@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { AGENT_TOKEN_PREFIX, HUB_SCOPE, type HubKind } from "./constants";
 import type { HubScope } from "./context";
 import { HubError } from "./errors";
+import { assertHubLimit } from "./limits";
 
 const LAST_USED_WRITE_MS = 60 * 1000;
 
@@ -102,6 +103,7 @@ export async function createAgentToken(
   ) {
     throw new HubError("INVALID", "expiresInDays must be 1 to 730.");
   }
+  await assertHubLimit(scope.userId, "agents");
   const tokenId = crypto.randomUUID();
   const token = generateAgentToken();
   const agent = await prisma.hubAgent.create({

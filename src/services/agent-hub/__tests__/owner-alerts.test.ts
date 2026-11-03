@@ -40,6 +40,11 @@ jest.mock("@/lib/prisma", () => ({
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
+// Plan limits have their own tests (plan-limits.test.ts).
+jest.mock("../limits", () => ({
+  assertHubLimit: jest.fn(),
+  historySince: jest.fn(async () => new Date(0)),
+}));
 
 const getPrefs = jest.fn();
 const shouldAlert = jest.fn();

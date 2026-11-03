@@ -10,6 +10,7 @@ import { agentHubEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
 import { HubError } from "./errors";
+import { assertHubLimit } from "./limits";
 
 /** Who is acting: an agent behind one connection, or the signed-in owner. */
 export type Actor = { kind: "agent"; agent: HubAgent } | { kind: "owner" };
@@ -69,6 +70,7 @@ export async function agentForConnection(
   };
   let agent = await prisma.hubAgent.findUnique({ where });
   if (!agent) {
+    await assertHubLimit(auth.userId, "agents");
     try {
       agent = await prisma.hubAgent.create({
         data: {

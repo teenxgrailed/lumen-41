@@ -9,12 +9,7 @@ import {
   type HubScope,
   actorAgentId,
 } from "./context";
-import {
-  type ItemDeps,
-  assertNoCycle,
-  loadDeps,
-  openBlockers,
-} from "./deps";
+import { type ItemDeps, assertNoCycle, loadDeps, openBlockers } from "./deps";
 import { HubError } from "./errors";
 import {
   type PreparedItem,
@@ -24,6 +19,7 @@ import {
   visibleToAgent,
   writeEvents,
 } from "./items";
+import { assertHubLimit } from "./limits";
 import type { LinkInput, PlanCreateInput } from "./schemas";
 
 /**
@@ -304,6 +300,7 @@ export async function createPlan(scope: HubScope, input: PlanCreateInput) {
     }
   }
 
+  await assertHubLimit(scope.userId, "items", 1 + steps.length);
   const now = newDate();
   const author = createdBy(scope);
   const parentId = await prisma.$transaction(async (tx) => {
