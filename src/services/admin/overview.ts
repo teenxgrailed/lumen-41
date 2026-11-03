@@ -1,7 +1,12 @@
-import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
+import {
+  BillingProvider,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from "@prisma/client";
 
 import { areSignupsOpen } from "@/lib/auth/signups";
 import { addCalendarDays, newDate } from "@/lib/date-utils";
+import { APPLE_PERIOD_SLACK_MS } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -48,10 +53,13 @@ export async function getAdminSignupStats(
   return { signupsToday, signupsLast7Days, verified, unverified, signupsOpen };
 }
 
-/** Same rule as `effectiveSubscriptionPlan`: paid and active, or cancelled but still inside the paid period. */
+/**
+ * Same rule as `effectiveSubscriptionPlan`: paid and active, or cancelled but
+ * still inside the paid period; an App Store Pro only until its period end
+ * plus the slack, whatever its status.
+ */
 function holdsPlan(plan: SubscriptionPlan, now: Date) {
-  return {
-    plan,
+  const legacy = {
     OR: [
       { status: SubscriptionStatus.ACTIVE },
       {
@@ -63,6 +71,24 @@ function holdsPlan(plan: SubscriptionPlan, now: Date) {
           ],
         },
         currentPeriodEnd: { gt: now },
+      },
+    ],
+  };
+  if (plan !== SubscriptionPlan.PRO) return { plan, ...legacy };
+  return {
+    plan,
+    OR: [
+      {
+        provider: BillingProvider.APPLE,
+        currentPeriodEnd: {
+          gt: newDate(now.getTime() - APPLE_PERIOD_SLACK_MS),
+        },
+      },
+      {
+        AND: [
+          { OR: [{ provider: null }, { provider: BillingProvider.CREEM }] },
+          legacy,
+        ],
       },
     ],
   };

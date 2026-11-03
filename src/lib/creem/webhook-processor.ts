@@ -1,4 +1,5 @@
 import {
+  BillingProvider,
   Prisma,
   SubscriptionPlan,
   type SubscriptionStatus,
@@ -11,6 +12,7 @@ import {
 import { settlePendingCreemCancel } from "@/lib/creem/pending-cancel";
 import { mapCreemEventToSubscription } from "@/lib/creem/webhook-mapping";
 import { newDate } from "@/lib/date-utils";
+import { effectiveSubscriptionPlan } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { purchasePlan, sendUmamiPurchase } from "@/lib/umami-server";
@@ -123,6 +125,7 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
               cancelAtPeriodEnd: true,
               lastCreemEventId: true,
               lastCreemEventAt: true,
+              provider: true,
             },
           })
         : null;
@@ -144,6 +147,7 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
           cancelAtPeriodEnd: true,
           lastCreemEventId: true,
           lastCreemEventAt: true,
+          provider: true,
         },
       }));
     const subscriptionCursor = mutation.creemSubscriptionId
@@ -224,6 +228,29 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
           mutation.creemSubscriptionId
     );
     const lifetimePreserved = Boolean(currentSubscription?.plan === "LIFETIME");
+    // While an App Store plan is live, a late event for the Creem
+    // subscription it replaced (the row's old id, or a cursor the Apple
+    // takeover closed) and any event that grants nothing change nothing.
+    // A new paid Creem purchase is never dropped: it applies below, and the
+    // still-renewing App Store side is flagged (only the buyer can cancel it).
+    const appleLive = Boolean(
+      currentSubscription?.provider === BillingProvider.APPLE &&
+        effectiveSubscriptionPlan(currentSubscription) !== SubscriptionPlan.FREE
+    );
+    const forReplacedCreemSubscription = Boolean(
+      mutation.creemSubscriptionId &&
+        (mutation.creemSubscriptionId ===
+          currentSubscription?.creemSubscriptionId ||
+          subscriptionCursor?.restrictionLevel === 5)
+    );
+    const appleActive =
+      appleLive && (forReplacedCreemSubscription || !incomingGrantsAccess);
+    const appleStillRenews = Boolean(
+      appleLive &&
+        !appleActive &&
+        currentSubscription?.plan === SubscriptionPlan.PRO &&
+        currentSubscription.status !== "CANCELED"
+    );
     const user = await transaction.user.findUnique({
       where: { id: userId },
       select: { id: true },
@@ -234,6 +261,7 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
 
     const lifetimeAuthorization =
       mutation.data.plan === SubscriptionPlan.LIFETIME &&
+      !appleActive &&
       !lifetimePreserved &&
       !olderThanClaimedSubscription &&
       !weakerAtSameTimestamp
@@ -245,20 +273,22 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
           })
         : null;
     const unreservedLifetime = Boolean(lifetimeAuthorization?.unreserved);
-    const outcome = olderThanClaimedSubscription
-      ? "stale_event"
-      : weakerAtSameTimestamp
-        ? "equal_time_weaker_event"
-        : lifetimePreserved
-          ? "lifetime_preserved"
-          : missingSubscriptionIdentity
-            ? "missing_subscription_identity"
-            : blockedSubscriptionIdentity ||
-                restrictiveEventWithoutEstablishedIdentity
-              ? "subscription_identity_mismatch"
-              : unreservedLifetime
-                ? "processed_without_lifetime_reservation"
-                : "processed";
+    const outcome = appleActive
+      ? "apple_active"
+      : olderThanClaimedSubscription
+        ? "stale_event"
+        : weakerAtSameTimestamp
+          ? "equal_time_weaker_event"
+          : lifetimePreserved
+            ? "lifetime_preserved"
+            : missingSubscriptionIdentity
+              ? "missing_subscription_identity"
+              : blockedSubscriptionIdentity ||
+                  restrictiveEventWithoutEstablishedIdentity
+                ? "subscription_identity_mismatch"
+                : unreservedLifetime
+                  ? "processed_without_lifetime_reservation"
+                  : "processed";
 
     const receipt = await transaction.creemWebhookEvent.createMany({
       data: [
@@ -274,6 +304,14 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
     });
     if (receipt.count === 0) {
       return { processed: false, reason: "replayed_event" as const };
+    }
+    if (appleActive) {
+      void logger.warn(
+        "Creem event skipped: an App Store plan is live",
+        { userId, eventId, eventType: event.eventType },
+        LOG_SOURCE
+      );
+      return { processed: false, reason: "apple_active" as const };
     }
     if (olderThanClaimedSubscription) {
       return { processed: false, reason: "stale_event" as const };
@@ -345,6 +383,7 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
 
     const supersededSubscriptionId =
       mutation.data.plan === SubscriptionPlan.LIFETIME &&
+      currentSubscription?.provider !== BillingProvider.APPLE &&
       currentSubscription?.plan === SubscriptionPlan.PRO &&
       currentSubscription.status !== "CANCELED"
         ? currentSubscription.creemSubscriptionId
@@ -355,11 +394,14 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
       create: {
         userId,
         ...subscriptionData,
+        provider: BillingProvider.CREEM,
         lastCreemEventId: eventId,
         lastCreemEventAt: eventCreatedAt,
       },
       update: {
         ...subscriptionData,
+        provider: BillingProvider.CREEM,
+        ...(appleStillRenews ? { appleConflictSince: newDate() } : {}),
         lastCreemEventId: eventId,
         lastCreemEventAt: eventCreatedAt,
         // Same transaction as the grant: if the post-commit cancel never runs,
@@ -388,6 +430,17 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
           LOG_SOURCE
         );
       }
+    }
+
+    if (appleStillRenews) {
+      // Escalation: the person now pays Creem and the App Store at once, and
+      // only they can stop the App Store side. Billing shows both until Apple
+      // reports the subscription no longer renews.
+      void logger.error(
+        "Creem purchase on top of a renewing App Store subscription: both bill",
+        { userId, eventId, eventType: event.eventType },
+        LOG_SOURCE
+      );
     }
 
     return { processed: true, subscription, supersededSubscriptionId, userId };

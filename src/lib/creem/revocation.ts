@@ -1,4 +1,5 @@
 import {
+  BillingProvider,
   LifetimeCheckoutReservationStatus,
   Prisma,
   SubscriptionPlan,
@@ -6,6 +7,7 @@ import {
 } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
+import { effectiveSubscriptionPlan } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -94,6 +96,7 @@ type RevocationOutcome =
   | "revoked"
   | "partial_refund_retained"
   | "already_free"
+  | "apple_active"
   | "missing_subscription"
   | "replayed_event";
 
@@ -144,6 +147,9 @@ export async function processCreemRevocationEvent(
           id: true,
           userId: true,
           plan: true,
+          status: true,
+          currentPeriodEnd: true,
+          provider: true,
           creemSubscriptionId: true,
           lastCreemEventAt: true,
         },
@@ -164,11 +170,18 @@ export async function processCreemRevocationEvent(
         return { processed: false, outcome: "missing_subscription" as const };
       }
 
-      const outcome: RevocationOutcome = partial
-        ? "partial_refund_retained"
-        : existing.plan === SubscriptionPlan.FREE
-          ? "already_free"
-          : "revoked";
+      // A refund of an old Creem purchase never takes away a live App Store
+      // plan that replaced it.
+      const appleActive =
+        existing.provider === BillingProvider.APPLE &&
+        effectiveSubscriptionPlan(existing) !== SubscriptionPlan.FREE;
+      const outcome: RevocationOutcome = appleActive
+        ? "apple_active"
+        : partial
+          ? "partial_refund_retained"
+          : existing.plan === SubscriptionPlan.FREE
+            ? "already_free"
+            : "revoked";
 
       const receipt = await tx.creemWebhookEvent.createMany({
         data: [

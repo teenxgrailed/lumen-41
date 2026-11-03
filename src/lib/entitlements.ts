@@ -1,4 +1,5 @@
 import {
+  BillingProvider,
   type MailProvider,
   Prisma,
   SubscriptionPlan,
@@ -37,15 +38,40 @@ export function limitStatus(
   };
 }
 
+/**
+ * How long an App Store subscription keeps Pro past its paid-through date
+ * when no renewal has been heard of yet. Apple renews shortly before the
+ * period ends and the device and the notification both report it; past this
+ * slack a missed renewal counts as no renewal, whatever the stored status.
+ */
+export const APPLE_PERIOD_SLACK_MS = 6 * 60 * 60 * 1000;
+
 export function effectiveSubscriptionPlan(
   subscription: {
     plan: SubscriptionPlan;
     status: SubscriptionStatus;
     currentPeriodEnd: Date | null;
+    provider?: BillingProvider | null;
   } | null,
   trial: { endsAt: Date } | null = null,
   now: Date = newDate()
 ): SubscriptionPlan {
+  // An App Store Pro is bounded by its period, never open-ended: a missed
+  // EXPIRED notification must not mean Pro forever (Lifetime has no period).
+  if (
+    subscription?.provider === BillingProvider.APPLE &&
+    subscription.plan === SubscriptionPlan.PRO
+  ) {
+    if (
+      subscription.currentPeriodEnd &&
+      subscription.currentPeriodEnd.getTime() + APPLE_PERIOD_SLACK_MS >
+        now.getTime()
+    ) {
+      return SubscriptionPlan.PRO;
+    }
+    if (trial?.endsAt && trial.endsAt > now) return SubscriptionPlan.PRO;
+    return SubscriptionPlan.FREE;
+  }
   if (
     subscription &&
     subscription.plan !== SubscriptionPlan.FREE &&
@@ -78,7 +104,12 @@ export async function getPlan(
     where: { id: userId },
     select: {
       subscription: {
-        select: { plan: true, status: true, currentPeriodEnd: true },
+        select: {
+          plan: true,
+          status: true,
+          currentPeriodEnd: true,
+          provider: true,
+        },
       },
       trialGrant: { select: { endsAt: true } },
     },

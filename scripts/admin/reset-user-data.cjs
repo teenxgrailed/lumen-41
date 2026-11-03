@@ -42,7 +42,8 @@
  *     Session, VerificationToken, PasswordReset, AccountReauthentication,
  *     AccountDeletionRequest.
  *   Billing and entitlements: Subscription, LifetimeHold, TrialGrant,
- *     CreemWebhookEvent, CreemSubscriptionCursor, ProGift.
+ *     CreemWebhookEvent, CreemSubscriptionCursor, ProGift,
+ *     AppleNotificationReceipt.
  *   Email consent and history: EmailPreference, EmailSend (a reset must not
  *     re-enable mail the person switched off, or re-send what was sent).
  *   Workspaces: Workspace (personal one emptied), WorkspaceMember (every

@@ -2280,7 +2280,12 @@ MCP_TOOLS.unshift(
             name: true,
             email: true,
             subscription: {
-              select: { plan: true, status: true, currentPeriodEnd: true },
+              select: {
+                plan: true,
+                status: true,
+                currentPeriodEnd: true,
+                provider: true,
+              },
             },
             trialGrant: { select: { endsAt: true } },
           },
@@ -2303,13 +2308,12 @@ MCP_TOOLS.unshift(
         billing?.trialGrant ?? null
       );
       const limits = PLAN_LIMITS[plan];
+      // On a trial: Pro only because of the trial grant, by the same rule
+      // getPlan uses (an App Store Pro past its period does not count).
       const onTrial =
         plan === "PRO" &&
-        !(
-          billing?.subscription &&
-          billing.subscription.plan !== "FREE" &&
-          billing.subscription.status === "ACTIVE"
-        ) &&
+        effectiveSubscriptionPlan(billing?.subscription ?? null, null) ===
+          "FREE" &&
         Boolean(billing?.trialGrant);
       return toolResult({
         user,

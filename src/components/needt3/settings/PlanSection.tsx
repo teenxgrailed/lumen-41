@@ -405,6 +405,27 @@ function PurchasePlanSection() {
               </SBtn>
             </span>
           ) : null}
+          {b?.alsoBilledBy ? (
+            <span className="base-meta" data-settings-apple-conflict="">
+              Your App Store subscription is still billing as well. Cancel it in
+              the App Store.
+            </span>
+          ) : null}
+          {b?.manageUrl || b?.alsoBilledBy ? (
+            <span className="settings-grid-3 is-one">
+              <SBtn
+                onClick={() =>
+                  window.open(
+                    b.manageUrl ?? b.alsoBilledBy?.manageUrl ?? "",
+                    "_blank",
+                    "noopener"
+                  )
+                }
+              >
+                Manage in App Store
+              </SBtn>
+            </span>
+          ) : null}
           {P.student && (!pro || kind === "trial") ? (
             <span className="base-meta" data-settings-student-prices="">
               {P.studentLine}. Lifetime is not discounted.

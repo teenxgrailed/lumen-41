@@ -1,11 +1,15 @@
 import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 
 import { getCreemClient } from "@/lib/creem/client";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 import { cancelRecurringBillingForDeletion } from "../account-billing";
 
 jest.mock("@/lib/creem/client", () => ({ getCreemClient: jest.fn() }));
+jest.mock("@/lib/logger", () => ({
+  logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
+}));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     subscription: {
@@ -44,6 +48,44 @@ describe("account deletion billing", () => {
         cancelAtPeriodEnd: false,
       },
     });
+  });
+
+  it("never sends an App Store subscription to Creem", async () => {
+    // A row that once had a Creem subscription and is now sold by Apple.
+    jest.mocked(prisma.subscription.findUnique).mockResolvedValue({
+      creemSubscriptionId: "sub_old_creem",
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.ACTIVE,
+      provider: "APPLE",
+      appleOriginalTransactionId: "2000000000000001",
+    } as never);
+
+    await cancelRecurringBillingForDeletion("user-1");
+
+    expect(cancel).not.toHaveBeenCalled();
+    expect(prisma.subscription.updateMany).not.toHaveBeenCalled();
+    // Recorded: the buyer cancels it in iOS Settings.
+    expect(logger.info).toHaveBeenCalledWith(
+      "Account deletion left an App Store subscription to the buyer",
+      { userId: "user-1", appleOriginalTransactionId: "2000000000000001" },
+      "AccountBilling"
+    );
+  });
+
+  it("finishes the Creem cancel an Apple takeover left pending", async () => {
+    jest.mocked(prisma.subscription.findUnique).mockResolvedValue({
+      creemSubscriptionId: "sub_dunning",
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.ACTIVE,
+      provider: "APPLE",
+      appleOriginalTransactionId: "2000000000000001",
+      pendingCreemCancelId: "sub_dunning",
+    } as never);
+    cancel.mockResolvedValue({});
+
+    await cancelRecurringBillingForDeletion("user-1");
+
+    expect(cancel).toHaveBeenCalledWith("sub_dunning", { mode: "immediate" });
   });
 
   it("does not call Creem for free or lifetime accounts", async () => {

@@ -140,6 +140,11 @@ model User {
   // Null for accounts that never started one.
   withdrawalWaiverAt     DateTime?
   withdrawalWaiverTermsVersion String?
+  // StoreKit 2 appAccountToken (UUID v4): generated once on the first
+  // GET /api/billing/apple/account-token, attached by the native app to every
+  // purchase, and how Apple's signed transactions are tied back to this user.
+  appleAppAccountToken   String?                   @unique
+  appleNotificationReceipts AppleNotificationReceipt[]
   dataExports           DataExportRequest[]
   deletionRequest        AccountDeletionRequest?
   reauthentications      AccountReauthentication[]
@@ -3255,6 +3260,13 @@ enum SubscriptionPlan {
   LIFETIME
 }
 
+/// Who sells the plan in a Subscription row. Null on rows written before the
+/// column existed (Creem or a manual comp; see billingSource()).
+enum BillingProvider {
+  CREEM
+  APPLE
+}
+
 enum SubscriptionStatus {
   ACTIVE
   PAYMENT_PENDING
@@ -3576,6 +3588,21 @@ model Subscription {
   pendingCreemCancelId       String?
   pendingCreemCancelAttempts Int @default(0)
   pendingCreemCancelNextAt   DateTime?
+  provider              BillingProvider?
+  // Apple In-App Purchase (StoreKit 2). The entitlement is keyed by the
+  // original transaction id; cancelling is done by the buyer in iOS Settings,
+  // never from here.
+  appleOriginalTransactionId String?       @unique
+  appleTransactionId    String?
+  appleProductId        String?
+  appleBundleId         String?
+  appleEnvironment      String?
+  /// signedDate of the newest Apple JWS applied; older ones are stale.
+  appleLastSignedAt     DateTime?
+  /// A paid Creem plan replaced a still-renewing App Store subscription,
+  /// which only the buyer can cancel: both bill until they do. Cleared when
+  /// Apple reports it no longer renews.
+  appleConflictSince    DateTime?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
@@ -3630,6 +3657,24 @@ model CreemWebhookEvent {
   receivedAt     DateTime @default(now())
 
   @@index([userId, eventCreatedAt])
+}
+
+/// One row per App Store Server Notification V2 (notificationUUID): replays
+/// are answered without applying twice, and unmapped ones are kept for review.
+model AppleNotificationReceipt {
+  notificationUUID      String   @id
+  userId                String?
+  user                  User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationType      String
+  subtype               String?
+  originalTransactionId String?
+  environment           String?
+  signedAt              DateTime
+  outcome               String
+  receivedAt            DateTime @default(now())
+
+  @@index([userId, signedAt])
+  @@index([originalTransactionId])
 }
 
 model CreemSubscriptionCursor {

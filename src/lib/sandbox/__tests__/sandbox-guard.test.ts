@@ -75,6 +75,10 @@ const ALLOWED: Array<[string, string]> = [
   ["POST", "/api/events"],
   ["POST", "/api/tasks/task_1/attachments"],
   ["GET", "/api/billing"],
+  ["GET", "/api/billing/apple/account-token"],
+  // The App Review login buys Sandbox-only; the route sorts sandbox kinds.
+  ["POST", "/api/billing/apple/transactions"],
+  ["POST", "/api/billing/apple/notifications"],
   ["GET", "/api/connector-settings"],
   ["GET", "/api/calendar/google"],
   ["GET", "/api/mail/accounts"],

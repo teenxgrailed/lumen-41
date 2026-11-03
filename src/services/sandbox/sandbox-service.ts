@@ -14,6 +14,7 @@ import {
 import { compare, hash } from "bcryptjs";
 
 import { APP_NAME } from "@/lib/app-config";
+import { clearAppleSandboxState } from "@/lib/apple-iap/entitlement";
 import {
   addCalendarDays,
   formatInTimeZone,
@@ -147,6 +148,10 @@ async function ensureWorkspace(tx: Tx, userId: string): Promise<string> {
  * Pro through the same `Subscription` row every limit reads. ACTIVE with no
  * Creem or Stripe id is a comp (`isManualSubscription`) that never expires and
  * that no payment webhook can touch.
+ *
+ * Runs on every worker start too, so it also drops what an App Review
+ * Sandbox purchase left on the row: an APPLE row with no period reads as
+ * Free (App Store Pro is bounded by its period), not as the comp.
  */
 async function ensurePro(tx: Tx, userId: string) {
   await tx.subscription.upsert({
@@ -161,6 +166,14 @@ async function ensurePro(tx: Tx, userId: string) {
       status: SubscriptionStatus.ACTIVE,
       currentPeriodEnd: null,
       cancelAtPeriodEnd: false,
+      provider: null,
+      appleOriginalTransactionId: null,
+      appleTransactionId: null,
+      appleProductId: null,
+      appleBundleId: null,
+      appleEnvironment: null,
+      appleLastSignedAt: null,
+      appleConflictSince: null,
     },
   });
 }
@@ -681,6 +694,8 @@ export async function resetSandboxAccount(
       const tokensRevoked = await revokeStaleSandboxTokens(tx, userId, now);
       const deletionsCanceled = await cancelSandboxDeletion(tx, userId, now);
       await wipeSandboxContent(tx, userId);
+      // App Review's Sandbox purchases end with the day, like everything else.
+      await clearAppleSandboxState(tx, userId);
       await ensurePro(tx, userId);
       const workspaceId = await ensureWorkspace(tx, userId);
       const seeded = await seedSandboxContent(tx, {

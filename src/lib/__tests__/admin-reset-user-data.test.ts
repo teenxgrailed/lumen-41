@@ -23,6 +23,7 @@ const KEPT = [
   "LifetimeHold",
   "TrialGrant",
   "CreemWebhookEvent",
+  "AppleNotificationReceipt",
   "CreemSubscriptionCursor",
   "Workspace",
   "WorkspaceMember",

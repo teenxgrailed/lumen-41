@@ -48,6 +48,7 @@ type SubscriptionRow = {
   creemProductId: string | null;
   stripeCustomerId: string | null;
   stripePaymentIntentId: string | null;
+  appleOriginalTransactionId?: string | null;
 };
 
 /** True for a row nobody paid for: free, or a comp this module wrote. */
@@ -59,6 +60,7 @@ export function isManualSubscription(
     | "creemProductId"
     | "stripeCustomerId"
     | "stripePaymentIntentId"
+    | "appleOriginalTransactionId"
   >
 ): boolean {
   return (
@@ -66,7 +68,8 @@ export function isManualSubscription(
     !row.creemSubscriptionId &&
     !row.creemProductId &&
     !row.stripeCustomerId &&
-    !row.stripePaymentIntentId
+    !row.stripePaymentIntentId &&
+    !row.appleOriginalTransactionId
   );
 }
 
@@ -98,6 +101,7 @@ async function readSubscription(
       creemProductId: true,
       stripeCustomerId: true,
       stripePaymentIntentId: true,
+      appleOriginalTransactionId: true,
     },
   });
 }

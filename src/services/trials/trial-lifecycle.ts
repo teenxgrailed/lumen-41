@@ -56,7 +56,12 @@ async function processMilestone(milestone: Milestone, now: Date) {
             notificationSettings: { select: { emailNotifications: true } },
             emailPreferences: { select: { category: true, enabled: true } },
             subscription: {
-              select: { plan: true, status: true, currentPeriodEnd: true },
+              select: {
+                plan: true,
+                status: true,
+                currentPeriodEnd: true,
+                provider: true,
+              },
             },
           },
         },

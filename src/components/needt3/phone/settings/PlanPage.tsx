@@ -361,6 +361,24 @@ function PurchasePlanPage() {
               data={{ "data-ps-portal": "" }}
             />
           ) : null}
+          {b?.manageUrl || b?.alsoBilledBy ? (
+            <PsRow
+              title="Manage in App Store"
+              desc={
+                b.alsoBilledBy
+                  ? "Your App Store subscription is still billing as well. Cancel it in the App Store."
+                  : undefined
+              }
+              onOpen={() =>
+                window.open(
+                  b.manageUrl ?? b.alsoBilledBy?.manageUrl ?? "",
+                  "_blank",
+                  "noopener"
+                )
+              }
+              data={{ "data-ps-app-store": "" }}
+            />
+          ) : null}
         </PsGroup>
       )}
       {panel ? (

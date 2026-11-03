@@ -193,6 +193,37 @@ describe("provisioning", () => {
     expect(models.task?.create).toBeUndefined();
   });
 
+  it("a worker start restores the comp Pro after an App Review Sandbox purchase", async () => {
+    const idToken = await hash(PASSWORD, 4);
+    call("user", "findUnique").mockResolvedValueOnce({
+      id: "sandbox-1",
+      sandboxKind: "reviewer",
+      role: "user",
+      isActive: true,
+      emailVerified: NOW,
+      accounts: [{ id: "acc-1", id_token: idToken }],
+    });
+    call("workspace", "findUnique").mockResolvedValueOnce({ id: "ws-1" });
+
+    await provisionSandboxAccount(CONFIG, NOW);
+
+    // An APPLE row with no period reads as Free; the comp must not be one.
+    expect(call("subscription", "upsert").mock.calls[0][0].update).toEqual({
+      plan: "PRO",
+      status: "ACTIVE",
+      currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
+      provider: null,
+      appleOriginalTransactionId: null,
+      appleTransactionId: null,
+      appleProductId: null,
+      appleBundleId: null,
+      appleEnvironment: null,
+      appleLastSignedAt: null,
+      appleConflictSince: null,
+    });
+  });
+
   it("takes a new password from the env and signs old sessions out", async () => {
     const idToken = await hash("an older password", 4);
     call("user", "findUnique").mockResolvedValueOnce({
@@ -279,6 +310,13 @@ describe("reset", () => {
       where: { userId: "sandbox-1" },
     });
     expect(call("aiUsage", "deleteMany")).toHaveBeenCalled();
+    // App Review's Sandbox purchases end with the day.
+    expect(call("subscription", "deleteMany")).toHaveBeenCalledWith({
+      where: { userId: "sandbox-1", provider: "APPLE" },
+    });
+    expect(call("appleNotificationReceipt", "deleteMany")).toHaveBeenCalledWith(
+      { where: { userId: "sandbox-1" } }
+    );
     // ...and the same planner again.
     expect(call("task", "create")).toHaveBeenCalledTimes(SANDBOX_TASKS.length);
     expect(call("calendarEvent", "create")).toHaveBeenCalledTimes(

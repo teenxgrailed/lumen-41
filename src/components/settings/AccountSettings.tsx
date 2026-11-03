@@ -34,6 +34,7 @@ export function AccountSettings() {
   const [password, setPassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [scheduledFor, setScheduledFor] = useState<string | null>(null);
+  const [appleManageUrl, setAppleManageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     void fetch("/api/account/lifecycle")
@@ -42,6 +43,7 @@ export function AccountSettings() {
         return (await response.json()) as {
           providers?: string[];
           deletion?: { scheduledFor: string } | null;
+          appleSubscription?: { manageUrl: string } | null;
         };
       })
       .then((data) => {
@@ -49,6 +51,7 @@ export function AccountSettings() {
         // and this section holds account deletion and the data export.
         setProviders(Array.isArray(data.providers) ? data.providers : []);
         setScheduledFor(data.deletion?.scheduledFor ?? null);
+        setAppleManageUrl(data.appleSubscription?.manageUrl ?? null);
       })
       .catch(() => notify.error("Could not load account deletion status"));
   }, []);
@@ -240,6 +243,21 @@ export function AccountSettings() {
         title="Delete account"
         description="Deletion removes your personal data after a seven-day recovery window. Shared workspace records become anonymous tombstones where teammates still depend on them."
       >
+        {appleManageUrl ? (
+          <SettingRow
+            label="App Store subscription"
+            description="Your App Store subscription keeps billing until you cancel it in the App Store."
+          >
+            <Button
+              type="button"
+              variant="outline"
+              data-apple-manage=""
+              onClick={() => window.open(appleManageUrl, "_blank", "noopener")}
+            >
+              Manage in App Store
+            </Button>
+          </SettingRow>
+        ) : null}
         {scheduledFor ? (
           <SettingRow
             label="Deletion scheduled"
@@ -285,8 +303,7 @@ export function AccountSettings() {
                       onClick={() => reauthenticateWithProvider(provider)}
                     >
                       <ShieldCheck className="h-4 w-4" />
-                      Sign in with{" "}
-                      {signInProviderLabel(provider)}
+                      Sign in with {signInProviderLabel(provider)}
                     </Button>
                   ))}
                 </div>

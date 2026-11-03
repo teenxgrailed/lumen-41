@@ -22,6 +22,8 @@ export interface ApiBilling {
   source?: "creem" | "apple" | null;
   /** Set for an App Store plan: managed and cancelled in the App Store. */
   manageUrl?: string | null;
+  /** A web plan was bought while an App Store subscription still renews. */
+  alsoBilledBy?: { source: "apple"; manageUrl: string; since: string } | null;
   /** The running subscription carries a discount (the student price). */
   discountApplied?: boolean;
   lifetimeAvailable: boolean;
