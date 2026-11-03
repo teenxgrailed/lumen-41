@@ -1,0 +1,1 @@
+- Checked boxes in a doc's task list now match the rest of the app: a soft accent box with an accent tick.
