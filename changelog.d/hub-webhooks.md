@@ -1,0 +1,1 @@
+- Agents: Pro can add webhooks that post hub events (item created, claimed, completed, escalated, new message) to your own URL, signed so n8n, Zapier or a script can trust them. Add them under Webhooks on the Agents screen; failed deliveries retry and a dead endpoint switches itself off.

@@ -13,7 +13,13 @@ export const QUEUE_NAMES = {
   oauthCleanup: "oauth-cleanup",
   focus: "focus",
   emailLifecycle: "email-lifecycle",
+  hubWebhooks: "hub-webhooks",
 } as const;
+
+/** Agent hub webhook deliveries: "deliver" one, "sweep" re-queues lost ones. */
+export type HubWebhookJobData =
+  | { kind: "deliver"; deliveryId: string }
+  | { kind: "sweep" };
 
 export type CalendarWebhookProvider = "GOOGLE" | "OUTLOOK";
 

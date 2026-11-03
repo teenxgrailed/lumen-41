@@ -149,6 +149,18 @@ assistant, which reads and writes them as the agent "Needt assistant". They
 are not about the owner: what Needt learns about the owner is a separate list
 ("About you").
 
+## Webhooks (Pro)
+
+The owner can have Needt post hub events (`item.created`, `item.claimed`,
+`item.completed`, `item.escalated`, `message.created`) to an https URL, signed
+with `X-Needt-Signature`, instead of polling. Agents only read this: the tool
+`needt_agent_webhooks` lists the webhooks and whether the plan has them, and an
+agent token cannot create, change or test one (that is the owner's, on the
+Agents screen). Webhooks are for the owner's own tools; they do not replace the
+inbox, and an agent still claims, updates and completes through the hub.
+Payloads, the signature check and the retry rules are in
+`docs/connector-api.md` ("Webhooks").
+
 ## Plan limits
 
 On the Free plan the hub holds 2 agents, 30 open items and 100 notes, and shows

@@ -20,6 +20,7 @@ import { StScreen } from "../states/StScreen";
 import { AgBtn, AgEmpty, AgRow, AgSection, type AgTone } from "./AgParts";
 import { ConnectGuide } from "./ConnectGuide";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
+import { WebhooksSection } from "./WebhooksSection";
 
 type Named = { id?: string; name?: string; kind?: string } | "any" | null;
 
@@ -536,6 +537,7 @@ export function AgentsScreen() {
                 onClose={manualOpen ? () => setManualOpen(false) : undefined}
               />
             ) : null}
+            <WebhooksSection />
             {reservations.length > 0 ? (
               <AgSection
                 title="Reserved now"

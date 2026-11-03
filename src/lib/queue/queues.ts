@@ -9,6 +9,7 @@ import {
   CalendarSyncJobData,
   EmailLifecycleJobData,
   FocusJobData,
+  HubWebhookJobData,
   ImportJobData,
   LifetimeCheckoutReconciliationJobData,
   MailSyncJobData,
@@ -36,6 +37,7 @@ let accountLifecycleQueue: Queue<AccountLifecycleJobData> | null = null;
 let importQueue: Queue<ImportJobData> | null = null;
 let focusQueue: Queue<FocusJobData> | null = null;
 let emailLifecycleQueue: Queue<EmailLifecycleJobData> | null = null;
+let hubWebhookQueue: Queue<HubWebhookJobData> | null = null;
 
 const defaultJobOptions = {
   attempts: 4,
@@ -173,6 +175,15 @@ export function getEmailLifecycleQueue(): Queue<EmailLifecycleJobData> {
   return emailLifecycleQueue;
 }
 
+export function getHubWebhookQueue(): Queue<HubWebhookJobData> {
+  // Retries are scheduled by the delivery itself (1m, 5m, 30m, 2h, 12h).
+  hubWebhookQueue ??= new Queue(QUEUE_NAMES.hubWebhooks, {
+    connection: getBullConnection(),
+    defaultJobOptions: { ...defaultJobOptions, attempts: 1 },
+  });
+  return hubWebhookQueue;
+}
+
 export async function closeQueues(): Promise<void> {
   const queues = [
     calendarSyncQueue,
@@ -189,6 +200,7 @@ export async function closeQueues(): Promise<void> {
     importQueue,
     focusQueue,
     emailLifecycleQueue,
+    hubWebhookQueue,
   ].filter((queue): queue is Queue => queue !== null);
   await Promise.all(queues.map((queue) => queue.close()));
   calendarSyncQueue = null;
@@ -205,4 +217,5 @@ export async function closeQueues(): Promise<void> {
   importQueue = null;
   focusQueue = null;
   emailLifecycleQueue = null;
+  hubWebhookQueue = null;
 }

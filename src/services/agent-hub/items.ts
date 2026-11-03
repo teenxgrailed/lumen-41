@@ -57,6 +57,7 @@ import {
   splitCriteria,
 } from "./schemas";
 import { assertNoSecrets } from "./secret-scan";
+import { emitHubEvent, itemPayload } from "./webhooks";
 
 type Tx = Prisma.TransactionClient;
 
@@ -702,6 +703,7 @@ export async function createItem(scope: HubScope, input: CreateItemInput) {
       itemId: item.id,
       creator: creatorAgentId ? "agent" : "owner",
     });
+    emitHubEvent(scope, "item.created", { item: itemPayload(item) });
     return {
       created: true,
       item: await viewOne(scope, item, { recent: 5, untrusted: true }),
@@ -878,6 +880,10 @@ export async function claimItem(scope: AgentScope, input: ClaimInput) {
       }
     );
   }
+  emitHubEvent(scope, "item.claimed", {
+    item: itemPayload(claimed),
+    agent: { id: agent.id, name: agent.name },
+  });
   return {
     item: await viewOne(scope, claimed, { recent: 5, untrusted: true }),
     risks: claimed.risks,
@@ -1155,6 +1161,10 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
     itemId: updated.id,
     outcome: input.outcome,
   });
+  emitHubEvent(scope, "item.completed", {
+    item: itemPayload(updated),
+    outcome: input.outcome,
+  });
   return {
     item: await viewOne(scope, updated, { recent: 3, untrusted: true }),
   };
@@ -1226,6 +1236,13 @@ export async function escalateItem(scope: AgentScope, input: EscalateInput) {
     title: "An agent needs you",
     body: `${agent.name}: ${updated.title}`,
     itemId: updated.id,
+  });
+  emitHubEvent(scope, "item.escalated", {
+    item: itemPayload(updated),
+    question,
+    options: input.options ?? [],
+    risk: input.risk ?? null,
+    agent: { id: agent.id, name: agent.name },
   });
   return {
     item: await viewOne(scope, updated, { recent: 3, untrusted: true }),
