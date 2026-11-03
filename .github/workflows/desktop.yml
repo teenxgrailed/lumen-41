@@ -1,7 +1,9 @@
 name: Desktop
 
 # Unsigned Tauri builds of the desktop app (apps/desktop). Not part of the
-# release pipeline: nothing here publishes or deploys.
+# release pipeline: nothing here publishes or deploys. The Windows job also packs
+# the release exe as an unsigned MSIX (artifact needt-windows-msix) for the
+# Microsoft Store, which re-signs MSIX packages itself: see apps/desktop/README.md.
 on:
   push:
     paths:
@@ -74,3 +76,22 @@ jobs:
             ${{ matrix.bundle_dir }}/dmg/*.dmg
             ${{ matrix.bundle_dir }}/msi/*.msi
             ${{ matrix.bundle_dir }}/nsis/*.exe
+
+      # Microsoft Store package. Reuses the exe built above (one Rust build).
+      # Identity comes from msix/AppxManifest.xml; set the Actions variables
+      # MSIX_IDENTITY_NAME and MSIX_PUBLISHER to override it without a commit.
+      - name: Pack MSIX (unsigned, for the Store)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+        run: ./msix/build-msix.ps1 -ExePath src-tauri/target/release/needt-desktop.exe
+
+      - name: Upload MSIX
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: needt-windows-msix
+          if-no-files-found: error
+          path: apps/desktop/src-tauri/target/msix/*.msix

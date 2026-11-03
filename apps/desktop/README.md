@@ -127,8 +127,74 @@ built `.app`.
 `.github/workflows/desktop.yml` builds on `macos-26` (universal dmg) and
 `windows-latest` (msi and NSIS exe) on pushes touching `apps/desktop/**` and on
 `workflow_dispatch`. Artifacts: `needt-desktop-macos-universal`,
-`needt-desktop-windows-x64`. Builds are unsigned. `Cargo.lock` is resolved in
+`needt-desktop-windows-x64`, `needt-windows-msix` (Store package, below). Builds are unsigned. `Cargo.lock` is resolved in
 CI; commit the refreshed lock after the first local build.
+
+## Microsoft Store (Windows, MSIX)
+
+The Windows job in `desktop.yml` also packs the release exe as an **unsigned
+MSIX** (artifact `needt-windows-msix`, file `Needt_<version>_x64.msix`). The
+Store re-signs MSIX packages it distributes, so no certificate is needed for
+this route; an MSI or EXE submission would need a certificate that chains to the
+Microsoft Trusted Root Program. Research and links (checked 03.11.26):
+
+- Tauri v2 has no MSIX bundle target. Its Store guide
+  (https://v2.tauri.app/distribute/microsoft-store/) covers only the EXE/MSI
+  route (signed, offline installer, silent install). PR tauri-apps/tauri#14793
+  (WebView2 minimum for MSI, merged 26.03.26) is not MSIX either. Microsoft's
+  `winapp` CLI documents a Tauri-to-MSIX flow
+  (https://learn.microsoft.com/en-us/windows/apps/dev-tools/winapp-cli/guides/tauri);
+  we use the Windows SDK `makeappx.exe` directly instead (nothing extra to install).
+- Signing: "MSIX/AppX packages ... don't have to be signed with a certificate
+  rooted in a trusted certificate authority"; the Store replaces the signature
+  (https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements,
+  https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/code-signing-options).
+- Payments: Store Policy 10.8.1 and 10.8.6 let non-game apps use a secure
+  third-party purchase API and third-party billing; the use must be noted in
+  Partner Center (https://learn.microsoft.com/en-us/windows/apps/publish/store-policies,
+  version 7.20, 14.09.26). Needt sells Pro and Lifetime on the website, so this applies.
+- WebView2: an MSIX in the Store cannot install it. It ships with Windows 11 and
+  is on most Windows 10 devices (https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution).
+  Unverified: what the app shows on a Windows 10 machine without it.
+
+Files: `msix/AppxManifest.xml` (template), `msix/build-msix.ps1` (staging, icon
+assets generated from `src-tauri/icons/icon.png`, `makeappx pack`, then an
+unpack round trip that checks files, version and the `needt:` declaration),
+`store/listing.md` (listing text, screenshots, age-rating answers).
+
+Package details:
+
+- Version: `tauri.conf.json` 0.1.0 becomes `1.1.0.0` ((major+1).minor.patch.0).
+  The Store needs a non-zero first part and reserves the last part.
+- The exe is renamed `Needt.exe`; capabilities `internetClient` and `runFullTrust`.
+- Deep link: the manifest declares `windows.protocol` for `needt`. That is what
+  registers the scheme for a packaged app; Windows starts the exe with the link
+  as an argument and `tauri-plugin-single-instance` (feature `deep-link`) hands
+  it to the running copy. `register_all()` in `lib.rs` still runs; in a package
+  its HKCU write is expected to be redirected to the package's private registry
+  and is harmless. **Unverified on hardware** (CI cannot click a link): test
+  `needt://start-sign-in` and a full sign-in from the installed Store build.
+- No self-updater exists (`tauri-plugin-updater` is not a dependency), so nothing
+  to turn off; the Store updates the package.
+- x64 only. The `.msix` is not installable by double click until the Store signs it.
+
+What the owner does (nothing here was done for you):
+
+1. Create a Partner Center developer account (https://storedeveloper.microsoft.com)
+   and reserve the name "Needt".
+2. Product management, Product identity: copy `Package/Identity/Name` and
+   `Package/Identity/Publisher` (`CN=...`). Either paste them into
+   `msix/AppxManifest.xml`, or set the repository Actions variables
+   `MSIX_IDENTITY_NAME` and `MSIX_PUBLISHER` (no commit needed). Case sensitive.
+3. Run the Desktop workflow, download `needt-windows-msix`, create a submission,
+   upload the `.msix` (the Store signs it).
+4. Fill the listing from `store/listing.md`; add 4 to 8 screenshots from a real
+   Windows machine (none exist yet) and a 300 x 300 tile icon.
+5. Answer the IARC age-rating questionnaire (answers in `store/listing.md`).
+6. Notes for certification: the payment-provider note and a reviewer login
+   (text in `store/listing.md`); justify `runFullTrust`.
+7. Raise `version` in `tauri.conf.json` and `Cargo.toml` for every later upload;
+   the Store needs a higher package version each time.
 
 ## Running an unsigned build
 

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Needt for Windows, MSIX package manifest (Microsoft Store).
+
+  Template: build-msix.ps1 copies it next to the exe and the generated Assets,
+  sets Identity/@Version from tauri.conf.json, and (when the MSIX_IDENTITY_NAME /
+  MSIX_PUBLISHER variables are set) Identity/@Name and Identity/@Publisher.
+
+  OWNER: replace the two placeholders below with the values Partner Center
+  shows under Product management, Product identity (Package/Identity/Name and
+  Package/Identity/Publisher). They are case sensitive and must match exactly,
+  or the Store refuses the upload. The package is NOT signed: the Store
+  re-signs MSIX packages it distributes.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap rescap">
+
+  <Identity
+    Name="YOUR_PARTNER_CENTER_IDENTITY_NAME"
+    Publisher="CN=YOUR-PUBLISHER-ID"
+    Version="1.0.0.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Needt</DisplayName>
+    <PublisherDisplayName>Needt</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <!-- 19041 = Windows 10 2004. The app needs the Evergreen WebView2 runtime:
+         preinstalled on Windows 11, present on most Windows 10 devices (Microsoft
+         docs, checked 03.11.26); an MSIX in the Store cannot install it. -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application Id="Needt" Executable="Needt.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Needt"
+        Description="The place you keep everything you work on."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+
+      <Extensions>
+        <!-- needt://auth?code=... : the browser hands the sign-in back to the
+             app. In a packaged app this declaration is what registers the
+             scheme; the runtime register_all() of tauri-plugin-deep-link
+             writes HKCU, which a packaged app gets redirected to its private
+             registry (expected, not verified on hardware). Windows starts the exe with the link as argv[1]; the
+             single-instance plugin forwards it to a running copy. -->
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="needt">
+            <uap:DisplayName>Needt</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
