@@ -513,7 +513,12 @@ function Corner() {
           >
             <AiOrb size={20} active={ask.phase !== "idle" && !open} />
             <span className="chat-span">Ask Needt</span>
-            <span className="chat-grid">{hint("⌘J")}</span>
+            {/* The pill is 142px wide: "⌘J" fits, "Ctrl+J" does not. Off the
+                Mac the key stays in the label for screen readers and the
+                pill goes without the cap. */}
+            {hint("⌘J") === "⌘J" ? (
+              <span className="chat-grid">⌘J</span>
+            ) : null}
           </button>
         </div>
 
