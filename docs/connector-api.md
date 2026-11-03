@@ -227,13 +227,49 @@ kind}`), `items`, `items/{id}`, `items/{id}/{claim,complete,escalate,cancel}`,
 `reservations` (+ `reservations/release`). Mail and reservations add seven
 tools: `needt_agent_message_send`, `needt_agent_messages`,
 `needt_agent_message_ack`, `needt_agent_thread`, `needt_agent_reserve`,
-`needt_agent_release`, `needt_agent_reservations`. The owner's own actions (answer, approve, reassign, token
+`needt_agent_release`, `needt_agent_reservations`. Two more handle files on
+items: `needt_agent_attach` (write) and `needt_agent_files` (read), see
+"Attachments on hub items" below. The owner's own actions (answer, approve, reassign, token
 create/revoke, note edit/delete, mark an alert seen) are session-only routes
 under `/api/agent-hub/` and no bearer token can call them. An escalation (or
 no capable agent for 24 hours) alerts the owner with a push to
 `/agents?item=<id>` (a message to the owner: `/agents?thread=<id>`) and an unread count on the Agents nav item
 (`GET /api/agent-hub/badge`); it creates no Needt task. Protocol for agents:
 `docs/agents/hub-protocol.md`.
+
+#### Attachments on hub items
+
+An agent can leave files on an item it can see (an agent sees only items that
+concern it; the owner sees all of the workspace; nothing crosses workspaces).
+Allowed: images (png, jpg, gif, webp, avif, heic), video (mp4, mov, webm),
+audio, pdf, text and markdown, csv, json, zip. Refused: executables and
+scripts (by name, even `a.exe.txt`, and by content: PE, ELF, Mach-O, `#!`),
+svg and html, unknown extensions, and a declared `mime` that contradicts the
+name. Limits: 25 MB per file, 10 files per item, 500 MB per account
+(`HUB_ATTACHMENT_*` in `src/services/agent-hub/attachment-rules.ts`). The file
+name and the content of text, markdown, csv and json files go through the hub's
+secret scan; a hit is refused naming the kind, never the value.
+
+- `needt_agent_attach` `{ itemId, name, contentBase64?, mime? }`. With
+  `contentBase64` (small files) the file is stored and the attachment returned.
+  Without it the answer is `{ method: "PUT", uploadUrl, expiresAt, maxBytes }`:
+  `PUT` the raw bytes to `uploadUrl` (valid 15 minutes, no `Authorization`
+  header), so a large file never passes through the model. Needt keeps file
+  bytes in its own database, so the URL points at Needt and not at an object
+  store; a replayed PUT returns the first result instead of a second file.
+- `needt_agent_files` `{ itemId }` lists `{ id, name, mime, size, uploadedBy,
+  createdAt, url, urlExpiresAt }`. `url` is a signed GET valid 24 hours (the
+  signature is the credential, so anyone holding the link can read the file
+  until it expires; call the tool again for a fresh one).
+- REST: `GET` and `POST /api/connect/agent-hub/items/{id}/attachments` (bearer;
+  the `POST` body is the tool's input), `PUT /api/connect/agent-hub/uploads?t=`
+  and `GET /api/connect/agent-hub/files?t=` (signed). Owner (session only):
+  `GET` and `POST` (multipart `file`) `/api/agent-hub/items/{id}/attachments`
+  and `GET /api/agent-hub/attachments/{id}`. Downloads are `attachment`,
+  `nosniff` and sandboxed.
+- Each upload adds an `attachment_added` entry to the item's log. Errors are
+  `INVALID` with `reason` `EMPTY`, `TOO_LARGE` (413), `QUOTA` (413),
+  `TOO_MANY`, `BAD_TYPE`, `EXECUTABLE` or `SECRET`.
 
 ### Admin read (`needt.admin.read`)
 

@@ -16,6 +16,7 @@ import { MemoriesGroup } from "../settings/MemoriesGroup";
 import { Segmented } from "../shell/Segmented";
 import { StScreen } from "../states/StScreen";
 import { AgBtn, AgEmpty, AgRow, AgSection, type AgTone } from "./AgParts";
+import { ItemFiles } from "./ItemFiles";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
 
 type Named = { id?: string; name?: string; kind?: string } | "any" | null;
@@ -766,6 +767,7 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
           {item.result.summary}
         </span>
       ) : null}
+      <ItemFiles id={id} />
       {(item.events ?? []).map((event, index) => (
         <span key={index} className="ag-detail-ev">
           <span>{when(event.at)}</span>

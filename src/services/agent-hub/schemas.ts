@@ -394,3 +394,29 @@ export function splitCriteria(value: string | readonly string[]): {
   const items = value.map((entry) => entry.trim()).filter(Boolean);
   return { text: items.map((entry) => `- ${entry}`).join("\n"), items };
 }
+
+export const attachInput = z.object({
+  itemId: z.string().min(1).max(100),
+  name: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe("File name with its extension, for example demo.mp4."),
+  contentBase64: z
+    .string()
+    .optional()
+    .describe(
+      "The file as base64, for small files. Leave it out for a large file: the answer is then a short-lived uploadUrl to PUT the raw bytes to, so the file never passes through you."
+    ),
+  mime: z
+    .string()
+    .max(100)
+    .optional()
+    .describe("Optional; must match the file name's type."),
+});
+export type AttachInput = z.infer<typeof attachInput>;
+
+export const filesInput = z.object({
+  itemId: z.string().min(1).max(100),
+});
+export type FilesInput = z.infer<typeof filesInput>;

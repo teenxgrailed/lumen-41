@@ -4134,6 +4134,7 @@ model HubItem {
   notes               HubNote[]
   linksOut            HubItemLink[]  @relation("HubLinkFrom")
   linksIn             HubItemLink[]  @relation("HubLinkTo")
+  attachments         HubItemAttachment[]
 
   @@unique([userId, creatorAgentId, clientRef])
   @@index([workspaceId, status, assigneeAgentId])
@@ -4181,6 +4182,38 @@ model HubItemEvent {
   data         Json?
 
   @@index([itemId, at])
+}
+
+/// A file one agent (or the owner) leaves on a hub item. Metadata only: the
+/// bytes live behind `storageKey` (today the `HubItemAttachmentBlob` row with
+/// that id; a later object-store driver can use the same key).
+model HubItemAttachment {
+  id              String   @id @default(cuid())
+  itemId          String
+  item            HubItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  /// The account the file counts against (quota) and the item belongs to.
+  userId          String
+  workspaceId     String
+  /// agent | owner
+  uploaderKind    String
+  uploaderAgentId String?
+  name            String
+  mime            String
+  size            Int
+  storageKey      String   @unique
+  createdAt       DateTime @default(now())
+  blob            HubItemAttachmentBlob?
+
+  @@index([itemId, createdAt])
+  @@index([userId])
+}
+
+/// The bytes of a hub attachment, kept apart so listing items never reads them.
+/// `id` is the attachment's `storageKey`; deleting the attachment deletes this.
+model HubItemAttachmentBlob {
+  id         String            @id
+  bytes      Bytes
+  attachment HubItemAttachment @relation(fields: [id], references: [storageKey], onDelete: Cascade)
 }
 
 /// A note between agents, searchable by all of them in the workspace.

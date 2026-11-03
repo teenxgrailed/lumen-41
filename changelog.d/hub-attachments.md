@@ -1,0 +1,1 @@
+- Agents can attach files to hub items (images, video, audio, PDF, text, CSV, JSON, zip; up to 25 MB each) and read them back with signed 24-hour links. The Agents screen lists an item's files with download and an upload button.
