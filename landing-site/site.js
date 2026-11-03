@@ -150,7 +150,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     const pl = $(".pw-plan.on"); if (!pl || !go) return;
     const note = $(".pw-cta p"); if (note) note.textContent = pl.dataset.plan === "free"
       ? "Free stays free — and your account starts with 14 days of Pro as a gift."
-      : "Secure checkout. You sign in (or create your account) first, then pay. Cancel any time; refunds within 14 days.";
+      : "Secure checkout. You sign in (or create your account) first, then pay. Cancel any time in Settings → Billing. Refund within 14 days of any payment, any plan, no reason needed.";
     if (pl.dataset.plan === "free") { go.href = window.NEEDT_SIGNUP || APP + "/auth/signin"; go.textContent = "Start free"; }
     else if (pl.dataset.plan === "lifetime") { go.href = APP + "/settings?section=billing&checkout=lifetime"; go.textContent = "Buy Lifetime — $149 once"; }
     else { const v = (bill && bill.dataset.billing) || "year"; go.href = APP + "/settings?section=billing&checkout=pro-" + v; go.textContent = v === "year" ? "Buy Pro — $59 / year" : "Buy Pro — $7 / month"; }
