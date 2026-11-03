@@ -1,3 +1,4 @@
+import Network
 import NeedtKit
 import SwiftUI
 import UIKit
@@ -36,6 +37,7 @@ final class ShareViewController: UIViewController {
         host.didMove(toParent: self)
 
         let items = (extensionContext?.inputItems as? [NSExtensionItem]) ?? []
+        model.watchConnection()
         Task { await model.load(items) }
     }
 }
@@ -55,10 +57,24 @@ final class ShareModel: ObservableObject {
     /// Writes are off while the network is down; the sheet says why.
     @Published private(set) var offline = false
 
+    private var monitor: NWPathMonitor?
+
     private let api = NeedtAPI(baseURL: WidgetEnvironment.baseURL) { CookieVault.shared.load() }
 
     var canSend: Bool {
         !offline && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && phase != .loading && phase != .sending
+    }
+
+    /// Turns Add back on when the connection returns after an offline failure.
+    func watchConnection() {
+        guard monitor == nil else { return }
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in self?.offline = false }
+        }
+        monitor.start(queue: DispatchQueue(label: "app.needt.ios.share-path"))
+        self.monitor = monitor
     }
 
     func load(_ items: [NSExtensionItem]) async {
@@ -103,6 +119,7 @@ final class ShareModel: ObservableObject {
     /// Returns true when the task was created.
     func send() async -> Bool {
         phase = .sending
+        offline = false
         let name = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let body = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         do {

@@ -12,12 +12,25 @@ name: ios-archive
 # tool; scripts/check-export-log.sh asserts it fails for signing and nothing
 # else. The unsigned .xcarchive is kept as the `needt-ios-archive` artifact.
 
+# A branch is built through its pull request; a push only counts on main. The
+# negated paths skip documentation and test-only changes (GitHub does not allow
+# `paths` and `paths-ignore` on the same event, so both are written as `paths`).
 on:
   push:
+    branches: [main]
     paths:
       - "apps/ios/**"
       - "apps/shared/**"
       - ".github/workflows/ios-archive.yml"
+      - "!**/*.md"
+      - "!**/Tests/**"
+  pull_request:
+    paths:
+      - "apps/ios/**"
+      - "apps/shared/**"
+      - ".github/workflows/ios-archive.yml"
+      - "!**/*.md"
+      - "!**/Tests/**"
   workflow_dispatch:
 
 concurrency:
@@ -58,7 +71,7 @@ jobs:
             ~/Library/Caches/org.swift.swiftpm
             ~/Library/org.swift.swiftpm
             apps/ios/build/SourcePackages
-          key: spm-${{ runner.os }}-${{ hashFiles('apps/ios/package-lock.json', 'apps/shared/*/Package.swift') }}
+          key: spm-${{ runner.os }}-${{ hashFiles('apps/ios/package-lock.json', 'apps/shared/*/Package.swift', 'apps/shared/*/Package.resolved') }}
           restore-keys: |
             spm-${{ runner.os }}-
 

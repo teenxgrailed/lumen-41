@@ -199,23 +199,27 @@ final class OfflineCoordinator {
     }
 
     /// Only "the network or the server is not reachable" shows the screen.
-    /// A cancelled load, a redirect or a download hand-off must not.
+    /// A cancelled load, a redirect, a download hand-off or a TLS failure
+    /// (a server misconfiguration, not a lost connection) must not.
     static func isConnectivity(_ error: NSError) -> Bool {
         guard error.domain == NSURLErrorDomain else { return false }
         let codes = [
             NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost, NSURLErrorTimedOut,
             NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost, NSURLErrorDNSLookupFailed,
-            NSURLErrorDataNotAllowed, NSURLErrorInternationalRoamingOff, NSURLErrorSecureConnectionFailed,
+            NSURLErrorDataNotAllowed, NSURLErrorInternationalRoamingOff,
         ]
         return codes.contains(error.code)
     }
 
     private func navigationFailed(_ error: Error) {
         let nsError = error as NSError
+        // Any failure ends a retry in progress, also one that is not about
+        // connectivity (a cancelled load, a bad response): otherwise the button
+        // stays on "Trying…" and the network monitor never retries again.
+        model.retrying = false
         guard Self.isConnectivity(nsError) else { return }
         if let url = nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL { failedURL = url }
         lastFailure = Date()
-        model.retrying = false
         show()
     }
 
@@ -247,10 +251,26 @@ final class OfflineCoordinator {
         hosting = nil
     }
 
+    /// The page to load again. A sign-in callback (`?code=`, `?state=`, the auth
+    /// routes) is one-time: loading it a second time fails or signs nobody in,
+    /// so those retry the app instead.
+    static func retryURL(failed: URL?, base: URL) -> URL {
+        let home = base.appendingPathComponent("today")
+        guard let failed else { return home }
+        let oneTime: Set<String> = ["code", "state", "token", "error", "id_token"]
+        let items = URLComponents(url: failed, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        let path = failed.path.lowercased()
+        if items.contains(where: { oneTime.contains($0.name.lowercased()) })
+            || path.hasPrefix("/api/auth") || path.hasPrefix("/auth") {
+            return home
+        }
+        return failed
+    }
+
     private func retry() {
         guard let webView else { return }
         model.retrying = true
-        let url = failedURL ?? WidgetEnvironment.baseURL
+        let url = Self.retryURL(failed: failedURL, base: WidgetEnvironment.baseURL)
         webView.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 20))
     }
 
@@ -265,10 +285,20 @@ final class OfflineCoordinator {
         self.monitor = monitor
     }
 
-    /// The first path report arrives right after the monitor starts; ignore
-    /// anything within 3 s of a failure so a server that is down does not loop.
+    /// The first path report arrives right after the monitor starts; a report
+    /// within 3 s of a failure does not retry at once (a server that is down
+    /// must not loop), but it is checked again when the 3 s are over, because
+    /// the path may not report a second time.
     private func networkCameBack() {
-        guard hosting != nil, !model.retrying, Date().timeIntervalSince(lastFailure) > 3 else { return }
+        guard hosting != nil, !model.retrying else { return }
+        let wait = 3 - Date().timeIntervalSince(lastFailure)
+        if wait > 0 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + wait + 0.1) { [weak self] in
+                guard let self, let monitor = self.monitor, monitor.currentPath.status == .satisfied else { return }
+                self.networkCameBack()
+            }
+            return
+        }
         retry()
     }
 }

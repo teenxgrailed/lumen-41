@@ -60,18 +60,33 @@ for intent in AddTaskShortcutIntent StartFocusShortcutIntent TodayShortcutIntent
 done
 echo "shortcut intents found in $META"
 
-echo "-- symbols that need a Required Reason declaration (informational)"
-# Our own sources use none (see README). This lists what the linked binaries
-# reference, so a new dependency that starts using one shows up here.
-for bin in "$APP/App" "$WIDGETS/NeedtWidgets" "$SHARE/NeedtShare"; do
-  [ -f "$bin" ] || continue
-  strings -a "$bin" > /tmp/needt-strings.txt
-  for sym in NSUserDefaults UserDefaults mach_absolute_time systemUptime NSFileCreationDate \
-             NSFileModificationDate NSURLContentModificationDateKey NSURLCreationDateKey getattrlist \
-             fstat volumeAvailableCapacity systemFreeSize activeInputModes; do
-    if grep -qw "$sym" /tmp/needt-strings.txt; then echo "$(basename "$bin"): references $sym"; fi
-  done
+echo "-- symbols that need a Required Reason declaration"
+# Our own sources use none (see README) and every manifest declares none. This
+# reads the undefined (imported) symbols of each linked binary, so a new
+# dependency that starts using UserDefaults, file timestamps, boot time, disk
+# space or active keyboards fails here instead of in App Store Connect.
+# Substring match on purpose: real symbols look like _OBJC_CLASS_$_NSUserDefaults,
+# _mach_absolute_time or $s10Foundation12UserDefaultsC...
+TMP="${RUNNER_TEMP:-$(mktemp -d)}"
+PATTERN='NSUserDefaults|UserDefaults|mach_absolute_time|systemUptime|NSFileCreationDate|NSFileModificationDate|NSURLContentModificationDateKey|NSURLCreationDateKey|NSURLContentAccessDateKey|getattrlist|fgetattrlist|getattrlistbulk|NSFileSystemFreeSize|NSFileSystemSize|NSURLVolumeAvailableCapacity|NSURLVolumeTotalCapacity|volumeAvailableCapacity|volumeTotalCapacity|statfs|statvfs|activeInputModes|_stat$|_fstat$|_lstat$|_fstatat$'
+FOUND=0
+BINARIES=("$APP/App" "$WIDGETS/NeedtWidgets" "$SHARE/NeedtShare")
+for fw in "$APP"/Frameworks/*.framework; do
+  [ -d "$fw" ] && BINARIES+=("$fw/$(basename "$fw" .framework)")
 done
+for bin in "${BINARIES[@]}"; do
+  [ -f "$bin" ] || fail "binary missing: $bin"
+  nm -u "$bin" > "$TMP/needt-nm.txt" 2>/dev/null || fail "nm could not read $bin"
+  hits="$(grep -E "$PATTERN" "$TMP/needt-nm.txt" || true)"
+  if [ -n "$hits" ]; then
+    echo "::error::$(basename "$bin") imports Required Reason symbols that no manifest declares:"
+    echo "$hits"
+    FOUND=1
+  else
+    echo "$(basename "$bin"): no Required Reason symbols"
+  fi
+done
+[ "$FOUND" = "0" ] || fail "declare the API in NSPrivacyAccessedAPITypes (with its reason code) or remove the use"
 
 echo "-- archive"
 ls "$ARCHIVE/dSYMs" 2>/dev/null || echo "no dSYMs folder"

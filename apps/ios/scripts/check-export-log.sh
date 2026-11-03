@@ -24,10 +24,12 @@ if grep -Eiq "exportOptionsPlist.*(invalid|malformed|not valid|could not|couldn.
   exit 1
 fi
 
-# Messages that mean it got as far as signing / provisioning / the team.
-if grep -Eiq "signing|provisioning|certificate|no accounts|team|code ?sign|profile|authentication" "$LOG"; then
+# Messages that mean it got as far as signing: no distribution certificate and
+# no provisioning profiles. A plist problem mentioning teamID or a profile does
+# not match these.
+if grep -Eq "No signing certificate|No profiles for" "$LOG"; then
   echo "exportArchive stopped at signing, as expected without a certificate (exit $CODE)."
-  grep -Ei "error:|signing|provisioning|certificate|team" "$LOG" | head -20
+  grep -E "error:|No signing certificate|No profiles for" "$LOG" | head -20
   exit 0
 fi
 

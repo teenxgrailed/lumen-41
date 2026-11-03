@@ -7,12 +7,25 @@ name: ios-sim
 # below checks both are inside. ios-archive.yml covers the Release archive.
 # No Apple Developer account is needed for any step here.
 
+# A branch is built through its pull request; a push only counts on main. The
+# negated paths skip documentation and test-only changes (GitHub does not allow
+# `paths` and `paths-ignore` on the same event, so both are written as `paths`).
 on:
   push:
+    branches: [main]
     paths:
       - "apps/ios/**"
       - "apps/shared/**"
       - ".github/workflows/ios-sim.yml"
+      - "!**/*.md"
+      - "!**/Tests/**"
+  pull_request:
+    paths:
+      - "apps/ios/**"
+      - "apps/shared/**"
+      - ".github/workflows/ios-sim.yml"
+      - "!**/*.md"
+      - "!**/Tests/**"
   workflow_dispatch:
 
 concurrency:
