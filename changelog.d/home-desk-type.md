@@ -1,0 +1,1 @@
+- Home on the desktop uses the same 13px text as the rest of the app in task rows, suggestions and the highlight card.
