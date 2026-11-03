@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Needt Plugin — seven skills for your AI</title>
-<meta name="description" content="Seven skills for your AI: a business partner, research, a prompt builder, grill-me and a critic for free, plus /needt that runs your day inside Needt on Pro.">
+<title>Needt Plugin — ten skills for your AI</title>
+<meta name="description" content="Ten skills for your AI: a business partner, research, a prompt builder, grill-me, a critic, an explainer and a YouTube reader for free, plus /needt and a project roadmap that run inside Needt on Pro.">
 <link rel="canonical" href="https://needt.app/plugin/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Needt">
-<meta property="og:title" content="Needt Plugin — seven skills for your AI">
-<meta property="og:description" content="Seven skills for your AI: a business partner, research, a prompt builder, grill-me and a critic for free, plus /needt that runs your day inside Needt on Pro.">
+<meta property="og:title" content="Needt Plugin — ten skills for your AI">
+<meta property="og:description" content="Ten skills for your AI: a business partner, research, a prompt builder, grill-me, a critic, an explainer and a YouTube reader for free, plus /needt and a project roadmap that run inside Needt on Pro.">
 <meta property="og:url" content="https://needt.app/plugin/">
 <meta property="og:image" content="https://needt.app/assets/og.png">
 <meta property="og:image:width" content="1200">
@@ -19,8 +19,8 @@
 <link rel="preload" href="../assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../assets/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../vendor/sky-tokens.css?v=27">
-<link rel="stylesheet" href="../styles.css?v=54">
-<link rel="stylesheet" href="../pages.css?v=30">
+<link rel="stylesheet" href="../styles.css?v=57">
+<link rel="stylesheet" href="../pages.css?v=31">
 <link rel="stylesheet" href="../sub.css?v=7">
 <!-- Analytics (Umami, self-hosted). Enabled at deploy: set the website ID and allow stats.needt.app in the CSP.
 <script defer src="https://stats.needt.app/script.js" data-do-not-track="true" data-website-id="__UMAMI_SITE_ID__"></script>
@@ -85,10 +85,10 @@
   <div class="sx-wrap">
     <img class="sx-appicon" src="../assets/plugin/icon.svg" alt="Needt Plugin icon" width="112" height="112">
     <span class="sx-lock"><img src="../assets/plugin/icon.svg" alt="">Needt<i></i><em>Plugin</em><span class="sx-pill">Free</span></span>
-    <h1 class="sx-h1">Seven skills. <i>One sharper AI.</i></h1>
-    <p class="sx-lead">A business partner, a researcher, a prompt builder, a grill-me and a critic — free on GitHub and in the Claude Code and Codex marketplaces. The main <b>/needt</b> skill runs your day inside Needt, on Pro.</p>
+    <h1 class="sx-h1">Ten skills. <i>One sharper AI.</i></h1>
+    <p class="sx-lead">A business partner, a researcher, a prompt builder, a grill-me, a critic, an explainer and a YouTube reader — free on GitHub and in the Claude Code and Codex marketplaces. The main <b>/needt</b> skill runs your day inside Needt, on Pro.</p>
     <div class="sx-cta"><a class="sx-btn js-plugin-dl" href="needt.plugin" download><svg class="g" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="12" width="18" height="9" rx="2.6" fill="rgba(89,93,224,0.259)"/><path d="M12 3.5v10" stroke="#5a5ce2" stroke-width="2.4" stroke-linecap="round"/><path d="M7.8 9.6 12 13.8l4.2-4.2" fill="none" stroke="#5a5ce2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="6.5" y="16.6" width="11" height="1.9" rx=".95" fill="#5a5ce2"/></svg> Download needt.plugin</a><a class="sx-btn ghost" href="#install">Install from GitHub</a></div>
-    <p class="sx-meta">Version 0.5.1 · 52 KB · free · no account · no telemetry · for Claude, Claude Code and other AI apps that read skills</p>
+    <p class="sx-meta">Version 0.14.0 · 100 KB · free · no account · no telemetry · for Claude, Claude Code and other AI apps that read skills</p>
   </div>
 </section>
 <section class="sx-sec" style="padding-top:0"><div class="sx-wrap"><div class="lv sx-rv" data-scenes='[{&quot;t&quot;: &quot;Add&quot;, &quot;say&quot;: &quot;Add \u201ccall the print shop\u201d tomorrow at 14:00&quot;, &quot;tool&quot;: &quot;needt_create_task&quot;, &quot;before&quot;: &quot;add&quot;, &quot;after&quot;: &quot;added&quot;, &quot;reply&quot;: &quot;Added for tomorrow, 14:00. It sits next to your other blocks, nothing overlaps.&quot;, &quot;dur&quot;: 7}, {&quot;t&quot;: &quot;What\u2019s today&quot;, &quot;say&quot;: &quot;What\u2019s on today?&quot;, &quot;tool&quot;: &quot;needt_list&quot;, &quot;before&quot;: &quot;home&quot;, &quot;after&quot;: &quot;calendar&quot;, &quot;reply&quot;: &quot;15 planned. Now: &lt;b&gt;Finish the pitch deck&lt;/b&gt; until 18:00, then the product photos at 15:00 moved after it.&quot;, &quot;dur&quot;: 7}, {&quot;t&quot;: &quot;Done&quot;, &quot;say&quot;: &quot;Did my Spanish&quot;, &quot;tool&quot;: &quot;needt_log_habit&quot;, &quot;before&quot;: &quot;home&quot;, &quot;after&quot;: &quot;habits&quot;, &quot;reply&quot;: &quot;Logged. Spanish is kept today: 11 of the last 14 days.&quot;, &quot;dur&quot;: 7}, {&quot;t&quot;: &quot;Mail \u2192 task&quot;, &quot;say&quot;: &quot;Turn the print shop email into a task&quot;, &quot;tool&quot;: &quot;needt_create_task&quot;, &quot;before&quot;: &quot;home&quot;, &quot;after&quot;: &quot;mail&quot;, &quot;reply&quot;: &quot;Made it a task for today: &lt;b&gt;Proof ready \u2014 studio tank&lt;/b&gt;, linked to the email.&quot;, &quot;dur&quot;: 7}, {&quot;t&quot;: &quot;Move&quot;, &quot;say&quot;: &quot;Move the August report to Friday&quot;, &quot;tool&quot;: &quot;needt_reschedule&quot;, &quot;before&quot;: &quot;home&quot;, &quot;after&quot;: &quot;tasks&quot;, &quot;reply&quot;: &quot;Moved to Friday, 10:00. The day re-planned around it.&quot;, &quot;dur&quot;: 7}]'>
@@ -187,7 +187,7 @@ pre-order form, opening hours.
     <div class="sx-step sx-rv"><span class="n">01</span><h3>Claude Code</h3><p>Add the marketplace, then install.</p><div class="code"><div class="code-h"><span>Terminal</span><button class="copy" data-copy="#code-cc">Copy</button></div><pre><code id="code-cc">claude plugin marketplace add teenxgrailed/needt-plugin&#10;claude plugin install needt@needt</code></pre></div></div>
     <div class="sx-step sx-rv"><span class="n">02</span><h3>Codex</h3><p>Add the marketplace from the same repo.</p><div class="code"><div class="code-h"><span>Terminal</span><button class="copy" data-copy="#code-cx">Copy</button></div><pre><code id="code-cx">codex plugin marketplace add teenxgrailed/needt-plugin</code></pre></div></div>
     <div class="sx-step sx-rv"><span class="n">03</span><h3>Claude app</h3><p>Download <b>needt.plugin</b>, then <span class="ui">Customize → Plugins → Upload</span>. Type <code>/needt:</code> to see the skills.</p></div>
-    <div class="sx-step sx-rv"><span class="n">04</span><h3>Cursor and other MCP clients</h3><p>For <b>/needt</b> (Pro): add the Needt server.</p><div class="code"><div class="code-h"><span>Server address</span><button class="copy" data-copy="#code-mcp">Copy</button></div><pre><code id="code-mcp">https://mcp.needt.app/mcp</code></pre></div></div>
+    <div class="sx-step sx-rv"><span class="n">04</span><h3>Cursor, Codex CLI and other agents</h3><p>Install the skills with one command; for <b>/needt</b> (Pro) also add the Needt server.</p><div class="code"><div class="code-h"><span>Terminal</span><button class="copy" data-copy="#code-sk">Copy</button></div><pre><code id="code-sk">npx skills add teenxgrailed/needt-plugin</code></pre></div><div class="code"><div class="code-h"><span>Server address</span><button class="copy" data-copy="#code-mcp">Copy</button></div><pre><code id="code-mcp">https://mcp.needt.app/mcp</code></pre></div></div>
   </div>
   <div class="sx-cta" style="margin-top:44px"><a class="sx-btn js-plugin-gh" href="https://github.com/teenxgrailed/needt-plugin" rel="noopener"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.6 22.4c.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.7.8 1.2 1.9 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A11.5 11.5 0 0 0 12 .5Z"/></svg> teenxgrailed/needt-plugin</a><a class="sx-btn ghost js-plugin-dl" href="needt.plugin" download><svg class="g" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="12" width="18" height="9" rx="2.6" fill="rgba(89,93,224,0.259)"/><path d="M12 3.5v10" stroke="#5a5ce2" stroke-width="2.4" stroke-linecap="round"/><path d="M7.8 9.6 12 13.8l4.2-4.2" fill="none" stroke="#5a5ce2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="6.5" y="16.6" width="11" height="1.9" rx=".95" fill="#5a5ce2"/></svg> Download needt.plugin</a></div>
   <div class="sx-dirs sx-rv"><span class="sx-label">Also in</span>
@@ -196,13 +196,15 @@ pre-order form, opening hours.
     <a href="https://smithery.ai/server/@needt/needt" rel="noopener"><b>Smithery</b><span>@needt/needt</span></a>
     <a href="https://mcp.so" rel="noopener"><b>mcp.so</b><span>MCP</span></a>
     <a href="https://mcpmarket.com" rel="noopener"><b>MCP Market</b><span>in review</span></a>
+    <span class="dir-rev"><b>Claude Directory</b><span>in review</span></span>
+    <span class="dir-rev"><b>ChatGPT · Codex</b><span>in review</span></span>
   </div>
 </div></section>
 <section class="sx-sec alt"><div class="sx-wrap"><div class="sx-faq">
-  <details><summary>Are the skills really free?</summary><div class="a"><p>Yes — partner, search, prompt, asking, critic and setup are free, with no account. Only the main /needt skill needs Needt Pro, because it works inside your Needt account.</p></div></details>
+  <details><summary>Are the skills really free?</summary><div class="a"><p>Yes — partner, search, prompt, asking, critic, learn, youtube and setup are free, with no account. Only the main /needt skill needs Needt Pro, because it works inside your Needt account.</p></div></details>
   <details><summary>What does /needt do that the others don’t?</summary><div class="a"><p>It connects your AI to Needt over MCP, so it can read and change your tasks, calendar, habits, pages and memory. It starts on its own when you say things like “add”, “remind me”, “what’s today”, “move” or “done”.</p></div></details>
   <details><summary>Does it connect any accounts or send data?</summary><div class="a"><p>The free skills connect nothing and send nothing — no telemetry. /needt talks only to your own Needt account, and only after you connect it.</p></div></details>
-  <details><summary>Which AI apps does it work in?</summary><div class="a"><p>Claude Code and Codex install it from the GitHub marketplace; the Claude app takes the .plugin file. /needt also works in Cursor and any MCP client through https://mcp.needt.app/mcp.</p></div></details>
+  <details><summary>Which AI apps does it work in?</summary><div class="a"><p>Claude Code and Codex install it from the GitHub marketplace; the Claude app takes the .plugin file. /needt also works in Cursor and any MCP client through https://mcp.needt.app/mcp. Listings in the Claude Directory and in ChatGPT are in review.</p></div></details>
   <details><summary>Does it work in my language?</summary><div class="a"><p>Yes. The skills answer in the language you write in; /needt understands its trigger words in six languages.</p></div></details>
 </div></div></section>
 </main>
@@ -249,7 +251,7 @@ pre-order form, opening hours.
 </div>
 <a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro</span></a>
 <script src="../vendor/sky.js?v=29" defer></script>
-<script src="../site.js?v=49" defer></script>
+<script src="../site.js?v=50" defer></script>
 <script src="../sub.js?v=7" defer></script>
 </body>
 </html>

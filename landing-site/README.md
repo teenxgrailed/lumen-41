@@ -284,3 +284,12 @@ so the folder also opens from disk (`site.js` rewrites folder links to `index.ht
 - Home "Lately" band dropped: the owner's Updates list replaces it. Updates rows fixed: Free has no hosted AI; 28 Oct entry added.
 - `/students/` says "coming soon": the student price is not configured in Creem and `?plan=student` is not handled yet. CTAs go to students@needt.app until it is live.
 - Cache: `site.js?v=48` (Free-plan note on Pricing).
+
+## v38–v40 (03.11.26) — owner's v40 export, ported onto the branch
+- **v38:** paper page background on phones again; `overflow-x: clip` on html, body and main; night zone and inner-page footers clipped to their rounded card; hero phone sinks deeper into the clouds; new 18.8s phone tour (`assets/phone-tour.*`, cache `?v=2`).
+- **v39:** `#sync` (phone and Mac scene, `assets/sync/`, loop in `app.js`) after One place; `#features` ("Nine things it does for you", `assets/feat/`) after Updates.
+- **v40:** hero headline back to "Everything you’re working on, in one place."; lead "…and your day plans itself."
+- **Plugin page and `plugin/needt.plugin`:** taken from the export (v0.14.0, ten skills, `npx skills add`). The page now shows Claude Directory and ChatGPT · Codex as "in review" (not listed).
+- **Branch facts kept (the export did not have them):** `/privacy/` and `/terms/` are 301s to use.needt.app and every legal link points there; the trial note says "Add a card only if you keep Pro" (#394); MCP address `https://mcp.needt.app/mcp`; renewal and cancel lines on Pricing (#469); Terms 16+ and DMCA; refund and deletion wording, self-hosted badges, skip link, `--ink-3` alpha, "Just for fun" captions (#521); Umami Do Not Track (#523); 16px notify input (#486); header More panel markup (#456); Updates rows (students "Coming soon", 28 Oct reminders); `/students/` stays "coming soon"; `/press/`.
+- **Not taken from the export:** `_to_delete/`, `.DS_Store`, `assets/feat/f-plan.webp` (unused), the export's `privacy/` and `terms/` folders.
+- **Cache:** `styles.css?v=57`, `pages.css?v=31`, `site.js?v=50`, `app.js?v=49`.

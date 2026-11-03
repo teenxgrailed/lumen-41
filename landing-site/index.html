@@ -12,7 +12,7 @@
 <link rel="preload" href="assets/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/sky-tokens.css?v=27">
-<link rel="stylesheet" href="styles.css?v=54">
+<link rel="stylesheet" href="styles.css?v=57">
 <link rel="canonical" href="https://needt.app/">
 <!-- Analytics (Umami, self-hosted). Enabled at deploy: set the website ID and allow stats.needt.app in the CSP.
 <script defer src="https://stats.needt.app/script.js" data-do-not-track="true" data-website-id="__UMAMI_SITE_ID__"></script>
@@ -83,8 +83,8 @@
 <section class="hero" aria-labelledby="hero-h" data-px-scope>
   <div class="sky-wrap"><div class="sky" data-sky="lavender" data-variant="c"></div></div>
   <div class="wrap hero-in">
-    <h1 id="hero-h" class="display split" data-split data-px-calm>Plans move.<br> <i>Your day <span class="nw">keeps up.</span></i></h1>
-    <p class="lead rv" style="--d:.35s" data-px-calm>Tasks, calendar and docs in one place. Move a meeting and Needt reshuffles the rest. You press Keep.</p>
+    <h1 id="hero-h" class="display split" data-split data-px-calm>Everything you’re working on,<br> <i class="nw">in one place.</i></h1>
+    <p class="lead rv" style="--d:.35s" data-px-calm>…and your day plans itself. Move a meeting and Needt reshuffles the rest. You press Keep.</p>
     <div class="cta-row rv" style="--d:.5s" data-px-calm>
       <a class="btn btn-primary btn-lg js-signup" href="#">Try it free <span class="arr">→</span></a>
       <a class="btn btn-raised btn-lg" href="#tour">See how it works</a>
@@ -92,7 +92,7 @@
     <p class="cta-note rv" style="--d:.6s">Free plan + 14 days of Pro. Add a card only if you keep Pro.</p>
 
     <!-- Phones get the phone: the real mobile Home in a device frame. -->
-    <div class="hero-phone" data-px-calm><video class="hero-vid" muted loop playsinline preload="none" data-poster="assets/phone-tour-poster.webp" width="600" height="1304" aria-label="Needt on iPhone: Today, then Calendar, Tasks and Docs through the Every place menu" data-mp4="assets/phone-tour.mp4" data-webm="assets/phone-tour.webm"></video><img class="hp-bezel" src="assets/devices/iphone-bezel.webp" alt="" width="675" height="1380"></div>
+    <div class="hero-phone" data-px-calm><video class="hero-vid" muted loop playsinline preload="none" data-poster="assets/phone-tour-poster.webp?v=2" width="600" height="1304" aria-label="Needt on iPhone: Today, then the Every place menu, Calendar, Tasks, Habits and Mailbox, and a task typed in plain words" data-mp4="assets/phone-tour.mp4?v=2" data-webm="assets/phone-tour.webm?v=2"></video><img class="hp-bezel" src="assets/devices/iphone-bezel.webp" alt="" width="675" height="1380"></div>
     <!-- The real app, with live layers: tick a task; the agent places an overdue one. -->
     <div class="stage rv" style="--d:.7s">
       <div class="window" id="window" data-px-calm>
@@ -181,6 +181,25 @@
     <p class="landed" id="landed">One line. Needt reads the day and the project from the words.</p>
   </div>
 </section>
+<section class="sec sync" id="sync" aria-labelledby="sy-h">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">Phone and desktop</span>
+      <h2 id="sy-h" class="h2 split" data-split>Add it on your phone. <i>It’s already on your Mac.</i></h2>
+      <p class="sub rv">One account on every screen. Change something on one, and the others show it.</p>
+    </div>
+    <div class="sy-stage rv" id="sy-stage" aria-label="A task typed on the phone appears in the desktop calendar">
+      <div class="sy-mac"><img class="sy-a" src="assets/sync/mac-a.webp" alt="Needt Calendar on a Mac" width="1600" height="1053" loading="lazy"><img class="sy-b" src="assets/sync/mac-b.webp" alt="" width="1600" height="1053" loading="lazy"><i class="sy-ring" aria-hidden="true"></i></div>
+      <div class="sy-ph"><img class="on" src="assets/sync/ph-1.webp" alt="Typing a task on the phone: Call the print shop tomorrow 14:00" width="520" height="1063" loading="lazy"><img src="assets/sync/ph-2.webp" alt="" width="520" height="1063" loading="lazy"><img src="assets/sync/ph-3.webp" alt="" width="520" height="1063" loading="lazy"><img src="assets/sync/ph-4.webp" alt="" width="520" height="1063" loading="lazy"></div>
+      <span class="sy-pill" aria-hidden="true"><b></b>Synced to your Mac</span>
+    </div>
+    <ol class="sy-steps rv">
+      <li><b>1</b>Type it on your phone, the way you’d say it</li>
+      <li><b>2</b>Needt reads the day and the time</li>
+      <li><b>3</b>It’s on your Mac, iPad and in the browser</li>
+    </ol>
+  </div>
+</section>
 
 <section class="sec sec-white" id="more-needt" aria-labelledby="mx-h">
   <div class="wrap">
@@ -203,15 +222,6 @@
     </div>
   </div>
 </section>
-
-
-
-
-
-
-
-
-
 <section class="sec upd" id="updates" aria-labelledby="up-h">
   <div class="wrap up-grid">
     <div class="up-head">
@@ -223,6 +233,36 @@
     <div class="up-list rv"><a class="up-row up-soon" href="download/"><span class="up-d">End of November</span><span class="up-t"><em>Coming</em><b>Mac and iPhone apps</b><span>Native apps with the same account. Until then, the web app works in any browser.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-soon" href="students/"><span class="up-d">Coming soon</span><span class="up-t"><em>Coming</em><b>40% off Pro for students</b><span>Pro for less while you study. Write to us and we tell you when it is live.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-new" href="changelog/"><span class="up-d">28 Oct 2026</span><span class="up-t"><em>New</em><b>Reminders, and Home your way</b><span>Remind yourself before a task or event, a quieter bell, and a Home you arrange.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-new" href="plugin/"><span class="up-d">27 Oct 2026</span><span class="up-t"><em>New</em><b>Needt Plugin</b><span>Seven skills for Claude and Codex. Type /needt and your planner listens.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-new" href="budget/"><span class="up-d">27 Oct 2026</span><span class="up-t"><em>New</em><b>Needt Budget comes with Pro</b><span>Your money app at budget.needt.app, included in Pro and Lifetime.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-imp" href="changelog/"><span class="up-d">6 Oct 2026</span><span class="up-t"><em>Improved</em><b>A new look, everywhere</b><span>New design end to end, a calmer sign-in and a bottom bar on phones.</span></span><i aria-hidden="true">→</i></a><a class="up-row up-new" href="changelog/"><span class="up-d">4 Oct 2026</span><span class="up-t"><em>New</em><b>Your own AI key, on any plan</b><span>The hosted agent is in Pro, Lifetime and the trial. On Free, bring your own key.</span></span><i aria-hidden="true">→</i></a></div>
   </div>
 </section>
+<section class="sec feats" id="features" aria-labelledby="ft-h">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">Inside Needt</span>
+      <h2 id="ft-h" class="h2 split" data-split>Nine things <i>it does for you.</i></h2>
+      <p class="sub rv">Real screens from the app, on the phone and on the desktop.</p>
+    </div>
+  </div>
+  <div class="ft-rail" tabindex="0" aria-label="Needt features"><div class="ft-grid"><article class="ft ft-capture rv"><div class="ft-shot"><img src="assets/feat/f-capture.webp" alt="Type it like you’d say it in Needt" loading="lazy"></div><h3>Type it like you’d say it</h3><p>“Call the print shop tomorrow 14:00” becomes a task with a day and a time.</p></article><article class="ft ft-ask rv"><div class="ft-shot"><img src="assets/feat/f-ask.webp" alt="Ask Needt in Needt" loading="lazy"></div><h3>Ask Needt</h3><p>Ask what’s overdue or where the free time is. It plans it in, you approve.</p></article><article class="ft ft-week rv"><div class="ft-shot"><img src="assets/feat/f-week.webp" alt="Your week, one grid in Needt" loading="lazy"></div><h3>Your week, one grid</h3><p>Tasks and events from every calendar. Drag anything to a new time.</p></article><article class="ft ft-focus rv"><div class="ft-shot"><img src="assets/feat/f-focus.webp" alt="One thing next in Needt" loading="lazy"></div><h3>One thing next</h3><p>Home opens on the next task and why. Start focus, or mark it done.</p></article><article class="ft ft-tasks rv"><div class="ft-shot"><img src="assets/feat/f-tasks.webp" alt="Inbox, Today, Upcoming in Needt" loading="lazy"></div><h3>Inbox, Today, Upcoming</h3><p>Every task gets a place and an hour. Overdue ones offer to move.</p></article><article class="ft ft-habits rv"><div class="ft-shot"><img src="assets/feat/f-habits.webp" alt="Habits that forgive in Needt" loading="lazy"></div><h3>Habits that forgive</h3><p>Counted over the last 14 days. A miss pauses a streak, it doesn’t reset it.</p></article><article class="ft ft-mail rv"><div class="ft-shot"><img src="assets/feat/f-mail.webp" alt="Mail into tasks in Needt" loading="lazy"></div><h3>Mail into tasks</h3><p>Your inbox inside Needt. Turn an email into a task in one tap.</p></article><article class="ft ft-docs rv"><div class="ft-shot"><img src="assets/feat/f-docs.webp" alt="Docs next to the work in Needt" loading="lazy"></div><h3>Docs next to the work</h3><p>Notes, briefs and plans that turn into tasks without copy-paste.</p></article><article class="ft ft-places rv"><div class="ft-shot"><img src="assets/feat/f-places.webp" alt="Every place, one thumb away in Needt" loading="lazy"></div><h3>Every place, one thumb away</h3><p>Calendar, Tasks, Mailbox and Habits from one menu on your phone.</p></article></div></div>
+</section>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 <!-- ── 3 · Tour (Ditto-style sticky stage) ─────────────── -->
@@ -464,6 +504,6 @@
 
 <a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro</span></a>
 <script src="vendor/sky.js?v=29" defer></script>
-<script src="app.js?v=48" defer></script>
+<script src="app.js?v=49" defer></script>
 </body>
 </html>
