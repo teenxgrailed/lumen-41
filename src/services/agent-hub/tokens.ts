@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { AGENT_TOKEN_PREFIX, HUB_SCOPE, type HubKind } from "./constants";
 import type { HubScope } from "./context";
 import { HubError } from "./errors";
+import { assertHubLimit } from "./limits";
 import { trackHub } from "./metrics";
 import { assertHubLimit } from "./limits";
 

@@ -17,6 +17,8 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 jest.mock("@/lib/feature-flags", () => ({ agentHubEnabled: jest.fn() }));
+// Plan limits have their own tests (plan-limits.test.ts).
+jest.mock("../limits", () => ({ assertHubLimit: jest.fn() }));
 jest.mock("../metrics", () => ({ trackHub: jest.fn() }));
 // Plan limits have their own tests (plan-limits.test.ts).
 jest.mock("../limits", () => ({ assertHubLimit: jest.fn() }));
