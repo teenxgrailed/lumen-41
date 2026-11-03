@@ -40,17 +40,17 @@ export function connectorSteps(): ClientSteps[] {
         'Click "Add custom connector".',
         `Name it Needt and paste ${CONNECTOR_URL} as the URL.`,
         'Click "Add", then "Connect" and sign in to Needt.',
-        "Allow read and write on the consent screen.",
+        "On the consent screen, allow what you want the agent to reach.",
       ],
     },
     {
       id: "chatgpt",
       title: "Add to ChatGPT",
       steps: [
-        "Open ChatGPT, then Plugins (Settings > Apps > Advanced > Developer mode on older plans).",
-        'Choose "Add custom MCP server".',
+        "Open ChatGPT, then Settings > Apps & Connectors > Advanced, and turn on Developer mode.",
+        "Back in Connectors, click Create and choose MCP server.",
         `Paste ${CONNECTOR_URL} as the server URL, with OAuth as authentication.`,
-        "Save, then sign in to Needt and allow read and write.",
+        "Save, then sign in to Needt and allow what you want the agent to reach.",
       ],
     },
   ];
