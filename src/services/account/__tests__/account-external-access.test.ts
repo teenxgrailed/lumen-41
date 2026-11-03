@@ -37,6 +37,7 @@ jest.mock("@/lib/prisma", () => ({
     account: { findMany: jest.fn(), count: jest.fn() },
     externalIntegration: { findMany: jest.fn() },
     pushSubscription: { deleteMany: jest.fn() },
+    nativePushToken: { deleteMany: jest.fn() },
   },
 }));
 
@@ -46,6 +47,7 @@ const db = prisma as unknown as {
   account: { findMany: jest.Mock; count: jest.Mock };
   externalIntegration: { findMany: jest.Mock };
   pushSubscription: { deleteMany: jest.Mock };
+  nativePushToken: { deleteMany: jest.Mock };
 };
 const getTokens = TokenManager.getInstance().getTokens as jest.Mock;
 const composio = composioProvider as unknown as {
@@ -60,6 +62,7 @@ describe("external access revocation on account deletion", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = fetchMock as unknown as typeof fetch;
+    db.nativePushToken.deleteMany.mockResolvedValue({ count: 0 });
     db.calendarWebhook.findMany.mockResolvedValue([
       {
         provider: "GOOGLE",

@@ -3,7 +3,9 @@ import {
   haptic,
   isNativeApp,
   isStoreDistribution,
-  registerNativePush,
+  nativePushPermission,
+  nativePushToken,
+  onNativePushTap,
   setStatusBarForTheme,
   share,
 } from "@/lib/native";
@@ -19,7 +21,9 @@ describe("native bridge", () => {
     expect(isNativeApp()).toBe(false);
     await expect(haptic("success")).resolves.toBeUndefined();
     await expect(setStatusBarForTheme("dark")).resolves.toBeUndefined();
-    await expect(registerNativePush()).resolves.toBe(false);
+    await expect(nativePushToken()).resolves.toBeNull();
+    await expect(nativePushPermission()).resolves.toBeNull();
+    expect(() => onNativePushTap(() => undefined)()).not.toThrow();
     await expect(share({ url: "https://x" })).resolves.toBe(false);
   });
 
@@ -105,5 +109,60 @@ describe("isStoreDistribution", () => {
     expect(isStoreDistribution()).toBe(false);
     g.window = { __needtNative: {} };
     expect(isStoreDistribution()).toBe(false);
+  });
+});
+
+describe("APNs on iOS", () => {
+  function iosShell(push: Record<string, unknown>) {
+    g.window = {
+      Capacitor: {
+        isNativePlatform: () => true,
+        getPlatform: () => "ios",
+        Plugins: { PushNotifications: push },
+      },
+    };
+  }
+
+  it("resolves with the token the registration event brings", async () => {
+    const listeners: Record<string, (data: unknown) => void> = {};
+    const register = jest.fn(async () => {
+      listeners.registration?.({ value: "ab".repeat(32) });
+    });
+    iosShell({
+      register,
+      checkPermissions: async () => ({ receive: "granted" }),
+      addListener: async (event: string, fn: (data: unknown) => void) => {
+        listeners[event] = fn;
+        return { remove: jest.fn() };
+      },
+    });
+    await expect(nativePushPermission()).resolves.toBe("granted");
+    await expect(nativePushToken(1000)).resolves.toBe("ab".repeat(32));
+    expect(register).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens only same-origin paths from a tapped notification", async () => {
+    let tap: ((data: unknown) => void) | undefined;
+    const remove = jest.fn();
+    iosShell({
+      addListener: async (event: string, fn: (data: unknown) => void) => {
+        if (event === "pushNotificationActionPerformed") tap = fn;
+        return { remove };
+      },
+    });
+    const open = jest.fn();
+    const stop = onNativePushTap(open);
+    await Promise.resolve();
+    await Promise.resolve();
+    const send = (url: unknown) => tap?.({ notification: { data: { url } } });
+    send("/today?task=1");
+    send("//evil.example/x");
+    send("/\\evil.example");
+    send("https://evil.example");
+    send(42);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledWith("/today?task=1");
+    stop();
+    expect(remove).toHaveBeenCalled();
   });
 });

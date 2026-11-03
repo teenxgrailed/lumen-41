@@ -8,6 +8,8 @@ import {
   getNotificationPrefs,
   shouldAlert,
 } from "../notifications/preferences";
+import { deliverNativePush } from "../push/apns";
+import { PUSH_TARGET_SELECT, PushTarget, pushTargetsOf } from "../push/targets";
 import { reminderFireTime } from "./reminder-time";
 import { reminderLink, reminderTitle } from "./reminders";
 
@@ -115,12 +117,7 @@ export async function findDueReminderIds(now = new Date()) {
 }
 
 export async function deliverPush(
-  subscription: {
-    id: string;
-    endpoint: string;
-    p256dh: string;
-    auth: string;
-  },
+  subscription: PushTarget,
   payload: {
     title: string;
     body: string;
@@ -129,6 +126,9 @@ export async function deliverPush(
     taskId?: string;
   }
 ) {
+  if ("token" in subscription) {
+    return deliverNativePush(subscription, payload);
+  }
   const configuration = getVapidConfiguration();
   if (!configuration.configured) {
     await warnAboutMissingVapidConfigurationOnce(
@@ -242,11 +242,7 @@ export async function deliverTaskReminder(
     include: {
       task: { select: { id: true, title: true, isArchived: true } },
       event: { select: { id: true, title: true, archivedAt: true } },
-      user: {
-        select: {
-          pushSubscriptions: true,
-        },
-      },
+      user: { select: PUSH_TARGET_SELECT },
     },
   });
   if (!reminder) return { delivered: false, skipped: true };
@@ -281,7 +277,7 @@ export async function deliverTaskReminder(
     // only task-related email is the daily digest (digest.ts).
     if (shouldAlert(prefs, "reminder", "push", now)) {
       const results = await Promise.allSettled(
-        reminder.user.pushSubscriptions.map((subscription) =>
+        pushTargetsOf(reminder.user).map((subscription) =>
           deliverPush(subscription, payload)
         )
       );

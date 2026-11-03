@@ -49,6 +49,7 @@ function row(over: Record<string, unknown> = {}, focusEnded?: boolean) {
     task: { title: "Write regression test" },
     user: {
       pushSubscriptions: subs,
+      nativePushTokens: [],
       notificationSettings: focusEnded === undefined ? null : { focusEnded },
     },
     ...over,

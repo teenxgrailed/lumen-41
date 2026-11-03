@@ -43,6 +43,7 @@ beforeEach(() => {
         email: "a@b.test",
         emailVerified: new Date(),
         pushSubscriptions: [],
+        nativePushTokens: [],
       },
     },
   ]);

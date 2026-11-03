@@ -48,7 +48,7 @@ const nudge = (id: string, userId = "u1") => ({
   title: `Title ${id}`,
   body: `Body ${id}`,
   deepLink: `/today?task=${id}`,
-  user: { pushSubscriptions: [sub] },
+  user: { pushSubscriptions: [sub], nativePushTokens: [] },
 });
 
 beforeEach(() => {
@@ -81,7 +81,10 @@ describe("deliverNudgePushes", () => {
           deliveredAt: null,
           user: {
             notificationSettings: { is: { nudges: true } },
-            pushSubscriptions: { some: {} },
+            OR: [
+              { pushSubscriptions: { some: {} } },
+              { nativePushTokens: { some: {} } },
+            ],
           },
         }),
       })

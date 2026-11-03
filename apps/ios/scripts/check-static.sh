@@ -29,14 +29,17 @@ for f in "$APP/PrivacyInfo.xcprivacy" "$WID/PrivacyInfo.xcprivacy" "$SHR/Privacy
 done
 
 echo "-- entitlements"
-# App Group only. aps-environment stays out until push is wired (README), and
-# Sign in with Apple is a web flow (ASWebAuthenticationSession), so no
-# com.apple.developer.applesignin either.
+# App Group on every target. Push (aps-environment) only on the app: the
+# extensions never register. "development" here; App Store signing writes
+# "production" into the signed binary. Sign in with Apple is a web flow
+# (ASWebAuthenticationSession), so no com.apple.developer.applesignin.
 for f in "$APP/App.entitlements" "$WID/NeedtWidgets.entitlements" "$SHR/NeedtShare.entitlements"; do
   [ "$(plist "$f" com.apple.security.application-groups:0)" = "group.app.needt.ios" ] || fail "$f: app group missing"
-  if grep -q "aps-environment\|applesignin" "$f"; then fail "$f: unexpected entitlement"; fi
-  echo "$f: app group only"
+  if grep -q "applesignin" "$f"; then fail "$f: unexpected entitlement"; fi
+  if [ "$f" != "$APP/App.entitlements" ] && grep -q "aps-environment" "$f"; then fail "$f: push belongs to the app only"; fi
 done
+[ "$(plist "$APP/App.entitlements" aps-environment)" = "development" ] || fail "App.entitlements: aps-environment must be development"
+echo "entitlements: app group everywhere, push on the app only"
 
 echo "-- Info.plist"
 [ "$(plist "$APP/Info.plist" ITSAppUsesNonExemptEncryption)" = "false" ] || fail "ITSAppUsesNonExemptEncryption must be false"

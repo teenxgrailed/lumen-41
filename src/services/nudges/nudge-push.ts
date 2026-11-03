@@ -2,6 +2,7 @@ import {
   getNotificationPrefs,
   shouldAlert,
 } from "@/services/notifications/preferences";
+import { PUSH_TARGET_SELECT, pushTargetsOf } from "@/services/push/targets";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
 
 import { logger } from "@/lib/logger";
@@ -34,7 +35,10 @@ export async function deliverNudgePushes(now = new Date()) {
       },
       user: {
         notificationSettings: { is: { nudges: true } },
-        pushSubscriptions: { some: {} },
+        OR: [
+          { pushSubscriptions: { some: {} } },
+          { nativePushTokens: { some: {} } },
+        ],
       },
     },
     orderBy: { createdAt: "desc" },
@@ -45,13 +49,7 @@ export async function deliverNudgePushes(now = new Date()) {
       title: true,
       body: true,
       deepLink: true,
-      user: {
-        select: {
-          pushSubscriptions: {
-            select: { id: true, endpoint: true, p256dh: true, auth: true },
-          },
-        },
-      },
+      user: { select: PUSH_TARGET_SELECT },
     },
   });
 
@@ -73,7 +71,7 @@ export async function deliverNudgePushes(now = new Date()) {
     let anyDelivered = false;
     for (const nudge of chosen) {
       const results = await Promise.allSettled(
-        nudge.user.pushSubscriptions.map((subscription) =>
+        pushTargetsOf(nudge.user).map((subscription) =>
           deliverPush(subscription, {
             title: nudge.title,
             body: nudge.body,

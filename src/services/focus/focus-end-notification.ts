@@ -1,3 +1,4 @@
+import { PUSH_TARGET_SELECT, pushTargetsOf } from "@/services/push/targets";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
 
 import { newDate } from "@/lib/date-utils";
@@ -31,7 +32,7 @@ export async function deliverFocusEnded(
       task: { select: { title: true, status: true } },
       user: {
         select: {
-          pushSubscriptions: true,
+          ...PUSH_TARGET_SELECT,
           notificationSettings: { select: { focusEnded: true } },
         },
       },
@@ -69,7 +70,7 @@ export async function deliverFocusEnded(
         }
       : { title: "Focus done", body: message, url: "/today" };
     const results = await Promise.allSettled(
-      session.user.pushSubscriptions.map((subscription) =>
+      pushTargetsOf(session.user).map((subscription) =>
         deliverPush(subscription, payload)
       )
     );

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { PushTarget, loadPushTargets } from "@/services/push/targets";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
 
+import { getApnsConfiguration } from "@/lib/apns-config";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -11,28 +13,44 @@ const LOG_SOURCE = "push-subscriptions-test-route";
 
 /**
  * Sends one test notification to the signed-in user's own device(s). With an
- * `endpoint` in the body only that device is used (the one the person is
- * holding); without it every saved device of the account gets it.
+ * `endpoint` (a browser) or a `token` (the iOS app) in the body only that
+ * device is used (the one the person is holding); without either every saved
+ * device of the account gets it.
  */
 export async function POST(request: NextRequest) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
 
-  if (!getVapidConfiguration().configured) {
+  const body = (await request.json().catch(() => ({}))) as {
+    endpoint?: unknown;
+    token?: unknown;
+  };
+  const endpoint = typeof body.endpoint === "string" ? body.endpoint : null;
+  const token =
+    typeof body.token === "string" ? body.token.toLowerCase() : null;
+  const configured = token
+    ? getApnsConfiguration().configured
+    : endpoint
+      ? getVapidConfiguration().configured
+      : getVapidConfiguration().configured || getApnsConfiguration().configured;
+  if (!configured) {
     return NextResponse.json(
       { error: "Push delivery is not configured on this server" },
       { status: 503 }
     );
   }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    endpoint?: unknown;
-  };
-  const endpoint = typeof body.endpoint === "string" ? body.endpoint : null;
-  const subscriptions = await prisma.pushSubscription.findMany({
-    where: { userId: auth.userId, ...(endpoint ? { endpoint } : {}) },
-    select: { id: true, endpoint: true, p256dh: true, auth: true },
-  });
+  const subscriptions: PushTarget[] = token
+    ? await prisma.nativePushToken.findMany({
+        where: { userId: auth.userId, token },
+        select: { id: true, token: true, bundleId: true, environment: true },
+      })
+    : endpoint
+      ? await prisma.pushSubscription.findMany({
+          where: { userId: auth.userId, endpoint },
+          select: { id: true, endpoint: true, p256dh: true, auth: true },
+        })
+      : await loadPushTargets(auth.userId);
   if (subscriptions.length === 0) {
     return NextResponse.json(
       { error: "This device is not subscribed yet" },
