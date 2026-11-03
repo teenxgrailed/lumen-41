@@ -26,6 +26,10 @@ export const TD_DUR = [15, 30, 45, 60, 90, 120, 180, 240] as const;
 /** Minimum work block; `null` = "Don't split". */
 export const TD_CHUNK = [null, 15, 25, 30, 45, 60, 90] as const;
 export const TD_DOW = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"] as const;
+/** The weekday header row for a Monday or Sunday week start. */
+export function tdDowRow(startDay: string = "monday"): readonly string[] {
+  return startDay === "sunday" ? [TD_DOW[6], ...TD_DOW.slice(0, 6)] : TD_DOW;
+}
 export const TD_MONTH_LONG = [
   "January",
   "February",
@@ -94,10 +98,15 @@ export function tdAgo(
   return dayLabel(day);
 }
 
-/** The month grid: leading blanks (Monday first), then every day. */
-export function monthCells(year: number, month0: number) {
+/** The month grid: leading blanks (week-start first), then every day. */
+export function monthCells(
+  year: number,
+  month0: number,
+  startDay: string = "monday"
+) {
   const first = `${year}-${String(month0 + 1).padStart(2, "0")}-01`;
-  const lead = (weekday(first) + 6) % 7;
+  const lead =
+    startDay === "sunday" ? weekday(first) : (weekday(first) + 6) % 7;
   const next =
     month0 === 11
       ? `${year + 1}-01-01`

@@ -14,6 +14,24 @@ interface ApiAiSettings {
 }
 
 /**
+ * Whether the person brought a key or a sign-in of their own. That path costs
+ * us nothing, so the hosted allowance (and the plan) never gates it. Only an
+ * answer of `false` locks Ask: a failed read leaves `data` undefined, so a
+ * hiccup never locks someone whose own key works.
+ */
+export function useOwnAiKey() {
+  return useQuery({
+    queryKey: [...qk.aiAvailability(), "own"] as const,
+    queryFn: async () => {
+      const s = await fetchJson<ApiAiSettings>("/api/ai-settings");
+      return Boolean(s.hasApiKey || s.oauth?.connected);
+    },
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+}
+
+/**
  * Whether anything can answer an AI request for this person: Needt's hosted
  * key (the operator's switch: `NEEDT_AI_API_KEY`), a key of their own, or a
  * connected custom sign-in. False means "AI is temporarily unavailable"; the

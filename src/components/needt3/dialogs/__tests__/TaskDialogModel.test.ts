@@ -15,9 +15,12 @@ import {
   schedSummary,
   tdAgo,
   tdDayName,
+  tdDowRow,
   tdDur,
   timePatch,
 } from "../TaskDialogModel";
+
+const tdowFirst = (startDay: string) => tdDowRow(startDay)[0];
 
 const base: V3Task = {
   id: "t",
@@ -103,6 +106,31 @@ describe("labels", () => {
     expect(sep.slice(0, 2)).toEqual([null, "2026-09-01"]);
     expect(sep.filter(Boolean)).toHaveLength(30);
     expect(monthCells(2026, 11).filter(Boolean).pop()).toBe("2026-12-31");
+  });
+
+  it("lays out a month Sunday first when the setting says so", () => {
+    // 1 Sep 2026 is a Tuesday: two blanks before it on a Sunday week
+    const sep = monthCells(2026, 8, "sunday");
+    expect(sep.slice(0, 3)).toEqual([null, null, "2026-09-01"]);
+    expect(sep.filter(Boolean)).toHaveLength(30);
+    // 1 Nov 2026 is a Sunday: no blanks Sunday first, six Monday first
+    expect(monthCells(2026, 10, "sunday")[0]).toBe("2026-11-01");
+    expect(monthCells(2026, 10, "monday").slice(0, 7)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      "2026-11-01",
+    ]);
+  });
+
+  it("heads the weekday row by the same setting", () => {
+    expect(tdowFirst("monday")).toBe("Mo");
+    expect(tdowFirst("sunday")).toBe("Su");
+    expect(tdDowRow("sunday")).toHaveLength(7);
+    expect(tdDowRow()[0]).toBe("Mo");
   });
 
   it("finds next Monday", () => {

@@ -9,6 +9,7 @@ import {
   LuFolder,
   LuPencil,
   LuPlus,
+  LuTrash2,
 } from "react-icons/lu";
 
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
@@ -23,6 +24,7 @@ import { Task } from "../task/Task";
 import { FlowItem, useFlowTick } from "./FlowItem";
 import { blockedIds, flowSteps } from "./flow";
 import {
+  PROJECT_SWATCHES,
   isOverdue,
   openLine,
   projectGroups,
@@ -32,17 +34,29 @@ import {
 } from "./model";
 import { Capped, Fold, Ring, WkEmpty } from "./parts";
 
-/** The page's ⋯ menu ($P/work.jsx WkMore) on Radix, in the v3 scope. */
+/** Above the floating rail (shell.css) and the shell's sheets, like CtxLayer. */
+const MENU_Z = 1200;
+
+/**
+ * The page's ⋯ menu ($P/work.jsx WkMore) on Radix, in the v3 scope: Rename,
+ * Color, Archive and Delete (to Trash, with Undo).
+ */
 function MoreMenu({
   label,
+  color,
   onEdit,
-  onDelete,
-  deleteTitle,
+  onColor,
+  onArchive,
+  onTrash,
+  archiveTitle,
 }: {
   label: string;
+  color: string | null;
   onEdit: () => void;
-  onDelete: () => void;
-  deleteTitle?: string;
+  onColor?: (color: string) => void;
+  onArchive: () => void;
+  onTrash?: () => void;
+  archiveTitle?: string;
 }) {
   const container = useV3PortalContainer();
   const [open, setOpen] = useState(false);
@@ -60,23 +74,69 @@ function MoreMenu({
             forceMount
             align="end"
             sideOffset={6}
+            // Radix copies this z-index onto its fixed wrapper; without a
+            // positioned, stacked content the menu sat under the sidebar.
+            style={{ position: "relative", zIndex: MENU_Z }}
             className={`nx-pop is-right${leaving ? " is-leaving" : ""}`}
           >
             <div className="nt-menu" style={{ width: 200 }}>
               <Dropdown.Item className="nt-menu-item" onSelect={onEdit}>
                 <LuPencil size={14} aria-hidden />
-                Edit project
+                Rename
               </Dropdown.Item>
+              {onColor ? (
+                <div
+                  className="wk-more-colors"
+                  role="group"
+                  aria-label="Color"
+                  style={{ display: "flex", gap: 6, padding: "6px 8px" }}
+                >
+                  {PROJECT_SWATCHES.map(([name, value]) => (
+                    <Dropdown.Item
+                      key={name}
+                      asChild
+                      onSelect={() => onColor(value)}
+                    >
+                      <button
+                        type="button"
+                        aria-label={`Color: ${name}`}
+                        aria-pressed={color === value}
+                        data-wk-color={name}
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: "50%",
+                          border: 0,
+                          background: value,
+                          boxShadow:
+                            color === value
+                              ? "0 0 0 2px var(--surface-raised), 0 0 0 3.5px var(--text-primary)"
+                              : "none",
+                        }}
+                      />
+                    </Dropdown.Item>
+                  ))}
+                </div>
+              ) : null}
               <Dropdown.Separator className="nt-menu-sep" />
               <Dropdown.Item
                 className="nt-menu-item"
-                data-variant="destructive"
-                title={deleteTitle}
-                onSelect={onDelete}
+                title={archiveTitle}
+                onSelect={onArchive}
               >
                 <LuArchive size={14} aria-hidden />
                 Archive project
               </Dropdown.Item>
+              {onTrash ? (
+                <Dropdown.Item
+                  className="nt-menu-item"
+                  data-variant="destructive"
+                  onSelect={onTrash}
+                >
+                  <LuTrash2 size={14} aria-hidden />
+                  Delete project
+                </Dropdown.Item>
+              ) : null}
             </div>
           </Dropdown.Content>
         </Dropdown.Portal>
@@ -97,6 +157,8 @@ export function ProjectPage({
   onOpenTask,
   onEdit,
   onDelete,
+  onColor,
+  onTrash,
   fold,
   onFold,
   draft,
@@ -107,7 +169,12 @@ export function ProjectPage({
   today: string;
   onOpenTask: (id: string) => void;
   onEdit: () => void;
+  /** Archive. */
   onDelete: () => void;
+  /** Set the project's colour. */
+  onColor?: (color: string) => void;
+  /** Delete: to Trash, after a confirm. */
+  onTrash?: () => void;
   /** Folded groups and the "Add a task" text, held above the face switch. */
   fold: Record<string, boolean>;
   onFold: (key: string) => () => void;
@@ -209,9 +276,12 @@ export function ProjectPage({
           </span>
           <MoreMenu
             label="Project options"
+            color={p.color}
             onEdit={onEdit}
-            onDelete={onDelete}
-            deleteTitle={
+            onColor={onColor}
+            onArchive={onDelete}
+            onTrash={onTrash}
+            archiveTitle={
               s.open
                 ? `Its ${s.open} open ${s.open === 1 ? "task is" : "tasks are"} archived with it`
                 : undefined

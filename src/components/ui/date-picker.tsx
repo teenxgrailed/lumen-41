@@ -26,6 +26,7 @@ import {
   newDate,
   startOfWeek,
 } from "@/lib/date-utils";
+import { useWeekStartDay } from "@/lib/needt3/hooks/settings";
 import { cn } from "@/lib/utils";
 
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -54,10 +55,10 @@ function withExistingTime(date: Date, value?: Date | null): Date {
   return next;
 }
 
-function shortcutDates(): Shortcut[] {
+function shortcutDates(weekStartsOn: 0 | 1): Shortcut[] {
   const today = newDate();
-  const nextWeek = startOfWeek(addDays(today, 7), { weekStartsOn: 1 });
-  const inTwoWeeks = startOfWeek(addDays(today, 14), { weekStartsOn: 1 });
+  const nextWeek = startOfWeek(addDays(today, 7), { weekStartsOn });
+  const inTwoWeeks = startOfWeek(addDays(today, 14), { weekStartsOn });
   const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
 
   return [
@@ -169,7 +170,11 @@ function DatePickerPanel({
   onDone: () => void;
   mobile?: boolean;
 }) {
-  const shortcuts = useMemo(shortcutDates, []);
+  const weekStartsOn = useWeekStartDay() === "sunday" ? 0 : 1;
+  const shortcuts = useMemo(
+    () => shortcutDates(weekStartsOn),
+    [weekStartsOn]
+  );
   const selectDate = (date: Date | undefined) => {
     if (!date) return;
     onChange(withExistingTime(date, value));
@@ -219,7 +224,7 @@ function DatePickerPanel({
             selected={value ?? undefined}
             defaultMonth={value ?? undefined}
             onSelect={selectDate}
-            weekStartsOn={1}
+            weekStartsOn={weekStartsOn}
             fixedWeeks
             className={cn("mx-auto p-0", mobile ? "w-[280px]" : "w-[252px]")}
           />

@@ -59,9 +59,9 @@ import {
   glidePlan,
   jumpGoal,
   nearestIndex,
-  nowScrollTop,
   offHours,
   offsetOf,
+  openScrollTop,
   stripDate,
   stripIndex,
 } from "./strip";
@@ -69,6 +69,10 @@ import {
 export const GUTTER = 56;
 /** The grid is the whole day: 00:00 to 24:00. */
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
+
+/** An hour label sits on its line; 00:00 has no room above the grid, so it
+ *  sits just under the top edge instead of being cut off. */
+export const hourLabelTop = (h: number) => (h === 0 ? 3 : h * C2_H - 7);
 const GRID_H = 24 * C2_H;
 /** How long a still scroller waits before settling onto a day column. */
 const SETTLE_MS = 110;
@@ -806,8 +810,9 @@ export function WeekView({
       setColW(w);
       if (!ready.current) {
         ready.current = true;
-        el.scrollTop = nowScrollTop(
-          nowHour ?? 8.5,
+        el.scrollTop = openScrollTop(
+          nowHour,
+          work,
           C2_H,
           el.clientHeight,
           GRID_H
@@ -823,6 +828,23 @@ export function WeekView({
     // nowHour only seeds the first scroll; later minutes must not re-run it
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [n]);
+
+  /* The scrollbar is hidden, so the card says there is more: a soft fade on
+     the edge that has hours past it (data-more-above / data-more-below). */
+  const weekCard = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scroller.current;
+    const root = weekCard.current;
+    if (!el || !root) return undefined;
+    const mark = () => {
+      const below = el.scrollHeight - el.clientHeight - el.scrollTop > 4;
+      root.toggleAttribute("data-more-below", below);
+      root.toggleAttribute("data-more-above", el.scrollTop > 4);
+    };
+    mark();
+    el.addEventListener("scroll", mark, { passive: true });
+    return () => el.removeEventListener("scroll", mark);
+  }, []);
 
   /* Keep the same first day when the width (or the column count) changes.
      After the commit: only then is the canvas as wide as `colW` says, and a
@@ -1022,7 +1044,7 @@ export function WeekView({
   );
 
   return (
-    <div className="c2-week" data-c2-strip="">
+    <div ref={weekCard} className="c2-week" data-c2-strip="">
       <div
         ref={scroller}
         className="c2-wscroll"
@@ -1059,8 +1081,8 @@ export function WeekView({
           <div className="c2-wgrid" style={{ height: GRID_H }}>
             <div className="c2-whours" style={{ width: GUTTER }}>
               {HOURS.map((h) => (
-                <span key={h} className="c2-hour" style={{ top: h * C2_H - 7 }}>
-                  {h === 0 ? "" : `${String(h).padStart(2, "0")}:00`}
+                <span key={h} className="c2-hour" style={{ top: hourLabelTop(h) }}>
+                  {`${String(h).padStart(2, "0")}:00`}
                 </span>
               ))}
             </div>

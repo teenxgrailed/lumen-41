@@ -116,6 +116,16 @@ describe("greeting and composer helpers", () => {
     expect(greetingFor(20, "Maksym")).toBe("Good evening, Maksym");
     expect(greetingFor(9, null)).toBe("Good morning");
     expect(greetingFor(14, "A")).toBe("Good afternoon, A");
+    // 01:30 is not evening: night is 00-04, evening starts at 18.
+    expect(greetingFor(1, "Maksym")).toBe("Up late, Maksym");
+    expect(greetingFor(0, null)).toBe("Up late");
+    expect(greetingFor(4, null)).toBe("Up late");
+    expect(greetingFor(5, null)).toBe("Good morning");
+    expect(greetingFor(11, null)).toBe("Good morning");
+    expect(greetingFor(12, null)).toBe("Good afternoon");
+    expect(greetingFor(17, null)).toBe("Good afternoon");
+    expect(greetingFor(18, null)).toBe("Good evening");
+    expect(greetingFor(23, null)).toBe("Good evening");
     expect(firstName("  Maksym Kovalenko ")).toBe("Maksym");
     expect(firstName("")).toBeNull();
   });

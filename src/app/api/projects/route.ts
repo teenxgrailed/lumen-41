@@ -32,10 +32,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.getAll("status") as ProjectStatus[];
     const search = searchParams.get("search");
+    // Trashed projects are out of every list; Trash asks for them by name.
+    const trashed = searchParams.get("trashed") === "1";
 
     const projects = await prisma.project.findMany({
       where: {
         ...workspaceDataScopeWhere(auth.workspace, auth.userId),
+        trashedAt: trashed ? { not: null } : null,
         ...(status.length > 0 && { status: { in: status } }),
         ...(search && {
           OR: [

@@ -43,6 +43,7 @@ import {
 import { StScreen } from "../states/StScreen";
 import { Task } from "../task/Task";
 import { MiniCard, ProjectCard } from "./ProjectCards";
+import { askDeleteProject } from "./ProjectDeleteHost";
 import { ProjectPage } from "./ProjectPage";
 import { ProjectSheet } from "./ProjectSheet";
 import {
@@ -188,6 +189,16 @@ function WorkScreenContent({
     if (projectId && projectsQ.isSuccess && !page) router.replace("/projects");
   }, [projectId, projectsQ.isSuccess, page, router]);
 
+  // "Rename" in the sidebar's project menu lands here with ?rename=1: open the
+  // edit sheet once, then drop the flag so a reload does not reopen it.
+  const wantsRename = params.get("rename") === "1";
+  const { startEdit } = state;
+  useEffect(() => {
+    if (!wantsRename || !page) return;
+    startEdit(page);
+    setParam("rename", null);
+  }, [wantsRename, page, startEdit, setParam]);
+
   const saveProject = (p: { name: string; color: string }) => {
     const target = editing;
     closeSheet();
@@ -231,6 +242,18 @@ function WorkScreenContent({
           `Archived “${p.name}”${count ? ` and its ${count} ${count === 1 ? "task" : "tasks"}` : ""}`,
           { action: { label: "Undo", onClick: () => void undo() } }
         )
+      )
+      .catch(() => undefined);
+  };
+
+  const recolorProject = (p: V3Project, color: string) => {
+    if (p.color === color) return;
+    void updateProject
+      .mutateAsync({ id: p.id, patch: { color } })
+      .then(({ undo }) =>
+        notify.success("Color changed", {
+          action: { label: "Undo", onClick: () => void undo() },
+        })
       )
       .catch(() => undefined);
   };
@@ -397,6 +420,8 @@ function WorkScreenContent({
               onOpenTask={openTask}
               onEdit={() => state.startEdit(page)}
               onDelete={() => deleteProject(page)}
+              onColor={(color) => recolorProject(page, color)}
+              onTrash={() => askDeleteProject(page)}
               fold={state.pageFold}
               onFold={state.flipPage}
               draft={state.draft}

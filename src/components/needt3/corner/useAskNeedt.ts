@@ -14,8 +14,10 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
+import { qk } from "@/lib/needt3/query-keys";
 
 import { runAgent } from "../cursor/hand";
+import { REACH_FAILED, refusalFor } from "./refusal";
 import {
   type ChatAction,
   type ChatSource,
@@ -38,6 +40,8 @@ export interface AskMessage {
   failed?: boolean;
   /** The plan does not include the agent (Free): the reply is the reason. */
   upgrade?: boolean;
+  /** The hosted allowance is used up: the reply says so, not "unreachable". */
+  allowance?: boolean;
   /** Tool progress, in order: one line each while it runs, then its outcome. */
   tools?: AskTool[];
   /** What the agent changed this turn; each can be undone. */
@@ -67,7 +71,7 @@ function uid(): string {
   return `ask-${seq}`;
 }
 
-const FAILED = "I could not reach the AI provider. Try again.";
+const FAILED = REACH_FAILED;
 
 export function useAskNeedt() {
   const qc = useQueryClient();
@@ -139,19 +143,24 @@ export function useAskNeedt() {
           signal: ctl.signal,
         });
         if (!res.ok || !res.body) {
-          let error = FAILED;
-          let upgrade = false;
+          let body: Parameters<typeof refusalFor>[1] = null;
           try {
-            const body = (await res.json()) as {
-              error?: string;
-              upgradeRequired?: boolean;
-            };
-            if (body.error) error = body.error;
-            upgrade = body.upgradeRequired === true;
+            body = (await res.json()) as typeof body;
           } catch {
-            /* not JSON: keep the stable fallback */
+            /* not JSON: the status alone decides the wording */
           }
-          patch(reply.id, { text: error, failed: true, upgrade });
+          const why = refusalFor(res.status, body);
+          // A refusal from the plan or the allowance is not an outage: let the
+          // panel learn it and lock instead of inviting another try.
+          if (why.gated) {
+            void qc.invalidateQueries({ queryKey: qk.plan() });
+          }
+          patch(reply.id, {
+            text: why.text,
+            failed: true,
+            upgrade: why.upgrade,
+            allowance: why.allowance,
+          });
           return;
         }
         const reader = res.body.getReader();

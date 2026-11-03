@@ -37,7 +37,12 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
   useUpdateDoc: () => ({ mutateAsync: jest.fn() }),
 }));
 jest.mock("@/lib/needt3/hooks/tasks", () => ({ useTasks: () => none }));
-jest.mock("@/lib/needt3/hooks/projects", () => ({ useProjects: () => none }));
+jest.mock("@/lib/needt3/hooks/projects", () => ({
+  useProjects: () => none,
+  useUpdateProject: () => ({ mutateAsync: jest.fn() }),
+  useArchiveProject: () => ({ archive: jest.fn() }),
+  useTrashProject: () => ({ trash: jest.fn(), restore: jest.fn() }),
+}));
 jest.mock("@/lib/needt3/hooks/events", () => ({ useEvents: () => none }));
 jest.mock("@/lib/needt3/hooks/mail", () => ({ useMail: () => none }));
 jest.mock("@/lib/needt3/hooks/connections", () => ({
