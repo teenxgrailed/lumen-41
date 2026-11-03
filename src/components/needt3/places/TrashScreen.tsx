@@ -104,7 +104,7 @@ export function TrashScreen({ c }: { c: TrashController }) {
     dead,
     gone,
     pages,
-    goneProjects,
+    goneProjects = [],
     projectName,
     restoreProject,
     restoreTask,
