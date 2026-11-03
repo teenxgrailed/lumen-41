@@ -309,8 +309,34 @@ export async function syncNativePushToken(): Promise<string | null> {
 export async function releaseNativePushToken(): Promise<void> {
   const token = currentNativePushToken();
   if (!token) return;
+  // Written before the request, so an app killed mid-request still retries.
+  setPendingRelease(token);
+  if (await deleteNativeToken(token)) setPendingRelease(null);
+}
+
+/** A release that did not reach the server, kept for the next launch. */
+const NATIVE_RELEASE_KEY = "needt.push.native.release";
+
+function pendingRelease(): string | null {
   try {
-    await fetch(
+    return localStorage.getItem(NATIVE_RELEASE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setPendingRelease(token: string | null) {
+  try {
+    if (token) localStorage.setItem(NATIVE_RELEASE_KEY, token);
+    else localStorage.removeItem(NATIVE_RELEASE_KEY);
+  } catch {
+    // private storage: the stale-token sweep on the server is the fallback
+  }
+}
+
+async function deleteNativeToken(token: string): Promise<boolean> {
+  try {
+    const response = await fetch(
       `/api/push-subscriptions/native?token=${encodeURIComponent(token)}`,
       {
         method: "DELETE",
@@ -318,10 +344,24 @@ export async function releaseNativePushToken(): Promise<void> {
         signal: AbortSignal.timeout(3000),
       }
     );
+    // 204 removed it (or it was already gone); 401 means the session ended
+    // first, and only the stale sweep or the next sign-in can undo that.
+    return response.ok || response.status === 401;
   } catch {
-    // Offline or slow: the server forgets the token when Apple reports it dead
-    // or the next account takes it over.
+    return false;
   }
+}
+
+/**
+ * At launch, before the token is saved again: a release that failed at the
+ * last sign-out is sent now. Signed in as the same person, the token is then
+ * saved again if they still allow notifications; signed in as someone else,
+ * the release finds nothing of theirs and the save rebinds the token.
+ */
+export async function retryPendingNativeRelease(): Promise<void> {
+  const token = pendingRelease();
+  if (!token) return;
+  if (await deleteNativeToken(token)) setPendingRelease(null);
 }
 
 function useNativePush(active: boolean): PushController {

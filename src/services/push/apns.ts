@@ -45,7 +45,14 @@ export type ApnsTransport = (
 // Apple refuses a provider token older than an hour and one refreshed more
 // often than every 20 minutes, so one token is reused for 50 minutes.
 const JWT_LIFETIME_SECONDS = 50 * 60;
-let cachedJwt: { value: string; issuedAt: number; keyId: string } | null = null;
+// Keyed by everything that signs it: a new key id, team or private key in
+// the environment signs a new token at once instead of reusing the old one.
+let cachedJwt: { value: string; issuedAt: number; signer: string } | null =
+  null;
+
+function signerOf(config: Extract<ApnsConfiguration, { configured: true }>) {
+  return `${config.teamId}\u0000${config.keyId}\u0000${config.privateKey}`;
+}
 
 function base64url(input: string | Buffer) {
   return Buffer.from(input).toString("base64url");
@@ -57,7 +64,7 @@ export function apnsJwt(
 ) {
   if (
     cachedJwt &&
-    cachedJwt.keyId === config.keyId &&
+    cachedJwt.signer === signerOf(config) &&
     nowSeconds - cachedJwt.issuedAt < JWT_LIFETIME_SECONDS
   ) {
     return cachedJwt.value;
@@ -71,7 +78,7 @@ export function apnsJwt(
     dsaEncoding: "ieee-p1363",
   });
   const value = `${header}.${claims}.${base64url(signature)}`;
-  cachedJwt = { value, issuedAt: nowSeconds, keyId: config.keyId };
+  cachedJwt = { value, issuedAt: nowSeconds, signer: signerOf(config) };
   return value;
 }
 
@@ -306,4 +313,31 @@ export async function deliverNativePush(
 async function forget(target: NativePushTarget, reason: string) {
   await prisma.nativePushToken.deleteMany({ where: { id: target.id } });
   await logger.info("Removed dead APNs token", { reason }, LOG_SOURCE);
+}
+
+/** A token no install has refreshed in this long is forgotten. */
+export const NATIVE_TOKEN_STALE_DAYS = 30;
+
+/**
+ * The app saves its token again at every launch, so a token untouched for
+ * 30 days belongs to an install nobody opens: a phone signed out by an
+ * expired session, given away or reset. Forgetting it stops that account's
+ * reminders reaching a lock screen its owner may no longer hold. Returns how
+ * many were removed.
+ */
+export async function pruneStaleNativePushTokens(now = newDate()) {
+  const cutoff = new Date(
+    now.getTime() - NATIVE_TOKEN_STALE_DAYS * 24 * 60 * 60_000
+  );
+  const removed = await prisma.nativePushToken.deleteMany({
+    where: { updatedAt: { lt: cutoff } },
+  });
+  if (removed.count > 0) {
+    await logger.info(
+      "Removed stale APNs tokens",
+      { count: removed.count },
+      LOG_SOURCE
+    );
+  }
+  return removed.count;
 }

@@ -87,7 +87,7 @@ describe("/api/push-subscriptions/native", () => {
     expect(tokens.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { token: token.toLowerCase() },
-        update: { userId: "user-1" },
+        update: { userId: "user-1", updatedAt: expect.any(Date) },
         create: expect.objectContaining({
           userId: "user-1",
           token: token.toLowerCase(),
@@ -118,5 +118,82 @@ describe("/api/push-subscriptions/native", () => {
     expect(tokens.deleteMany).toHaveBeenCalledWith({
       where: { userId: "user-1", token: token.toLowerCase() },
     });
+  });
+});
+
+describe("one phone, two accounts", () => {
+  // The table as the route sees it: token -> owner.
+  const rows = new Map<string, { id: string; userId: string }>();
+  const as = (userId: string) =>
+    jest.mocked(authenticateRequest).mockResolvedValue({ userId } as never);
+
+  beforeEach(() => {
+    rows.clear();
+    tokens.findUnique.mockImplementation((async ({
+      where,
+    }: {
+      where: { token: string };
+    }) => {
+      const row = rows.get(where.token);
+      return row ? { userId: row.userId } : null;
+    }) as never);
+    tokens.upsert.mockImplementation((async ({
+      where,
+      update,
+      create,
+    }: {
+      where: { token: string };
+      update: { userId: string };
+      create: { userId: string };
+    }) => {
+      const row = rows.get(where.token);
+      const next = row
+        ? { ...row, userId: update.userId }
+        : { id: `tok-${rows.size + 1}`, userId: create.userId };
+      rows.set(where.token, next);
+      return { id: next.id };
+    }) as never);
+    tokens.deleteMany.mockImplementation((async ({
+      where,
+    }: {
+      where: { userId: string; token: string };
+    }) => {
+      const row = rows.get(where.token);
+      if (!row || row.userId !== where.userId) return { count: 0 };
+      rows.delete(where.token);
+      return { count: 1 };
+    }) as never);
+  });
+
+  it("moves the token to whoever signs in on the phone next", async () => {
+    as("user-a");
+    await POST(request("POST", { token, platform: "ios" }));
+    as("user-b");
+    await POST(request("POST", { token, platform: "ios" }));
+    expect(rows.get(token.toLowerCase())?.userId).toBe("user-b");
+    expect(rows.size).toBe(1);
+  });
+
+  it("does not let the previous owner remove the new owner's token", async () => {
+    as("user-a");
+    await POST(request("POST", { token, platform: "ios" }));
+    as("user-b");
+    await POST(request("POST", { token, platform: "ios" }));
+    as("user-a");
+    const response = await DELETE(
+      request("DELETE", undefined, `?token=${token}`)
+    );
+    expect(response.status).toBe(204);
+    expect(rows.get(token.toLowerCase())?.userId).toBe("user-b");
+  });
+
+  it("lets the owner remove it, after which another account can take it", async () => {
+    as("user-a");
+    await POST(request("POST", { token, platform: "ios" }));
+    await DELETE(request("DELETE", undefined, `?token=${token}`));
+    expect(rows.size).toBe(0);
+    as("user-b");
+    await POST(request("POST", { token, platform: "ios" }));
+    expect(rows.get(token.toLowerCase())?.userId).toBe("user-b");
   });
 });

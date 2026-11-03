@@ -4,6 +4,7 @@ import { APNS_TOKEN_PATTERN } from "@/services/push/apns";
 
 import { IOS_BUNDLE_ID, getApnsConfiguration } from "@/lib/apns-config";
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -53,7 +54,9 @@ export async function POST(request: NextRequest) {
   );
   const saved = await prisma.nativePushToken.upsert({
     where: { token },
-    update: { userId: auth.userId },
+    // Touched on every launch, so a token that stops being refreshed can be
+    // told apart (pruneStaleNativePushTokens).
+    update: { userId: auth.userId, updatedAt: newDate() },
     create: {
       userId: auth.userId,
       token,

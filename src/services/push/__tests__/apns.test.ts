@@ -3,6 +3,7 @@ import {
   ApnsTransport,
   apnsBody,
   deliverNativePush,
+  pruneStaleNativePushTokens,
   resetApnsJwtForTests,
 } from "@/services/push/apns";
 import { generateKeyPairSync, verify } from "node:crypto";
@@ -19,7 +20,10 @@ jest.mock("@/lib/logger", () => ({
 }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    nativePushToken: { deleteMany: jest.fn(), updateMany: jest.fn() },
+    nativePushToken: {
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      updateMany: jest.fn(),
+    },
   },
 }));
 
@@ -205,5 +209,50 @@ describe("apnsBody", () => {
     );
     expect(body.aps.alert.title).toHaveLength(256);
     expect(body.taskId).toBe("task-9");
+  });
+});
+
+describe("provider token reuse", () => {
+  const bearer = async () => {
+    const { fn, calls } = transport({ status: 200 });
+    await deliverNativePush(target, payload, fn);
+    return calls[0].headers.authorization;
+  };
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it("reuses one token for 50 minutes, then signs a new one", async () => {
+    jest.useFakeTimers({ now: new Date("2026-11-04T09:00:00Z") });
+    const first = await bearer();
+    jest.setSystemTime(new Date("2026-11-04T09:49:00Z"));
+    expect(await bearer()).toBe(first);
+    jest.setSystemTime(new Date("2026-11-04T09:51:00Z"));
+    expect(await bearer()).not.toBe(first);
+  });
+
+  it("signs a new token when the team changes", async () => {
+    const first = await bearer();
+    process.env.APNS_TEAM_ID = "OTHERTEAM";
+    const second = await bearer();
+    expect(second).not.toBe(first);
+    const claims = JSON.parse(
+      Buffer.from(second.split(".")[1], "base64url").toString()
+    );
+    expect(claims.iss).toBe("OTHERTEAM");
+  });
+});
+
+describe("pruneStaleNativePushTokens", () => {
+  it("forgets tokens no launch has refreshed in 30 days", async () => {
+    jest.mocked(prisma.nativePushToken.deleteMany).mockResolvedValue({
+      count: 2,
+    } as never);
+    const now = new Date("2026-12-31T00:00:00Z");
+    await expect(pruneStaleNativePushTokens(now)).resolves.toBe(2);
+    expect(prisma.nativePushToken.deleteMany).toHaveBeenCalledWith({
+      where: { updatedAt: { lt: new Date("2026-12-01T00:00:00Z") } },
+    });
   });
 });
