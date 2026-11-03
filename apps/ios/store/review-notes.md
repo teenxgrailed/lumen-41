@@ -1,14 +1,14 @@
 # App Review notes, Needt for iPhone and iPad
 
 Two parts. Part 1 is pasted into App Store Connect, App Review Information, "Notes"
-(limit 4000 characters; this block is 2705 characters). It carries **no
+(limit 4000 characters; this block is 3042 characters, 3201 with the In-App Purchase paragraph). It carries **no
 credentials**. Part 2 is for us: what the server must have before the review, and what to
 check.
 
 ## Part 1: paste into "Notes"
 
 ```
-Needt is a planner: tasks, calendar, documents (Pages), habits and a focus timer in one account, the same on iPhone, iPad, Mac and web. The app is a native shell (Capacitor, WKWebView) around our service, with native widgets, Controls and a Live Activity.
+Needt is a planner: tasks, calendar, documents (Pages), habits and a focus timer in one account, the same on iPhone, iPad, Mac and web. The app is a native shell (Capacitor, WKWebView) around our service, with native widgets, Controls, a Live Activity, App Shortcuts, a Share extension and an offline screen. Needs iOS 18.
 
 SIGN IN
 Tap Continue with Apple, Continue with Google or use email. Apple and Google open the system sign-in sheet (ASWebAuthenticationSession) and return to the app.
@@ -32,7 +32,10 @@ WHAT TO LOOK AT
 4. Widgets: long-press the Home Screen > Edit > Add Widget > Needt. Today, Next event, Focus timer, Habits, Quick add; each has styles in its Edit menu. Sign in to the app first; the widgets read the signed-in session. On iPad there is an extra-large Today widget.
 5. Live Activity: start a focus session; the countdown shows on the Lock Screen and in the Dynamic Island on supported iPhones.
 6. Controls (iOS 18): Control Center > add Add task or Start focus.
-7. Settings > Appearance: app icon choices (alternate icons).
+7. Share extension: in Safari tap Share > Needt; the link becomes a task.
+8. Shortcuts app / Siri: Add task, Start focus, What is today (App Shortcuts, no setup).
+9. Offline: turn on Airplane Mode and reopen the app; a native screen shows today's list with Try again.
+10. Settings > Appearance: app icon choices (alternate icons).
 
 PRIVACY
 No ads, no analytics, no tracking, no ATT prompt. Policy: https://use.needt.app/privacy. The minimum age is 16 (section 13); the age rating uses the "higher age rating" override.
@@ -70,36 +73,62 @@ week, 2 documents, 2 habits, 1 goal. Capabilities refused with `403 SANDBOX_LOCK
 `api_tokens`, `invites`, `public_share`, `uploads`, `admin`, `outbound_email`. The "disabled"
 paragraph in Part 1 is that list in a reviewer's words.
 
-### Statements in Part 1 that are not true of `origin/main` yet
+### Purchase paragraph: two variants
 
-1. **"Account deletion works on the demo account."** Today `account_delete` is refused
-   (`refuseSandbox` in `src/app/api/account/deletion/route.ts`). A separate PR is to let a
-   sandbox account schedule deletion and have the nightly reset cancel it. Do not submit
-   before that has merged and the reset cancels a pending deletion; otherwise replace the
-   paragraph with "Deletion is disabled on the shared demo account; create your own account
-   to see it".
-2. **"No purchase, no price, no link to buy."** The shell does not hide the web paywall.
-   `src/components/needt3/phone/overlays/Paywall.tsx`, `settings/PlanSection.tsx`,
-   `habits/HabitsScreen.tsx` and `places/MoodboardsScreen.tsx` call `POST /api/billing/checkout`,
-   and `src/lib/native.ts` has no gate for billing. Guideline 3.1.3(f) needs "no purchasing
-   inside the app, or calls to action for purchase outside of the app"; 3.1.1 needs the same
-   for digital unlocks. **Hide plan, price, upgrade and trial UI when `isNativeApp()` or
-   `window.__needtNative` is set, and show a Free account's limits without a way to buy,
-   before submitting.** This is the single most likely rejection.
-3. **"Sign in with Apple."** The button is drawn but says it is not set up until
-   `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` are set
-   (`apps/ios/README.md`, "Icon, launch screen, sign-in"). Guideline 4.8 wants an
-   equivalent privacy-preserving login next to Google; it must work in the build under review.
-4. **Gmail / Google Calendar.** The listing names Google among the calendars. Google's
+The "NO PURCHASES IN THE APP" paragraph in the block above is true while In-App Purchase is
+off. Use it only if the flag `apple_iap` is off and `/api/billing/apple/*` answers
+`enabled: false` for the build under review. If Apple IAP is on, replace that paragraph
+(and nothing else) with this one:
+
+```
+PURCHASES
+Needt Pro (monthly, yearly) and Lifetime are sold with In-App Purchase (StoreKit 2), in Settings > Plan. Restore Purchases is in Settings > Plan. The demo account can buy with a Sandbox Apple ID: a Sandbox purchase gives Pro for up to 24 hours and is cleared at the nightly reset. The app has no other way to pay and no link to an outside checkout.
+```
+
+Checked on 2026-11-03: `NeedtStore` (StoreKit 2 plugin) and `src/lib/native-store.ts` are on
+`origin/main` (#540). The server half (#541, products `app.needt.pro.monthly`,
+`app.needt.pro.yearly`, `app.needt.lifetime`, flag `apple_iap`, sandbox purchases allowed
+only for the reviewer login and `APPLE_IAP_SANDBOX_TESTERS`) was still open. The plan and
+Restore Purchases screens are not on `origin/main` (no `Restore Purchases` string in `src/`),
+so the IAP paragraph is not yet true. Before using it: #541 merged and `apple_iap` on,
+`APPLE_IAP_ENVIRONMENT` and `APPLE_IAP_BUNDLE_IDS` set, the three products created and
+"Ready to Submit" in App Store Connect with the Paid Applications agreement accepted, the
+buy and Restore UI merged (store mode, #537, today shows the Plan page read-only with no
+buy button), and one purchase tried with a Sandbox Apple ID on a device.
+
+### State of `origin/main` at 2026-11-03 (commit 32deed0)
+
+True now, and the notes rely on it:
+
+- Deleting the demo account is allowed: it schedules the 7-day deletion and the nightly reset
+  cancels it (#533). `account_delete` is no longer in the sandbox policy.
+- Store mode (#537): in the iOS app and the Mac App Store build no price, checkout, upgrade
+  button, Creem link or link to the website is rendered (`isStoreDistribution()` in
+  `src/lib/native.ts`). Plan is read-only. Known gaps listed in #537: no neutral line for a
+  payment-failed banner; "Unlock X with Pro" tooltips on some locked rows remain (they name
+  the feature, no price).
+- `ITSAppUsesNonExemptEncryption = false` is in `Info.plist` (#539); the export-compliance
+  question no longer appears.
+- Offline screen, App Shortcuts (Add task, Start focus, What is today), Share extension and
+  minimum iOS 18.0 (#539; `apps/ios/README.md`). Not checked on a device (README says so).
+
+Still open before submitting:
+
+1. **Sign in with Apple.** The button says it is not set up until `APPLE_CLIENT_ID`,
+   `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` are set (`apps/ios/README.md`).
+   Guideline 4.8 wants an equivalent privacy-preserving login next to Google; it must work in
+   the build under review.
+2. **Gmail / Google Calendar.** The listing names Google among the calendars. Google's
    verification is not through (privacy.ts section 5, "Gmail availability"); if Google
    Calendar is still limited to testers at submission, take "and Google" out of
    `metadata/en-US/description.txt`.
+3. **Support page.** `support_url.txt` is `https://use.needt.app/support`; that page is being
+   added in a separate PR. It must be live before submitting.
+4. **Screenshots.** See this folder's README: the iPhone and iPad shots depend on a web app
+   error in the iOS WebView being fixed.
 
 ### Also needed in App Store Connect (not files here)
 
 - Contact first name, last name, phone, email for App Review (personal data, entered by
   the owner in App Store Connect, never in the repository).
-- Export compliance: `Info.plist` has no `ITSAppUsesNonExemptEncryption`; the app uses
-  only HTTPS, so the answer is "exempt". Setting the key to `false` in Info.plist (a change
-  under `apps/ios/ios/**`, not made here) removes the question on every build.
 - Copyright line, version, build, and the screenshots from the workflow in this folder's README.

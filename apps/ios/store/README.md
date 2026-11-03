@@ -21,18 +21,15 @@ name and no address anywhere in this folder.
 | `metadata/secondary_category.txt`              | App Information > Secondary Category: Business                                                                                   |              |
 | `app-privacy.md`                               | App Privacy > Data Types (and the tracking question). Also used by the Mac app                                                   |              |
 | `age-rating.md`                                | App Information > Age Ratings (questionnaire answers and the 16+ override). Also used by the Mac app                              |              |
-| `review-notes.md`                              | App Review Information > Notes (Part 1 block); Part 2 lists what the server needs. Demo credentials go in the Sign-in fields, never here |   4000 (2705) |
+| `review-notes.md`                              | App Review Information > Notes (Part 1 block); Part 2 lists what the server needs. Demo credentials go in the Sign-in fields, never here |   4000 (3042 / 3201) |
 | `../../macos/store/**`                         | Same fields for the Mac app                                                                                                      |              |
 | `../../../.github/workflows/store-screenshots.yml` | Screenshots for the version (see below)                                                                                      |              |
 
 `//todo` items that decide whether the listing can ship:
 
-- **Support URL.** `origin/main` has no `/help` or `/support` route under `src/app` (only
-  `/privacy`, `/terms`, `/subprocessors`), and `https://needt.app/support` returns 404 as of
-  2026-11-03. `support_url.txt` therefore holds `https://needt.app` as a placeholder. Apple
-  requires a page with real contact information; a `mailto:` is not accepted. Put a
-  contact/help page on the landing site (`support@needt.app` is the address in the legal
-  pages) and change both `support_url.txt` files.
+- **Support URL.** `support_url.txt` (both apps) is `https://use.needt.app/support`. The page
+  is being added in a separate PR and must be live (real contact information; Apple does not
+  accept a `mailto:`) before the version is submitted.
 - **"Google" in the description** while Google's OAuth verification is open (see
   `review-notes.md` Part 2).
 - **iPhone and iPad screenshots are not produced yet.** In CI the web app renders its global
@@ -41,8 +38,9 @@ name and no address anywhere in this folder.
   `app/layout` (Providers or AmbientBackdrop) but not the message; `login.log` in the artifact
   has it after the next run (lines starting `PAGE`). Fix in `src/`, then re-run the workflow.
   Mac (2880x1800) and widget shots are good.
-- The five blockers in `review-notes.md` Part 2 (demo deletion, the web paywall inside the
-  app, Sign in with Apple keys, Gmail wording, export compliance key).
+- `review-notes.md` Part 2: Sign in with Apple keys, Gmail wording, and which purchase
+  paragraph is true (no purchase, or In-App Purchase once #541 and the buy UI have merged).
+  Demo deletion (#533), store mode (#537) and the export-compliance key (#539) are on `main`.
 
 ## Screenshots
 

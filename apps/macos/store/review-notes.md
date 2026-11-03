@@ -3,8 +3,9 @@
 Same structure as `apps/ios/store/review-notes.md`: Part 1 is pasted into App Store
 Connect > App Review Information > Notes (no credentials, ever), Part 2 is ours. The server
 prerequisites (`SANDBOX_REVIEWER_EMAIL`, `SANDBOX_REVIEWER_PASSWORD`, the `sandbox_accounts`
-flag, the nightly reset) and the four "not true of origin/main yet" items in Part 2 of the
-iOS file apply here unchanged; read them before submitting. One account serves both apps.
+flag, the nightly reset) and the "still open before submitting" items in Part 2 of the iOS
+file (Sign in with Apple, Google wording, support page) apply here unchanged; read them
+before submitting. One account serves both apps.
 
 ## Part 1: paste into "Notes"
 
@@ -42,6 +43,14 @@ No ads, no analytics, no tracking. Policy: https://use.needt.app/privacy. The mi
 
 ## Part 2
 
+- **Purchases.** The "NO PURCHASES IN THE APP" paragraph is true on `origin/main` as of
+  2026-11-03: the Mac App Store build sets `distribution: "appstore"` and store mode (#537)
+  renders no price, checkout or link to buy. In-App Purchase for the Mac build is not built
+  (#541 says "later"); the StoreKit plugin (#540) is in the iOS app only. When it is, use the
+  same paragraph as `apps/ios/store/review-notes.md` ("PURCHASES"), with Settings > Plan
+  for Restore Purchases. Until then do not use it. The Mac store build relies on the native
+  shell injecting `distribution: "appstore"` before the page runs (#537, known gap): see the
+  window carry it on the first launch before submitting.
 - The Mac store build excludes Sparkle and part of the notch island (`apps/macos/README.md`,
   "Mac App Store"). The island is Pro-only and off unless switched on in Settings; do not
   describe it in the listing or the notes until the store build's island behaviour has been
