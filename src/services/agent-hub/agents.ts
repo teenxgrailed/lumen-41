@@ -3,9 +3,10 @@ import type { HubAgent } from "@prisma/client";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
-import { HELD_STATUSES } from "./constants";
+import { ASSISTANT_CONNECTION_KEY, HELD_STATUSES } from "./constants";
 import type { AgentScope, HubScope, WorkspaceKey } from "./context";
 import { HubError } from "./errors";
+import { assertHubLimit } from "./limits";
 import { type RegisterInput, normalizeTags } from "./schemas";
 import { assertNoSecrets } from "./secret-scan";
 
@@ -105,6 +106,15 @@ export async function ownerUpdateAgent(
   });
   if (!existing) throw new HubError("NOT_FOUND", "Agent not found.");
   const patch = profilePatch(input);
+  // Turning a disabled agent back on takes a slot again, so it is gated like a
+  // new agent. The assistant never counts and is never blocked.
+  if (
+    input.disabled === false &&
+    existing.disabledAt &&
+    existing.connectionKey !== ASSISTANT_CONNECTION_KEY
+  ) {
+    await assertHubLimit(scope.userId, "agents");
+  }
   const agent = await prisma.hubAgent.update({
     where: { id: existing.id },
     data: {
