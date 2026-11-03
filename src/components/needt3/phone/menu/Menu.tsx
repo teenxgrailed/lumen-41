@@ -681,6 +681,23 @@ export function Menu(props: MenuProps) {
     (["t", "b", "l", "r"] as const).forEach((k) =>
       el.style.setProperty(`--nva-shadow-${k}`, ed[k])
     );
+    /* The pieces also get the values as plain inline declarations, once per
+       theme. Through `var()` the browser re-substitutes and re-parses these
+       multi-kilobyte gradient and box-shadow lists every time a piece's style
+       is recomputed, and a frame recomputes up to sixteen pieces. Inline wins
+       the cascade, so nothing looks different. */
+    R.sets.forEach((set) => {
+      if (!set) return;
+      Array.from(set.children).forEach((piece, n) => {
+        const node = piece as HTMLElement;
+        if (n < 4) {
+          const inner = node.firstElementChild as HTMLElement | null;
+          if (inner) inner.style.boxShadow = nvaBoxShadow(list);
+        } else {
+          node.style.background = ed[(["t", "b", "l", "r"] as const)[n - 4]];
+        }
+      });
+    });
     if (R.shape) {
       const a = parseFloat(
         getComputedStyle(R.shape).getPropertyValue("--nva-pill-alpha")
