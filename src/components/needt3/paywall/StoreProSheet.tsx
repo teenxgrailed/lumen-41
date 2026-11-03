@@ -1,14 +1,124 @@
 "use client";
 
 /* What a locked Pro feature opens in a store build (iOS app, Mac App Store).
-   No price, no plan card, no checkout, no trial step and no link: Pro is
-   unlocked by the account alone, so the sheet only says what this is and
-   closes (App Store Review Guidelines 3.1.1 and 3.1.3(f)). */
-import { useEffect, useRef } from "react";
+   Unless the App Store can sell it here there is no price, no plan card, no
+   checkout, no trial step and no link: Pro is unlocked by the account alone,
+   so the sheet only says what this is and closes (App Store Review Guidelines
+   3.1.1 and 3.1.3(f)).
+
+   In the iOS app, when the NeedtStore plugin is there and the server lists
+   products (`GET /api/billing/apple/account-token`), it is the App Store
+   purchase sheet instead (3.1.2): StoreKit's own prices, what Pro includes,
+   renewal terms, Terms and Privacy, Restore Purchases. If either is missing it
+   stays the neutral sheet. The Mac App Store build has no StoreKit bridge yet,
+   so it is always the neutral sheet. */
+import { useEffect, useRef, useState } from "react";
+
+import { LuX } from "react-icons/lu";
+
+import { isAppleStoreAvailable } from "@/lib/native-store";
+import { useAppleOffer } from "@/lib/needt3/hooks/apple-iap";
+
+import { AppleOfferLoading, AppleOfferPanel } from "./AppleOffer";
 
 export const STORE_PRO_LINE = "This is part of Needt Pro.";
 
-export function StoreProSheet({
+export function StoreProSheet(props: { open: boolean; onClose: () => void }) {
+  return isAppleStoreAvailable() ? (
+    <AppleProSheet {...props} />
+  ) : (
+    <NeutralProSheet {...props} />
+  );
+}
+
+function AppleProSheet({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const offer = useAppleOffer(open);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  /* Escape, the scrim and the X do nothing while a purchase or restore runs:
+     a sheet closed mid-purchase would lose its result. */
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  busyRef.current = busy;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const close = () => {
+    if (!busyRef.current) onCloseRef.current();
+  };
+  const shown = open && offer.status !== "unavailable";
+  useEffect(() => {
+    if (!shown) return undefined;
+    /* The sheet takes focus and gives it back to whatever opened it. */
+    const before = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus({ preventScroll: true });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!busyRef.current) onCloseRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      before?.focus?.({ preventScroll: true });
+    };
+  }, [shown]);
+
+  if (offer.status === "unavailable") {
+    return <NeutralProSheet open={open} onClose={onClose} />;
+  }
+  if (!open) return null;
+  return (
+    <div
+      className="pw-scrim"
+      data-pw-open="1"
+      data-pw-store=""
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) close();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="pw-store pw-store-apple"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Needt Pro"
+      >
+        <div className="pw-store-head">
+          <span className="pw-store-kicker">Needt Pro</span>
+          <button
+            type="button"
+            className="pw-store-x"
+            aria-label="Close"
+            data-pw-close=""
+            disabled={busy}
+            onClick={close}
+          >
+            <LuX size={15} />
+          </button>
+        </div>
+        {offer.status === "loading" ? (
+          <AppleOfferLoading />
+        ) : (
+          <AppleOfferPanel
+            products={offer.products}
+            onDone={onClose}
+            onBusyChange={setBusy}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NeutralProSheet({
   open,
   onClose,
 }: {

@@ -5,8 +5,10 @@ import { useRef, useState } from "react";
 import { LuCheck } from "react-icons/lu";
 
 import { newDate } from "@/lib/date-utils";
+import { isAppleStoreAvailable } from "@/lib/native-store";
 import { openBillingPortal, startTrial } from "@/lib/needt3/hooks/account";
-import { usePlan } from "@/lib/needt3/hooks/plan";
+import { useApplePlanRows } from "@/lib/needt3/hooks/apple-iap";
+import { type V3Plan, usePlan } from "@/lib/needt3/hooks/plan";
 import { offersTrial } from "@/lib/needt3/paywall";
 import {
   type PriceStrings,
@@ -158,7 +160,37 @@ function StorePlanPage() {
           )
         )}
       </PsGroup>
+      {isAppleStoreAvailable() ? <AppleGroup source={b?.source} /> : null}
     </>
+  );
+}
+
+/** Restore purchases and Manage in App Store; only where the NeedtStore plugin is. */
+function AppleGroup({ source }: { source: V3Plan["source"] }) {
+  const apple = useApplePlanRows(source);
+  if (!apple.canRestore && !apple.canManage) return null;
+  return (
+    <PsGroup title="App Store">
+      {apple.canRestore ? (
+        <PsRow
+          title={apple.restoring ? "Restoring…" : "Restore purchases"}
+          desc="Apply a purchase made with this Apple ID."
+          disabled={apple.restoring}
+          chevron={false}
+          onOpen={apple.restore}
+          data={{ "data-ps-restore": "" }}
+        />
+      ) : null}
+      {apple.canManage ? (
+        <PsRow
+          title="Manage in App Store"
+          desc="Change or cancel your subscription."
+          out
+          onOpen={apple.manage}
+          data={{ "data-ps-manage-apple": "" }}
+        />
+      ) : null}
+    </PsGroup>
   );
 }
 
