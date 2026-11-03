@@ -469,6 +469,11 @@ export function AboutPage() {
         onOpen={() => window.open("/privacy", "_blank")}
       />
       <PsRow
+        title="Support"
+        out
+        onOpen={() => window.open("/support", "_blank")}
+      />
+      <PsRow
         title="Subprocessors"
         out
         onOpen={() => window.open("/subprocessors", "_blank")}

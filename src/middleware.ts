@@ -54,6 +54,9 @@ const publicRoutes = [
   "/terms",
   "/privacy",
   "/subprocessors",
+  // Store listings (App Store Connect, Partner Center, Google) need a public
+  // Support URL.
+  "/support",
   "/p/",
   "/b/",
   "/style",
