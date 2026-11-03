@@ -1,4 +1,8 @@
-import { purchasePlan, sendUmamiPurchase } from "@/lib/umami-server";
+import {
+  purchasePlan,
+  sendUmamiEvent,
+  sendUmamiPurchase,
+} from "@/lib/umami-server";
 
 const fetchMock = jest.fn();
 
@@ -65,5 +69,19 @@ describe("sendUmamiPurchase", () => {
 
     fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
     await expect(sendUmamiPurchase("lifetime")).resolves.toBeUndefined();
+  });
+});
+
+describe("sendUmamiEvent", () => {
+  it("posts the named event with exactly the data it is given", async () => {
+    await sendUmamiEvent("hub_item_completed", {
+      itemId: "i1",
+      outcome: "done",
+    });
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(init.body).payload).toMatchObject({
+      name: "hub_item_completed",
+      data: { itemId: "i1", outcome: "done" },
+    });
   });
 });

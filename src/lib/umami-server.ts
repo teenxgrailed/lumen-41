@@ -21,13 +21,16 @@ export function purchasePlan(
 }
 
 /**
- * Server-side Umami `purchase` event (`POST {UMAMI_HOST}/api/send`), recorded
- * on the landing site (`UMAMI_LANDING_WEBSITE_ID`) so the needt.app funnel
- * ends in a payment. It carries the plan and nothing about the person.
- * Skipped when the environment is missing; any failure is only logged and
- * never reaches the webhook. Callers do not await it.
+ * Server-side Umami event (`POST {UMAMI_HOST}/api/send`), recorded on the
+ * landing site (`UMAMI_LANDING_WEBSITE_ID`). `data` must hold ids, kinds and
+ * outcomes only, never a person or their text. Skipped when the environment
+ * is missing; any failure is only logged and never reaches the caller.
+ * Callers do not await it.
  */
-export async function sendUmamiPurchase(plan: PurchasePlan): Promise<void> {
+export async function sendUmamiEvent(
+  name: string,
+  data: Record<string, string | number | boolean>
+): Promise<void> {
   const host = process.env.UMAMI_HOST?.trim().replace(/\/+$/, "");
   const website = process.env.UMAMI_LANDING_WEBSITE_ID?.trim();
   if (!host || !website) return;
@@ -47,24 +50,32 @@ export async function sendUmamiPurchase(plan: PurchasePlan): Promise<void> {
           website,
           hostname: "needt.app",
           url: "/",
-          name: "purchase",
-          data: { plan },
+          name,
+          data,
         },
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!response.ok) {
       logger.warn(
-        "Umami purchase event was refused",
-        { status: response.status },
+        "Umami event was refused",
+        { name, status: response.status },
         LOG_SOURCE
       );
     }
   } catch (error) {
     logger.warn(
-      "Umami purchase event failed",
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      "Umami event failed",
+      {
+        name,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
       LOG_SOURCE
     );
   }
+}
+
+/** The `purchase` event: carries the plan and nothing about the person. */
+export function sendUmamiPurchase(plan: PurchasePlan): Promise<void> {
+  return sendUmamiEvent("purchase", { plan });
 }

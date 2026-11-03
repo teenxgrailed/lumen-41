@@ -3,6 +3,9 @@
  * text in the database, so adding a value later needs no migration.
  */
 
+/** The connection key of the in-app assistant's own agent row. */
+export const ASSISTANT_CONNECTION_KEY = "assistant";
+
 export const HUB_KINDS = [
   "claude",
   "codex",
