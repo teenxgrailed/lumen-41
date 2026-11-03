@@ -47,7 +47,7 @@ Lines (beat → line). No partner names spoken; the on-screen labels stay as the
 
 | t, s | Visual | Sound | Voice |
 |---|---|---|---|
-| 0.0–3.4 | fade-in, chaos | #1 swarm fades in 0.0–0.6, cut at 3.4 | 0.8 "Tabs. Mail. Code. Calls." |
+| 0.0–3.4 | fade-in, chaos | #1 swarm fades in 0.0–0.6, cut at 3.4 | 0.8 "Tabs. Mail. Code. Calls. Who's on all of it?" |
 | 3.4–6.0 | funnel | #2 riser 4.0 → ends 6.0 | 3.8 "Feed it all in." |
 | 6.6 | "n" fully formed | #3 impact on 6.6 | 6.8 "One brain." |
 | 7.20 / 7.85 / 8.50 / 9.15 | cards out | #4 slide on each, +1 semitone | 7.3 "Your agents pick it up." |
