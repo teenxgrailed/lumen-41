@@ -80,16 +80,22 @@ export function resetApnsJwtForTests() {
 }
 
 /**
- * At most `maxBytes` of UTF-8: APNs counts bytes (4 KB per payload), and a
- * string of emoji is four bytes a character. Never ends on half a surrogate
- * pair, which JSON would spell out as a six-byte escape.
+ * At most `maxBytes` once JSON-encoded: APNs counts the bytes of the payload
+ * (4 KB), a string of emoji is four bytes a character, and quotes,
+ * backslashes and newlines double when escaped. Never ends on half a
+ * surrogate pair, which JSON would spell out as a six-byte escape.
  */
-export function clipUtf8(text: string, maxBytes: number) {
-  if (Buffer.byteLength(text) <= maxBytes) return text;
-  let clipped = text.slice(0, maxBytes);
-  while (Buffer.byteLength(clipped) > maxBytes) {
-    clipped = clipped.slice(0, -1);
+export function clipForPayload(text: string, maxBytes: number) {
+  const size = (value: string) => Buffer.byteLength(JSON.stringify(value)) - 2;
+  if (size(text) <= maxBytes) return text;
+  let low = 0;
+  let high = Math.min(text.length, maxBytes);
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (size(text.slice(0, middle)) <= maxBytes) low = middle;
+    else high = middle - 1;
   }
+  const clipped = text.slice(0, low);
   const last = clipped.charCodeAt(clipped.length - 1);
   return last >= 0xd800 && last <= 0xdbff ? clipped.slice(0, -1) : clipped;
 }
@@ -99,14 +105,12 @@ export function apnsBody(payload: NativePushPayload) {
   return JSON.stringify({
     aps: {
       alert: {
-        title: clipUtf8(payload.title, 256),
-        // Quotes, backslashes and newlines double when JSON escapes them, so
-        // the budget leaves room for that under the 4 KB payload limit.
-        body: clipUtf8(payload.body, 1500),
+        title: clipForPayload(payload.title, 256),
+        body: clipForPayload(payload.body, 2048),
       },
       sound: "default",
     },
-    url: clipUtf8(payload.url, 1024),
+    url: clipForPayload(payload.url, 1024),
     ...(payload.taskId ? { taskId: payload.taskId } : {}),
   });
 }
