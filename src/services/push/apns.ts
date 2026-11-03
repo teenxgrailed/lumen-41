@@ -177,7 +177,7 @@ const http2Transport: ApnsTransport = (host, path, headers, body) =>
       // `pending` is also true for a stream queued on a live connection
       // (APNs allows one stream at first); only a connection that never
       // came up is dropped.
-      const connecting = request.pending && !session.connected;
+      const connecting = request.pending && session.connecting;
       if (!settled) {
         settled = true;
         reject(new Error("APNs did not answer in 10 seconds"));
