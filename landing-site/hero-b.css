@@ -69,3 +69,23 @@ body.home-b .hero .lead b { color: #fff; font-weight: 600; white-space: nowrap; 
   body.home-b .hero .cta-row { flex-direction: column; align-items: stretch; width: min(320px, 100%); margin-left: auto; margin-right: auto; }
   .hb-float.hb-f1 { display: block; position: relative; left: auto; top: auto; width: min(320px, 100%); margin: 26px auto 0; transform: none; order: 2; }
 }
+
+/* v2.1 (03.11): a longer first screen, and the garden instead of the clouds further down. */
+body.home-b .hero { min-height: 118vh; min-height: 118svh; justify-content: flex-start; padding-top: 22vh; }
+.hb-scene { position: sticky; top: 0; height: 100vh; overflow: hidden; }
+.hb-scene img { width: 100%; height: 100%; object-fit: cover; display: block; transform: scale(1.08); }
+/* planning section: the same garden behind a morning mist, so its dark text still reads */
+.hb-scene.is-mist::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(247,245,243,.86), rgba(247,245,243,.72) 50%, rgba(247,245,243,.9)); }
+.hb-scene.is-mist img { filter: saturate(.8) blur(2px); }
+/* night zone: the garden as it is, a little darker */
+.hb-scene.is-night { background: #05060a; }
+.hb-scene.is-night::after { content: ""; position: absolute; inset: 0; background: rgba(5,6,10,.45); }
+@media (max-width: 640px) { body.home-b .hero { min-height: 112svh; padding-top: 112px; } }
+
+/* v2.2 (03.11): ground at the bottom. The page ends on the floor of the same garden: moss, stems and
+   flowers rise behind the footer and the big "Needt" word stands on them. */
+body.home-b .final { position: relative; isolation: isolate; }
+body.home-b .final::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: min(70vh, 720px); z-index: -1; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(5,6,10,.25), rgba(5,6,10,.5) 60%, rgba(5,6,10,.15)), url("assets/hero/garden.jpg?v=2") 50% 100% / cover no-repeat;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 45%); mask-image: linear-gradient(to bottom, transparent, #000 45%); }
+@media (max-width: 640px) { body.home-b .final::after { height: 60vh; } }
