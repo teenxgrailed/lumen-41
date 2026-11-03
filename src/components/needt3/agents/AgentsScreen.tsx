@@ -10,7 +10,9 @@ import { formatDateToLocal, newDate } from "@/lib/date-utils";
 import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
+import { PLAN_LIMITS } from "@/lib/plan-limits";
 
+import { ProLimit } from "../paywall/Pro";
 import { PlaceHeader } from "../places/PlaceHeader";
 import { MemoriesGroup } from "../settings/MemoriesGroup";
 import { Segmented } from "../shell/Segmented";
@@ -78,6 +80,7 @@ interface HubAgentRow {
   heldItems: number;
   lastSeenAt: string | null;
   disabledAt?: string | null;
+  disabled?: boolean;
   token: {
     preview: string;
     revoked: boolean;
@@ -292,6 +295,11 @@ export function AgentsScreen() {
     (i) => i.status === "needs_owner" || (i.ownerUnread && isActive(i))
   );
   const focused = focusId ? items.find((i) => i.id === focusId) : undefined;
+  // Free counts agents that are not disabled; Needt's own assistant is free.
+  const countedAgents = agents.filter(
+    (a) => !a.disabled && a.connection !== "Needt assistant"
+  ).length;
+  const openItems = items.filter(isActive).length;
   const tags = Array.from(new Set(notes.flatMap((n) => n.tags))).sort();
 
   const itemRow = (item: HubItemRow) => (
@@ -447,7 +455,18 @@ export function AgentsScreen() {
           <>
             <AgSection
               title="Agents"
-              hint="Each agent gets its own token. It is shown once and can be revoked."
+              hint={
+                <>
+                  Each agent gets its own token. It is shown once and can be
+                  revoked.{" "}
+                  <ProLimit
+                    used={countedAgents}
+                    max={PLAN_LIMITS.FREE.hubAgents}
+                    noun="agents"
+                    feature="unlimited agents"
+                  />
+                </>
+              }
             >
               {fresh ? (
                 <div className="ag-token" data-ag-token="">
@@ -553,6 +572,17 @@ export function AgentsScreen() {
               <AgSection title="Needs you">
                 {needsYou.map(attentionRow)}
               </AgSection>
+            ) : null}
+
+            {items.length > 0 ? (
+              <p className="ag-hint">
+                <ProLimit
+                  used={openItems}
+                  max={PLAN_LIMITS.FREE.hubOpenItems}
+                  noun="open items"
+                  feature="unlimited agent tasks"
+                />
+              </p>
             ) : null}
 
             {items.length === 0 ? (

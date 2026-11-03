@@ -27,7 +27,12 @@ import { WorkspaceKind } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { closeRedisConnection } from "@/lib/queue/connection";
 
-import { createAgentToken } from "../tokens";
+import { ownerUpdateAgent } from "../agents";
+import { agentForConnection, assistantAgentScope } from "../context";
+import { HubError } from "../errors";
+import { createItem, listItems } from "../items";
+import { writeNote } from "../notes";
+import { createAgentToken, revokeAgentToken } from "../tokens";
 
 const describeIntegration =
   process.env.AGENT_HUB_INTEGRATION === "1" ? describe : describe.skip;
@@ -64,6 +69,11 @@ const ownerId = `${run}-owner`;
 const ownerWorkspace = `${run}-ws`;
 const otherId = `${run}-other`;
 const otherWorkspace = `${run}-ws2`;
+// A Free person for the plan-limit cases; the owner above is on Pro so the
+// rest of this file is not limited.
+const freeId = `${run}-free`;
+const freeWorkspace = `${run}-ws3`;
+const freeWorkspaceTwo = `${run}-ws4`;
 
 let claude = ""; // personal connector token (agents.hub via the personal scope set)
 let grok = "";
@@ -146,6 +156,7 @@ describeIntegration("Agent hub (real database)", () => {
     for (const [id, ws] of [
       [ownerId, ownerWorkspace],
       [otherId, otherWorkspace],
+      [freeId, freeWorkspace],
     ] as const) {
       await prisma.user.create({
         data: { id, email: `${id}@example.test`, emailVerified: new Date() },
@@ -173,6 +184,19 @@ describeIntegration("Agent hub (real database)", () => {
     await prisma.featureFlagOverride.create({
       data: { flagKey: "agent_hub", userId: ownerId, enabled: true },
     });
+    await prisma.featureFlagOverride.create({
+      data: { flagKey: "agent_hub", userId: freeId, enabled: true },
+    });
+    // Free keeps 2 agents and 30 open items; the general cases below create
+    // more than that, so the owner is on Pro.
+    await prisma.subscription.create({
+      data: {
+        userId: ownerId,
+        plan: "PRO",
+        status: "ACTIVE",
+        currentPeriodEnd: new Date("2999-01-01"),
+      },
+    });
 
     claude = generateConnectorToken();
     await prisma.connectorSettings.create({
@@ -197,12 +221,16 @@ describeIntegration("Agent hub (real database)", () => {
 
   afterAll(async () => {
     await prisma.task.deleteMany({
-      where: { workspaceId: { in: [ownerWorkspace, otherWorkspace] } },
+      where: {
+        workspaceId: { in: [ownerWorkspace, otherWorkspace, freeWorkspace] },
+      },
     });
     await prisma.workspace.deleteMany({
-      where: { id: { in: [ownerWorkspace, otherWorkspace] } },
+      where: { id: { in: [ownerWorkspace, otherWorkspace, freeWorkspace] } },
     });
-    await prisma.user.deleteMany({ where: { id: { in: [ownerId, otherId] } } });
+    await prisma.user.deleteMany({
+      where: { id: { in: [ownerId, otherId, freeId] } },
+    });
     // Hub writes publish realtime events over the shared Redis connection;
     // left open it keeps Jest alive after the run.
     await closeRedisConnection();
@@ -929,9 +957,9 @@ describeIntegration("Agent hub (real database)", () => {
 
   async function makeItem(extra: Record<string, unknown> = {}) {
     const made = await tool(claude, "needt_agent_task_create", lane(extra));
-    expect(made.isError ? JSON.stringify(made.data ?? made.rpcError) : false).toBe(
-      false
-    );
+    expect(
+      made.isError ? JSON.stringify(made.data ?? made.rpcError) : false
+    ).toBe(false);
     return made.data.item.id as string;
   }
 
@@ -1014,7 +1042,11 @@ describeIntegration("Agent hub (real database)", () => {
     expect(
       viewB.relations.map((r: Json) => `${r.kind}:${r.direction}:${r.item.id}`)
     ).toEqual(
-      expect.arrayContaining([`blocks:in:${a}`, `blocks:out:${c}`, `parent:out:${a}`])
+      expect.arrayContaining([
+        `blocks:in:${a}`,
+        `blocks:out:${c}`,
+        `parent:out:${a}`,
+      ])
     );
     expect(viewB.events.map((e: Json) => e.type)).toContain("linked");
 
@@ -1134,7 +1166,10 @@ describeIntegration("Agent hub (real database)", () => {
     const bad = await tool(claude, "needt_agent_plan_create", {
       ...lane({ title: "Plan broken" }),
       sequential: true,
-      children: [step("Plan step ok"), step("Plan step thin", { context: "short" })],
+      children: [
+        step("Plan step ok"),
+        step("Plan step thin", { context: "short" }),
+      ],
     });
     expect(bad.isError).toBe(true);
     expect(bad.data.message).toContain("children[1]");
@@ -1245,7 +1280,11 @@ describeIntegration("Agent hub (real database)", () => {
     expect(created.doneCriteria).toBe(
       "- Video uploaded\n- Link is public\n- Title matches"
     );
-    expect(created.criteria.map((c: Json) => c.met)).toEqual([null, null, null]);
+    expect(created.criteria.map((c: Json) => c.met)).toEqual([
+      null,
+      null,
+      null,
+    ]);
 
     await tool(grok, "needt_agent_task_claim", { id });
     const complete = (criteriaMet: unknown) =>
@@ -1310,7 +1349,10 @@ describeIntegration("Agent hub (real database)", () => {
       usage: { minutes: 25 },
     });
     expect(usageOnly.isError).toBe(false);
-    expect(usageOnly.data.item.usage).toMatchObject({ tokens: 12400, minutes: 25 });
+    expect(usageOnly.data.item.usage).toMatchObject({
+      tokens: 12400,
+      minutes: 25,
+    });
 
     await prisma.hubItem.update({
       where: { id },
@@ -1371,5 +1413,149 @@ describeIntegration("Agent hub (real database)", () => {
     expect(
       inbox.data.items.every((i: Json) => !i.title.startsWith("Cannot do"))
     ).toBe(true);
+  });
+  describe("Free plan limits against real rows", () => {
+    const freeOwner = {
+      userId: freeId,
+      workspaceId: freeWorkspace,
+      actor: { kind: "owner" as const },
+    };
+    const freeKey = { userId: freeId, workspaceId: freeWorkspace };
+    const personalAuth = (id: string) => ({
+      userId: freeId,
+      kind: "personal" as const,
+      scopes: ["needt.read" as const, "needt.write" as const],
+      personalTokenId: id,
+      personalTokenName: id,
+    });
+    const code = async (run: () => Promise<unknown>) => {
+      try {
+        await run();
+      } catch (error) {
+        return error instanceof HubError ? error.code : String(error);
+      }
+      return null;
+    };
+
+    beforeEach(async () => {
+      await prisma.hubNote.deleteMany({ where: { userId: freeId } });
+      await prisma.hubItem.deleteMany({ where: { userId: freeId } });
+      await prisma.hubAgent.deleteMany({ where: { userId: freeId } });
+    });
+
+    it("frees the slot of a revoked token, and re-enabling is gated (M1, M2)", async () => {
+      const a = await createAgentToken(freeOwner, { name: "A" });
+      await createAgentToken(freeOwner, { name: "B" });
+      expect(await code(() => createAgentToken(freeOwner, { name: "C" }))).toBe(
+        "PLAN_LIMIT"
+      );
+
+      await revokeAgentToken(freeOwner, a.agent.id);
+      const revoked = await prisma.hubAgent.findUniqueOrThrow({
+        where: { id: a.agent.id },
+      });
+      expect(revoked.disabledAt).not.toBeNull();
+      await createAgentToken(freeOwner, { name: "C" });
+
+      // B and C are active, so bringing A back would be the 3rd.
+      expect(
+        await code(() =>
+          ownerUpdateAgent(freeOwner, a.agent.id, { disabled: false })
+        )
+      ).toBe("PLAN_LIMIT");
+      const still = await prisma.hubAgent.findUniqueOrThrow({
+        where: { id: a.agent.id },
+      });
+      expect(still.disabledAt).not.toBeNull();
+    });
+
+    it("counts one connection in two workspaces as one agent (M4)", async () => {
+      const auth = personalAuth("tok-two-ws");
+      await agentForConnection(auth, freeWorkspace);
+      await agentForConnection(auth, freeWorkspaceTwo);
+      expect(await prisma.hubAgent.count({ where: { userId: freeId } })).toBe(
+        2
+      );
+      // Two rows, one agent: one slot is still free.
+      await createAgentToken(freeOwner, { name: "Second" });
+      expect(
+        await code(() => createAgentToken(freeOwner, { name: "Third" }))
+      ).toBe("PLAN_LIMIT");
+    });
+
+    it("counts only open items, and the assistant is never blocked (M5)", async () => {
+      const row = {
+        userId: freeId,
+        workspaceId: freeWorkspace,
+        title: "Bulk",
+        goal: "g",
+        doneCriteria: "d",
+        context: "c",
+        risks: [],
+        creatorKind: "owner",
+      };
+      await prisma.hubItem.createMany({
+        data: [
+          ...Array.from({ length: 30 }, () => ({ ...row, status: "open" })),
+          ...Array.from({ length: 5 }, () => ({ ...row, status: "done" })),
+        ],
+      });
+      const refused = await prisma.hubItem.count({ where: { userId: freeId } });
+      expect(refused).toBe(35);
+      expect(await code(() => createItem(freeOwner, brief()))).toBe(
+        "PLAN_LIMIT"
+      );
+      const assistant = await assistantAgentScope(freeKey);
+      const made = await createItem(assistant, brief());
+      expect(made.created).toBe(true);
+    });
+
+    it("counts notes per person, and the assistant can still write one (M5)", async () => {
+      await prisma.hubNote.createMany({
+        data: Array.from({ length: 100 }, (_, i) => ({
+          userId: freeId,
+          workspaceId: freeWorkspace,
+          text: `note ${i}`,
+          tags: [],
+          authorKind: "owner",
+        })),
+      });
+      expect(await code(() => writeNote(freeOwner, { text: "one more" }))).toBe(
+        "PLAN_LIMIT"
+      );
+      const assistant = await assistantAgentScope(freeKey);
+      await writeNote(assistant, { text: "one more" });
+      expect(await prisma.hubNote.count({ where: { userId: freeId } })).toBe(
+        101
+      );
+    });
+
+    it("keeps the latest event of an open item older than 7 days visible (L2)", async () => {
+      const item = await prisma.hubItem.create({
+        data: {
+          userId: freeId,
+          workspaceId: freeWorkspace,
+          title: "Old escalation",
+          goal: "g",
+          doneCriteria: "d",
+          context: "c",
+          risks: [],
+          creatorKind: "owner",
+          status: "needs_owner",
+          question: "Which one?",
+        },
+      });
+      await prisma.hubItemEvent.create({
+        data: {
+          itemId: item.id,
+          at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          actorKind: "agent",
+          type: "escalated",
+          message: "Which one?",
+        },
+      });
+      const [listed] = await listItems(freeKey);
+      expect(listed.latestEvent).toMatchObject({ type: "escalated" });
+    });
   });
 });
