@@ -155,7 +155,9 @@ describe("build version", () => {
     process.env.NEXT_PUBLIC_NEEDT_BUILD_SHA = A;
     const heard = jest.fn();
     window.addEventListener("needt-new-version", heard);
-    const res = new Response("", { headers: { "x-needt-build": B } });
+    const res = {
+      headers: { get: (k: string) => (k === "x-needt-build" ? B : null) },
+    } as unknown as Response;
     noteServerBuild(res);
     noteServerBuild(res);
     expect(heard).toHaveBeenCalledTimes(1);

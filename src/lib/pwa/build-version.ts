@@ -23,7 +23,8 @@ let announced = false;
 /** Tell the page (once) that the server runs a newer build than the page. */
 export function noteServerBuild(response: Pick<Response, "headers">) {
   if (announced || typeof window === "undefined") return;
-  const server = response.headers.get(BUILD_HEADER);
+  // Hand-made fetch stubs and opaque responses may carry no headers at all.
+  const server = response?.headers?.get?.(BUILD_HEADER);
   if (!isDifferentBuild(server, process.env.NEXT_PUBLIC_NEEDT_BUILD_SHA))
     return;
   announced = true;
