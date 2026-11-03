@@ -3,7 +3,7 @@ id: 20261103-claude-design-bridge
 owner: claude (session "Needt design")
 branch: one branch per PR (landing-*, fix/*)
 status: active
-updated: 2026-11-03T08:30:00Z
+updated: 2026-11-03T09:10:00Z
 objective: Keep needt.app and the app's screens in line with the design system and the four rules
 ---
 
@@ -19,7 +19,9 @@ objective: Keep needt.app and the app's screens in line with the design system a
 - Token check: code (`src/styles/needt-ds-tokens.css`) equals "Needt Design System Main" in light/dark/dim after var() resolution; artifact defect: `--foreground-rgb` not redefined in dark/dim (reported, not published).
 - Agents screen (#542): no deviations.
 - Home desktop: #558 14px → 13px, #559 bars on the text ladder, #560 titles 22px.
-- Calendar: 14px → 13px (day number, peek title/input, slot time), hour lines `--fill-4` instead of `--border` × .7.
+- Calendar (#561): 14px → 13px (day number, peek title/input, slot time), hour lines `--fill-4` instead of `--border` × .7.
+
+- Tasks: 14px → 13px on `.tk-prev-title`, `.wk-mcard-name`, `.wk-padd-input`; done-row, disabled and dragging fades and the accent drop line left as they are.
 
 ## Working state
 
@@ -43,4 +45,4 @@ objective: Keep needt.app and the app's screens in line with the design system a
 
 ## Next action
 
-- Audit Tasks (`src/components/needt3/tasks*`, its CSS) against the four rules; one PR.
+- Audit Settings, then Docs, against the four rules; one PR each.
