@@ -1,6 +1,7 @@
 // @ts-check
 import { api, DEFAULT_BASE_URL } from "../lib/api.js";
 import { reasonLine } from "../lib/blocking.js";
+import { normalizeYt, YT_KEY, YT_TOGGLES } from "../lib/youtube-rules.js";
 
 const $ = (id) => /** @type {HTMLInputElement} */ (document.getElementById(id));
 const lines = (text) => text.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -58,6 +59,24 @@ $("saveFilter").addEventListener("click", async () => {
     blockChannels: lines($("blockChannels").value),
   });
   $("filterStatus").textContent = "Saved.";
+});
+
+// YouTube, always: synced, no token. Toggles save on change, lists on "Save lists".
+const readYt = async () => normalizeYt((await chrome.storage.sync.get(YT_KEY))[YT_KEY]);
+const patchYt = async (patch) => chrome.storage.sync.set({ [YT_KEY]: { ...(await readYt()), ...patch } });
+const yt = await readYt();
+for (const [key, label] of YT_TOGGLES) {
+  const box = Object.assign(document.createElement("input"), { type: "checkbox", checked: yt[key] });
+  box.addEventListener("change", () => patchYt({ [key]: box.checked }));
+  const row = document.createElement("label");
+  row.append(box, label);
+  $("ytToggles").append(row);
+}
+$("ytChannels").value = yt.blockChannels.join("\n");
+$("ytKeywords").value = yt.blockKeywords.join("\n");
+$("saveYt").addEventListener("click", async () => {
+  await patchYt({ blockChannels: lines($("ytChannels").value), blockKeywords: lines($("ytKeywords").value) });
+  $("ytStatus").textContent = "Saved.";
 });
 
 showBlocking();

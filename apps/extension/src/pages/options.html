@@ -10,13 +10,26 @@
     h1 { font-size: 13px; line-height: 18px; font-weight: 600; margin: 0; }
     h2 { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--text-quaternary); margin: 0; }
     textarea { min-height: 56px; resize: vertical; }
+    .toggles { display: grid; gap: 4px; }
+    .toggles label { display: flex; gap: 8px; align-items: center; min-height: 28px; }
+    .toggles input { width: auto; }
   </style>
 </head>
 <body>
   <h1><span class="mark"></span>Needt for Chrome</h1>
 
   <section>
-    <h2>Connection</h2>
+    <h2>YouTube, always</h2>
+    <p class="meta">Works without a Needt account or token. Changes apply to open YouTube tabs right away.</p>
+    <div id="ytToggles" class="toggles"></div>
+    <div class="row"><label class="label" for="ytChannels">Block channels</label><textarea id="ytChannels" placeholder="One per line: a channel name, @handle or /regex/. The Block button on YouTube adds here."></textarea></div>
+    <div class="row"><label class="label" for="ytKeywords">Block words</label><textarea id="ytKeywords" placeholder="One per line: a word in the title or /regex/i. Matching videos are removed."></textarea></div>
+    <div class="row"><span></span><div><button id="saveYt">Save lists</button> <span id="ytStatus" class="status"></span></div></div>
+  </section>
+
+  <section>
+    <h2>Connection (optional)</h2>
+    <p class="meta">Only needed for tasks, focus blocking and the goal filter.</p>
     <div class="row"><label class="label" for="baseUrl">Server</label><input id="baseUrl" placeholder="https://use.needt.app" /></div>
     <div class="row"><label class="label" for="token">Token</label><input id="token" type="password" placeholder="needt_… (Settings → Personal API)" /></div>
     <div class="row"><span></span><div><button id="save" class="primary">Save and check</button></div></div>
