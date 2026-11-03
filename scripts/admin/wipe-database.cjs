@@ -79,6 +79,7 @@ const QUEUE_NAMES = Object.freeze([
   "imports",
   "focus",
   "email-lifecycle",
+  "hub-recurrence",
 ]);
 
 function parseArgs(argv) {
