@@ -9,7 +9,13 @@ import { FiCopy } from "react-icons/fi";
 import { notify } from "@/lib/notifications";
 
 import { AgBtn, AgSection } from "./AgParts";
-import { PROTOCOL_PROMPT, TOKENS_HREF, guideSnippets } from "./connect-guide";
+import {
+  CONNECTOR_URL,
+  PROTOCOL_PROMPT,
+  TOKENS_HREF,
+  connectorSteps,
+  guideSnippets,
+} from "./connect-guide";
 
 async function copy(text: string, what: string) {
   try {
@@ -63,8 +69,41 @@ export function ConnectGuide({ onClose }: { onClose?: () => void }) {
   return (
     <div data-ag-guide="">
       <AgSection
-        title="1. Create a token"
-        hint="Each agent gets its own token."
+        title="1. Add to Claude"
+        hint="No terminal and no token: sign in with a click."
+      >
+        {connectorSteps().map((c) => (
+          <div key={c.id} className="ag-token" data-ag-connector={c.id}>
+            <span className="ag-title">{c.title}</span>
+            <ol className="ag-meta">
+              {c.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+            {c.id === "claude" ? (
+              <span className="ag-token-row">
+                <code className="ag-code">{CONNECTOR_URL}</code>
+                <button
+                  type="button"
+                  className="nx-btn nx-btn-secondary nx-btn-sm"
+                  data-ag-copy="connector-url"
+                  onClick={() => void copy(CONNECTOR_URL, "Connector URL")}
+                >
+                  <FiCopy size={13} aria-hidden />
+                  Copy
+                </button>
+              </span>
+            ) : null}
+          </div>
+        ))}
+        <span className="ag-meta">
+          Every agent on this connector shows as one app. For a separate name
+          per agent, use a token below.
+        </span>
+      </AgSection>
+      <AgSection
+        title="2. Or use a token"
+        hint="One token per agent. Replace <token> with the one you made."
       >
         <div className="ag-form">
           <span className="ag-meta">
@@ -79,11 +118,6 @@ export function ConnectGuide({ onClose }: { onClose?: () => void }) {
             Open Connections
           </Link>
         </div>
-      </AgSection>
-      <AgSection
-        title="2. Point the agent at Needt"
-        hint="Replace <token> with the one you made."
-      >
         {guideSnippets(origin).map((s) => (
           <CodeBlock key={s.id} {...s} />
         ))}
