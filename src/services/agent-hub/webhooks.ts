@@ -15,7 +15,6 @@ import { prisma } from "@/lib/prisma";
 import { enqueueHubWebhookDelivery } from "@/lib/queue/enqueue";
 import { encryptSecret } from "@/lib/security/secret-encryption";
 
-import type { HubScope, WorkspaceKey } from "./context";
 import { HubError } from "./errors";
 import {
   HUB_WEBHOOK_EVENTS,
@@ -27,6 +26,12 @@ import {
 } from "./webhook-delivery";
 
 const LOG_SOURCE = "agent-hub-webhooks";
+
+// Structural copies of the scope types in ./context. Importing that module
+// from here makes messages.ts and webhooks.ts part of one import cycle, which
+// breaks type inference in messages.ts.
+type WorkspaceKey = { userId: string; workspaceId: string };
+type HubScope = WorkspaceKey & { actor: { kind: string } };
 
 /** Webhooks one workspace can hold. */
 export const WEBHOOKS_MAX_PER_WORKSPACE = 10;

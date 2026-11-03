@@ -1,0 +1,1 @@
+- The Agents screen has an Activity tab: what every agent claimed, updated, finished or asked you about, newest first and filterable by agent (7 days on Free, 90 on Pro). The same feed is `needt_agent_activity` and `/api/connect/agent-hub/activity`.

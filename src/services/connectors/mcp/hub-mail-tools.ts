@@ -1,3 +1,4 @@
+import { listActivity } from "@/services/agent-hub/activity";
 import type { AgentScope } from "@/services/agent-hub/context";
 import {
   ackMessage,
@@ -11,6 +12,7 @@ import {
   reserve,
 } from "@/services/agent-hub/reservations";
 import {
+  activityInput,
   messageAckInput,
   messageSendInput,
   messagesReadInput,
@@ -122,6 +124,17 @@ export function buildHubMailTools(hubTool: HubToolBuilder): McpTool[] {
         write: false,
       },
       (scope) => listReservations(scope, scope.actor.agent.id)
+    ),
+    hubTool(
+      {
+        name: "needt_agent_activity",
+        title: "Hub activity feed",
+        description:
+          "Recent events across all hub items, newest first: created, claimed, updated, completed, escalated, answered. Filter by agent (name or id) and kinds; 50 a page, pass nextCursor as cursor for the next. History covers 7 days on Free and 90 on Pro. Agent hub only.",
+        input: activityInput,
+        write: false,
+      },
+      (scope, args) => listActivity(scope, args)
     ),
   ];
 }

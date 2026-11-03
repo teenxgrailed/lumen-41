@@ -17,9 +17,11 @@ import { PlaceHeader } from "../places/PlaceHeader";
 import { MemoriesGroup } from "../settings/MemoriesGroup";
 import { Segmented } from "../shell/Segmented";
 import { StScreen } from "../states/StScreen";
+import { ActivityTab } from "./ActivityTab";
 import { AgBtn, AgEmpty, AgRow, AgSection, type AgTone } from "./AgParts";
 import { ConnectGuide } from "./ConnectGuide";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
+import { hasUnconfirmedRisk } from "./unconfirmed-risk";
 import { WebhooksSection } from "./WebhooksSection";
 
 type Named = { id?: string; name?: string; kind?: string } | "any" | null;
@@ -181,17 +183,24 @@ function latest(item: HubItemRow) {
   return `${who}: ${event.message ?? event.type.replace(/_/g, " ")}`;
 }
 
-type Tab = "agents" | "tasks" | "messages" | "memory";
+type Tab = "agents" | "tasks" | "messages" | "activity" | "memory";
 
-const TAB_IDS: readonly Tab[] = ["agents", "tasks", "messages", "memory"];
+const TAB_IDS: readonly Tab[] = [
+  "agents",
+  "tasks",
+  "messages",
+  "activity",
+  "memory",
+];
 
 const ACTIVE = ["open", "claimed", "in_progress", "blocked", "needs_owner"];
 
 /**
  * The Agents screen: the agent hub, kept apart from the person's own tasks.
- * Four tabs. Agents (who is connected, their tokens, what they have reserved),
+ * Five tabs. Agents (who is connected, their tokens, what they have reserved),
  * Agent tasks (work the agents hand each other, and what waits for you),
- * Messages (threads between agents and to you), Memory (two layers on one
+ * Messages (threads between agents and to you), Activity (what happened
+ * across all items, newest first), Memory (two layers on one
  * screen: "About you", what the assistant learned about you, and "Agent
  * notes", what agents wrote for each other).
  *
@@ -442,6 +451,7 @@ export function AgentsScreen() {
             { id: "agents", label: "Agents" },
             { id: "tasks", label: "Agent tasks", count: needsYou.length },
             { id: "messages", label: "Messages", count: unreadThreads },
+            { id: "activity", label: "Activity" },
             { id: "memory", label: "Memory" },
           ]}
         />
@@ -615,6 +625,16 @@ export function AgentsScreen() {
           <MessagesTab threads={threadRows} focusId={threadParam} />
         ) : null}
 
+        {tab === "activity" ? (
+          <ActivityTab
+            agents={agents}
+            onOpenItem={(id) => {
+              setFocusId(id);
+              setTab("tasks");
+            }}
+          />
+        ) : null}
+
         {tab === "memory" ? (
           <>
             <div className="ag-memory">
@@ -751,6 +771,11 @@ function itemMeta(item: HubItemRow) {
   return (
     <>
       {item.ownerUnread ? <span className="ag-new">New </span> : null}
+      {hasUnconfirmedRisk(item) ? (
+        <span className="ag-flag" data-ag-no-confirmation="">
+          no confirmation{" "}
+        </span>
+      ) : null}
       {`${latest(item)}${
         item.heldBy
           ? `. Held by ${item.heldBy.name} until ${when(item.leaseExpiresAt)}${
@@ -803,6 +828,13 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
       {(item.relations ?? []).map((relation, index) => (
         <span key={index}>{relationLine(relation)}</span>
       ))}
+      {hasUnconfirmedRisk(item) ? (
+        <span>
+          <span className="ag-detail-k">No confirmation: </span>
+          no risk was declared, yet this item mentions sending, publishing,
+          posting, deleting or paying. It could run without asking you.
+        </span>
+      ) : null}
       {item.usage && usageLine(item.usage) ? (
         <span>{usageLine(item.usage)}</span>
       ) : null}
