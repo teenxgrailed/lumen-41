@@ -11,7 +11,7 @@
   - the entitlements carry nothing that is not on the allow list, no temporary
     exception, and every one of them has the usage string (or is explained)
   - a privacy manifest in the app and in each extension, equal to the source
-  - the icon file holds every macOS size (16 to 512 at 1x and 2x)
+  - the icon file holds every macOS size (16 to 512 at 1x and 2x = 16 to 1024 px)
 
 An archive built with CODE_SIGNING_ALLOWED=NO carries no signature, so the
 entitlements are read from the file XcodeGen wrote, which is what Xcode signs
@@ -165,11 +165,38 @@ elif shutil.which("iconutil"):
         out = os.path.join(tmp, "AppIcon.iconset")
         result = subprocess.run(["iconutil", "--convert", "iconset", "--output", out, icon],
                                 capture_output=True, text=True)
-        have = set(os.listdir(out)) if result.returncode == 0 else set()
-        want = {f"icon_{s}x{s}{suffix}.png" for s in (16, 32, 128, 256, 512) for suffix in ("", "@2x")}
-        if want <= have:
-            ok("AppIcon holds 16, 32, 128, 256, 512 at 1x and 2x")
+        # iconutil names the files by role and drops duplicates (16@2x and 32 are the
+        # same pixels), so the check reads the pixel width of each PNG instead.
+        widths = set()
+        if result.returncode == 0:
+            for name in sorted(os.listdir(out)):
+                with open(os.path.join(out, name), "rb") as handle:
+                    head = handle.read(24)
+                if head[:8] == b"\x89PNG\r\n\x1a\n":
+                    widths.add(int.from_bytes(head[16:20], "big"))
+                    print("  icns entry:", name, int.from_bytes(head[16:20], "big"), "px")
+        # 16, 32, 128, 256, 512 at 1x and 2x need these pixel sizes
+        want = {16, 32, 64, 128, 256, 512, 1024}
+        if want <= widths:
+            ok(f"AppIcon holds every macOS size (pixel widths {sorted(widths)})")
         else:
-            fail(f"AppIcon is missing {sorted(want - have)} {result.stderr.strip()}")
+            fail(f"AppIcon is missing pixel widths {sorted(want - widths)} {result.stderr.strip()}")
+
+# the source asset catalog: all ten macOS slots, each file the right pixel size
+import json  # noqa: E402
+
+catalog = "Needt/Resources/Assets.xcassets/AppIcon.appiconset"
+slots = json.load(open(f"{catalog}/Contents.json"))["images"]
+have = {(i["size"], i["scale"]) for i in slots if i.get("idiom") == "mac" and i.get("filename")}
+want_slots = {(f"{n}x{n}", f"{k}x") for n in (16, 32, 128, 256, 512) for k in (1, 2)}
+if have != want_slots:
+    fail(f"AppIcon.appiconset slots missing: {sorted(want_slots - have)}")
+for i in slots:
+    n, k = int(i["size"].split("x")[0]), int(i["scale"][0])
+    with open(f"{catalog}/{i['filename']}", "rb") as handle:
+        head = handle.read(24)
+    if int.from_bytes(head[16:20], "big") != n * k:
+        fail(f"{i['filename']} is not {n * k}px for {i['size']}@{i['scale']}")
+ok("AppIcon.appiconset has all ten macOS slots at the right pixel sizes")
 
 sys.exit(1 if failed else 0)
