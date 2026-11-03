@@ -18,10 +18,12 @@ name: Store screenshots
 # Sizes: iPhone 6.9" 1320x2868, 6.5" 1284x2778, iPad 13" 2064x2752, Mac
 # 2880x1800. Files: <device>_<W>x<H>_<NN>-<screen>.png.
 #
-# //todo iPhone and iPad shots show the web app's global error page until
-# PWARegister stops using navigator.serviceWorker where it is undefined (WKWebView):
-# see apps/ios/store/README.md. login-server.mjs logs what the page throws to
-# login.log in the artifact (lines starting PAGE). Mac and widget shots are good.
+# A shot is taken only after the screen reports itself loaded (route active, no
+# skeleton, no request in flight, then a short settle): ios-shots.sh polls the
+# state the WebView reports to login-server.mjs, mac-shots.py polls the harness
+# `probe:` command. A screen that never gets there is a FAIL line (and no shot),
+# and the Gate step fails the run. login-server.mjs logs what the page throws to
+# login.log in the artifact (lines starting PAGE).
 on:
   workflow_dispatch:
 
@@ -286,11 +288,15 @@ jobs:
           [ -f "$RUNNER_TEMP/mac/Needt-ci.zip" ] && ditto -x -k "$RUNNER_TEMP/mac/Needt-ci.zip" "$RUNNER_TEMP/mac"
           ls "$RUNNER_TEMP/ios" "$RUNNER_TEMP/mac" "$RUNNER_TEMP/widgets"
 
+      # The target file is the one ios-shots.sh writes before each launch
+      # (its scratch dir is $RUNNER_TEMP/iostmp); the server and the script must
+      # read and write the same path or every screen opens on Today.
       - name: Login redirect for the iOS shell
         run: |
           set -euo pipefail
-          echo -n /today > "$RUNNER_TEMP/target"
-          nohup node .github/store-screenshots/login-server.mjs "$RUNNER_TEMP/cookie.txt" "$RUNNER_TEMP/target" 3001 > "$RUNNER_TEMP/login.log" 2>&1 < /dev/null &
+          mkdir -p "$RUNNER_TEMP/iostmp"
+          echo -n /today > "$RUNNER_TEMP/iostmp/target"
+          nohup node .github/store-screenshots/login-server.mjs "$RUNNER_TEMP/cookie.txt" "$RUNNER_TEMP/iostmp/target" 3001 > "$RUNNER_TEMP/login.log" 2>&1 < /dev/null &
           disown
           sleep 2
           curl -sS -o /dev/null -D - http://127.0.0.1:3001/ | head -5
@@ -300,7 +306,8 @@ jobs:
           grep -o '<title>[^<]*</title>' "$RUNNER_TEMP/today.html" || true
 
       - name: iPhone and iPad shots
-        timeout-minutes: 50
+        id: ios
+        timeout-minutes: 60
         continue-on-error: true
         run: bash .github/store-screenshots/ios-shots.sh "$RUNNER_TEMP/ios/App.app" store "$RUNNER_TEMP/iostmp" "$RUNNER_TEMP/ids.json"
 
@@ -312,7 +319,8 @@ jobs:
           "$RUNNER_TEMP/needt-ci" display 1600 1000 || true
 
       - name: Mac shots
-        timeout-minutes: 20
+        id: mac
+        timeout-minutes: 30
         continue-on-error: true
         run: |
           set -uo pipefail
@@ -336,6 +344,15 @@ jobs:
           rm -f store/raw-*.png
           "$RUNNER_TEMP/venv/bin/python" .github/store-screenshots/compose.py verify store | tee store/sizes.txt
 
+      # No two consecutive screens of one device may look the same (a shot taken
+      # before the navigation landed repeats the previous screen).
+      - name: Consecutive shots differ
+        id: distinct
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          "$RUNNER_TEMP/venv/bin/python" .github/store-screenshots/compose.py distinct store | tee store/distinct.txt
+
       - name: Summary
         if: always()
         run: |
@@ -347,6 +364,10 @@ jobs:
             echo "Sizes check:"
             echo '```'
             cat store/sizes.txt 2>/dev/null || echo "not run"
+            echo '```'
+            echo "Consecutive shots differ:"
+            echo '```'
+            cat store/distinct.txt 2>/dev/null || echo "not run"
             echo '```'
             echo "Notes (scaled shots are marked):"
             echo '```'
@@ -367,7 +388,21 @@ jobs:
       - name: Gate
         if: always()
         run: |
+          bad=0
+          if [ "${{ steps.ios.outcome }}" != "success" ]; then
+            echo "::error::iPhone/iPad shots failed: a screen never finished loading, or the run broke (FAIL lines in store/ios-shots.log)"
+            bad=1
+          fi
+          if [ "${{ steps.mac.outcome }}" != "success" ]; then
+            echo "::error::Mac shots failed: a screen never finished loading, or the run broke (FAIL lines in store/mac-shots.log)"
+            bad=1
+          fi
           if [ "${{ steps.verify.outcome }}" != "success" ]; then
             echo "::error::Some screenshots are missing or the wrong size (store/sizes.txt in the artifact)"
-            exit 1
+            bad=1
           fi
+          if [ "${{ steps.distinct.outcome }}" != "success" ]; then
+            echo "::error::Two consecutive screenshots of one device are near-identical (store/distinct.txt in the artifact)"
+            bad=1
+          fi
+          exit "$bad"

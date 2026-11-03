@@ -34,6 +34,7 @@ import WebKit
 ///   key:cmd+j         a key event through NSApp (menus, then the page)
 ///   wheel:N           N wheel events over the page's main scrolling pane
 ///   probe:/file.json  window facts plus DOM measurements, written as JSON
+///                     (page.busy: skeletons on screen, resources, readyState)
 ///   wheelfps:/f.json  animation frames measured while wheeling
 ///   quit
 enum CIHarness {
@@ -497,6 +498,20 @@ private enum Probe {
         fontFamily: getComputedStyle(t).fontFamily,
       };
     }
+    // Is the screen still loading? Measured before the session fetch below, which
+    // is itself a resource entry. A full Resource Timing buffer stops counting.
+    const skeletonSelector = '.st-sk,.st-skeleton,.mb-skel,.glass-skeleton,.nt-skeleton,.st-route-loading,[data-route-loading],[data-p5-state="loading"],[aria-busy="true"]';
+    const seen = performance.getEntriesByType('resource').filter((e) => e.name.indexOf('/api/auth/session') < 0);
+    const busy = {
+      origin: performance.timeOrigin,
+      readyState: document.readyState,
+      skeletons: Array.from(document.querySelectorAll(skeletonSelector)).filter((el) => el.getClientRects().length > 0).length,
+      imgsPending: Array.from(document.images).filter((i) => !i.complete && i.getClientRects().length > 0).length,
+      text: scope ? (scope.innerText || '').trim().length : 0,
+      resources: seen.length,
+      bufferFull: performance.getEntriesByType('resource').length >= 250,
+      sinceLastResource: Math.round(performance.now() - seen.reduce((m, e) => Math.max(m, e.responseEnd), 0)),
+    };
     let session = null;
     try {
       const s = await (await fetch('/api/auth/session', { credentials: 'same-origin' })).json();
@@ -513,6 +528,7 @@ private enum Probe {
       dark: matchMedia('(prefers-color-scheme: dark)').matches,
       viewport: [innerWidth, innerHeight, devicePixelRatio],
       ready: !!(bar && btn),
+      busy,
       frame, scrollers: scrollers.slice(0, 4), ghosts, pill, corner,
       chatPanel: panel ? round(panel.getBoundingClientRect()) : null,
       settingsOpen: !!q('[data-settings-sheet], .settings-sheet, [role="dialog"]'),
