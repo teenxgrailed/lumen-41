@@ -1,0 +1,1 @@
+- Home on the desktop draws its progress and plan bars in the app's standard grey.
