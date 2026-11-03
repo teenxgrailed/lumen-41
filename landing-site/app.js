@@ -600,6 +600,29 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   keep();
 })();
 
+/* ── v39 sync scene: type on the phone → "Synced" → the block appears on the Mac ── */
+(() => {
+  const st = document.getElementById("sy-stage"); if (!st) return;
+  const ph = [...st.querySelectorAll(".sy-ph img")];
+  const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const show = (i) => ph.forEach((im, k) => im.classList.toggle("on", k === i));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  if (calm) { show(3); st.classList.add("sent", "done"); return; }
+  let vis = false, running = false;
+  new IntersectionObserver((es) => { vis = es[0].isIntersecting; if (vis && !running) loop(); }, { threshold: .35 }).observe(st);
+  async function loop() {
+    running = true;
+    while (vis) {
+      st.classList.remove("sent", "done"); show(0); await wait(900);
+      show(1); await wait(420); show(2); await wait(900);
+      show(3); await wait(500);
+      st.classList.add("sent"); await wait(650);
+      st.classList.add("done"); await wait(3200);
+    }
+    running = false;
+  }
+})();
+
 /* ── "More" (v44): the sub-projects deck in the header. Its own motion: the panel opens from the button
    like a lens, the cards are dealt from a stack and tilt under the pointer. */
 (() => {

@@ -975,12 +975,10 @@ drives --nt on the veil, which ::before inherits. */
     html body:has(.pw .sky[data-sky="night"]),
     html:has(.hero .sky[data-sky="lavender"], .phero .sky[data-sky="lavender"]),
     html:has(.pw .sky[data-sky="night"]) { background-color: #f7f5f3 !important; background: #f7f5f3 !important; }
-    /* v36: the home hero is full-bleed again on phones, so the top of the home page is lavender */
-    html:has(> body .hero .sky[data-sky="lavender"]), html body:has(.hero .sky[data-sky="lavender"]) { background-color: #a9b1db !important; background: #a9b1db !important; }
   }
 }
 .nw { white-space: nowrap; }
-@media (max-width: 860px) { html, body, body.is-night, body.page { background-color: #f7f5f3 !important; } html:has(.hero .sky[data-sky="lavender"]), body:has(.hero .sky[data-sky="lavender"]) { background-color: #a9b1db !important; } main#top { background-color: #f7f5f3; } }
+@media (max-width: 860px) { html, body, body.is-night, body.page { background-color: #f7f5f3 !important; } main#top { background-color: #f7f5f3; } }
 @media (max-width: 860px) { body .pw { margin: 8px 8px 0; border-radius: 30px; } }
 @media (max-width: 860px) { body .pw .sky-wrap { inset: 0; border-radius: 0; } }
 
@@ -1169,3 +1167,64 @@ a, button, [role="button"], summary { touch-action: manipulation; }
 .skip-link { position: absolute; left: 12px; top: -64px; z-index: 1000; padding: 10px 16px; border-radius: 10px; background: #0e1520; color: #fff; font: 600 14px/1.2 var(--sans); text-decoration: none; transition: top .15s; }
 .skip-link:focus, .skip-link:focus-visible { top: 12px; outline: 2px solid #fff; outline-offset: 2px; box-shadow: 0 0 0 4px #5a5ce2; }
 main:focus { outline: none; }
+
+
+/* ── v38 (03.11.26): fixes from the owner's iPhone screenshots ─────────────
+   1. The page background stays paper on phones (v36 made it lavender, so Safari's bottom bar and the
+      gaps around the inset cards turned lavender over white sections).
+   2. Nothing may widen the page: horizontal overflow is clipped at the root (the Planning card was
+      cut off on the right because the page could be panned sideways on iOS).
+   3. The night zone and the inner-page footers are clipped to their rounded card, so the floor
+      wordmark no longer hangs out under the card.
+   4. The phone in the hero sinks deeper into the clouds. */
+html, body { overflow-x: clip; }
+main#top { overflow-x: clip; }
+@media (max-width: 860px) {
+  .night-zone, .page-night { clip-path: inset(0 8px 8px 8px round 30px); }
+  .hero-phone { margin-bottom: -120px; }
+  .hero-clouds { height: 270px; -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.85) 30%, #000 48%); mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.85) 30%, #000 48%); }
+}
+
+/* ── v39 (03.11.26): phone + desktop sync scene, "Inside Needt" features ── */
+.sync .sub, .feats .sub { margin: 16px auto 0; max-width: 46ch; color: var(--ink-2); font-size: 18px; line-height: 1.5; }
+.sy-stage { position: relative; max-width: 1080px; margin: 64px auto 0; padding-right: 13%; }
+.sy-mac { position: relative; }
+.sy-mac img { display: block; width: 100%; height: auto; }
+.sy-mac .sy-b { position: absolute; inset: 0; opacity: 0; transition: opacity .5s cubic-bezier(.23, 1, .32, 1); }
+.sy-stage.done .sy-mac .sy-b { opacity: 1; }
+.sy-ring { position: absolute; left: 46.4%; top: 50.9%; width: 9.1%; height: 3.8%; border-radius: 6px; box-shadow: 0 0 0 2px #f07a3a, 0 0 0 8px rgba(240,122,58,.18); opacity: 0; transform: scale(1.15); transition: opacity .35s ease-out, transform .45s cubic-bezier(.23, 1, .32, 1); pointer-events: none; }
+.sy-stage.done .sy-ring { opacity: 1; transform: none; }
+.sy-ph { position: absolute; right: 0; bottom: -6%; width: 25%; aspect-ratio: 520 / 1063; filter: drop-shadow(0 30px 40px rgba(20,20,40,.25)); }
+.sy-ph img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .18s linear; }
+.sy-ph img.on { opacity: 1; }
+.sy-pill { position: absolute; right: 21%; bottom: 14%; display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px 9px 11px; border-radius: 999px; background: #1a1c1e; color: #fff; font: 600 14px/1 var(--sans); box-shadow: 0 14px 30px -12px rgba(0,0,0,.45); opacity: 0; transform: translateY(8px); transition: opacity .3s ease-out, transform .35s cubic-bezier(.23, 1, .32, 1); }
+.sy-pill b { width: 8px; height: 8px; border-radius: 50%; background: #34c759; box-shadow: 0 0 0 4px rgba(52,199,89,.22); }
+.sy-stage.sent .sy-pill { opacity: 1; transform: none; }
+.sy-steps { list-style: none; margin: 72px auto 0; padding: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; }
+.sy-steps li { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 16px; background: #fff; box-shadow: var(--shadow-card); font-size: 15px; color: var(--ink-2); }
+.sy-steps b { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #eef0ff; color: #4a4cd0; font: 700 13px/1 var(--sans); flex: none; }
+.ft-rail { margin-top: clamp(56px, 6vw, 80px); }
+.ft-grid { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.ft { display: flex; flex-direction: column; padding: 14px 14px 26px; border-radius: 28px; background: #fff; box-shadow: var(--shadow-card); }
+.ft-shot { aspect-ratio: 4 / 3; border-radius: 18px; overflow: hidden; background: #f3f1ff; display: flex; align-items: flex-start; justify-content: center; padding: 18px 18px 0; }
+.ft-shot img { width: 100%; height: auto; border-radius: 12px 12px 0 0; box-shadow: 0 0 0 1px rgba(10,13,18,.06), 0 18px 40px -20px rgba(30,30,90,.35); }
+.ft-ask .ft-shot, .ft-mail .ft-shot { background: #eef6ff; } .ft-week .ft-shot, .ft-docs .ft-shot { background: #fff3ea; }
+.ft-focus .ft-shot, .ft-habits .ft-shot { background: #ecf7ef; } .ft-places .ft-shot { background: #ececf3; }
+.ft h3 { margin: 22px 12px 0; font: 600 19px/1.25 var(--sans); letter-spacing: -.01em; }
+.ft p { margin: 8px 12px 0; font-size: 15.5px; line-height: 1.5; color: var(--ink-2); }
+@media (max-width: 1000px) { .ft-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 860px) {
+  .sy-stage { margin-top: 44px; padding-right: 0; padding-bottom: 32%; }
+  .sy-ph { width: 36%; right: -2%; bottom: 0; }
+  .sy-pill { right: auto; left: 0; bottom: 6%; font-size: 13px; }
+  .sy-steps { flex-direction: column; align-items: stretch; margin-top: 40px; }
+  .ft-rail { overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; margin-top: 48px; }
+  .ft-rail::-webkit-scrollbar { display: none; }
+  .ft-grid { display: flex; gap: 14px; padding: 4px 28px 24px; width: max-content; max-width: none; }
+  .ft { width: 78vw; max-width: 330px; scroll-snap-align: center; }
+}
+@media (prefers-reduced-motion: reduce) { .sy-mac .sy-b, .sy-ring, .sy-pill, .sy-ph img { transition: none; } }
+/* v40: headline back to "Everything you're working on, in one place." — two lines on desktop, room under it */
+.hero h1 { max-width: none; padding-bottom: .14em; }
+.hero .lead { margin-top: 22px !important; }
+@media (max-width: 860px) { .hero h1 { max-width: 13ch; } .hero .lead { margin-top: 20px; } }
