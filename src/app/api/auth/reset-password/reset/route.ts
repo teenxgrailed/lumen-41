@@ -39,14 +39,14 @@ export async function POST(request: NextRequest) {
       logger.warn(
         "Invalid reset password request",
         {
-          errors: result.error.errors.map((err) => err.message),
+          errors: result.error.issues.map((err) => err.message),
         },
         LOG_SOURCE
       );
       return NextResponse.json(
         {
           error: "Invalid request",
-          details: result.error.errors,
+          details: result.error.issues,
         },
         { status: 400 }
       );

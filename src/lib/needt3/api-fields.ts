@@ -138,7 +138,7 @@ type Parsed<S extends z.ZodTypeAny> =
  * are ignored (the route's own validation owns them); keys that are present
  * but `undefined` are dropped from the result.
  */
-export function parseV3Fields<S extends z.AnyZodObject>(
+export function parseV3Fields<S extends z.ZodObject>(
   schema: S,
   body: unknown
 ): Parsed<S> {

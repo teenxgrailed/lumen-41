@@ -10,7 +10,7 @@ const LOG_SOURCE = "ProviderSecretsAdminAPI";
 
 const bodySchema = z
   .object({ direction: z.enum(["encrypt", "decrypt"]).default("encrypt") })
-  .default({});
+  .prefault({});
 
 /**
  * Re-runs the provider-secrets backfill on demand. The worker already runs

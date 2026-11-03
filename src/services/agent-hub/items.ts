@@ -43,6 +43,7 @@ import {
   assertTaskInWorkspace,
   normalizeLinks,
 } from "./links";
+import { trackHub } from "./metrics";
 import {
   type CancelInput,
   type ClaimInput,
@@ -696,6 +697,11 @@ export async function createItem(scope: HubScope, input: CreateItemInput) {
       );
       return created;
     });
+    trackHub({
+      name: "hub_item_created",
+      itemId: item.id,
+      creator: creatorAgentId ? "agent" : "owner",
+    });
     return {
       created: true,
       item: await viewOne(scope, item, { recent: 5, untrusted: true }),
@@ -1144,6 +1150,11 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
       };
     }
   );
+  trackHub({
+    name: "hub_item_completed",
+    itemId: updated.id,
+    outcome: input.outcome,
+  });
   return {
     item: await viewOne(scope, updated, { recent: 3, untrusted: true }),
   };
@@ -1393,6 +1404,7 @@ export async function ownerAnswer(scope: HubScope, id: string, answer: string) {
       ],
     };
   });
+  trackHub({ name: "escalation_answered", itemId: updated.id });
   return { item: await viewOne(scope, updated, { recent: 5 }) };
 }
 

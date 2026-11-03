@@ -10,6 +10,7 @@ import { AGENT_TOKEN_PREFIX, HUB_SCOPE, type HubKind } from "./constants";
 import type { HubScope } from "./context";
 import { HubError } from "./errors";
 import { assertHubLimit } from "./limits";
+import { trackHub } from "./metrics";
 
 const LAST_USED_WRITE_MS = 60 * 1000;
 
@@ -128,6 +129,7 @@ export async function createAgentToken(
     },
     include: { token: true },
   });
+  trackHub({ name: "agent_registered", agentId: agent.id, kind: agent.kind });
   return {
     token,
     agent: {

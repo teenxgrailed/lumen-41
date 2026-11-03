@@ -3,6 +3,7 @@ import type { BearerAuth } from "@/services/connectors/bearer";
 import { prisma } from "@/lib/prisma";
 
 import { agentForConnection, connectionKeyOf } from "../context";
+import { trackHub } from "../metrics";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -18,6 +19,7 @@ jest.mock("@/lib/prisma", () => ({
 jest.mock("@/lib/feature-flags", () => ({ agentHubEnabled: jest.fn() }));
 // Plan limits have their own tests (plan-limits.test.ts).
 jest.mock("../limits", () => ({ assertHubLimit: jest.fn() }));
+jest.mock("../metrics", () => ({ trackHub: jest.fn() }));
 
 const findUnique = prisma.hubAgent.findUnique as jest.Mock;
 const create = prisma.hubAgent.create as jest.Mock;
@@ -85,5 +87,23 @@ describe("agent identity of a personal token", () => {
     await agentForConnection(personal(), "ws-1");
     expect(keys).toEqual(["token:a", "token:b", "personal"]);
     expect(create.mock.calls[2][0].data.name).toBe("Personal token");
+  });
+
+  it("counts a first registration once, with ids only, and not a later call", async () => {
+    await agentForConnection(personal(), "ws-1");
+    expect(trackHub).toHaveBeenCalledTimes(1);
+    expect(trackHub).toHaveBeenCalledWith({
+      name: "agent_registered",
+      agentId: "agent-1",
+      kind: "other",
+    });
+    (trackHub as jest.Mock).mockClear();
+    findUnique.mockResolvedValue({
+      id: "agent-1",
+      disabledAt: null,
+      lastSeenAt: new Date(),
+    });
+    await agentForConnection(personal(), "ws-1");
+    expect(trackHub).not.toHaveBeenCalled();
   });
 });

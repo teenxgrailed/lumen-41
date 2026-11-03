@@ -21,7 +21,7 @@ const createProviderSchema = z.object({
   accountId: z.string().optional(), // Keep this for UI data, but don't pass to Prisma
   syncEnabled: z.boolean().default(true),
   defaultProjectId: z.string().optional(),
-  settings: z.record(z.unknown()).optional(),
+  settings: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid data", details: error.errors },
+        { error: "Invalid data", details: error.issues },
         { status: 400 }
       );
     }
