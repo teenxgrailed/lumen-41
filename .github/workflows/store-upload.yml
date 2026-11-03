@@ -11,8 +11,10 @@ name: store-upload
 # managed) and the App Store profiles for every bundle id. The key needs the
 # Admin role for that (App Manager cannot create certificates).
 #
-# mac_variant picks the Mac build: appstore (default, with the notch island) or
-# appstore-lite (without it). It does nothing for target ios.
+# mac_variant picks the Mac build: appstore-lite (default, without the notch
+# island, which is GPL v3 and stays out of the Mac App Store) or appstore (with
+# it). The island ships only in the direct build (scheme Needt, macos.yml). It
+# does nothing for target ios.
 #
 # Repository settings (docs/release/STORE-RELEASE.md, step 4):
 #   variable APPLE_TEAM_ID        10-character Team ID
@@ -28,11 +30,11 @@ on:
         type: choice
         options: [ios, mac]
       mac_variant:
-        description: "Mac only: appstore (with the notch island, scheme NeedtAppStore) or appstore-lite (no island, scheme NeedtAppStoreLite)"
+        description: "Mac only: appstore-lite (no island, scheme NeedtAppStoreLite; what the Mac App Store gets) or appstore (with the GPL notch island, scheme NeedtAppStore)"
         required: true
         type: choice
-        options: [appstore, appstore-lite]
-        default: appstore
+        options: [appstore-lite, appstore]
+        default: appstore-lite
       version:
         description: "Marketing version, e.g. 1.0.0"
         required: true
