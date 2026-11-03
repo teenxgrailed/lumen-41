@@ -95,7 +95,11 @@ export function Fold({
         <span className="hd-fold-action" />
       </header>
       {note ? <p className="hd-fold-note">{note}</p> : null}
-      <div className={`nx-fold${open ? "" : " is-shut"}`} aria-hidden={!open}>
+      <div
+        className={`nx-fold${open ? "" : " is-shut"}`}
+        aria-hidden={!open}
+        inert={!open || undefined}
+      >
         <div className="hd-fold-body">{children}</div>
       </div>
     </section>

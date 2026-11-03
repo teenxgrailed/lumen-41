@@ -341,6 +341,26 @@ export const noteSearchInput = z.object({
 });
 export type NoteSearchInput = z.infer<typeof noteSearchInput>;
 
+export const activityInput = z.object({
+  agent: z.string().max(100).optional(),
+  kinds: z
+    .array(
+      z.enum([
+        "created",
+        "claimed",
+        "updated",
+        "completed",
+        "escalated",
+        "answered",
+      ])
+    )
+    .max(6)
+    .optional(),
+  cursor: z.string().max(100).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+export type ActivityInput = z.infer<typeof activityInput>;
+
 export const ownerAnswerInput = z.object({
   answer: z.string().min(1).max(2000),
 });

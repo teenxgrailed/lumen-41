@@ -14,6 +14,7 @@ export type HubErrorCode =
   | "CYCLE"
   | "RATE_LIMITED"
   | "CONFLICT"
+  | "TOKEN_IN_USE"
   | "PLAN_LIMIT";
 
 const STATUS: Record<HubErrorCode, number> = {
@@ -32,6 +33,7 @@ const STATUS: Record<HubErrorCode, number> = {
   CYCLE: 409,
   RATE_LIMITED: 429,
   CONFLICT: 409,
+  TOKEN_IN_USE: 409,
   PLAN_LIMIT: 402,
 };
 
