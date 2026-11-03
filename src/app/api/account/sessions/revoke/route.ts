@@ -34,18 +34,18 @@ export async function POST(request: NextRequest) {
     { route: request.nextUrl.pathname }
   );
   if (limited) return limited;
-  const [, connectors] = await prisma.$transaction([
+  const [, connectors, named] = await prisma.$transaction([
     ...revokeAllAccess(auth.user.id),
   ]);
   forgetSessionState(auth.user.id);
   logger.info(
     "Signed out of all devices",
-    { userId: auth.user.id, connectorTokensRevoked: connectors.count },
+    { userId: auth.user.id, connectorTokensRevoked: connectors.count + named.count },
     LOG_SOURCE
   );
   return NextResponse.json({
     revoked: true,
-    connectorTokensRevoked: connectors.count,
+    connectorTokensRevoked: connectors.count + named.count,
     effectiveWithinSeconds: SESSION_VERSION_RECHECK_MS / 1000,
   });
 }

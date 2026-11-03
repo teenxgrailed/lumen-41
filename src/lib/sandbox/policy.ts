@@ -173,6 +173,12 @@ export const SANDBOX_API_RULES: readonly Rule[] = [
     methods: ["POST"],
     capability: "api_tokens",
   },
+  // Named personal tokens: making one is locked, listing and revoking are not
+  {
+    pattern: /^\/api\/personal-tokens$/,
+    methods: ["POST"],
+    capability: "api_tokens",
+  },
   {
     pattern: /^\/api\/connector-settings$/,
     methods: ["PATCH", "PUT"],

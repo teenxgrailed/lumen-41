@@ -1,4 +1,5 @@
 import { revokeConnectorTokens } from "@/services/connectors/auth";
+import { revokeNamedPersonalTokens } from "@/services/connectors/personal-tokens";
 
 import {
   claimUnconfirmedAccountByProvider,
@@ -21,6 +22,9 @@ jest.mock("@/lib/logger", () => ({
 }));
 jest.mock("@/services/connectors/auth", () => ({
   revokeConnectorTokens: jest.fn(() => ({ connectors: true })),
+}));
+jest.mock("@/services/connectors/personal-tokens", () => ({
+  revokeNamedPersonalTokens: jest.fn(() => ({ named: true })),
 }));
 
 beforeEach(() => {
@@ -53,6 +57,7 @@ describe("claimUnconfirmedAccountByProvider", () => {
       data: { id_token: null },
     });
     expect(revokeConnectorTokens).toHaveBeenCalledWith("user-1");
+    expect(revokeNamedPersonalTokens).toHaveBeenCalledWith("user-1");
     expect(prisma.adminAuditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         actorId: null,

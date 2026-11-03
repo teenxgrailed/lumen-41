@@ -614,6 +614,10 @@ export async function revokeStaleSandboxTokens(
     where: { userId, tokenHash: { not: null } },
     data: { tokenHash: null, tokenPreview: null, tokenExpiresAt: null },
   });
+  await tx.personalApiToken.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: now },
+  });
   return revoked.count;
 }
 
