@@ -45,7 +45,7 @@ These are not our subprocessors. When you connect them, Needt exchanges your dat
 
 ## Not used
 
-- No advertising networks and no analytics or tracking scripts in the app or on needt.app.
+- No advertising networks and no third-party analytics or tracking scripts. The one analytics tool is Umami, self-hosted on our own server (stats.needt.app): no cookies, aggregate page views only, no personal profile, Do Not Track honoured. It runs on needt.app and can run in the app, and no third party receives that data.
 - Fonts are served from our own server, not from Google Fonts.
 
 Questions about this list: **${PRIVACY_EMAIL}**.

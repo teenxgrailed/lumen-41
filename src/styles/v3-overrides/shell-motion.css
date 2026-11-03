@@ -90,3 +90,29 @@
 .needt-v3 .chat-dock-edge[data-dragging]::after {
   opacity: 0.5;
 }
+
+/* "Skip to content": the first focusable thing in the frame. Out of sight until
+   keyboard focus lands on it; 13px chrome type, one text colour, a raised
+   surface, no accent fill. */
+.needt-v3 .skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.2;
+  text-decoration: none;
+  box-shadow: var(--shadow-raised);
+  transform: translateY(-200%);
+}
+.needt-v3 .skip-link:focus-visible {
+  transform: none;
+  box-shadow: var(--shadow-focus);
+}
+.needt-v3 main[tabindex="-1"]:focus {
+  outline: none;
+}

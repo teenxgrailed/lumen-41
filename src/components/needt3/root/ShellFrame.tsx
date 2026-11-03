@@ -7,6 +7,9 @@ import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { V3PortalScope } from "../ctx/PortalScope";
 import { PkThemeRoot } from "../phone/kit/theme";
 
+/** The landmark the "Skip to content" link jumps to. */
+export const MAIN_CONTENT_ID = "main-content";
+
 export interface ShellFrameProps {
   /** Which chrome is drawn around the page. */
   ui: PhoneUi;
@@ -78,11 +81,16 @@ export function ShellFrame({
         data-ui={ui}
         style={{ display: "flex", flexDirection: "column", height: "100%" }}
       >
+        <a className="skip-link" href={`#${MAIN_CONTENT_ID}`}>
+          Skip to content
+        </a>
         <V3PortalScope>
           {top}
           <div className="shell-app-row">
             {rail}
             <main
+              id={MAIN_CONTENT_ID}
+              tabIndex={-1}
               className={phone ? "v3-phone-host" : "shell-app-stack"}
               data-v2p-host={phone ? "" : undefined}
               style={phone ? undefined : { padding: mainPadding }}
