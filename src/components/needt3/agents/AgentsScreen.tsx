@@ -16,6 +16,7 @@ import { MemoriesGroup } from "../settings/MemoriesGroup";
 import { Segmented } from "../shell/Segmented";
 import { StScreen } from "../states/StScreen";
 import { AgBtn, AgEmpty, AgRow, AgSection, type AgTone } from "./AgParts";
+import { ConnectGuide } from "./ConnectGuide";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
 
 type Named = { id?: string; name?: string; kind?: string } | "any" | null;
@@ -216,6 +217,7 @@ export function AgentsScreen() {
     null
   );
   const [open, setOpen] = useState<string | null>(null);
+  const [guide, setGuide] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(
     null
@@ -407,6 +409,17 @@ export function AgentsScreen() {
         art="stack"
         title="Agents"
         meta="Agents and their work stay out of Today, Tasks and the Calendar"
+        actions={
+          <AgBtn
+            pressed={guide}
+            onClick={() => {
+              setGuide(!guide);
+              setTab("agents");
+            }}
+          >
+            Connect an agent
+          </AgBtn>
+        }
       />
       <div className="ag-tabs">
         <Segmented
@@ -482,13 +495,6 @@ export function AgentsScreen() {
                   }
                 />
               ))}
-              {agents.length === 0 ? (
-                <AgEmpty
-                  art="stack"
-                  title="No agents yet"
-                  line="Create a token to connect one."
-                />
-              ) : null}
               <div className="ag-form">
                 <input
                   className="nt-input"
@@ -503,6 +509,11 @@ export function AgentsScreen() {
                 </AgBtn>
               </div>
             </AgSection>
+            {guide || agents.length === 0 ? (
+              <ConnectGuide
+                onClose={guide ? () => setGuide(false) : undefined}
+              />
+            ) : null}
             {reservations.length > 0 ? (
               <AgSection
                 title="Reserved now"
