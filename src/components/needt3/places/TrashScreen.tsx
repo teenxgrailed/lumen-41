@@ -179,7 +179,11 @@ export function TrashScreen({ c }: { c: TrashController }) {
         }
       />
       <StScreen
-        query={mergeQueries([tasks, boards, docs, c.trashedProjects])}
+        query={mergeQueries(
+          c.trashedProjects
+            ? [tasks, boards, docs, c.trashedProjects]
+            : [tasks, boards, docs],
+        )}
         kind="list"
         screen="trash"
       >
