@@ -13,7 +13,6 @@
 export type SandboxCapability =
   /** Email, password or name of the account owner. */
   | "account_identity"
-  | "account_delete"
   /** Account export: mailed and downloadable outside the reset. */
   | "account_export"
   /** Checkout, the billing portal, trials, any plan change. */
@@ -45,7 +44,6 @@ export const SANDBOX_AI_DAILY_ACTION_CAP = Math.max(
 
 const WHAT: Record<SandboxCapability, string> = {
   account_identity: "change the account's email, password or name",
-  account_delete: "delete the account",
   account_export: "export the account",
   billing: "start a checkout or change the plan",
   providers: "connect calendars, mail or other services",
@@ -89,12 +87,9 @@ const SEG = "[^/]+";
  * cannot be read there and check in the route through `./guard`.
  */
 export const SANDBOX_API_RULES: readonly Rule[] = [
-  // Account
-  {
-    pattern: /^\/api\/account\/deletion$/,
-    methods: WRITES,
-    capability: "account_delete",
-  },
+  // Account. Deletion is deliberately not here: a reviewer must be able to
+  // schedule and cancel it (App Review 5.1.1(v)); the account is never
+  // purged (nightly reset cancels it, the purge job skips sandboxes).
   {
     pattern: /^\/api\/account\/export$/,
     methods: WRITES,

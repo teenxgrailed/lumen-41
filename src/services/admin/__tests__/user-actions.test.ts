@@ -218,7 +218,9 @@ describe("delete the account", () => {
     expect(recordAdminAudit).toHaveBeenCalledWith(
       expect.objectContaining({ action: "user.delete" })
     );
-    expect(finalizeAccountDeletion).toHaveBeenCalledWith("req-1");
+    expect(finalizeAccountDeletion).toHaveBeenCalledWith("req-1", {
+      allowSandbox: true,
+    });
     expect(
       (recordAdminAudit as jest.Mock).mock.invocationCallOrder[0]
     ).toBeLessThan(

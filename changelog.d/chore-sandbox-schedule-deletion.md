@@ -1,0 +1,1 @@
+- The reviewer sandbox account can schedule and cancel account deletion like any account, so App Review can test it. It is never actually deleted: the nightly reset cancels the request and the deletion job skips sandbox accounts.

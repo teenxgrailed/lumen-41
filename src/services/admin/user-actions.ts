@@ -323,7 +323,7 @@ async function deleteAccount(
     details: { email: target.email, requestId: request.id },
   });
   try {
-    await finalizeAccountDeletion(request.id);
+    await finalizeAccountDeletion(request.id, { allowSandbox: true });
   } catch (error) {
     await logger.error(
       "Admin account deletion failed",
