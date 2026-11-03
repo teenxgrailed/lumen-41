@@ -7,7 +7,7 @@ export interface NeedtOfflineScope {
 }
 
 async function activeWorker() {
-  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+  if (typeof navigator === "undefined" || !navigator.serviceWorker) {
     return null;
   }
   const registration = await navigator.serviceWorker.getRegistration();

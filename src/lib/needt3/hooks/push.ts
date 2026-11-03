@@ -40,7 +40,7 @@ export function readPushEnv(): PushEnv {
     window.matchMedia?.("(display-mode: standalone)").matches === true ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
   const supported =
-    "serviceWorker" in navigator &&
+    Boolean(navigator.serviceWorker) &&
     "PushManager" in window &&
     "Notification" in window;
   return {
