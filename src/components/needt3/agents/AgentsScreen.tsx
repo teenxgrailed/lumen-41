@@ -11,9 +11,11 @@ import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 
+import { PlaceHeader } from "../places/PlaceHeader";
 import { MemoriesGroup } from "../settings/MemoriesGroup";
-import { SBtn, SGroup, SRow } from "../settings/kit";
 import { Segmented } from "../shell/Segmented";
+import { StScreen } from "../states/StScreen";
+import { AgBtn, AgEmpty, AgRow, AgSection, type AgTone } from "./AgParts";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
 
 type Named = { id?: string; name?: string; kind?: string } | "any" | null;
@@ -203,8 +205,8 @@ export function AgentsScreen() {
       : itemParam
         ? "tasks"
         : TAB_IDS.includes(tabParam as Tab)
-        ? (tabParam as Tab)
-        : "agents"
+          ? (tabParam as Tab)
+          : "agents"
   );
   const [focusId, setFocusId] = useState<string | null>(itemParam);
   const [archived, setArchived] = useState(false);
@@ -276,19 +278,8 @@ export function AgentsScreen() {
       setName("");
     });
 
-  if (overview.isLoading) {
-    return <div className="base-meta">Loading agents</div>;
-  }
-  if (overview.isError || !overview.data) {
-    return (
-      <div className="base-stack">
-        <span>Could not load the Agents screen.</span>
-        <SBtn onClick={() => overview.refetch()}>Retry</SBtn>
-      </div>
-    );
-  }
-  const { agents, items, notes } = overview.data;
-  const reservations = overview.data.reservations ?? [];
+  const { agents, items, notes } = overview.data ?? EMPTY;
+  const reservations = overview.data?.reservations ?? [];
   const threadRows = threads.data?.threads ?? [];
   const unreadThreads = threadRows.filter((t) => t.ownerUnread).length;
   // Waiting for you: an agent asked, or an alert is still unread.
@@ -299,324 +290,431 @@ export function AgentsScreen() {
   const tags = Array.from(new Set(notes.flatMap((n) => n.tags))).sort();
 
   const itemRow = (item: HubItemRow) => (
-    <SRow
+    <AgRow
       key={item.id}
       title={item.title}
-      desc={`${item.ownerUnread ? "New. " : ""}${STATUS_LABEL[item.status]}. ${latest(item)}${
-        item.heldBy
-          ? ` Held by ${item.heldBy.name} until ${when(item.leaseExpiresAt)}${
-              item.leaseExpired ? " (expired)" : ""
-            }.`
-          : ""
-      }${item.noCapableAgent ? " No capable agent." : ""}${
-        item.blockedBy?.length ? ` Waiting on ${item.blockedBy.length}.` : ""
-      }${item.stale ? " No update for over 4 hours." : ""}`}
+      tone={statusTone(item)}
+      meta={itemMeta(item)}
       expanded={open === item.id}
-      onClick={async () => {
+      onToggle={() => {
         const next = open === item.id ? null : item.id;
         setOpen(next);
         if (next && item.ownerUnread) void markSeen(item.id);
       }}
-    >
-      {open === item.id ? <ItemDetail id={item.id} fallback={item} /> : null}
-      {isActive(item) ? (
-        <SBtn
-          tone="danger"
-          onClick={() =>
-            run(
-              () =>
-                sendJson(`/api/agent-hub/items/${item.id}/cancel`, "POST", {}),
-              "Cancelled"
-            )
-          }
-        >
-          Cancel
-        </SBtn>
-      ) : null}
-    </SRow>
+      detail={<ItemDetail id={item.id} fallback={item} />}
+      actions={
+        isActive(item) ? (
+          <AgBtn
+            tone="danger"
+            onClick={() =>
+              run(
+                () =>
+                  sendJson(
+                    `/api/agent-hub/items/${item.id}/cancel`,
+                    "POST",
+                    {}
+                  ),
+                "Cancelled"
+              )
+            }
+          >
+            Cancel
+          </AgBtn>
+        ) : null
+      }
+    />
   );
 
   const attentionRow = (item: HubItemRow) => (
-    <SRow
+    <AgRow
       key={item.id}
       title={item.title}
-      desc={
+      tone="accent"
+      meta={
         item.question ??
         (item.noCapableAgent
           ? "No connected agent can do this yet. Connect one with the skills it needs, or cancel it."
           : "Waiting for your decision")
       }
-    >
-      {item.status === "needs_owner" ? (
+      actions={
         <>
-          <input
-            aria-label="Your answer"
-            value={answers[item.id] ?? ""}
-            placeholder="Answer"
-            onChange={(e) =>
-              setAnswers({ ...answers, [item.id]: e.target.value })
-            }
-          />
-          <SBtn
-            disabled={!(answers[item.id] ?? "").trim()}
-            onClick={() =>
-              run(
-                () =>
-                  sendJson(`/api/agent-hub/items/${item.id}/answer`, "POST", {
-                    answer: answers[item.id],
-                  }),
-                "Answered"
-              )
-            }
-          >
-            Answer
-          </SBtn>
+          {item.status === "needs_owner" ? (
+            <span className="ag-answer">
+              <input
+                className="nt-input"
+                aria-label="Your answer"
+                value={answers[item.id] ?? ""}
+                placeholder="Answer"
+                onChange={(e) =>
+                  setAnswers({ ...answers, [item.id]: e.target.value })
+                }
+              />
+              <AgBtn
+                disabled={!(answers[item.id] ?? "").trim()}
+                onClick={() =>
+                  run(
+                    () =>
+                      sendJson(
+                        `/api/agent-hub/items/${item.id}/answer`,
+                        "POST",
+                        {
+                          answer: answers[item.id],
+                        }
+                      ),
+                    "Answered"
+                  )
+                }
+              >
+                Answer
+              </AgBtn>
+            </span>
+          ) : null}
+          {item.risks
+            .filter((risk) => !item.approvals[risk])
+            .map((risk) => (
+              <AgBtn
+                key={risk}
+                onClick={() =>
+                  run(
+                    () =>
+                      sendJson(
+                        `/api/agent-hub/items/${item.id}/approve`,
+                        "POST",
+                        {
+                          risks: [risk],
+                        }
+                      ),
+                    `Approved ${risk}`
+                  )
+                }
+              >
+                {`Approve ${risk}`}
+              </AgBtn>
+            ))}
+          {item.ownerUnread ? (
+            <AgBtn tone="text" onClick={() => void markSeen(item.id)}>
+              Mark as read
+            </AgBtn>
+          ) : null}
         </>
-      ) : null}
-      {item.risks
-        .filter((risk) => !item.approvals[risk])
-        .map((risk) => (
-          <SBtn
-            key={risk}
-            onClick={() =>
-              run(
-                () =>
-                  sendJson(`/api/agent-hub/items/${item.id}/approve`, "POST", {
-                    risks: [risk],
-                  }),
-                `Approved ${risk}`
-              )
-            }
-          >
-            {`Approve ${risk}`}
-          </SBtn>
-        ))}
-      {item.ownerUnread ? (
-        <SBtn onClick={() => void markSeen(item.id)}>Mark as read</SBtn>
-      ) : null}
-    </SRow>
+      }
+    />
   );
 
   return (
-    <div
-      className="base-stack"
-      style={{ maxWidth: 760, margin: "0 auto", padding: "24px 16px" }}
-    >
-      <Segmented
-        label="Agents sections"
-        value={tab}
-        onChange={setTab}
-        options={[
-          { id: "agents", label: "Agents" },
-          { id: "tasks", label: "Agent tasks", count: needsYou.length },
-          { id: "messages", label: "Messages", count: unreadThreads },
-          { id: "memory", label: "Memory" },
-        ]}
+    <div className="scroll-inner pl-page ag-page" data-v3-screen="agents">
+      <PlaceHeader
+        art="stack"
+        title="Agents"
+        meta="Agents and their work stay out of Today, Tasks and the Calendar"
       />
+      <div className="ag-tabs">
+        <Segmented
+          label="Agents sections"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { id: "agents", label: "Agents" },
+            { id: "tasks", label: "Agent tasks", count: needsYou.length },
+            { id: "messages", label: "Messages", count: unreadThreads },
+            { id: "memory", label: "Memory" },
+          ]}
+        />
+      </div>
 
-      {tab === "agents" ? (
-        <SGroup
-          title="Agents"
-          hint="Each agent gets its own token. It is shown once and can be revoked. Agents and their work stay here: they never appear in Today, Tasks or the Calendar."
-        >
-          {fresh ? (
-            <SRow
-              title={`Token for ${fresh.name}`}
-              desc="Copy it now. It is not shown again."
+      <StScreen
+        query={tab === "messages" ? threads : overview}
+        kind="list"
+        screen="agents"
+      >
+        {tab === "agents" ? (
+          <>
+            <AgSection
+              title="Agents"
+              hint="Each agent gets its own token. It is shown once and can be revoked."
             >
-              <code style={{ wordBreak: "break-all" }}>{fresh.token}</code>
-              <SBtn onClick={() => setFresh(null)}>Done</SBtn>
-            </SRow>
-          ) : null}
-          {agents.length === 0 ? (
-            <SRow title="No agents yet" desc="Create a token to connect one." />
-          ) : null}
-          {agents.map((agent) => (
-            <SRow
-              key={agent.id}
-              title={agent.name}
-              desc={`${agent.kind}, ${agent.connection}, skills: ${
-                agent.skills.join(", ") || "none"
-              }. ${agent.openItems} open, ${agent.heldItems} held. Last seen ${when(
-                agent.lastSeenAt
-              )}.${
-                agent.token
-                  ? ` Token ${agent.token.preview}${
-                      agent.token.revoked ? " (revoked)" : ""
-                    }.`
-                  : ""
-              }`}
-            >
-              {agent.token && !agent.token.revoked ? (
-                <SBtn
-                  tone="danger"
-                  onClick={() =>
-                    run(
-                      () =>
-                        sendJson(`/api/agent-hub/agents/${agent.id}`, "DELETE"),
-                      "Token revoked"
-                    )
-                  }
-                >
-                  Revoke
-                </SBtn>
+              {fresh ? (
+                <div className="ag-token" data-ag-token="">
+                  <span className="ag-title">{`Token for ${fresh.name}`}</span>
+                  <code>{fresh.token}</code>
+                  <span className="ag-token-row">
+                    <span className="ag-meta">
+                      Copy it now. It is not shown again.
+                    </span>
+                    <AgBtn onClick={() => setFresh(null)}>Done</AgBtn>
+                  </span>
+                </div>
               ) : null}
-            </SRow>
-          ))}
-          {reservations.length > 0 ? (
-            <SRow
-              title="Reserved now"
-              desc="Resources agents hold so they stay out of each other's way. They expire on their own."
-            />
-          ) : null}
-          {reservations.map((r) => (
-            <SRow
-              key={r.id}
-              title={r.resource}
-              desc={`${r.holder.name}${r.exclusive ? "" : ", shared"}, until ${when(
-                r.expiresAt
-              )}. ${r.reason}`}
-            />
-          ))}
-          <SRow title="New agent token">
-            <input
-              aria-label="Agent name"
-              value={name}
-              maxLength={60}
-              placeholder="Name"
-              onChange={(e) => setName(e.target.value)}
-            />
-            <SBtn disabled={!name.trim()} onClick={createToken}>
-              Create
-            </SBtn>
-          </SRow>
-        </SGroup>
-      ) : null}
-
-      {tab === "tasks" ? (
-        <>
-          {focused ? (
-            <SGroup title="Opened from your alert">
-              {itemRow(focused)}
-              <SRow title="Show everything" onClick={() => setFocusId(null)} />
-            </SGroup>
-          ) : null}
-
-          {needsYou.length > 0 ? (
-            <SGroup title="Needs you">{needsYou.map(attentionRow)}</SGroup>
-          ) : null}
-
-          <SGroup title="Work">
-            {items.length === 0 ? (
-              <SRow
-                title="Nothing here yet"
-                desc="Items agents create or receive show up here."
-              />
-            ) : null}
-            {STATUS_ORDER.map((status) =>
-              items.filter((i) => i.status === status).map(itemRow)
-            )}
-            <SRow
-              title={archived ? "Hide items older than 14 days" : "Show older"}
-              onClick={() => setArchived(!archived)}
-            />
-          </SGroup>
-        </>
-      ) : null}
-
-      {tab === "messages" ? (
-        <MessagesTab threads={threadRows} focusId={threadParam} />
-      ) : null}
-
-      {tab === "memory" ? (
-        <>
-          <MemoriesGroup
-            title="About you"
-            hint="What Needt's assistant knows about you, so Ask and the planner fit you better. The same list as Settings, Memories."
-          />
-
-          <SGroup
-            title="Agent notes"
-            hint="What agents leave for each other: decisions, facts about tools and accounts. Needt's assistant reads and writes them too. They are not about you."
-          >
-            {tags.length > 0 ? (
-              <SRow title="Tag">
-                <SBtn onClick={() => setTag("")} disabled={!tag}>
-                  All
-                </SBtn>
-                {tags.map((t) => (
-                  <SBtn key={t} onClick={() => setTag(t)} disabled={t === tag}>
-                    {t}
-                  </SBtn>
-                ))}
-              </SRow>
-            ) : null}
-            {notes.length === 0 ? (
-              <SRow
-                title="No notes yet"
-                desc="Agents write what they learn here."
-              />
-            ) : null}
-            {notes.map((note) => (
-              <SRow
-                key={note.id}
-                title={
-                  editing?.id === note.id ? (
-                    <textarea
-                      aria-label="Note text"
-                      value={editing.text}
-                      onChange={(e) =>
-                        setEditing({ id: note.id, text: e.target.value })
-                      }
-                    />
-                  ) : (
-                    note.text
-                  )
-                }
-                desc={`${note.author.name ?? "owner"}${
-                  note.tags.length ? `, ${note.tags.join(", ")}` : ""
-                }${note.ownerEdited ? ", edited by you" : ""}`}
+              {agents.map((agent) => (
+                <AgRow
+                  key={agent.id}
+                  title={agent.name}
+                  tone={agentTone(agent)}
+                  meta={`${agent.kind}, ${agent.connection}, skills: ${
+                    agent.skills.join(", ") || "none"
+                  }. ${agent.openItems} open, ${agent.heldItems} held. Last seen ${when(
+                    agent.lastSeenAt
+                  )}.${
+                    agent.token
+                      ? ` Token ${agent.token.preview}${
+                          agent.token.revoked ? " (revoked)" : ""
+                        }.`
+                      : ""
+                  }`}
+                  actions={
+                    agent.token && !agent.token.revoked ? (
+                      <AgBtn
+                        tone="danger"
+                        onClick={() =>
+                          run(
+                            () =>
+                              sendJson(
+                                `/api/agent-hub/agents/${agent.id}`,
+                                "DELETE"
+                              ),
+                            "Token revoked"
+                          )
+                        }
+                      >
+                        Revoke
+                      </AgBtn>
+                    ) : null
+                  }
+                />
+              ))}
+              {agents.length === 0 ? (
+                <AgEmpty
+                  art="stack"
+                  title="No agents yet"
+                  line="Create a token to connect one."
+                />
+              ) : null}
+              <div className="ag-form">
+                <input
+                  className="nt-input"
+                  aria-label="Agent name"
+                  value={name}
+                  maxLength={60}
+                  placeholder="New agent name"
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <AgBtn disabled={!name.trim()} onClick={createToken}>
+                  Create token
+                </AgBtn>
+              </div>
+            </AgSection>
+            {reservations.length > 0 ? (
+              <AgSection
+                title="Reserved now"
+                hint="Resources agents hold so they stay out of each other's way. They expire on their own."
               >
-                {editing?.id === note.id ? (
-                  <SBtn
-                    onClick={() =>
-                      run(async () => {
-                        await sendJson(
-                          `/api/agent-hub/notes/${note.id}`,
-                          "PATCH",
-                          { text: editing.text }
-                        );
-                        setEditing(null);
-                      }, "Note saved")
-                    }
+                {reservations.map((r) => (
+                  <AgRow
+                    key={r.id}
+                    title={r.resource}
+                    meta={`${r.holder.name}${r.exclusive ? "" : ", shared"}, until ${when(
+                      r.expiresAt
+                    )}. ${r.reason}`}
+                  />
+                ))}
+              </AgSection>
+            ) : null}
+          </>
+        ) : null}
+
+        {tab === "tasks" ? (
+          <>
+            {focused ? (
+              <AgSection title="Opened from your alert">
+                {itemRow(focused)}
+                <div className="ag-footer">
+                  <AgBtn tone="text" onClick={() => setFocusId(null)}>
+                    Show everything
+                  </AgBtn>
+                </div>
+              </AgSection>
+            ) : null}
+
+            {needsYou.length > 0 ? (
+              <AgSection title="Needs you">
+                {needsYou.map(attentionRow)}
+              </AgSection>
+            ) : null}
+
+            {items.length === 0 ? (
+              <AgEmpty
+                art="task"
+                title="Nothing here yet"
+                line="Items agents create or receive show up here."
+              />
+            ) : (
+              STATUS_ORDER.map((status) => {
+                const rows = items.filter((i) => i.status === status);
+                return rows.length ? (
+                  <AgSection key={status} title={STATUS_LABEL[status]}>
+                    {rows.map(itemRow)}
+                  </AgSection>
+                ) : null;
+              })
+            )}
+            <div className="ag-footer">
+              <AgBtn tone="text" onClick={() => setArchived(!archived)}>
+                {archived ? "Hide items older than 14 days" : "Show older"}
+              </AgBtn>
+            </div>
+          </>
+        ) : null}
+
+        {tab === "messages" ? (
+          <MessagesTab threads={threadRows} focusId={threadParam} />
+        ) : null}
+
+        {tab === "memory" ? (
+          <>
+            <div className="ag-memory">
+              <MemoriesGroup
+                title="About you"
+                hint="What Needt's assistant knows about you, so Ask and the planner fit you better. The same list as Settings, Memories."
+              />
+            </div>
+
+            <AgSection
+              title="Agent notes"
+              hint="What agents leave for each other: decisions, facts about tools and accounts. Needt's assistant reads and writes them too. They are not about you."
+            >
+              {tags.length > 0 ? (
+                <div className="ag-tags" role="group" aria-label="Tag">
+                  <AgBtn
+                    tone={tag ? "text" : "secondary"}
+                    pressed={!tag}
+                    onClick={() => setTag("")}
                   >
-                    Save
-                  </SBtn>
-                ) : (
-                  <SBtn
-                    onClick={() => setEditing({ id: note.id, text: note.text })}
-                  >
-                    Edit
-                  </SBtn>
-                )}
-                <SBtn
-                  tone="danger"
-                  onClick={() =>
-                    run(
-                      () =>
-                        sendJson(`/api/agent-hub/notes/${note.id}`, "DELETE"),
-                      "Note deleted"
+                    All
+                  </AgBtn>
+                  {tags.map((t) => (
+                    <AgBtn
+                      key={t}
+                      tone={t === tag ? "secondary" : "text"}
+                      pressed={t === tag}
+                      onClick={() => setTag(t)}
+                    >
+                      {t}
+                    </AgBtn>
+                  ))}
+                </div>
+              ) : null}
+              {notes.map((note) => (
+                <AgRow
+                  key={note.id}
+                  title={
+                    editing?.id === note.id ? (
+                      <textarea
+                        className="nt-input ag-textarea"
+                        aria-label="Note text"
+                        value={editing.text}
+                        onChange={(e) =>
+                          setEditing({ id: note.id, text: e.target.value })
+                        }
+                      />
+                    ) : (
+                      note.text
                     )
                   }
-                >
-                  Delete
-                </SBtn>
-              </SRow>
-            ))}
-          </SGroup>
-        </>
-      ) : null}
+                  meta={`${note.author.name ?? "owner"}${
+                    note.tags.length ? `, ${note.tags.join(", ")}` : ""
+                  }${note.ownerEdited ? ", edited by you" : ""}`}
+                  actions={
+                    <>
+                      {editing?.id === note.id ? (
+                        <AgBtn
+                          onClick={() =>
+                            run(async () => {
+                              await sendJson(
+                                `/api/agent-hub/notes/${note.id}`,
+                                "PATCH",
+                                { text: editing.text }
+                              );
+                              setEditing(null);
+                            }, "Note saved")
+                          }
+                        >
+                          Save
+                        </AgBtn>
+                      ) : (
+                        <AgBtn
+                          onClick={() =>
+                            setEditing({ id: note.id, text: note.text })
+                          }
+                        >
+                          Edit
+                        </AgBtn>
+                      )}
+                      <AgBtn
+                        tone="danger"
+                        onClick={() =>
+                          run(
+                            () =>
+                              sendJson(
+                                `/api/agent-hub/notes/${note.id}`,
+                                "DELETE"
+                              ),
+                            "Note deleted"
+                          )
+                        }
+                      >
+                        Delete
+                      </AgBtn>
+                    </>
+                  }
+                />
+              ))}
+              {notes.length === 0 ? (
+                <AgEmpty
+                  art="page"
+                  title="No notes yet"
+                  line="Agents write what they learn here."
+                />
+              ) : null}
+            </AgSection>
+          </>
+        ) : null}
+      </StScreen>
     </div>
+  );
+}
+
+const EMPTY: Overview = { agents: [], items: [], notes: [] };
+
+function statusTone(item: HubItemRow): AgTone {
+  if (item.status === "needs_owner" || item.ownerUnread) return "accent";
+  if (item.status === "failed" || item.status === "blocked") return "danger";
+  if (item.status === "in_progress" || item.status === "claimed") return "info";
+  if (item.status === "done") return "success";
+  return "muted";
+}
+
+/** Seen in the last 15 minutes with a live token: a success mark. */
+function agentTone(agent: HubAgentRow): AgTone {
+  if (agent.disabledAt || agent.token?.revoked || !agent.lastSeenAt)
+    return "muted";
+  const age = newDate().getTime() - newDate(agent.lastSeenAt).getTime();
+  return age < 15 * 60_000 ? "success" : "muted";
+}
+
+function itemMeta(item: HubItemRow) {
+  return (
+    <>
+      {item.ownerUnread ? <span className="ag-new">New </span> : null}
+      {`${latest(item)}${
+        item.heldBy
+          ? `. Held by ${item.heldBy.name} until ${when(item.leaseExpiresAt)}${
+              item.leaseExpired ? " (expired)" : ""
+            }`
+          : ""
+      }${item.noCapableAgent ? ". No capable agent" : ""}${
+        item.blockedBy?.length ? `. Waiting on ${item.blockedBy.length}` : ""
+      }${item.stale ? ". No update for over 4 hours" : ""}`}
+    </>
   );
 }
 
@@ -636,11 +734,14 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
   });
   const item = detail.data?.item ?? fallback;
   return (
-    <div className="base-stack base-meta">
-      <span>{`Goal: ${item.goal}`}</span>
+    <>
+      <span>
+        <span className="ag-detail-k">Goal: </span>
+        {item.goal}
+      </span>
       {item.criteria?.length ? (
         <>
-          <span>Done when:</span>
+          <span className="ag-detail-k">Done when:</span>
           {item.criteria.map((entry, index) => (
             <span key={index}>
               {`${entry.met === null ? "Open" : entry.met ? "Met" : "Not met"}: ${entry.text}`}
@@ -648,7 +749,10 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
           ))}
         </>
       ) : (
-        <span>{`Done when: ${item.doneCriteria}`}</span>
+        <span>
+          <span className="ag-detail-k">Done when: </span>
+          {item.doneCriteria}
+        </span>
       )}
       {(item.relations ?? []).map((relation, index) => (
         <span key={index}>{relationLine(relation)}</span>
@@ -657,15 +761,19 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
         <span>{usageLine(item.usage)}</span>
       ) : null}
       {item.result?.summary ? (
-        <span>{`Result: ${item.result.summary}`}</span>
+        <span>
+          <span className="ag-detail-k">Result: </span>
+          {item.result.summary}
+        </span>
       ) : null}
       {(item.events ?? []).map((event, index) => (
-        <span key={index}>
-          {`${when(event.at)} ${event.actor?.name ?? event.actor?.kind ?? "system"}: ${
+        <span key={index} className="ag-detail-ev">
+          <span>{when(event.at)}</span>
+          <span>{`${event.actor?.name ?? event.actor?.kind ?? "system"}: ${
             event.message ?? event.type.replace(/_/g, " ")
-          }`}
+          }`}</span>
         </span>
       ))}
-    </div>
+    </>
   );
 }

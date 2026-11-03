@@ -1,0 +1,236 @@
+/* Design v3 — the Agents screen (agent hub). HAND-WRITTEN.
+ *
+ * Same shell as the other places: PlaceHeader, hairline rows at the Trash row
+ * geometry (56px, 8px side padding, inset hairline), 13/12 type, greys from the
+ * ladder, nx-btn actions. The accent appears only as a mark (the unread and
+ * needs-you dot) and as text on the word "New". No card on card: rows sit on
+ * the canvas, a token is the one recessed object. */
+.needt-v3 .ag-page {
+  max-width: 820px;
+}
+.needt-v3 .ag-tabs {
+  padding-bottom: 12px;
+}
+.needt-v3 .ag-h {
+  margin: 18px 0 2px;
+  padding: 0 8px;
+  font: var(--type-meta-medium);
+  color: var(--text-tertiary);
+}
+.needt-v3 .ag-h:first-child {
+  margin-top: 0;
+}
+.needt-v3 .ag-hint {
+  margin: 0 0 6px;
+  padding: 0 8px;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  text-wrap: pretty;
+}
+.needt-v3 .ag-list {
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .ag-item {
+  box-shadow: var(--border) 0 -1px 0 0 inset;
+}
+.needt-v3 .ag-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px;
+}
+.needt-v3 .ag-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+.needt-v3 button.ag-main:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--text-tertiary));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.needt-v3 .ag-mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.needt-v3 .ag-mark.is-accent {
+  background: var(--accent);
+}
+.needt-v3 .ag-mark.is-info {
+  background: var(--info);
+}
+.needt-v3 .ag-mark.is-success {
+  background: var(--success);
+}
+.needt-v3 .ag-mark.is-danger {
+  background: var(--destructive);
+}
+.needt-v3 .ag-mark.is-none {
+  background: transparent;
+}
+.needt-v3 .ag-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.needt-v3 .ag-title {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .ag-meta {
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+.needt-v3 .ag-new {
+  color: var(--accent);
+  font-weight: 500;
+}
+.needt-v3 .ag-chev {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform var(--transition-hover);
+}
+.needt-v3 .ag-chev.is-open {
+  transform: rotate(90deg);
+}
+.needt-v3 .ag-actions {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.needt-v3 .ag-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px 12px 28px;
+  font: var(--type-meta);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .ag-detail-k {
+  color: var(--text-tertiary);
+}
+.needt-v3 .ag-detail-ev {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px;
+}
+.needt-v3 .ag-detail-ev > :first-child {
+  color: var(--text-tertiary);
+}
+.needt-v3 .ag-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+.needt-v3 .ag-form .nt-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.needt-v3 .ag-answer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.needt-v3 .ag-answer .nt-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.needt-v3 .ag-token {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  margin: 4px 8px;
+  border-radius: var(--radius-lg);
+  background: var(--fill-3);
+}
+.needt-v3 .ag-token code {
+  font: var(--type-meta);
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
+}
+.needt-v3 .ag-token-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .ag-token-row > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.needt-v3 .ag-textarea {
+  height: auto;
+  min-height: 64px;
+  padding: 8px;
+  resize: vertical;
+}
+.needt-v3 .ag-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 8px 8px;
+}
+.needt-v3 .ag-empty {
+  margin: 24px 0 8px;
+}
+.needt-v3 .ag-empty .pl-empty-col {
+  margin-top: 0;
+}
+.needt-v3 .ag-memory {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.needt-v3 .ag-footer {
+  padding: 12px 8px 0;
+}
+@media (max-width: 600px) {
+  .needt-v3 .ag-row {
+    flex-wrap: wrap;
+  }
+  .needt-v3 .ag-actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    padding-left: 20px;
+  }
+  .needt-v3 .ag-detail {
+    padding-left: 8px;
+  }
+  .needt-v3 .ag-detail-ev {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .needt-v3 .ag-form {
+    flex-wrap: wrap;
+  }
+}
