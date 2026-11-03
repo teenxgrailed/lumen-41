@@ -1620,3 +1620,7 @@ div.up-row { cursor: default; }
   .rl-lines path { animation: none; }
   .rl-chip, .rl-tile, .rl-ic, .rl-btns { transition: none; }
 }
+
+/* v47: the brand name in the footer line links home, in the line's own colour */
+.foot-base a { color: inherit; text-decoration: none; }
+.foot-base a:hover { color: #fff; }
