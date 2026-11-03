@@ -8,6 +8,7 @@ import {
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
+import { agentLimits, assertWorkloadRoom, offersItem } from "./agent-limits";
 import { findAgentByRef } from "./agents";
 import { pushOwnerAlert } from "./alerts";
 import {
@@ -183,6 +184,8 @@ export function itemView(item: HubItem, options: ItemViewOptions) {
     usage: usageView(item),
     risks: item.risks,
     approvals: item.approvals,
+    large: item.large,
+    largeApproved: Boolean(item.largeApprovedAt),
     recurrenceId: item.recurrenceId,
     assignee: item.assigneeAgentId
       ? {
@@ -652,6 +655,7 @@ export async function prepareItem(
       creatorKind: scope.actor.kind,
       creatorAgentId,
       due: parseDue(input.due),
+      large: input.large ?? false,
       taskId: input.taskId ?? null,
       projectId: input.projectId ?? null,
       clientRef: input.clientRef ?? null,
@@ -806,6 +810,14 @@ export async function claimItem(scope: AgentScope, input: ClaimInput) {
   }
   assertEligible(item, agent);
   if (item.claimedByAgentId !== agent.id) {
+    if (!offersItem(item, agentLimits(agent))) {
+      throw new HubError(
+        "NOT_ELIGIBLE",
+        "This item is flagged large and the owner limits you to smaller work. It stays queued until the owner approves it for you.",
+        { large: true }
+      );
+    }
+    await assertWorkloadRoom(agent);
     const blockedBy = await openBlockers(prisma, item.id);
     if (blockedBy.length) {
       throw new HubError(
@@ -865,7 +877,11 @@ export async function claimItem(scope: AgentScope, input: ClaimInput) {
           from: item.status,
           to: status,
           message: `Claimed until ${leaseEnd.toISOString()}.`,
-          data: { leaseMinutes: leaseMinutes(input.leaseMinutes) },
+          data: {
+            leaseMinutes: leaseMinutes(input.leaseMinutes),
+            // Counts toward the daily claim limit; a holder's re-claim does not.
+            fresh: !mine,
+          },
         },
       ],
       now
@@ -1486,6 +1502,41 @@ export async function ownerApprove(
           to: item.status,
           message: input.note?.trim() ?? "",
           data: { risks: [...input.risks] },
+        },
+      ],
+    };
+  });
+  return { item: await viewOne(scope, updated, { recent: 5 }) };
+}
+
+/**
+ * The owner lets agents that do not accept large work take this item. Idempotent;
+ * `approved: false` takes the approval back.
+ */
+export async function ownerApproveLarge(
+  scope: HubScope,
+  id: string,
+  approved = true
+) {
+  assertOwner(scope);
+  const updated = await mutateItem(scope, id, undefined, (item, _tx, now) => {
+    if (!item.large) {
+      throw new HubError("INVALID", "This item is not flagged large.");
+    }
+    if (TERMINAL_STATUSES.includes(item.status)) {
+      throw new HubError("TERMINAL", `This item is already ${item.status}.`);
+    }
+    return {
+      data: { largeApprovedAt: approved ? now : null },
+      events: [
+        {
+          type: "approved",
+          from: item.status,
+          to: item.status,
+          message: approved
+            ? "Large item approved for all agents."
+            : "Large approval withdrawn.",
+          data: { large: approved },
         },
       ],
     };

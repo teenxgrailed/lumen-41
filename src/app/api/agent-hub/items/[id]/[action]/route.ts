@@ -12,12 +12,14 @@ import {
   getItem,
   ownerAnswer,
   ownerApprove,
+  ownerApproveLarge,
   ownerReassign,
 } from "@/services/agent-hub/items";
 import {
   cancelInput,
   ownerAnswerInput,
   ownerApproveInput,
+  ownerApproveLargeInput,
   ownerLinkInput,
   ownerReassignInput,
 } from "@/services/agent-hub/schemas";
@@ -56,6 +58,13 @@ export async function POST(request: NextRequest, { params }: Params) {
         const body = await parseJsonBody(request, ownerApproveInput);
         if ("response" in body) return body.response;
         return NextResponse.json(await ownerApprove(auth.scope, id, body.data));
+      }
+      case "approve-large": {
+        const body = await parseJsonBody(request, ownerApproveLargeInput);
+        if ("response" in body) return body.response;
+        return NextResponse.json(
+          await ownerApproveLarge(auth.scope, id, body.data.approved)
+        );
       }
       case "cancel": {
         const body = await parseJsonBody(

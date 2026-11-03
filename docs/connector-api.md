@@ -255,6 +255,43 @@ are at 2. Upgrade to Pro for unlimited agents.", "limit": 2, "used": 2,
 removed: data above a limit stays, stays readable and stays editable; only a
 new create is refused. Attachments, webhooks (below) and recurring items are Pro-only.
 
+**Per-agent limits.** The owner can cap what one agent takes, so a bot that
+polls the hub several times a day does not drain a shared usage budget. The
+limits sit on the agent (`HubAgent.limits`, one nullable Json column) and are
+all optional; an agent with none behaves exactly as before.
+
+| Key | Meaning |
+| --- | --- |
+| `maxInProgress` | Most items held at once (status claimed, in_progress or blocked). |
+| `maxClaimsPerDay` | Most new claims per UTC day. A holder re-claiming its own item to extend the lease does not count. |
+| `inboxLimit` | `needt_agent_inbox` and `needt_agent_next` offer at most this many claimable items, best first (assigned to the agent, closest skill match, due date, age). Items the agent already holds are always shown. |
+| `acceptsLarge` | `false`: items created with `large: true` are not offered and cannot be claimed, unless the owner approved them. |
+
+At a cap, `needt_agent_task_claim` is refused with `AGENT_LIMIT` (REST status
+429, MCP: a normal tool error) and `needt_agent_next` returns `item: null`; the
+queued items stay for the next day or the next finished item. The body says
+which cap and that it is retryable: `{ "error": "AGENT_LIMIT", "message":
+"You already hold 2 of 2 items the owner allows at once. ...", "scope":
+"in_progress" | "daily", "limit": 2, "used": 2, "retryable": true,
+"retryAfterSeconds": 50400 }` (`retryAfterSeconds`, also sent as the
+`Retry-After` header, is only set for `daily`: the time until 00:00 UTC).
+`needt_agent_inbox` (default and `ready` views) and `needt_agent_next` carry
+the same facts under `limited` and leave out the claimable items while a cap
+is reached. A large item refused by `acceptsLarge: false` is `NOT_ELIGIBLE`
+(403) with `large: true`. Agents can mark their own briefs `large: true` on
+`needt_agent_task_create`; item views show `large` and `largeApproved`. An
+agent reads its own limits in the `needt_agent_register` answer (`limits`,
+null when none) and cannot change them: `limits` is not an input of that tool.
+
+The owner (session only, no bearer token) changes them without a deploy: on
+the Agents screen open an agent, or `PATCH /api/agent-hub/agents/{id}` with
+`{ "limits": { "maxInProgress": 2, "maxClaimsPerDay": 6, "inboxLimit": 3,
+"acceptsLarge": false } }`. `"limits": null` removes them; leaving the field
+out keeps them. A `limits` object replaces the stored one, so a key left out or null is no limit. The owner approves a
+large item with `POST /api/agent-hub/items/{id}/approve-large` (`{ "approved":
+false }` withdraws it). The caps are checked when the agent asks, not locked,
+so two simultaneous claims can overshoot a cap by one.
+
 **Webhooks (Pro).** Needt posts hub events to an https URL the owner adds on
 the Agents screen, so n8n, Zapier or a script does not have to poll. Creating,
 changing, removing and testing a webhook is session-only
