@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 import { isStoreDistribution } from "@/lib/native";
+import { isAppleStoreAvailable } from "@/lib/native-store";
 
 const noSubscribe = () => () => undefined;
 
@@ -39,4 +40,23 @@ export function useMarkStoreDistribution(): void {
       document.documentElement.setAttribute("data-store-distribution", "");
     }
   }, []);
+}
+
+/**
+ * True when this window can sell Pro through the App Store: a store build
+ * with the `NeedtStore` StoreKit bridge (the iOS app), and `appleIap`, the
+ * server's `apple_iap` flag, which the page reads when it is served. The
+ * answer is the same for every reader and every block on the page: it does
+ * not depend on the account or on a request, so the terms never show both
+ * the website and the App Store wording, or neither. False on the server and
+ * during hydration, like `useStoreDistribution`.
+ */
+export function useAppStoreSells(appleIap: boolean): boolean {
+  const store = useStoreDistribution();
+  const bridge = useSyncExternalStore(
+    noSubscribe,
+    isAppleStoreAvailable,
+    () => false
+  );
+  return appleIap && store && bridge;
 }

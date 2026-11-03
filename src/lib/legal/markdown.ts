@@ -3,7 +3,14 @@
  * headings (#, ##, ###), paragraphs, "- " lists, pipe tables, "> " quotes,
  * "---" rules, and inline **bold**, `code` and [links](url). A block between
  * "::: web-only" and ":::" is text a store build (iOS app, Mac App Store)
- * replaces with a short notice, because it states prices and how to buy.
+ * replaces with a short notice, because it states prices and how to buy. A
+ * block between "::: app-store" and ":::" is text about buying in the App
+ * Store: a browser shows it, a store build shows it only while the purchase
+ * sheet is available (Apple In-App Purchase on) and otherwise drops it. A
+ * block between "::: web-billing" and ":::" is text about buying on the
+ * website (the seller, renewal, refunds): a browser shows it, a store build
+ * keeps it unless the purchase sheet is available, when the App Store text
+ * replaces it.
  *
  * The documents are our own text, so the parser is strict instead of
  * forgiving: anything it does not know is a paragraph, and the tests check the
@@ -23,6 +30,8 @@ export type Block =
   | { type: "table"; head: Inline[][]; rows: Inline[][][] }
   | { type: "quote"; children: Block[] }
   | { type: "web-only"; children: Block[] }
+  | { type: "app-store"; children: Block[] }
+  | { type: "web-billing"; children: Block[] }
   | { type: "rule" };
 
 const INLINE = /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
@@ -106,7 +115,9 @@ export function parseMarkdown(source: string): Block[] {
       continue;
     }
 
-    if (trimmed === "::: web-only") {
+    const fence = /^::: (web-only|app-store|web-billing)$/.exec(trimmed);
+    if (fence) {
+      const type = fence[1] as "web-only" | "app-store" | "web-billing";
       const inner: string[] = [];
       i += 1;
       while (i < lines.length && (lines[i] ?? "").trim() !== ":::") {
@@ -114,10 +125,7 @@ export function parseMarkdown(source: string): Block[] {
         i += 1;
       }
       i += 1;
-      blocks.push({
-        type: "web-only",
-        children: parseMarkdown(inner.join("\n")),
-      });
+      blocks.push({ type, children: parseMarkdown(inner.join("\n")) });
       continue;
     }
 

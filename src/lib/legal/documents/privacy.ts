@@ -5,6 +5,7 @@ import {
   formatLegalDate,
   operatorName,
 } from "../operator";
+import { APPLE_LINKS } from "./terms";
 
 /** The Privacy Notice, as Markdown. Rendered by `src/app/privacy/page.tsx`. */
 export function privacyMarkdown(): string {
@@ -38,7 +39,7 @@ Needt is run by an individual entrepreneur (FOP) registered in Ukraine, not a co
 - Needt keeps the things you put in it, and copies of the calendars, task lists and mailboxes you choose to connect, in **our own database on a server in Helsinki, Finland (EU)**.
 - We do not sell your data, we show no ads, and we use no advertising or tracking cookies. The only analytics is a cookieless, self-hosted page-view counter (Umami) on needt.app and, where we switch it on, in the app (Section 11).
 - When you use the AI assistant, the text needed to answer your request is sent to an AI model through OpenRouter, restricted to hosts in the United States and the EU that do not keep or train on it (Section 6).
-- Payments are handled by **Creem** as merchant of record. We never see your card number.
+- Payments are handled by **Creem** (on the website) or by **Apple** (App Store purchases in the iOS app), each as the seller. We never see your card number.
 - You can export your data and delete your account from Settings. Deletion takes effect after a 7-day grace period.
 
 ---
@@ -94,6 +95,8 @@ Needt connects to another service only when you ask it to.
 ### 3.6 Payments
 
 Creem collects your payment details, billing name, address and tax information under its own privacy policy. From Creem we receive a customer ID, a subscription ID, the product, amount, billing interval, status, period end, and payment, refund and dispute events. We never receive your card number.
+
+If you buy in the iOS app, Apple collects your payment details under its own [Privacy Policy](${APPLE_LINKS.privacy}). When the app starts the purchase it passes Apple an account token: a random identifier we create for your Needt account, which contains no personal data. From Apple we receive, as signed records, the transaction identifier and the original transaction identifier (one for the whole subscription), the product, the purchase, renewal and expiry dates, the status (renewed, cancelled, refunded), whether it was a real or a test (Sandbox) purchase, and that account token, so we can match the purchase to your account. Apple also sends us a notification each time the subscription changes; we keep each one with those identifiers. We never receive your card number, your Apple ID or your billing address.
 
 ### 3.7 Trial
 
@@ -215,6 +218,8 @@ The full list, with links to each provider's terms, is on the [subprocessors pag
 
 **Creem** (Armitage Labs OÜ, Estonia) sells paid plans as merchant of record. It is the seller in your purchase and handles your payment data as a controller under its own [privacy notice](https://www.creem.io/privacy), not as our processor (Section 3.6).
 
+**Apple** (Apple Inc., United States, and the Apple company that runs the App Store in your country) sells Needt Pro and Lifetime in the iOS app through In-App Purchase. It is the seller in your purchase and handles your payment data as a controller under its own [privacy policy](${APPLE_LINKS.privacy}), not as our processor (Section 3.6). Apple shares with us a transaction identifier, the product, the purchase, renewal and expiry dates, the status and the account token the app passed to it; no card data.
+
 ### 7.2 Services you connect yourself
 
 Google, Microsoft, Apple iCloud, your CalDAV server, your mail provider and any app you import from are not our processors. When you connect them, Needt exchanges data with them on your instruction, and you have your own agreement with each. The same applies to an AI provider whose key you add, and to the push service your browser uses (Google, Mozilla or Apple) to deliver notifications if you turn them on; notification content is encrypted for your browser.
@@ -241,12 +246,13 @@ Google, Microsoft, Apple iCloud, your CalDAV server, your mail provider and any 
 | Server access logs | Up to 30 days |
 | Rate-limit counters | Minutes to hours |
 | Trial record | As a hash only (Section 3.7), until two years after the trial ended |
-| Billing records | Creem keeps invoices and tax records as the law requires it to. We keep your plan history while your account exists |
+| Billing records | Creem and Apple keep invoices and tax records as the law requires them to. We keep your plan history while your account exists |
+| App Store notifications | While your account exists. A notification that arrives after you delete your account is linked to no account; it holds only Apple's identifiers and dates, and we keep it as a billing record |
 | Waitlist entry | Until you create an account, ask us to remove it, or we close the waitlist |
 | Bug reports | Until you delete your account, or sooner if you ask us |
 | Support email | Two years after the conversation ends |
 
-**What account deletion does.** You request deletion in Settings after signing in again. For 7 days you can cancel. When the 7 days end, we cancel any active Pro subscription, revoke Needt's access at Google, stop calendar notifications we set up with Google and Microsoft, disconnect any apps you connected through Composio, and then delete your personal workspace and everything in it, your connected accounts and their synced data, mail, AI conversations and Memories, tokens, settings, push subscriptions, any waitlist entry for your email, and log lines that mention you. Content you wrote in a **shared** workspace that others still use is anonymised: it is renamed, emptied and unlinked from you, so the workspace keeps its structure. Published links to your pages stop working.
+**What account deletion does.** You request deletion in Settings after signing in again. For 7 days you can cancel. When the 7 days end, we cancel any active Pro subscription bought on the website (an App Store subscription is cancelled only in the App Store, and keeps billing until you do), revoke Needt's access at Google, stop calendar notifications we set up with Google and Microsoft, disconnect any apps you connected through Composio, and then delete your personal workspace and everything in it, your connected accounts and their synced data, mail, AI conversations and Memories, tokens, settings, push subscriptions, any waitlist entry for your email, and log lines that mention you. Content you wrote in a **shared** workspace that others still use is anonymised: it is renamed, emptied and unlinked from you, so the workspace keeps its structure. Published links to your pages stop working.
 
 ---
 

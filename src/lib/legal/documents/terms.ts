@@ -15,6 +15,14 @@ export const CREEM_LINKS = {
   contact: "https://www.creem.io/contact",
 } as const;
 
+/** Apple's documents for App Store purchases (Terms section 5.7), checked 2026-11-03. */
+export const APPLE_LINKS = {
+  licensedApplicationEula:
+    "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+  reportAProblem: "https://reportaproblem.apple.com/",
+  privacy: "https://www.apple.com/legal/privacy/",
+} as const;
+
 /**
  * The DMCA paragraph about the designated agent: printed only once the owner
  * has registered the agent with the US Copyright Office and set
@@ -76,6 +84,12 @@ Needt connects to services you already use: Google, Microsoft, Apple iCloud and 
 
 ## 5. Plans, trial and payment
 
+::: app-store
+
+Plans bought on the website (sections 5.1 to 5.6) and plans bought in the iOS app through the App Store (section 5.7) are covered separately.
+
+:::
+
 ::: web-only
 
 ### 5.1 Plans
@@ -92,27 +106,47 @@ A new account can try **Pro free for 14 days, without a card**. There is one tri
 
 :::
 
+::: web-billing
+
 ### 5.3 Who sells to you: Creem
 
-Paid plans are sold by **Creem**, the trading name of **Armitage Labs OÜ**, a company registered in Estonia (registry code 16977866). Creem acts as **merchant of record**: it is the seller in the transaction, takes your payment, charges and remits VAT or sales tax, and issues your invoice. When you buy, [Creem's Buyer Terms](${CREEM_LINKS.buyerTerms}) apply to the purchase alongside these terms, and Creem handles your payment data under its [privacy notice](${CREEM_LINKS.privacy}). We provide Needt itself.
+Paid plans bought on the website are sold by **Creem**, the trading name of **Armitage Labs OÜ**, a company registered in Estonia (registry code 16977866). Creem acts as **merchant of record**: it is the seller in the transaction, takes your payment, charges and remits VAT or sales tax, and issues your invoice. When you buy, [Creem's Buyer Terms](${CREEM_LINKS.buyerTerms}) apply to the purchase alongside these terms, and Creem handles your payment data under its [privacy notice](${CREEM_LINKS.privacy}). We provide Needt itself.
 
 ### 5.4 Renewal and cancellation
 
-- Pro renews automatically at the end of each month or year until you cancel.
+- A Pro subscription bought on the website renews automatically at the end of each month or year until you cancel.
 - You can cancel at any time in Settings → Plan & billing → Invoices and payment (shown as Manage billing when a payment has failed), which opens Creem's customer portal. Cancelling stops the next renewal; you keep Pro until the end of the period you have paid for.
 - If a renewal payment fails, you keep paid access until the end of the paid period while Creem retries. If it still fails, paid features stop until you update your payment method. Your data stays.
-- If you **delete your account**, any Pro subscription is cancelled immediately. Deleting your account does **not** refund anything by itself; to get a refund, ask for it as described in 5.5.
+- If you **delete your account**, a Pro subscription bought on the website is cancelled immediately. Deleting your account does **not** refund anything by itself; to get a refund, ask for it as described in 5.5. An App Store subscription is not cancelled by deleting your account: cancel it in your Apple ID settings.
 
 ### 5.5 Refunds and the right of withdrawal
 
-- **14-day refund, no questions asked.** Within 14 days of any payment, on any plan including Lifetime, you can ask for a full refund without giving a reason. Write to **${SUPPORT_EMAIL}** with the email address of your account, or ask Creem, and the refund is made through Creem. This is our own promise, and it does not limit any refund or withdrawal right the law gives you. If we do not answer within 7 days, you can also contact Creem through its [contact page](${CREEM_LINKS.contact}), as its [help for buyers](${CREEM_LINKS.customerHelp}) describes.
+- **Only for purchases on the website.** This section covers plans bought on the website through Creem. It does **not** cover a plan bought in the iOS app through the App Store: Needt cannot refund those, only Apple can.
+- **14-day refund, no questions asked.** Within 14 days of any payment on the website, on any plan including Lifetime, you can ask for a full refund without giving a reason. Write to **${SUPPORT_EMAIL}** with the email address of your account, or ask Creem, and the refund is made through Creem. This is our own promise, and it does not limit any refund or withdrawal right the law gives you. If we do not answer within 7 days, you can also contact Creem through its [contact page](${CREEM_LINKS.contact}), as its [help for buyers](${CREEM_LINKS.customerHelp}) describes.
 - **Starting immediately (EU and UK consumers).** Needt is digital content and a digital service that starts as soon as you pay. When you buy, you ask for it to start immediately, before the 14-day withdrawal period ends, and you acknowledge that you lose your right of withdrawal once it has started. Creem's Buyer Terms record this consent and acknowledgment at purchase (section 8.2), and Creem's receipt confirms the purchase.
 - **If the withdrawal right still applies to you**, for example because the law treats your plan as a service rather than digital content, you can withdraw within 14 days of the purchase by writing to ${SUPPORT_EMAIL} or to Creem. Creem refunds the amount within 14 days of the request (Buyer Terms section 8.4), less, where the law allows, a proportionate amount for the part of a subscription already provided. Your paid access ends when you withdraw.
 - **Effect of a refund.** A full refund or a chargeback ends the paid plan it bought, and the account moves to Free. A partial refund does not change the plan. A refunded Lifetime purchase returns its place to the 300.
 
 ### 5.6 Price changes
 
-We may change prices for future periods. We tell Pro subscribers at least 30 days before a new price applies to their next renewal, and you can cancel before then. The price you paid for Lifetime does not change.
+We may change the website prices for future periods. We tell Pro subscribers who bought on the website at least 30 days before a new price applies to their next renewal, and you can cancel before then. The price you paid for Lifetime does not change.
+
+:::
+
+::: app-store
+
+### 5.7 Purchases in the App Store
+
+Needt Pro (monthly or yearly) and Needt Lifetime can also be bought in the iOS app with Apple's In-App Purchase. For those purchases:
+
+- **Apple is the seller.** Apple charges the Apple ID you are signed in with, collects and pays the VAT or sales tax, and sends you the receipt. The price, the billing period and the tax for your country are shown by the App Store before you confirm. We provide Needt itself.
+- **Apple's terms apply as well.** [Apple's Licensed Application End User License Agreement](${APPLE_LINKS.licensedApplicationEula}) applies to the app and to these purchases in addition to these terms.
+- **Pro renews automatically until you cancel.** Cancel in Settings → Apple ID → Subscriptions on your iPhone or iPad, at least 24 hours before the current period ends; otherwise it renews for another period. The Manage in App Store button in Needt opens the same screen. You keep Pro until the end of the period you have paid for. Deleting your Needt account does **not** cancel an App Store subscription: Apple keeps billing it until you cancel it there.
+- **Lifetime** is paid once and gives you Pro for as long as Needt operates the service (section 11). It is limited to the first **300** buyers on the website and in the App Store together; a purchase you have already paid for is still honoured.
+- **Refunds only through Apple.** Ask for a refund at [reportaproblem.apple.com](${APPLE_LINKS.reportAProblem}). Needt cannot refund or reverse an App Store purchase, so the 14-day refund in section 5.5 does not apply to it. A refund from Apple ends the plan it bought, and the account moves to Free. Nothing here limits any right the law gives you.
+- **Each plan is managed where you bought it.** A plan bought in the App Store cannot be managed, cancelled or refunded from the website, and a plan bought on the website (sections 5.3 to 5.6) cannot be managed in the App Store. We sell one at a time: the App Store does not offer Pro to an account that already has a live plan from the website, and if you buy in the App Store while a website subscription is failing to renew, we cancel that website subscription. If the App Store charges you for a purchase Needt cannot apply (your account already had Pro, or the purchase belongs to another Needt account), Needt does not apply it and gives you nothing for it; ask Apple for a refund at [reportaproblem.apple.com](${APPLE_LINKS.reportAProblem}) and cancel that subscription in your Apple ID settings. If both end up billing you, Settings in Needt says so where it can tell; cancel the one you do not want in the place where you bought it.
+
+:::
 
 ---
 
