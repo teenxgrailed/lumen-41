@@ -66,7 +66,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
      Every place → Calendar, Tasks, Docs). Loaded only on phones, played only
      while on screen, and left as its poster under reduced motion. */
   const hv = document.querySelector(".hero-vid");
-  if (hv && matchMedia("(max-width: 760px)").matches) {
+  if (hv) {
     if (calm) { hv.poster = hv.dataset.poster; } else {
     hv.poster = hv.dataset.poster;
     for (const [k, t] of [["mp4", "video/mp4"], ["webm", "video/webm"]]) { const so = document.createElement("source"); so.src = hv.dataset[k]; so.type = t; hv.appendChild(so); }
@@ -321,12 +321,16 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
       const dt = last ? Math.min(.05, (t - last) / 1000) : 0; last = t;
       if (!drag) { vel *= .94; }
       rows.forEach((r) => {
-        const auto = calm || drag || hover ? 0 : r.dir * SPEED * dt;
+        const auto = calm || drag || hover || t - lastScroll > 700 ? 0 : r.dir * SPEED * 2 * dt;
         r.x += auto + (drag ? 0 : vel * dt) * (r.dir === -1 ? 1 : 1);
         wrap(r); r.el.style.transform = `translate3d(${r.x}px,0,0)`;
       });
-      raf = requestAnimationFrame(frame);
+      if (drag || Math.abs(vel) > 3 || t - lastScroll < 700) raf = requestAnimationFrame(frame); else last = 0;
     }
+    /* v42: nothing runs at rest. A scroll only stamps the time and wakes the loop. */
+    let lastScroll = -1e9; const wake = () => { if (seen && !raf) { last = 0; raf = requestAnimationFrame(frame); } };
+    addEventListener("scroll", () => { lastScroll = performance.now(); wake(); }, { passive: true });
+    box.addEventListener("pointerdown", wake);
     raf = requestAnimationFrame(frame);
     if (fine) { box.addEventListener("pointerenter", () => (hover = true)); box.addEventListener("pointerleave", () => (hover = false)); }
     box.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, x0: e.clientX, t: performance.now(), id: e.pointerId, cap: false }; vel = 0; });
@@ -657,3 +661,62 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     });
   }
 })();
+
+/* ⟦v42 begin⟧ */
+/* ── v42 (03.11.26) — built by _landing-build/style_v42.py from v42.js ── */
+(() => {
+  const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const FINE = matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+  /* Field spotlight: one small element per section, transform written in rAF only while the
+     pointer moves inside the section; nothing runs off screen or on touch. */
+  if (FINE && !RM) document.querySelectorAll(".fx-host").forEach((host) => {
+    const spot = host.querySelector(".fx-spot"); if (!spot) return;
+    let r = null, x = 0, y = 0, raf = 0, seen = false;
+    const draw = () => { raf = 0; spot.style.setProperty("--fx-x", x + "px"); spot.style.setProperty("--fx-y", y + "px"); };
+    const move = (e) => { if (!seen) return; if (!r) r = host.getBoundingClientRect();
+      x = e.clientX - r.left; y = e.clientY - r.top; if (!raf) raf = requestAnimationFrame(draw); };
+    host.addEventListener("pointerenter", (e) => { r = host.getBoundingClientRect(); move(e); host.classList.add("fx-on"); });
+    host.addEventListener("pointermove", move, { passive: true });
+    host.addEventListener("pointerleave", () => { host.classList.remove("fx-on"); r = null; });
+    addEventListener("scroll", () => { r = null; }, { passive: true }); // only drops the cached rect; no work
+    new IntersectionObserver((es) => { seen = es[0].isIntersecting; if (!seen) host.classList.remove("fx-on"); }).observe(host);
+  });
+
+  /* Updates: the sticky stage shows the artifact of the row under the pointer, or the row in
+     the middle of the screen. Phones: each row's own artifact plays once when it comes into view. */
+  const stage = document.getElementById("up-stage"), list = document.getElementById("up-list");
+  if (stage && list) {
+    const rows = [...list.querySelectorAll(".up-row")];
+    const arts = Object.fromEntries([...stage.querySelectorAll(".ua")].map((a) => [a.dataset.k, a]));
+    let cur = rows[0] && rows[0].dataset.k, hover = false;
+    const show = (k) => { if (!k || k === cur && arts[k].classList.contains("on")) return;
+      if (arts[cur]) arts[cur].classList.remove("on"); rows.forEach((r) => r.classList.toggle("on", r.dataset.k === k));
+      cur = k; void arts[k].offsetWidth; arts[k].classList.add("on"); };
+    const wide = matchMedia("(min-width: 901px)");
+    rows.forEach((r) => { r.addEventListener("pointerenter", () => { hover = true; show(r.dataset.k); });
+      r.addEventListener("pointerleave", () => { hover = false; }); r.addEventListener("focus", () => show(r.dataset.k)); });
+    const mid = new IntersectionObserver((es) => { if (hover || !wide.matches) return;
+      es.forEach((e) => { if (e.isIntersecting) show(e.target.dataset.k); }); }, { rootMargin: "-46% 0px -46% 0px" });
+    rows.forEach((r) => mid.observe(r));
+    if (rows[0]) rows[0].classList.add("on");
+    const inl = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("on"); inl.unobserve(e.target); } }), { threshold: .45 });
+    list.querySelectorAll(".up-inl").forEach((el) => inl.observe(el));
+  }
+})();
+
+/* Inside Needt: play each tile once when it comes into view; on desktop, again on hover. */
+(() => {
+  const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const tiles = document.querySelectorAll("#features .ft"); if (!tiles.length || RM) return;
+  document.querySelectorAll("#features .ft-live").forEach((s) => s.classList.add("is-armed"));
+  const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("play"); io.unobserve(e.target); } }), { threshold: .5 });
+  tiles.forEach((t) => io.observe(t));
+  if (matchMedia("(hover: hover) and (pointer: fine)").matches) tiles.forEach((t) => {
+    if (!t.querySelector(".ft-live, .ft-fig")) return;
+    let last = 0;
+    t.addEventListener("pointerenter", () => { const now = performance.now(); if (now - last < 2500) return; last = now;
+      t.classList.remove("play"); void t.offsetWidth; t.classList.add("play"); });
+  });
+})();
+/* ⟦v42 end⟧ */
