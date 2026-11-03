@@ -6,6 +6,7 @@ import { useNow } from "@/lib/needt3/hooks/clock";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import { dayAt } from "@/lib/needt3/today";
+import { useMarkStoreDistribution } from "@/lib/use-store-distribution";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -25,6 +26,9 @@ export function launchActionOf(search: string): LaunchAction | null {
  * badge at today's open tasks plus the overdue ones.
  */
 export function PwaBridge() {
+  /* `<html data-store-distribution>` in the iOS app and the Mac App Store
+     build, for CSS that only tidies a gap; nothing is hidden by it. */
+  useMarkStoreDistribution();
   useEffect(() => {
     const action = launchActionOf(window.location.search);
     if (!action) return;

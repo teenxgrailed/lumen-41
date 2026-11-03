@@ -15,11 +15,13 @@ import { useRouter } from "next/navigation";
 
 import { FiArrowUpRight, FiCheck, FiX } from "react-icons/fi";
 
+import { newDate } from "@/lib/date-utils";
 import { isMacApp } from "@/lib/desktop";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 import { offersTrial } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -58,6 +60,7 @@ import {
   navFor,
   planInfo,
   sectionOf,
+  storePlanLine,
 } from "./derive";
 import { MeDisc } from "./kit";
 
@@ -188,6 +191,7 @@ export function SettingsSheet() {
   const close = useNeedt3Ui((s) => s.closeSettings);
   const session = useSession();
   const plan = usePlan();
+  const store = useStoreDistribution();
   const ui = usePhoneUi();
   const [section, setSection] = useState<SectionId>("account");
   // The phone shows a list of sections before any one of them. `list` is that
@@ -375,20 +379,22 @@ export function SettingsSheet() {
                     {kind === "free" ? "Free plan" : info.name}
                   </span>
                   <span className="settings-text">
-                    {kind === "free"
-                      ? offersTrial(plan.data)
-                        ? `${P.trialDays} days free · no card`
-                        : P.plansShort
-                      : kind === "lifetime"
-                        ? "Pro for good."
-                        : kind === "yearly"
-                          ? `${P.yearly} / year`
-                          : kind === "monthly"
-                            ? `${P.monthly} / month`
-                            : `From ${P.yearlyPerMonth}/mo`}
+                    {store
+                      ? storePlanLine(kind, plan.data, newDate())
+                      : kind === "free"
+                        ? offersTrial(plan.data)
+                          ? `${P.trialDays} days free · no card`
+                          : P.plansShort
+                        : kind === "lifetime"
+                          ? "Pro for good."
+                          : kind === "yearly"
+                            ? `${P.yearly} / year`
+                            : kind === "monthly"
+                              ? `${P.monthly} / month`
+                              : `From ${P.yearlyPerMonth}/mo`}
                   </span>
                 </span>
-                {pro ? null : (
+                {pro || store ? null : (
                   <span className="nx-btn nx-btn-primary nx-btn-sm settings-btn">
                     See plans
                   </span>

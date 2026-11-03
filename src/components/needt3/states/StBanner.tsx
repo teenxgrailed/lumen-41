@@ -18,6 +18,7 @@ import { newDate } from "@/lib/date-utils";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useConnections } from "@/lib/needt3/hooks/connections";
 import { usePlan } from "@/lib/needt3/hooks/plan";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { openPaywall } from "../paywall";
@@ -111,11 +112,20 @@ export function StBannerStack({
   const plan = usePlan();
   const connections = useConnections();
   const aiAvailable = useAiAvailable();
+  const store = useStoreDistribution();
   if (!enabled) return null;
+  /* A store build keeps what happened (trial ending or ended) but carries no
+     "Upgrade" / "See plans" button and no payment-card banner. */
   const specs = bannerSpecs(plan.data, screen, newDate().getTime(), {
     connections: connections.data,
     aiDown: aiAvailable.data === false,
-  });
+  })
+    .filter((s) => !(store && s.id === "payment"))
+    .map((s) =>
+      store && s.action && s.action.kind !== "reconnect"
+        ? { ...s, action: undefined }
+        : s
+    );
   if (!specs.length) return null;
   return (
     <div className="st-banners" data-st-banners>

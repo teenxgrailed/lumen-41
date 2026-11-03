@@ -9,6 +9,7 @@ import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { addDays, newDate, setHours, setMinutes } from "@/lib/date-utils";
+import { isStoreDistribution } from "@/lib/native";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 
@@ -92,7 +93,9 @@ export function useReminders(
 function failed(error: unknown) {
   if (error instanceof ApiError && error.status === 403) {
     notify.error("Free includes one reminder per task", {
-      description: "Change the one it has, or upgrade for more.",
+      description: isStoreDistribution()
+        ? "Change the one it has."
+        : "Change the one it has, or upgrade for more.",
     });
     return;
   }

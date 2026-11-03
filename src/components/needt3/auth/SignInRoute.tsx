@@ -21,8 +21,12 @@ import {
   SIGN_IN_PROVIDERS,
   type SignInProviderId,
 } from "@/lib/auth/sign-in-provider-ids";
+import {
+  SIGNUPS_CLOSED_CODE,
+  signupsClosedMessage,
+} from "@/lib/auth/signups-copy";
 import { logger } from "@/lib/logger";
-import { isIosApp } from "@/lib/native";
+import { isIosApp, isStoreDistribution } from "@/lib/native";
 import { browserLocale } from "@/lib/needt3/locale-defaults";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { notify } from "@/lib/notifications";
@@ -30,6 +34,7 @@ import {
   ONBOARDING_RESUME_PATH,
   isOnboardingEntry,
 } from "@/lib/onboarding/paths";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { brandGlyph, brandMonoGlyph } from "../brand";
 import { PhoneAuth } from "../phone/auth";
@@ -107,6 +112,7 @@ export function V3SignInRoute({
   /* A signed-out visitor has no frame around the page, so this route reads the
      same server pick and width listener the frame does. */
   const ui = useResolvedPhoneUi(initialUi, uiForced);
+  const store = useStoreDistribution();
   const safeCallbackUrl = safeCallbackPath(callbackUrl);
   /* An OAuth return that would have made an account without the 16+ / Terms
      box lands here in sign-up, where the box is. */
@@ -226,15 +232,21 @@ export function V3SignInRoute({
           });
           const body = (await response.json().catch(() => ({}))) as {
             error?: string;
+            code?: string;
             next?: unknown;
           };
           if (typeof body.next === "string" && isOnboardingEntry(body.next))
             dest.current = body.next;
           if (!response.ok) {
             if (response.status === 409) return { ok: false, reason: "taken" };
+            /* The server words a closed registration for the website; a store
+               build names no website. */
             return {
               ok: false,
-              message: body.error || "Could not create the account.",
+              message:
+                body.code === SIGNUPS_CLOSED_CODE
+                  ? signupsClosedMessage(isStoreDistribution())
+                  : body.error || "Could not create the account.",
             };
           }
         } catch (e) {
@@ -386,7 +398,7 @@ export function V3SignInRoute({
         age={age}
         providerBusy={providerBusy}
         onProvider={startProvider}
-        notice={oauthErrorMessage(error) || null}
+        notice={oauthErrorMessage(error, store) || null}
         {...signupFlags(allowSignup)}
         aside={
           <button

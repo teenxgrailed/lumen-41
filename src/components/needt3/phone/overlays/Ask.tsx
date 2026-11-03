@@ -10,6 +10,8 @@ import {
   LuSquarePen,
 } from "react-icons/lu";
 
+import { useStoreDistribution } from "@/lib/use-store-distribution";
+
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { AskActivity, AskText } from "../../corner/AskActivity";
@@ -292,6 +294,7 @@ export function StoreAsk() {
   const setOpen = useNeedt3Ui((s) => s.setAskOpen);
   const close = useCallback(() => setOpen(false), [setOpen]);
   const { ask, asking } = useAsk();
+  const store = useStoreDistribution();
   const upgrade = useCallback(() => {
     setOpen(false);
     usePhoneOverlays.getState().openPaywall("Ask Needt");
@@ -306,7 +309,7 @@ export function StoreAsk() {
       onSend={(line, confirmed, shown) => void ask.send(line, confirmed, shown)}
       onStop={ask.stop}
       onNew={ask.reset}
-      onUpgrade={upgrade}
+      onUpgrade={store ? undefined : upgrade}
       onUndo={(id, actionId) => void ask.undo(id, actionId)}
       onUndoAll={(id, runId) => void ask.undoAll(id, runId)}
     />

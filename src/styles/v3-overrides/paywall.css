@@ -667,3 +667,40 @@
   margin: 0;
   color: var(--text-primary, var(--ink));
 }
+
+/* Store build (iOS app, Mac App Store): a locked Pro feature opens one
+ * sentence and Close. No price, no plan, no link (StoreProSheet). */
+.needt-v3 .pw-store {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(340px, calc(100vw - 48px));
+  padding: 22px;
+  border-radius: 20px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-raised);
+}
+.needt-v3 .pw-store-kicker {
+  font: 500 12px/1 var(--font-sans);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pw-store-line {
+  margin: 0 0 6px;
+  font: 500 13px/1.45 var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .pw-store-close {
+  align-self: flex-end;
+}
+.needt-v3 .pov-store-pro-in {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 20px 20px;
+}
+.needt-v3 .pov-store-pro-line {
+  margin: 0;
+  font: 500 13px/1.45 var(--font-sans);
+  color: var(--text-primary);
+}

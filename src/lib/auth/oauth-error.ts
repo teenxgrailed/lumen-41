@@ -12,8 +12,14 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     "Needt isn’t open for new accounts yet. Join the waitlist at needt.app and we’ll write when it opens.",
 };
 
-export function oauthErrorMessage(error: string | undefined) {
+/** A store build (iOS app, Mac App Store) names no website. */
+const STORE_MESSAGES: Record<string, string> = {
+  SignupsClosed: "Needt isn’t open for new accounts right now.",
+};
+
+export function oauthErrorMessage(error: string | undefined, store = false) {
   if (!error) return null;
+  if (store && STORE_MESSAGES[error]) return STORE_MESSAGES[error];
   return (
     AUTH_ERROR_MESSAGES[error] ??
     "We couldn’t sign you in. Please try again or use another sign-in method."

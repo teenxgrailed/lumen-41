@@ -16,4 +16,14 @@ describe("OAuth error messages", () => {
   it("points a refused new account at the waitlist", () => {
     expect(oauthErrorMessage("SignupsClosed")).toContain("needt.app");
   });
+
+  it("a store build names no website", () => {
+    const text = oauthErrorMessage("SignupsClosed", true);
+    expect(text).not.toContain("needt.app");
+    expect(text).toContain("new accounts");
+    // other errors are the same in both
+    expect(oauthErrorMessage("OAuthCallback", true)).toBe(
+      oauthErrorMessage("OAuthCallback")
+    );
+  });
 });

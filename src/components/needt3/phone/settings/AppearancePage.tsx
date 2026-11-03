@@ -13,6 +13,7 @@ import {
   THEMES,
   type ThemeChoice,
 } from "@/lib/needt3/theme";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { openAppIconPicker, useAppIcon } from "@/store/app-icon";
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -42,6 +43,7 @@ export function themeHint(theme: ThemeChoice) {
  */
 export function AppearancePage() {
   const { upgrade } = usePs();
+  const store = useStoreDistribution();
   const mark = useMark();
   const theme = useNeedt3Ui((s) => s.theme);
   const accent = useNeedt3Ui((s) => s.accent);
@@ -153,7 +155,7 @@ export function AppearancePage() {
             </span>
           </div>
         </div>
-        {pro ? null : (
+        {pro || store ? null : (
           <PsRow
             title="Unlock every accent"
             onOpen={() => upgrade("Accent colours")}

@@ -8,6 +8,7 @@ import {
   useStarterGameStatus,
 } from "@/lib/needt3/hooks/starter-game";
 import type { StarterScreen } from "@/lib/starter-game";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { openPaywall } from "../paywall/store";
 import { usePhoneUi } from "../root/phone-ui-context";
@@ -26,8 +27,12 @@ const SgGame = lazy(() =>
  */
 export function useStarterGameCard() {
   const status = useStarterGameStatus();
+  const store = useStoreDistribution();
+  /* The locked card is a "Try with Pro" pitch: a store build does not draw it,
+     so the screen's own empty state stays. */
+  const hidden = store && status.data ? !status.data.canPlay : false;
   return {
-    show: status.data?.eligible === true,
+    show: status.data?.eligible === true && !hidden,
     hold: status.isPending,
   };
 }
@@ -46,11 +51,14 @@ export function StarterGameSlot({ screen }: { screen: StarterScreen }) {
   const phone = usePhoneUi() === "phone";
   const [open, setOpen] = useState(false);
 
+  const store = useStoreDistribution();
+
   const data = status.data;
   const locked = data ? !data.canPlay : false;
   return (
     <>
-      {data?.eligible ? (
+      {/* The locked card is a "Try with Pro" pitch: a store build skips it. */}
+      {data?.eligible && !(locked && store) ? (
         <div className={phone ? "sg-phone" : "sg-desk"}>
           <SgEntry
             entry={screen}

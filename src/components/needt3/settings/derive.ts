@@ -426,6 +426,39 @@ export function renewsText(
   return `${cancelAtPeriodEnd ? "ends" : "renews"} ${formatShortDate(d, !soon)}`;
 }
 
+/**
+ * The plan card's second line in a store build: the plan and its renewal state
+ * and nothing to buy (no price, no plan names to pick, no "see plans").
+ */
+export function storePlanLine(
+  kind: string,
+  b:
+    | {
+        trialDaysLeft?: number | null;
+        currentPeriodEnd?: string | null;
+        cancelAtPeriodEnd?: boolean;
+      }
+    | undefined,
+  now: Date
+): string {
+  switch (kind) {
+    case "free":
+      return "You're on the Free plan.";
+    case "trial":
+      return `${b?.trialDaysLeft ?? 0} days left of your trial`;
+    case "lifetime":
+      return "Pro for good.";
+    default: {
+      const renews = renewsText(
+        b?.currentPeriodEnd,
+        now,
+        b?.cancelAtPeriodEnd === true
+      );
+      return renews ? renews.replace(/^./, (c) => c.toUpperCase()) : "Pro.";
+    }
+  }
+}
+
 /** Width of the trial bar: days left over the trial length, 0–100. */
 export function trialBarPct(daysLeft: number | null, trialDays: number) {
   if (daysLeft === null || trialDays <= 0) return 0;

@@ -23,6 +23,7 @@ import {
   goalAreaLabel,
   goalProgressLabel,
 } from "@/lib/goals";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 export interface GoalTaskRow {
   id: string;
@@ -646,6 +647,7 @@ function GoalSheet({
 
 export function GoalsView(props: GoalsViewProps) {
   const { goals, pro, selectedId, detail, form } = props;
+  const store = useStoreDistribution();
   const list = goals ?? [];
   const active = list.filter((g) => g.status === "active").length;
   const meta = pro ? (
@@ -692,14 +694,16 @@ export function GoalsView(props: GoalsViewProps) {
             title="Goals are part of Pro"
             line="Keep what you are working towards with its why, see progress from its tasks, and get a weekly check-in."
             action={
-              <button
-                type="button"
-                className="nx-btn nx-btn-secondary"
-                data-gl-upgrade
-                onClick={props.onUpgrade}
-              >
-                See plans
-              </button>
+              store ? undefined : (
+                <button
+                  type="button"
+                  className="nx-btn nx-btn-secondary"
+                  data-gl-upgrade
+                  onClick={props.onUpgrade}
+                >
+                  See plans
+                </button>
+              )
             }
           />
         )

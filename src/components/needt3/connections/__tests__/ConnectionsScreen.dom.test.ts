@@ -503,6 +503,24 @@ describe("the AI tools tab", () => {
     click($("[data-cn-promo-plans]"));
     expect(openPaywall).toHaveBeenLastCalledWith();
   });
+  it("in a store build the Free panel says what it is and has no buy buttons", () => {
+    (window as unknown as { __needtNative?: unknown }).__needtNative = {
+      platform: "mac-swift",
+      distribution: "appstore",
+    };
+    try {
+      planKind = "free";
+      window.localStorage.setItem("needt.connections.tab", "ai");
+      render();
+      expect($("[data-cn-ai-promo]")).not.toBeNull();
+      expect($("[data-cn-promo-try]")).toBeNull();
+      expect($("[data-cn-promo-plans]")).toBeNull();
+      expect(host.textContent).not.toMatch(/get pro|see plans|try pro/i);
+      expect($("[data-cn-api-docs]")).toBeNull();
+    } finally {
+      delete (window as unknown as { __needtNative?: unknown }).__needtNative;
+    }
+  });
   it("on a paid plan lists the six tools; OAuth ones wait for the sign-in host", async () => {
     planKind = "monthly";
     window.localStorage.setItem("needt.connections.tab", "ai");

@@ -2,6 +2,7 @@
 import {
   haptic,
   isNativeApp,
+  isStoreDistribution,
   registerNativePush,
   setStatusBarForTheme,
   share,
@@ -61,5 +62,48 @@ describe("native bridge", () => {
       },
     };
     await expect(haptic("light")).resolves.toBeUndefined();
+  });
+});
+
+describe("isStoreDistribution", () => {
+  it("is false on the server", () => {
+    expect(isStoreDistribution()).toBe(false);
+  });
+
+  it("is false in a browser tab", () => {
+    g.window = {};
+    expect(isStoreDistribution()).toBe(false);
+  });
+
+  it("is true in the iOS shell", () => {
+    g.window = {
+      Capacitor: { isNativePlatform: () => true, getPlatform: () => "ios" },
+    };
+    expect(isStoreDistribution()).toBe(true);
+  });
+
+  it("is false in a non-iOS Capacitor shell", () => {
+    g.window = {
+      Capacitor: { isNativePlatform: () => true, getPlatform: () => "android" },
+    };
+    expect(isStoreDistribution()).toBe(false);
+  });
+
+  it("is true in the Mac App Store build", () => {
+    g.window = {
+      __needtNative: { platform: "mac-swift", distribution: "appstore" },
+    };
+    expect(isStoreDistribution()).toBe(true);
+  });
+
+  it("is false in the direct-download Mac build", () => {
+    g.window = {
+      __needtNative: { platform: "mac-swift", distribution: "direct" },
+    };
+    expect(isStoreDistribution()).toBe(false);
+    g.window = { __needtNative: { platform: "mac-swift" } };
+    expect(isStoreDistribution()).toBe(false);
+    g.window = { __needtNative: {} };
+    expect(isStoreDistribution()).toBe(false);
   });
 });

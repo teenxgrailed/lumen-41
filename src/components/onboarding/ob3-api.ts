@@ -1,3 +1,8 @@
+import {
+  SIGNUPS_CLOSED_CODE,
+  signupsClosedMessage,
+} from "@/lib/auth/signups-copy";
+import { isStoreDistribution } from "@/lib/native";
 import { browserLocale } from "@/lib/needt3/locale-defaults";
 import type { OnboardingAnswers } from "@/lib/onboarding/answers";
 import type { WeekPlan } from "@/lib/onboarding/plan";
@@ -134,7 +139,19 @@ export async function registerEmail(
     ...(name ? { name } : {}),
     ...browserLocale(),
   });
-  await json(res);
+  try {
+    await json(res);
+  } catch (e) {
+    /* The server words a closed registration for the website; a store build
+       names no website. */
+    const code = (e as { code?: string } | null)?.code;
+    if (code === SIGNUPS_CLOSED_CODE && isStoreDistribution())
+      throw Object.assign(new Error(signupsClosedMessage(true)), {
+        status: (e as { status?: number }).status,
+        code,
+      });
+    throw e;
+  }
 }
 
 /**
