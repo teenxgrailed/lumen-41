@@ -1,0 +1,167 @@
+name: store-upload
+
+# Signs, archives and uploads a store build to App Store Connect (TestFlight
+# first, then the owner submits for review in App Store Connect). Run by hand
+# only. Nothing here runs on push, and without the secrets below the first step
+# stops with a message naming what is missing.
+#
+# Signing is Xcode cloud signing through an App Store Connect API key: no
+# certificate or provisioning profile is imported. `-allowProvisioningUpdates`
+# with the key lets Xcode create the Apple Distribution certificate (cloud
+# managed) and the App Store profiles for every bundle id. The key needs the
+# Admin role for that (App Manager cannot create certificates).
+#
+# Repository settings (docs/release/STORE-RELEASE.md, step 4):
+#   variable APPLE_TEAM_ID        10-character Team ID
+#   secret   ASC_KEY_ID           App Store Connect API key id
+#   secret   ASC_ISSUER_ID        issuer id of that key
+#   secret   ASC_KEY_P8           contents of AuthKey_<id>.p8
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "ios or mac"
+        required: true
+        type: choice
+        options: [ios, mac]
+      version:
+        description: "Marketing version, e.g. 1.0.0"
+        required: true
+        default: "1.0.0"
+      upload:
+        description: "Upload to App Store Connect (off: archive and export only)"
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: store-upload-${{ inputs.target }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      VERSION: ${{ inputs.version }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      UPLOAD: ${{ inputs.upload }}
+    steps:
+      - name: Secrets present
+        run: |
+          missing=""
+          [ -n "$TEAM_ID" ] || missing="$missing variable:APPLE_TEAM_ID"
+          [ -n "$ASC_KEY_ID" ] || missing="$missing secret:ASC_KEY_ID"
+          [ -n "$ASC_ISSUER_ID" ] || missing="$missing secret:ASC_ISSUER_ID"
+          [ -n "$ASC_KEY_P8" ] || missing="$missing secret:ASC_KEY_P8"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing:$missing (see docs/release/STORE-RELEASE.md)"
+            exit 1
+          fi
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$' \
+            || { echo "::error::version must look like 1.0.0"; exit 1; }
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: API key file
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey.p8"
+          chmod 600 "$RUNNER_TEMP/asc/AuthKey.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey.p8" >> "$GITHUB_ENV"
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: inputs.target == 'ios'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/ios/package-lock.json
+
+      - name: Prepare the iOS project
+        if: inputs.target == 'ios'
+        working-directory: apps/ios
+        run: |
+          npm ci
+          npx cap sync ios
+          echo "PROJECT=apps/ios/ios/App/App.xcodeproj" >> "$GITHUB_ENV"
+          echo "SCHEME=App" >> "$GITHUB_ENV"
+          echo "DESTINATION=generic/platform=iOS" >> "$GITHUB_ENV"
+          echo "EXPORT_OPTIONS=apps/ios/ExportOptions-AppStore.plist" >> "$GITHUB_ENV"
+
+      - name: Prepare the Mac project
+        if: inputs.target == 'mac'
+        working-directory: apps/macos
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          echo "PROJECT=apps/macos/Needt.xcodeproj" >> "$GITHUB_ENV"
+          echo "SCHEME=NeedtAppStore" >> "$GITHUB_ENV"
+          echo "DESTINATION=generic/platform=macOS" >> "$GITHUB_ENV"
+          echo "EXPORT_OPTIONS=apps/macos/ExportOptions-AppStore.plist" >> "$GITHUB_ENV"
+
+      - name: Export options for this team
+        run: |
+          test -f "$EXPORT_OPTIONS" || { echo "::error::$EXPORT_OPTIONS not found"; exit 1; }
+          cp "$EXPORT_OPTIONS" "$RUNNER_TEMP/ExportOptions.plist"
+          plutil -replace teamID -string "$TEAM_ID" "$RUNNER_TEMP/ExportOptions.plist"
+          plutil -replace signingStyle -string automatic "$RUNNER_TEMP/ExportOptions.plist"
+          if [ "$UPLOAD" = "true" ]; then
+            plutil -replace destination -string upload "$RUNNER_TEMP/ExportOptions.plist"
+          else
+            plutil -replace destination -string export "$RUNNER_TEMP/ExportOptions.plist"
+          fi
+          plutil -p "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Archive (signed)
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "$DESTINATION" \
+            -archivePath "$RUNNER_TEMP/Needt.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            | tail -n 80
+
+      - name: Export and upload
+        run: |
+          set -o pipefail
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Needt.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            | tail -n 80
+
+      - name: Keep the exported build
+        if: ${{ !inputs.upload }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: needt-${{ inputs.target }}-store-export-${{ inputs.version }}-${{ github.run_number }}
+          path: ${{ runner.temp }}/export
+          retention-days: 7
+
+      - name: Remove the API key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc"
