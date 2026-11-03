@@ -347,6 +347,7 @@ export async function listPushEnabledCalendarFeeds() {
     select: {
       id: true,
       type: true,
+      nextSyncAttemptAt: true,
       webhooks: { select: { id: true } },
     },
   });

@@ -102,7 +102,7 @@ export function calendarProviderNeedsReconnect(error: unknown) {
     .filter((value): value is string => typeof value === "string")
     .join(" ")
     .toLowerCase();
-  return /invalid_grant|interaction_required|refresh tokens?|token refresh|token.*revoked|token.*expired|unauthori[sz]ed/.test(
+  return /invalid_grant|interaction_required|refresh tokens?|token refresh|token.*revoked|token.*expired|unauthori[sz]ed|insufficient (authentication|permission)/.test(
     detail
   );
 }
