@@ -153,9 +153,11 @@ Microsoft Trusted Root Program. Research and links (checked 03.11.26):
   third-party purchase API and third-party billing; the use must be noted in
   Partner Center (https://learn.microsoft.com/en-us/windows/apps/publish/store-policies,
   version 7.20, 14.09.26). Needt sells Pro and Lifetime on the website, so this applies.
-- WebView2: an MSIX in the Store cannot install it. It ships with Windows 11 and
-  is on most Windows 10 devices (https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution).
-  Unverified: what the app shows on a Windows 10 machine without it.
+- WebView2: the app cannot start without the Evergreen WebView2 Runtime, and an
+  MSIX in the Store cannot install it. It is preinstalled on Windows 11 and on
+  updated Windows 10 (https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution).
+  The manifest keeps the minimum at Windows 10 2004 (19041). Unverified: what the
+  app shows on a Windows 10 machine without it (a certification risk).
 
 Files: `msix/AppxManifest.xml` (template), `msix/build-msix.ps1` (staging, icon
 assets generated from `src-tauri/icons/icon.png`, `makeappx pack`, then an
@@ -173,7 +175,13 @@ Package details:
   it to the running copy. `register_all()` in `lib.rs` still runs; in a package
   its HKCU write is expected to be redirected to the package's private registry
   and is harmless. **Unverified on hardware** (CI cannot click a link): test
-  `needt://start-sign-in` and a full sign-in from the installed Store build.
+  `needt://start-sign-in` and a full sign-in from the installed Store build,
+  also on a machine that ran the earlier NSIS/MSI build (its HKCU `needt`
+  handler may make Windows ask which app opens the link).
+- **Unverified: toast notifications.** The notification shim uses
+  `tauri-plugin-notification` with the identifier `app.needt.desktop`; in a
+  package the toast identity is the package's, so toasts may not appear. The
+  listing does not claim notifications until a Store build is tested.
 - No self-updater exists (`tauri-plugin-updater` is not a dependency), so nothing
   to turn off; the Store updates the package.
 - x64 only. The `.msix` is not installable by double click until the Store signs it.
@@ -181,20 +189,33 @@ Package details:
 What the owner does (nothing here was done for you):
 
 1. Create a Partner Center developer account (https://storedeveloper.microsoft.com)
-   and reserve the name "Needt".
-2. Product management, Product identity: copy `Package/Identity/Name` and
-   `Package/Identity/Publisher` (`CN=...`). Either paste them into
+   and reserve the name "Needt". Decide the account type first: Partner Center
+   offers **individual** and **company** accounts. A publisher name that reads as
+   a business ("Needt") fits a company account, which needs business
+   verification; the operator is a sole proprietor (FOP), so which type and which
+   legal identity to use is the owner's choice (Store Policies, section 10,
+   account types; the policy text should be re-read before paying the fee).
+   Partner Center verification needs a legal identity either way, and
+   `https://use.needt.app/privacy` already prints the operator's legal name.
+2. Product management, Product identity: copy the three values
+   `Package/Identity/Name`, `Package/Identity/Publisher` (`CN=...`) and
+   `Package/Properties/PublisherDisplayName`. Either paste them into
    `msix/AppxManifest.xml`, or set the repository Actions variables
-   `MSIX_IDENTITY_NAME` and `MSIX_PUBLISHER` (no commit needed). Case sensitive.
+   `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_DISPLAY_NAME` (no
+   commit needed; values are trimmed). Case sensitive.
 3. Run the Desktop workflow, download `needt-windows-msix`, create a submission,
    upload the `.msix` (the Store signs it).
 4. Fill the listing from `store/listing.md`; add 4 to 8 screenshots from a real
    Windows machine (none exist yet) and a 300 x 300 tile icon.
 5. Answer the IARC age-rating questionnaire (answers in `store/listing.md`).
-6. Notes for certification: the payment-provider note and a reviewer login
-   (text in `store/listing.md`); justify `runFullTrust`.
-7. Raise `version` in `tauri.conf.json` and `Cargo.toml` for every later upload;
-   the Store needs a higher package version each time.
+6. Notes for certification: payments (10.8), why sign-in opens the browser,
+   the `runFullTrust` justification and a reviewer login (text in
+   `store/listing.md`). The listing description must carry the in-app purchase
+   and trial line (10.8.4); keep it in step with the prices.
+7. Raise `version` in `tauri.conf.json` and `Cargo.toml` (both, the packing step
+   fails when they differ) for every later upload; the Store needs a higher
+   package version each time. A pre-release suffix is dropped in the package
+   version.
 
 ## Running an unsigned build
 

@@ -18,7 +18,7 @@ personal address anywhere in the listing.
 | Support contact             | mailto:support@needt.app (`SUPPORT_EMAIL` in `src/lib/legal/operator.ts`; the app has no `/help` page on main)  |
 | Copyright and trademark     | (c) 2026 Needt                                                                                                  |
 | Languages                   | English (United States) only for now; the manifest declares `en-us`                                             |
-| Price                       | Free (the Store does not sell anything; plans are bought on the website, see "Payments" below)                  |
+| Price                       | Free in the Store (no Store purchase). In-app purchases, shown in the app and bought on the website: see "In-app purchases" below |
 
 ## Short description
 
@@ -40,10 +40,9 @@ Your tasks, calendars, pages, habits and focus time live in one app, and Needt p
 The Windows app is the full Needt in its own window, with the extras a browser tab does not give you:
 
 - Quick add from anywhere with Ctrl+Shift+Space, without switching windows
-- Desktop notifications for reminders and focus sessions
-- A tray menu with today's next tasks and the running focus timer
+- A tray menu with today's next tasks and the running focus session
 - Your window size and position remembered between launches
-- An offline page instead of a browser error when the connection drops
+- An offline page when you open Needt without a connection
 
 What you can do with Needt:
 
@@ -56,7 +55,7 @@ What you can do with Needt:
 
 Needt needs an internet connection and a Needt account. Sign-in opens your browser, so Google and other providers work the usual way. Needt uses the Microsoft Edge WebView2 Runtime, which is included with Windows 11 and most Windows 10 devices.
 
-Needt has a free plan. Pro and Lifetime plans unlock more and are bought on the Needt website, not in the Store.
+Needt has a free plan. In-app purchases: Needt Pro subscription USD 7 per month or USD 59 per year; Needt Lifetime USD 149 one-time; new accounts get 14 days of Pro after confirming their email. Plans are bought on the Needt website, not in the Store.
 ```
 
 ## Product features
@@ -67,12 +66,12 @@ Needt has a free plan. Pro and Lifetime plans unlock more and are bought on the 
 2. Tasks, pages, habits and focus time in one place
 3. Quick add from anywhere with Ctrl+Shift+Space
 4. Syncs Google, Outlook and CalDAV calendars
-5. Tray menu with today's next tasks and the focus timer
-6. Desktop notifications for reminders
-7. Share pages and workspaces, comment, publish with a link
-8. Open API: read and write your data from other tools
-9. Sign in with the browser you already use, Google included
-10. Offline page and remembered window position
+5. Tray menu with today's next tasks and the running focus session
+6. Share pages and workspaces, comment, publish with a link
+7. Open API: read and write your data from other tools
+8. Sign in with the browser you already use, Google included
+9. Offline page when you open Needt without a connection
+10. Remembered window size and position
 
 ## Search terms
 
@@ -106,7 +105,7 @@ the top two thirds. **None exist yet**; capture them on a real Windows machine
 | 3   | A Page with tasks linked to it                      | Notes and plans next to the work they belong to.           |
 | 4   | Quick add card over another app (Ctrl+Shift+Space)  | Add a task from anywhere without leaving what you are doing. |
 | 5   | Habits with this week filled in                     | Habits get time in your week.                              |
-| 6   | Tray menu with the next tasks and a running focus   | The next task and the focus timer, one click away.         |
+| 6   | Tray menu with the next tasks and a running focus   | The next task and the running focus session, one click away. |
 
 Use a demo workspace with neutral sample data (not a real account, no real
 names or mail).
@@ -139,7 +138,17 @@ content" descriptor, possibly higher in some regions. Do not answer "no" to
 avoid it: the answers must be accurate (Microsoft Learn, age ratings) and go to
 IARC together with the publisher display name and email.
 
-## Payments (Store policy 10.8)
+## In-app purchases and payments (Store policy 10.8)
+
+Policy 10.8.4 wants the product and its metadata to state the types of
+in-product purchases and the price range, and the scope and terms of any trial.
+The description therefore carries one line (numbers from the owner decisions of
+15.09.26, 01.10.26 and 21.10.26; change the line and `docs/plans` together if
+prices change):
+
+```
+In-app purchases: Needt Pro subscription USD 7 per month or USD 59 per year; Needt Lifetime USD 149 one-time; new accounts get 14 days of Pro after confirming their email.
+```
 
 Non-game apps may sell digital goods through "a secure third-party purchase
 API" instead of the Store's (10.8.1), and may bill subscriptions through a
@@ -148,11 +157,13 @@ third-party purchase API in Partner Center during the submission process"
 (10.8.2). So in **Notes for certification** write:
 
 ```
-Needt is free to use. Optional Pro and Lifetime plans are bought on the Needt
-website through a secure third-party payment provider (Creem), as allowed for
-non-game products by Microsoft Store Policy 10.8.1 and 10.8.6. No purchase is
-made inside the Store package. Test account for review: <owner adds a reviewer
-login here>.
+Payments (policy 10.8): Needt is free to use. The optional Pro and Lifetime plans are bought on the Needt website through a secure third-party payment provider (Creem), as allowed for non-game products by Store Policy 10.8.1 and 10.8.6. No purchase is made through the Store. Pro: USD 7 per month or USD 59 per year; Lifetime: USD 149 one time; a 14-day Pro trial starts after email confirmation.
+
+Sign-in: Needt needs an account. "Sign in" on the first screen opens the system browser, because Google and other identity providers refuse embedded web views; the browser hands the user back to the app through the needt:// link (registered in the package manifest). No payment is requested at install or sign-in.
+
+Capabilities: runFullTrust, because the app is a Win32 (Tauri) process that loads its interface in the system WebView2 control; internetClient.
+
+Test account for review: <owner adds a reviewer login here>.
 ```
 
 The reviewer account is the owner's to provide (the app's sandbox/reviewer
@@ -162,9 +173,8 @@ Never put a real password in a commit.
 ## Package declarations
 
 - Capabilities: `internetClient`; restricted `runFullTrust` (the app is a Win32
-  process in the MSIX). Partner Center asks for a justification: "Needt is a
-  desktop app (Tauri, Win32) that runs as a full-trust process and loads its
-  interface in the system WebView2 control."
+  process in the MSIX). Partner Center asks for a justification: the text is in
+  the certification notes above.
 - Architectures: x64 only for now (the CI package is x64). Arm64 runs it under
   emulation on Windows 11 on Arm.
 - Updates: the Store updates the package. The app has no self-updater

@@ -6,9 +6,10 @@
   sets Identity/@Version from tauri.conf.json, and (when the MSIX_IDENTITY_NAME /
   MSIX_PUBLISHER variables are set) Identity/@Name and Identity/@Publisher.
 
-  OWNER: replace the two placeholders below with the values Partner Center
-  shows under Product management, Product identity (Package/Identity/Name and
-  Package/Identity/Publisher). They are case sensitive and must match exactly,
+  OWNER: replace the placeholders below with the values Partner Center shows
+  under Product management, Product identity (Package/Identity/Name,
+  Package/Identity/Publisher and Package/Properties/PublisherDisplayName; the
+  last is "Needt" only if the account's publisher name is exactly that). They are case sensitive and must match exactly,
   or the Store refuses the upload. (Hyphens, not underscores, in the Name
   placeholder: the schema allows only letters, digits, dot and hyphen, and
   makeappx rejects anything else.) The package is NOT signed: the Store

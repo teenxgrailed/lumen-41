@@ -9,29 +9,39 @@
     pwsh msix/build-msix.ps1 -ExePath src-tauri/target/release/needt-desktop.exe
 
   Optional environment (GitHub Actions variables, so no commit is needed):
-    MSIX_IDENTITY_NAME   Package/Identity/Name from Partner Center
-    MSIX_PUBLISHER       Package/Identity/Publisher from Partner Center (CN=...)
+    MSIX_IDENTITY_NAME             Package/Identity/Name from Partner Center
+    MSIX_PUBLISHER                 Package/Identity/Publisher (CN=...)
+    MSIX_PUBLISHER_DISPLAY_NAME    Package/Properties/PublisherDisplayName
+  All three are shown under Product management, Product identity. Values are trimmed.
 #>
 [CmdletBinding()]
 param(
   [Parameter(Mandatory)][string]$ExePath,
-  [string]$IconPath = 'src-tauri/icons/icon.png',
-  [string]$TauriConf = 'src-tauri/tauri.conf.json',
-  [string]$Manifest = 'msix/AppxManifest.xml',
-  [string]$OutDir = 'src-tauri/target/msix'
+  [string]$IconPath = (Join-Path $PSScriptRoot '../src-tauri/icons/icon.png'),
+  [string]$TauriConf = (Join-Path $PSScriptRoot '../src-tauri/tauri.conf.json'),
+  [string]$CargoToml = (Join-Path $PSScriptRoot '../src-tauri/Cargo.toml'),
+  [string]$Manifest = (Join-Path $PSScriptRoot 'AppxManifest.xml'),
+  [string]$OutDir = (Join-Path $PSScriptRoot '../src-tauri/target/msix')
 )
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
-foreach ($p in @($ExePath, $IconPath, $TauriConf, $Manifest)) {
+foreach ($p in @($ExePath, $IconPath, $TauriConf, $CargoToml, $Manifest)) {
   if (-not (Test-Path -LiteralPath $p)) { throw "Missing input: $p" }
 }
 
 # --- version -----------------------------------------------------------------
 # Store rules: four parts, the last is reserved for the Store and must be 0, the
 # first must not be 0. tauri.conf.json says 0.1.0, so the package is
-# (major+1).minor.patch.0 = 1.1.0.0. The mapping only ever grows.
+# (major+1).minor.patch.0 = 1.1.0.0. The mapping only ever grows. A pre-release
+# suffix (0.2.0-beta.1) is dropped, so it maps to the same version as the release.
 $tauriVersion = (Get-Content -Raw -LiteralPath $TauriConf | ConvertFrom-Json).version
+# Cargo.toml is bumped by hand and the app reports CARGO_PKG_VERSION: they must agree.
+$cargoMatch = [regex]::Match((Get-Content -Raw -LiteralPath $CargoToml), '(?ms)^\[package\].*?^version\s*=\s*"([^"]+)"')
+if (-not $cargoMatch.Success) { throw "No [package] version in $CargoToml" }
+if ($cargoMatch.Groups[1].Value -ne $tauriVersion) {
+  throw "Version mismatch: tauri.conf.json is $tauriVersion but Cargo.toml is $($cargoMatch.Groups[1].Value). Bump both."
+}
 if ($tauriVersion -notmatch '^(\d+)\.(\d+)\.(\d+)') { throw "Unexpected version '$tauriVersion'" }
 $msixVersion = '{0}.{1}.{2}.0' -f ([int]$Matches[1] + 1), $Matches[2], $Matches[3]
 
@@ -50,11 +60,17 @@ $ns = New-Object System.Xml.XmlNamespaceManager($xml.NameTable)
 $ns.AddNamespace('m', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
 $identity = $xml.SelectSingleNode('/m:Package/m:Identity', $ns)
 $identity.SetAttribute('Version', $msixVersion)
-if ($env:MSIX_IDENTITY_NAME) { $identity.SetAttribute('Name', $env:MSIX_IDENTITY_NAME) }
-if ($env:MSIX_PUBLISHER) { $identity.SetAttribute('Publisher', $env:MSIX_PUBLISHER) }
+# Trimmed: a pasted trailing space or newline would break makeappx or the match
+# against Partner Center.
+$idName = "$env:MSIX_IDENTITY_NAME".Trim()
+$idPublisher = "$env:MSIX_PUBLISHER".Trim()
+$idDisplay = "$env:MSIX_PUBLISHER_DISPLAY_NAME".Trim()
+if ($idName) { $identity.SetAttribute('Name', $idName) }
+if ($idPublisher) { $identity.SetAttribute('Publisher', $idPublisher) }
+if ($idDisplay) { $xml.SelectSingleNode('/m:Package/m:Properties/m:PublisherDisplayName', $ns).InnerText = $idDisplay }
 $placeholder = ($identity.GetAttribute('Name') -like 'YOUR-*') -or ($identity.GetAttribute('Publisher') -like 'CN=YOUR-*')
 if ($placeholder) {
-  Write-Host "::warning title=MSIX identity is a placeholder::Fill Identity/Name and Identity/Publisher (msix/AppxManifest.xml, or the MSIX_IDENTITY_NAME and MSIX_PUBLISHER Actions variables) from Partner Center before uploading this package."
+  Write-Host "::warning title=MSIX identity is a placeholder::Fill Identity/Name and Identity/Publisher (msix/AppxManifest.xml, or the MSIX_IDENTITY_NAME, MSIX_PUBLISHER and MSIX_PUBLISHER_DISPLAY_NAME Actions variables) from Partner Center before uploading this package."
 }
 $xml.Save((Join-Path $stage 'AppxManifest.xml'))
 

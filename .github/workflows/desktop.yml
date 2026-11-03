@@ -79,13 +79,16 @@ jobs:
 
       # Microsoft Store package. Reuses the exe built above (one Rust build).
       # Identity comes from msix/AppxManifest.xml; set the Actions variables
-      # MSIX_IDENTITY_NAME and MSIX_PUBLISHER to override it without a commit.
+      # MSIX_IDENTITY_NAME, MSIX_PUBLISHER and MSIX_PUBLISHER_DISPLAY_NAME to
+      # override it without a commit. The script also fails when the versions in
+      # tauri.conf.json and Cargo.toml differ.
       - name: Pack MSIX (unsigned, for the Store)
         if: runner.os == 'Windows'
         shell: pwsh
         env:
           MSIX_IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
           MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+          MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
         run: ./msix/build-msix.ps1 -ExePath src-tauri/target/release/needt-desktop.exe
 
       - name: Upload MSIX
