@@ -203,6 +203,39 @@ describe("a press on a menu the card opened", () => {
   });
 });
 
+describe("the Calendar row", () => {
+  const trigger = () => q<HTMLButtonElement>('button[aria-label="Calendar"]')!;
+
+  it("starts on Only in Needt, the first calendar, and says so once", () => {
+    mount();
+    expect(trigger().textContent).toBe("Needt · Only in Needt");
+    typeTitle("Standup");
+    click(q("[data-c2-create-go]")!);
+    expect(onCreate.mock.calls[0][0]).toMatchObject({ calendarId: "cal-a" });
+  });
+
+  it("opens its list above the card, lined up with the button", () => {
+    mount();
+    act(() => void trigger().dispatchEvent(mouse("pointerdown")));
+    const list = document.querySelector<HTMLElement>('[role="menu"]')!;
+    expect(Number(list.style.zIndex)).toBeGreaterThan(
+      Number(q<HTMLElement>(".c2-create")!.style.zIndex || 1200)
+    );
+    expect(list.className).not.toContain("is-right");
+  });
+});
+
+describe("the type switch", () => {
+  it("says Personal, short enough for its third of the switch", () => {
+    mount();
+    const labels = Array.from(
+      mockPortal.querySelectorAll<HTMLElement>("[role='tab'], button")
+    ).map((b) => b.textContent);
+    expect(labels).toContain("Personal");
+    expect(labels).not.toContain("Personal time");
+  });
+});
+
 describe("the time list", () => {
   const start = () => q<HTMLInputElement>("[data-c2-create-from]")!;
   const rows = () =>

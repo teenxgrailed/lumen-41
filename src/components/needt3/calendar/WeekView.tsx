@@ -43,6 +43,7 @@ import {
 } from "./layout";
 import {
   type Anchor,
+  type EventEdit,
   MoreChip,
   POP_EXIT_MS,
   Peek,
@@ -332,6 +333,8 @@ export interface WeekViewProps {
   onOpen?: (id: string) => void;
   onDone: (b: CalItem) => void;
   onRename: (b: CalItem, title: string) => void;
+  /** Retitle and reschedule an event in one save (the peek's form). */
+  onEdit?: (b: CalItem, fields: EventEdit) => void;
   onDelete: (b: CalItem) => void;
   dragProps?: DragProps;
   /** The bottom-edge handle of a personal time band (the drag host's). */
@@ -642,6 +645,7 @@ export function WeekView({
   onOpen,
   onDone,
   onRename,
+  onEdit,
   onDelete,
   dragProps,
   resizeProps,
@@ -1116,6 +1120,7 @@ export function WeekView({
           onOpen={onOpen}
           onDone={onDone}
           onRename={onRename}
+          onEdit={onEdit}
           onDelete={onDelete}
           onPersonal={onMarkPersonal}
         />

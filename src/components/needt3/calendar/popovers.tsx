@@ -10,7 +10,13 @@ import {
 
 import { createPortal } from "react-dom";
 
-import { NEUTRAL_MARK, type ProjectLike } from "@/lib/needt3/derive";
+import {
+  NEUTRAL_MARK,
+  type ProjectLike,
+  addDays,
+  addMinutes,
+  daysBetween,
+} from "@/lib/needt3/derive";
 import { useReminderActions, useReminders } from "@/lib/needt3/hooks/reminders";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
@@ -62,10 +68,39 @@ export interface PeekProps {
   onOpen?: (id: string) => void;
   onDone: (b: CalItem) => void;
   onRename: (b: CalItem, title: string) => void;
+  /** Retitle and reschedule an event (a writable calendar's) in one save. */
+  onEdit?: (b: CalItem, fields: EventEdit) => void;
   onDelete: (b: CalItem) => void;
   /** Mark an event (synced or not) as personal time; no task is placed over it. */
   onPersonal?: (b: CalItem) => void;
   onClose: () => void;
+}
+
+/** What the event form saves: the stamps are "YYYY-MM-DDTHH:mm". */
+export interface EventEdit {
+  title: string;
+  startAt: string;
+  endAt: string;
+}
+
+/**
+ * The form's day, start and end as the stamps to write: the end keeps its
+ * distance in days from the start, and an end at or before the start is a
+ * quarter hour long. Null when a field is empty.
+ */
+export function eventEditStamps(
+  was: { startAt: string; endAt: string },
+  day: string,
+  start: string,
+  end: string
+) {
+  if (!day || !start || !end) return null;
+  const shift = daysBetween(was.startAt.slice(0, 10), day);
+  const endDay = addDays(was.endAt.slice(0, 10) || day, shift);
+  const startAt = `${day}T${start}`;
+  let endAt = `${endDay}T${end}`;
+  if (endAt <= startAt) endAt = addMinutes(startAt, 15) ?? endAt;
+  return { startAt, endAt };
 }
 
 /** The block's whole story beside it ($P/calendar2.jsx `C2Peek`). */
@@ -80,6 +115,7 @@ export function Peek({
   onOpen,
   onDone,
   onRename,
+  onEdit,
   onDelete,
   onPersonal,
   onClose,
@@ -90,6 +126,17 @@ export function Peek({
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(b.title);
   useEffect(() => setVal(b.title), [b.title]);
+  const stamps = b.event
+    ? (b.entry as { startAt?: string; endAt?: string })
+    : null;
+  const was = {
+    startAt: stamps?.startAt ?? "",
+    endAt: stamps?.endAt || stamps?.startAt || "",
+  };
+  const allDay = !!b.event && b.at == null;
+  const [day, setDay] = useState(was.startAt.slice(0, 10));
+  const [from, setFrom] = useState(was.startAt.slice(11, 16));
+  const [to, setTo] = useState(was.endAt.slice(11, 16));
   const steps = useTaskSteps(isTaskEvent(b.entry) ? null : b.entry);
   const [remind, setRemind] = useState(false);
   // A recurring event's rows are instances: a reminder goes on a real one.
@@ -109,11 +156,38 @@ export function Peek({
   const v = taskView(b.entry, projects, today);
   const hue = v.event ? "var(--text-tertiary)" : v.hue || NEUTRAL_MARK.color;
   const where = v.event ? v.calendarName : v.projectName || "Inbox";
+  const reset = () => {
+    setVal(b.title);
+    setDay(was.startAt.slice(0, 10));
+    setFrom(was.startAt.slice(11, 16));
+    setTo(was.endAt.slice(11, 16));
+  };
   const commit = () => {
     const t = val.trim();
     setEditing(false);
-    if (t && t !== b.title) onRename(b, t);
-    else setVal(b.title);
+    if (!t) return reset();
+    if (b.event && onEdit && !allDay) {
+      const next = eventEditStamps(was, day, from, to);
+      const moved =
+        next && (next.startAt !== was.startAt || next.endAt !== was.endAt);
+      if (next && (moved || t !== b.title))
+        return onEdit(b, { title: t, ...next });
+      return reset();
+    }
+    if (t !== b.title) onRename(b, t);
+    else reset();
+  };
+  const formKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      reset();
+      setEditing(false);
+    }
   };
   return createPortal(
     <div
@@ -134,19 +208,12 @@ export function Peek({
           onChange={(e) => setVal(e.target.value)}
           aria-label="Event title"
           data-c2-edit="1"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              commit();
-            }
-            if (e.key === "Escape") {
-              e.preventDefault();
-              e.stopPropagation();
-              setVal(b.title);
-              setEditing(false);
-            }
+          onKeyDown={formKey}
+          onBlur={() => {
+            // a pure retitle still saves on blur; the day and times save
+            // with the Save button or Enter
+            if (!(b.event && onEdit && !allDay)) commit();
           }}
-          onBlur={commit}
           className="c2-peek-input"
         />
       ) : (
@@ -157,6 +224,42 @@ export function Peek({
           {b.title}
         </div>
       )}
+      {editing && b.event && onEdit && !allDay ? (
+        <div className="c2-peek-when" data-c2-when="">
+          <input
+            type="date"
+            value={day}
+            onChange={(e) => setDay(e.target.value)}
+            aria-label="Event date"
+            data-c2-edit="1"
+            data-c2-edit-date=""
+            className="nt-input"
+            onKeyDown={formKey}
+          />
+          <input
+            type="time"
+            step={900}
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+            aria-label="Event start"
+            data-c2-edit="1"
+            data-c2-edit-from=""
+            className="nt-input"
+            onKeyDown={formKey}
+          />
+          <input
+            type="time"
+            step={900}
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            aria-label="Event end"
+            data-c2-edit="1"
+            data-c2-edit-to=""
+            className="nt-input"
+            onKeyDown={formKey}
+          />
+        </div>
+      ) : null}
       <div className="c2-peek-time">
         {c2Range(b)} · {v.durLong}
       </div>
@@ -181,9 +284,15 @@ export function Peek({
                 <button
                   type="button"
                   className="nx-btn nx-btn-secondary nx-btn-sm"
-                  onClick={() => setEditing(true)}
+                  data-c2-edit-go=""
+                  onMouseDown={(e) => editing && e.preventDefault()}
+                  onClick={() => {
+                    if (editing) return commit();
+                    reset();
+                    setEditing(true);
+                  }}
                 >
-                  Edit title
+                  {editing ? "Save" : "Edit"}
                 </button>
                 <button
                   type="button"

@@ -5,6 +5,7 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { newDate, toLocalDateKey } from "@/lib/date-utils";
+import { calendarLabel } from "@/lib/needt3/calendars";
 import { clockSteps, snapQuarter } from "@/lib/needt3/clock-input";
 import { type ProjectLike, dayLabel } from "@/lib/needt3/derive";
 import { PERSONAL_PRESETS, type PersonalPreset } from "@/lib/personal-time";
@@ -23,7 +24,8 @@ export type CreateKind = "task" | "event" | "personal";
 export const CREATE_KINDS: readonly (readonly [CreateKind, string])[] = [
   ["task", "Task"],
   ["event", "Event"],
-  ["personal", "Personal time"],
+  // "Personal time" does not fit its third of the switch: the card says the rest
+  ["personal", "Personal"],
 ];
 
 /** The presets offered as chips under the card (owner, 27.10.26). */
@@ -175,10 +177,16 @@ export function CreateCard({
   const [pin, setPin] = useState(true);
   const lastCalendarId = useNeedt3Ui((s) => s.lastCalendarId);
   const setLastCalendarId = useNeedt3Ui((s) => s.setLastCalendarId);
-  const [calendarId, setCalendarId] = useState<string | null>(
-    (calendars?.find((c) => c.id === lastCalendarId) ?? calendars?.[0])?.id ??
-      null
-  );
+  const [pickedCalendar, setCalendarId] = useState<string | null>(null);
+  /* Until a calendar is picked here: the one picked last time if it is still
+     on the list, else the first (the Needt calendar, "Only in Needt", comes
+     first). Calendars that load late are picked up too. */
+  const calendarId =
+    (
+      calendars?.find((c) => c.id === pickedCalendar) ??
+      calendars?.find((c) => c.id === lastCalendarId) ??
+      calendars?.[0]
+    )?.id ?? null;
   const use12h = useClock12();
   // The range as last set here: a field commits on blur or Enter, in the same
   // tick as a click on Create, before the parent has handed the new props back.
@@ -426,6 +434,8 @@ export function CreateCard({
                 <SSelect
                   label="Project"
                   width="100%"
+                  align="start"
+                  layer={1300}
                   value={projectId ?? ""}
                   onChange={(v) => setProjectId(v || null)}
                   options={[
@@ -454,6 +464,8 @@ export function CreateCard({
               <SSelect
                 label="Calendar"
                 width="100%"
+                align="start"
+                layer={1300}
                 value={calendarId ?? ""}
                 onChange={(v) => {
                   setCalendarId(v || null);
@@ -462,11 +474,7 @@ export function CreateCard({
                 options={
                   calendars && calendars.length > 0
                     ? calendars.map(
-                        (c) =>
-                          [
-                            c.id,
-                            c.detail ? `${c.name} · ${c.detail}` : c.name,
-                          ] as const
+                        (c) => [c.id, calendarLabel(c.name, c.detail)] as const
                       )
                     : [["", "Needt"] as const]
                 }

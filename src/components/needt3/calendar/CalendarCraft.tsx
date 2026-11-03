@@ -63,6 +63,7 @@ import {
 } from "./blocks";
 import { calendarEmptyState } from "./empty";
 import { daySpan, freeSlot, spanLabel, weekStart } from "./layout";
+import type { EventEdit } from "./popovers";
 import { workHoursOf } from "./strip";
 
 type View = "week" | "days";
@@ -310,6 +311,17 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
     void updateEvent
       .mutateAsync({ id: b.id, patch: { title } })
       .then(({ undo }) => undoable(`Renamed to ${quote(title)}`, undo))
+      .catch(ignore);
+  };
+  const onEdit = (b: CalItem, f: EventEdit) => {
+    if (!b.event || !canEditEvent(b)) return;
+    void updateEvent
+      .mutateAsync({
+        id: b.id,
+        patch: { title: f.title, startAt: f.startAt, endAt: f.endAt },
+        isAllDay: false,
+      })
+      .then(({ undo }) => undoable(`Updated ${quote(f.title)}`, undo))
       .catch(ignore);
   };
   const onDelete = (b: CalItem) => {
@@ -595,6 +607,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               onOpen={onOpen}
               onDone={onDone}
               onRename={onRename}
+              onEdit={onEdit}
               onDelete={onDelete}
               dragProps={drag?.dragProps}
               resizeProps={drag?.resizeProps}

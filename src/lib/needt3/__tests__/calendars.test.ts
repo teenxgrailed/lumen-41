@@ -1,6 +1,7 @@
 import { moveEventToDay } from "@/components/needt3/composer/parse";
 
 import {
+  calendarLabel,
   defaultFeed,
   feedSubtitle,
   isWritableFeed,
@@ -44,6 +45,23 @@ describe("writable calendars", () => {
     expect(feedSubtitle(local)).toBe("Only in Needt");
     expect(feedSubtitle(google)).toBe("me@gmail.com");
     expect(feedSubtitle({ ...google, account: null })).toBe("Google");
+  });
+
+  it("names the account once when the calendar is named after it", () => {
+    const primary = { ...google, name: "me@gmail.com" };
+    expect(feedSubtitle(primary)).toBe("Google");
+    expect(calendarLabel("me@gmail.com", "me@gmail.com")).toBe("me@gmail.com");
+    expect(calendarLabel("Work", "me@gmail.com")).toBe("Work · me@gmail.com");
+    expect(calendarLabel("Needt", "Only in Needt")).toBe(
+      "Needt · Only in Needt"
+    );
+  });
+
+  it("a new event goes to Only in Needt unless a synced calendar was picked last", () => {
+    // Google listed first in the feeds, Needt wins; nothing remembered
+    expect(defaultFeed(writableFeeds([google, local]))?.id).toBe("l");
+    expect(defaultFeed(writableFeeds([google, local]), null)?.id).toBe("l");
+    expect(defaultFeed(writableFeeds([google, local]), "g")?.id).toBe("g");
   });
 
   it("defaults to the last pick, else the Needt calendar", () => {
