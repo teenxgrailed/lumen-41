@@ -67,6 +67,11 @@ read-only investigation, follow `docs/AI-COLLABORATION.md` and maintain a
 per-workstream file under `.agents/handoffs/`. Never let two writers share one
 worktree, and never stage or alter unfamiliar dirty files.
 
+Several chats, workers and bots run in parallel (the fleet). `docs/agents/fleet.md`
+says who owns and merges what, how chats reach each other (`send_message`) and
+the bots (agent hub items), and which actions only the owner approves. Read it
+before merging or starting a worker.
+
 - **npm is the only package manager.** Install with
   `npm install --legacy-peer-deps`; Docker/CI use `npm ci` and `.npmrc`.
 - Node version is pinned in `.nvmrc` (22.x).
