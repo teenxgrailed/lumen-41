@@ -1,0 +1,1 @@
+planner,todo,schedule,focus,timer,pomodoro,pages,docs,reminders,agenda,routine,checklist,widgets
