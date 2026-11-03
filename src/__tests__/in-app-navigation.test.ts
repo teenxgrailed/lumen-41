@@ -58,12 +58,13 @@ describe("navigation inside the installed app", () => {
   });
 
   it("no link to the app uses http:// or the other host", () => {
-    // LegalDocument links the website (needt.app), deliberately an external
-    // page.
+    // LegalHomeLink (the legal pages' header mark) links the website
+    // (needt.app), deliberately an external page; a store build draws it as
+    // plain text.
     const link = new RegExp(
       String.raw`href=\{?[\x60"']http://|href=\{?[\x60"']https://${OWN_HOST}`
     );
-    expect(scan(link, ["legal/LegalDocument.tsx"])).toEqual([]);
+    expect(scan(link, ["legal/LegalHomeLink.tsx"])).toEqual([]);
   });
 
   it("a same-origin path is not opened in a new window, except the legal pages", () => {

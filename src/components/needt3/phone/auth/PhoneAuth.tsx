@@ -32,6 +32,7 @@ import {
 } from "react-icons/lu";
 
 import { useOnline } from "@/lib/needt3/use-online";
+import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { AgeConfirm, useAgeState } from "../../auth/AgeConfirm";
 import type { AuthScreenProps } from "../../auth/AuthScreen";
@@ -95,6 +96,7 @@ export function PhoneAuth({
   age: ageProp,
 }: PhoneAuthProps) {
   const signup = mode !== "login";
+  const store = useStoreDistribution();
   const age = useAgeState(ageProp);
   const [ageMissing, setAgeMissing] = React.useState(false);
   const online = useOnline();
@@ -561,7 +563,8 @@ export function PhoneAuth({
             )}
           </button>
         ) : null}
-        {showWaitlist({ mode, signupClosed }) ? (
+        {/* The waitlist is the website: a store build links nowhere off the app. */}
+        {!store && showWaitlist({ mode, signupClosed }) ? (
           <p className="mau-resend" data-px-calm data-auth-waitlist>
             {WAITLIST.lead}
             <a className="mau-link" href={WAITLIST.href}>

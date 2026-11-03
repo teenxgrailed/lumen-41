@@ -1,7 +1,9 @@
 /**
  * A parser for the small Markdown subset the legal documents are written in:
  * headings (#, ##, ###), paragraphs, "- " lists, pipe tables, "> " quotes,
- * "---" rules, and inline **bold**, `code` and [links](url).
+ * "---" rules, and inline **bold**, `code` and [links](url). A block between
+ * "::: web-only" and ":::" is text a store build (iOS app, Mac App Store)
+ * replaces with a short notice, because it states prices and how to buy.
  *
  * The documents are our own text, so the parser is strict instead of
  * forgiving: anything it does not know is a paragraph, and the tests check the
@@ -20,6 +22,7 @@ export type Block =
   | { type: "list"; items: Inline[][] }
   | { type: "table"; head: Inline[][]; rows: Inline[][][] }
   | { type: "quote"; children: Block[] }
+  | { type: "web-only"; children: Block[] }
   | { type: "rule" };
 
 const INLINE = /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
@@ -103,6 +106,21 @@ export function parseMarkdown(source: string): Block[] {
       continue;
     }
 
+    if (trimmed === "::: web-only") {
+      const inner: string[] = [];
+      i += 1;
+      while (i < lines.length && (lines[i] ?? "").trim() !== ":::") {
+        inner.push(lines[i] ?? "");
+        i += 1;
+      }
+      i += 1;
+      blocks.push({
+        type: "web-only",
+        children: parseMarkdown(inner.join("\n")),
+      });
+      continue;
+    }
+
     if (/^-{3,}$/.test(trimmed)) {
       blocks.push({ type: "rule" });
       i += 1;
@@ -152,6 +170,7 @@ export function parseMarkdown(source: string): Block[] {
       if (
         !next ||
         /^#{1,3}\s/.test(next) ||
+        next.startsWith(":::") ||
         /^-{3,}$/.test(next) ||
         next.startsWith(">") ||
         next.startsWith("|") ||

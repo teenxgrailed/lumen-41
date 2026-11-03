@@ -16,6 +16,19 @@ export function useStoreDistribution(): boolean {
 }
 
 /**
+ * False on the server and during hydration, true once the client's own answer
+ * is in. An effect that would start a purchase request waits for it, because
+ * `useStoreDistribution()` still reads false until then.
+ */
+export function useStoreResolved(): boolean {
+  return useSyncExternalStore(
+    noSubscribe,
+    () => true,
+    () => false
+  );
+}
+
+/**
  * Marks `<html data-store-distribution>` once on the client, for CSS that
  * only has to tidy a gap. Never the way purchase UI is hidden: a hidden link
  * is still a link, so the components do not render it.

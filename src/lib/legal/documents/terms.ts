@@ -76,6 +76,8 @@ Needt connects to services you already use: Google, Microsoft, Apple iCloud and 
 
 ## 5. Plans, trial and payment
 
+::: web-only
+
 ### 5.1 Plans
 
 - **Free:** $0. The core features, with limits (for example on connected calendars, boards, habits and auto-scheduled tasks). The current limits are shown in the app.
@@ -87,6 +89,8 @@ Prices are in US dollars and are shown before you pay. VAT or sales tax may be a
 ### 5.2 Free trial
 
 A new account can try **Pro free for 14 days, without a card**. There is one trial per person; we check this by email address. When the trial ends, the account moves to Free by itself. Nothing is charged, and you keep all your data, but features and limits beyond Free stop working until you upgrade.
+
+:::
 
 ### 5.3 Who sells to you: Creem
 

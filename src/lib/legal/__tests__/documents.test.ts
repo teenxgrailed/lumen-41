@@ -101,6 +101,42 @@ describe("published legal pages", () => {
   });
 });
 
+describe("web-only blocks", () => {
+  it("terms keep exactly one: sections 5.1 and 5.2, the prices and the trial", () => {
+    const only = parseMarkdown(termsMarkdown()).filter(
+      (block) => block.type === "web-only"
+    );
+    expect(only).toHaveLength(1);
+    const first = only[0];
+    if (first?.type !== "web-only") throw new Error("not a web-only block");
+    const headings = first.children
+      .filter((b) => b.type === "heading")
+      .map((b) => (b.type === "heading" ? b.id : ""));
+    expect(headings).toEqual(["5-1-plans", "5-2-free-trial"]);
+  });
+
+  it("parses a fenced block and keeps the text around it", () => {
+    const blocks = parseMarkdown(
+      [
+        "Before.",
+        "",
+        "::: web-only",
+        "",
+        "Price $7.",
+        "",
+        ":::",
+        "",
+        "After.",
+      ].join("\n")
+    );
+    expect(blocks.map((b) => b.type)).toEqual([
+      "paragraph",
+      "web-only",
+      "paragraph",
+    ]);
+  });
+});
+
 describe("markdown subset", () => {
   it("parses headings, lists, tables, quotes and inline marks", () => {
     const blocks = parseMarkdown(

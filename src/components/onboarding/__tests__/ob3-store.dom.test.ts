@@ -10,7 +10,7 @@ import { act, createElement as h } from "react";
 import { type Root, createRoot } from "react-dom/client";
 
 import { Ob3Flow } from "../Ob3Flow";
-import { startCheckout } from "../ob3-api";
+import { checkoutAvailable, startCheckout } from "../ob3-api";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -56,6 +56,8 @@ beforeEach(() => {
   document.body.appendChild(host);
   root = createRoot(host);
   window.sessionStorage.clear();
+  jest.mocked(checkoutAvailable).mockClear();
+  jest.mocked(startCheckout).mockClear();
 });
 
 afterEach(() => {
@@ -100,6 +102,17 @@ describe("Ob3Flow", () => {
     expect(host.textContent).toMatch(/Opening your week/);
     expectNoPurchaseUi();
     expect(startCheckout).not.toHaveBeenCalled();
+  });
+
+  it("store build: the card step never asks whether checkout is open", async () => {
+    asStore();
+    await mount("card");
+    expect(checkoutAvailable).not.toHaveBeenCalled();
+  });
+
+  it("browser: the card step does ask", async () => {
+    await mount("card");
+    expect(checkoutAvailable).toHaveBeenCalled();
   });
 
   it("store build: the gift screen says only what the gift is and continues", async () => {

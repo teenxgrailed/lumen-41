@@ -33,7 +33,10 @@ import {
 import { dur, durH, hhmm } from "@/lib/onboarding/format";
 import type { WeekPlan } from "@/lib/onboarding/plan";
 import type { CommitResult } from "@/lib/onboarding/server";
-import { useStoreDistribution } from "@/lib/use-store-distribution";
+import {
+  useStoreDistribution,
+  useStoreResolved,
+} from "@/lib/use-store-distribution";
 
 import { Ob3Sky } from "./Ob3Sky";
 import { DayList, Week } from "./Ob3Week";
@@ -171,6 +174,7 @@ export function Ob3Flow({
   /* A store build (iOS app, Mac App Store) never shows the plan or the card
      step: the flow ends after the gift, on the plan the account already has. */
   const store = useStoreDistribution();
+  const storeKnown = useStoreResolved();
   const [k, setK] = useState(() => {
     const i = isStep(startStep) ? STEPS3.indexOf(startStep) : 0;
     return clampStepForSession(Math.max(0, i), signedIn.current);
@@ -450,14 +454,15 @@ export function Ob3Flow({
 
   /* card: ask whether checkout is open before offering a card */
   useEffect(() => {
-    if (step !== "card") return;
+    /* Not before the store answer is in, and never in a store build. */
+    if (step !== "card" || !storeKnown || store) return;
     let alive = true;
     setPayOpen(null);
     void checkoutAvailable().then((o) => alive && setPayOpen(o));
     return () => {
       alive = false;
     };
-  }, [step]);
+  }, [step, storeKnown, store]);
   const checkout = async () => {
     setPaying("busy");
     setPayErr(null);

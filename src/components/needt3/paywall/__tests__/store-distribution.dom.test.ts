@@ -161,6 +161,39 @@ describe("paywall in a store build", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("desktop sheet takes focus, keeps it on Close and closes on Escape", () => {
+    asMacAppStore();
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const onClose = jest.fn();
+    render(h(Paywall, { ...props, onClose }));
+    const close = document.body.querySelector<HTMLButtonElement>(
+      "button[data-pw-close]"
+    )!;
+    expect(document.activeElement).toBe(close);
+    const tab = new KeyboardEvent("keydown", {
+      key: "Tab",
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      window.dispatchEvent(tab);
+    });
+    expect(tab.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(close);
+    act(() => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+    // closing gives focus back to what opened the sheet
+    render(h(Paywall, { ...props, open: false, onClose }));
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
   it("phone sheet inside the iOS app: one sentence and Close", () => {
     asIos();
     render(h(PkPaywall, props));

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { type Block, type Inline, parseMarkdown } from "@/lib/legal/markdown";
 
 import { LegalHomeLink } from "./LegalHomeLink";
+import { WebOnly } from "./WebOnly";
 
 const LINKS = [
   { href: "/terms", label: "Terms" },
@@ -143,6 +144,8 @@ function renderBlock(block: Block, index: number): ReactNode {
           {block.children.map(renderBlock)}
         </blockquote>
       );
+    case "web-only":
+      return <WebOnly key={index}>{block.children.map(renderBlock)}</WebOnly>;
     case "rule":
       return <hr key={index} className="mt-10 border-[var(--border-subtle)]" />;
   }
