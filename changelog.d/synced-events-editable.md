@@ -1,0 +1,4 @@
+- Calendar: an event from a Google, Outlook or CalDAV calendar you can write to can now be opened, retitled, deleted, dragged to another time or day, and pulled by its bottom edge, and the change goes to that calendar (Undo puts it back). Holiday, birthday and subscribed calendars, recurring events and busy blocks stay read-only.
+- Calendar: the new-event card has a Date row with a month grid, like the Composer's Event form.
+- Calendar: the Calendar and Project dropdowns in the new-event card no longer close the card when you click an item, and a time row no longer slides away from under the pointer.
+- Calendar: the event peek's Edit now changes the title, day, start and end together. In the new-event card the Calendar list opens under its button and above the card (its items are clickable), the calendar starts on "Only in Needt" unless you picked another last time, an account calendar named after its email shows the email once, and the "Personal" tab fits.
