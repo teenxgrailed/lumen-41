@@ -35,6 +35,12 @@ name and no address anywhere in this folder.
   pages) and change both `support_url.txt` files.
 - **"Google" in the description** while Google's OAuth verification is open (see
   `review-notes.md` Part 2).
+- **iPhone and iPad screenshots are not produced yet.** In CI the web app renders its global
+  error page inside the Capacitor WebView: the root layout throws during render, only on the
+  phone path (the Mac harness shows the same server fine). Run 41575756397 logged a stack in
+  `app/layout` (Providers or AmbientBackdrop) but not the message; `login.log` in the artifact
+  has it after the next run (lines starting `PAGE`). Fix in `src/`, then re-run the workflow.
+  Mac (2880x1800) and widget shots are good.
 - The five blockers in `review-notes.md` Part 2 (demo deletion, the web paywall inside the
   app, Sign in with Apple keys, Gmail wording, export compliance key).
 

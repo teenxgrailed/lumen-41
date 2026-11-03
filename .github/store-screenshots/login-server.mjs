@@ -22,8 +22,8 @@ const UPSTREAM = { host: "127.0.0.1", port: 3000 };
 const REPORTER = `<script>(function(){function s(k,m){try{var x=new XMLHttpRequest();x.open("POST","/__err",true);x.send(k+": "+String(m).slice(0,3000));}catch(e){}}
 s("load",navigator.userAgent+" "+location.href+" cap="+(window.Capacitor?window.Capacitor.getPlatform():"none"));
 window.addEventListener("error",function(e){s("error",(e.message||"")+" @"+(e.filename||"")+":"+(e.lineno||"")+(e.error&&e.error.stack?"\\n"+e.error.stack:""));});
-window.addEventListener("unhandledrejection",function(e){s("rejection",(e.reason&&e.reason.stack)||e.reason);});
-var ce=console.error;console.error=function(){try{s("console.error",Array.prototype.map.call(arguments,function(a){return (a&&a.stack)||String(a);}).join(" "));}catch(_){}ce.apply(console,arguments);};})();</script>`;
+window.addEventListener("unhandledrejection",function(e){s("rejection",(e.reason&&e.reason.stack?e.reason.message+"\\n"+e.reason.stack:e.reason));});
+var ce=console.error;console.error=function(){try{s("console.error",Array.prototype.map.call(arguments,function(a){return a&&a.stack?(a.name+": "+a.message+"\\n"+a.stack):String(a);}).join(" "));}catch(_){}ce.apply(console,arguments);};})();</script>`;
 
 function log(line) {
   console.log(`${new Date().toISOString()} ${line}`);
