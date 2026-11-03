@@ -236,4 +236,38 @@ describe("Sentry privacy filtering", () => {
       expect(event).not.toHaveProperty("tags");
     });
   });
+
+  describe("frame paths", () => {
+    const scrubbed = (filename?: string, abs_path?: string) =>
+      scrubSentryEvent({
+        exception: {
+          values: [{ stacktrace: { frames: [{ filename, abs_path }] } }],
+        },
+      }).exception?.values?.[0]?.stacktrace?.frames?.[0];
+
+    it("strips a query from filename and abs_path", () => {
+      const url = "https://use.needt.app/reset?token=secret";
+      expect(scrubbed(url, url)).toEqual({
+        filename: "https://use.needt.app/reset",
+        abs_path: "https://use.needt.app/reset",
+      });
+    });
+
+    it("strips a hash from filename and abs_path", () => {
+      const url = "https://use.needt.app/invite#token=secret";
+      expect(scrubbed(url, url)).toEqual({
+        filename: "https://use.needt.app/invite",
+        abs_path: "https://use.needt.app/invite",
+      });
+    });
+
+    it("leaves a path without query or hash unchanged", () => {
+      const path = "app:///_next/static/chunks/x.js";
+      expect(scrubbed(path, path)).toEqual({ filename: path, abs_path: path });
+    });
+
+    it("keeps undefined undefined", () => {
+      expect(scrubbed(undefined, undefined)).toEqual({});
+    });
+  });
 });

@@ -66,10 +66,22 @@ function omitUndefined<T extends Record<string, unknown>>(value: T): T {
   ) as T;
 }
 
+/**
+ * Drops a `?query` and `#hash` from a frame path. In the browser a frame's
+ * filename can be the page URL itself (inline scripts), and a reset or invite
+ * page carries its token there. Origin and path stay, which is what source map
+ * lookup matches on.
+ */
+function stripQueryAndHash(path: string | undefined): string | undefined {
+  if (path === undefined) return undefined;
+  const cut = path.search(/[?#]/);
+  return cut === -1 ? path : path.slice(0, cut);
+}
+
 function scrubFrame(frame: SentryFrameLike): SentryFrameLike {
   return omitUndefined({
-    filename: frame.filename,
-    abs_path: frame.abs_path,
+    filename: stripQueryAndHash(frame.filename),
+    abs_path: stripQueryAndHash(frame.abs_path),
     function: frame.function,
     module: frame.module,
     lineno: frame.lineno,
