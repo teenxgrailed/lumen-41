@@ -416,6 +416,7 @@ jobs:
       # Required Reason APIs in the resolved packages, next to what the app
       # declares. Information: each package carries its own manifest.
       - name: Required Reason APIs in the Swift packages
+        if: ${{ !cancelled() }}
         working-directory: apps/macos
         run: python3 scripts/check-appstore-privacy.py --packages SourcePackages/checkouts | sed -n '/Swift packages/,$p'
 
@@ -423,6 +424,7 @@ jobs:
       # in the target app's scripting definition. Music.app is on the runner;
       # Spotify is installed from its cask for this check.
       - name: Scripting access groups exist in Music.app and Spotify.app
+        if: ${{ !cancelled() }}
         working-directory: apps/macos
         run: |
           set -u
@@ -456,6 +458,7 @@ jobs:
       # expected to fail, and only on signing or provisioning. An options
       # error (bad key or value) comes before that and fails this step.
       - name: Export options are accepted (fails only on signing)
+        if: ${{ !cancelled() }}
         working-directory: apps/macos
         run: |
           set -u
@@ -479,6 +482,7 @@ jobs:
           fi
 
       - name: Zip the archive
+        if: ${{ !cancelled() }}
         working-directory: apps/macos
         run: |
           set -euo pipefail
@@ -486,6 +490,7 @@ jobs:
           ls -lh out/NeedtAppStore.xcarchive.zip
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
         with:
           name: needt-macos-appstore-archive
           path: apps/macos/out/NeedtAppStore.xcarchive.zip

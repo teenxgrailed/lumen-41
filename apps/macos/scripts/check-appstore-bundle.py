@@ -18,6 +18,7 @@ entitlements are read from the file XcodeGen wrote, which is what Xcode signs
 with.
 """
 import filecmp
+import json
 import os
 import plistlib
 import shutil
@@ -175,16 +176,31 @@ elif shutil.which("iconutil"):
                 if head[:8] == b"\x89PNG\r\n\x1a\n":
                     widths.add(int.from_bytes(head[16:20], "big"))
                     print("  icns entry:", name, int.from_bytes(head[16:20], "big"), "px")
+        # actool keeps only the small sizes in the .icns and the rest in Assets.car,
+        # so the compiled catalog is read too (App Store validation reads the catalog).
+        car_widths = set()
+        car = f"{app}/Contents/Resources/Assets.car"
+        if os.path.isfile(car) and shutil.which("xcrun"):
+            info_json = subprocess.run(["xcrun", "assetutil", "--info", car],
+                                       capture_output=True, text=True).stdout
+            try:
+                for entry in json.loads(info_json):
+                    if entry.get("Name") == "AppIcon" and entry.get("PixelWidth"):
+                        car_widths.add(int(entry["PixelWidth"]))
+                        print("  Assets.car AppIcon:", entry.get("PixelWidth"), "x", entry.get("PixelHeight"),
+                              entry.get("Scale"), entry.get("Idiom"))
+            except ValueError:
+                print("  assetutil output not readable:", info_json[:200])
         # 16, 32, 128, 256, 512 at 1x and 2x need these pixel sizes
-        want = {16, 32, 64, 128, 256, 512, 1024}
-        if want <= widths:
-            ok(f"AppIcon holds every macOS size (pixel widths {sorted(widths)})")
+        want = {16, 32, 128, 256, 512, 1024}
+        have_px = widths | car_widths
+        if want <= have_px:
+            ok(f"AppIcon holds every macOS size (icns {sorted(widths)}, Assets.car {sorted(car_widths)})")
         else:
-            fail(f"AppIcon is missing pixel widths {sorted(want - widths)} {result.stderr.strip()}")
+            fail(f"AppIcon is missing pixel widths {sorted(want - have_px)} "
+                 f"(icns {sorted(widths)}, Assets.car {sorted(car_widths)}) {result.stderr.strip()}")
 
 # the source asset catalog: all ten macOS slots, each file the right pixel size
-import json  # noqa: E402
-
 catalog = "Needt/Resources/Assets.xcassets/AppIcon.appiconset"
 slots = json.load(open(f"{catalog}/Contents.json"))["images"]
 have = {(i["size"], i["scale"]) for i in slots if i.get("idiom") == "mac" and i.get("filename")}

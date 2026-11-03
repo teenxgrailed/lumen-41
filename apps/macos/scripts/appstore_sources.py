@@ -8,6 +8,7 @@ APPSTORE set (`#if !APPSTORE`, `#if DEBUG`, `#if NEEDT_CI`).
 
 Run from apps/macos.
 """
+import ast
 import fnmatch
 import os
 import re
@@ -86,9 +87,21 @@ def _condition(expr):
     c = c.replace("&&", " and ").replace("||", " or ")
     c = re.sub(r"!(?!=)", " not ", c)
     try:
-        return bool(eval(c, {"__builtins__": {}}, {}))
-    except Exception:
-        return True
+        return _truth(ast.parse(c.strip(), mode="eval").body)
+    except (SyntaxError, ValueError):
+        return True  # a condition this does not understand counts as compiled
+
+
+def _truth(node):
+    """Evaluate only `True`, `False`, `not`, `and`, `or` and parentheses."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, bool):
+        return node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        return not _truth(node.operand)
+    if isinstance(node, ast.BoolOp):
+        values = [_truth(v) for v in node.values]
+        return all(values) if isinstance(node.op, ast.And) else any(values)
+    raise ValueError("unsupported condition")
 
 
 def active_lines(path):
