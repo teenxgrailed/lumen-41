@@ -40,6 +40,34 @@ function profilePatch(input: RegisterInput) {
   };
 }
 
+/**
+ * One token, one agent. A token is one agent's identity, so a second client
+ * that registers through it under another name or kind would silently take
+ * over the first one's profile, items and leases. An agent counts as
+ * registered once a client gave it a kind, capabilities or skills; a register
+ * that names a different name or kind than that is refused. The same client
+ * registering again (same name and kind, or neither) stays idempotent, and a
+ * token whose agent still has its defaults is free to claim its identity.
+ * Rename or re-kind an agent from the Agents screen instead.
+ */
+export function assertTokenNotInUse(self: HubAgent, input: RegisterInput) {
+  const registered =
+    self.kind !== "other" ||
+    self.capabilities.trim() !== "" ||
+    self.skills.length > 0;
+  if (!registered) return;
+  const otherName =
+    input.name !== undefined &&
+    input.name.trim().toLowerCase() !== self.name.trim().toLowerCase();
+  const otherKind = input.kind !== undefined && input.kind !== self.kind;
+  if (!otherName && !otherKind) return;
+  throw new HubError(
+    "TOKEN_IN_USE",
+    `This token already belongs to agent ${self.name}. Create a separate token for each agent in Settings > Connections.`,
+    { agent: self.name, kind: self.kind }
+  );
+}
+
 /** An agent describes itself. Idempotent; another agent's id is refused. */
 export async function registerAgent(scope: AgentScope, input: RegisterInput) {
   const self = scope.actor.agent;
@@ -49,6 +77,7 @@ export async function registerAgent(scope: AgentScope, input: RegisterInput) {
       "An agent can change only its own profile. Ask the owner to edit another agent."
     );
   }
+  assertTokenNotInUse(self, input);
   const patch = profilePatch(input);
   if (input.name !== undefined && !patch.name) {
     throw new HubError("INVALID", "name cannot be empty.");
