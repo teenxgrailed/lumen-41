@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-home="a">
 <head>
 <meta charset="utf-8">
 <meta name="p:domain_verify" content="ff1a8c04e4ffc8b97bdb43c7d4745fec"/>
@@ -504,5 +504,9 @@
 <a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro</span></a>
 <script src="vendor/sky.js?v=29" defer></script>
 <script src="app.js?v=51" defer></script>
+<script>/* A/B test (v46): report the variant once Umami has loaded, and on every "Try it free" click */
+(function(){var v=document.documentElement.dataset.home||"a";
+addEventListener("load",function(){if(window.umami)umami.track("home_view",{variant:v});});
+document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest(".js-signup");if(a&&window.umami)umami.track("signup_click",{variant:v,where:a.closest(".hero")?"hero":a.closest("header")?"nav":"page"});},true);})();</script>
 </body>
 </html>
