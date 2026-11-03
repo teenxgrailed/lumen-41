@@ -23,7 +23,11 @@ const RESOURCE_FORMAT = /^[a-z][a-z0-9_-]{0,30}:\S.*$/;
 const GLOB_CHARS = /[*?[\]{}]/;
 
 export function normalizeResource(raw: string): string {
-  const resource = raw.trim();
+  const trimmed = raw.trim();
+  const sep = trimmed.indexOf(":");
+  // The kind is case-insensitive ("Account:" is "account:").
+  const resource =
+    sep > 0 ? `${trimmed.slice(0, sep).toLowerCase()}${trimmed.slice(sep)}` : trimmed;
   if (!RESOURCE_FORMAT.test(resource)) {
     throw new HubError(
       "INVALID",
