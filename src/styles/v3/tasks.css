@@ -134,7 +134,7 @@
 
 /* Card · preview (Mail's "Make a task" result). */
 .needt-v3 .tk-prev { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-lg); background: var(--fill-3); cursor: default; }
-.needt-v3 .tk-prev-title { font: 500 14px/18px var(--font-sans); color: var(--text-primary); text-decoration: none; }
+.needt-v3 .tk-prev-title { font: 500 13px/17px var(--font-sans); color: var(--text-primary); text-decoration: none; }
 .needt-v3 .tk-prev-title.is-done { color: var(--text-muted); text-decoration: line-through; }
 .needt-v3 .tk-prev-where { margin-left: auto; font: var(--type-meta); color: var(--text-tertiary); }
 
@@ -201,7 +201,7 @@
 .needt-v3 .wk-pcard-name { font: 600 15px/19px var(--font-sans); color: var(--text-primary); overflow-wrap: anywhere; hyphens: auto; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .needt-v3 .wk-mcard { flex: none; width: 180px; padding: 5px; border: 0; border-radius: 16px; cursor: default; text-align: left; transition: box-shadow var(--transition-hover), transform var(--transition-hover); }
 .needt-v3 .wk-mcard-plate { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 11px; background: var(--surface-raised); box-shadow: var(--shadow-ring); }
-.needt-v3 .wk-mcard-name { font: 600 14px/18px var(--font-sans); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .wk-mcard-name { font: 600 13px/17px var(--font-sans); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .needt-v3 .wk-mcard-name.is-none { color: var(--text-secondary); }
 
 /* Projects (08.10.26): Cards / List switch, clickable cards, the project page. */
@@ -225,7 +225,7 @@
 .needt-v3 .wk-padd { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-ring); cursor: text; }
 .needt-v3 .wk-padd:focus-within { box-shadow: var(--shadow-ring), var(--text-tertiary) 0 0 0 1px inset; }
 .needt-v3 .wk-padd-plus { flex: none; display: flex; color: var(--text-tertiary); }
-.needt-v3 .wk-padd-input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: transparent; font: 500 14px/18px var(--font-sans); color: var(--text-primary); }
+.needt-v3 .wk-padd-input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: transparent; font: 500 13px/17px var(--font-sans); color: var(--text-primary); }
 .needt-v3 .wk-padd-input::placeholder { color: var(--text-muted); }
 .needt-v3 .wk-ppage .wk-empty { margin-top: 8px; }
 

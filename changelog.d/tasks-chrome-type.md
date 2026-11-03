@@ -1,0 +1,1 @@
+- Tasks uses the app's 13px text in the task preview, week cards and the week's add field.
