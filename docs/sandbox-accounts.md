@@ -59,6 +59,8 @@ For every row with a `sandboxKind`:
 - OAuth tokens older than 24 hours are revoked. A client that refreshed within
   the day keeps working; otherwise the reviewer reconnects. The personal
   connector token is cleared.
+- A pending account deletion is called off (status `CANCELED`), see
+  "Account deletion" below.
 - The planner above is written again.
 
 Only rows already marked as sandboxes are ever reset; the reset checks the mark
@@ -79,7 +81,6 @@ places that share one table (`src/lib/sandbox/policy.ts`):
 | Capability         | Refused                                                                                                                                                                |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `account_identity` | Password reset (request and set); there is no email or name change                                                                                                     |
-| `account_delete`   | Account deletion                                                                                                                                                       |
 | `account_export`   | Account export                                                                                                                                                         |
 | `billing`          | Checkout, billing portal, trial, plan changes                                                                                                                          |
 | `providers`        | Google / Outlook / CalDAV, IMAP and mail OAuth, Todoist / Notion imports (also through MCP), file import, task sync, integrations, Pinterest, own AI keys and AI OAuth |
@@ -90,6 +91,31 @@ places that share one table (`src/lib/sandbox/policy.ts`):
 | `uploads`          | Page and moodboard uploads; task files are capped at 1 MB                                                                                                              |
 | `admin`            | Every admin route and page, whatever the role says                                                                                                                     |
 | `outbound_email`   | Verification mail; nothing at all is mailed to a sandbox address                                                                                                       |
+
+## Account deletion
+
+App Review guideline 5.1.1(v) wants account deletion inside the app, and the
+reviewer signs in with this account to test it. So a sandbox account may
+**schedule and cancel** a deletion through the normal flow: the re-auth step
+(`POST /api/account/reauth`, which only verifies the password and never
+changes it), then `POST /api/account/deletion` (schedule) and
+`DELETE /api/account/deletion` (cancel). The reviewer sees the same
+confirmation as anybody else.
+
+The account is never actually purged:
+
+1. The nightly reset cancels any pending deletion on a sandbox row
+   (`cancelSandboxDeletion`, status `CANCELED`), so a deletion scheduled today
+   never reaches its 7-day grace.
+2. `finalizeAccountDeletion`, which the delayed queue job and the daily sweep
+   both call, skips a row whose user has a `sandboxKind`: it logs a
+   `logger.warn` ("a sandbox account is never purged"), marks the request
+   `CANCELED` and returns. Only an admin who typed the account's email to
+   retire it (Admin → Users → Delete) passes `allowSandbox` and gets a real
+   deletion.
+
+There is no `account_delete` capability any more; the middleware and
+`refuseSandbox` do not look at the deletion routes.
 
 Hosted AI is capped at `SANDBOX_AI_DAILY_ACTION_CAP` actions with no slow
 lane; the nightly reset clears the usage, so the cap is per day.

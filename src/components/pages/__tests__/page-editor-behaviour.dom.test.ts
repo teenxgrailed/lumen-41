@@ -202,6 +202,23 @@ describe("the slash menu", () => {
     expect(editor.getText()).toContain("/qqq");
   });
 
+  it("Escape closes the menu and takes the typed /word out of the text", async () => {
+    await mount();
+    const editor = editorOf();
+    await act(async () => {
+      editor.commands.insertContent("Plan /");
+    });
+    expect(menu()).not.toBeNull();
+    await key(editor, { key: "Escape" });
+    expect(menu()).toBeNull();
+    expect(editor.getText()).toBe("Plan ");
+    await act(async () => {
+      editor.commands.insertContent("/hea");
+    });
+    await key(editor, { key: "Escape" });
+    expect(editor.getText()).toBe("Plan ");
+  });
+
   it("replaces only the typed /word with the chosen block", async () => {
     await mount();
     const editor = editorOf();

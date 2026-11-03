@@ -2,7 +2,11 @@
 
 import { useEffect } from "react";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import {
   type ApiPage,
@@ -193,6 +197,43 @@ export function useDeleteDocForever() {
 }
 
 /** Create a document. Undo moves it to Trash. */
+/**
+ * Documents this tab created with no title (the "New doc" actions). Creating
+ * one still needs a page to open, so it exists at once; if the person leaves
+ * it without typing anything, `discardBlankDoc` sends it to Trash instead of
+ * leaving an empty "Untitled" behind.
+ */
+const blankDocs = new Set<string>();
+
+/**
+ * Called when a document is left. A doc this tab created blank, whose title is
+ * still empty and whose page holds no text, goes to Trash (quietly: nothing to
+ * undo, the person never wrote it). Returns whether it did.
+ */
+export function discardBlankDoc(
+  qc: QueryClient,
+  id: string,
+  hasText: boolean | null
+): boolean {
+  // `null`: the page could not be read, so nothing is decided.
+  if (hasText === null || !blankDocs.has(id)) return false;
+  if (hasText) {
+    blankDocs.delete(id);
+    return false;
+  }
+  const cur = qc.getQueryData<V3Doc>(qk.doc(id));
+  if (cur && cur.title.trim()) {
+    blankDocs.delete(id);
+    return false;
+  }
+  blankDocs.delete(id);
+  dropListItem<V3Doc>(qc, DOCS, id);
+  void sendJson(`/api/pages/${id}`, "PATCH", { trashed: true }).catch(() => {
+    void qc.invalidateQueries({ queryKey: DOCS });
+  });
+  return true;
+}
+
 export function useCreateDoc() {
   return useUndoableMutation<
     | {
@@ -220,10 +261,12 @@ export function useCreateDoc() {
         });
         return null;
       }
-      return docFromApi(
+      const made = docFromApi(
         (await sendJson<{ page: ApiPage }>("/api/pages", "POST", vars.draft))
           .page
       );
+      if (!vars.draft.title?.trim()) blankDocs.add(made.id);
+      return made;
     },
   });
 }

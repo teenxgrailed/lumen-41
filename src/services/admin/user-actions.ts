@@ -323,7 +323,7 @@ async function deleteAccount(
     details: { email: target.email, requestId: request.id },
   });
   try {
-    await finalizeAccountDeletion(request.id);
+    await finalizeAccountDeletion(request.id, { allowSandbox: true });
   } catch (error) {
     await logger.error(
       "Admin account deletion failed",
@@ -336,6 +336,16 @@ async function deleteAccount(
     throw new AdminActionError(
       500,
       "The deletion did not finish. It is queued and will be retried."
+    );
+  }
+  const left = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true },
+  });
+  if (left) {
+    throw new AdminActionError(
+      409,
+      "The account is still here: its deletion was cancelled before it ran."
     );
   }
   return { message: "Account deleted." };

@@ -1,5 +1,7 @@
 "use client";
 
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
+
 import { Sheet } from "../ctx/Sheet";
 import { KEY_GROUPS, SHELL_SHORTCUTS } from "./keys";
 
@@ -11,6 +13,7 @@ export function KeySheet({
   open: boolean;
   onClose: () => void;
 }) {
+  const hint = useShortcutHint();
   return (
     <Sheet
       open={open}
@@ -48,7 +51,7 @@ export function KeySheet({
                 <span className="shell-key-sheet-row-3">
                   {r.keys.map((k, i) => (
                     <kbd key={i} className="key-cap">
-                      {k}
+                      {hint(k)}
                     </kbd>
                   ))}
                 </span>

@@ -91,6 +91,21 @@ describe("ShellFrame", () => {
     expect(host.querySelector(".screen-enter")).toBeNull();
   });
 
+  it("opens with a Skip to content link that targets the main landmark, in either UI", () => {
+    for (const ui of ["desktop", "phone"] as const) {
+      render(ui);
+      const link = host.querySelector<HTMLAnchorElement>("a.skip-link");
+      expect(link?.textContent).toBe("Skip to content");
+      const main = host.querySelector("main");
+      expect(link?.getAttribute("href")).toBe(`#${main?.id}`);
+      expect(main?.id).toBe("main-content");
+      expect(main?.getAttribute("tabindex")).toBe("-1");
+      // first focusable element of the frame
+      const first = host.querySelector("a[href], button, input, [tabindex]");
+      expect(first).toBe(link);
+    }
+  });
+
   it("there is exactly one <main>, in either UI", () => {
     render("desktop");
     expect(host.querySelectorAll("main")).toHaveLength(1);

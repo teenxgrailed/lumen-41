@@ -162,10 +162,12 @@ describeIntegration("Agent hub (real database)", () => {
         data: { workspaceId: ws, userId: id, role: "OWNER" },
       });
     }
-    // The flag row comes from the migration (off, 0%); only the owner is let in.
+    // Production opens the hub to everyone (migration agent_hub_for_everyone);
+    // these tests pin the flag off so the gate itself stays covered, and let
+    // only the owner in.
     await prisma.featureFlag.upsert({
       where: { key: "agent_hub" },
-      update: {},
+      update: { enabled: false, rolloutPercentage: 0 },
       create: { key: "agent_hub", enabled: false, rolloutPercentage: 0 },
     });
     await prisma.featureFlagOverride.create({
@@ -207,7 +209,7 @@ describeIntegration("Agent hub (real database)", () => {
     await prisma.$disconnect();
   });
 
-  it("shows the fourteen hub tools to the flagged owner and none to anyone else", async () => {
+  it("shows the twenty-one hub tools to the flagged owner and none to anyone else", async () => {
     for (const token of [claude, grok, codex]) {
       const { body } = await rpc(token, "tools/list");
       const names: string[] = body.result.tools.map(
@@ -215,7 +217,7 @@ describeIntegration("Agent hub (real database)", () => {
       );
       expect(
         names.filter((n) => /^needt_(agent|agents|memory)_/.test(n))
-      ).toHaveLength(14);
+      ).toHaveLength(21);
     }
     const { body } = await rpc(otherPersonal, "tools/list");
     const names: string[] = body.result.tools.map(

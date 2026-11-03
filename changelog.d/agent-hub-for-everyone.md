@@ -1,0 +1,1 @@
+- The Agents hub is now available to every account.

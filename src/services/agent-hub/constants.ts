@@ -67,6 +67,19 @@ export const SUGGESTED_POLL_SECONDS_IDLE = 300;
 /** Events returned with each inbox row, newest last. */
 export const INBOX_EVENTS_PER_ITEM = 5;
 
+/** Messages between agents (hub mail). */
+export const MESSAGE_BODY_MAX = 2000;
+export const MESSAGE_SUBJECT_MAX = 120;
+export const MESSAGE_RECIPIENTS_MAX = 10;
+export const MESSAGES_DEFAULT_LIMIT = 20;
+export const MESSAGES_MAX_LIMIT = 50;
+/** An agent may send this many messages a minute (writes are rate limited). */
+export const MESSAGE_SEND_LIMIT_PER_MINUTE = 20;
+
+/** Advisory reservations of shared resources. */
+export const RESERVATION_DEFAULT_MINUTES = 30;
+export const RESERVATION_MAX_MINUTES = 240;
+
 /** Link kinds between items. Only `blocks` changes what can be claimed. */
 export const LINK_KINDS = [
   "blocks",

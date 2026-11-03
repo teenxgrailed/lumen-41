@@ -227,11 +227,14 @@ export function useCreateTask() {
         return null;
       }
       return taskFromApi(
-        await sendJson<ApiTask>(
-          "/api/tasks",
-          "POST",
-          taskPatchToApi(vars.draft, tz)
-        ),
+        await sendJson<ApiTask>("/api/tasks", "POST", {
+          // No hidden defaults: a task has no priority and no reminder until
+          // the person (or the quick-add line) sets one. The API itself keeps
+          // MEDIUM and the plan's default reminders for other clients.
+          priority: "none",
+          ...taskPatchToApi(vars.draft, tz),
+          defaultReminders: false,
+        }),
         tz
       );
     },

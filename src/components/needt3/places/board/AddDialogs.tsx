@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { V3BoardItem } from "@/lib/needt3/hooks/boards";
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 
 import {
   COLOUR_PRESETS,
@@ -254,6 +255,7 @@ export function NoteDialog({
   onClose: () => void;
   onAdd: (text: string) => Promise<boolean>;
 }) {
+  const hint = useShortcutHint();
   const [v, setV] = useState("");
   const ref = useFocusOnOpen(open);
   useEffect(() => {
@@ -285,7 +287,7 @@ export function NoteDialog({
         className="pl-field is-area is-tall"
       />
       <DialogFoot>
-        <span className="pl-note-sheet-el">⌘↵ to add</span>
+        <span className="pl-note-sheet-el">{hint("⌘↵")} to add</span>
         <button type="button" className="nx-btn nx-btn-text" onClick={onClose}>
           Cancel
         </button>

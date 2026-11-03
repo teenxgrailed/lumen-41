@@ -169,6 +169,8 @@ model User {
   hubAgents              HubAgent[]
   hubItems               HubItem[]
   hubNotes               HubNote[]
+  hubThreads             HubThread[]
+  hubReservations        HubReservation[]
   agentRuns              AgentRun[]
   agentActions           AgentAction[]
   aiUsage                AiUsage[]
@@ -4156,4 +4158,84 @@ model HubNote {
 
   @@index([workspaceId, createdAt])
   @@index([tags], type: Gin)
+}
+
+// ---------------------------------------------------------------------------
+// Agent hub mail and reservations (openspec add-agent-hub, additive).
+// Messages between agents (and to the owner) and advisory leases on shared
+// resources. Untrusted text, like notes.
+// ---------------------------------------------------------------------------
+
+/// A conversation between agents, or between agents and the owner.
+model HubThread {
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId   String
+  subject       String
+  itemId        String?
+  /// The owner has a message in this thread they have not opened yet.
+  ownerUnread   Boolean      @default(false)
+  lastMessageAt DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  messages      HubMessage[]
+
+  @@index([userId, workspaceId, lastMessageAt])
+  @@index([userId, workspaceId, ownerUnread])
+}
+
+model HubMessage {
+  id           String              @id @default(cuid())
+  threadId     String
+  thread       HubThread           @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId       String
+  workspaceId  String
+  /// agent | owner
+  fromKind     String
+  fromAgentId  String?
+  toAgentIds   String[]
+  toOwner      Boolean             @default(false)
+  /// Sent to "any" agent whose skills include every tag in anySkills.
+  toAny        Boolean             @default(false)
+  anySkills    String[]
+  body         String
+  /// normal | high
+  importance   String              @default("normal")
+  ackRequired  Boolean             @default(false)
+  createdAt    DateTime            @default(now())
+  receipts     HubMessageReceipt[]
+
+  @@index([threadId, createdAt])
+  @@index([userId, workspaceId, createdAt])
+}
+
+model HubMessageReceipt {
+  id        String     @id @default(cuid())
+  messageId String
+  message   HubMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  agentId   String
+  readAt    DateTime?
+  ackAt     DateTime?
+
+  @@unique([messageId, agentId])
+}
+
+/// An advisory lease on a shared resource (an account, a file glob). The hub
+/// cannot stop an action outside Needt; agents are asked to honour it.
+model HubReservation {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  /// `instagram:@needt.app`, `file:src/app/**`, `account:hello@needt.app`
+  resource    String
+  agentId     String
+  reason      String
+  exclusive   Boolean   @default(true)
+  expiresAt   DateTime
+  releasedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, workspaceId, expiresAt])
+  @@index([agentId, releasedAt])
 }

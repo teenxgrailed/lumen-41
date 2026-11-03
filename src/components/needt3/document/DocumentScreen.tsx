@@ -1,8 +1,16 @@
 "use client";
 
-import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { useRouter } from "next/navigation";
+
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   LuCalendar,
@@ -17,7 +25,12 @@ import { runPageTool } from "@/components/pages/page-commands";
 
 import { newDate } from "@/lib/date-utils";
 import { useDocAccess } from "@/lib/needt3/hooks/doc-share";
-import { useDoc, useTrashDoc, useUpdateDoc } from "@/lib/needt3/hooks/docs";
+import {
+  discardBlankDoc,
+  useDoc,
+  useTrashDoc,
+  useUpdateDoc,
+} from "@/lib/needt3/hooks/docs";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import type { V3Doc } from "@/lib/needt3/map";
 import { announcePagePatched } from "@/lib/needt3/page-events";
@@ -295,6 +308,26 @@ export function DocumentScreen({
       useNeedt3Ui.getState().setDocOutline([]);
     };
   }, [pageId]);
+
+  // A doc made blank and left without a word goes to Trash, not to the list
+  // as an empty "Untitled". The page is read as it is on the way out, so a
+  // line typed in the last moments still counts.
+  const qc = useQueryClient();
+  const sheetRef = useRef<HTMLElement | null>(null);
+  sheetRef.current = sheet;
+  useEffect(
+    () => () => {
+      const editor = sheetRef.current?.querySelector<HTMLElement>(
+        ".needt-page-editor"
+      );
+      discardBlankDoc(
+        qc,
+        pageId,
+        editor ? statsOf(editor).characters > 0 : null
+      );
+    },
+    [qc, pageId]
+  );
 
   // Under 900px the inspector floats over the page instead of taking width.
   useEffect(() => {

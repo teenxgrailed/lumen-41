@@ -304,6 +304,28 @@ describe("reset", () => {
     expect(todayTasks.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("cancels a pending account deletion, so the account is never purged", async () => {
+    call("user", "findUnique").mockResolvedValue({
+      id: "sandbox-1",
+      sandboxKind: "reviewer",
+    });
+    call("accountDeletionRequest", "updateMany").mockResolvedValueOnce({
+      count: 1,
+    });
+    call("workspace", "findUnique").mockResolvedValueOnce({ id: "ws-1" });
+
+    const result = await resetSandboxAccount("sandbox-1", NOW);
+
+    expect(result.deletionsCanceled).toBe(1);
+    expect(call("accountDeletionRequest", "updateMany")).toHaveBeenCalledWith({
+      where: {
+        userId: "sandbox-1",
+        status: { in: ["SCHEDULED", "FAILED", "PROCESSING"] },
+      },
+      data: { status: "CANCELED", canceledAt: NOW },
+    });
+  });
+
   it("does nothing while the flag is off", async () => {
     flag.mockResolvedValue(false);
     await expect(resetSandboxAccounts(ENV, NOW)).resolves.toEqual({

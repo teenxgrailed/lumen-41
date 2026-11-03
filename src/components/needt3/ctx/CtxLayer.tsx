@@ -4,6 +4,8 @@ import { Fragment, useEffect, useState } from "react";
 
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
+
 import { useV3PortalContainer } from "./PortalScope";
 import {
   type CtxMenu,
@@ -32,6 +34,7 @@ interface Open {
  * anchored to an invisible point at the pointer.
  */
 export function CtxLayer() {
+  const hint = useShortcutHint();
   const container = useV3PortalContainer();
   const [menu, setMenu] = useState<Open | null>(null);
   const [last, setLast] = useState<Open | null>(null);
@@ -184,7 +187,7 @@ export function CtxLayer() {
                             : "var(--type-meta)",
                       }}
                     >
-                      {row.hint}
+                      {hint(row.hint)}
                     </span>
                   ) : null}
                 </Dropdown.Item>

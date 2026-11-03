@@ -2,6 +2,7 @@ import { shiftDay, taskData } from "@/services/onboarding/sample-service";
 import { pageBlocksFromText } from "@/services/pages/page-text-blocks";
 import { partsCreateData } from "@/services/tasks/subtasks";
 import {
+  AccountDeletionStatus,
   PageAuthor,
   Prisma,
   SandboxKind,
@@ -621,10 +622,36 @@ export async function revokeStaleSandboxTokens(
   return revoked.count;
 }
 
+/**
+ * A reviewer may schedule a deletion to test App Review 5.1.1(v), but the
+ * account is never purged: the reset calls the schedule off every night.
+ */
+export async function cancelSandboxDeletion(
+  tx: Tx,
+  userId: string,
+  now: Date
+): Promise<number> {
+  const canceled = await tx.accountDeletionRequest.updateMany({
+    where: {
+      userId,
+      status: {
+        in: [
+          AccountDeletionStatus.SCHEDULED,
+          AccountDeletionStatus.FAILED,
+          AccountDeletionStatus.PROCESSING,
+        ],
+      },
+    },
+    data: { status: AccountDeletionStatus.CANCELED, canceledAt: now },
+  });
+  return canceled.count;
+}
+
 export interface SandboxResetResult {
   userId: string;
   kind: SandboxKind;
   tokensRevoked: number;
+  deletionsCanceled: number;
   seeded: SandboxSeedCounts;
 }
 
@@ -652,6 +679,7 @@ export async function resetSandboxAccount(
         throw new Error("Only a sandbox account can be reset.");
       }
       const tokensRevoked = await revokeStaleSandboxTokens(tx, userId, now);
+      const deletionsCanceled = await cancelSandboxDeletion(tx, userId, now);
       await wipeSandboxContent(tx, userId);
       await ensurePro(tx, userId);
       const workspaceId = await ensureWorkspace(tx, userId);
@@ -660,13 +688,18 @@ export async function resetSandboxAccount(
         workspaceId,
         now,
       });
-      return { tokensRevoked, seeded };
+      return { tokensRevoked, deletionsCanceled, seeded };
     },
     { timeout: 60_000, maxWait: 10_000 }
   );
   await logger.info(
     "Sandbox account reset",
-    { userId, kind, tokensRevoked: result.tokensRevoked },
+    {
+      userId,
+      kind,
+      tokensRevoked: result.tokensRevoked,
+      deletionsCanceled: result.deletionsCanceled,
+    },
     LOG_SOURCE
   );
   return { userId, kind, ...result };

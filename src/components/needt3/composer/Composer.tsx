@@ -80,6 +80,7 @@ import {
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useCreateTask, useTaskParts } from "@/lib/needt3/hooks/tasks";
 import type { V3Project } from "@/lib/needt3/map";
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -553,6 +554,7 @@ export interface ComposerProps {
  * `composerOpen`); creates through the v3 hooks with an Undo notice.
  */
 export function Composer({ open, onClose }: ComposerProps) {
+  const hint = useShortcutHint();
   const container = useV3PortalContainer();
   const [shown, leaving] = useExit(open, 170);
   const [text, setText] = useState("");
@@ -1330,7 +1332,10 @@ export function Composer({ open, onClose }: ComposerProps) {
               )}
               <span className="shell-composer-row-2">
                 {kind === "task" ? (
-                  <Tooltip label="Open as a full task · ⌘↵" side="top">
+                  <Tooltip
+                    label={`Open as a full task · ${hint("⌘↵")}`}
+                    side="top"
+                  >
                     <button
                       type="button"
                       className="cmp-btn cmp-icon"

@@ -70,6 +70,7 @@ import {
   useIncomingNudges,
   useMarkNudgesRead,
 } from "@/lib/needt3/hooks/nudges";
+import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -180,6 +181,7 @@ function IslandRow({
 }
 
 function Corner() {
+  const hint = useShortcutHint();
   const router = useRouter();
   const open = useNeedt3Ui((s) => s.askOpen);
   const setOpen = useNeedt3Ui((s) => s.setAskOpen);
@@ -511,12 +513,17 @@ function Corner() {
             data-agent-home
             data-chat-pill
             className="chat-pill chat-agent-home base-row"
-            aria-label="Ask Needt (⌘J)"
+            aria-label={`Ask Needt (${hint("⌘J")})`}
             onClick={() => setOpen(true)}
           >
             <AiOrb size={20} active={ask.phase !== "idle" && !open} />
             <span className="chat-span">Ask Needt</span>
-            <span className="chat-grid">⌘J</span>
+            {/* The pill is 142px wide: "⌘J" fits, "Ctrl+J" does not. Off the
+                Mac the key stays in the label for screen readers and the
+                pill goes without the cap. */}
+            {hint("⌘J") === "⌘J" ? (
+              <span className="chat-grid">⌘J</span>
+            ) : null}
           </button>
         </div>
 

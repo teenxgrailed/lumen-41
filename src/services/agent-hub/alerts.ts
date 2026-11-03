@@ -34,7 +34,7 @@ function oneLine(text: string, max: number) {
  */
 export async function pushOwnerAlert(
   userId: string,
-  alert: { title: string; body: string; itemId: string }
+  alert: { title: string; body: string; itemId?: string; url?: string }
 ): Promise<{ sent: number; skipped: boolean }> {
   try {
     const now = newDate();
@@ -49,7 +49,7 @@ export async function pushOwnerAlert(
     const payload = {
       title: oneLine(alert.title, 60),
       body: oneLine(alert.body, 140),
-      url: hubItemUrl(alert.itemId),
+      url: alert.url ?? hubItemUrl(alert.itemId ?? ""),
     };
     const results = await Promise.allSettled(
       subscriptions.map((subscription) => deliverPush(subscription, payload))
@@ -70,16 +70,29 @@ export async function pushOwnerAlert(
   }
 }
 
-/** Items with an alert the owner has not opened, and that are still live. */
-export function unreadCount(key: WorkspaceKey) {
-  return prisma.hubItem.count({
-    where: {
-      userId: key.userId,
-      workspaceId: key.workspaceId,
-      ownerUnread: true,
-      status: { notIn: [...TERMINAL_STATUSES] },
-    },
-  });
+/**
+ * Items with an alert the owner has not opened (and that are still live), plus
+ * message threads with a message to the owner they have not opened.
+ */
+export async function unreadCount(key: WorkspaceKey) {
+  const [items, threads] = await Promise.all([
+    prisma.hubItem.count({
+      where: {
+        userId: key.userId,
+        workspaceId: key.workspaceId,
+        ownerUnread: true,
+        status: { notIn: [...TERMINAL_STATUSES] },
+      },
+    }),
+    prisma.hubThread.count({
+      where: {
+        userId: key.userId,
+        workspaceId: key.workspaceId,
+        ownerUnread: true,
+      },
+    }),
+  ]);
+  return items + threads;
 }
 
 /** The owner opened an item: its alert is read. Does not change the item's version. */

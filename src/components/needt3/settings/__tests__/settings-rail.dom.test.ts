@@ -118,6 +118,26 @@ describe("Settings rail", () => {
     ).not.toBeNull();
   });
 
+  it("lists the Desktop group only inside the Mac app", async () => {
+    const DESKTOP = ["app", "island", "mfocus", "widgets", "siri"];
+    await mount("free");
+    for (const id of DESKTOP)
+      expect(host.querySelector(`[data-settings-nav="${id}"]`)).toBeNull();
+    await act(async () => root.unmount());
+    host.remove();
+
+    (window as unknown as { __needtNative: unknown }).__needtNative = {};
+    try {
+      await mount("free");
+      for (const id of DESKTOP)
+        expect(
+          host.querySelector(`[data-settings-nav="${id}"]`)
+        ).not.toBeNull();
+    } finally {
+      delete (window as unknown as { __needtNative?: unknown }).__needtNative;
+    }
+  });
+
   it("opens on the person as a disc of initials, with the plan on its corner", async () => {
     await mount("free");
     const disc = host.querySelector(".settings-me .settings-me-avatar.is-lg");
