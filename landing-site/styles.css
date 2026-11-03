@@ -92,7 +92,7 @@ section { position: relative; }
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 10px; }
 
 /* ── Header ──────────────────────────────────────────── */
-.nav { position: fixed; z-index: 50; top: 14px; left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; padding: 0 12px; }
+.nav { position: fixed; z-index: 50; top: calc(14px + env(safe-area-inset-top)); left: 0; right: 0; display: flex; justify-content: center; pointer-events: none; padding: 0 12px; }
 /* The header is one wide glass card (v17). Its background lives on ::before so
    it can grow downward into a sheet when a menu opens (height eased). */
 .nav-pill { pointer-events: auto; position: relative; display: flex; align-items: center; gap: 4px; width: auto; max-width: 100%; min-height: 62px; padding: 8px 8px 8px 22px; border-radius: 31px; --sheet: 100%; }
