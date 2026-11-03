@@ -6,12 +6,14 @@ import { FiCheck, FiChevronRight } from "react-icons/fi";
 
 import { failedPaymentMessage } from "@/lib/creem/failed-payment";
 import { newDate } from "@/lib/date-utils";
+import { isAppleStoreAvailable } from "@/lib/native-store";
 import {
   type CheckoutChoice,
   openBillingPortal,
   startCheckout,
   startTrial,
 } from "@/lib/needt3/hooks/account";
+import { useApplePlanRows } from "@/lib/needt3/hooks/apple-iap";
 import { type V3Plan, usePlan } from "@/lib/needt3/hooks/plan";
 import { offersTrial } from "@/lib/needt3/paywall";
 import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
@@ -145,7 +147,36 @@ function StorePlanSection() {
           </SRow>
         ))}
       </SGroup>
+      {isAppleStoreAvailable() ? <AppleGroup source={b?.source} /> : null}
     </>
+  );
+}
+
+/** Restore purchases and Manage in App Store; only where the NeedtStore plugin is. */
+function AppleGroup({ source }: { source: V3Plan["source"] }) {
+  const apple = useApplePlanRows(source);
+  if (!apple.canRestore && !apple.canManage) return null;
+  return (
+    <SGroup title="App Store">
+      {apple.canRestore ? (
+        <SRow
+          title="Restore purchases"
+          desc="Apply a purchase made with this Apple ID."
+        >
+          <SBtn disabled={apple.restoring} onClick={apple.restore}>
+            {apple.restoring ? "Restoring…" : "Restore"}
+          </SBtn>
+        </SRow>
+      ) : null}
+      {apple.canManage ? (
+        <SRow
+          title="Manage in App Store"
+          desc="Change or cancel your subscription."
+        >
+          <SBtn onClick={apple.manage}>Manage</SBtn>
+        </SRow>
+      ) : null}
+    </SGroup>
   );
 }
 

@@ -445,6 +445,33 @@ export async function buyWithApple(
   return { ok: true, billing: synced.data };
 }
 
+/**
+ * The products the purchase sheet may sell: the server's list
+ * (`GET /api/billing/apple/account-token`, `enabled` and non-empty) read
+ * through StoreKit, so every price and period shown is the App Store's own.
+ * Known products come first in the order monthly, yearly, lifetime. `[]` when
+ * Apple purchases are off, unavailable here, or StoreKit knows none of them;
+ * the caller then keeps its neutral sheet.
+ */
+export async function loadAppleOffer(): Promise<StoreProduct[]> {
+  if (!isAppleStoreAvailable()) return [];
+  const token = await serverCall<AccountToken>(ACCOUNT_TOKEN_PATH);
+  if (!token.ok || !token.data.enabled) return [];
+  const ids = Array.isArray(token.data.products)
+    ? token.data.products.filter((id) => typeof id === "string" && id)
+    : [];
+  if (ids.length === 0) return [];
+  const order = Object.values(APPLE_PRODUCT_IDS) as string[];
+  const rank = (id: string) => {
+    const i = order.indexOf(id);
+    return i === -1 ? order.length : i;
+  };
+  const products = await getStoreProducts(ids);
+  return products
+    .filter((p) => ids.includes(p.id) && typeof p.displayPrice === "string")
+    .sort((a, b) => rank(a.id) - rank(b.id));
+}
+
 export type RestoreApplePurchasesResult =
   | { ok: true; count: number; billing: AppleBillingState }
   | AppleFailure;
