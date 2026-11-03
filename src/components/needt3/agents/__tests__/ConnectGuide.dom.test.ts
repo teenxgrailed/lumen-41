@@ -13,7 +13,7 @@ import { type Root, createRoot } from "react-dom/client";
 import { fetchJson } from "@/lib/needt3/hooks/core";
 
 import { AgentsScreen } from "../AgentsScreen";
-import { guideSnippets } from "../connect-guide";
+import { CONNECTOR_URL, connectorSteps, guideSnippets } from "../connect-guide";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -98,6 +98,16 @@ describe("Connect an agent guide", () => {
       host.querySelector("[data-ag-tokens-link]")?.getAttribute("href")
     ).toBe("/connections");
     expect(host.textContent).toContain("claude mcp add --scope user");
+  });
+
+  it("offers Add to Claude first, with the OAuth connector URL", async () => {
+    await mount([]);
+    const first = host.querySelector("[data-ag-guide] section, [data-ag-guide] > *");
+    expect(first?.textContent).toContain("Add to Claude");
+    expect(host.querySelector("[data-ag-connector=claude]")).not.toBeNull();
+    expect(host.querySelector("[data-ag-connector=chatgpt]")).not.toBeNull();
+    expect(CONNECTOR_URL).toBe("https://mcp.needt.app/mcp");
+    expect(connectorSteps()[0].steps.join(" ")).toContain(CONNECTOR_URL);
   });
 
   it("hides the guide when agents exist, and the header button brings it back", async () => {

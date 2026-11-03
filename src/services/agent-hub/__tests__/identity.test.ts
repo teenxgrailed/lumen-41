@@ -2,7 +2,10 @@ import type { BearerAuth } from "@/services/connectors/bearer";
 
 import { prisma } from "@/lib/prisma";
 
-import { agentForConnection, connectionKeyOf } from "../context";
+import { SCOPE_LABELS } from "@/services/oauth/consent";
+import { PUBLIC_MCP_SCOPES } from "@/lib/mcp-config";
+
+import { agentForConnection, connectionKeyOf, hasHubAccess } from "../context";
 import { trackHub } from "../metrics";
 
 jest.mock("@/lib/prisma", () => ({
@@ -98,5 +101,25 @@ describe("agent identity of a personal token", () => {
     });
     await agentForConnection(personal(), "ws-1");
     expect(trackHub).not.toHaveBeenCalled();
+  });
+});
+
+describe("hub access through OAuth (Add to Claude)", () => {
+  const oauth = (scopes: BearerAuth["scopes"]): BearerAuth => ({
+    userId: "user-1",
+    kind: "oauth",
+    clientId: "client-1",
+    scopes,
+  });
+
+  it("lets an OAuth token with read and write use the hub, no agents.hub needed", () => {
+    expect(hasHubAccess(oauth(["needt.read", "needt.write"]), false)).toBe(true);
+    expect(hasHubAccess(oauth(["needt.read", "needt.write"]), true)).toBe(true);
+    expect(hasHubAccess(oauth(["needt.read"]), true)).toBe(false);
+  });
+
+  it("keeps agents.hub off the OAuth consent and public metadata", () => {
+    expect(PUBLIC_MCP_SCOPES).not.toContain("agents.hub");
+    expect(SCOPE_LABELS["agents.hub"]).toBeDefined();
   });
 });
