@@ -88,6 +88,7 @@ Needt Design System/**/*.woff2
 !.claude/skills/design-system/
 !.claude/skills/hallmark/
 !.claude/skills/needt-critique/
+!.claude/skills/content-principles/
 !.claude/skills/slides/
 !.claude/skills/ui-styling/
 !.claude/skills/ui-ux-pro-max/

@@ -48,6 +48,8 @@ skills instead of going idle.
 
 ## Hard rules
 
+- For any short-form video, hook or social post, use the `content-principles` skill (`.claude/skills/content-principles/`).
+
 - Never write in the primary checkout `/Users/lol/Needt` or in another session's
   worktree. To push to someone else's branch, use a detached worktree and tell
   the owner afterwards.
