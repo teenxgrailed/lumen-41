@@ -1,5 +1,6 @@
 "use client";
 
+import type { AdminAgentsHub } from "@/services/admin/agents-hub";
 import type { AdminOverview } from "@/services/admin/overview";
 
 import { AdminNote, AdminPage } from "./kit";
@@ -29,6 +30,10 @@ export function OverviewScreen() {
   const { data, error, loading } = useAdminJson<OverviewResponse>(
     "/api/admin/overview"
   );
+  const hub = useAdminJson<{ agentsHub: AdminAgentsHub }>(
+    "/api/admin/agents-hub"
+  );
+  const h = hub.data?.agentsHub;
   const o = data?.overview;
   const build = data?.build;
   const workerBehind =
@@ -56,6 +61,34 @@ export function OverviewScreen() {
             date are not in that figure.
           </p>
         </>
+      ) : null}
+      {hub.error ? <AdminNote tone="danger">{hub.error}</AdminNote> : null}
+      {h ? (
+        <section className="admin-card" data-admin-agents-hub="">
+          <h2 className="admin-section-title">Agents hub</h2>
+          <div className="admin-grid">
+            <Stat
+              label="Accounts with an agent, 7 days"
+              value={h.accountsWithAgent7Days}
+            />
+            <Stat
+              label="Accounts with an agent, 30 days"
+              value={h.accountsWithAgent30Days}
+            />
+            <Stat
+              label="Completed by agents, 7 days"
+              value={h.itemsCompletedByAgents7Days}
+            />
+            <Stat
+              label="Escalations answered, 7 days"
+              value={h.escalationsAnswered7Days}
+            />
+          </div>
+          <p className="admin-note">
+            An account counts when it registered an agent in the window; the
+            built-in assistant does not count.
+          </p>
+        </section>
       ) : null}
       {build ? (
         <section className="admin-card" data-admin-build="">
