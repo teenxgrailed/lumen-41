@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { type Block, type Inline, parseMarkdown } from "@/lib/legal/markdown";
 
 import { LegalHomeLink } from "./LegalHomeLink";
-import { WebOnly } from "./WebOnly";
+import { AppStoreOnly, WebBillingOnly, WebOnly } from "./WebOnly";
 
 const LINKS = [
   { href: "/terms", label: "Terms" },
@@ -147,6 +147,18 @@ function renderBlock(block: Block, index: number): ReactNode {
       );
     case "web-only":
       return <WebOnly key={index}>{block.children.map(renderBlock)}</WebOnly>;
+    case "app-store":
+      return (
+        <AppStoreOnly key={index}>
+          {block.children.map(renderBlock)}
+        </AppStoreOnly>
+      );
+    case "web-billing":
+      return (
+        <WebBillingOnly key={index}>
+          {block.children.map(renderBlock)}
+        </WebBillingOnly>
+      );
     case "rule":
       return <hr key={index} className="mt-10 border-[var(--border-subtle)]" />;
   }

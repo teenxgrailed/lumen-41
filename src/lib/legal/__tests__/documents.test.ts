@@ -115,6 +115,52 @@ describe("web-only blocks", () => {
     expect(headings).toEqual(["5-1-plans", "5-2-free-trial"]);
   });
 
+  it("terms keep one web-billing block (5.3 to 5.6) and one app-store block per use", () => {
+    const blocks = parseMarkdown(termsMarkdown());
+    const ids = (type: string) =>
+      blocks
+        .filter((b) => b.type === type)
+        .flatMap((b) =>
+          "children" in b
+            ? b.children
+                .filter((c) => c.type === "heading")
+                .map((c) => (c.type === "heading" ? c.id : ""))
+            : []
+        );
+    expect(ids("web-billing")).toEqual([
+      "5-3-who-sells-to-you-creem",
+      "5-4-renewal-and-cancellation",
+      "5-5-refunds-and-the-right-of-withdrawal",
+      "5-6-price-changes",
+    ]);
+    expect(ids("app-store")).toEqual(["5-7-purchases-in-the-app-store"]);
+  });
+
+  it("the App Store subsection carries the Apple rules and no prices", () => {
+    const terms = termsMarkdown();
+    const start = terms.indexOf("### 5.7 Purchases in the App Store");
+    const end = terms.indexOf("\n---", start);
+    const section = terms.slice(start, end);
+    expect(section).toContain("Apple is the seller");
+    expect(section).toContain(
+      "at least 24 hours before the current period ends"
+    );
+    expect(section).toContain("https://reportaproblem.apple.com/");
+    expect(section).toContain(
+      "Licensed Application End User License Agreement"
+    );
+    expect(section).not.toMatch(/\$\s?\d|CHF|EUR|€/);
+  });
+
+  it("privacy and subprocessors name Apple next to Creem", () => {
+    for (const text of [privacyMarkdown(), subprocessorsMarkdown()]) {
+      expect(text).toContain("**Creem**");
+      expect(text).toContain("**Apple**");
+      expect(text).toContain("transaction identifier");
+      expect(text).toContain("no card data");
+    }
+  });
+
   it("parses a fenced block and keeps the text around it", () => {
     const blocks = parseMarkdown(
       [

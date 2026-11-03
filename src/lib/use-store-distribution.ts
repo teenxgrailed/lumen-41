@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { isStoreDistribution } from "@/lib/native";
+import { isAppleStoreAvailable, loadAppleOffer } from "@/lib/native-store";
 
 const noSubscribe = () => () => undefined;
 
@@ -39,4 +40,29 @@ export function useMarkStoreDistribution(): void {
       document.documentElement.setAttribute("data-store-distribution", "");
     }
   }, []);
+}
+
+/**
+ * True when the App Store purchase sheet can sell Pro in this window: the iOS
+ * app, the `NeedtStore` plugin present, and the server (`apple_iap` on for this
+ * account) listing products that StoreKit knows. This is the test the Pro
+ * sheet uses, so the terms describe App Store purchases exactly when the app
+ * offers them. False on the server, in a browser, in the Mac App Store build
+ * (no StoreKit bridge), and until the answer is in.
+ */
+export function useAppleSheetAvailable(): boolean {
+  const [available, setAvailable] = useState(false);
+  useEffect(() => {
+    if (!isStoreDistribution() || !isAppleStoreAvailable()) return undefined;
+    let live = true;
+    loadAppleOffer()
+      .then((products) => {
+        if (live) setAvailable(products.length > 0);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  return available;
 }

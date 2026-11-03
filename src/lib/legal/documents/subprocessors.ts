@@ -1,5 +1,5 @@
 import { PRIVACY_EMAIL, formatLegalDate } from "../operator";
-import { CREEM_LINKS } from "./terms";
+import { APPLE_LINKS, CREEM_LINKS } from "./terms";
 
 /** The subprocessor list, as Markdown. Rendered by `src/app/subprocessors/page.tsx`. */
 export function subprocessorsMarkdown(): string {
@@ -27,6 +27,8 @@ These are the third parties that process personal data on Needt's behalf. We upd
 ## Seller of paid plans
 
 **Creem** (Armitage Labs OÜ, Estonia) sells paid plans as merchant of record. It is the seller in your purchase and processes your payment and billing data as a controller, not as our subprocessor: [Buyer Terms](${CREEM_LINKS.buyerTerms}) · [Privacy](${CREEM_LINKS.privacy}).
+
+**Apple** (Apple Inc., United States, and the Apple company that runs the App Store in your country) sells Needt Pro and Lifetime in the iOS app through In-App Purchase. It is the seller in your purchase and handles your payment data as a controller, not as our subprocessor. It shares with us a transaction identifier, the product, dates, the status and the account token the app passed to it; no card data: [Privacy](${APPLE_LINKS.privacy}).
 
 ## Services you connect yourself
 
