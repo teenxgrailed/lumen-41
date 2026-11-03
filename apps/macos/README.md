@@ -253,12 +253,11 @@ entitlements, each with the code that needs it:
 
 | Entitlement                          | Why                                                          |
 | ------------------------------------ | ------------------------------------------------------------ |
-| `app-sandbox`, `network.client`      | the web view and `NeedtAPI`                                  |
-| `files.user-selected.read-only`      | file picker for uploads in the page, island shelf            |
+| `app-sandbox`, `network.client`      | the web view, `NeedtAPI`, cover art lookups (Apple)          |
+| `files.user-selected.read-only`      | file picker for uploads in the page, island shelf (read-only: no Rename, no Compress) |
 | `files.bookmarks.app-scope`          | island shelf keeps `.withSecurityScope` bookmarks            |
-| `device.camera`, `device.audio-input` | the page (camera, voice), island mirror                      |
+| `device.camera`, `device.audio-input` | the page (camera, dictation), island mirror                  |
 | `personal-information.calendars`     | EventKit: calendar and reminders in the island               |
-| `personal-information.location`      | island weather                                               |
 | `scripting-targets`                  | Apple Music (`.playback`, `.library.read`), Spotify (`.playback`, `com.spotify.library`) |
 | `application-groups`                 | Share extension and widgets                                  |
 
@@ -273,6 +272,27 @@ is accepted by `xcodebuild -exportArchive`, which then fails only on signing.
 The unsigned archive is the artifact `needt-macos-appstore-archive`. That an
 unsigned export fails only on signing shows the options file is read, not that
 the signed export works.
+
+The island in this build is the Needt modules plus calendar, reminders and
+music (Apple Music and Spotify through AppleScript only), and nothing that
+starts a process, edits system state or talks to anything but use.needt.app and
+Apple (iTunes Search and MusicKit for the cover art of the playing song). The
+YouTube Music controller is compiled but never created in this build, and the
+visualizer draws only a file stored on the Mac (no lottiefiles.com). Not compiled in
+(see the `excludes` of its `Island/Sources` entry in `project.yml`): Spotify
+web player and sign-in (`SpotifyAuthManager`), weather and location, lyrics,
+downloads, Screen Assistant, LocalSend, the wallpaper artwork window, the
+terminal, the extension RPC server and XPC host, and the shelf's Compress and
+Rename items. No location entitlement and no location strings. Nine usage
+strings remain, each checked against an entitlement by
+`scripts/check-appstore-bundle.py`. The Island part of the target compiles 241
+files (`out/island-sources-in-appstore.txt`, counted on 2026-11-03).
+
+The build number must grow with every upload. `CURRENT_PROJECT_VERSION` in
+`project.yml` is a fixed value; `.github/workflows/store-upload.yml` (on the
+branch `docs/store-release`) passes `CURRENT_PROJECT_VERSION=${{ github.run_number }}`
+to `xcodebuild`, so uploads from CI never repeat one. An upload by hand needs
+the number raised first, or App Store Connect rejects it.
 
 Needs the owner: an Apple Developer Program team, the App ID `app.needt.mac`
 and `app.needt.mac.share` (and the widgets), the app group
@@ -309,7 +329,9 @@ Two builds from the same sources:
 | `NeedtAppStore` | minus everything in the `excludes` of its `Island/Sources` entry in `project.yml`; inert stand-ins in `Island/AppStore` | yes                           | none    |
 
 `scripts/check-appstore-private-api.py` (run by CI) fails when a source
-compiled into `NeedtAppStore` names a private interface. Music in the App
+compiled into `NeedtAppStore` names a private interface, runs `Process()` or
+`NSTask`, names `/usr/bin`, `/usr/sbin` or `killall`, or touches the wallpaper
+store (lines inside `#if !APPSTORE` do not count). Music in the App
 Store build is Apple Music and Spotify through Apple Events
 (`com.apple.security.scripting-targets`). To add a feature to the island that
 uses a restricted interface, add the file to the App Store `excludes` and a

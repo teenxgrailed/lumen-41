@@ -11,6 +11,12 @@ name: macOS
 # The Windows app is still the Tauri one (desktop.yml).
 on:
   push:
+    branches: [main]
+    paths:
+      - "apps/macos/**"
+      - "apps/shared/**"
+      - ".github/workflows/macos.yml"
+  pull_request:
     paths:
       - "apps/macos/**"
       - "apps/shared/**"
@@ -422,13 +428,18 @@ jobs:
 
       # The scripting-targets entitlement only works when the group names are
       # in the target app's scripting definition. Music.app is on the runner;
-      # Spotify is installed from its cask for this check.
+      # Spotify is installed from its cask for this check. If the cask cannot
+      # be installed the step fails: an unverified group is a rejected upload.
       - name: Scripting access groups exist in Music.app and Spotify.app
         if: ${{ !cancelled() }}
         working-directory: apps/macos
         run: |
           set -u
-          brew install --cask spotify > "$RUNNER_TEMP/spotify-install.log" 2>&1 || tail -n 5 "$RUNNER_TEMP/spotify-install.log"
+          if ! brew install --cask spotify > "$RUNNER_TEMP/spotify-install.log" 2>&1; then
+            tail -n 20 "$RUNNER_TEMP/spotify-install.log"
+            echo "::error::brew install --cask spotify failed; the Spotify scripting groups cannot be verified"
+            exit 1
+          fi
           python3 - <<'PY'
           import plistlib, re, subprocess, sys, os
           want = plistlib.load(open("Generated/NeedtAppStore.entitlements", "rb"))["com.apple.security.scripting-targets"]
@@ -437,9 +448,8 @@ jobs:
           for bundle, groups in want.items():
               path = apps[bundle]
               if not os.path.isdir(path):
-                  print(f"::warning::{path} not installed on the runner; {bundle} groups {groups} NOT verified")
-                  if bundle == "com.apple.Music":
-                      failed = True
+                  print(f"::error::{path} is not installed on the runner; {bundle} groups {groups} are NOT verified")
+                  failed = True
                   continue
               sdef = subprocess.run(["sdef", path], capture_output=True, text=True).stdout
               have = sorted(set(re.findall(r'access-group identifier="([^"]*)"', sdef)))
@@ -480,13 +490,16 @@ jobs:
             echo "xcodebuild rejected ExportOptions-AppStore.plist"; exit 1
           fi
           if [ "$STATUS" -ne 0 ]; then
-            if ! grep -E "error:" out/export.log | grep -iE "sign|provision|certificate|account|team|profile|entitlement"; then
-              echo "exportArchive failed for a reason that is not signing or provisioning"; exit 1
+            # Without a team the only expected errors are the two xcodebuild
+            # prints for a missing certificate and a missing profile.
+            EXPECTED='No signing certificate|No profiles for|No Accounts'
+            if ! grep -E "error:" out/export.log | grep -E "$EXPECTED"; then
+              echo "exportArchive failed for a reason that is not a missing certificate or profile"; exit 1
             fi
-            if grep -E "error:" out/export.log | grep -ivE "sign|provision|certificate|account|team|profile|entitlement"; then
-              echo "exportArchive reported an error that is not about signing or provisioning"; exit 1
+            if grep -E "error:" out/export.log | grep -vE "$EXPECTED"; then
+              echo "exportArchive reported an error other than a missing certificate or profile"; exit 1
             fi
-            echo "exportArchive failed only on signing and provisioning, as expected without a team"
+            echo "exportArchive failed only on the missing certificate and profile, as expected without a team"
           fi
 
       - name: Zip the archive

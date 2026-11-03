@@ -32,8 +32,10 @@ CATEGORIES = {
     },
     "NSPrivacyAccessedAPICategoryFileTimestamp": {
         "reasons": {"DDA9.1", "C617.1", "3B52.1", "0A2A.1"},
+        # attributesOfItem(atPath:) alone is not a timestamp read (it also returns .size);
+        # a timestamp read names the key (.creationDate, .modificationDate) as well.
         "pattern": r"\.creationDateKey|\.contentModificationDateKey|\.contentAccessDateKey|\.attributeModificationDateKey"
-        r"|NSFileCreationDate|NSFileModificationDate|\.attributesOfItem\(|\bstat\(|\bfstat\(|\blstat\(|\bfstatat\("
+        r"|NSFileCreationDate|NSFileModificationDate|\bstat\(|\bfstat\(|\blstat\(|\bfstatat\("
         r"|getattrlist|FileAttributeKey\.(creationDate|modificationDate)|\[\.(creationDate|modificationDate)\]",
     },
     "NSPrivacyAccessedAPICategorySystemBootTime": {
@@ -147,6 +149,8 @@ def compare(label, files, declared):
             print(f"      {path}:{number}: {text}")
         if hits and category not in declared:
             fail(f"{label} uses {category} ({hits[0][0]}:{hits[0][1]}) but its manifest does not declare it")
+        if not hits and category in declared:
+            fail(f"{label} declares {category} but nothing compiled into it uses it")
     return found
 
 

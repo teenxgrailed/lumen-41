@@ -91,10 +91,10 @@ ALLOWED = {
     "com.apple.security.device.camera",
     "com.apple.security.device.audio-input",
     "com.apple.security.personal-information.calendars",
-    "com.apple.security.personal-information.location",
     "com.apple.security.scripting-targets",
     "com.apple.security.application-groups",
 }
+# No location: the weather code is not compiled into this build.
 for key in entitlements:
     if key not in ALLOWED:
         fail(f"entitlement {key} is not on the allow list (temporary exceptions are refused in review)")
@@ -107,8 +107,6 @@ NEEDS_STRING = {
     "com.apple.security.device.audio-input": ["NSMicrophoneUsageDescription"],
     "com.apple.security.personal-information.calendars": [
         "NSCalendarsFullAccessUsageDescription", "NSRemindersFullAccessUsageDescription"],
-    "com.apple.security.personal-information.location": [
-        "NSLocationWhenInUseUsageDescription", "NSLocationUsageDescription"],
     "com.apple.security.scripting-targets": ["NSAppleEventsUsageDescription"],
 }
 for entitlement, strings in NEEDS_STRING.items():
@@ -124,8 +122,6 @@ STRING_NEEDS = {
     "NSCalendarsFullAccessUsageDescription": "com.apple.security.personal-information.calendars",
     "NSRemindersUsageDescription": "com.apple.security.personal-information.calendars",
     "NSRemindersFullAccessUsageDescription": "com.apple.security.personal-information.calendars",
-    "NSLocationUsageDescription": "com.apple.security.personal-information.location",
-    "NSLocationWhenInUseUsageDescription": "com.apple.security.personal-information.location",
     "NSAppleEventsUsageDescription": "com.apple.security.scripting-targets",
     "NSAudioCaptureUsageDescription": None,  # Core Audio tap: a Privacy setting, no entitlement
     "NSAppleMusicUsageDescription": None,  # MusicKit: App ID service, no entitlement

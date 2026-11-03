@@ -270,6 +270,30 @@ targets:
           # in Needt shows them, and App Review 3.1.1 must not find the words
           - components/Tips/TipStore.swift
           - components/Onboarding/ProOnboarding.swift
+          # --- Mac App Store: the island is the Needt modules, the calendar and
+          # music through AppleScript. Nothing that runs a subprocess, edits
+          # system state, listens on a socket or sends data to a third party.
+          # Spotify web player token (third-party secrets) and canvas endpoints
+          - managers/SpotifyAuthManager.swift
+          # Screen Assistant: screencapture subprocess and four LLM APIs
+          - components/ScreenAssistant/**
+          - managers/ScreenAssistantManager.swift
+          - managers/ScreenAssistantPanelManager.swift
+          # lock screen artwork wallpaper: edits the wallpaper Index.plist, killall
+          - managers/FullScreenArtworkWindowManager.swift
+          # LocalSend: multicast discovery, arp subprocess, a local server
+          - components/Shelf/Services/LocalSendService.swift
+          - components/Shelf/Views/LocalSendLiveActivity.swift
+          - managers/LocalSendDevicePickerWindowManager.swift
+          # Chromium download watcher: watches ~/Downloads, outside the sandbox
+          - managers/DownloadManager.swift
+          - components/Downloads/**
+          # third-party extension API: websocket server (NWListener) and XPC listener
+          - services/Extensions/ExtensionRPCServer.swift
+          - services/Extensions/ExtensionRPCService.swift
+          - services/Extensions/ExtensionRPCMessages.swift
+          - services/Extensions/ExtensionXPCService.swift
+          - services/Extensions/ExtensionXPCServiceHost.swift
       - path: Island/AppStore
       # Privacy manifest (App Store requirement); see Privacy/AppStore.
       - path: Privacy/AppStore/PrivacyInfo.xcprivacy
@@ -296,10 +320,14 @@ targets:
       properties:
         # Mac App Store requirement.
         com.apple.security.app-sandbox: true
-        # The web app, the Needt API, weather (Open-Meteo, WeatherKit), cover art.
+        # The web app and the Needt API (use.needt.app), plus Apple's own
+        # services for the now-playing card (iTunes Search for cover art, MusicKit
+        # for animated covers). No weather, lyrics, Spotify web or downloads in
+        # this build.
         com.apple.security.network.client: true
         # The web app's file inputs (NeedtWebView.runOpenPanel) and the island
-        # Shelf (drop, open panel). Read only: nothing writes to those files.
+        # Shelf (drop, open panel). Read only: nothing writes to those files
+        # (the Shelf's Rename and Compress items are not in this build).
         com.apple.security.files.user-selected.read-only: true
         # The Shelf keeps files as security-scoped bookmarks
         # (Island/Sources/components/Shelf/Models/Bookmark.swift); the sandbox
@@ -307,14 +335,10 @@ targets:
         com.apple.security.files.bookmarks.app-scope: true
         # Island webcam mirror (WebcamManager) and the web app's camera inputs.
         com.apple.security.device.camera: true
-        # The web app's dictation (getUserMedia) and the Screen Assistant voice
-        # note (AVAudioRecorder).
+        # The web app's dictation (getUserMedia).
         com.apple.security.device.audio-input: true
         # EventKit events and reminders for the island (CalendarManager).
         com.apple.security.personal-information.calendars: true
-        # CLLocationManager for the weather tiles (IslandV3Weather,
-        # LockScreenWeatherManager).
-        com.apple.security.personal-information.location: true
         # Music works for Apple Music and Spotify only, through Apple Events.
         # The group names must exist in each app's scripting definition
         # (sdef); CI prints them from the runner's Music.app and Spotify.app.
@@ -361,8 +385,6 @@ targets:
         NSCalendarsFullAccessUsageDescription: Needt shows your next event in the island.
         NSRemindersUsageDescription: Needt shows your reminders in the island.
         NSRemindersFullAccessUsageDescription: Needt shows your reminders in the island.
-        NSLocationUsageDescription: Needt uses your location to show the local weather in the island.
-        NSLocationWhenInUseUsageDescription: Needt uses your location to show the local weather in the island.
         NSAudioCaptureUsageDescription: Needt listens to system audio to draw the live music visualizer.
         NSAppleMusicUsageDescription: Needt looks up the moving cover art for the song playing in the island. It asks only after you turn on Animated cover art in Settings, Island, Music.
     settings:

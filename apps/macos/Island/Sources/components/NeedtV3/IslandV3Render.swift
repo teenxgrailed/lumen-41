@@ -121,7 +121,9 @@ enum IslandV3Render {
         model.data = fixture(c)
         model.showForRender(c.mode, tab: c.tab, module: c.module)
         model.pre = c.pre
+#if !APPSTORE
         if let weather = c.weather { IslandV3Weather.shared.state = weather }
+#endif
         let width: CGFloat = 840
         let height: CGFloat = 400
         return ZStack(alignment: .top) {

@@ -167,19 +167,6 @@
         <string>CA92.1</string>
       </array>
     </dict>
-    <!-- Island/Sources/managers/DownloadManager.swift (creationDateKey on the
-         container's Downloads folder: C617.1) and
-         Island/Sources/services/Extensions/ExtensionRPCService.swift
-         (attributesOfItem on a file the person put on the Shelf: 3B52.1). -->
-    <dict>
-      <key>NSPrivacyAccessedAPIType</key>
-      <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
-      <key>NSPrivacyAccessedAPITypeReasons</key>
-      <array>
-        <string>C617.1</string>
-        <string>3B52.1</string>
-      </array>
-    </dict>
   </array>
 </dict>
 </plist>

@@ -342,13 +342,16 @@ final class ShelfItemViewModel: ObservableObject {
             menu.addItem(NSMenuItem.separator())
         }
 
+#if !APPSTORE
         // Add compression option for files/folders (single or multiple)
         if !selectedFileURLs.isEmpty {
             let compressItem = NSMenuItem(title: "Compress", action: nil, keyEquivalent: "")
             menu.addItem(compressItem)
         }
 
+        // Mac App Store build: files are opened read-only, and Compress runs zip.
         if selectedItems.count == 1, case .file(_) = item.kind { addMenuItem(title: "Rename") }
+#endif
 
         // Always show "Copy" for all item types
         addMenuItem(title: "Copy")
