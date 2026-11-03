@@ -32,12 +32,15 @@ name and no address anywhere in this folder.
   accept a `mailto:`) before the version is submitted.
 - **"Google" in the description** while Google's OAuth verification is open (see
   `review-notes.md` Part 2).
-- **iPhone and iPad screenshots are not produced yet.** In CI the web app renders its global
-  error page inside the Capacitor WebView: the root layout throws during render, only on the
-  phone path (the Mac harness shows the same server fine). Run 41575756397 logged a stack in
-  `app/layout` (Providers or AmbientBackdrop) but not the message; `login.log` in the artifact
-  has it after the next run (lines starting `PAGE`). Fix in `src/`, then re-run the workflow.
-  Mac (2880x1800) and widget shots are good.
+- **iPhone and iPad screenshots are not produced yet.** In the iOS WebView the web app shows its
+  global error page. Cause (run 41578997678, 2026-11-03): `TypeError: undefined is not an
+  object (evaluating 'navigator.serviceWorker.addEventListener')`, thrown in an effect of
+  `src/components/pwa/PWARegister.tsx` (the second `useEffect`, line ~119) because the guard
+  `"serviceWorker" in navigator` is true in WKWebView while `navigator.serviceWorker` is
+  `undefined`. Same pattern in `useOfflineQueue.ts`, `NotificationSettings.tsx`, `push.ts` and
+  `offline-client.ts`. It affects every user of the iOS app, not only CI. Fix in `src/`
+  (guard on `navigator.serviceWorker`), then re-run the workflow. Mac (2880x1800) and
+  widget shots are good.
 - `review-notes.md` Part 2: Sign in with Apple keys, Gmail wording, and which purchase
   paragraph is true (no purchase, or In-App Purchase once #541 and the buy UI have merged).
   Demo deletion (#533), store mode (#537) and the export-compliance key (#539) are on `main`.

@@ -18,13 +18,10 @@ name: Store screenshots
 # Sizes: iPhone 6.9" 1320x2868, 6.5" 1284x2778, iPad 13" 2064x2752, Mac
 # 2880x1800. Files: <device>_<W>x<H>_<NN>-<screen>.png.
 #
-# //todo iPhone and iPad shots show the web app's global error page ("Needt hit
-# an unexpected error"): in the Capacitor WebView the root layout throws during
-# render, on the phone path only (the Mac harness renders the same server
-# fine). login-server.mjs logs what the page throws to login.log in the
-# artifact (lines starting PAGE); the message was not captured yet, only a
-# stack in app/layout (Providers or AmbientBackdrop). Read it, fix it in src/,
-# re-run. Mac and widget shots are good.
+# //todo iPhone and iPad shots show the web app's global error page until
+# PWARegister stops using navigator.serviceWorker where it is undefined (WKWebView):
+# see apps/ios/store/README.md. login-server.mjs logs what the page throws to
+# login.log in the artifact (lines starting PAGE). Mac and widget shots are good.
 on:
   workflow_dispatch:
 
