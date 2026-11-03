@@ -102,8 +102,8 @@ describe("Connect an agent guide", () => {
 
   it("offers Add to Claude first, with the OAuth connector URL", async () => {
     await mount([]);
-    const first = host.querySelector("[data-ag-guide] section, [data-ag-guide] > *");
-    expect(first?.textContent).toContain("Add to Claude");
+    const title = host.querySelector("[data-ag-guide] h2");
+    expect(title?.textContent).toBe("1. Add to Claude");
     expect(host.querySelector("[data-ag-connector=claude]")).not.toBeNull();
     expect(host.querySelector("[data-ag-connector=chatgpt]")).not.toBeNull();
     expect(CONNECTOR_URL).toBe("https://mcp.needt.app/mcp");
