@@ -188,6 +188,17 @@ describe("delete the account", () => {
     db.accountDeletionRequest.upsert.mockResolvedValue({ id: "req-1" });
   });
 
+  it("says so when the account is still there after the run", async () => {
+    // the default mock keeps returning the user: the deletion did not happen
+    const error = await failure(
+      runAdminUserAction(ACTOR, TARGET, {
+        action: "delete_account",
+        confirmEmail: "pat@example.com",
+      })
+    );
+    expect(error.status).toBe(409);
+  });
+
   it("refuses to delete yourself", async () => {
     const error = await failure(
       runAdminUserAction(ACTOR, ACTOR, {
@@ -211,6 +222,13 @@ describe("delete the account", () => {
   });
 
   it("records first, then runs the existing deletion service", async () => {
+    db.user.findUnique
+      .mockResolvedValueOnce({
+        id: TARGET,
+        email: "pat@example.com",
+        role: "user",
+      })
+      .mockResolvedValueOnce(null);
     await runAdminUserAction(ACTOR, TARGET, {
       action: "delete_account",
       confirmEmail: "  PAT@example.com ",

@@ -545,9 +545,20 @@ export async function finalizeAccountDeletion(
     if (!options.allowSandbox) {
       const target = await prisma.accountDeletionRequest.findUnique({
         where: { id: requestId },
-        select: { userId: true, user: { select: { sandboxKind: true } } },
+        select: {
+          userId: true,
+          status: true,
+          user: { select: { sandboxKind: true } },
+        },
       });
       if (target?.user?.sandboxKind) {
+        // A delayed job for a request the reset already cancelled: nothing to say.
+        if (
+          target.status === AccountDeletionStatus.CANCELED ||
+          target.status === AccountDeletionStatus.COMPLETED
+        ) {
+          return;
+        }
         await logger.warn(
           "Account deletion skipped: a sandbox account is never purged",
           { requestId, userId: target.userId, kind: target.user.sandboxKind },
@@ -725,9 +736,11 @@ export async function finalizeAccountDeletion(
     );
     await logger.info("Account deletion finalized", { requestId }, LOG_SOURCE);
   } catch (error) {
+    // Only a request this call claimed may turn FAILED: a failure before the
+    // claim must not flip a CANCELED request into one the sweep would purge.
     await prisma.accountDeletionRequest
-      .update({
-        where: { id: requestId },
+      .updateMany({
+        where: { id: requestId, status: AccountDeletionStatus.PROCESSING },
         data: {
           status: AccountDeletionStatus.FAILED,
           errorCode: "ACCOUNT_DELETION_FAILED",

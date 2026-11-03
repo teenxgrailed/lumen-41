@@ -118,4 +118,58 @@ describe("account deletion purge and sandbox accounts", () => {
     expect(db.$transaction).toHaveBeenCalledTimes(1);
     expect(logger.warn).not.toHaveBeenCalled();
   });
+
+  it("stays quiet for a sandbox request the reset already cancelled", async () => {
+    db.accountDeletionRequest.findUnique.mockResolvedValue({
+      userId: "sandbox-1",
+      status: "CANCELED",
+      user: { sandboxKind: "reviewer" },
+    });
+
+    await finalizeAccountDeletion("request-4");
+
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(db.accountDeletionRequest.updateMany).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("leaves a cancelled request cancelled when the pre-read fails", async () => {
+    db.accountDeletionRequest.findUnique.mockRejectedValue(
+      new Error("connection reset")
+    );
+
+    await expect(finalizeAccountDeletion("request-5")).rejects.toThrow(
+      "connection reset"
+    );
+
+    // The FAILED write only matches a request this call had claimed.
+    expect(db.accountDeletionRequest.update).not.toHaveBeenCalled();
+    const failed = db.accountDeletionRequest.updateMany.mock.calls.find(
+      ([arg]) => arg?.data?.status === "FAILED"
+    );
+    expect(failed?.[0]).toMatchObject({
+      where: { id: "request-5", status: "PROCESSING" },
+    });
+  });
+
+  it("the worker and the sweep never pass allowSandbox", () => {
+    const fs = jest.requireActual<typeof import("fs")>("fs");
+    const path = jest.requireActual<typeof import("path")>("path");
+    const root = path.resolve(__dirname, "../../..");
+    const callers = [
+      path.join(root, "services/account/account-deletion.ts"),
+      ...fs
+        .readdirSync(path.join(root, "worker"), { recursive: true })
+        .map(String)
+        .filter((f) => f.endsWith(".ts"))
+        .map((f) => path.join(root, "worker", f)),
+    ];
+    for (const file of callers) {
+      const text = fs.readFileSync(file, "utf8");
+      if (!text.includes("finalizeAccountDeletion(")) continue;
+      expect(text).not.toMatch(
+        /finalizeAccountDeletion\([^)]*allowSandbox:\s*true/
+      );
+    }
+  });
 });

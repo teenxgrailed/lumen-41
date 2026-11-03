@@ -338,6 +338,16 @@ async function deleteAccount(
       "The deletion did not finish. It is queued and will be retried."
     );
   }
+  const left = await prisma.user.findUnique({
+    where: { id: targetId },
+    select: { id: true },
+  });
+  if (left) {
+    throw new AdminActionError(
+      409,
+      "The account is still here: its deletion was cancelled before it ran."
+    );
+  }
   return { message: "Account deleted." };
 }
 
