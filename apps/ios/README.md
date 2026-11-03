@@ -8,7 +8,7 @@ so every web deploy reaches the iOS app at once. Navigation is limited to
 - App id `app.needt.ios`, name "Needt"
 - Native project uses Swift Package Manager (no CocoaPods)
 - Plugins: App, Haptics, Push Notifications, Share, Splash Screen, Status Bar
-- Local plugins (`ios/App/App/NeedtPlugins.swift`, registered by `NeedtViewController` in `capacitorDidLoad`, the Capacitor 6+ way for plugins that live in the app target): `NeedtAppIcon` (`setIcon({ name })`, `getIcon()` over `setAlternateIconName`) and `NeedtAuth` (`start({ url, callbackScheme })`, an `ASWebAuthenticationSession`)
+- Local plugins (`ios/App/App/NeedtPlugins.swift`, registered by `NeedtViewController` in `capacitorDidLoad`, the Capacitor 6+ way for plugins that live in the app target): `NeedtAppIcon` (`setIcon({ name })`, `getIcon()` over `setAlternateIconName`), `NeedtAuth` (`start({ url, callbackScheme })`, an `ASWebAuthenticationSession`) and `NeedtStore` (StoreKit 2, see "In-app purchase")
 - `www/` is a placeholder Capacitor requires; it is never shown
 
 ## Run locally
@@ -196,3 +196,50 @@ The Swift plugin `NeedtAppIcon` (`NeedtPlugins.swift`, wraps
 `UIApplication.shared.setAlternateIconName`) is written and registered by
 `NeedtViewController`. //todo: confirm on a Simulator or device that the icon
 switches (the system shows its own confirmation alert); CI only builds.
+
+## In-app purchase (StoreKit 2)
+
+`NeedtStore` (`NeedtPlugins.swift`) sells Needt Pro inside the app. Products:
+`app.needt.pro.monthly` and `app.needt.pro.yearly` (auto-renewable, one
+subscription group "Needt Pro") and `app.needt.lifetime` (non-consumable).
+
+- `products({ ids })` returns `{ products: [{ id, displayName, description,
+displayPrice, price, currencyCode, type, period?, introOffer?,
+isFamilyShareable }] }`
+- `purchase({ id, appAccountToken })` returns `{ status: "success" | "pending" |
+"cancelled" | "failed", signedTransaction, productId, transactionId, message }`
+- `finish({ transactionId })` returns `{ finished }`; call it only after the
+  server answered 2xx
+- `restore()` runs `AppStore.sync()` and returns `{ transactions }` (all current
+  entitlements); `entitlements()` is the same without sync
+- `pendingTransactions()` returns `{ transactions }`: verified updates not
+  finished yet
+- `manageSubscriptions()` opens the system subscription sheet
+- event `transactionUpdated` carries `{ signedTransaction, productId,
+transactionId }` for every verified `Transaction.updates` entry
+
+A `Transaction.updates` listener starts when the plugin loads (app launch).
+Only `VerificationResult.verified` transactions are passed on, and the plugin
+never finishes one by itself. Updates stay in memory until `finish`, so
+`pendingTransactions()` replays what arrived before the web was listening.
+`transactionId` is a string (a 64-bit id does not always fit a JS number).
+
+Web side: `src/lib/native-store.ts` has typed wrappers (silent no-ops outside
+the iOS app, they never throw) and the flows `buyWithApple(productId)`,
+`restoreApplePurchases()` and `subscribeAppleTransactionUpdates()`, which use
+`GET /api/billing/apple/account-token` and `POST /api/billing/apple/transactions`.
+No paywall UI is wired yet.
+
+Local testing: `ios/App/Needt.storekit` holds the three products ($7, $59,
+$149) and is referenced only by the shared `App` scheme's Run action (not
+Archive), so Run from Xcode uses it. Sandbox purchases on a device use the real
+App Store Connect products.
+
+Owner steps (nothing to add to `App.entitlements`: in-app purchase has no
+entitlement key on iOS): enable the In-App Purchase capability on the App ID
+`app.needt.ios`, accept the Paid Applications agreement in App Store Connect,
+and create the three products with the ids above (monthly and yearly in one
+subscription group).
+
+//todo: the purchase flow is built but not run. It needs a device or Simulator
+with the StoreKit configuration and, for the real store, a sandbox Apple ID.
