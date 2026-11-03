@@ -95,6 +95,10 @@ export function HaTimeline({
   onOpenBand?: (band: DayBand, el: HTMLElement) => void;
 }) {
   if (!rows.length) return null;
+  // A task row opens like the bands do: by click, and by Enter or Space
+  // once Tab reaches it. Calendar events are not opened from here.
+  const openable = (r: HaTimelineRow) =>
+    Boolean(onOpen && r.task && !r.task.event && r.task.id);
   return (
     <div className="ha-tline" data-ha-tline="">
       {rows.map((r) => (
@@ -118,9 +122,18 @@ export function HaTimeline({
                 data-ctx-id={
                   r.task.event ? undefined : (r.task.id ?? undefined)
                 }
+                role={openable(r) ? "button" : undefined}
+                tabIndex={openable(r) ? 0 : undefined}
                 onClick={() => {
                   const id = r.task?.id;
                   if (!r.task?.event && id) onOpen?.(id);
+                }}
+                onKeyDown={(e) => {
+                  const id = r.task?.id;
+                  if (r.task?.event || !id || !onOpen) return;
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  e.preventDefault();
+                  onOpen(id);
                 }}
                 title={r.task.title}
               >

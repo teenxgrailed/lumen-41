@@ -3,7 +3,7 @@ id: 20261103-claude-design-bridge
 owner: claude (session "Needt design")
 branch: one branch per PR (landing-*, fix/*)
 status: active
-updated: 2026-11-03T10:20:00Z
+updated: 2026-11-03T11:30:00Z
 objective: Keep needt.app and the app's screens in line with the design system and the four rules
 ---
 
@@ -23,9 +23,16 @@ objective: Keep needt.app and the app's screens in line with the design system a
 
 - Tasks (#563): 14px → 13px on `.tk-prev-title`, `.wk-mcard-name`, `.wk-padd-input`; done-row, disabled and dragging fades and the accent drop line left as they are.
 - Settings (#564, desktop): 14px → 13px on group titles, account values, plan rows. Left: avatar initials (glyph), `.settings-kbd-grid` 11px keycaps, `settings-mac.css` `.pg-*` (a drawn macOS island preview with its own system colours), accent swatch definitions, the usage bar (accent as progress mark), the phone density.
-- Docs: task-list checkbox solid accent → 24% + accent tick (DS Checkbox), miniature page lines `--text-muted` × .7 → `--text-disabled`. Left: switch (knob accent, track 24% — correct), insert-menu miniatures (`.docs-mini-block-10` accent at .85 draws a coloured block in a picture), `.docs-selbar-ink` 14px (the "A" glyph of the colour picker), drag ghost and disabled fades.
+- Docs (#566): task-list checkbox solid accent → 24% + accent tick (DS Checkbox), miniature page lines `--text-muted` × .7 → `--text-disabled`. Left: switch (knob accent, track 24% — correct), insert-menu miniatures (`.docs-mini-block-10` accent at .85 draws a coloured block in a picture), `.docs-selbar-ink` 14px (the "A" glyph of the colour picker), drag ghost and disabled fades.
+- Boards (`v3/places.css`) and Habits (`v3/habits.css`): no deviations. Phone CSS (`v3/phone-*.css`, `mobile-onboarding.css`) is vendored Plates with its own scale: not audited against 13/12.
+- Accessibility, Today: timeline task rows open by Enter/Space and are in the Tab order (were mouse-only `div`s).
 
-## Working state
+## Accessibility list for the owner (changes the look, not done)
+
+- Contrast by tokens, WCAG 4.5:1 for text: light theme `--text-quaternary` (.55) is 3.8:1 on the canvas, `--text-muted` (.40) 2.5:1; dark/dim `--text-muted` 3.5–3.7:1; `--text-disabled` fails everywhere (allowed only for disabled controls). Light accent text 4.6:1 passes.
+- Today draws real text in `--text-muted` / `--ha-ink-3`: hour labels `.ha-trow-t`, `.ha-days`, `.ha-tl-ticks`, `.ha-brief-by`, `.home-date-wd`, `.home-date-week`, `.hd-sched-time.is-past`, the note placeholder, and six places in `home-extras.css`. Done/past titles at `--text-muted` are a state (WCAG allows less there only for disabled, so they also count).
+- Fix shape when the owner agrees: meta text one step up (`--text-tertiary`, 6.2:1 light).
+
 
 - Scripts for the landing live outside git in `/Users/lol/Needt/_landing-build/` (`perf_v43.py`, `bust_v43.py` = styles v=60, `seo_v43.py`, `support_v43.py`, `nav_v43.py`).
 
@@ -47,4 +54,4 @@ objective: Keep needt.app and the app's screens in line with the design system a
 
 ## Next action
 
-- Audit Boards, then Habits, against the four rules; one PR each.
+- Accessibility audit: Tasks next, then Calendar, Docs, Settings, Agents; one PR each, look unchanged.
