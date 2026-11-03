@@ -45,7 +45,12 @@ RUN set -eu; \
 # because those two disagreed.
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+# Fast enough for a rolling update: Docker runs the first probe one interval after start, and the
+# container stays "starting" until a probe passes. With 30s that was half a minute before Coolify saw
+# "healthy" (and its deploy hung on "starting", 03.11). nginx serves /healthz from memory (return 200,
+# no redirect, no file), and busybox wget is in nginx:alpine, so a probe every 5s costs nothing.
+# Healthy within ~5-10s; unhealthy after 3 misses in a row.
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://127.0.0.1/healthz || exit 1
 
 STOPSIGNAL SIGQUIT
