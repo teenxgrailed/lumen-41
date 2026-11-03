@@ -24,12 +24,15 @@ const PAGES = {
 
 // The terms page reads the `apple_iap` flag for the reader when it is served.
 const mockFlag = jest.fn(async (): Promise<boolean> => false);
+const mockUserFlag = jest.fn<Promise<boolean>, [string, string]>(
+  async () => false
+);
 const mockConfigured = jest.fn(() => true);
 const mockSession = jest.fn(
   async (): Promise<{ user: { id: string } } | null> => null
 );
 jest.mock("@/lib/feature-flags", () => ({
-  isFeatureEnabled: () => mockFlag(),
+  isFeatureEnabled: (key: string, userId: string) => mockUserFlag(key, userId),
   isFeatureEnabledForEveryone: () => mockFlag(),
 }));
 jest.mock("@/lib/apple-iap/config", () => ({
@@ -320,6 +323,7 @@ describe("terms page and App Store purchases", () => {
   const APP_STORE_ID = 'id="5-7-purchases-in-the-app-store"';
   afterEach(() => {
     mockFlag.mockReset().mockResolvedValue(false);
+    mockUserFlag.mockReset().mockResolvedValue(false);
     mockConfigured.mockReset().mockReturnValue(true);
     mockSession.mockReset().mockResolvedValue(null);
   });
@@ -331,8 +335,18 @@ describe("terms page and App Store purchases", () => {
 
   it("uses the reader's own flag when signed in", async () => {
     mockSession.mockResolvedValue({ user: { id: "reviewer" } });
-    mockFlag.mockResolvedValue(true);
+    mockUserFlag.mockResolvedValue(true);
+    mockFlag.mockResolvedValue(false);
     expect(await render("terms")).toContain(APP_STORE_ID);
+    expect(mockUserFlag).toHaveBeenCalledWith("apple_iap", "reviewer");
+    expect(mockFlag).not.toHaveBeenCalled();
+  });
+
+  it("a signed-in reader without the flag does not see 5.7 when it is on for others", async () => {
+    mockSession.mockResolvedValue({ user: { id: "someone" } });
+    mockUserFlag.mockResolvedValue(false);
+    mockFlag.mockResolvedValue(true);
+    expect(await render("terms")).not.toContain(APP_STORE_ID);
   });
 
   it("hides 5.7 when the APPLE_IAP_* env is missing", async () => {
