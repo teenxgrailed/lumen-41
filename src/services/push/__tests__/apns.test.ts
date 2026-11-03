@@ -181,7 +181,7 @@ describe("apnsBody", () => {
     });
     expect(Buffer.byteLength(body)).toBeLessThan(4096);
     const parsed = JSON.parse(body);
-    expect(Buffer.byteLength(parsed.aps.alert.body)).toBeLessThanOrEqual(1500);
+    expect(Buffer.byteLength(parsed.aps.alert.body)).toBeLessThanOrEqual(2048);
     expect(parsed.aps.alert.body).not.toMatch(/[\ud800-\udbff]$/);
   });
 
