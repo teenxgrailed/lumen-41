@@ -11,7 +11,17 @@ import { type ComponentType, act, createElement as h } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
 
-import { useAppleTransactionUpdates } from "@/lib/needt3/hooks/apple-iap";
+import {
+  type StoreProduct,
+  buyWithApple,
+  restoreApplePurchases,
+} from "@/lib/native-store";
+import {
+  APPLE_OFFER_TIMEOUT_MS,
+  introLine,
+  perPeriod,
+  useAppleTransactionUpdates,
+} from "@/lib/needt3/hooks/apple-iap";
 import type { V3Plan } from "@/lib/needt3/hooks/plan";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
@@ -189,6 +199,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   // the phone sheet locks and restores page scroll; jsdom has no scrollTo
   window.scrollTo = jest.fn();
+  window.open = jest.fn();
 });
 
 afterEach(() => {
@@ -313,8 +324,8 @@ describe("desktop purchase sheet", () => {
       "Subscriptions renew automatically until cancelled"
     );
     expect(text()).toContain("Settings → Apple ID → Subscriptions");
-    expect(q("a[href='/terms']")?.textContent).toBe("Terms of Use");
-    expect(q("a[href='/privacy']")?.textContent).toBe("Privacy Policy");
+    expect(q("[data-pw-apple-terms]")?.textContent).toBe("Terms of Use");
+    expect(q("[data-pw-apple-privacy]")?.textContent).toBe("Privacy Policy");
     expect(q("[data-pw-apple-restore]")?.textContent).toBe("Restore Purchases");
     // yearly is the default pick; no price text outside StoreKit's values
     expect(
@@ -417,7 +428,7 @@ describe("desktop purchase sheet", () => {
     await render(Paywall, { ...props, onClose });
     await click(q("[data-pw-apple-buy]"));
     expect(notify.error).toHaveBeenCalledWith(
-      "Your Pro plan is already active."
+      "Your Pro plan was already active. You can ask Apple for a refund at reportaproblem.apple.com."
     );
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -434,11 +445,70 @@ describe("desktop purchase sheet", () => {
     );
   });
 
-  it("any other refusal shows the server's message", async () => {
-    postReply = { status: 503, body: { error: "Try again later." } };
+  it("a permanent refusal shows the server's message", async () => {
+    postReply = {
+      status: 400,
+      body: { code: "APPLE_UNKNOWN_PRODUCT", error: "Unknown product." },
+    };
     await render(Paywall, props);
     await click(q("[data-pw-apple-buy]"));
-    expect(notify.error).toHaveBeenCalledWith("Try again later.");
+    expect(notify.error).toHaveBeenCalledWith("Unknown product.");
+  });
+
+  it("Apple charged but the server is busy: told it went through, not an error", async () => {
+    postReply = { status: 503, body: { error: "Try again later." } };
+    const onClose = jest.fn();
+    await render(Paywall, { ...props, onClose });
+    await click(q("[data-pw-apple-buy]"));
+    expect(notify.info).toHaveBeenCalledWith(
+      "Your purchase went through. Needt will apply it as soon as it can reach the server."
+    );
+    expect(notify.error).not.toHaveBeenCalled();
+    // the transaction is left unfinished so StoreKit hands it back
+    expect(store.finish).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("Apple charged but the network is down: same notice", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("/account-token")) return reply(tokenReply);
+      throw new Error("offline");
+    });
+    await render(Paywall, props);
+    await click(q("[data-pw-apple-buy]"));
+    expect(notify.info).toHaveBeenCalledWith(
+      expect.stringContaining("Your purchase went through")
+    );
+    expect(notify.error).not.toHaveBeenCalled();
+  });
+
+  it("a 2xx without an active plan is not a success", async () => {
+    postReply = { status: 200, body: { plan: "FREE" } };
+    const onClose = jest.fn();
+    await render(Paywall, { ...props, onClose });
+    await click(q("[data-pw-apple-buy]"));
+    expect(notify.success).not.toHaveBeenCalled();
+    expect(notify.info).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("Lifetime counts as an active plan", async () => {
+    postReply = { status: 200, body: { plan: "LIFETIME" } };
+    const onClose = jest.fn();
+    await render(Paywall, { ...props, onClose });
+    await click(q("[data-pw-apple-product='" + LIFETIME + "']"));
+    await click(q("[data-pw-apple-buy]"));
+    expect(q("[data-pw-apple-buy]")?.textContent).toBe("Buy");
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("Restore with a 2xx but no active plan is not a success", async () => {
+    postReply = { status: 200, body: { plan: "FREE" } };
+    const onClose = jest.fn();
+    await render(Paywall, { ...props, onClose });
+    await click(q("[data-pw-apple-restore]"));
+    expect(notify.success).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("a failed StoreKit purchase shows its message", async () => {
@@ -489,8 +559,8 @@ describe("phone purchase sheet", () => {
     const onClose = jest.fn();
     await render(PkPaywall, { ...props, onClose });
     for (const p of PRODUCTS) expect(text()).toContain(p.displayPrice);
-    expect(q("a[href='/terms']")).not.toBeNull();
-    expect(q("a[href='/privacy']")).not.toBeNull();
+    expect(q("[data-pw-apple-terms]")).not.toBeNull();
+    expect(q("[data-pw-apple-privacy]")).not.toBeNull();
     await click(q("[data-pw-apple-buy]"));
     expect(store.purchase).toHaveBeenCalledWith({
       id: YEARLY,
@@ -589,6 +659,247 @@ describe("Plan section and Plan page", () => {
     expect(text()).not.toContain("Restore purchases");
     // a subscriber can still manage after the server stops selling
     expect(text()).toContain("Manage in App Store");
+  });
+});
+
+describe("intro offer", () => {
+  const offer = (over: Record<string, unknown> = {}) => ({
+    displayPrice: "KRW 1,000",
+    price: "1000",
+    period: { unit: "month", value: 1 },
+    periodCount: 3,
+    paymentMode: "payAsYouGo",
+    ...over,
+  });
+  const sub = (over: Record<string, unknown>) =>
+    ({ ...PRODUCTS[1], ...over }) as unknown as StoreProduct;
+
+  it("is a line only when StoreKit says the account is eligible", () => {
+    const free = offer({
+      paymentMode: "freeTrial",
+      period: { unit: "day", value: 7 },
+      periodCount: 1,
+    });
+    expect(introLine(sub({ introOffer: free }))).toBeNull();
+    expect(
+      introLine(sub({ introOffer: free, isEligibleForIntroOffer: false }))
+    ).toBeNull();
+    expect(
+      introLine(sub({ introOffer: free, isEligibleForIntroOffer: true }))
+    ).toBe("7 days free, then KRW 9,876 per month");
+    expect(introLine(sub({ isEligibleForIntroOffer: true }))).toBeNull();
+  });
+
+  it("pay as you go is a price per period for N periods", () => {
+    expect(
+      introLine(sub({ introOffer: offer(), isEligibleForIntroOffer: true }))
+    ).toBe("KRW 1,000 per month for 3 months, then KRW 9,876 per month");
+  });
+
+  it("pay up front is one price for the whole span", () => {
+    expect(
+      introLine(
+        sub({
+          introOffer: offer({ paymentMode: "payUpFront" }),
+          isEligibleForIntroOffer: true,
+        })
+      )
+    ).toBe("KRW 1,000 for 3 months, then KRW 9,876 per month");
+  });
+
+  it("perPeriod words a multi-unit period", () => {
+    expect(perPeriod(sub({ period: { unit: "month", value: 3 } }))).toBe(
+      "every 3 months"
+    );
+    expect(perPeriod(PRODUCTS[2] as unknown as StoreProduct)).toBe("");
+  });
+
+  it("the sheet shows the line for an eligible account only", async () => {
+    const withIntro = (eligible: boolean) =>
+      PRODUCTS.map((p) =>
+        p.id === YEARLY
+          ? {
+              ...p,
+              introOffer: offer({
+                paymentMode: "freeTrial",
+                period: { unit: "day", value: 7 },
+                periodCount: 1,
+              }),
+              isEligibleForIntroOffer: eligible,
+            }
+          : p
+      );
+    store.products.mockResolvedValue({ products: withIntro(true) });
+    await render(Paywall, props);
+    expect(q("[data-pw-apple-intro]")?.textContent).toBe(
+      "7 days free, then KRW 91,234 per year"
+    );
+    store.products.mockResolvedValue({ products: withIntro(false) });
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await render(Paywall, props);
+    expect(q("[data-pw-apple-intro]")).toBeNull();
+  });
+});
+
+describe("a purchase in flight", () => {
+  const escape = () =>
+    act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+
+  it("Escape, scrim and X do nothing until it ends", async () => {
+    let release: (v: unknown) => void = () => undefined;
+    store.purchase.mockReturnValue(new Promise((r) => (release = r)));
+    const onClose = jest.fn();
+    await render(Paywall, { ...props, onClose });
+    await click(q("[data-pw-apple-buy]"));
+    await escape();
+    await act(async () => {
+      q(".pw-scrim")!.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true })
+      );
+    });
+    expect(q<HTMLButtonElement>("button[data-pw-close]")?.disabled).toBe(true);
+    await click(q("button[data-pw-close]"));
+    expect(onClose).not.toHaveBeenCalled();
+    await act(async () => {
+      release({ status: "cancelled" });
+    });
+    await settle();
+    expect(q<HTMLButtonElement>("button[data-pw-close]")?.disabled).toBe(false);
+    await escape();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("the phone sheet's Close is off too", async () => {
+    let release: (v: unknown) => void = () => undefined;
+    store.purchase.mockReturnValue(new Promise((r) => (release = r)));
+    await render(PkPaywall, props);
+    await click(q("[data-pw-apple-buy]"));
+    expect(q<HTMLButtonElement>("button[data-pw-close]")?.disabled).toBe(true);
+    await act(async () => {
+      release({ status: "cancelled" });
+    });
+    await settle();
+    expect(q<HTMLButtonElement>("button[data-pw-close]")?.disabled).toBe(false);
+  });
+
+  it("a second buy does not start while one runs (any screen)", async () => {
+    let release: (v: unknown) => void = () => undefined;
+    store.purchase.mockReturnValue(new Promise((r) => (release = r)));
+    const first = buyWithApple(YEARLY);
+    const second = await buyWithApple(MONTHLY);
+    expect(second).toMatchObject({ ok: false, reason: "busy" });
+    const restore = await restoreApplePurchases();
+    expect(restore).toMatchObject({ ok: false, reason: "busy" });
+    await settle();
+    release({ status: "cancelled" });
+    expect(await first).toMatchObject({ ok: false, reason: "cancelled" });
+    expect(store.purchase).toHaveBeenCalledTimes(1);
+    // free again afterwards
+    store.purchase.mockResolvedValue({ status: "cancelled" });
+    expect(await buyWithApple(YEARLY)).toMatchObject({ reason: "cancelled" });
+  });
+
+  it("a late answer after the sheet is gone does not close anything", async () => {
+    let release: (v: unknown) => void = () => undefined;
+    store.purchase.mockReturnValue(new Promise((r) => (release = r)));
+    const onClose = jest.fn();
+    await render(Paywall, { ...props, onClose });
+    await click(q("[data-pw-apple-buy]"));
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await act(async () => {
+      release({ status: "success", ...TX });
+    });
+    await settle();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("Ask to Buy", () => {
+  it("disables Subscribe while waiting and closes once the plan is Pro", async () => {
+    store.purchase.mockResolvedValue({ status: "pending" });
+    const onClose = jest.fn();
+    await render(Paywall, { ...props, onClose });
+    await click(q("[data-pw-apple-buy]"));
+    expect(q("[data-pw-apple-pending]")).not.toBeNull();
+    expect(q<HTMLButtonElement>("[data-pw-apple-buy]")?.disabled).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+    // the approval arrives through the shell and turns the plan Pro
+    planData = plan({ plan: "PRO", kind: "monthly", status: "ACTIVE" });
+    await render(Paywall, { ...props, onClose });
+    expect(notify.success).toHaveBeenCalledWith("Needt Pro is active.");
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("loading takes too long", () => {
+  it("falls back to the neutral sheet after 20 seconds", async () => {
+    jest.useFakeTimers();
+    try {
+      store.products.mockReturnValue(new Promise(() => undefined));
+      await act(async () => {
+        root.render(h(QueryClientProvider, { client: qc }, h(Paywall, props)));
+      });
+      for (let i = 0; i < 5; i++) await act(async () => Promise.resolve());
+      expect(q("[data-pw-apple-loading]")).not.toBeNull();
+      await act(async () => {
+        jest.advanceTimersByTime(APPLE_OFFER_TIMEOUT_MS - 1);
+      });
+      expect(q("[data-pw-apple-loading]")).not.toBeNull();
+      await act(async () => {
+        jest.advanceTimersByTime(1);
+      });
+      expect(q("[data-pw-apple-loading]")).toBeNull();
+      expect(text()).toContain(NEUTRAL);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe("plan options and links", () => {
+  const arrow = (el: Element | null, key: string) =>
+    act(async () => {
+      el!.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+    });
+  const opt = (id: string) =>
+    q<HTMLButtonElement>("[data-pw-apple-product='" + id + "']");
+
+  it("roving tabindex: one tab stop, arrows move the pick and focus", async () => {
+    await render(Paywall, props);
+    expect(opt(YEARLY)?.tabIndex).toBe(0);
+    expect(opt(MONTHLY)?.tabIndex).toBe(-1);
+    expect(opt(LIFETIME)?.tabIndex).toBe(-1);
+    opt(YEARLY)!.focus();
+    await arrow(opt(YEARLY), "ArrowDown");
+    expect(opt(LIFETIME)?.getAttribute("aria-checked")).toBe("true");
+    expect(document.activeElement).toBe(opt(LIFETIME));
+    expect(opt(LIFETIME)?.tabIndex).toBe(0);
+    await arrow(opt(LIFETIME), "ArrowDown");
+    expect(document.activeElement).toBe(opt(MONTHLY));
+    await arrow(opt(MONTHLY), "ArrowUp");
+    expect(document.activeElement).toBe(opt(LIFETIME));
+    await arrow(opt(LIFETIME), "ArrowLeft");
+    expect(document.activeElement).toBe(opt(YEARLY));
+  });
+
+  it("Terms of Use is Apple's standard EULA, Privacy is /privacy, both in a new window", async () => {
+    await render(Paywall, props);
+    expect(document.body.querySelector("a[href]")).toBeNull();
+    await click(q("[data-pw-apple-terms]"));
+    expect(window.open).toHaveBeenLastCalledWith(
+      "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
+      "_blank"
+    );
+    await click(q("[data-pw-apple-privacy]"));
+    expect(window.open).toHaveBeenLastCalledWith("/privacy", "_blank");
+    // the sheet is still there
+    expect(q("[data-pw-apple]")).not.toBeNull();
   });
 });
 

@@ -3,7 +3,7 @@
 /* The App Store purchase flow as the Pro sheet and the Plan screens use it.
    Everything native lives in `@/lib/native-store`; this file is the React side:
    what to offer (`useAppleOffer`), what a tap does (`useAppleActions`), what a
-   refusal says (`appleFailureText`) and the one background subscription that
+   refusal says (`appleFailureNotice`) and the one background subscription that
    posts renewals and Ask to Buy approvals (`useAppleTransactionUpdates`). */
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -22,6 +22,9 @@ import {
 } from "@/lib/native-store";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
+
+/** How long the sheet waits for the App Store's prices. */
+export const APPLE_OFFER_TIMEOUT_MS = 20_000;
 
 export type AppleOfferState =
   | { status: "loading" }
@@ -48,9 +51,17 @@ export function useAppleOffer(active: boolean): AppleOfferState {
     if (!active) return undefined;
     let live = true;
     setState({ status: "loading" });
+    /* StoreKit that never answers must not leave the sheet on "Loading": after
+       the timeout it is the neutral sheet, and a late answer is ignored. */
+    const timer = window.setTimeout(() => {
+      if (!live) return;
+      live = false;
+      setState({ status: "unavailable" });
+    }, APPLE_OFFER_TIMEOUT_MS);
     void loadAppleOffer()
       .then((products) => {
         if (!live) return;
+        window.clearTimeout(timer);
         setState(
           products.length > 0
             ? { status: "ready", products }
@@ -58,23 +69,61 @@ export function useAppleOffer(active: boolean): AppleOfferState {
         );
       })
       .catch(() => {
-        if (live) setState({ status: "unavailable" });
+        if (!live) return;
+        window.clearTimeout(timer);
+        setState({ status: "unavailable" });
       });
     return () => {
       live = false;
+      window.clearTimeout(timer);
     };
   }, [active]);
   return active ? state : { status: "unavailable" };
 }
 
-/** What a refused purchase or restore tells the person. `null`: say nothing. */
-export function appleFailureText(f: AppleFailure): string | null {
-  if (f.reason === "cancelled") return null;
-  if (f.code === "CREEM_ACTIVE") return "Your Pro plan is already active.";
-  if (f.code === "APPLE_TRANSACTION_IN_USE") {
-    return "This App Store purchase belongs to another Needt account.";
+export interface AppleNotice {
+  level: "error" | "info";
+  text: string;
+}
+
+/**
+ * What a refused purchase or restore tells the person; `null`: say nothing
+ * (cancelled, or another request is still running). A purchase that StoreKit
+ * charged but the server has not applied yet is news, not an error.
+ */
+export function appleFailureNotice(f: AppleFailure): AppleNotice | null {
+  if (f.reason === "cancelled" || f.reason === "busy") return null;
+  if (f.purchased) {
+    return {
+      level: "info",
+      text: "Your purchase went through. Needt will apply it as soon as it can reach the server.",
+    };
   }
-  return f.message;
+  if (f.code === "CREEM_ACTIVE") {
+    // Apple has charged for a plan that was already paid for elsewhere.
+    return {
+      level: "error",
+      text: "Your Pro plan was already active. You can ask Apple for a refund at reportaproblem.apple.com.",
+    };
+  }
+  if (f.code === "APPLE_TRANSACTION_IN_USE") {
+    return {
+      level: "error",
+      text: "This App Store purchase belongs to another Needt account.",
+    };
+  }
+  return { level: "error", text: f.message };
+}
+
+function raise(n: AppleNotice | null): void {
+  if (!n) return;
+  if (n.level === "info") notify.info(n.text);
+  else notify.error(n.text);
+}
+
+/** The billing state the server returned has an active Pro or Lifetime plan. */
+export function billingIsPro(billing: Record<string, unknown>): boolean {
+  return billing.plan === "PRO" || billing.plan === "LIFETIME";
 }
 
 const UNIT: Record<StorePeriod["unit"], string> = {
@@ -93,30 +142,42 @@ export function periodWords(p: StorePeriod | undefined, count = 1): string {
   return n === 1 ? unit : `${n} ${unit}s`;
 }
 
-/** "per month" for a subscription, "" for anything else. */
-export function perPeriod(p: StoreProduct): string {
-  if (p.type !== "autoRenewable") return "";
-  const words = periodWords(p.period);
+/** "month" -> "per month", "2 months" -> "every 2 months". */
+function perWords(words: string): string {
   if (!words) return "";
   return /^\d/.test(words) ? `every ${words}` : `per ${words}`;
 }
 
-/** The introductory offer in words, from StoreKit's fields; `null` for none. */
+/** "per month" for a subscription, "" for anything else. */
+export function perPeriod(p: StoreProduct): string {
+  if (p.type !== "autoRenewable") return "";
+  return perWords(periodWords(p.period));
+}
+
+/**
+ * The introductory offer in words, from StoreKit's fields. `null` unless
+ * StoreKit says this account is still eligible for it.
+ */
 export function introLine(p: StoreProduct): string | null {
   const o = p.introOffer;
-  if (!o) return null;
+  if (!o || p.isEligibleForIntroOffer !== true) return null;
   const span = periodWords(o.period, o.periodCount);
   if (!span) return null;
   const then = `${p.displayPrice} ${perPeriod(p)}`.trim();
-  return o.paymentMode === "freeTrial"
-    ? `${span} free, then ${then}`
-    : `${o.displayPrice} for ${span}, then ${then}`;
+  if (o.paymentMode === "freeTrial") return `${span} free, then ${then}`;
+  if (o.paymentMode === "payAsYouGo") {
+    const each = perWords(periodWords(o.period));
+    return `${o.displayPrice} ${each} for ${span}, then ${then}`;
+  }
+  return `${o.displayPrice} for ${span}, then ${then}`;
 }
 
 /**
  * Buy and Restore for the Pro sheet and the Plan screens. Both read the plan
- * again when they succeed. A cancelled purchase says nothing; Ask to Buy sets
- * `pending`; every other refusal is a notice with the server's own words.
+ * again when they finish. Success needs an active Pro or Lifetime plan in the
+ * billing state the server returned. A cancelled purchase says nothing; Ask to
+ * Buy sets `pending`; a purchase Apple charged but the server has not applied
+ * is an info notice; every other refusal is a notice with the server's words.
  */
 export function useAppleActions(onDone?: () => void) {
   const qc = useQueryClient();
@@ -137,6 +198,11 @@ export function useAppleActions(onDone?: () => void) {
     () => qc.invalidateQueries({ queryKey: qk.plan() }),
     [qc]
   );
+  /* A finished request closes its sheet only while that sheet is still the
+     one that asked: a late answer never closes whatever opened since. */
+  const done = useCallback(() => {
+    if (alive.current) doneRef.current?.();
+  }, []);
 
   const buy = useCallback(
     async (productId: string) => {
@@ -148,20 +214,23 @@ export function useAppleActions(onDone?: () => void) {
         const r = await buyWithApple(productId);
         if (r.ok) {
           await refresh();
-          notify.success("Needt Pro is active.");
-          doneRef.current?.();
+          if (billingIsPro(r.billing)) {
+            notify.success("Needt Pro is active.");
+            done();
+          } else {
+            notify.info("This purchase does not include an active Pro plan.");
+          }
         } else if (r.reason === "pending") {
           if (alive.current) setPending(true);
         } else {
-          const text = appleFailureText(r);
-          if (text) notify.error(text);
+          raise(appleFailureNotice(r));
         }
       } finally {
         busyRef.current = false;
         if (alive.current) setBusy(null);
       }
     },
-    [refresh]
+    [refresh, done]
   );
 
   const restore = useCallback(async () => {
@@ -173,19 +242,22 @@ export function useAppleActions(onDone?: () => void) {
       const r = await restoreApplePurchases();
       if (r.ok) {
         await refresh();
-        notify.success("Purchases restored.");
-        doneRef.current?.();
+        if (billingIsPro(r.billing)) {
+          notify.success("Purchases restored.");
+          done();
+        } else {
+          notify.info("No active purchase to restore.");
+        }
       } else if (r.reason === "empty") {
         notify.info("No purchases to restore.");
       } else {
-        const text = appleFailureText(r);
-        if (text) notify.error(text);
+        raise(appleFailureNotice(r));
       }
     } finally {
       busyRef.current = false;
       if (alive.current) setBusy(null);
     }
-  }, [refresh]);
+  }, [refresh, done]);
 
   return { busy, pending, buy, restore };
 }

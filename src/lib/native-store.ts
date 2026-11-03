@@ -61,6 +61,8 @@ export interface StoreProduct {
   period?: StorePeriod;
   introOffer?: StoreIntroOffer;
   isFamilyShareable: boolean;
+  /** This account may still use `introOffer` (StoreKit's own answer). */
+  isEligibleForIntroOffer?: boolean;
 }
 
 /** A verified StoreKit transaction as the plugin hands it over. */
@@ -355,6 +357,7 @@ export type AppleFailureReason =
   | "cancelled"
   | "pending"
   | "empty"
+  | "busy"
   | "failed";
 
 /**
@@ -366,6 +369,12 @@ export type AppleFailureReason =
 export interface AppleFailure extends AppleServerError {
   ok: false;
   reason: AppleFailureReason;
+  /**
+   * StoreKit charged and the purchase is held for a retry (the server was
+   * unreachable or busy, or the same transaction is being applied right now).
+   * Not an error: the person is told it went through.
+   */
+  purchased?: boolean;
 }
 
 export type BuyWithAppleResult =
@@ -375,7 +384,8 @@ export type BuyWithAppleResult =
 function failure(
   reason: AppleFailureReason,
   message: string,
-  server?: AppleServerError
+  server?: AppleServerError,
+  purchased?: boolean
 ): AppleFailure {
   return {
     ok: false,
@@ -384,11 +394,15 @@ function failure(
     code: server?.code,
     message,
     manageUrl: server?.manageUrl,
+    ...(purchased ? { purchased: true } : {}),
   };
 }
 
 /** Minimum gap between two background drains of unfinished transactions. */
 export const DRAIN_MIN_INTERVAL_MS = 60_000;
+
+/** A buy or restore is running: no second one starts, whichever screen asks. */
+let appleOperation = false;
 
 /** Running `subscribeAppleTransactionUpdates` drains; `true` ignores the gap. */
 const drainers = new Set<(force: boolean) => void>();
@@ -403,6 +417,18 @@ const drainers = new Set<(force: boolean) => void>();
 export async function buyWithApple(
   productId: string
 ): Promise<BuyWithAppleResult> {
+  if (appleOperation) {
+    return failure("busy", "Another App Store request is still running");
+  }
+  appleOperation = true;
+  try {
+    return await buyOnce(productId);
+  } finally {
+    appleOperation = false;
+  }
+}
+
+async function buyOnce(productId: string): Promise<BuyWithAppleResult> {
   if (!isAppleStoreAvailable()) {
     return failure("unavailable", "Apple purchases are not available here");
   }
@@ -438,10 +464,24 @@ export async function buyWithApple(
 
   const synced = await syncTransaction(bought);
   for (const drain of drainers) drain(true);
+  // From here on Apple has charged. A post that did not land is retried (the
+  // transaction stays unfinished), so the person is told it went through.
   if (!synced) {
-    return failure("failed", "This purchase is already being applied");
+    return failure(
+      "failed",
+      "This purchase is already being applied",
+      undefined,
+      true
+    );
   }
-  if (!synced.ok) return failure("failed", synced.message, synced);
+  if (!synced.ok) {
+    return failure(
+      "failed",
+      synced.message,
+      synced,
+      !isPermanentAppleRefusal(synced.status, synced.code)
+    );
+  }
   return { ok: true, billing: synced.data };
 }
 
@@ -478,6 +518,18 @@ export type RestoreApplePurchasesResult =
 
 /** "Restore purchases": syncs with the App Store and posts every entitlement. */
 export async function restoreApplePurchases(): Promise<RestoreApplePurchasesResult> {
+  if (appleOperation) {
+    return failure("busy", "Another App Store request is still running");
+  }
+  appleOperation = true;
+  try {
+    return await restoreOnce();
+  } finally {
+    appleOperation = false;
+  }
+}
+
+async function restoreOnce(): Promise<RestoreApplePurchasesResult> {
   const restored = await restoreStoreTransactions();
   if (restored.status === "unavailable") {
     return failure("unavailable", "Apple purchases are not available here");

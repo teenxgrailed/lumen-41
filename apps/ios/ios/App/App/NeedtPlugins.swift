@@ -218,14 +218,18 @@ public class NeedtStorePlugin: CAPPlugin, CAPBridgedPlugin {
                 let sorted = found.sorted {
                     (ids.firstIndex(of: $0.id) ?? Int.max) < (ids.firstIndex(of: $1.id) ?? Int.max)
                 }
-                call.resolve(["products": sorted.map { NeedtStorePlugin.describe($0) }])
+                var described: [[String: Any]] = []
+                for product in sorted {
+                    described.append(await NeedtStorePlugin.describe(product))
+                }
+                call.resolve(["products": described])
             } catch {
                 call.reject(error.localizedDescription, "failed")
             }
         }
     }
 
-    private static func describe(_ product: Product) -> [String: Any] {
+    private static func describe(_ product: Product) async -> [String: Any] {
         var out: [String: Any] = [
             "id": product.id,
             "displayName": product.displayName,
@@ -260,6 +264,9 @@ public class NeedtStorePlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 out["introOffer"] = offer
             }
+            // The offer is only for accounts that have not used one in this
+            // subscription group; the sheet shows it only when this is true.
+            out["isEligibleForIntroOffer"] = await sub.isEligibleForIntroOffer
         }
         return out
     }

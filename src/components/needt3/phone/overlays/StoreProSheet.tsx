@@ -5,7 +5,7 @@
    plan, no checkout, no link. In the iOS app, with the NeedtStore plugin and
    products from the server, it is the App Store purchase sheet (3.1.2) with
    StoreKit's own prices (see paywall/StoreProSheet). */
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import { isAppleStoreAvailable } from "@/lib/native-store";
 import {
@@ -33,13 +33,20 @@ function PkAppleProSheet({ open, onClose }: Props) {
   const last = useRef<AppleOfferState>(live);
   if (open) last.current = live;
   const offer = open ? live : last.current;
+  /* Drag, scrim and Close do nothing while a purchase or restore runs. */
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  busyRef.current = busy;
+  const close = () => {
+    if (!busyRef.current) onClose();
+  };
   if (offer.status === "unavailable") {
     return <PkNeutralProSheet open={open} onClose={onClose} />;
   }
   return (
     <PkSheet
       open={open}
-      onClose={onClose}
+      onClose={close}
       label="Needt Pro"
       title="Needt Pro"
       className="pov-store-pro"
@@ -48,9 +55,19 @@ function PkAppleProSheet({ open, onClose }: Props) {
         {offer.status === "loading" ? (
           <AppleOfferLoading />
         ) : (
-          <AppleOfferPanel products={offer.products} onDone={onClose} />
+          <AppleOfferPanel
+            products={offer.products}
+            onDone={onClose}
+            onBusyChange={setBusy}
+          />
         )}
-        <PkButton kind="quiet" block data-pw-close="" onClick={onClose}>
+        <PkButton
+          kind="quiet"
+          block
+          data-pw-close=""
+          disabled={busy}
+          onClick={close}
+        >
           Close
         </PkButton>
       </div>

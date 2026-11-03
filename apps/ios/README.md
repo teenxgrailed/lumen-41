@@ -206,7 +206,7 @@ subscription group "Needt Pro") and `app.needt.lifetime` (non-consumable).
 
 - `products({ ids })` returns `{ products: [{ id, displayName, description,
 displayPrice, price, currencyCode, type, period?, introOffer?,
-isFamilyShareable }] }`
+isEligibleForIntroOffer?, isFamilyShareable }] }`
 - `purchase({ id, appAccountToken })` returns `{ status: "success" | "pending" |
 "cancelled" | "failed", signedTransaction, productId, transactionId, message }`
 - `finish({ transactionId })` returns `{ finished }`; call it only after the

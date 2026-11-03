@@ -827,3 +827,12 @@
   width: 100%;
   min-width: 0;
 }
+.needt-v3 .pw-apple-opt:focus-visible,
+.needt-v3 .pw-apple-link:focus-visible,
+.needt-v3 .pw-store-x:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.needt-v3 .pw-store-x:disabled {
+  opacity: 0.4;
+}

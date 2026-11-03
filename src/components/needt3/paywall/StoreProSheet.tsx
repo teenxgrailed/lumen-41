@@ -12,7 +12,7 @@
    renewal terms, Terms and Privacy, Restore Purchases. If either is missing it
    stays the neutral sheet. The Mac App Store build has no StoreKit bridge yet,
    so it is always the neutral sheet. */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { LuX } from "react-icons/lu";
 
@@ -40,8 +40,16 @@ function AppleProSheet({
 }) {
   const offer = useAppleOffer(open);
   const dialogRef = useRef<HTMLDivElement>(null);
+  /* Escape, the scrim and the X do nothing while a purchase or restore runs:
+     a sheet closed mid-purchase would lose its result. */
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  busyRef.current = busy;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const close = () => {
+    if (!busyRef.current) onCloseRef.current();
+  };
   const shown = open && offer.status !== "unavailable";
   useEffect(() => {
     if (!shown) return undefined;
@@ -52,7 +60,7 @@ function AppleProSheet({
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
-        onCloseRef.current();
+        if (!busyRef.current) onCloseRef.current();
       }
     };
     window.addEventListener("keydown", onKey, true);
@@ -72,7 +80,7 @@ function AppleProSheet({
       data-pw-open="1"
       data-pw-store=""
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) close();
       }}
     >
       <div
@@ -90,7 +98,8 @@ function AppleProSheet({
             className="pw-store-x"
             aria-label="Close"
             data-pw-close=""
-            onClick={onClose}
+            disabled={busy}
+            onClick={close}
           >
             <LuX size={15} />
           </button>
@@ -98,7 +107,11 @@ function AppleProSheet({
         {offer.status === "loading" ? (
           <AppleOfferLoading />
         ) : (
-          <AppleOfferPanel products={offer.products} onDone={onClose} />
+          <AppleOfferPanel
+            products={offer.products}
+            onDone={onClose}
+            onBusyChange={setBusy}
+          />
         )}
       </div>
     </div>

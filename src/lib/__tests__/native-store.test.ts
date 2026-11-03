@@ -242,6 +242,8 @@ describe("buyWithApple", () => {
       ok: false,
       reason: "failed",
       message: "offline",
+      // StoreKit charged: the transaction is held for a retry
+      purchased: true,
     });
   });
 });
