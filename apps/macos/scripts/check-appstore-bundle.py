@@ -2,6 +2,11 @@
 """Check the archived Mac App Store app (Needt.app inside the .xcarchive).
 
   python3 scripts/check-appstore-bundle.py <path to Needt.app> [Generated/NeedtAppStore.entitlements]
+  python3 scripts/check-appstore-bundle.py --variant lite <path to Needt.app> [Generated/NeedtAppStoreLite.entitlements]
+
+`--variant lite` is NeedtAppStoreLite (no notch island): a shorter allow list of
+entitlements and of usage strings (nothing the island alone needed), and no
+island licence files in the bundle.
 
   - universal binaries (arm64 and x86_64) for the app and both extensions
   - the extensions are embedded, Sparkle is not
@@ -17,6 +22,7 @@ An archive built with CODE_SIGNING_ALLOWED=NO carries no signature, so the
 entitlements are read from the file XcodeGen wrote, which is what Xcode signs
 with.
 """
+import argparse
 import filecmp
 import json
 import os
@@ -26,8 +32,15 @@ import subprocess
 import sys
 import tempfile
 
-app = sys.argv[1]
-ent_path = sys.argv[2] if len(sys.argv) > 2 else "Generated/NeedtAppStore.entitlements"
+parser = argparse.ArgumentParser()
+parser.add_argument("app")
+parser.add_argument("entitlements", nargs="?")
+parser.add_argument("--variant", choices=("appstore", "lite"), default="appstore")
+args = parser.parse_args()
+LITE = args.variant == "lite"
+app = args.app
+ent_path = args.entitlements or (
+    "Generated/NeedtAppStoreLite.entitlements" if LITE else "Generated/NeedtAppStore.entitlements")
 failed = False
 
 
@@ -72,6 +85,13 @@ for key in ("SUFeedURL", "SUPublicEDKey", "SUEnableAutomaticChecks", "NSAppTrans
             "NSDownloadsFolderUsageDescription", "NSScreenCaptureUsageDescription"):
     if key in info:
         fail(f"Info.plist has {key}")
+if LITE:
+    for key in ("NSCameraUsageDescription", "NSAppleEventsUsageDescription",
+                "NSCalendarsUsageDescription", "NSCalendarsFullAccessUsageDescription",
+                "NSRemindersUsageDescription", "NSRemindersFullAccessUsageDescription",
+                "NSAudioCaptureUsageDescription", "NSAppleMusicUsageDescription"):
+        if key in info:
+            fail(f"Info.plist has {key}, which only the island needed")
 if info.get("ITSAppUsesNonExemptEncryption") is not False:
     fail("ITSAppUsesNonExemptEncryption is not false")
 if not info.get("LSApplicationCategoryType"):
@@ -94,6 +114,16 @@ ALLOWED = {
     "com.apple.security.scripting-targets",
     "com.apple.security.application-groups",
 }
+if LITE:
+    # What only the island needed: bookmarks (Shelf), camera (webcam mirror),
+    # calendars (EventKit), scripting-targets (Music and Spotify).
+    ALLOWED = {
+        "com.apple.security.app-sandbox",
+        "com.apple.security.network.client",
+        "com.apple.security.files.user-selected.read-only",
+        "com.apple.security.device.audio-input",
+        "com.apple.security.application-groups",
+    }
 # No location: the weather code is not compiled into this build.
 for key in entitlements:
     if key not in ALLOWED:
@@ -126,6 +156,14 @@ STRING_NEEDS = {
     "NSAudioCaptureUsageDescription": None,  # Core Audio tap: a Privacy setting, no entitlement
     "NSAppleMusicUsageDescription": None,  # MusicKit: App ID service, no entitlement
 }
+if LITE:
+    STRING_NEEDS = {"NSMicrophoneUsageDescription": "com.apple.security.device.audio-input"}
+    NEEDS_STRING = {"com.apple.security.device.audio-input": ["NSMicrophoneUsageDescription"]}
+    for entitlement, strings in NEEDS_STRING.items():
+        if entitlement in entitlements:
+            for string in strings:
+                if not info.get(string):
+                    fail(f"{entitlement} without {string}")
 for key in info:
     if key.startswith("NS") and key.endswith("UsageDescription"):
         if key not in STRING_NEEDS:
@@ -139,7 +177,7 @@ ok(f"{len(entitlements)} entitlements, "
 
 # --- privacy manifests ------------------------------------------------------
 for bundle, source in (
-    (f"{app}/Contents/Resources/PrivacyInfo.xcprivacy", "Privacy/AppStore/PrivacyInfo.xcprivacy"),
+    (f"{app}/Contents/Resources/PrivacyInfo.xcprivacy", "Privacy/AppStore/PrivacyInfo.xcprivacy"),  # shared with Lite
     (f"{app}/Contents/PlugIns/NeedtShare.appex/Contents/Resources/PrivacyInfo.xcprivacy",
      "Privacy/Share/PrivacyInfo.xcprivacy"),
     (f"{app}/Contents/PlugIns/NeedtWidgets.appex/Contents/Resources/PrivacyInfo.xcprivacy",
@@ -151,6 +189,13 @@ for bundle, source in (
         fail(f"{bundle} differs from {source}")
     else:
         ok(f"{os.path.relpath(bundle, app)} present")
+
+# --- the island's licence files -------------------------------------------
+if LITE:
+    for name in ("LICENSE.txt", "ACKNOWLEDGEMENTS.md"):
+        if os.path.exists(f"{app}/Contents/Resources/{name}"):
+            fail(f"{name} (the island's) is inside the Lite build")
+    ok("no island licence or acknowledgements file in Resources")
 
 # --- icon -------------------------------------------------------------------
 icon_name = (info.get("CFBundleIconFile") or "AppIcon")

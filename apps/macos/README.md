@@ -288,6 +288,25 @@ strings remain, each checked against an entitlement by
 `scripts/check-appstore-bundle.py`. The Island part of the target compiles 241
 files (`out/island-sources-in-appstore.txt`, counted on 2026-11-03).
 
+Two variants of the store build exist, and one switch picks between them. The
+default, `NeedtAppStore`, keeps the island as described above. `NeedtAppStoreLite`
+(same bundle id `app.needt.mac`, same Share and Widgets extensions, compilation
+flags `APPSTORE NO_ISLAND`) compiles nothing from `Island/`, so none of the GPL v3
+code (Atoll / boring.notch) is in the app: `Needt/Sources` code that talks to the
+island is behind `#if !NO_ISLAND`, `IslandHost` is a no-op and Settings has no
+Island tab. It also drops what only the island needed: the `files.bookmarks.app-scope`,
+`device.camera`, `personal-information.calendars` and `scripting-targets`
+entitlements and the camera, Apple Events, calendar, reminders, audio capture and
+Apple Music usage strings; it keeps `app-sandbox`, `network.client`,
+`files.user-selected.read-only`, `device.audio-input` (the page's dictation) and
+the app group, and uses the same privacy manifest. The switch is the input
+`mac_variant` of `.github/workflows/store-upload.yml` (`appstore`, the default, or
+`appstore-lite`); nothing else changes for the default. The `appstore-lite` job in
+`.github/workflows/macos.yml` archives it on pushes to `main` and by hand (not on
+pull requests) with the same content checks plus `scripts/check-lite-no-island.py`:
+no Island file among the compiled Swift files, no island licence, resource,
+package or type name in the bundle. Artifact: `needt-macos-appstore-lite-archive`.
+
 The build number must grow with every upload. `CURRENT_PROJECT_VERSION` in
 `project.yml` is a fixed value; `.github/workflows/store-upload.yml` (on the
 branch `docs/store-release`) passes `CURRENT_PROJECT_VERSION=${{ github.run_number }}`

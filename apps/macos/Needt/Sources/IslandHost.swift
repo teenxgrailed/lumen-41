@@ -1,3 +1,4 @@
+#if !NO_ISLAND
 import AppKit
 import Combine
 import Defaults
@@ -71,3 +72,16 @@ enum IslandHost {
         IslandAppDelegate.current().application(NSApp, open: urls)
     }
 }
+#else
+import AppKit
+
+/// NeedtAppStoreLite (`NO_ISLAND`): the build without the notch island. Nothing
+/// from `Island/` is compiled, so every call is a no-op and the app's launch,
+/// quit and file-open paths stay the same as in the other builds.
+@MainActor
+enum IslandHost {
+    static func begin() {}
+    static func stop(_ notification: Notification) {}
+    static func open(_ urls: [URL]) {}
+}
+#endif

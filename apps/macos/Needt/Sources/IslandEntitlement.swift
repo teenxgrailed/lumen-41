@@ -1,3 +1,4 @@
+#if !NO_ISLAND
 import AppKit
 import Foundation
 import NeedtKit
@@ -63,3 +64,4 @@ final class IslandEntitlement: ObservableObject {
         IslandHost.apply()
     }
 }
+#endif

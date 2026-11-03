@@ -2,7 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <!--
-  Privacy manifest of the Mac App Store build (NeedtAppStore).
+  Privacy manifest of the Mac App Store build (NeedtAppStore). The build
+  without the island (NeedtAppStoreLite) ships this same file: it uses
+  UserDefaults too (FocusBridge, SettingsView), and the service keeps the same
+  data. The Island and package files named below are not in that build.
 
   Collected data: what the Needt service stores for the signed-in person, as
   listed in the Privacy Notice (src/lib/legal/documents/privacy.ts, section 3).

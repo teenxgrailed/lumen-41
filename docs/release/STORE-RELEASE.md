@@ -48,7 +48,10 @@ itself; you import nothing.
    You do not own that code, so you cannot grant the exception yourself.
    Options: ship it and accept a takedown risk, ask the Atoll authors for a
    written exception, or exclude `Island/` from `NeedtAppStore` (the direct
-   build keeps it).
+   build keeps it). To ship without the island: run store-upload with
+   mac_variant=appstore-lite. That builds the `NeedtAppStoreLite` scheme, which
+   compiles nothing from `Island/` (CI proves it in the `appstore-lite` job of
+   `macos.yml`); the default, `appstore`, is unchanged.
 3. **Partner Center account type** (individual or company). The operator is a
    sole proprietor; a company account needs business verification.
 

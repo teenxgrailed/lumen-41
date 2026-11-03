@@ -262,6 +262,7 @@
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--hue, #e7a96b) 24%, transparent); }
 .needt-v3 .ha-band[role="button"] { cursor: pointer; }
 .needt-v3 .ha-band[role="button"]:focus-visible { outline: 2px solid var(--ha-ink-3); outline-offset: 2px; }
+.needt-v3 .ha-task[role="button"]:focus-visible { outline: 2px solid var(--ha-ink-3); outline-offset: 2px; }
 .needt-v3 .ha-desk .ha-band { min-height: 32px; border-radius: 9px; padding: 0 10px; }
 .needt-v3 .ha-band-e { font-size: 18px; line-height: 1; }
 .needt-v3 .ha-desk .ha-band-e { font-size: 14px; }

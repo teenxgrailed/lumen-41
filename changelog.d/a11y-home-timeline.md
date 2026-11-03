@@ -1,0 +1,1 @@
+- On Home, the day timeline's tasks can be reached with Tab and opened with Enter or Space.
