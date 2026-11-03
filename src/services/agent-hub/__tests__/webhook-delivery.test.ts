@@ -4,7 +4,7 @@
  * deliveries in a row. No database and no network: prisma and the transport
  * are stubbed.
  */
-import { createHmac } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 
 import { encryptSecret } from "@/lib/security/secret-encryption";
 
@@ -32,7 +32,8 @@ jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-const SECRET = "whsec_test_secret";
+// Generated per run: a test fixture, not a credential.
+const SECRET = `whsec_${randomBytes(16).toString("hex")}`;
 const NOW = new Date("2026-11-03T12:00:00.000Z");
 const publicHost = async () => ["93.184.216.34"];
 
