@@ -128,9 +128,10 @@ public class NeedtAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASWebAuthenticationPr
 /// - `finish({ transactionId })` -> `{ finished }`
 /// - `restore()` -> `{ transactions: [...] }` after `AppStore.sync()`
 /// - `entitlements()` -> `{ transactions: [...] }` without sync
-/// - `pendingTransactions()` -> `{ transactions: [...] }`: verified updates
-///   (renewals, Ask to Buy approvals, purchases made elsewhere) that were not
-///   finished yet; each is also sent as the `transactionUpdated` event
+/// - `pendingTransactions()` -> `{ transactions: [...] }`: every verified
+///   transaction not finished yet, i.e. `Transaction.unfinished` (a purchase
+///   whose server post failed, survives restarts) plus the updates received
+///   since launch; updates are also sent as the `transactionUpdated` event
 /// - `manageSubscriptions()` -> the system subscription sheet
 ///
 /// Only `VerificationResult.verified` transactions leave this class.
@@ -282,14 +283,14 @@ public class NeedtStorePlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["status": "failed", "message": "Missing product id"])
             return
         }
-        var options: Set<Product.PurchaseOption> = []
-        if let raw = call.getString("appAccountToken") {
-            guard let token = UUID(uuidString: raw) else {
-                call.resolve(["status": "failed", "message": "Invalid account token"])
-                return
-            }
-            options.insert(.appAccountToken(token))
+        // A purchase without the account token is paid for but can never be
+        // matched to a Needt account (the server answers 403 for ever), so it
+        // is refused before the sheet opens.
+        guard let raw = call.getString("appAccountToken"), let token = UUID(uuidString: raw) else {
+            call.reject("appAccountToken must be the UUID from the server", "invalid_account_token")
+            return
         }
+        let options: Set<Product.PurchaseOption> = [.appAccountToken(token)]
         Task {
             do {
                 guard let product = try await Product.products(for: [id]).first else {
@@ -385,8 +386,19 @@ public class NeedtStorePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func pendingTransactions(_ call: CAPPluginCall) {
-        let items = locked { Array(pendingPayloads.values) }
-        call.resolve(["transactions": items])
+        Task {
+            // updates seen since launch, plus everything StoreKit still holds
+            // as unfinished (a purchase whose server post failed, or one from
+            // before a restart), so the web can retry both
+            var items: [UInt64: [String: Any]] = self.locked { self.pendingPayloads }
+            for await result in Transaction.unfinished {
+                guard case .verified(let transaction) = result else { continue }
+                let payload = self.payload(for: transaction, jws: result.jwsRepresentation)
+                self.remember(transaction, payload: payload, pending: false)
+                items[transaction.id] = payload
+            }
+            call.resolve(["transactions": Array(items.values)])
+        }
     }
 
     // MARK: - Manage

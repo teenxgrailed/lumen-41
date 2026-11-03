@@ -141,6 +141,9 @@ export async function getStoreProducts(ids: string[]): Promise<StoreProduct[]> {
   }
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Runs the system purchase sheet. Never rejects. */
 export async function purchaseStoreProduct(
   id: string,
@@ -148,6 +151,10 @@ export async function purchaseStoreProduct(
 ): Promise<StorePurchaseResult | { status: "unavailable" }> {
   const p = plugin();
   if (!p?.purchase) return { status: "unavailable" };
+  // without the account token the server can never match the purchase
+  if (!UUID_RE.test(appAccountToken ?? "")) {
+    return { status: "failed", message: "Missing account token" };
+  }
   try {
     const res = await p.purchase({ id, appAccountToken });
     if (res?.status === "success") {
@@ -231,9 +238,19 @@ export async function manageAppleSubscriptions(): Promise<boolean> {
 
 // -- server calls ---------------------------------------------------------------
 
+/** What the server (or the network) said when it did not answer 2xx. */
+export interface AppleServerError {
+  /** HTTP status; absent for a network error. */
+  status?: number;
+  /** The server's machine code ("CREEM_ACTIVE", "APPLE_IAP_OFF", ...). */
+  code?: string;
+  message: string;
+  manageUrl?: string;
+}
+
 type ServerResult<T> =
   | { ok: true; data: T }
-  | { ok: false; message: string; status?: number };
+  | ({ ok: false } & AppleServerError);
 
 async function serverCall<T>(
   path: string,
@@ -246,15 +263,19 @@ async function serverCall<T>(
       headers: { "Content-Type": "application/json", ...init?.headers },
     });
     const body = (await res.json().catch(() => null)) as
-      | (T & { error?: unknown })
+      | (T & { error?: unknown; code?: unknown; manageUrl?: unknown })
       | null;
     if (!res.ok) {
-      const err = body?.error;
       return {
         ok: false,
         status: res.status,
+        code: typeof body?.code === "string" ? body.code : undefined,
         message:
-          typeof err === "string" ? err : `Request failed (${res.status})`,
+          typeof body?.error === "string"
+            ? body.error
+            : `Request failed (${res.status})`,
+        manageUrl:
+          typeof body?.manageUrl === "string" ? body.manageUrl : undefined,
       };
     }
     return { ok: true, data: (body ?? {}) as T };
@@ -269,111 +290,205 @@ interface AccountToken {
   products: string[];
 }
 
-/** Posts a signed transaction. Resolves with the billing state on a 2xx. */
-async function postTransaction(
-  signedTransaction: string
-): Promise<ServerResult<AppleBillingState>> {
-  return serverCall<AppleBillingState>(TRANSACTIONS_PATH, {
-    method: "POST",
-    body: JSON.stringify({ signedTransaction }),
-  });
+/**
+ * Refusals the server will repeat for ever for this transaction: another Needt
+ * account bought it, a Creem plan is live, it is already used by another
+ * account, or the product or signature is not ours. The transaction is
+ * finished so it is not posted again on every launch (each post counts against
+ * the account's rate limit). The entitlement stays in `currentEntitlements`,
+ * so a restore still works.
+ *
+ * Everything else is left unfinished and retried: 401, 429, 5xx, a network
+ * error, INVALID_ORIGIN, SANDBOX_LOCKED, APPLE_WRONG_ENVIRONMENT,
+ * APPLE_WRONG_BUNDLE, APPLE_IAP_OFF.
+ */
+const PERMANENT_REFUSALS: ReadonlySet<string> = new Set([
+  "403:APPLE_ACCOUNT_MISMATCH",
+  "409:CREEM_ACTIVE",
+  "409:APPLE_TRANSACTION_IN_USE",
+  "400:APPLE_UNKNOWN_PRODUCT",
+  "400:APPLE_MALFORMED",
+  "400:APPLE_INVALID_SIGNATURE",
+]);
+
+export function isPermanentAppleRefusal(
+  status: number | undefined,
+  code: string | undefined
+): boolean {
+  return (
+    status !== undefined &&
+    code !== undefined &&
+    PERMANENT_REFUSALS.has(`${status}:${code}`)
+  );
 }
 
-/** Post, then finish only after a 2xx. */
+/** Transaction ids being posted right now, so none is posted twice at once. */
+const inFlight = new Set<string>();
+
+/**
+ * Post, then finish after a 2xx or a permanent refusal. Resolves `null` when
+ * the same transaction is already being posted.
+ */
 async function syncTransaction(
   t: StoreTransaction
-): Promise<ServerResult<AppleBillingState>> {
-  const res = await postTransaction(t.signedTransaction);
-  if (res.ok) await finishStoreTransaction(t.transactionId);
-  return res;
+): Promise<ServerResult<AppleBillingState> | null> {
+  if (inFlight.has(t.transactionId)) return null;
+  inFlight.add(t.transactionId);
+  try {
+    const res = await serverCall<AppleBillingState>(TRANSACTIONS_PATH, {
+      method: "POST",
+      body: JSON.stringify({ signedTransaction: t.signedTransaction }),
+    });
+    if (res.ok || isPermanentAppleRefusal(res.status, res.code)) {
+      await finishStoreTransaction(t.transactionId);
+    }
+    return res;
+  } finally {
+    inFlight.delete(t.transactionId);
+  }
 }
 
 // -- orchestration -------------------------------------------------------------
 
+export type AppleFailureReason =
+  | "unavailable"
+  | "cancelled"
+  | "pending"
+  | "empty"
+  | "failed";
+
+/**
+ * A purchase or restore that did not end in a billing state. `status` and
+ * `code` come from the server when it refused ("CREEM_ACTIVE" means ask Apple
+ * for a refund, "APPLE_IAP_OFF" means try later); both are absent for a native
+ * or network failure.
+ */
+export interface AppleFailure extends AppleServerError {
+  ok: false;
+  reason: AppleFailureReason;
+}
+
 export type BuyWithAppleResult =
-  | { status: "success"; billing: AppleBillingState }
-  | { status: "pending" }
-  | { status: "cancelled" }
-  | { status: "unavailable" }
-  | { status: "failed"; message: string };
+  | { ok: true; billing: AppleBillingState }
+  | AppleFailure;
+
+function failure(
+  reason: AppleFailureReason,
+  message: string,
+  server?: AppleServerError
+): AppleFailure {
+  return {
+    ok: false,
+    reason,
+    status: server?.status,
+    code: server?.code,
+    message,
+    manageUrl: server?.manageUrl,
+  };
+}
+
+/** Minimum gap between two background drains of unfinished transactions. */
+export const DRAIN_MIN_INTERVAL_MS = 60_000;
+
+/** Running `subscribeAppleTransactionUpdates` drains; `true` ignores the gap. */
+const drainers = new Set<(force: boolean) => void>();
 
 /**
  * Buys `productId` with Apple and returns the resulting billing state.
- * "pending" is Ask to Buy / SCA: the approval arrives later through
- * `subscribeAppleTransactionUpdates`.
+ * Reason "pending" is Ask to Buy / SCA: the approval arrives later through
+ * `subscribeAppleTransactionUpdates`. After the purchase has been posted
+ * (accepted or not) running subscriptions drain at once, ignoring their
+ * throttle, so a post that failed is retried without waiting.
  */
 export async function buyWithApple(
   productId: string
 ): Promise<BuyWithAppleResult> {
-  if (!isAppleStoreAvailable()) return { status: "unavailable" };
+  if (!isAppleStoreAvailable()) {
+    return failure("unavailable", "Apple purchases are not available here");
+  }
 
   const token = await serverCall<AccountToken>(ACCOUNT_TOKEN_PATH);
-  if (!token.ok) return { status: "failed", message: token.message };
+  if (!token.ok) return failure("failed", token.message, token);
   if (!token.data.enabled || !token.data.appAccountToken) {
-    return { status: "failed", message: "Apple purchases are not enabled" };
+    return failure("failed", "Apple purchases are not enabled");
   }
   if (
     Array.isArray(token.data.products) &&
     !token.data.products.includes(productId)
   ) {
-    return { status: "failed", message: "This product is not for sale" };
+    return failure("failed", "This product is not for sale");
   }
 
   const bought = await purchaseStoreProduct(
     productId,
     token.data.appAccountToken
   );
-  if (bought.status === "unavailable") return { status: "unavailable" };
-  if (bought.status === "pending" || bought.status === "cancelled") {
-    return { status: bought.status };
+  if (bought.status === "unavailable") {
+    return failure("unavailable", "Apple purchases are not available here");
+  }
+  if (bought.status === "pending") {
+    return failure("pending", "Waiting for approval from the App Store");
+  }
+  if (bought.status === "cancelled") {
+    return failure("cancelled", "Purchase cancelled");
   }
   if (bought.status === "failed") {
-    return { status: "failed", message: bought.message ?? "Purchase failed" };
+    return failure("failed", bought.message ?? "Purchase failed");
   }
 
   const synced = await syncTransaction(bought);
-  if (!synced.ok) {
-    // not finished: StoreKit redelivers it and the update listener retries
-    return { status: "failed", message: synced.message };
+  for (const drain of drainers) drain(true);
+  if (!synced) {
+    return failure("failed", "This purchase is already being applied");
   }
-  return { status: "success", billing: synced.data };
+  if (!synced.ok) return failure("failed", synced.message, synced);
+  return { ok: true, billing: synced.data };
 }
 
 export type RestoreApplePurchasesResult =
-  | { status: "restored"; count: number; billing: AppleBillingState }
-  | { status: "empty" }
-  | { status: "cancelled" }
-  | { status: "unavailable" }
-  | { status: "failed"; message: string };
+  | { ok: true; count: number; billing: AppleBillingState }
+  | AppleFailure;
 
 /** "Restore purchases": syncs with the App Store and posts every entitlement. */
 export async function restoreApplePurchases(): Promise<RestoreApplePurchasesResult> {
   const restored = await restoreStoreTransactions();
-  if (restored.status !== "ok") return restored;
-  if (restored.transactions.length === 0) return { status: "empty" };
+  if (restored.status === "unavailable") {
+    return failure("unavailable", "Apple purchases are not available here");
+  }
+  if (restored.status === "cancelled") {
+    return failure("cancelled", "Restore cancelled");
+  }
+  if (restored.status === "failed") return failure("failed", restored.message);
+  if (restored.transactions.length === 0) {
+    return failure("empty", "No purchases to restore");
+  }
 
   let billing: AppleBillingState | null = null;
   let count = 0;
-  let lastError = "Restore failed";
+  let lastError: AppleFailure = failure("failed", "Restore failed");
   for (const t of restored.transactions) {
     const res = await syncTransaction(t);
+    if (!res) continue;
     if (res.ok) {
       billing = res.data;
       count += 1;
     } else {
-      lastError = res.message;
+      lastError = failure("failed", res.message, res);
     }
   }
-  if (!billing) return { status: "failed", message: lastError };
-  return { status: "restored", count, billing };
+  if (!billing) return lastError;
+  return { ok: true, count, billing };
 }
 
 /**
  * Posts every transaction the App Store delivers outside a purchase (renewals,
- * Ask to Buy approvals, purchases made on another device, redelivered
- * unfinished ones) and finishes it after a 2xx. Call once from a mounted,
- * signed-in shell; the returned function stops it. `onBilling` gets the new
- * billing state after each accepted transaction.
+ * Ask to Buy approvals, purchases made on another device) and every one
+ * StoreKit still holds unfinished (a purchase whose post failed, survives
+ * restarts), then finishes it after a 2xx or a permanent refusal. Unfinished
+ * ones are looked up on subscribe, when the app becomes visible and after a
+ * purchase, at most once per `DRAIN_MIN_INTERVAL_MS` (a purchase ignores the
+ * gap). Call once from a mounted, signed-in shell; the returned function stops
+ * it. `onBilling` gets the new billing state after each accepted transaction.
  */
 export function subscribeAppleTransactionUpdates(
   onBilling?: (billing: AppleBillingState) => void
@@ -382,49 +497,54 @@ export function subscribeAppleTransactionUpdates(
   if (!p) return () => {};
 
   let stopped = false;
-  const inFlight = new Set<string>();
+  let lastDrain: number | null = null;
 
   const handle = async (t: StoreTransaction) => {
-    if (stopped || inFlight.has(t.transactionId)) return;
-    inFlight.add(t.transactionId);
-    try {
-      const res = await syncTransaction(t);
-      if (res.ok && !stopped) onBilling?.(res.data);
-    } finally {
-      inFlight.delete(t.transactionId);
-    }
+    if (stopped) return;
+    const res = await syncTransaction(t);
+    if (res?.ok && !stopped) onBilling?.(res.data);
   };
 
-  const drain = async () => {
+  const drain = async (force: boolean) => {
+    if (stopped) return;
+    const now = Date.now();
+    if (
+      !force &&
+      lastDrain !== null &&
+      now - lastDrain < DRAIN_MIN_INTERVAL_MS
+    ) {
+      return;
+    }
+    lastDrain = now;
     const pending = await getPendingStoreTransactions();
     if (pending.status !== "ok") return;
     for (const t of pending.transactions) await handle(t);
   };
+  const requestDrain = (force: boolean) => void drain(force);
+  drainers.add(requestDrain);
 
-  let handle_: ListenerHandle;
+  let listener: ListenerHandle;
   try {
     const added = p.addListener?.("transactionUpdated", (t) => {
       if (isTransaction(t)) void handle(t);
     });
     void Promise.resolve(added)
       .then((h) => {
-        handle_ = h;
+        listener = h;
         if (stopped) void h?.remove?.();
       })
       .catch(() => {});
   } catch {
-    // no event support: the drain below and the focus retry still work
+    // no event support: the drains below still work
   }
 
-  // updates that arrived before the listener existed, and retries of ones the
-  // server refused earlier
-  void drain();
+  void drain(false);
   const onVisible = () => {
     if (
       typeof document !== "undefined" &&
       document.visibilityState === "visible"
     ) {
-      void drain();
+      void drain(false);
     }
   };
   if (typeof document !== "undefined") {
@@ -433,8 +553,9 @@ export function subscribeAppleTransactionUpdates(
 
   return () => {
     stopped = true;
+    drainers.delete(requestDrain);
     try {
-      void handle_?.remove?.();
+      void listener?.remove?.();
     } catch {
       // nothing to clean up
     }
