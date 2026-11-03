@@ -444,6 +444,14 @@ jobs:
               sdef = subprocess.run(["sdef", path], capture_output=True, text=True).stdout
               have = sorted(set(re.findall(r'access-group identifier="([^"]*)"', sdef)))
               print(bundle, "declares", have)
+              # which scripting items each group covers (so the group is the right one)
+              import xml.etree.ElementTree as ET
+              try:
+                  for el in ET.fromstring(sdef).iter():
+                      for group in el.findall("access-group"):
+                          print("   ", group.get("identifier"), "<-", el.tag, el.get("name") or el.get("code"))
+              except ET.ParseError as error:
+                  print("   sdef not parseable:", error)
               missing = [g for g in groups if g not in have]
               if missing:
                   print(f"::error::{bundle} declares no access group {missing}; the entitlement is invalid for it")
