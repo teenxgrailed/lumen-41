@@ -3,6 +3,11 @@ import { z } from "zod";
 import {
   CHECKLIST_MAX_ITEMS,
   HUB_KINDS,
+  MESSAGES_MAX_LIMIT,
+  MESSAGE_BODY_MAX,
+  MESSAGE_RECIPIENTS_MAX,
+  MESSAGE_SUBJECT_MAX,
+  RESERVATION_MAX_MINUTES,
   HUB_RISKS,
   INBOX_MAX_LIMIT,
   LEASE_MAX_MINUTES,
@@ -309,6 +314,77 @@ export function normalizeTags(values: readonly string[] | undefined, max = 20) {
   return [...out];
 }
 
+export const messageSendInput = z.object({
+  to: z
+    .array(z.string().min(1).max(100))
+    .min(1)
+    .max(MESSAGE_RECIPIENTS_MAX)
+    .describe(
+      'Agent names or ids, "owner", or "any" (then set skills: every agent with all those skills gets it).'
+    ),
+  skills: skills.optional(),
+  body: z.string().min(1).max(MESSAGE_BODY_MAX),
+  subject: z
+    .string()
+    .max(MESSAGE_SUBJECT_MAX)
+    .optional()
+    .describe("Needed to start a thread; ignored when threadId is set."),
+  threadId: z.string().max(100).optional().describe("Reply in this thread."),
+  itemId: z.string().max(100).optional(),
+  importance: z.enum(["normal", "high"]).optional(),
+  ackRequired: z.boolean().optional(),
+});
+export type MessageSendInput = z.infer<typeof messageSendInput>;
+
+export const messagesReadInput = z.object({
+  unreadOnly: z.boolean().optional(),
+  limit: z.number().int().min(1).max(MESSAGES_MAX_LIMIT).optional(),
+});
+export type MessagesReadInput = z.infer<typeof messagesReadInput>;
+
+export const messageAckInput = z.object({
+  messageId: z.string().min(1).max(100),
+});
+
+export const threadReadInput = z.object({
+  threadId: z.string().min(1).max(100),
+});
+
+export const ownerMessageInput = z.object({
+  threadId: z.string().max(100).optional(),
+  to: z.array(z.string().min(1).max(100)).max(MESSAGE_RECIPIENTS_MAX).optional(),
+  subject: z.string().max(MESSAGE_SUBJECT_MAX).optional(),
+  body: z.string().min(1).max(MESSAGE_BODY_MAX),
+  importance: z.enum(["normal", "high"]).optional(),
+  ackRequired: z.boolean().optional(),
+});
+export type OwnerMessageInput = z.infer<typeof ownerMessageInput>;
+
+export const reserveInput = z.object({
+  resource: z
+    .string()
+    .min(3)
+    .max(200)
+    .describe(
+      'kind:name, such as "instagram:@needt.app", "account:hello@needt.app" or "file:src/app/**" (globs overlap-checked).'
+    ),
+  reason: z.string().min(1).max(300),
+  exclusive: z.boolean().optional().describe("Default true."),
+  ttlMinutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(RESERVATION_MAX_MINUTES)
+    .optional()
+    .describe("Default 30, at most 240. Reserve again to renew."),
+});
+export type ReserveInput = z.infer<typeof reserveInput>;
+
+export const releaseInput = z.object({
+  resource: z.string().min(1).max(200).optional(),
+  id: z.string().max(100).optional(),
+});
+export type ReleaseInput = z.infer<typeof releaseInput>;
 /** Done-criteria as a sentence or a checklist, in the form we store. */
 export function splitCriteria(value: string | readonly string[]): {
   text: string;

@@ -20,6 +20,8 @@ import {
   rankReady,
 } from "./deps";
 import { agentNames, getItem, itemView, unmatchedItemIds } from "./items";
+import { unreadMessageCount } from "./messages";
+import { myReservations } from "./reservations";
 import type { InboxInput, NextInput } from "./schemas";
 import { sweepHub } from "./sweep";
 
@@ -256,11 +258,17 @@ export async function agentInbox(scope: AgentScope, input: InboxInput) {
       .slice(0, limit);
   }
 
-  const views = await viewItems(scope, items, now);
+  const [views, reservations, unreadMessages] = await Promise.all([
+    viewItems(scope, items, now),
+    myReservations(scope),
+    unreadMessageCount(scope),
+  ]);
 
   return {
     view: input.view ?? "inbox",
     items: views,
+    reservations,
+    unreadMessages,
     suggestedPollSeconds: items.length
       ? SUGGESTED_POLL_SECONDS_BUSY
       : SUGGESTED_POLL_SECONDS_IDLE,

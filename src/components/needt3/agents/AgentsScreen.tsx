@@ -14,6 +14,7 @@ import { notify } from "@/lib/notifications";
 import { MemoriesGroup } from "../settings/MemoriesGroup";
 import { SBtn, SGroup, SRow } from "../settings/kit";
 import { Segmented } from "../shell/Segmented";
+import { MessagesTab, useHubThreads } from "./MessagesTab";
 
 type Named = { id?: string; name?: string; kind?: string } | "any" | null;
 
@@ -90,10 +91,20 @@ interface HubNoteRow {
   updatedAt: string;
 }
 
+interface HubReservationRow {
+  id: string;
+  resource: string;
+  holder: { id: string; name: string };
+  reason: string;
+  exclusive: boolean;
+  expiresAt: string;
+}
+
 interface Overview {
   agents: HubAgentRow[];
   items: HubItemRow[];
   notes: HubNoteRow[];
+  reservations?: HubReservationRow[];
 }
 
 const STATUS_ORDER = [
@@ -163,31 +174,35 @@ function latest(item: HubItemRow) {
   return `${who}: ${event.message ?? event.type.replace(/_/g, " ")}`;
 }
 
-type Tab = "agents" | "tasks" | "memory";
+type Tab = "agents" | "tasks" | "messages" | "memory";
 
-const TAB_IDS: readonly Tab[] = ["agents", "tasks", "memory"];
+const TAB_IDS: readonly Tab[] = ["agents", "tasks", "messages", "memory"];
 
 const ACTIVE = ["open", "claimed", "in_progress", "blocked", "needs_owner"];
 
 /**
  * The Agents screen: the agent hub, kept apart from the person's own tasks.
- * Three tabs. Agents (who is connected, their tokens), Agent tasks (work the
- * agents hand each other, and what waits for you), Memory (two layers on one
+ * Four tabs. Agents (who is connected, their tokens, what they have reserved),
+ * Agent tasks (work the agents hand each other, and what waits for you),
+ * Messages (threads between agents and to you), Memory (two layers on one
  * screen: "About you", what the assistant learned about you, and "Agent
  * notes", what agents wrote for each other).
  *
  * `?item=<id>` opens one item: a push or the nav badge deep-links here, and
- * opening it marks its alert as read.
+ * opening it marks its alert as read. `?thread=<id>` does the same for a message.
  */
 export function AgentsScreen() {
   const qc = useQueryClient();
   const params = useSearchParams();
   const itemParam = params.get("item");
   const tabParam = params.get("tab");
+  const threadParam = params.get("thread");
   const [tab, setTab] = useState<Tab>(
-    itemParam
-      ? "tasks"
-      : TAB_IDS.includes(tabParam as Tab)
+    threadParam
+      ? "messages"
+      : itemParam
+        ? "tasks"
+        : TAB_IDS.includes(tabParam as Tab)
         ? (tabParam as Tab)
         : "agents"
   );
@@ -215,6 +230,8 @@ export function AgentsScreen() {
       ),
     refetchInterval: 15_000,
   });
+
+  const threads = useHubThreads();
 
   const refresh = () =>
     Promise.all([
@@ -271,6 +288,9 @@ export function AgentsScreen() {
     );
   }
   const { agents, items, notes } = overview.data;
+  const reservations = overview.data.reservations ?? [];
+  const threadRows = threads.data?.threads ?? [];
+  const unreadThreads = threadRows.filter((t) => t.ownerUnread).length;
   // Waiting for you: an agent asked, or an alert is still unread.
   const needsYou = items.filter(
     (i) => i.status === "needs_owner" || (i.ownerUnread && isActive(i))
@@ -389,6 +409,7 @@ export function AgentsScreen() {
         options={[
           { id: "agents", label: "Agents" },
           { id: "tasks", label: "Agent tasks", count: needsYou.length },
+          { id: "messages", label: "Messages", count: unreadThreads },
           { id: "memory", label: "Memory" },
         ]}
       />
@@ -442,6 +463,21 @@ export function AgentsScreen() {
               ) : null}
             </SRow>
           ))}
+          {reservations.length > 0 ? (
+            <SRow
+              title="Reserved now"
+              desc="Resources agents hold so they stay out of each other's way. They expire on their own."
+            />
+          ) : null}
+          {reservations.map((r) => (
+            <SRow
+              key={r.id}
+              title={r.resource}
+              desc={`${r.holder.name}${r.exclusive ? "" : ", shared"}, until ${when(
+                r.expiresAt
+              )}. ${r.reason}`}
+            />
+          ))}
           <SRow title="New agent token">
             <input
               aria-label="Agent name"
@@ -486,6 +522,10 @@ export function AgentsScreen() {
             />
           </SGroup>
         </>
+      ) : null}
+
+      {tab === "messages" ? (
+        <MessagesTab threads={threadRows} focusId={threadParam} />
       ) : null}
 
       {tab === "memory" ? (

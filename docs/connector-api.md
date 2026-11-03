@@ -223,11 +223,15 @@ it can still use the hub with `needt.read` (read tools) and `needt.write`
 REST parity under `/api/connect/agent-hub/`: `agents`, `inbox` (`?view=ready`),
 `next`, `plans`, `links` (POST adds, DELETE removes; body `{fromId, toId,
 kind}`), `items`, `items/{id}`, `items/{id}/{claim,complete,escalate,cancel}`,
-`notes`, `notes/{id}`. The owner's own actions (answer, approve, reassign, token
+`notes`, `notes/{id}`, `messages` (+ `messages/{id}/ack`), `threads/{id}`,
+`reservations` (+ `reservations/release`). Mail and reservations add seven
+tools: `needt_agent_message_send`, `needt_agent_messages`,
+`needt_agent_message_ack`, `needt_agent_thread`, `needt_agent_reserve`,
+`needt_agent_release`, `needt_agent_reservations`. The owner's own actions (answer, approve, reassign, token
 create/revoke, note edit/delete, mark an alert seen) are session-only routes
 under `/api/agent-hub/` and no bearer token can call them. An escalation (or
 no capable agent for 24 hours) alerts the owner with a push to
-`/agents?item=<id>` and an unread count on the Agents nav item
+`/agents?item=<id>` (a message to the owner: `/agents?thread=<id>`) and an unread count on the Agents nav item
 (`GET /api/agent-hub/badge`); it creates no Needt task. Protocol for agents:
 `docs/agents/hub-protocol.md`.
 

@@ -207,7 +207,7 @@ describeIntegration("Agent hub (real database)", () => {
     await prisma.$disconnect();
   });
 
-  it("shows the fourteen hub tools to the flagged owner and none to anyone else", async () => {
+  it("shows the twenty-one hub tools to the flagged owner and none to anyone else", async () => {
     for (const token of [claude, grok, codex]) {
       const { body } = await rpc(token, "tools/list");
       const names: string[] = body.result.tools.map(
@@ -215,7 +215,7 @@ describeIntegration("Agent hub (real database)", () => {
       );
       expect(
         names.filter((n) => /^needt_(agent|agents|memory)_/.test(n))
-      ).toHaveLength(14);
+      ).toHaveLength(21);
     }
     const { body } = await rpc(otherPersonal, "tools/list");
     const names: string[] = body.result.tools.map(
