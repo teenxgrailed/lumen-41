@@ -3,7 +3,11 @@ import {
   listPushEnabledCalendarFeeds,
   recordCalendarFeedSyncFailure,
 } from "@/lib/calendar-db";
-import { registerGoogleWatch } from "@/lib/calendar-webhooks/google";
+import {
+  GoogleWatchIneligibleError,
+  GoogleWatchUnsupportedError,
+  registerGoogleWatch,
+} from "@/lib/calendar-webhooks/google";
 import { renewOutlookSubscription } from "@/lib/calendar-webhooks/outlook";
 import { registerOutlookSubscription } from "@/lib/calendar-webhooks/outlook";
 import {
@@ -19,9 +23,15 @@ jest.mock("@/lib/calendar-db", () => ({
   listPushEnabledCalendarFeeds: jest.fn(),
   recordCalendarFeedSyncFailure: jest.fn(),
 }));
-jest.mock("@/lib/calendar-webhooks/google", () => ({
-  registerGoogleWatch: jest.fn(),
-}));
+jest.mock("@/lib/calendar-webhooks/google", () => {
+  class GoogleWatchIneligibleError extends Error {}
+  class GoogleWatchUnsupportedError extends Error {}
+  return {
+    GoogleWatchIneligibleError,
+    GoogleWatchUnsupportedError,
+    registerGoogleWatch: jest.fn(),
+  };
+});
 jest.mock("@/lib/calendar-webhooks/outlook", () => ({
   registerOutlookSubscription: jest.fn(),
   renewOutlookSubscription: jest.fn(),
@@ -32,6 +42,7 @@ const soon = new Date(Date.now() + 60_000);
 describe("renewCalendarWebhooks", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (registerGoogleWatch as jest.Mock).mockReset();
     (listPushEnabledCalendarFeeds as jest.Mock).mockResolvedValue([]);
   });
 
@@ -52,6 +63,49 @@ describe("renewCalendarWebhooks", () => {
     expect(recordCalendarFeedSyncFailure).not.toHaveBeenCalled();
     expect(registerGoogleWatch).toHaveBeenCalledWith("good-g");
     expect(renewOutlookSubscription).toHaveBeenCalledWith("good-o");
+  });
+
+  it("does not throw for a calendar Google cannot push for", async () => {
+    (listCalendarWebhooks as jest.Mock).mockResolvedValue([
+      { feedId: "holidays", provider: "GOOGLE", expiration: soon },
+    ]);
+    (registerGoogleWatch as jest.Mock).mockRejectedValue(
+      new GoogleWatchUnsupportedError()
+    );
+    await expect(renewCalendarWebhooks()).resolves.toEqual([]);
+  });
+
+  it("does not throw for an ineligible feed while registering a missing watch", async () => {
+    (listCalendarWebhooks as jest.Mock).mockResolvedValue([]);
+    (listPushEnabledCalendarFeeds as jest.Mock).mockResolvedValue([
+      { id: "x", type: "GOOGLE", webhooks: [], nextSyncAttemptAt: null },
+    ]);
+    (registerGoogleWatch as jest.Mock).mockRejectedValue(
+      new GoogleWatchIneligibleError()
+    );
+    await expect(renewCalendarWebhooks()).resolves.toEqual([]);
+  });
+
+  it("skips disabled and push-unsupported feeds without calling Google", async () => {
+    (listCalendarWebhooks as jest.Mock).mockResolvedValue([
+      {
+        feedId: "off",
+        provider: "GOOGLE",
+        expiration: soon,
+        feed: { enabled: false, pushUnsupportedAt: null },
+      },
+      {
+        feedId: "marked",
+        provider: "GOOGLE",
+        expiration: soon,
+        feed: { enabled: true, pushUnsupportedAt: new Date() },
+      },
+    ]);
+    await expect(renewCalendarWebhooks()).resolves.toEqual([
+      { feedId: "off", provider: "GOOGLE", renewed: false },
+      { feedId: "marked", provider: "GOOGLE", renewed: false },
+    ]);
+    expect(registerGoogleWatch).not.toHaveBeenCalled();
   });
 
   it("returns the results when nothing fails", async () => {

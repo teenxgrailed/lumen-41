@@ -343,6 +343,7 @@ export async function listPushEnabledCalendarFeeds() {
       accountId: { not: null },
       userId: { not: null },
       url: { not: null },
+      pushUnsupportedAt: null,
     },
     select: {
       id: true,
@@ -351,6 +352,20 @@ export async function listPushEnabledCalendarFeeds() {
       webhooks: { select: { id: true } },
     },
   });
+}
+
+/**
+ * Record that the provider cannot push for this calendar, so the webhook
+ * sweeps stop retrying it, and drop any stale webhook row.
+ */
+export async function markCalendarFeedPushUnsupported(
+  feedId: string
+): Promise<void> {
+  await prisma.calendarFeed.update({
+    where: { id: feedId },
+    data: { pushUnsupportedAt: newDate() },
+  });
+  await prisma.calendarWebhook.deleteMany({ where: { feedId } });
 }
 
 export async function deleteCalendarWebhook(

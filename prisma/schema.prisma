@@ -462,6 +462,10 @@ model CalendarFeed {
   channelId         String? // Google Calendar webhook channel ID
   resourceId        String? // Google Calendar webhook resource ID
   channelExpiration DateTime? // When the webhook expires
+  // Set when Google refuses push for this calendar (holiday, birthday and
+  // other read-only subscribed calendars) or the calendar is gone. The webhook
+  // sweeps never retry a marked feed; polling sync still covers it.
+  pushUnsupportedAt DateTime?
   events            CalendarEvent[]
   userId            String?
   user              User?             @relation(fields: [userId], references: [id])
