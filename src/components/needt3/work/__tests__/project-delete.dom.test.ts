@@ -24,7 +24,9 @@ const push = jest.fn();
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 
 const undo = jest.fn();
-const trash = jest.fn((_id: string, _at: string) => Promise.resolve({ undo }));
+const trash = jest.fn<Promise<{ undo: jest.Mock }>, [string, string]>(() =>
+  Promise.resolve({ undo })
+);
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useTrashProject: () => ({ trash }),
 }));
