@@ -8,8 +8,10 @@ struct SettingsView: View {
         TabView {
             FocusSettingsPane()
                 .tabItem { Label("Focus", systemImage: "scope") }
+            #if !NO_ISLAND
             IslandSettingsPane()
                 .tabItem { Label("Island", systemImage: "rectangle.topthird.inset.filled") }
+            #endif
             AboutSettingsPane()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }

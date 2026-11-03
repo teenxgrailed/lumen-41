@@ -6,6 +6,9 @@ excludes (the extensions and the shared packages are listed separately).
 `active_lines` also drops what `#if` leaves out of a Release build with
 APPSTORE set (`#if !APPSTORE`, `#if DEBUG`, `#if NEEDT_CI`).
 
+NeedtAppStoreLite (the variant without the island) compiles Needt/Sources only,
+with the flags APPSTORE and NO_ISLAND: `lite_sources()` and `set_no_island(True)`.
+
 Run from apps/macos.
 """
 import ast
@@ -14,6 +17,14 @@ import os
 import re
 
 SOURCE_SUFFIXES = (".swift", ".mm", ".m", ".h", ".cpp", ".hpp")
+
+# True while reading the sources of NeedtAppStoreLite (flag NO_ISLAND is set).
+NO_ISLAND = False
+
+
+def set_no_island(value):
+    global NO_ISLAND
+    NO_ISLAND = value
 
 
 def store_excludes():
@@ -68,6 +79,19 @@ def app_sources():
     return files
 
 
+def lite_sources():
+    """Files compiled into the NeedtAppStoreLite app target: Needt/Sources, nothing from Island/."""
+    return sorted(walk("Needt/Sources"))
+
+
+def lite_target_paths():
+    """The `path:` entries of the NeedtAppStoreLite target's `sources:` in project.yml."""
+    text = open("project.yml").read()
+    start = text.index("\n  NeedtAppStoreLite:\n    type: application")
+    end = text.index("\n    dependencies:", start)
+    return [line.split("path:", 1)[1].strip() for line in text[start:end].splitlines() if "- path:" in line]
+
+
 def island_sources():
     return [f for f in app_sources() if f.startswith("Island/Sources/")]
 
@@ -82,7 +106,8 @@ def extension_sources(name):
 def _condition(expr):
     c = expr.strip()
     c = re.sub(r"canImport\([^)]*\)|os\([^)]*\)|arch\([^)]*\)", "True", c)
-    for name, value in (("APPSTORE", "True"), ("DEBUG", "False"), ("NEEDT_CI", "False")):
+    for name, value in (("APPSTORE", "True"), ("DEBUG", "False"), ("NEEDT_CI", "False"),
+                        ("NO_ISLAND", "True" if NO_ISLAND else "False")):
         c = re.sub(r"\b" + name + r"\b", value, c)
     c = c.replace("&&", " and ").replace("||", " or ")
     c = re.sub(r"!(?!=)", " not ", c)

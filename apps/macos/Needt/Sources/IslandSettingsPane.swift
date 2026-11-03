@@ -1,3 +1,4 @@
+#if !NO_ISLAND
 import AppKit
 import Defaults
 import SwiftUI
@@ -200,3 +201,4 @@ private struct IslandPreview: View {
         .background(Capsule().fill(Color.black))
     }
 }
+#endif

@@ -13,6 +13,10 @@
      (SourcePackages/checkouts). Information only: a package declares its own
      Required Reason APIs in its own manifest.
   4. `--list FILE` writes the Island sources compiled into NeedtAppStore.
+  5. `--variant lite` checks NeedtAppStoreLite instead: the same manifest
+     (Privacy/AppStore) against Needt/Sources read with NO_ISLAND set (no
+     Island file, so `--list` is not used). The manifest is shared on purpose:
+     the Required Reason use and the collected data are the same.
 
 Run from apps/macos. Exit 1 when a check fails.
 """
@@ -157,16 +161,26 @@ def compare(label, files, declared):
 parser = argparse.ArgumentParser()
 parser.add_argument("--packages", help="SourcePackages/checkouts folder to scan (information only)")
 parser.add_argument("--list", help="write the Island sources compiled into NeedtAppStore here")
+parser.add_argument("--variant", choices=("appstore", "lite"), default="appstore")
 args = parser.parse_args()
+lite = args.variant == "lite"
 
 app_declared = check_manifest("Privacy/AppStore/PrivacyInfo.xcprivacy", expect_collected=True)
 share_declared = check_manifest("Privacy/Share/PrivacyInfo.xcprivacy", expect_collected=False)
 widgets_declared = check_manifest("Privacy/Widgets/PrivacyInfo.xcprivacy", expect_collected=False)
 
-app_files = src.app_sources()
-if len(src.store_excludes()) < 20 or len(app_files) < 200:
-    fail("could not read the NeedtAppStore sources from project.yml")
-compare("NeedtAppStore", app_files, app_declared)
+if lite:
+    src.set_no_island(True)
+    app_files = src.lite_sources()
+    if len(app_files) < 20:
+        fail("could not read the NeedtAppStoreLite sources")
+    if any(f.startswith("Island") for f in app_files):
+        fail("NeedtAppStoreLite compiles an Island file")
+else:
+    app_files = src.app_sources()
+    if len(src.store_excludes()) < 20 or len(app_files) < 200:
+        fail("could not read the NeedtAppStore sources from project.yml")
+compare("NeedtAppStoreLite" if lite else "NeedtAppStore", app_files, app_declared)
 compare("NeedtShare", src.extension_sources("Share/Sources"), share_declared)
 compare("NeedtWidgets", src.extension_sources("Widgets/Sources"), widgets_declared)
 
