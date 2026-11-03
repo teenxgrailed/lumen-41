@@ -1,41 +1,45 @@
 import { z } from "zod";
 
 /**
- * A deliberately small zod (v3) → JSON Schema converter for MCP tool inputs.
+ * A deliberately small zod (v4) → JSON Schema converter for MCP tool inputs.
  *
- * The project is on zod 3.24, which has no `z.toJSONSchema`, and
- * `zod-to-json-schema` is only a transitive dependency. Tool inputs use a
- * narrow subset of zod, so this covers exactly that subset and throws on
- * anything else, which keeps an unsupported schema from shipping silently.
+ * Tool inputs use a narrow subset of zod, so this covers exactly that subset
+ * and throws on anything else, which keeps an unsupported schema from
+ * shipping silently. (`z.toJSONSchema` is not used: its output differs from
+ * what MCP clients already receive.)
  */
 export type JsonSchema = Record<string, unknown>;
 
-function withDescription(schema: z.ZodTypeAny, json: JsonSchema): JsonSchema {
+function withDescription(schema: z.ZodType, json: JsonSchema): JsonSchema {
   return schema.description
     ? { ...json, description: schema.description }
     : json;
 }
 
-function isOptional(schema: z.ZodTypeAny): boolean {
+function isOptional(schema: z.ZodType): boolean {
   return (
     schema instanceof z.ZodOptional ||
     schema instanceof z.ZodDefault ||
-    (schema instanceof z.ZodNullable && isOptional(schema.unwrap()))
+    (schema instanceof z.ZodNullable &&
+      isOptional(schema.unwrap() as z.ZodType))
   );
 }
 
-export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
+export function zodToJsonSchema(schema: z.ZodType): JsonSchema {
   if (schema instanceof z.ZodOptional) {
-    return withDescription(schema, zodToJsonSchema(schema.unwrap()));
+    return withDescription(
+      schema,
+      zodToJsonSchema(schema.unwrap() as z.ZodType)
+    );
   }
   if (schema instanceof z.ZodDefault) {
     return withDescription(schema, {
-      ...zodToJsonSchema(schema.removeDefault()),
-      default: schema._def.defaultValue(),
+      ...zodToJsonSchema(schema.removeDefault() as z.ZodType),
+      default: schema.def.defaultValue,
     });
   }
   if (schema instanceof z.ZodNullable) {
-    const inner = zodToJsonSchema(schema.unwrap());
+    const inner = zodToJsonSchema(schema.unwrap() as z.ZodType);
     const type = inner.type;
     return withDescription(schema, {
       ...inner,
@@ -62,7 +66,7 @@ export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
   }
   if (schema instanceof z.ZodUnion) {
     return withDescription(schema, {
-      anyOf: (schema.options as z.ZodTypeAny[]).map((option) =>
+      anyOf: (schema.options as z.ZodType[]).map((option) =>
         zodToJsonSchema(option)
       ),
     });
@@ -70,14 +74,21 @@ export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
   if (schema instanceof z.ZodArray) {
     const json: JsonSchema = {
       type: "array",
-      items: zodToJsonSchema(schema.element),
+      items: zodToJsonSchema(schema.element as z.ZodType),
     };
-    if (schema._def.minLength) json.minItems = schema._def.minLength.value;
-    if (schema._def.maxLength) json.maxItems = schema._def.maxLength.value;
+    for (const check of schema.def.checks ?? []) {
+      const checkDef = check._zod.def as {
+        check: string;
+        minimum?: number;
+        maximum?: number;
+      };
+      if (checkDef.check === "min_length") json.minItems = checkDef.minimum;
+      if (checkDef.check === "max_length") json.maxItems = checkDef.maximum;
+    }
     return withDescription(schema, json);
   }
   if (schema instanceof z.ZodObject) {
-    const shape = schema.shape as Record<string, z.ZodTypeAny>;
+    const shape = schema.shape as Record<string, z.ZodType>;
     const properties: Record<string, JsonSchema> = {};
     const required: string[] = [];
     for (const [key, value] of Object.entries(shape)) {
@@ -88,7 +99,8 @@ export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
       type: "object",
       properties,
       ...(required.length ? { required } : {}),
-      ...(schema._def.unknownKeys === "strict"
+      // zod 4 spells `.strict()` as a `never` catchall.
+      ...((schema.def.catchall as z.ZodType | undefined)?.def.type === "never"
         ? { additionalProperties: false }
         : {}),
     });
@@ -99,7 +111,7 @@ export function zodToJsonSchema(schema: z.ZodTypeAny): JsonSchema {
   if (schema instanceof z.ZodRecord) {
     return withDescription(schema, {
       type: "object",
-      additionalProperties: zodToJsonSchema(schema.valueSchema),
+      additionalProperties: zodToJsonSchema(schema.valueType as z.ZodType),
     });
   }
   throw new Error(

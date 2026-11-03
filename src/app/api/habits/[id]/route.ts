@@ -9,6 +9,7 @@ import { newDate } from "@/lib/date-utils";
 import { withHabitSlot } from "@/lib/entitlements";
 import { habitInputSchema } from "@/lib/habits";
 import { prisma } from "@/lib/prisma";
+import { partialWithoutDefaults } from "@/lib/zod-patch";
 
 const LOG_SOURCE = "HabitAPI";
 type RouteContext = { params: Promise<{ id: string }> };
@@ -36,7 +37,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   });
   if (!existing)
     return NextResponse.json({ error: "Habit not found" }, { status: 404 });
-  const parsed = habitInputSchema.partial().safeParse(body);
+  const parsed = partialWithoutDefaults(habitInputSchema).safeParse(body);
   if (!parsed.success)
     return NextResponse.json({ error: "Invalid habit" }, { status: 400 });
   if (parsed.data.projectId) {

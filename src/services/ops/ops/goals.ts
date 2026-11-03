@@ -870,7 +870,7 @@ export const goalUnconvert = defineOp({
     .object({
       goalId,
       taskIds: z.array(z.string().min(1)).max(100),
-      restoreTask: z.record(z.unknown()).optional(),
+      restoreTask: z.record(z.string(), z.unknown()).optional(),
     })
     .strict(),
   async run(ctx, input) {
