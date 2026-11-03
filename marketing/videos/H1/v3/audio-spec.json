@@ -1,0 +1,29 @@
+{
+  "video": "H1 v3 — see ../sound.md for the timeline",
+  "outputFormat": "mp3_44100_128",
+  "variants": 3,
+  "sfx": [
+    { "id": "cue1_swarm", "seconds": 3.4, "prompt": "Dense digital swarm: rapid notification pings, keyboard clicks and tiny glitch chirps layered chaotically over a low uneasy drone, dry, close, no music" },
+    { "id": "cue2_riser", "seconds": 2.2, "prompt": "Deep vacuum suction riser accelerating into a single point, airy rushing whoosh that tightens and ends abruptly" },
+    { "id": "cue3_impact", "seconds": 1.6, "prompt": "Low sub-bass impact with a crystalline glass shimmer tail, cinematic, clean" },
+    { "id": "cue4_slide", "seconds": 0.5, "influence": 0.7, "prompt": "Soft UI card sliding out, short airy whoosh ending in a subtle tick" },
+    { "id": "cue5_chime", "seconds": 0.5, "influence": 0.7, "prompt": "Minimal glassy UI confirm chime, very short, bright and satisfying" },
+    { "id": "cue6_tap", "seconds": 1.0, "influence": 0.6, "prompt": "Fingertip tap on a glass screen followed by a warm success tone with a small sparkle" },
+    { "id": "cue7_logo", "seconds": 2.2, "prompt": "Reverse swell building into a deep cinematic logo hit, then a short dark tail fading to silence" }
+  ],
+  "voice": {
+    "name": "Needt Hivemind",
+    "pick": 1,
+    "description": "Native English. Androgynous, ageless. Studio quality. Persona: calm machine hivemind. Emotion: dry, confident, quietly amused. Low close-mic timbre with a faint metallic shimmer, slow deliberate pacing, small pauses between words, as if several voices speak almost in unison.",
+    "previewText": "Tabs. Mail. Code. Calls. Feed it all in. One brain takes it from here. Your agents pick it up, and you just say yes. Needt."
+  },
+  "ttsModel": "eleven_v4",
+  "lines": [
+    { "id": "vo1_chaos", "text": "Tabs. Mail. Code. Calls." },
+    { "id": "vo2_funnel", "text": "Feed it all in." },
+    { "id": "vo3_brain", "text": "One brain." },
+    { "id": "vo4_agents", "text": "Your agents pick it up." },
+    { "id": "vo5_yes", "text": "You just say yes." },
+    { "id": "vo6_needt", "text": "Needt." }
+  ]
+}
