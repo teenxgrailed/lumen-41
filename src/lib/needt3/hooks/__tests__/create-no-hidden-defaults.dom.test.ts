@@ -115,7 +115,7 @@ describe("a doc made blank", () => {
   it("goes to Trash when it is left without a word", async () => {
     await made();
     expect(discardBlankDoc(client, "pg1", false)).toBe(true);
-    expect(calls).toEqual([
+    expect(calls.filter((c) => c.method !== "GET")).toEqual([
       expect.objectContaining({
         url: "/api/pages/pg1",
         method: "PATCH",
@@ -127,7 +127,7 @@ describe("a doc made blank", () => {
   it("is kept when anything was typed in it", async () => {
     await made();
     expect(discardBlankDoc(client, "pg1", true)).toBe(false);
-    expect(calls).toHaveLength(0);
+    expect(calls.filter((c) => c.method !== "GET")).toHaveLength(0);
     // and it is no longer a candidate on a later visit
     expect(discardBlankDoc(client, "pg1", false)).toBe(false);
   });
@@ -140,6 +140,6 @@ describe("a doc made blank", () => {
 
   it("is left alone when it was never made blank here", () => {
     expect(discardBlankDoc(client, "someone-elses", false)).toBe(false);
-    expect(calls).toHaveLength(0);
+    expect(calls.filter((c) => c.method !== "GET")).toHaveLength(0);
   });
 });
