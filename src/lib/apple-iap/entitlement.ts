@@ -360,6 +360,9 @@ export async function applyAppleEntitlement(
       appleProductId: input.productId,
       appleBundleId: input.bundleId,
       appleEnvironment: input.environment,
+      // Apple sells the plan again: whatever double billing a Creem plan
+      // once flagged on this row is over (that Creem plan is the one ending).
+      appleConflictSince: null,
       appleLastSignedAt:
         current?.appleLastSignedAt &&
         current.appleOriginalTransactionId === input.originalTransactionId &&

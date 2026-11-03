@@ -521,6 +521,30 @@ describe("Creem webhook processing", () => {
       ).toBeUndefined();
     });
 
+    it("still skips a granting late event for the replaced subscription", async () => {
+      // A delayed successful retry of the Creem subscription Apple replaced:
+      // paid, but for the old subscription, so it must not take over.
+      const result = await processCreemBillingEvent({
+        id: "evt_late_paid",
+        createdAt: 1_728_734_337_932,
+        eventType: "subscription.paid",
+        object: {
+          id: "sub_replaced",
+          product: { id: products.proMonthly },
+          customer: { id: "cust_1" },
+          metadata: { referenceId: "user_1" },
+        },
+      });
+
+      expect(result).toEqual({ processed: false, reason: "apple_active" });
+      expect(prisma.subscription.upsert).not.toHaveBeenCalled();
+      expect(prisma.creemWebhookEvent.createMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [expect.objectContaining({ outcome: "apple_active" })],
+        })
+      );
+    });
+
     it("still skips an event that only takes access away", async () => {
       const result = await processCreemBillingEvent({
         id: "evt_other_expired",
