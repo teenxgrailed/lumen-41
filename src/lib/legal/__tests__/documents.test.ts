@@ -22,9 +22,27 @@ const PAGES = {
   subprocessors: SubprocessorsPage,
 } as const;
 
-// The terms page reads the `apple_iap` flag when it is served.
+// The terms page reads the `apple_iap` flag for the reader when it is served.
+const mockFlag = jest.fn(async (): Promise<boolean> => false);
+const mockConfigured = jest.fn(() => true);
+const mockSession = jest.fn(
+  async (): Promise<{ user: { id: string } } | null> => null
+);
 jest.mock("@/lib/feature-flags", () => ({
-  isFeatureEnabledForEveryone: jest.fn(async () => false),
+  isFeatureEnabled: () => mockFlag(),
+  isFeatureEnabledForEveryone: () => mockFlag(),
+}));
+jest.mock("@/lib/apple-iap/config", () => ({
+  isAppleIapConfigured: () => mockConfigured(),
+}));
+jest.mock("@/lib/auth/auth-options", () => ({
+  getAuthOptions: async () => ({}),
+}));
+jest.mock("next-auth/next", () => ({
+  getServerSession: () => mockSession(),
+}));
+jest.mock("@/lib/logger", () => ({
+  logger: { error: jest.fn(async () => undefined) },
 }));
 
 async function render(name: keyof typeof PAGES): Promise<string> {
@@ -295,5 +313,36 @@ describe("DMCA section of the Terms", () => {
     process.env.DMCA_AGENT_REG_NO = "DMCA-1234567";
     expect(termsMarkdown()).toContain("registration number **DMCA-1234567**");
     expect(await render("terms")).toContain("DMCA-1234567");
+  });
+});
+
+describe("terms page and App Store purchases", () => {
+  const APP_STORE_ID = 'id="5-7-purchases-in-the-app-store"';
+  afterEach(() => {
+    mockFlag.mockReset().mockResolvedValue(false);
+    mockConfigured.mockReset().mockReturnValue(true);
+    mockSession.mockReset().mockResolvedValue(null);
+  });
+
+  it("shows 5.7 when apple_iap is on and the server is configured", async () => {
+    mockFlag.mockResolvedValue(true);
+    expect(await render("terms")).toContain(APP_STORE_ID);
+  });
+
+  it("uses the reader's own flag when signed in", async () => {
+    mockSession.mockResolvedValue({ user: { id: "reviewer" } });
+    mockFlag.mockResolvedValue(true);
+    expect(await render("terms")).toContain(APP_STORE_ID);
+  });
+
+  it("hides 5.7 when the APPLE_IAP_* env is missing", async () => {
+    mockFlag.mockResolvedValue(true);
+    mockConfigured.mockReturnValue(false);
+    expect(await render("terms")).not.toContain(APP_STORE_ID);
+  });
+
+  it("hides 5.7 when the flag cannot be read", async () => {
+    mockFlag.mockRejectedValue(new Error("db down"));
+    expect(await render("terms")).not.toContain(APP_STORE_ID);
   });
 });
