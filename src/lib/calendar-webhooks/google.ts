@@ -23,6 +23,14 @@ export class GoogleWatchIneligibleError extends Error {
   }
 }
 
+/** events.watch answered without a channel resource id. */
+export class GoogleWatchNoResourceIdError extends Error {
+  constructor() {
+    super("Google did not return a watch resource ID.");
+    this.name = "GoogleWatchNoResourceIdError";
+  }
+}
+
 /** Google will never push for this calendar; the feed has been marked. */
 export class GoogleWatchUnsupportedError extends Error {
   constructor() {
@@ -125,7 +133,7 @@ export async function registerGoogleWatch(feedId: string) {
   }
 
   if (!response.data.resourceId) {
-    throw new Error("Google did not return a watch resource ID.");
+    throw new GoogleWatchNoResourceIdError();
   }
 
   const expiration = response.data.expiration

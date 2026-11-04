@@ -17,6 +17,7 @@ import {
 import { addMinutes, isBefore, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { CalendarWebhookProvider } from "@/lib/queue/types";
+import { safeErrorCode } from "@/lib/sentry/privacy";
 
 const LOG_SOURCE = "CalendarWebhookRenewal";
 const RENEWAL_WINDOW_MINUTES = 12 * 60;
@@ -27,10 +28,31 @@ const RENEWAL_WINDOW_MINUTES = 12 * 60;
  * user data) so error tracking groups every run into one issue.
  */
 export class CalendarWebhookRenewalError extends Error {
-  constructor(count: number) {
+  /** Most frequent safe code among the failures; an identifier, never text. */
+  readonly code: string;
+
+  constructor(count: number, code = "unknown") {
     super(`Calendar webhook renewal failed for ${count} feed(s)`);
     this.name = "CalendarWebhookRenewalError";
+    this.code = code;
   }
+}
+
+function dominantErrorCode(errors: unknown[]): string {
+  const counts = new Map<string, number>();
+  for (const error of errors) {
+    const code = safeErrorCode(error);
+    if (code) counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+  let best = "unknown";
+  let bestCount = 0;
+  for (const [code, count] of counts) {
+    if (count > bestCount) {
+      best = code;
+      bestCount = count;
+    }
+  }
+  return best;
 }
 
 /**
@@ -134,6 +156,7 @@ export async function renewCalendarWebhooks(options?: {
           feedId: webhook.feedId,
           provider: webhook.provider,
           error: error instanceof Error ? error.message : String(error),
+          errorCode: safeErrorCode(error) ?? "unknown",
         },
         LOG_SOURCE
       );
@@ -176,6 +199,7 @@ export async function renewCalendarWebhooks(options?: {
             feedId: feed.id,
             provider: feed.type,
             error: error instanceof Error ? error.message : String(error),
+            errorCode: safeErrorCode(error) ?? "unknown",
           },
           LOG_SOURCE
         );
@@ -185,7 +209,10 @@ export async function renewCalendarWebhooks(options?: {
   }
 
   if (failures.length > 0) {
-    throw new CalendarWebhookRenewalError(failures.length);
+    throw new CalendarWebhookRenewalError(
+      failures.length,
+      dominantErrorCode(failures.map((failure) => failure.error))
+    );
   }
 
   return results;

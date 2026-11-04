@@ -220,13 +220,48 @@ describe("Sentry privacy filtering", () => {
       expect(safeErrorCode({ code: "lower_case" })).toBeUndefined();
       expect(safeErrorCode({ code: "HAS SPACE" })).toBeUndefined();
       expect(safeErrorCode({ code: "A" })).toBeUndefined();
-      expect(safeErrorCode({ code: 404 })).toBeUndefined();
+      expect(safeErrorCode({ code: 404 })).toBe("http_404");
+      expect(safeErrorCode({ code: 12345 })).toBeUndefined();
       expect(safeErrorCode({ code: "A".repeat(65) })).toBeUndefined();
       expect(safeErrorCode({ name: "Error" })).toBeUndefined();
       expect(safeErrorCode({ name: "Not safe: a@b.c" })).toBeUndefined();
       expect(safeErrorCode({ name: "ab" })).toBeUndefined();
       expect(safeErrorCode("TOKEN_IN_USE")).toBeUndefined();
       expect(safeErrorCode(null)).toBeUndefined();
+    });
+
+    it("derives http_<status>[_<reason>] from HTTP-shaped errors", () => {
+      expect(safeErrorCode({ status: 403 })).toBe("http_403");
+      expect(
+        safeErrorCode({
+          response: { status: 400 },
+          errors: [{ reason: "invalid" }],
+        })
+      ).toBe("http_400_invalid");
+      expect(
+        safeErrorCode({
+          code: 403,
+          response: {
+            data: { error: { errors: [{ reason: "forbidden" }] } },
+          },
+        })
+      ).toBe("http_403_forbidden");
+      expect(
+        safeErrorCode({
+          status: 400,
+          errors: [
+            { reason: "not an id@x.com" },
+            { reason: "pushWebhookBadDomain" },
+          ],
+        })
+      ).toBe("http_400_pushWebhookBadDomain");
+      expect(safeErrorCode({ status: "403" })).toBeUndefined();
+      expect(safeErrorCode({ status: 99 })).toBeUndefined();
+      expect(safeErrorCode({ status: 403, message: "a@b.c" })).toBe("http_403");
+      expect(safeErrorCode({ code: "http_403_forbidden" })).toBe(
+        "http_403_forbidden"
+      );
+      expect(safeErrorCode({ code: "http_403_a b" })).toBeUndefined();
     });
 
     it("prefers the code over the name and adds no tag without either", () => {
