@@ -22,12 +22,13 @@ type RouteContext = { params: Promise<{ id: string }> };
 const listQuerySchema = z.object({
   type: z.nativeEnum(HabitEventType).optional(),
   before: z.coerce.date().optional(),
+  beforeId: z.string().min(1).max(64).optional(),
   limit: z.coerce.number().int().min(1).max(EVENTS_MAX_LIMIT).optional(),
 });
 
 /**
  * GET /api/habits/:id/events: the event log of a QUIT habit, newest first
- * (`type`, `before` and `limit` narrow it; `nextBefore` pages on). Behind
+ * (`type`, `before` + `beforeId` and `limit` narrow it; `nextBefore` + `nextBeforeId` page on). Behind
  * `habits_quit`; open to the owner on any plan.
  */
 export async function GET(request: NextRequest, { params }: RouteContext) {
@@ -54,6 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   return NextResponse.json({
     events: result.events,
     nextBefore: result.nextBefore,
+    nextBeforeId: result.nextBeforeId,
     limit: query.data.limit ?? EVENTS_DEFAULT_LIMIT,
   });
 }

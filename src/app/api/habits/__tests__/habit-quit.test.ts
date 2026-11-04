@@ -7,6 +7,7 @@ import {
 } from "@/app/api/habits/[id]/events/route";
 import { GET as getSummaryRaw } from "@/app/api/habits/[id]/quit-summary/route";
 import { PATCH as PatchRaw } from "@/app/api/habits/[id]/route";
+import { GET as historyRaw } from "@/app/api/habits/history/route";
 import { POST as PostRaw, GET as listHabitsRaw } from "@/app/api/habits/route";
 import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 
@@ -30,6 +31,7 @@ const patchEvent = wrap(patchEventRaw);
 const PATCH = wrap(PatchRaw);
 const listHabits = wrap(listHabitsRaw);
 const POST = wrap(PostRaw);
+const history = wrap(historyRaw);
 
 jest.mock("@/lib/auth/api-auth", () => ({ authenticateRequest: jest.fn() }));
 jest.mock("@/lib/auth/workspace-auth", () => ({
@@ -462,10 +464,24 @@ describe("GET /api/habits/:id/events", () => {
     const body = await (await get("?limit=1&type=URGE")).json();
     expect(body.events).toHaveLength(1);
     expect(body.nextBefore).toBe("2026-11-03T10:00:00.000Z");
+    expect(body.nextBeforeId).toBe("a");
     expect(db.habitEvent.findMany.mock.calls[0][0]).toMatchObject({
       take: 2,
       where: { type: "URGE", habitId: "habit-1" },
     });
+  });
+
+  it("continues from the compound cursor without skipping a tie", async () => {
+    flag(true);
+    onPlan(SubscriptionPlan.PRO);
+    db.habit.findFirst.mockResolvedValue({ id: "habit-1" });
+    db.habitEvent.findMany.mockResolvedValue([]);
+    await get("?before=2026-11-03T10:00:00.000Z&beforeId=b");
+    const where = db.habitEvent.findMany.mock.calls[0][0].where;
+    expect(where.OR).toEqual([
+      { at: { lt: new Date("2026-11-03T10:00:00.000Z") } },
+      { at: new Date("2026-11-03T10:00:00.000Z"), id: { lt: "b" } },
+    ]);
   });
 
   it("refuses a bad query", async () => {
@@ -528,5 +544,15 @@ describe("GET /api/habits/:id/quit-summary", () => {
     onPlan(SubscriptionPlan.PRO);
     db.habit.findFirst.mockResolvedValue(null);
     expect((await get()).status).toBe(404);
+  });
+});
+
+describe("BUILD readers do not see QUIT habits", () => {
+  it("the history strips read only BUILD habits", async () => {
+    db.habit.findMany.mockResolvedValue([]);
+    await history(new NextRequest("http://localhost/api/habits/history"));
+    expect(db.habit.findMany.mock.calls[0][0].where).toMatchObject({
+      kind: "BUILD",
+    });
   });
 });

@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
     where: {
       ...workspaceDataScopeWhere(auth.workspace, auth.userId),
       userId: auth.userId,
+      // A QUIT habit has no checkins; its strip would read as all misses.
+      kind: "BUILD",
       archivedAt: null,
       isActive: true,
     },

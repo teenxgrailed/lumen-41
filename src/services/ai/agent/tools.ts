@@ -802,6 +802,7 @@ async function listHabits(ctx: AgentToolContext) {
     where: {
       ...workspaceDataScopeWhere(ctx.workspace, ctx.userId),
       userId: ctx.userId,
+      kind: "BUILD",
       archivedAt: null,
     },
     select: { id: true, title: true },

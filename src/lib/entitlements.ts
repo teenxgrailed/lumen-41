@@ -332,9 +332,10 @@ export async function canUseGoals(userId: string) {
 }
 
 /**
- * QUIT habits are Pro (a trial counts as Pro). A downgraded account keeps the
- * QUIT habits it has readable; only making one, or logging events on one, is
- * refused.
+ * QUIT habits are Pro (a trial counts as Pro). This gates writes only: making
+ * a QUIT habit, logging or editing events on one. Reads (the event log and the
+ * summary) need the flag and ownership, so a downgraded account still reaches
+ * its own history.
  */
 export async function canUseQuitHabits(userId: string) {
   const plan = await getPlan(userId);

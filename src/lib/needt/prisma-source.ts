@@ -286,6 +286,7 @@ async function getHabits(
     where: {
       ...workspaceDataScopeWhere(workspace, userId),
       userId,
+      kind: "BUILD",
       archivedAt: null,
       isActive: true,
     },

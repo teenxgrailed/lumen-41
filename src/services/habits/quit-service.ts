@@ -199,13 +199,18 @@ export async function updateHabitEvent(input: {
 export const EVENTS_DEFAULT_LIMIT = 50;
 export const EVENTS_MAX_LIMIT = 200;
 
-/** Newest first; `before` pages backwards by `at`. null when not a QUIT habit. */
+/**
+ * Newest first. Pages backwards with the compound cursor `before` (an `at`) +
+ * `beforeId`, so rows sharing one timestamp are neither skipped nor repeated;
+ * `beforeId` alone is ignored. null when not a QUIT habit.
+ */
 export async function listHabitEvents(input: {
   userId: string;
   workspace: WorkspaceAccess;
   habitId: string;
   type?: HabitEventType;
   before?: Date;
+  beforeId?: string;
   limit?: number;
 }) {
   const habit = await findQuitHabit(
@@ -222,7 +227,16 @@ export async function listHabitEvents(input: {
     habitId: habit.id,
     userId: input.userId,
     ...(input.type ? { type: input.type } : {}),
-    ...(input.before ? { at: { lt: input.before } } : {}),
+    ...(input.before
+      ? input.beforeId
+        ? {
+            OR: [
+              { at: { lt: input.before } },
+              { at: input.before, id: { lt: input.beforeId } },
+            ],
+          }
+        : { at: { lt: input.before } }
+      : {}),
   };
   const rows = await prisma.habitEvent.findMany({
     where,
@@ -233,6 +247,7 @@ export async function listHabitEvents(input: {
   return {
     events,
     nextBefore: rows.length > limit ? events[events.length - 1].at : null,
+    nextBeforeId: rows.length > limit ? events[events.length - 1].id : null,
   };
 }
 

@@ -1633,7 +1633,7 @@ const WRITE_TOOLS: McpTool[] = [
         if (gate) return toolError(quitGateError(gate));
         const access = await writeAccess(ctx);
         if ("error" in access) return access.error;
-        const at = args.at ? new Date(args.at) : undefined;
+        const at = args.at ? newDate(args.at) : undefined;
         if (at && Number.isNaN(at.getTime())) {
           return toolError({
             status: 400,
