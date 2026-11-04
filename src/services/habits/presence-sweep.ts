@@ -38,7 +38,7 @@ const USERS_PER_PAGE = 200;
 const MAX_PAGES = 50;
 /** How far back completions are read: enough for the re-engage rule. */
 const COMPLETION_LOOKBACK_DAYS = 14;
-const HABITS_URL = "/today";
+const HABITS_URL = "/habits";
 
 interface Candidate {
   kind: PresenceKind;
@@ -261,6 +261,7 @@ export function presenceCandidates(input: {
   return out;
 }
 
+//todo: prefilter people by flag overrides instead of one flag lookup per person once the user base grows.
 export async function runHabitPresenceSweep(now = newDate()) {
   if (!pushConfigured()) return { users: 0, pushed: 0 };
   if (!(await flagCanBeOn())) return { users: 0, pushed: 0 };
