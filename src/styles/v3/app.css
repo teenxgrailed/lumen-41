@@ -717,6 +717,14 @@
   outline: 2px solid var(--accent); outline-offset: 2px; }
 .needt-v3 button:focus:not(:focus-visible),
 .needt-v3 [role="button"]:focus:not(:focus-visible) { outline: none; }
+/* A menu row reached with the keyboard (Radix data-highlighted, or a
+   hand-rolled <button class="menu-row"> with focus). Radix rows set outline
+   none, so this is the keyboard cursor: a stronger fill step than hover plus
+   a 1px ring inside the row in the text colour at 55% (≈4.7:1 on paper),
+   so it carries on its own (WCAG 1.4.11). Never the accent as a fill. */
+.needt-v3 button.menu-row { background: transparent; }
+.needt-v3 .menu-row[data-highlighted],
+.needt-v3 .menu-row:focus-visible { background: var(--fill-5); box-shadow: inset 0 0 0 1px var(--text-quaternary); outline: none; }
 
 /* Task source chip (Mail / Calendar / Import) — where a task came from. */
 @media (prefers-reduced-motion: reduce) { .needt-v3 .nx-btn { transition: none; } }

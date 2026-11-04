@@ -352,7 +352,7 @@ function MenuRow({
       type="button"
       role="menuitem"
       className="menu-row"
-      style={{ width: "100%", border: 0, background: "transparent" }}
+      style={{ width: "100%", border: 0 }}
       onClick={(e) => {
         if (keepOpen) e.stopPropagation();
         onClick();

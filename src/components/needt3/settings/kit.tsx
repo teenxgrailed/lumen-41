@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import { FiCheck, FiLock } from "react-icons/fi";
@@ -145,6 +145,9 @@ export function SSelect({
   const container = useV3PortalContainer();
   const [open, setOpen] = useState(false);
   const [shown, leaving] = useExit(open, 130);
+  // The name stays the label ("Theme") so voice control and label-in-name
+  // (WCAG 2.5.3) keep working; the current value is the description.
+  const valueId = useId();
   const cur = options.find(([v]) => v === value);
   const w = width ?? 140;
   return (
@@ -159,8 +162,8 @@ export function SSelect({
             type="button"
             className="settings-sselect-select"
             aria-label={label}
+            aria-describedby={valueId}
             disabled={disabled}
-            aria-haspopup="listbox"
             style={{
               textAlign: "left",
               overflow: "hidden",
@@ -168,7 +171,7 @@ export function SSelect({
               whiteSpace: "nowrap",
             }}
           >
-            {cur ? cur[1] : value}
+            <span id={valueId}>{cur ? cur[1] : value}</span>
           </button>
         </Dropdown.Trigger>
         <span className="settings-sselect-layer">
