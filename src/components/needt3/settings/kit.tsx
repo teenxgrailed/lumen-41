@@ -158,9 +158,8 @@ export function SSelect({
           <button
             type="button"
             className="settings-sselect-select"
-            aria-label={label}
+            aria-label={cur ? `${label}: ${cur[1]}` : label}
             disabled={disabled}
-            aria-haspopup="listbox"
             style={{
               textAlign: "left",
               overflow: "hidden",
