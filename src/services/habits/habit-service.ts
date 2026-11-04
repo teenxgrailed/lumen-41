@@ -31,6 +31,8 @@ export async function materializeHabitWeek(
       userId,
       archivedAt: null,
       isActive: true,
+      // A QUIT habit is something to stop doing: it has no weekly blocks.
+      kind: "BUILD",
     },
   });
   if (!habit) return null;

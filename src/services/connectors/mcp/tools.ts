@@ -48,6 +48,12 @@ import {
   setHabitCompletionToday,
 } from "@/services/habits/habit-service";
 import {
+  QuitHabitEventError,
+  getQuitSummary,
+  quitGate,
+  recordHabitEvent,
+} from "@/services/habits/quit-service";
+import {
   getMoodboard,
   listMoodboards,
 } from "@/services/moodboards/moodboard-service";
@@ -657,6 +663,29 @@ async function getRow(
 }
 
 /** NONE is "No priority". */
+/** Tools of QUIT habits: listed and callable only with `habits_quit` on. */
+const QUIT_TOOL_NAMES: ReadonlySet<string> = new Set([
+  "needt_habit_event",
+  "needt_habit_quit_summary",
+]);
+
+export const isQuitTool = (tool: { name: string }): boolean =>
+  QUIT_TOOL_NAMES.has(tool.name);
+
+/** A refused quit gate as a tool error: 403 names the upgrade, 404 the flag. */
+function quitGateError(
+  gate: NonNullable<Awaited<ReturnType<typeof quitGate>>>
+) {
+  return gate.status === 403
+    ? {
+        status: 403,
+        error: "UPGRADE_REQUIRED",
+        message: "Quit habits are part of Pro.",
+        plan: gate.plan,
+      }
+    : { status: 404, error: "Not found" };
+}
+
 /** The single MCP tool catalogue. The stdio bridge has no list of its own. */
 export const MCP_TOOLS: McpTool[] = [
   defineTool({
@@ -1568,6 +1597,107 @@ const WRITE_TOOLS: McpTool[] = [
     },
     ["tasks-updated"]
   ),
+  defineTool(
+    {
+      name: "needt_habit_event",
+      description:
+        "Log something that happened on a QUIT habit (something the person is stopping): an urge, an urge resisted, a relapse (restarts the clean streak) or a milestone. Only for habits whose kind is QUIT. Pro, and only while quit habits are switched on for the account. at defaults to now; it cannot be in the future. Keep note and tag to the person's own words, never judgement.",
+      annotations: {
+        title: "Log habit event",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+      input: z.object({
+        id: z.string().min(1).describe("Habit id (a QUIT habit)."),
+        type: z.enum(["URGE", "RESISTED", "RELAPSE", "MILESTONE"]),
+        at: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("ISO 8601 date and time it happened; now when omitted."),
+        tag: z
+          .string()
+          .trim()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe('What set it off, one word ("stress", "coffee").'),
+        intensity: z.number().int().min(1).max(5).optional(),
+        note: z.string().trim().max(1000).optional(),
+      }),
+      async invoke(ctx, args) {
+        const gate = await quitGate(ctx.userId);
+        if (gate) return toolError(quitGateError(gate));
+        const access = await writeAccess(ctx);
+        if ("error" in access) return access.error;
+        const at = args.at ? new Date(args.at) : undefined;
+        if (at && Number.isNaN(at.getTime())) {
+          return toolError({
+            status: 400,
+            error: "at must be an ISO 8601 date",
+          });
+        }
+        try {
+          const event = await recordHabitEvent({
+            userId: ctx.userId,
+            workspace: access.workspace,
+            habitId: args.id,
+            event: {
+              type: args.type,
+              at,
+              tag: args.tag,
+              intensity: args.intensity,
+              note: args.note,
+            },
+          });
+          return toolResult({
+            id: event.id,
+            habitId: event.habitId,
+            type: event.type,
+            at: event.at.toISOString(),
+          });
+        } catch (error) {
+          if (error instanceof QuitHabitEventError) {
+            return toolError({ status: error.status, error: error.message });
+          }
+          throw error;
+        }
+      },
+    },
+    ["tasks-updated"]
+  ),
+  defineTool({
+    name: "needt_habit_quit_summary",
+    description:
+      "Where a QUIT habit stands: current and best clean streak in days, total clean days, the next milestone (1, 3, 7, 14, 30, 90, 365), event counts, the most used urge tags and when urges happen (by hour and weekday in the person's time zone). Pro, and only while quit habits are switched on for the account.",
+    annotations: {
+      title: "Quit habit summary",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    input: z.object({
+      id: z.string().min(1).describe("Habit id (a QUIT habit)."),
+    }),
+    async invoke(ctx, args) {
+      const gate = await quitGate(ctx.userId);
+      if (gate) return toolError(quitGateError(gate));
+      const access = await readAccess(ctx);
+      if ("error" in access) return access.error;
+      const summary = await getQuitSummary({
+        userId: ctx.userId,
+        workspace: access.workspace,
+        habitId: args.id,
+      });
+      if (!summary) {
+        return toolError({ status: 404, error: "Quit habit not found" });
+      }
+      return toolResult(summary);
+    },
+  }),
   defineTool({
     name: "needt_list_memories",
     description:
@@ -2433,7 +2563,7 @@ export function isWriteCall(tool: McpTool, args: unknown): boolean {
  */
 export function listMcpTools(
   scopes: readonly McpScope[] = [],
-  options: { hub?: boolean } = {}
+  options: { hub?: boolean; quit?: boolean } = {}
 ): {
   name: string;
   description: string;
@@ -2442,7 +2572,10 @@ export function listMcpTools(
 }[] {
   const admin = scopes.includes(ADMIN_READ_SCOPE);
   return MCP_TOOLS.filter(
-    (tool) => (admin || !isAdminTool(tool)) && (options.hub || !isHubTool(tool))
+    (tool) =>
+      (admin || !isAdminTool(tool)) &&
+      (options.hub || !isHubTool(tool)) &&
+      (options.quit || !isQuitTool(tool))
   ).map((tool) => ({
     name: tool.name,
     description: tool.description,

@@ -1,0 +1,1 @@
+- Habits can be marked as something to quit (Pro): log urges, resisted urges and relapses, and read the clean streak, next milestone and when urges happen through the API and the assistant tools. Not visible in the app yet.

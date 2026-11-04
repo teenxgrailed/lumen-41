@@ -22,6 +22,8 @@ export interface PlanLimits {
   habits: number | null;
   /** Goals with progress and the weekly check-in (owner decision 2026-10-27). */
   goals: boolean;
+  /** QUIT habits (owner decision 2026-11-04): Pro only, behind `habits_quit`. */
+  quitHabits: boolean;
   /** Agents in the hub that are not disabled (owner decision 2026-11-03). */
   hubAgents: number | null;
   /** Hub items that are not done, failed or cancelled. */
@@ -53,6 +55,7 @@ export const PLAN_LIMITS = {
     advancedNudges: false,
     habits: 3,
     goals: false,
+    quitHabits: false,
     hubAgents: 2,
     hubOpenItems: 30,
     hubNotes: 100,
@@ -75,6 +78,7 @@ export const PLAN_LIMITS = {
     advancedNudges: true,
     habits: null,
     goals: true,
+    quitHabits: true,
     hubAgents: null,
     hubOpenItems: null,
     hubNotes: null,
@@ -97,6 +101,7 @@ export const PLAN_LIMITS = {
     advancedNudges: true,
     habits: null,
     goals: true,
+    quitHabits: true,
     hubAgents: null,
     hubOpenItems: null,
     hubNotes: null,

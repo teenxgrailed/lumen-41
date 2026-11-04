@@ -331,6 +331,20 @@ export async function canUseGoals(userId: string) {
   };
 }
 
+/**
+ * QUIT habits are Pro (a trial counts as Pro). A downgraded account keeps the
+ * QUIT habits it has readable; only making one, or logging events on one, is
+ * refused.
+ */
+export async function canUseQuitHabits(userId: string) {
+  const plan = await getPlan(userId);
+  return {
+    allowed: PLAN_LIMITS[plan].quitHabits,
+    upgradeRequired: !PLAN_LIMITS[plan].quitHabits,
+    plan,
+  };
+}
+
 /** Plans the agent hub is for once it is opened beyond its owner-only trial. */
 export const AGENT_HUB_PLANS: readonly SubscriptionPlan[] = [
   SubscriptionPlan.PRO,

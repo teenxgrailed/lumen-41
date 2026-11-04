@@ -286,7 +286,7 @@ export async function collectAccountExport(userId: string) {
     }),
     prisma.tag.findMany({ where: { userId } }),
     prisma.dailyAgenda.findMany({ where: { userId } }),
-    prisma.habit.findMany({ where: { userId } }),
+    prisma.habit.findMany({ where: { userId }, include: { events: true } }),
     prisma.weeklyFocusTarget.findMany({ where: { userId } }),
     prisma.timeEntry.findMany({ where: { userId } }),
     prisma.scheduledBlock.findMany({ where: { userId } }),

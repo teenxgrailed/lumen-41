@@ -14,7 +14,7 @@ import {
 } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
 import { isHubTool } from "@/services/connectors/mcp/hub-tools";
-import { MCP_TOOLS } from "@/services/connectors/mcp/tools";
+import { MCP_TOOLS, isQuitTool } from "@/services/connectors/mcp/tools";
 import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 
 import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
@@ -166,7 +166,10 @@ describe("remote MCP endpoint", () => {
     // A personal token never carries needt.admin.read: admin tools stay hidden.
     expect(result.tools.map((tool: { name: string }) => tool.name)).toEqual(
       MCP_TOOLS.filter(
-        (tool) => !tool.name.startsWith("needt_admin_") && !isHubTool(tool)
+        (tool) =>
+          !tool.name.startsWith("needt_admin_") &&
+          !isHubTool(tool) &&
+          !isQuitTool(tool)
       ).map((tool) => tool.name)
     );
     expect(result.tools[0].name).toBe("needt_whoami");

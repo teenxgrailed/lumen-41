@@ -77,50 +77,50 @@ model Session {
 }
 
 model User {
-  id                     String                    @id @default(cuid())
-  isActive               Boolean                   @default(true)
-  name                   String?
-  email                  String?                   @unique
-  emailVerified          DateTime?
-  image                  String?
-  role                   String                    @default("user") // Possible values: "user", "admin"
+  id                           String                     @id @default(cuid())
+  isActive                     Boolean                    @default(true)
+  name                         String?
+  email                        String?                    @unique
+  emailVerified                DateTime?
+  image                        String?
+  role                         String                     @default("user") // Possible values: "user", "admin"
   // Needt design: a person's own hue/initials, the same way a project owns
   // its hue (see NeedtPerson in src/lib/needt/types.ts). Nullable because most
   // users predate this and get no fallback color baked into the database.
-  hue                    String?
-  initials               String?
-  lastAuthenticatedAt    DateTime?
+  hue                          String?
+  initials                     String?
+  lastAuthenticatedAt          DateTime?
   // When the account was created. Null for accounts that predate the column
   // and had no trial grant to date them by; new rows get the insert time.
-  createdAt              DateTime?                 @default(now())
+  createdAt                    DateTime?                  @default(now())
   // When the first-run examples were created for this account (or, for an
   // account that predates them, the migration that added the column). Set
   // once, in the transaction that creates them, so it stays set after
   // "Clear examples" and they are never created twice.
-  sampleSeededAt         DateTime?
+  sampleSeededAt               DateTime?
   // Bumped to sign the person out everywhere: a session token carries the
   // version it was issued under and stops working once the two differ.
-  sessionVersion         Int                       @default(0)
+  sessionVersion               Int                        @default(0)
   // Set only on accounts the app provisions itself (docs/sandbox-accounts.md):
   // a directory reviewer now, a public demo later. Null for every real person.
   // A sandbox account is locked down (src/lib/sandbox) and wiped nightly.
-  sandboxKind            SandboxKind?
+  sandboxKind                  SandboxKind?
   // When the person confirmed at sign-up that they are 16 or older and accept
   // the Terms and Privacy Policy (audit record). Null for accounts made before
   // the confirmation existed, and for app-provisioned sandbox accounts.
-  ageConfirmedAt         DateTime?
+  ageConfirmedAt               DateTime?
   // Set by the one-click unsubscribe link in a commercial email (trial nudges):
   // no further commercial mail goes to this account. Null means still allowed.
-  commercialEmailsOptOutAt DateTime?
+  commercialEmailsOptOutAt     DateTime?
   // Last time the person used the app, written at most once an hour from the
   // session path (src/lib/auth/last-active.ts). Win-back mail reads it.
-  lastActiveAt           DateTime?
+  lastActiveAt                 DateTime?
   // "Fewer emails" on the preference page: the optional-mail cap is 7 days
   // instead of 3.
-  emailFewer             Boolean                   @default(false)
-  emailPreferences       EmailPreference[]
-  emailSends             EmailSend[]
-  proGifts               ProGift[]
+  emailFewer                   Boolean                    @default(false)
+  emailPreferences             EmailPreference[]
+  emailSends                   EmailSend[]
+  proGifts                     ProGift[]
   // Student price (docs/students.md). `studentEmail` is the university address
   // the price rests on, unique so one student address backs one account.
   // `studentVerifiedAt` is the last time it was proven (sign-in email, a
@@ -128,149 +128,150 @@ model User {
   // per-person code support sent (manual path); checkout uses it instead of
   // the shared one. `studentRecheckSentAt` is the yearly confirm mail in
   // flight; `studentLapsedAt` is set when that re-check failed.
-  studentEmail           String?                   @unique
-  studentVerifiedAt      DateTime?
-  studentSource          StudentSource?
-  studentDiscountCode    String?
-  studentRecheckSentAt   DateTime?
-  studentLapsedAt        DateTime?
+  studentEmail                 String?                    @unique
+  studentVerifiedAt            DateTime?
+  studentSource                StudentSource?
+  studentDiscountCode          String?
+  studentRecheckSentAt         DateTime?
+  studentLapsedAt              DateTime?
   // The EU/UK "start now, lose the 14-day withdrawal right" acknowledgement
   // (Terms 5.5), taken at the last paid checkout: when, and the Terms version
   // (LEGAL_EFFECTIVE_DATE) it was shown against. Overwritten on each checkout.
   // Null for accounts that never started one.
-  withdrawalWaiverAt     DateTime?
+  withdrawalWaiverAt           DateTime?
   withdrawalWaiverTermsVersion String?
   // StoreKit 2 appAccountToken (UUID v4): generated once on the first
   // GET /api/billing/apple/account-token, attached by the native app to every
   // purchase, and how Apple's signed transactions are tied back to this user.
-  appleAppAccountToken   String?                   @unique
-  appleNotificationReceipts AppleNotificationReceipt[]
-  dataExports           DataExportRequest[]
-  deletionRequest        AccountDeletionRequest?
-  reauthentications      AccountReauthentication[]
-  subscription           Subscription?
-  lifetimeHold           LifetimeHold?
-  trialGrant             TrialGrant?
-  accounts               Account[]
-  sessions               Session[]
-  calendars              CalendarFeed[]
-  autoScheduleSettings   AutoScheduleSettings?
-  userSettings           UserSettings?
-  calendarSettings       CalendarSettings?
-  notificationSettings   NotificationSettings?
-  customizationSettings  UserCustomization?
-  integrationSettings    IntegrationSettings?
-  dataSettings           DataSettings?
-  schedulingPreferences  SchedulingPreferences?
-  workSchedules          WorkSchedule[]
-  flexibleHoursOverrides FlexibleHoursOverride[]
-  energyProfileWindows   EnergyProfileWindow[]
-  aiSettings             AISettings?
-  aiOAuthConnections     AIOAuthConnection[]
-  aiOAuthStates          AIOAuthState[]
-  aiConversations        AiConversation[]
-  aiMessages             AiMessage[]
-  agentMemories          AgentMemory[]
-  hubAgents              HubAgent[]
-  hubItems               HubItem[]
-  hubNotes               HubNote[]
-  hubWebhooks            HubWebhook[]
-  hubRecurrences         HubRecurrence[]
-  hubThreads             HubThread[]
-  hubReservations        HubReservation[]
-  agentRuns              AgentRun[]
-  agentActions           AgentAction[]
-  aiUsage                AiUsage[]
-  connectorSettings      ConnectorSettings?
-  personalApiTokens      PersonalApiToken[]
-  timeEntries            TimeEntry[]
-  scheduledBlocks        ScheduledBlock[]
-  focusSessions          FocusSession[]
-  dailyHighlights        DailyHighlight[]
-  morningBriefs          MorningBrief[]
-  weekFocuses            WeekFocus[]
-  desktopAuthCodes       DesktopAuthCode[]
-  starterGameState       StarterGameState?
-  focusStats             FocusStats?
-  tasks                  Task[]
-  projects               Project[]
-  connectedAccounts      ConnectedAccount[]
-  mailAccounts           MailAccount[]
-  mailFocusedSplits      MailFocusedSplit[]
-  tags                   Tag[]
-  JobRecord              JobRecord[]
-  taskProviders          TaskProvider[]
-  TaskChange             TaskChange[]
-  PasswordReset          PasswordReset[]
-  boards                 Board[]
-  savedViews             SavedView[]
-  dailyAgendas           DailyAgenda[]
-  pages                  Page[]
-  pageFolders            PageFolder[]
-  pageTags               PageTag[]
-  pageSmartFolders       PageSmartFolder[]
-  pageRevisions          PageRevision[]
-  aiPageProposals        AiPageChangeProposal[]
-  pageAssets             PageAsset[]
-  pageComments           PageComment[]
-  moodboardItemComments  MoodboardItemComment[]
-  pageAccessGrants       PageAccessGrant[]         @relation("PageAccessGrantee")
-  pageAccessGrantsGiven  PageAccessGrant[]         @relation("PageAccessGrantor")
-  pagePublications       PagePublication[]         @relation("PagePublicationPublisher")
-  moodboardsCreated      Moodboard[]               @relation("MoodboardCreator")
-  moodboardAccessGrants  MoodboardAccessGrant[]    @relation("MoodboardAccessGrantee")
-  moodboardGrantsGiven   MoodboardAccessGrant[]    @relation("MoodboardAccessGrantor")
-  pageTemplates          PageTemplate[]
-  pageFormSubmissions    PageFormSubmission[]
-  bugReports             BugReport[]
-  externalIntegrations   ExternalIntegration[]
-  pinterestConnection    PinterestConnection?
-  schedulingRuns         SchedulingRun[]
-  idempotencyRecords     IdempotencyRecord[]
-  creemWebhookEvents     CreemWebhookEvent[]
-  creemCursors           CreemSubscriptionCursor[]
-  taskDependenciesOwned  TaskDependency[]          @relation("TaskDependencyOwner")
-  focusPreferences       FocusPreferences?
-  energyProfile          EnergyProfile?
-  blockingProfiles       BlockingProfile[]
-  taskReminders          TaskReminder[]
-  proactiveNudges        ProactiveNudge[]
-  pushSubscriptions      PushSubscription[]
-  nativePushTokens       NativePushToken[]
-  bookingPages           BookingPage[]
-  bookings               Booking[]                 @relation("BookingOwner")
-  featureFlagOverrides   FeatureFlagOverride[]
-  personalWorkspace      Workspace?                @relation("PersonalWorkspaceOwner")
-  workspaceMemberships   WorkspaceMember[]
-  workspaceInvitesSent   WorkspaceInvite[]         @relation("WorkspaceInviteSender")
-  workspaceInvitesUsed   WorkspaceInvite[]         @relation("WorkspaceInviteAcceptor")
-  assignedTasks          Task[]                    @relation("TaskAssignee")
-  taskActivities         TaskActivity[]            @relation("TaskActivityActor")
-  projectTemplates       ProjectTemplate[]         @relation("ProjectTemplateCreator")
-  projectBlockersCreated ProjectBlocker[]          @relation("ProjectBlockerCreator")
-  projectHealthUpdates   ProjectHealthUpdate[]     @relation("ProjectHealthUpdateAuthor")
-  habits                 Habit[]
-  personalBlocks         PersonalBlock[]
-  goals                  Goal[]
-  goalCheckIns           GoalCheckIn[]
-  weeklyFocusTargets     WeeklyFocusTarget[]
-  meetingNoteProposals   MeetingNoteProposal[]     @relation("MeetingNoteProposalCreator")
-  closedDays             ClosedDay[]
-  oauthCodes             OAuthAuthorizationCode[]
-  oauthTokens            OAuthToken[]
-  taskWaitsOnMe          TaskWait[]                @relation("TaskWaitWaitingOnUser")
+  appleAppAccountToken         String?                    @unique
+  appleNotificationReceipts    AppleNotificationReceipt[]
+  dataExports                  DataExportRequest[]
+  deletionRequest              AccountDeletionRequest?
+  reauthentications            AccountReauthentication[]
+  subscription                 Subscription?
+  lifetimeHold                 LifetimeHold?
+  trialGrant                   TrialGrant?
+  accounts                     Account[]
+  sessions                     Session[]
+  calendars                    CalendarFeed[]
+  autoScheduleSettings         AutoScheduleSettings?
+  userSettings                 UserSettings?
+  calendarSettings             CalendarSettings?
+  notificationSettings         NotificationSettings?
+  customizationSettings        UserCustomization?
+  integrationSettings          IntegrationSettings?
+  dataSettings                 DataSettings?
+  schedulingPreferences        SchedulingPreferences?
+  workSchedules                WorkSchedule[]
+  flexibleHoursOverrides       FlexibleHoursOverride[]
+  energyProfileWindows         EnergyProfileWindow[]
+  aiSettings                   AISettings?
+  aiOAuthConnections           AIOAuthConnection[]
+  aiOAuthStates                AIOAuthState[]
+  aiConversations              AiConversation[]
+  aiMessages                   AiMessage[]
+  agentMemories                AgentMemory[]
+  hubAgents                    HubAgent[]
+  hubItems                     HubItem[]
+  hubNotes                     HubNote[]
+  hubWebhooks                  HubWebhook[]
+  hubRecurrences               HubRecurrence[]
+  hubThreads                   HubThread[]
+  hubReservations              HubReservation[]
+  agentRuns                    AgentRun[]
+  agentActions                 AgentAction[]
+  aiUsage                      AiUsage[]
+  connectorSettings            ConnectorSettings?
+  personalApiTokens            PersonalApiToken[]
+  timeEntries                  TimeEntry[]
+  scheduledBlocks              ScheduledBlock[]
+  focusSessions                FocusSession[]
+  dailyHighlights              DailyHighlight[]
+  morningBriefs                MorningBrief[]
+  weekFocuses                  WeekFocus[]
+  desktopAuthCodes             DesktopAuthCode[]
+  starterGameState             StarterGameState?
+  focusStats                   FocusStats?
+  tasks                        Task[]
+  projects                     Project[]
+  connectedAccounts            ConnectedAccount[]
+  mailAccounts                 MailAccount[]
+  mailFocusedSplits            MailFocusedSplit[]
+  tags                         Tag[]
+  JobRecord                    JobRecord[]
+  taskProviders                TaskProvider[]
+  TaskChange                   TaskChange[]
+  PasswordReset                PasswordReset[]
+  boards                       Board[]
+  savedViews                   SavedView[]
+  dailyAgendas                 DailyAgenda[]
+  pages                        Page[]
+  pageFolders                  PageFolder[]
+  pageTags                     PageTag[]
+  pageSmartFolders             PageSmartFolder[]
+  pageRevisions                PageRevision[]
+  aiPageProposals              AiPageChangeProposal[]
+  pageAssets                   PageAsset[]
+  pageComments                 PageComment[]
+  moodboardItemComments        MoodboardItemComment[]
+  pageAccessGrants             PageAccessGrant[]          @relation("PageAccessGrantee")
+  pageAccessGrantsGiven        PageAccessGrant[]          @relation("PageAccessGrantor")
+  pagePublications             PagePublication[]          @relation("PagePublicationPublisher")
+  moodboardsCreated            Moodboard[]                @relation("MoodboardCreator")
+  moodboardAccessGrants        MoodboardAccessGrant[]     @relation("MoodboardAccessGrantee")
+  moodboardGrantsGiven         MoodboardAccessGrant[]     @relation("MoodboardAccessGrantor")
+  pageTemplates                PageTemplate[]
+  pageFormSubmissions          PageFormSubmission[]
+  bugReports                   BugReport[]
+  externalIntegrations         ExternalIntegration[]
+  pinterestConnection          PinterestConnection?
+  schedulingRuns               SchedulingRun[]
+  idempotencyRecords           IdempotencyRecord[]
+  creemWebhookEvents           CreemWebhookEvent[]
+  creemCursors                 CreemSubscriptionCursor[]
+  taskDependenciesOwned        TaskDependency[]           @relation("TaskDependencyOwner")
+  focusPreferences             FocusPreferences?
+  energyProfile                EnergyProfile?
+  blockingProfiles             BlockingProfile[]
+  taskReminders                TaskReminder[]
+  proactiveNudges              ProactiveNudge[]
+  pushSubscriptions            PushSubscription[]
+  nativePushTokens             NativePushToken[]
+  bookingPages                 BookingPage[]
+  bookings                     Booking[]                  @relation("BookingOwner")
+  featureFlagOverrides         FeatureFlagOverride[]
+  personalWorkspace            Workspace?                 @relation("PersonalWorkspaceOwner")
+  workspaceMemberships         WorkspaceMember[]
+  workspaceInvitesSent         WorkspaceInvite[]          @relation("WorkspaceInviteSender")
+  workspaceInvitesUsed         WorkspaceInvite[]          @relation("WorkspaceInviteAcceptor")
+  assignedTasks                Task[]                     @relation("TaskAssignee")
+  taskActivities               TaskActivity[]             @relation("TaskActivityActor")
+  projectTemplates             ProjectTemplate[]          @relation("ProjectTemplateCreator")
+  projectBlockersCreated       ProjectBlocker[]           @relation("ProjectBlockerCreator")
+  projectHealthUpdates         ProjectHealthUpdate[]      @relation("ProjectHealthUpdateAuthor")
+  habits                       Habit[]
+  habitEvents                  HabitEvent[]
+  personalBlocks               PersonalBlock[]
+  goals                        Goal[]
+  goalCheckIns                 GoalCheckIn[]
+  weeklyFocusTargets           WeeklyFocusTarget[]
+  meetingNoteProposals         MeetingNoteProposal[]      @relation("MeetingNoteProposalCreator")
+  closedDays                   ClosedDay[]
+  oauthCodes                   OAuthAuthorizationCode[]
+  oauthTokens                  OAuthToken[]
+  taskWaitsOnMe                TaskWait[]                 @relation("TaskWaitWaitingOnUser")
   // Design v3 onboarding: what the person uses Needt for, and when they finished.
-  onboardingUses         String[]                  @default([])
-  onboardingCompletedAt  DateTime?
-  taskAttachments        TaskAttachment[]
-  pageViews              PageView[]
-  shareInvitesSent       ShareInvite[]             @relation("ShareInviteSender")
-  moodboardAssets        MoodboardAsset[]
-  notifications          Notification[]
-  notificationReads      NotificationRead[]
-  accessLinks            AccessLink[]
-  importRuns             ImportRun[]
-  importItemMaps         ImportItemMap[]
+  onboardingUses               String[]                   @default([])
+  onboardingCompletedAt        DateTime?
+  taskAttachments              TaskAttachment[]
+  pageViews                    PageView[]
+  shareInvitesSent             ShareInvite[]              @relation("ShareInviteSender")
+  moodboardAssets              MoodboardAsset[]
+  notifications                Notification[]
+  notificationReads            NotificationRead[]
+  accessLinks                  AccessLink[]
+  importRuns                   ImportRun[]
+  importItemMaps               ImportItemMap[]
 }
 
 model Workspace {
@@ -1148,6 +1149,11 @@ model Habit {
   archivedAt               DateTime?
   tasks                    Task[]
   completions              HabitCompletion[]
+  // QUIT habits: something to stop doing. BUILD is every habit before this.
+  kind                     HabitKind              @default(BUILD)
+  quitStartedAt            DateTime? // When the clean streak began; QUIT only.
+  reason                   String? // The person's own words for why.
+  events                   HabitEvent[]
   // First-run example; see Task.isSample. Never counts toward the Free limit.
   isSample                 Boolean                @default(false)
   createdAt                DateTime               @default(now())
@@ -1234,6 +1240,38 @@ model GoalCheckIn {
   createdAt DateTime @default(now())
 
   @@index([goalId, createdAt])
+}
+
+enum HabitKind {
+  BUILD
+  QUIT
+}
+
+enum HabitEventType {
+  URGE
+  RESISTED
+  RELAPSE
+  MILESTONE
+}
+
+/// One thing that happened on a habit besides ticking a day: an urge, an urge
+/// resisted, a relapse (restarts a QUIT streak) or a milestone reached. The
+/// streak maths is src/lib/habits-quit.ts; this table only keeps the facts.
+model HabitEvent {
+  id        String         @id @default(cuid())
+  habitId   String
+  habit     Habit          @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      HabitEventType
+  at        DateTime
+  tag       String? // What set it off, the person's own word ("stress", "coffee").
+  intensity Int? // 1 to 5.
+  note      String?
+  createdAt DateTime       @default(now())
+
+  @@index([habitId, at])
+  @@index([userId, at])
 }
 
 model HabitCompletion {
@@ -2883,7 +2921,7 @@ model DataSettings {
 }
 
 model SystemSettings {
-  id                                   String   @id @default(cuid())
+  id                                   String    @id @default(cuid())
   googleClientId                       String?
   googleClientSecret                   String?
   outlookClientId                      String?
@@ -2905,12 +2943,12 @@ model SystemSettings {
   linkedinClientSecret                 String?
   openaiSiwcClientId                   String?
   openaiSiwcClientSecret               String?
-  logLevel                             String   @default("none") // none, debug, info, warn, error
+  logLevel                             String    @default("none") // none, debug, info, warn, error
   logRetention                         Json? // Retention periods per log level
-  logDestination                       String   @default("db") // db, file, both
-  publicSignup                         Boolean  @default(true) // Whether public signup is enabled
-  requireEmailVerificationBeforeAccess Boolean  @default(true)
-  disableHomepage                      Boolean  @default(false) // Whether to disable the homepage and redirect to login/calendar
+  logDestination                       String    @default("db") // db, file, both
+  publicSignup                         Boolean   @default(true) // Whether public signup is enabled
+  requireEmailVerificationBeforeAccess Boolean   @default(true)
+  disableHomepage                      Boolean   @default(false) // Whether to disable the homepage and redirect to login/calendar
   resendApiKey                         String? // API key for Resend email service
   /// Email programme (openspec add-email-program). The owner's name and a
   /// virtual mailbox address for the footer of optional mail; until both are
@@ -2925,8 +2963,8 @@ model SystemSettings {
   /// OpenID Connect id_token signing key (PKCS#8 PEM), made on first use and
   /// stored encrypted (enc:v1). Never returned by an API; see src/services/oauth/oidc.ts.
   oidcSigningKey                       String?
-  createdAt                            DateTime @default(now())
-  updatedAt                            DateTime @updatedAt
+  createdAt                            DateTime  @default(now())
+  updatedAt                            DateTime  @updatedAt
 }
 
 /// Addresses that bounced or complained (Resend webhook). The address is stored
@@ -3201,26 +3239,26 @@ model TaskProvider {
 }
 
 model TaskListMapping {
-  id               String       @id @default(cuid())
-  providerId       String
-  provider         TaskProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  projectId        String
-  project          Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  externalListId   String // ID of the external task list
-  externalListName String // Name of the external task list
-  direction        String       @default("incoming") // 'incoming', 'outgoing', 'bidirectional'
-  isDefault        Boolean      @default(false)
-  syncEnabled      Boolean      @default(true)
-  isAutoScheduled  Boolean      @default(true)
-  lastSyncedAt     DateTime?
-  syncStatus       String?
-  lastError        String?
+  id                String       @id @default(cuid())
+  providerId        String
+  provider          TaskProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  projectId         String
+  project           Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  externalListId    String // ID of the external task list
+  externalListName  String // Name of the external task list
+  direction         String       @default("incoming") // 'incoming', 'outgoing', 'bidirectional'
+  isDefault         Boolean      @default(false)
+  syncEnabled       Boolean      @default(true)
+  isAutoScheduled   Boolean      @default(true)
+  lastSyncedAt      DateTime?
+  syncStatus        String?
+  lastError         String?
   // Sweep bookkeeping: consecutive failures and the earliest retry time.
-  syncFailureCount Int          @default(0)
+  syncFailureCount  Int          @default(0)
   nextSyncAttemptAt DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  TaskChange       TaskChange[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  TaskChange        TaskChange[]
 
   @@unique([providerId, projectId])
   @@unique([providerId, externalListId])
@@ -3592,46 +3630,46 @@ enum MailAccountStatus {
 }
 
 model Subscription {
-  id                    String             @id @default(cuid())
-  userId                String             @unique
-  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan                  SubscriptionPlan   @default(FREE)
-  status                SubscriptionStatus @default(ACTIVE)
-  creemCustomerId       String?            @unique
-  creemSubscriptionId   String?            @unique
-  creemProductId        String?
-  interval              String?
-  currentPeriodEnd      DateTime?
-  cancelAtPeriodEnd     Boolean            @default(false)
-  stripeCustomerId      String?            @unique
-  stripePaymentIntentId String?            @unique // For one-time payments like lifetime access
-  amount                Int? // Amount paid in cents
-  discountApplied       Boolean            @default(false)
-  lastCreemEventId      String?
-  lastCreemEventAt      DateTime?
+  id                         String             @id @default(cuid())
+  userId                     String             @unique
+  user                       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                       SubscriptionPlan   @default(FREE)
+  status                     SubscriptionStatus @default(ACTIVE)
+  creemCustomerId            String?            @unique
+  creemSubscriptionId        String?            @unique
+  creemProductId             String?
+  interval                   String?
+  currentPeriodEnd           DateTime?
+  cancelAtPeriodEnd          Boolean            @default(false)
+  stripeCustomerId           String?            @unique
+  stripePaymentIntentId      String?            @unique // For one-time payments like lifetime access
+  amount                     Int? // Amount paid in cents
+  discountApplied            Boolean            @default(false)
+  lastCreemEventId           String?
+  lastCreemEventAt           DateTime?
   // A Pro subscription superseded by Lifetime that Creem has not yet confirmed
   // canceled. Written in the Lifetime grant's transaction; the worker retries
   // until Creem confirms, then clears all three.
   pendingCreemCancelId       String?
-  pendingCreemCancelAttempts Int @default(0)
+  pendingCreemCancelAttempts Int                @default(0)
   pendingCreemCancelNextAt   DateTime?
-  provider              BillingProvider?
+  provider                   BillingProvider?
   // Apple In-App Purchase (StoreKit 2). The entitlement is keyed by the
   // original transaction id; cancelling is done by the buyer in iOS Settings,
   // never from here.
-  appleOriginalTransactionId String?       @unique
-  appleTransactionId    String?
-  appleProductId        String?
-  appleBundleId         String?
-  appleEnvironment      String?
+  appleOriginalTransactionId String?            @unique
+  appleTransactionId         String?
+  appleProductId             String?
+  appleBundleId              String?
+  appleEnvironment           String?
   /// signedDate of the newest Apple JWS applied; older ones are stale.
-  appleLastSignedAt     DateTime?
+  appleLastSignedAt          DateTime?
   /// A paid Creem plan replaced a still-renewing App Store subscription,
   /// which only the buyer can cancel: both bill until they do. Cleared when
   /// Apple reports it no longer renews.
-  appleConflictSince    DateTime?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  appleConflictSince         DateTime?
+  createdAt                  DateTime           @default(now())
+  updatedAt                  DateTime           @updatedAt
 
   @@index([creemProductId])
   @@index([pendingCreemCancelId])
@@ -4109,21 +4147,21 @@ model HubAgentToken {
 
 /// A self-contained piece of work one agent leaves for another.
 model HubItem {
-  id                  String         @id @default(cuid())
+  id                  String              @id @default(cuid())
   userId              String
-  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspaceId         String
   title               String
   goal                String
   doneCriteria        String
   context             String
-  links               Json           @default("[]")
+  links               Json                @default("[]")
   /// Subset of money | send_message | publish | delete; empty is an explicit none.
   risks               String[]
   /// risk -> { approvedAt, note? }, written only by the owner.
-  approvals           Json           @default("{}")
+  approvals           Json                @default("{}")
   /// open | claimed | in_progress | blocked | needs_owner | done | failed | cancelled
-  status              String         @default("open")
+  status              String              @default("open")
   assigneeAgentId     String?
   requiredSkills      String[]
   /// agent | owner
@@ -4146,7 +4184,7 @@ model HubItem {
   escalationTaskId    String?
   noAgentTaskId       String?
   /// The owner has an alert on this item they have not opened yet (escalation or no capable agent).
-  ownerUnread         Boolean        @default(false)
+  ownerUnread         Boolean             @default(false)
   ownerAlertedAt      DateTime?
   /// Set once when the 24 hour "no capable agent" alert was raised; makes it idempotent.
   noAgentAlertedAt    DateTime?
@@ -4156,23 +4194,23 @@ model HubItem {
   /// The scheduled moment of that occurrence; unique per recurrence, so a retried spawn cannot double up.
   occurrenceAt        DateTime?
   /// The done-criteria as a checklist; doneCriteria keeps the same text for readers of the old shape.
-  criteriaItems       String[]       @default([])
+  criteriaItems       String[]            @default([])
   /// Reported by the agent on update / complete: running totals for the item.
   usageTokens         Int?
   usageCostUsd        Float?
   usageMinutes        Int?
   /// A big job. An agent with limits.acceptsLarge = false is not offered it
   /// unless the owner approved it (largeApprovedAt).
-  large               Boolean        @default(false)
+  large               Boolean             @default(false)
   largeApprovedAt     DateTime?
-  version             Int            @default(1)
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  version             Int                 @default(1)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
   closedAt            DateTime?
   events              HubItemEvent[]
   notes               HubNote[]
-  linksOut            HubItemLink[]  @relation("HubLinkFrom")
-  linksIn             HubItemLink[]  @relation("HubLinkTo")
+  linksOut            HubItemLink[]       @relation("HubLinkFrom")
+  linksIn             HubItemLink[]       @relation("HubLinkTo")
   attachments         HubItemAttachment[]
 
   @@unique([userId, creatorAgentId, clientRef])
@@ -4187,38 +4225,38 @@ model HubItem {
 /// A standing job: the brief of an item plus an RRULE. The worker spawns a fresh
 /// open HubItem from it whenever nextRunAt is due (src/services/agent-hub/recurrences.ts).
 model HubRecurrence {
-  id               String    @id @default(cuid())
-  userId           String
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspaceId      String
-  title            String
-  goal             String
-  doneCriteria     String
-  criteriaItems    String[]  @default([])
-  context          String
-  links            Json      @default("[]")
-  risks            String[]
-  assigneeAgentId  String?
-  requiredSkills   String[]
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId       String
+  title             String
+  goal              String
+  doneCriteria      String
+  criteriaItems     String[]  @default([])
+  context           String
+  links             Json      @default("[]")
+  risks             String[]
+  assigneeAgentId   String?
+  requiredSkills    String[]
   /// agent | owner
-  creatorKind      String
-  creatorAgentId   String?
-  rrule            String
-  timezone         String
+  creatorKind       String
+  creatorAgentId    String?
+  rrule             String
+  timezone          String
   /// The next occurrence to spawn; null once the rule has no more.
-  nextRunAt        DateTime?
-  active           Boolean   @default(true)
+  nextRunAt         DateTime?
+  active            Boolean   @default(true)
   /// false: no new occurrence while the previous one is still open.
-  allowOverlap     Boolean   @default(false)
+  allowOverlap      Boolean   @default(false)
   lastSpawnedItemId String?
-  lastSpawnedAt    DateTime?
-  spawnCount       Int       @default(0)
-  skipCount        Int       @default(0)
+  lastSpawnedAt     DateTime?
+  spawnCount        Int       @default(0)
+  skipCount         Int       @default(0)
   /// Why the latest due occurrence was not spawned (plan, plan_limit, previous_open, ...).
-  lastSkipReason   String?
-  lastSkipAt       DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  lastSkipReason    String?
+  lastSkipAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([active, nextRunAt])
   @@index([userId, workspaceId])
@@ -4270,9 +4308,9 @@ model HubItemEvent {
 /// bytes live behind `storageKey` (today the `HubItemAttachmentBlob` row with
 /// that id; a later object-store driver can use the same key).
 model HubItemAttachment {
-  id              String   @id @default(cuid())
+  id              String                 @id @default(cuid())
   itemId          String
-  item            HubItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item            HubItem                @relation(fields: [itemId], references: [id], onDelete: Cascade)
   /// The account the file counts against (quota) and the item belongs to.
   userId          String
   workspaceId     String
@@ -4282,8 +4320,8 @@ model HubItemAttachment {
   name            String
   mime            String
   size            Int
-  storageKey      String   @unique
-  createdAt       DateTime @default(now())
+  storageKey      String                 @unique
+  createdAt       DateTime               @default(now())
   blob            HubItemAttachmentBlob?
 
   @@index([itemId, createdAt])
@@ -4345,25 +4383,25 @@ model HubThread {
 }
 
 model HubMessage {
-  id           String              @id @default(cuid())
-  threadId     String
-  thread       HubThread           @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  userId       String
-  workspaceId  String
+  id          String              @id @default(cuid())
+  threadId    String
+  thread      HubThread           @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId      String
+  workspaceId String
   /// agent | owner
-  fromKind     String
-  fromAgentId  String?
-  toAgentIds   String[]
-  toOwner      Boolean             @default(false)
+  fromKind    String
+  fromAgentId String?
+  toAgentIds  String[]
+  toOwner     Boolean             @default(false)
   /// Sent to "any" agent whose skills include every tag in anySkills.
-  toAny        Boolean             @default(false)
-  anySkills    String[]
-  body         String
+  toAny       Boolean             @default(false)
+  anySkills   String[]
+  body        String
   /// normal | high
-  importance   String              @default("normal")
-  ackRequired  Boolean             @default(false)
-  createdAt    DateTime            @default(now())
-  receipts     HubMessageReceipt[]
+  importance  String              @default("normal")
+  ackRequired Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  receipts    HubMessageReceipt[]
 
   @@index([threadId, createdAt])
   @@index([userId, workspaceId, createdAt])
