@@ -2,7 +2,7 @@
 
 ### Requirement: QUIT habits are Pro and flagged
 
-Creating a QUIT habit, turning a habit into one, changing its quit date or reason, and every events or summary call SHALL require the `habits_quit` flag and a Pro, Lifetime or trial plan, decided on the server. With the flag off the answer SHALL be 404; on Free with the flag on it SHALL be 403 `UPGRADE_REQUIRED`.
+Creating a QUIT habit, turning a habit into one, changing its quit date or reason, and every events write SHALL require the `habits_quit` flag and a Pro, Lifetime or trial plan, decided on the server. With the flag off the answer SHALL be 404; on Free with the flag on it SHALL be 403 `UPGRADE_REQUIRED`.
 
 #### Scenario: Free creates a quit habit
 - **WHEN** a Free account with the flag on posts a habit with `kind: "QUIT"`
@@ -11,6 +11,10 @@ Creating a QUIT habit, turning a habit into one, changing its quit date or reaso
 #### Scenario: Flag off
 - **WHEN** a Pro account without the flag calls the events route
 - **THEN** the answer is 404
+
+#### Scenario: Reads survive a downgrade
+- **WHEN** a Free account with the flag on reads the events or the quit summary of its own habit
+- **THEN** the data is returned; only writes need Pro
 
 ### Requirement: Quit state is reported to clients
 

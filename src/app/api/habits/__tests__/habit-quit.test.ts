@@ -437,10 +437,18 @@ describe("GET /api/habits/:id/events", () => {
       ctx()
     );
 
-  it("answers 403 on Free", async () => {
+  it("stays readable on Free (a downgrade keeps the history)", async () => {
     flag(true);
     onPlan(SubscriptionPlan.FREE);
-    expect((await get()).status).toBe(403);
+    db.habit.findFirst.mockResolvedValue({ id: "habit-1" });
+    db.habitEvent.findMany.mockResolvedValue([]);
+    expect((await get()).status).toBe(200);
+  });
+
+  it("answers 404 with the flag off", async () => {
+    flag(false);
+    onPlan(SubscriptionPlan.PRO);
+    expect((await get()).status).toBe(404);
   });
 
   it("pages with nextBefore", async () => {
@@ -474,10 +482,12 @@ describe("GET /api/habits/:id/quit-summary", () => {
       ctx()
     );
 
-  it("answers 403 on Free and 404 with the flag off", async () => {
+  it("stays readable on Free and 404s with the flag off", async () => {
     flag(true);
     onPlan(SubscriptionPlan.FREE);
-    expect((await get()).status).toBe(403);
+    db.habit.findFirst.mockResolvedValue(null);
+    expect((await get()).status).toBe(404); // not found, not 403
+    expect(db.habit.findFirst).toHaveBeenCalled();
     flag(false);
     onPlan(SubscriptionPlan.PRO);
     expect((await get()).status).toBe(404);

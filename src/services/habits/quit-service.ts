@@ -10,7 +10,8 @@ import {
 import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
-import { quitHabitsEnabled } from "@/lib/feature-flags";
+import { isFeatureEnabled, quitHabitsEnabled } from "@/lib/feature-flags";
+import { HABITS_QUIT } from "@/lib/feature-flags-keys";
 import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { summarizeQuit } from "@/lib/habits-quit";
 import { logger } from "@/lib/logger";
@@ -39,6 +40,18 @@ export async function quitGate(
   return gate.reason === "flag_off"
     ? { status: 404, error: "NOT_AVAILABLE" }
     : { status: 403, error: "UPGRADE_REQUIRED", plan: gate.plan };
+}
+
+/**
+ * Reading one's own quit data needs the flag only, never the plan: after a
+ * downgrade the history stays reachable. Writes use `quitGate`.
+ */
+export async function quitReadGate(
+  userId: string
+): Promise<QuitGateRefusal | null> {
+  return (await isFeatureEnabled(HABITS_QUIT, userId))
+    ? null
+    : { status: 404, error: "NOT_AVAILABLE" };
 }
 
 /** The refusal as a REST answer: 404 when the flag is off, 403 for Free. */

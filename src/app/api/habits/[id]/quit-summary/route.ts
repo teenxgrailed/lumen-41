@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   getQuitSummary,
-  quitGate,
   quitGateResponse,
+  quitReadGate,
 } from "@/services/habits/quit-service";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -14,12 +14,12 @@ type RouteContext = { params: Promise<{ id: string }> };
 /**
  * GET /api/habits/:id/quit-summary: current and best streak, clean days, the
  * next milestone and the urge pattern by hour and weekday in the person's time
- * zone. Pro, behind `habits_quit`.
+ * zone. Behind `habits_quit`; open to the owner on any plan.
  */
 export async function GET(request: NextRequest, { params }: RouteContext) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
-  const refusal = await quitGate(auth.userId);
+  const refusal = await quitReadGate(auth.userId);
   if (refusal) return quitGateResponse(refusal);
   const { id } = await params;
   const summary = await getQuitSummary({

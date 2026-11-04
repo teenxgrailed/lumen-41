@@ -51,6 +51,7 @@ import {
   QuitHabitEventError,
   getQuitSummary,
   quitGate,
+  quitReadGate,
   recordHabitEvent,
 } from "@/services/habits/quit-service";
 import {
@@ -1671,7 +1672,7 @@ const WRITE_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_habit_quit_summary",
     description:
-      "Where a QUIT habit stands: current and best clean streak in days, total clean days, the next milestone (1, 3, 7, 14, 30, 90, 365), event counts, the most used urge tags and when urges happen (by hour and weekday in the person's time zone). Pro, and only while quit habits are switched on for the account.",
+      "Where a QUIT habit stands: current and best clean streak in days, total clean days, the next milestone (1, 3, 7, 14, 30, 90, 365), event counts, the most used urge tags and when urges happen (by hour and weekday in the person's time zone). Readable on any plan while quit habits are switched on for the account.",
     annotations: {
       title: "Quit habit summary",
       readOnlyHint: true,
@@ -1683,7 +1684,7 @@ const WRITE_TOOLS: McpTool[] = [
       id: z.string().min(1).describe("Habit id (a QUIT habit)."),
     }),
     async invoke(ctx, args) {
-      const gate = await quitGate(ctx.userId);
+      const gate = await quitReadGate(ctx.userId);
       if (gate) return toolError(quitGateError(gate));
       const access = await readAccess(ctx);
       if ("error" in access) return access.error;

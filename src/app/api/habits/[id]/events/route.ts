@@ -7,6 +7,7 @@ import {
   listHabitEvents,
   quitGate,
   quitGateResponse,
+  quitReadGate,
   recordHabitEvent,
 } from "@/services/habits/quit-service";
 import { HabitEventType, WorkspaceRole } from "@prisma/client";
@@ -26,13 +27,13 @@ const listQuerySchema = z.object({
 
 /**
  * GET /api/habits/:id/events: the event log of a QUIT habit, newest first
- * (`type`, `before` and `limit` narrow it; `nextBefore` pages on). Pro, behind
- * `habits_quit`.
+ * (`type`, `before` and `limit` narrow it; `nextBefore` pages on). Behind
+ * `habits_quit`; open to the owner on any plan.
  */
 export async function GET(request: NextRequest, { params }: RouteContext) {
   const auth = await authenticateRequest(request, LOG_SOURCE);
   if ("response" in auth) return auth.response;
-  const refusal = await quitGate(auth.userId);
+  const refusal = await quitReadGate(auth.userId);
   if (refusal) return quitGateResponse(refusal);
   const { id } = await params;
   const query = listQuerySchema.safeParse(
