@@ -55,7 +55,9 @@ export type ReminderJobData =
   | { kind: "deliver"; reminderId: string }
   /** Daily digests and pushes for mentions, shares and system rows. */
   | { kind: "digest" }
-  | { kind: "activity" };
+  | { kind: "activity" }
+  /** Habit pushes: reminders, evening check-in, QUIT milestones, re-engage. */
+  | { kind: "habits" };
 
 /** A delayed job per running Focus session, due at its planned end. */
 export interface FocusJobData {
