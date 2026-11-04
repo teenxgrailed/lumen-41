@@ -158,7 +158,7 @@ export function SSelect({
           <button
             type="button"
             className="settings-sselect-select"
-            aria-label={cur ? `${label}: ${cur[1]}` : label}
+            aria-label={`${label}: ${cur ? cur[1] : value}`}
             disabled={disabled}
             style={{
               textAlign: "left",

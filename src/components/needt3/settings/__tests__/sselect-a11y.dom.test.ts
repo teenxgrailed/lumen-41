@@ -49,7 +49,7 @@ it("names the control together with its current value", () => {
   expect(btn.getAttribute("aria-label")).toBe("Theme: Dark");
 });
 
-it("does not announce a listbox for what is a menu", () => {
+it("announces the menu it opens, not a listbox", () => {
   act(() =>
     root.render(
       h(SSelect, {
@@ -60,8 +60,8 @@ it("does not announce a listbox for what is a menu", () => {
       })
     )
   );
-  expect(host.querySelector("button")!.getAttribute("aria-haspopup")).not.toBe(
-    "listbox"
+  expect(host.querySelector("button")!.getAttribute("aria-haspopup")).toBe(
+    "menu"
   );
 });
 
@@ -70,5 +70,13 @@ it("draws the keyboard-highlighted menu row", () => {
     join(__dirname, "../../../../styles/v3/app.css"),
     "utf8"
   );
-  expect(css).toMatch(/\.menu-row\[data-highlighted\]\s*\{[^}]*background/);
+  const rule = css.match(
+    /\.menu-row\[data-highlighted\],\s*\.needt-v3 \.menu-row:focus-visible\s*\{([^}]*)\}/
+  );
+  expect(rule).not.toBeNull();
+  expect(rule![1]).toContain("background: var(--fill-5)");
+  expect(rule![1]).toContain("inset 0 0 0 1px var(--text-quaternary)");
+  expect(css).toMatch(
+    /\.needt-v3 button\.menu-row \{ background: transparent; \}/
+  );
 });

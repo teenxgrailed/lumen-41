@@ -1,3 +1,3 @@
 - Settings choices (theme, week start, language and the rest) now say their
-  current value to screen readers, and the option under the keyboard in
-  these menus is visible while you move with the arrow keys.
+  current value to screen readers, and the menu row under the keyboard is
+  clearly marked in every menu while you move through it.
