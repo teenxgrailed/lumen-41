@@ -1,6 +1,6 @@
 import {
   type NotificationPrefs,
-  getNotificationPrefs,
+  prefsFrom,
   shouldAlert,
 } from "@/services/notifications/preferences";
 import {
@@ -13,7 +13,8 @@ import { deliverPush } from "@/services/reminders/reminder-delivery";
 import { HabitEventType, HabitKind, Prisma } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
-import { isFeatureEnabled } from "@/lib/feature-flags";
+import { canUseQuitHabits } from "@/lib/entitlements";
+import { rolloutBucket } from "@/lib/feature-flags";
 import { HABITS_QUIT } from "@/lib/feature-flags-keys";
 import { habitDateFromKey } from "@/lib/habit-completion-date";
 import { summarizeQuit } from "@/lib/habits-quit";
@@ -21,8 +22,10 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 import {
+  MILESTONE_TIME,
   type PresenceKind,
   type PresenceText,
+  REENGAGE_TIME,
   daysSinceCheckIn,
   habitReminderDue,
   habitRunsToday,
@@ -35,7 +38,10 @@ import {
 
 const LOG_SOURCE = "HabitPresence";
 const USERS_PER_PAGE = 200;
-const MAX_PAGES = 50;
+/** A safety stop only: a run that reaches it logs a warning. */
+const MAX_PAGES = 500;
+/** Dedup rows older than this are of no use any more and are deleted. */
+const PUSH_ROW_RETENTION_DAYS = 30;
 /** How far back completions are read: enough for the re-engage rule. */
 const COMPLETION_LOOKBACK_DAYS = 14;
 const HABITS_URL = "/habits";
@@ -106,17 +112,22 @@ async function send(
     await prisma.habitPush.delete({ where: { id: claimId } }).catch(() => null);
     return false;
   }
-  await candidate.after?.();
+  try {
+    await candidate.after?.();
+  } catch (error) {
+    // The push is out and the claim is taken; a failed follow-up must not hide
+    // the person's other candidates.
+    await logger.error(
+      "Habit presence follow-up failed",
+      {
+        userId,
+        kind: candidate.kind,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
+  }
   return true;
-}
-
-/** The flag is off for everybody unless a row or an override turns it on. */
-async function flagCanBeOn() {
-  const flag = await prisma.featureFlag.findUnique({
-    where: { key: HABITS_QUIT },
-    select: { enabled: true, _count: { select: { overrides: true } } },
-  });
-  return Boolean(flag && (flag.enabled || flag._count.overrides > 0));
 }
 
 interface PresenceHabit {
@@ -154,6 +165,8 @@ export function presenceCandidates(input: {
   };
   lastReengageAt: Date | null;
   now: Date;
+  /** Pro: QUIT habits get no check-in count and no milestones otherwise. */
+  quitAllowed: boolean;
   recordMilestone: (habitId: string, at: Date) => Promise<unknown>;
 }): Candidate[] {
   const { user, prefs, settings, now } = input;
@@ -166,7 +179,9 @@ export function presenceCandidates(input: {
     );
 
   const build = user.habits.filter((habit) => habit.kind === HabitKind.BUILD);
-  const quit = user.habits.filter((habit) => habit.kind === HabitKind.QUIT);
+  const quit = input.quitAllowed
+    ? user.habits.filter((habit) => habit.kind === HabitKind.QUIT)
+    : [];
 
   if (settings.habitReminders) {
     for (const habit of build) {
@@ -205,7 +220,7 @@ export function presenceCandidates(input: {
     }
   }
 
-  if (settings.habitMilestones) {
+  if (settings.habitMilestones && inPresenceWindow(MILESTONE_TIME, clock)) {
     for (const habit of quit) {
       if (!habit.remindersEnabled || !habit.quitStartedAt) continue;
       const summary = summarizeQuit({
@@ -261,18 +276,122 @@ export function presenceCandidates(input: {
   return out;
 }
 
-//todo: prefilter people by flag overrides instead of one flag lookup per person once the user base grows.
+interface FlagState {
+  enabled: boolean;
+  rolloutPercentage: number;
+  overrides: Map<string, boolean>;
+}
+
+/**
+ * The `habits_quit` flag, read once per run. null = off for everybody (no row,
+ * or disabled with no override that turns it on).
+ */
+async function loadFlag(): Promise<FlagState | null> {
+  const flag = await prisma.featureFlag.findUnique({
+    where: { key: HABITS_QUIT },
+    select: {
+      enabled: true,
+      rolloutPercentage: true,
+      overrides: { select: { userId: true, enabled: true } },
+    },
+  });
+  if (!flag) return null;
+  const overrides = new Map(flag.overrides.map((o) => [o.userId, o.enabled]));
+  const anyOverrideOn = [...overrides.values()].some(Boolean);
+  if (!flag.enabled && !anyOverrideOn) return null;
+  return {
+    enabled: flag.enabled,
+    rolloutPercentage: flag.rolloutPercentage,
+    overrides,
+  };
+}
+
+/** The same rule as `isFeatureEnabled`, against the state read once. */
+function flagOn(flag: FlagState, userId: string) {
+  const override = flag.overrides.get(userId);
+  if (override !== undefined) return override;
+  if (!flag.enabled) return false;
+  return rolloutBucket(HABITS_QUIT, userId) < flag.rolloutPercentage;
+}
+
+type SettingsRow = {
+  habitReminders: boolean;
+  habitCheckin: boolean;
+  habitCheckinTime: string;
+  habitMilestones: boolean;
+  habitReengage: boolean;
+};
+
+const DEFAULT_HABIT_SETTINGS: SettingsRow = {
+  habitReminders: true,
+  habitCheckin: true,
+  habitCheckinTime: "21:00",
+  habitMilestones: true,
+  habitReengage: false,
+};
+
+type BareHabit = Omit<PresenceHabit, "completions" | "events">;
+type BareUser = Omit<UserRow, "habits"> & { habits: BareHabit[] };
+
+/** What could be due in this window: decides whether a person is worth loading. */
+function anythingDue(
+  habits: BareHabit[],
+  settings: SettingsRow,
+  clock: ReturnType<typeof localClock>
+) {
+  const build = habits.filter((h) => h.kind === HabitKind.BUILD);
+  const quit = habits.filter((h) => h.kind === HabitKind.QUIT);
+  return {
+    reminder:
+      settings.habitReminders &&
+      build.some(
+        (h) =>
+          h.remindersEnabled &&
+          habitRunsToday(h.daysOfWeek, clock) &&
+          inPresenceWindow(h.at, clock)
+      ),
+    checkin:
+      settings.habitCheckin &&
+      inPresenceWindow(settings.habitCheckinTime, clock),
+    milestone:
+      settings.habitMilestones &&
+      inPresenceWindow(MILESTONE_TIME, clock) &&
+      quit.some((h) => h.remindersEnabled && h.quitStartedAt),
+    reengage:
+      settings.habitReengage &&
+      build.length > 0 &&
+      inPresenceWindow(REENGAGE_TIME, clock),
+  };
+}
+
+//todo: with a partial rollout of habits_quit every person with a push device is still paged; prefilter by rollout bucket in SQL if the user base grows.
 export async function runHabitPresenceSweep(now = newDate()) {
   if (!pushConfigured()) return { users: 0, pushed: 0 };
-  if (!(await flagCanBeOn())) return { users: 0, pushed: 0 };
+  const flag = await loadFlag();
+  if (!flag) return { users: 0, pushed: 0 };
+  // Disabled for everybody except the overrides: only they can be reached.
+  const onlyIds = flag.enabled
+    ? null
+    : [...flag.overrides].filter(([, on]) => on).map(([id]) => id);
 
   const since = newDate(now.getTime() - COMPLETION_LOOKBACK_DAYS * 86_400_000);
   let cursor: string | undefined;
   let users = 0;
   let pushed = 0;
-  for (let page = 0; page < MAX_PAGES; page += 1) {
+  let page = 0;
+  for (;;) {
+    if (page >= MAX_PAGES) {
+      await logger.warn(
+        "Habit presence stopped at the page cap; people are left unswept",
+        { pages: page, users },
+        LOG_SOURCE
+      );
+      break;
+    }
+    page += 1;
     const rows = await prisma.user.findMany({
       where: {
+        ...(onlyIds ? { id: { in: onlyIds } } : {}),
         habits: { some: { archivedAt: null, isActive: true } },
         OR: [
           { pushSubscriptions: { some: {} } },
@@ -296,75 +415,184 @@ export async function runHabitPresenceSweep(now = newDate()) {
             remindersEnabled: true,
             quitStartedAt: true,
             createdAt: true,
-            completions: {
-              where: { date: { gte: since } },
-              select: { date: true },
-            },
-            // Only relapses move a streak; urges are not needed here.
-            events: {
-              where: { type: HabitEventType.RELAPSE },
-              select: { type: true, at: true },
-            },
           },
         },
       },
     });
     if (rows.length === 0) break;
     cursor = rows[rows.length - 1].id;
-    for (const user of rows) {
-      users += 1;
-      try {
-        pushed += await sweepUser(user, now);
-      } catch (error) {
-        await logger.error(
-          "Habit presence failed for one person",
-          {
-            userId: user.id,
-            error: error instanceof Error ? error.message : String(error),
-          },
-          LOG_SOURCE
-        );
-      }
-    }
+    pushed += await sweepPage(rows as BareUser[], flag, since, now);
+    users += rows.length;
     if (rows.length < USERS_PER_PAGE) break;
   }
+
+  await pruneOldPushRows(now);
   return { users, pushed };
 }
 
-async function sweepUser(user: UserRow, now: Date) {
-  if (!(await isFeatureEnabled(HABITS_QUIT, user.id))) return 0;
-  const [prefs, settings] = await Promise.all([
-    getNotificationPrefs(user.id),
-    prisma.notificationSettings.findUnique({
-      where: { userId: user.id },
-      select: {
-        habitReminders: true,
-        habitCheckin: true,
-        habitCheckinTime: true,
-        habitMilestones: true,
-        habitReengage: true,
+/** Old dedup rows go once an hour or so; failing to prune never fails a sweep. */
+async function pruneOldPushRows(now: Date) {
+  if (now.getUTCMinutes() >= 10) return;
+  try {
+    await prisma.habitPush.deleteMany({
+      where: {
+        createdAt: {
+          lt: newDate(now.getTime() - PUSH_ROW_RETENTION_DAYS * 86_400_000),
+        },
       },
+    });
+  } catch (error) {
+    await logger.error(
+      "Habit presence prune failed",
+      { error: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+  }
+}
+
+/** One page: shared reads batched, then only the people with something due. */
+async function sweepPage(
+  rows: BareUser[],
+  flag: FlagState,
+  since: Date,
+  now: Date
+) {
+  const people = rows.filter((user) => flagOn(flag, user.id));
+  if (people.length === 0) return 0;
+  const ids = people.map((user) => user.id);
+  const [settingRows, zoneRows] = await Promise.all([
+    prisma.notificationSettings.findMany({ where: { userId: { in: ids } } }),
+    prisma.userSettings.findMany({
+      where: { userId: { in: ids } },
+      select: { userId: true, timeZone: true },
     }),
   ]);
-  // Quiet hours, the digest, the push channel and the Reminders switch.
-  if (!shouldAlert(prefs, "reminder", "push", now)) return 0;
-  const lastReengage = await prisma.habitPush.findFirst({
-    where: { userId: user.id, kind: "reengage" },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true },
-  });
+  const settingsOf = new Map(settingRows.map((row) => [row.userId, row]));
+  const zoneOf = new Map(zoneRows.map((row) => [row.userId, row.timeZone]));
+
+  // Each person's local clock decides who is worth loading further.
+  const due = new Map<
+    string,
+    {
+      prefs: NotificationPrefs;
+      settings: SettingsRow;
+      what: ReturnType<typeof anythingDue>;
+    }
+  >();
+  for (const user of people) {
+    const row = settingsOf.get(user.id) ?? null;
+    const prefs = prefsFrom(row, zoneOf.get(user.id));
+    // Quiet hours, the digest, the push channel and the Reminders switch.
+    if (!shouldAlert(prefs, "reminder", "push", now)) continue;
+    const settings: SettingsRow = row ?? DEFAULT_HABIT_SETTINGS;
+    const what = anythingDue(
+      user.habits,
+      settings,
+      localClock(now, prefs.timeZone)
+    );
+    if (what.reminder || what.checkin || what.milestone || what.reengage) {
+      due.set(user.id, { prefs, settings, what });
+    }
+  }
+  if (due.size === 0) return 0;
+
+  const dueUsers = people.filter((user) => due.has(user.id));
+  const habitIds = dueUsers.flatMap((user) => user.habits.map((h) => h.id));
+  const quitIds = dueUsers
+    .filter((user) => due.get(user.id)?.what.milestone)
+    .flatMap((user) =>
+      user.habits.filter((h) => h.kind === HabitKind.QUIT).map((h) => h.id)
+    );
+  const reengageIds = dueUsers
+    .filter((user) => due.get(user.id)?.what.reengage)
+    .map((user) => user.id);
+  const [completions, relapses, lastPushes] = await Promise.all([
+    prisma.habitCompletion.findMany({
+      where: { habitId: { in: habitIds }, date: { gte: since } },
+      select: { habitId: true, date: true },
+    }),
+    quitIds.length > 0
+      ? prisma.habitEvent.findMany({
+          where: { habitId: { in: quitIds }, type: HabitEventType.RELAPSE },
+          select: { habitId: true, type: true, at: true },
+        })
+      : Promise.resolve([]),
+    reengageIds.length > 0
+      ? prisma.habitPush.groupBy({
+          by: ["userId"],
+          where: { userId: { in: reengageIds }, kind: "reengage" },
+          _max: { createdAt: true },
+        })
+      : Promise.resolve([]),
+  ]);
+  const completionsOf = new Map<string, { date: Date }[]>();
+  for (const row of completions) {
+    completionsOf.set(row.habitId, [
+      ...(completionsOf.get(row.habitId) ?? []),
+      { date: row.date },
+    ]);
+  }
+  const relapsesOf = new Map<string, { type: HabitEventType; at: Date }[]>();
+  for (const row of relapses) {
+    relapsesOf.set(row.habitId, [
+      ...(relapsesOf.get(row.habitId) ?? []),
+      { type: row.type, at: row.at },
+    ]);
+  }
+  const lastReengageOf = new Map(
+    lastPushes.map((row) => [row.userId, row._max.createdAt])
+  );
+
+  let pushed = 0;
+  for (const user of dueUsers) {
+    const info = due.get(user.id)!;
+    try {
+      pushed += await sweepUser(
+        {
+          ...user,
+          habits: user.habits.map((habit) => ({
+            ...habit,
+            completions: completionsOf.get(habit.id) ?? [],
+            events: relapsesOf.get(habit.id) ?? [],
+          })),
+        },
+        info.prefs,
+        info.settings,
+        lastReengageOf.get(user.id) ?? null,
+        now
+      );
+    } catch (error) {
+      await logger.error(
+        "Habit presence failed for one person",
+        {
+          userId: user.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        LOG_SOURCE
+      );
+    }
+  }
+  return pushed;
+}
+
+async function sweepUser(
+  user: UserRow,
+  prefs: NotificationPrefs,
+  settings: SettingsRow,
+  lastReengageAt: Date | null,
+  now: Date
+) {
+  // QUIT is Pro: without it the person's QUIT habits get nothing from here.
+  const quitAllowed = user.habits.some((h) => h.kind === HabitKind.QUIT)
+    ? (await canUseQuitHabits(user.id)).allowed
+    : false;
   const candidates = presenceCandidates({
     user,
     prefs,
-    settings: settings ?? {
-      habitReminders: true,
-      habitCheckin: true,
-      habitCheckinTime: "21:00",
-      habitMilestones: true,
-      habitReengage: false,
-    },
-    lastReengageAt: lastReengage?.createdAt ?? null,
+    settings,
+    lastReengageAt,
     now,
+    quitAllowed,
     recordMilestone: (habitId, at) =>
       prisma.habitEvent.create({
         data: { habitId, userId: user.id, type: HabitEventType.MILESTONE, at },

@@ -19,6 +19,8 @@ import { calendarDaysBetweenKeys } from "@/lib/habits-quit";
 export const PRESENCE_WINDOW_MIN = 60;
 /** The soft re-engage push goes out around midday, never at night. */
 export const REENGAGE_TIME = "12:00";
+/** A QUIT streak milestone is announced in the morning, never at night. */
+export const MILESTONE_TIME = "09:00";
 /** Days without a check-in before the soft re-engage push. */
 export const REENGAGE_AFTER_DAYS = 3;
 /** At most one re-engage push in this many days. */
