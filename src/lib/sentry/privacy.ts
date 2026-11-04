@@ -101,16 +101,69 @@ function scrubDebugImage(image: SentryDebugImageLike): SentryDebugImageLike {
 const ERROR_CODE = /^[A-Z][A-Z0-9_]{1,63}$/;
 const ERROR_CLASS_NAME = /^[A-Z][A-Za-z0-9]{2,63}$/;
 
+const HTTP_ERROR_CODE = /^http_[1-5][0-9]{2}(_[A-Za-z][A-Za-z0-9]{1,47})?$/;
+const API_REASON = /^[A-Za-z][A-Za-z0-9]{1,47}$/;
+
+function numericStatus(value: unknown): number | undefined {
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 100 &&
+    value <= 599
+    ? value
+    : undefined;
+}
+
+function firstReason(list: unknown): string | undefined {
+  if (!Array.isArray(list)) return undefined;
+  for (const item of list) {
+    const reason = (item as { reason?: unknown } | null)?.reason;
+    if (typeof reason === "string" && API_REASON.test(reason)) return reason;
+  }
+  return undefined;
+}
+
 /**
- * A short identifier for the error, or undefined. It is taken from a string
- * `code` (HubError and similar) or from a class `name` other than "Error", and
- * only when it has the shape of an identifier. A message cannot pass: it has
- * spaces, lower case words or punctuation, so data cannot ride along.
+ * `http_<status>[_<reason>]` for an HTTP-shaped error (googleapis' GaxiosError
+ * and similar). Only an integer status and an identifier-shaped Google
+ * `reason` are read; message text and response bodies are never copied.
+ */
+function httpErrorCode(error: object): string | undefined {
+  const e = error as {
+    status?: unknown;
+    code?: unknown;
+    errors?: unknown;
+    response?: { status?: unknown; data?: { error?: { errors?: unknown } } };
+  };
+  const status =
+    numericStatus(e.status) ??
+    numericStatus(e.response?.status) ??
+    numericStatus(e.code);
+  if (status === undefined) return undefined;
+  const reason =
+    firstReason(e.errors) ?? firstReason(e.response?.data?.error?.errors);
+  return reason ? `http_${status}_${reason}` : `http_${status}`;
+}
+
+/**
+ * A short identifier for the error, or undefined. It is taken from an HTTP
+ * status (plus a Google reason), a string `code` (HubError and similar) or a
+ * class `name` other than "Error", and only when it has the shape of an
+ * identifier. A message cannot pass: it has spaces, lower case words or
+ * punctuation, so data cannot ride along.
  */
 export function safeErrorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null) return undefined;
   const { code, name } = error as { code?: unknown; name?: unknown };
-  if (typeof code === "string" && ERROR_CODE.test(code)) return code;
+  if (
+    typeof code === "string" &&
+    (ERROR_CODE.test(code) ||
+      HTTP_ERROR_CODE.test(code) ||
+      ERROR_CLASS_NAME.test(code))
+  ) {
+    return code;
+  }
+  const http = httpErrorCode(error);
+  if (http) return http;
   if (
     typeof name === "string" &&
     name !== "Error" &&

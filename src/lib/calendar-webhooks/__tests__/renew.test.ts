@@ -67,6 +67,34 @@ describe("renewCalendarWebhooks", () => {
     expect(renewOutlookSubscription).toHaveBeenCalledWith("good-o");
   });
 
+  it("carries the most frequent safe error code and keeps the message to a count", async () => {
+    (listCalendarWebhooks as jest.Mock).mockResolvedValue([
+      { feedId: "a", provider: "GOOGLE", expiration: soon },
+      { feedId: "b", provider: "GOOGLE", expiration: soon },
+      { feedId: "c", provider: "GOOGLE", expiration: soon },
+    ]);
+    (registerGoogleWatch as jest.Mock).mockImplementation(async (id) => {
+      if (id === "a") throw Object.assign(new Error("x@y.z"), { status: 500 });
+      throw Object.assign(new Error("secret"), {
+        status: 403,
+        errors: [{ reason: "forbidden" }],
+      });
+    });
+
+    const error = await renewCalendarWebhooks().catch((e) => e);
+    expect(error.code).toBe("http_403_forbidden");
+    expect(error.message).toBe("Calendar webhook renewal failed for 3 feed(s)");
+  });
+
+  it("falls back to unknown when no failure has a safe code", async () => {
+    (listCalendarWebhooks as jest.Mock).mockResolvedValue([
+      { feedId: "a", provider: "GOOGLE", expiration: soon },
+    ]);
+    (registerGoogleWatch as jest.Mock).mockRejectedValue(new Error("boom"));
+    const error = await renewCalendarWebhooks().catch((e) => e);
+    expect(error.code).toBe("unknown");
+  });
+
   it("does not throw for a calendar Google cannot push for", async () => {
     (listCalendarWebhooks as jest.Mock).mockResolvedValue([
       { feedId: "holidays", provider: "GOOGLE", expiration: soon },
