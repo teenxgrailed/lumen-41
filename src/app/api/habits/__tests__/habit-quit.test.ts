@@ -1,17 +1,35 @@
 import { NextRequest } from "next/server";
 
-import { PATCH as patchEvent } from "@/app/api/habits/[id]/events/[eventId]/route";
+import { PATCH as patchEventRaw } from "@/app/api/habits/[id]/events/[eventId]/route";
 import {
-  GET as getEvents,
-  POST as postEvent,
+  GET as getEventsRaw,
+  POST as postEventRaw,
 } from "@/app/api/habits/[id]/events/route";
-import { GET as getSummary } from "@/app/api/habits/[id]/quit-summary/route";
-import { PATCH } from "@/app/api/habits/[id]/route";
-import { POST, GET as listHabits } from "@/app/api/habits/route";
+import { GET as getSummaryRaw } from "@/app/api/habits/[id]/quit-summary/route";
+import { PATCH as PatchRaw } from "@/app/api/habits/[id]/route";
+import { POST as PostRaw, GET as listHabitsRaw } from "@/app/api/habits/route";
 import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
+
+/** Route handlers are typed `Response | undefined`; a test wants a Response. */
+function wrap<A extends unknown[]>(
+  handler: (...args: A) => Promise<Response | undefined>
+) {
+  return async (...args: A): Promise<Response> => {
+    const response = await handler(...args);
+    if (!response) throw new Error("Expected a route response.");
+    return response;
+  };
+}
+const getEvents = wrap(getEventsRaw);
+const postEvent = wrap(postEventRaw);
+const getSummary = wrap(getSummaryRaw);
+const patchEvent = wrap(patchEventRaw);
+const PATCH = wrap(PatchRaw);
+const listHabits = wrap(listHabitsRaw);
+const POST = wrap(PostRaw);
 
 jest.mock("@/lib/auth/api-auth", () => ({ authenticateRequest: jest.fn() }));
 jest.mock("@/lib/auth/workspace-auth", () => ({
