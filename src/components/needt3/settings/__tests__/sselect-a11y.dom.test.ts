@@ -34,7 +34,7 @@ const OPTS = [
   ["dark", "Dark"],
 ] as const;
 
-it("names the control together with its current value", () => {
+it("keeps the label as the name and describes the current value", () => {
   act(() =>
     root.render(
       h(SSelect, {
@@ -46,7 +46,9 @@ it("names the control together with its current value", () => {
     )
   );
   const btn = host.querySelector("button")!;
-  expect(btn.getAttribute("aria-label")).toBe("Theme: Dark");
+  expect(btn.getAttribute("aria-label")).toBe("Theme");
+  const desc = document.getElementById(btn.getAttribute("aria-describedby")!);
+  expect(desc?.textContent).toBe("Dark");
 });
 
 it("announces the menu it opens, not a listbox", () => {
