@@ -14,11 +14,13 @@ import {
 
 import { PopMenu } from "@/components/needt3/mail/PopMenu";
 import { ProLimit, useIsPro } from "@/components/needt3/paywall/Pro";
+import { openPaywall } from "@/components/needt3/paywall/store";
 import { PlEmpty, StScreen } from "@/components/needt3/states/StScreen";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { isStoreDistribution } from "@/lib/native";
 import { type Checkin, daysBetween, habitColor } from "@/lib/needt3/derive";
+import type { QuitGate } from "@/lib/needt3/habits-quit";
 import { useCheckinHistory } from "@/lib/needt3/hooks/habits";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
@@ -35,6 +37,14 @@ import {
   monthRows,
   timeLeft,
 } from "./derive";
+import {
+  type QuitController,
+  QuitLayer,
+  QuitList,
+  useQuitController,
+} from "./quit/QuitHost";
+import { QuitLock } from "./quit/QuitParts";
+import { QuitKindPicker } from "./quit/QuitPull";
 import type { HabitsController } from "./useHabitsController";
 
 const hb = strings["Habits.jsx"];
@@ -353,16 +363,20 @@ function HabitSheet({
   form,
   projects,
   saving,
+  quitGate,
   onChange,
   onClose,
   onSave,
+  onSeePro,
 }: {
   form: HabitForm;
   projects: readonly V3Project[];
   saving: boolean;
+  quitGate: QuitGate;
   onChange: (p: Partial<HabitForm>) => void;
   onClose: () => void;
   onSave: () => void;
+  onSeePro: () => void;
 }) {
   const f = form;
   const setF = (next: HabitForm) => onChange(next);
@@ -379,9 +393,12 @@ function HabitSheet({
     document.addEventListener("keydown", esc);
     return () => document.removeEventListener("keydown", esc);
   }, []);
-  const { ok, timeOk: atOk } = checkHabitForm(f);
+  const { ok, timeOk: atOk, timeError } = checkHabitForm(f);
+  const quit = f.kind === "QUIT";
+  // Quit on Free: the form becomes the Pro card, and there is no Create.
+  const quitLocked = quit && quitGate !== "on";
   const save = () => {
-    if (!ok || saving) return;
+    if (!ok || saving || quitLocked) return;
     onSave();
   };
   const sheetTitle = habit
@@ -417,7 +434,23 @@ function HabitSheet({
             </span>
           </span>
         </div>
-        <label className="pl-stack-6">
+        <div className="hq-desk hq-sheet-kind">
+          {quitGate !== "off" && !habit ? (
+            <QuitKindPicker
+              kind={f.kind}
+              locked={quitGate !== "on"}
+              onChange={(kind) => setF({ ...f, kind })}
+            />
+          ) : null}
+          {quitLocked ? (
+            <QuitLock
+              inline
+              storeBuild={isStoreDistribution()}
+              onSeePro={onSeePro}
+            />
+          ) : null}
+        </div>
+        <label className="pl-stack-6" hidden={quitLocked}>
           <span className="pl-label">{pl.PlHabitSheet.name}</span>
           <input
             ref={nameRef}
@@ -428,7 +461,40 @@ function HabitSheet({
             className="pl-field"
           />
         </label>
-        <label className="pl-stack-6">
+        {quit && !quitLocked ? (
+          <>
+            <label className="pl-stack-6">
+              <span className="pl-label">Since</span>
+              <input
+                name="habit-since"
+                type="datetime-local"
+                value={f.quitSince}
+                aria-invalid={!ok && !!timeError}
+                onChange={(e) => setF({ ...f, quitSince: e.target.value })}
+                className={`pl-field is-num${timeError ? " is-invalid" : ""}`}
+              />
+              <span className="pl-habit-sheet-text-3">
+                {timeError ?? "Can be in the past. Empty starts it now."}
+              </span>
+            </label>
+            <label className="pl-stack-6">
+              <span className="pl-label">Why</span>
+              <textarea
+                name="habit-reason"
+                rows={3}
+                maxLength={500}
+                value={f.reason}
+                placeholder="The way you would say it to yourself"
+                onChange={(e) => setF({ ...f, reason: e.target.value })}
+                className="pl-field hq-reason"
+              />
+              <span className="pl-habit-sheet-text-3">
+                Your reason is shown when you press Pulling.
+              </span>
+            </label>
+          </>
+        ) : null}
+        <label className="pl-stack-6" hidden={quit}>
           <span className="pl-label">
             {pl.PlHabitSheet.time}{" "}
             <span className="pl-habit-sheet-text-3">
@@ -445,7 +511,7 @@ function HabitSheet({
             className={`pl-field is-time is-num${atOk ? "" : " is-invalid"}`}
           />
         </label>
-        <div className="pl-stack-6">
+        <div className="pl-stack-6" hidden={quit}>
           <span className="pl-label">{pl.PlHabitSheet.days_per_week}</span>
           <span className="pl-habit-sheet-row-2">
             {PER_WEEK_CHOICES.map(([q, n]) => (
@@ -461,7 +527,7 @@ function HabitSheet({
             ))}
           </span>
         </div>
-        <div className="pl-stack-6">
+        <div className="pl-stack-6" hidden={quitLocked}>
           <span className="pl-label">
             {pl.PlHabitSheet.project}{" "}
             <span className="pl-habit-sheet-text-3">
@@ -503,14 +569,16 @@ function HabitSheet({
           >
             {pl.PlHabitSheet.cancel}
           </button>
-          <button
-            type="button"
-            className="nx-btn nx-btn-primary pl-habit-save"
-            disabled={!ok || saving}
-            onClick={save}
-          >
-            {habit ? pl.PlHabitSheet.save : pl.PlHabitSheet.create_habit}
-          </button>
+          {quitLocked ? null : (
+            <button
+              type="button"
+              className="nx-btn nx-btn-primary pl-habit-save"
+              disabled={!ok || saving}
+              onClick={save}
+            >
+              {habit ? pl.PlHabitSheet.save : pl.PlHabitSheet.create_habit}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -540,9 +608,24 @@ export const archivedNotice = (title: string) => `“${title}” archived`;
  * the writes) is `ctl`, created once by the route above the phone / desktop
  * switch (`useHabitsController`).
  */
-export function HabitsScreen({ ctl }: { ctl: HabitsController }) {
+export function HabitsScreen({
+  ctl,
+  quit: shared,
+  onSeePro = () => openPaywall({ feature: "Quit habits" }),
+}: {
+  ctl: HabitsController;
+  /** The route's Quit state, shared with the phone face. */
+  quit?: QuitController;
+  /** Quit on Free: the paywall, from the lock card and "Yes, still". */
+  onSeePro?: () => void;
+}) {
   const { habits, list, shown, over, all, setAll, checkins, projects, today } =
     ctl;
+  const own = useQuitController();
+  const quit = shared ?? own;
+  const quitOpen = ctl.quitList.some(
+    (h) => h.id === quit.openId || h.id === quit.pullId
+  );
   const kept = ctl.kept;
 
   const pro = useIsPro();
@@ -577,7 +660,18 @@ export function HabitsScreen({ ctl }: { ctl: HabitsController }) {
         <span className="pl-place-header-text-2">{meta}</span>
       </header>
       <StScreen query={habits} screen="habits">
-        {!list.length ? (
+        {quitOpen ? (
+          <div className="hq-desk">
+            <QuitLayer
+              habits={ctl.quitList}
+              ctl={quit}
+              phone={false}
+              onUpgrade={onSeePro}
+            />
+          </div>
+        ) : !list.length &&
+          !ctl.quitList.length &&
+          ctl.quitGate !== "upgrade" ? (
           <PlEmpty
             art={<FiRepeat size={40} aria-hidden />}
             title={pl.HabitsScreen.no_habits_yet}
@@ -595,76 +689,97 @@ export function HabitsScreen({ ctl }: { ctl: HabitsController }) {
           />
         ) : (
           <>
-            <section className="nx-swap pl-habits-today">
-              <div className="hb-today">
-                <div className="hb-today-head">
-                  <span className="hb-today-heading">
-                    {hb.HabitToday.today}
-                  </span>
-                  <span className="hb-today-count">
-                    {kept} of {list.length} kept
-                  </span>
-                  {/* //todo: the "n days closed" chip needs ClosedDay rows,
-                      which nothing writes yet (01-data-map §4). */}
-                </div>
-                <div className="hb-today-grid">
-                  {shown.map((h, i) => (
-                    <HabitTodayCard
-                      key={h.id}
-                      h={h}
-                      i={i}
-                      hue={habitColor(h, projects) || "var(--text-tertiary)"}
-                      checkins={checkins}
-                      today={today}
-                      onToggle={ctl.tick}
-                      onRename={ctl.openEdit}
-                      onArchive={(x) => void ctl.archive(x)}
-                    />
-                  ))}
-                </div>
-                {over ? (
-                  <button
-                    type="button"
-                    className="nx-btn nx-btn-text nx-btn-sm hb-today-more"
-                    data-hb-more={all ? "less" : "all"}
-                    onClick={() => setAll(!all)}
-                  >
-                    {all
-                      ? hb.HabitToday.show_fewer
-                      : `${hb.HabitToday.show_all} ${list.length}`}
-                  </button>
-                ) : null}
-                <p className="hb-today-foot">
-                  {hb.HabitToday.a_missed_day_stays_empty_nothing_carries}
-                </p>
-              </div>
-            </section>
-            <div className="pl-habits-grid">
-              <section className="nx-swap pl-habits-col-2">
-                <span className="pl-sheet-title">
-                  {pl.HabitsScreen.last_four_months}
-                </span>
-                <span className="pl-habits-text">
-                  {pl.HabitsScreen.one_dot_a_day_coloured_kept_grey_missed_}
-                  {" Pick one habit to mark or unmark a past day."}
-                </span>
-                <HabitMonths
-                  list={list}
-                  projects={projects}
-                  // The long read; until it arrives (or if it fails) the cards'
-                  // own fourteen days, so the current month is never blank.
-                  checkins={history.data ?? checkins}
-                  today={today}
-                  onTick={ctl.tick}
-                  onTickDay={ctl.tickDay}
+            {ctl.quitGate !== "off" ? (
+              <section
+                className="nx-swap hq-desk pl-habits-quit"
+                data-hq-section=""
+              >
+                <QuitList
+                  habits={ctl.quitList}
+                  gate={ctl.quitGate}
+                  phone={false}
+                  ctl={quit}
+                  storeBuild={isStoreDistribution()}
+                  onSeePro={onSeePro}
                 />
               </section>
-              <div className="pl-habits-side">
-                <section className="nx-swap pl-habits-left">
-                  <HabitLeft tz={ctl.tz} />
+            ) : null}
+            {list.length ? (
+              <>
+                <section className="nx-swap pl-habits-today">
+                  <div className="hb-today">
+                    <div className="hb-today-head">
+                      <span className="hb-today-heading">
+                        {hb.HabitToday.today}
+                      </span>
+                      <span className="hb-today-count">
+                        {kept} of {list.length} kept
+                      </span>
+                      {/* //todo: the "n days closed" chip needs ClosedDay rows,
+                      which nothing writes yet (01-data-map §4). */}
+                    </div>
+                    <div className="hb-today-grid">
+                      {shown.map((h, i) => (
+                        <HabitTodayCard
+                          key={h.id}
+                          h={h}
+                          i={i}
+                          hue={
+                            habitColor(h, projects) || "var(--text-tertiary)"
+                          }
+                          checkins={checkins}
+                          today={today}
+                          onToggle={ctl.tick}
+                          onRename={ctl.openEdit}
+                          onArchive={(x) => void ctl.archive(x)}
+                        />
+                      ))}
+                    </div>
+                    {over ? (
+                      <button
+                        type="button"
+                        className="nx-btn nx-btn-text nx-btn-sm hb-today-more"
+                        data-hb-more={all ? "less" : "all"}
+                        onClick={() => setAll(!all)}
+                      >
+                        {all
+                          ? hb.HabitToday.show_fewer
+                          : `${hb.HabitToday.show_all} ${list.length}`}
+                      </button>
+                    ) : null}
+                    <p className="hb-today-foot">
+                      {hb.HabitToday.a_missed_day_stays_empty_nothing_carries}
+                    </p>
+                  </div>
                 </section>
-              </div>
-            </div>
+                <div className="pl-habits-grid">
+                  <section className="nx-swap pl-habits-col-2">
+                    <span className="pl-sheet-title">
+                      {pl.HabitsScreen.last_four_months}
+                    </span>
+                    <span className="pl-habits-text">
+                      {pl.HabitsScreen.one_dot_a_day_coloured_kept_grey_missed_}
+                      {" Pick one habit to mark or unmark a past day."}
+                    </span>
+                    <HabitMonths
+                      list={list}
+                      projects={projects}
+                      // The long read; until it arrives (or if it fails) the cards'
+                      // own fourteen days, so the current month is never blank.
+                      checkins={history.data ?? checkins}
+                      today={today}
+                      onTick={ctl.tick}
+                      onTickDay={ctl.tickDay}
+                    />
+                  </section>
+                  <div className="pl-habits-side">
+                    <section className="nx-swap pl-habits-left">
+                      <HabitLeft tz={ctl.tz} />
+                    </section>
+                  </div>
+                </div>
+              </>
+            ) : null}
           </>
         )}
       </StScreen>
@@ -673,9 +788,11 @@ export function HabitsScreen({ ctl }: { ctl: HabitsController }) {
           form={ctl.form}
           projects={projects}
           saving={ctl.saving}
+          quitGate={ctl.quitGate}
           onChange={ctl.patchForm}
           onClose={ctl.closeForm}
           onSave={() => void ctl.save()}
+          onSeePro={onSeePro}
         />
       ) : null}
     </div>

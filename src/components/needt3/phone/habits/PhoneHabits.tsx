@@ -12,6 +12,7 @@ import { LuArchive, LuCheck, LuPencil, LuPlus } from "react-icons/lu";
 
 import { newDate } from "@/lib/date-utils";
 import { type Checkin, habitColor } from "@/lib/needt3/derive";
+import type { QuitGate } from "@/lib/needt3/habits-quit";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
@@ -22,6 +23,14 @@ import {
   monthRows,
   timeLeft,
 } from "../../habits/derive";
+import {
+  type QuitController,
+  QuitLayer,
+  QuitList,
+  useQuitController,
+} from "../../habits/quit/QuitHost";
+import { QuitLock } from "../../habits/quit/QuitParts";
+import { QuitKindPicker } from "../../habits/quit/QuitPull";
 import type { HabitsController } from "../../habits/useHabitsController";
 import {
   PkActions,
@@ -44,6 +53,7 @@ import {
   HABITS_PAYWALL_FEATURE,
   HABIT_WINDOW,
   type HabitForm,
+  QUIT_PAYWALL_FEATURE,
   checkHabitForm,
   clockFacts,
   dayLine,
@@ -308,16 +318,22 @@ function HabitSheet({
   form,
   projects,
   saving,
+  quitGate,
+  storeBuild,
   onChange,
   onClose,
   onSave,
+  onSeePro,
 }: {
   form: HabitForm | null;
   projects: readonly V3Project[];
   saving: boolean;
+  quitGate: QuitGate;
+  storeBuild: boolean;
   onChange: (p: Partial<HabitForm>) => void;
   onClose: () => void;
   onSave: () => void;
+  onSeePro: () => void;
 }) {
   /* The last form stays drawn while the sheet slides away. */
   const last = useRef<HabitForm | null>(null);
@@ -326,6 +342,9 @@ function HabitSheet({
   const check = f ? checkHabitForm(f) : null;
   const editing = !!f?.editId;
   const title = editing ? t.PhbNewSheet.edit_habit : t.PhbNewSheet.new_habit;
+  const quit = f?.kind === "QUIT";
+  // Quit on Free: the form becomes the Pro card, and there is no Create.
+  const quitLocked = quit && quitGate !== "on";
   return (
     <PkSheet
       open={!!form}
@@ -337,110 +356,176 @@ function HabitSheet({
       footer={
         <>
           <PkButton onClick={onClose}>{t.PhbNewSheet.cancel}</PkButton>
-          <PkButton
-            kind="primary"
-            disabled={!check?.ok || saving}
-            onClick={onSave}
-            data-phb-create
-          >
-            {editing ? t.PhbNewSheet.save : t.PhbNewSheet.create_habit}
-          </PkButton>
+          {quitLocked ? null : (
+            <PkButton
+              kind="primary"
+              disabled={!check?.ok || saving}
+              onClick={onSave}
+              data-phb-create
+            >
+              {editing ? t.PhbNewSheet.save : t.PhbNewSheet.create_habit}
+            </PkButton>
+          )}
         </>
       }
     >
       {f ? (
         <div className="phb-form">
-          <PkField
-            label={t.PhbNewSheet.name}
-            id="phb-name"
-            value={f.title}
-            onChange={(title) => onChange({ title })}
-            placeholder={t.PhbNewSheet.habit_name}
-            inputProps={{
-              autoComplete: "off",
-              enterKeyHint: "done",
-              name: "habit-name",
-              onKeyDown: (e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  onSave();
-                }
-              },
-            }}
-          />
-          <PkField
-            label={t.PhbNewSheet.time_optional}
-            id="phb-time"
-            value={f.time}
-            onChange={(time) => onChange({ time })}
-            placeholder="HH:MM"
-            className={pkCx("phb-time", !check?.timeOk && "is-invalid")}
-            inputProps={{
-              inputMode: "numeric",
-              autoComplete: "off",
-              enterKeyHint: "done",
-              name: "habit-time",
-              "aria-invalid": !check?.timeOk,
-              "aria-describedby": check?.timeError ? "phb-time-err" : undefined,
-              onKeyDown: (e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  onSave();
-                }
-              },
-            }}
-          />
-          {check?.timeError ? (
-            <p id="phb-time-err" role="alert" className="phb-err">
-              {check.timeError}
-            </p>
-          ) : null}
-          <div className="phb-group">
-            <span className="pk-label">{t.PhbNewSheet.days_per_week}</span>
-            <div
-              className="phb-seg"
-              role="radiogroup"
-              aria-label={t.PhbNewSheet.days_per_week}
-            >
-              {PER_WEEK_CHOICES.map(([q, n]) => (
-                <button
-                  key={n}
-                  type="button"
-                  role="radio"
-                  aria-checked={f.perWeek === q}
-                  className={pkCx("phb-seg-btn", f.perWeek === q && "is-on")}
-                  onClick={() => onChange({ perWeek: q })}
-                >
-                  {n}
-                </button>
-              ))}
+          <div className="hq-phone">
+            {quitGate !== "off" && !editing ? (
+              <QuitKindPicker
+                kind={f.kind}
+                locked={quitGate !== "on"}
+                onChange={(kind) => onChange({ kind })}
+              />
+            ) : null}
+          </div>
+          {quitLocked ? (
+            <div className="hq-phone">
+              <QuitLock inline storeBuild={storeBuild} onSeePro={onSeePro} />
             </div>
-          </div>
-          <div className="phb-group">
-            <span className="pk-label">{t.PhbNewSheet.project_its_colour}</span>
-            <PkChips className="phb-projs" label={t.PhbNewSheet.project}>
-              {[null, ...projects.filter((p) => !p.archived)].map((p) => {
-                const on = f.projectId === (p?.id ?? null);
-                return (
-                  <button
-                    key={p?.id ?? "none"}
-                    type="button"
-                    className={pkCx("phb-proj", on && "is-on")}
-                    aria-pressed={on}
-                    onClick={() => onChange({ projectId: p?.id ?? null })}
-                    style={
-                      p?.color
-                        ? ({ "--hue": p.color } as CSSProperties)
-                        : undefined
+          ) : (
+            <>
+              <PkField
+                label={t.PhbNewSheet.name}
+                id="phb-name"
+                value={f.title}
+                onChange={(title) => onChange({ title })}
+                placeholder={t.PhbNewSheet.habit_name}
+                inputProps={{
+                  autoComplete: "off",
+                  enterKeyHint: "done",
+                  name: "habit-name",
+                  onKeyDown: (e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      onSave();
                     }
+                  },
+                }}
+              />
+              {quit ? (
+                <>
+                  <PkField
+                    label="Since"
+                    id="phb-since"
+                    value={f.quitSince}
+                    onChange={(quitSince) => onChange({ quitSince })}
+                    className={pkCx(check?.timeError && "is-invalid")}
+                    inputProps={{
+                      type: "datetime-local",
+                      name: "habit-since",
+                      "aria-invalid": !!check?.timeError,
+                      "aria-describedby": "phb-since-note",
+                    }}
+                  />
+                  <p
+                    id="phb-since-note"
+                    className={check?.timeError ? "phb-err" : "pk-meta"}
                   >
-                    <span className="phb-proj-dot" aria-hidden="true" />
-                    {p ? p.name : t.PhbNewSheet.no_project}
-                  </button>
-                );
-              })}
-            </PkChips>
-          </div>
+                    {check?.timeError ??
+                      "Can be in the past. Empty starts it now."}
+                  </p>
+                  <PkField
+                    label="Why"
+                    id="phb-reason"
+                    value={f.reason}
+                    onChange={(reason) => onChange({ reason })}
+                    placeholder="The way you would say it to yourself"
+                    inputProps={{ name: "habit-reason", maxLength: 500 }}
+                  />
+                  <p className="pk-meta">
+                    Your reason is shown when you press Pulling.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <PkField
+                    label={t.PhbNewSheet.time_optional}
+                    id="phb-time"
+                    value={f.time}
+                    onChange={(time) => onChange({ time })}
+                    placeholder="HH:MM"
+                    className={pkCx("phb-time", !check?.timeOk && "is-invalid")}
+                    inputProps={{
+                      inputMode: "numeric",
+                      autoComplete: "off",
+                      enterKeyHint: "done",
+                      name: "habit-time",
+                      "aria-invalid": !check?.timeOk,
+                      "aria-describedby": check?.timeError
+                        ? "phb-time-err"
+                        : undefined,
+                      onKeyDown: (e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          onSave();
+                        }
+                      },
+                    }}
+                  />
+                  {check?.timeError ? (
+                    <p id="phb-time-err" role="alert" className="phb-err">
+                      {check.timeError}
+                    </p>
+                  ) : null}
+                  <div className="phb-group">
+                    <span className="pk-label">
+                      {t.PhbNewSheet.days_per_week}
+                    </span>
+                    <div
+                      className="phb-seg"
+                      role="radiogroup"
+                      aria-label={t.PhbNewSheet.days_per_week}
+                    >
+                      {PER_WEEK_CHOICES.map(([q, n]) => (
+                        <button
+                          key={n}
+                          type="button"
+                          role="radio"
+                          aria-checked={f.perWeek === q}
+                          className={pkCx(
+                            "phb-seg-btn",
+                            f.perWeek === q && "is-on"
+                          )}
+                          onClick={() => onChange({ perWeek: q })}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+              <div className="phb-group">
+                <span className="pk-label">
+                  {t.PhbNewSheet.project_its_colour}
+                </span>
+                <PkChips className="phb-projs" label={t.PhbNewSheet.project}>
+                  {[null, ...projects.filter((p) => !p.archived)].map((p) => {
+                    const on = f.projectId === (p?.id ?? null);
+                    return (
+                      <button
+                        key={p?.id ?? "none"}
+                        type="button"
+                        className={pkCx("phb-proj", on && "is-on")}
+                        aria-pressed={on}
+                        onClick={() => onChange({ projectId: p?.id ?? null })}
+                        style={
+                          p?.color
+                            ? ({ "--hue": p.color } as CSSProperties)
+                            : undefined
+                        }
+                      >
+                        <span className="phb-proj-dot" aria-hidden="true" />
+                        {p ? p.name : t.PhbNewSheet.no_project}
+                      </button>
+                    );
+                  })}
+                </PkChips>
+              </div>
+            </>
+          )}
         </div>
       ) : null}
     </PkSheet>
@@ -463,10 +548,22 @@ function HabitSheet({
  * //todo: hold-to-reorder and Move up / Down: habits have no order column or
  * route.
  */
-export function PhoneHabits({ ctl }: { ctl: HabitsController }) {
+export function PhoneHabits({
+  ctl,
+  quit: shared,
+}: {
+  ctl: HabitsController;
+  /** The route's Quit state, shared with the desktop face. */
+  quit?: QuitController;
+}) {
   const sc = useRef<HTMLElement | null>(null);
   const openPaywall = usePhoneOverlays((s) => s.openPaywall);
   const store = useStoreDistribution();
+  const own = useQuitController();
+  const quit = shared ?? own;
+  const seePro = () => openPaywall(QUIT_PAYWALL_FEATURE);
+  const quitDetail = ctl.quitList.some((h) => h.id === quit.openId);
+  const pulling = ctl.quitList.some((h) => h.id === quit.pullId);
   const [acts, setActs] = useState<PkActs | null>(null);
   const { list, shown, checkins, projects, today, quota, kept } = ctl;
 
@@ -576,7 +673,18 @@ export function PhoneHabits({ ctl }: { ctl: HabitsController }) {
         className="phb-screen"
       >
         <PlaceState query={ctl.habits} screen="habits">
-          {!list.length ? (
+          {quitDetail ? (
+            <div className="hq-phone">
+              <QuitLayer
+                habits={ctl.quitList}
+                ctl={{ ...quit, pullId: null }}
+                phone
+                onUpgrade={seePro}
+              />
+            </div>
+          ) : !list.length &&
+            !ctl.quitList.length &&
+            ctl.quitGate !== "upgrade" ? (
             <PkEmpty
               title={t.PhbHabits.no_habits_yet}
               line={t.PhbHabits.a_habit_comes_back_every_day_a_missed_da}
@@ -592,70 +700,107 @@ export function PhoneHabits({ ctl }: { ctl: HabitsController }) {
             />
           ) : (
             <>
-              <PkSection
-                title={t.PhbHabits.today}
-                count={kept === list.length ? t.PhbHabits.all_kept : undefined}
-                className="phb-sec"
-              >
-                {shown.map((h) => (
-                  <HabitRow
-                    key={h.id}
-                    h={h}
-                    hue={hueOf(h, projects)}
-                    checkins={checkins}
-                    today={today}
-                    onTick={ctl.tick}
-                    onHold={holdActs}
-                  />
-                ))}
-              </PkSection>
-              {ctl.over ? (
-                <PkButton
-                  kind="ghost"
-                  className="phb-more"
-                  onClick={() => ctl.setAll(!ctl.all)}
-                >
-                  {ctl.all
-                    ? t.PhbHabits.show_fewer
-                    : `${t.PhbHabits.show_all} ${list.length}`}
-                </PkButton>
+              {ctl.quitGate !== "off" ? (
+                <PkSection title="Quit" className="phb-sec">
+                  <div className="hq-phone">
+                    <QuitList
+                      habits={ctl.quitList}
+                      gate={ctl.quitGate}
+                      phone
+                      ctl={quit}
+                      storeBuild={store}
+                      onSeePro={seePro}
+                    />
+                  </div>
+                </PkSection>
               ) : null}
+              {list.length ? (
+                <>
+                  <PkSection
+                    title={t.PhbHabits.today}
+                    count={
+                      kept === list.length ? t.PhbHabits.all_kept : undefined
+                    }
+                    className="phb-sec"
+                  >
+                    {shown.map((h) => (
+                      <HabitRow
+                        key={h.id}
+                        h={h}
+                        hue={hueOf(h, projects)}
+                        checkins={checkins}
+                        today={today}
+                        onTick={ctl.tick}
+                        onHold={holdActs}
+                      />
+                    ))}
+                  </PkSection>
+                  {ctl.over ? (
+                    <PkButton
+                      kind="ghost"
+                      className="phb-more"
+                      onClick={() => ctl.setAll(!ctl.all)}
+                    >
+                      {ctl.all
+                        ? t.PhbHabits.show_fewer
+                        : `${t.PhbHabits.show_all} ${list.length}`}
+                    </PkButton>
+                  ) : null}
 
-              <PkSection title="The last 14 days" className="phb-sec is-months">
-                {list.map((h) => (
-                  <HabitHistory
-                    key={h.id}
-                    h={h}
-                    hue={hueOf(h, projects)}
-                    checkins={ctl.history}
-                    today={today}
-                    window={ctl.historyReady ? HISTORY_DAYS : HABIT_WINDOW}
-                    onTick={ctl.tick}
-                    onTickDay={ctl.tickDay}
-                  />
-                ))}
-              </PkSection>
+                  <PkSection
+                    title="The last 14 days"
+                    className="phb-sec is-months"
+                  >
+                    {list.map((h) => (
+                      <HabitHistory
+                        key={h.id}
+                        h={h}
+                        hue={hueOf(h, projects)}
+                        checkins={ctl.history}
+                        today={today}
+                        window={ctl.historyReady ? HISTORY_DAYS : HABIT_WINDOW}
+                        onTick={ctl.tick}
+                        onTickDay={ctl.tickDay}
+                      />
+                    ))}
+                  </PkSection>
 
-              <PkSection
-                title={t.PhbHabits.time_left}
-                className="phb-sec is-left"
-              >
-                <TimeLeft tz={ctl.tz} />
-              </PkSection>
-              <p className="phb-foot">
-                {t.PhbHabits.a_missed_day_stays_empty_nothing_carries}
-              </p>
+                  <PkSection
+                    title={t.PhbHabits.time_left}
+                    className="phb-sec is-left"
+                  >
+                    <TimeLeft tz={ctl.tz} />
+                  </PkSection>
+                  <p className="phb-foot">
+                    {t.PhbHabits.a_missed_day_stays_empty_nothing_carries}
+                  </p>
+                </>
+              ) : null}
             </>
           )}
         </PlaceState>
       </PkScreen>
+      {pulling ? (
+        /* Pulling covers the whole phone screen, on the canvas itself. */
+        <div className="hq-phone hq-pull-layer">
+          <QuitLayer
+            habits={ctl.quitList}
+            ctl={quit}
+            phone
+            onUpgrade={seePro}
+          />
+        </div>
+      ) : null}
       <HabitSheet
         form={ctl.form}
         projects={projects}
         saving={ctl.saving}
+        quitGate={ctl.quitGate}
+        storeBuild={store}
         onChange={ctl.patchForm}
         onClose={ctl.closeForm}
         onSave={() => void ctl.save()}
+        onSeePro={seePro}
       />
       <PkActions acts={acts} onClose={() => setActs(null)} />
     </>

@@ -17,6 +17,7 @@ import {
   useToggleHabitToday,
   useUpdateHabit,
 } from "@/lib/needt3/hooks/habits";
+import { useQuitGate } from "@/lib/needt3/hooks/habits-quit";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
@@ -85,7 +86,12 @@ export function useHabitsController(opts: HabitsControllerOptions) {
      state re-renders. */
   const busy = useRef(false);
 
-  const list = liveHabits(habits.data ?? []);
+  const live = liveHabits(habits.data ?? []);
+  // Quit habits draw their own cards (habits/quit); everything that counts
+  // days kept — the strip, "n of m kept", the months — is Do habits only.
+  const list = live.filter((h) => h.kind !== "QUIT");
+  const quitList = live.filter((h) => h.kind === "QUIT");
+  const quitGate = useQuitGate();
   const checkins = checkinsQuery.data ?? [];
   // The long read (124 days); until it arrives the cards' own fourteen.
   const history = historyQuery.data ?? checkins;
@@ -204,6 +210,8 @@ export function useHabitsController(opts: HabitsControllerOptions) {
     habits,
     checkinsQuery,
     list,
+    quitList,
+    quitGate,
     shown,
     over,
     all,

@@ -4,6 +4,8 @@ import { FREE_HABITS } from "../../../habits/derive";
 import {
   BLANK_HABIT_FORM,
   HABITS_PAYWALL_FEATURE,
+  type HabitForm,
+  SINCE_ERROR,
   TIME_ERROR,
   checkHabitForm,
   clockFacts,
@@ -173,6 +175,9 @@ describe("the habit form", () => {
       time: "07:30",
       perWeek: 5,
       projectId: null,
+      kind: "BUILD",
+      quitSince: "",
+      reason: "",
     });
   });
 });
@@ -209,5 +214,47 @@ describe("searchHabits", () => {
   it("is capped at five", () => {
     const many = Array.from({ length: 9 }, (_, i) => ({ title: `Walk ${i}` }));
     expect(searchHabits(many, "walk")).toHaveLength(5);
+  });
+});
+
+describe("a Quit habit in the form", () => {
+  const quit = (patch: Partial<HabitForm>): HabitForm => ({
+    ...BLANK_HABIT_FORM,
+    title: "Smoking",
+    kind: "QUIT",
+    ...patch,
+  });
+  const now = new Date("2026-11-04T12:00:00Z");
+
+  it("takes a past date and no time", () => {
+    expect(
+      checkHabitForm(quit({ quitSince: "2026-10-23T09:10" }), now).ok
+    ).toBe(true);
+    expect(checkHabitForm(quit({ quitSince: "", time: "nope" }), now).ok).toBe(
+      true
+    );
+  });
+
+  it("refuses a date in the future", () => {
+    const check = checkHabitForm(quit({ quitSince: "2027-01-01T00:00" }), now);
+    expect(check.ok).toBe(false);
+    expect(check.timeError).toBe(SINCE_ERROR);
+  });
+
+  it("writes kind, the quit date and the reason, and no schedule", () => {
+    const fields = formFields(
+      quit({ quitSince: "2026-10-23T09:10", reason: "  run the 10k  " })
+    );
+    expect(fields).toMatchObject({
+      title: "Smoking",
+      kind: "QUIT",
+      reason: "run the 10k",
+    });
+    expect("quitStartedAt" in fields).toBe(true);
+    expect("schedule" in fields).toBe(false);
+  });
+
+  it("leaves the date to the server when it is empty", () => {
+    expect("quitStartedAt" in formFields(quit({ quitSince: "" }))).toBe(false);
   });
 });

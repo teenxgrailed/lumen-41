@@ -48,6 +48,8 @@ const ctl = (n: number) => {
       refetch: jest.fn(),
     },
     list,
+    quitList: [],
+    quitGate: "off",
     shown: list,
     over: false,
     all: false,
