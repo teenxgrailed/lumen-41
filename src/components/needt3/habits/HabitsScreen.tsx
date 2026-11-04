@@ -664,6 +664,7 @@ export function HabitsScreen({
           <div className="hq-desk">
             <QuitLayer
               habits={ctl.quitList}
+              gate={ctl.quitGate}
               ctl={quit}
               phone={false}
               onUpgrade={onSeePro}

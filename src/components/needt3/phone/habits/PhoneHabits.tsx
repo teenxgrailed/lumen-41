@@ -677,6 +677,7 @@ export function PhoneHabits({
             <div className="hq-phone">
               <QuitLayer
                 habits={ctl.quitList}
+                gate={ctl.quitGate}
                 ctl={{ ...quit, pullId: null }}
                 phone
                 onUpgrade={seePro}
@@ -785,6 +786,7 @@ export function PhoneHabits({
         <div className="hq-phone hq-pull-layer">
           <QuitLayer
             habits={ctl.quitList}
+            gate={ctl.quitGate}
             ctl={quit}
             phone
             onUpgrade={seePro}

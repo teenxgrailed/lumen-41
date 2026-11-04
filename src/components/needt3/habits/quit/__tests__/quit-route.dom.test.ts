@@ -311,6 +311,36 @@ describe("Pulling", () => {
   });
 });
 
+describe("after a downgrade to Free", () => {
+  it("keeps the Quit habit readable and writes nothing", async () => {
+    mockGate = "upgrade";
+    mockPlanKind = "free";
+    render("phone");
+    expect(q('[data-hq-quit="q"]')).not.toBeNull();
+    click(q('[data-hq-pull="q"]'));
+    await flush();
+    // Breathing and the reason still run; nothing is logged.
+    expect(mockLogAsync).not.toHaveBeenCalled();
+    click(byText("Skip to my reason"));
+    click(byText("Next"));
+    click(q("[data-hq-passed]"));
+    click(byText("Done"));
+    expect(mockLog).not.toHaveBeenCalled();
+    expect(mockPatch).not.toHaveBeenCalled();
+  });
+
+  it("sends I slipped to Pro instead of writing a slip", () => {
+    mockGate = "upgrade";
+    mockPlanKind = "free";
+    render("phone");
+    click(q('[data-hq-quit="q"] .hq-row-open'));
+    click(q("[data-hq-slip]"));
+    expect(q(".hq-confirm")).toBeNull();
+    expect(mockLog).not.toHaveBeenCalled();
+    expect(usePhoneOverlays.getState().paywall).toBeTruthy();
+  });
+});
+
 describe("the Quit habit", () => {
   it("opens the detail with the run, the reason and what stays after a slip", () => {
     render("desktop");

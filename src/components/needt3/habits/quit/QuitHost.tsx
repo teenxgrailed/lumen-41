@@ -147,11 +147,18 @@ export function QuitList({
 export function QuitPullHost({
   habit,
   desk,
+  readOnly,
   onUpgrade,
   onClose,
 }: {
   habit: V3Habit;
   desk: boolean;
+  /**
+   * After a downgrade to Free a Quit habit stays readable but takes no new
+   * events: breathing and the reason still run, nothing is written, and the
+   * steps that would write lead to Pro.
+   */
+  readOnly: boolean;
   onUpgrade: () => void;
   onClose: () => void;
 }) {
@@ -169,10 +176,12 @@ export function QuitPullHost({
   // Logged once per press (a ref, so a development double effect does not
   // write it twice).
   if (!urge.current) {
-    urge.current = log
-      .mutateAsync({ habitId: habit.id, type: "URGE" })
-      .then((e) => e.id)
-      .catch(() => null);
+    urge.current = readOnly
+      ? Promise.resolve(null)
+      : log
+          .mutateAsync({ habitId: habit.id, type: "URGE" })
+          .then((e) => e.id)
+          .catch(() => null);
   }
 
   const patchUrge = (fields: {
@@ -190,7 +199,7 @@ export function QuitPullHost({
     // A held pull is written when the flow closes, with the trigger tapped
     // on the way, so the tag lands even where the pull itself cannot be
     // edited.
-    if (held.current) {
+    if (held.current && !readOnly) {
       const t = held.current.trigger;
       held.current = null;
       log.mutate({
@@ -218,7 +227,7 @@ export function QuitPullHost({
       best={summary?.bestStreak ?? 0}
       clean={summary?.totalCleanDays ?? 0}
       held={summary?.counts.RESISTED ?? 0}
-      pro={pro}
+      pro={pro && !readOnly}
       desk={desk}
       online={online}
       onHeld={() => {
@@ -229,16 +238,18 @@ export function QuitPullHost({
         patchUrge({ tag: t.tag, intensity: t.strength });
       }}
       onSlip={() =>
-        log.mutate(
-          { habitId: habit.id, type: "RELAPSE" },
-          {
-            onError: () =>
-              notify.error("Could not start again. Try once more."),
-          }
-        )
+        readOnly
+          ? onUpgrade()
+          : log.mutate(
+              { habitId: habit.id, type: "RELAPSE" },
+              {
+                onError: () =>
+                  notify.error("Could not start again. Try once more."),
+              }
+            )
       }
       onStill={() => {
-        if (!pro) {
+        if (!pro || readOnly) {
           onUpgrade();
           return;
         }
@@ -265,13 +276,18 @@ export function QuitPullHost({
 export function QuitDetail({
   habit,
   phone,
+  readOnly,
   onBack,
   onPull,
+  onUpgrade,
 }: {
   habit: V3Habit;
   phone: boolean;
+  /** Free after a downgrade: readable, and "I slipped" leads to Pro. */
+  readOnly: boolean;
   onBack: () => void;
   onPull: () => void;
+  onUpgrade: () => void;
 }) {
   const tz = useTimeZone();
   const summaryQ = useQuitSummary(habit.id);
@@ -368,7 +384,7 @@ export function QuitDetail({
             type="button"
             className="hq-btn is-text"
             data-hq-slip=""
-            onClick={() => setConfirm(true)}
+            onClick={() => (readOnly ? onUpgrade() : setConfirm(true))}
           >
             I slipped
           </button>
@@ -386,14 +402,17 @@ export function QuitDetail({
 export function QuitLayer({
   habits,
   ctl,
+  gate,
   phone,
   onUpgrade,
 }: {
   habits: readonly V3Habit[];
   ctl: QuitController;
+  gate: QuitGate;
   phone: boolean;
   onUpgrade: () => void;
 }) {
+  const readOnly = gate !== "on";
   const pulling = habits.find((h) => h.id === ctl.pullId) ?? null;
   const open = habits.find((h) => h.id === ctl.openId) ?? null;
   if (pulling)
@@ -402,6 +421,7 @@ export function QuitLayer({
         key={pulling.id}
         habit={pulling}
         desk={!phone}
+        readOnly={readOnly}
         onUpgrade={onUpgrade}
         onClose={() => ctl.pull(null)}
       />
@@ -411,8 +431,10 @@ export function QuitLayer({
       <QuitDetail
         habit={open}
         phone={phone}
+        readOnly={readOnly}
         onBack={() => ctl.open(null)}
         onPull={() => ctl.pull(open.id)}
+        onUpgrade={onUpgrade}
       />
     );
   return null;
