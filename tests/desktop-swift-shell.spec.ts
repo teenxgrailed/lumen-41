@@ -9,9 +9,22 @@ import {
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
+import { SETUP_PREF } from "@/components/needt3/connections/setup-keys";
+
 import { prisma } from "@/lib/prisma";
 
 import { createV3User, signInAs } from "./helpers/v3-user";
+
+/** Connections' first-visit setup, marked skipped in the person's settings. */
+async function markConnectionsSetupSeen(page: import("@playwright/test").Page) {
+  const cur = await page.request.get("/api/user-settings");
+  const row = (await cur.json().catch(() => ({}))) as {
+    prefs?: Record<string, unknown>;
+  };
+  await page.request.patch("/api/user-settings", {
+    data: { prefs: { ...(row.prefs ?? {}), [SETUP_PREF]: "skipped" } },
+  });
+}
 
 /**
  * The native Mac app (apps/macos) is a WKWebView on use.needt.app. Its bridge
@@ -539,10 +552,9 @@ for (const engine of ENGINES) {
 
         // Connections: the sky fills its box; title and subtitle are apart.
         // This account has nothing connected, so the first-visit setup would
-        // open over the hero; it is marked seen, the hero is what is checked.
-        await page.evaluate(() =>
-          localStorage.setItem("needt.cnSetup", JSON.stringify("skipped"))
-        );
+        // open over the hero; it is marked seen (the person's setting), the
+        // hero is what is checked.
+        await markConnectionsSetupSeen(page);
         await page.goto("/connections").catch(() => undefined);
         await page.locator("[data-cn-screen]").waitFor({ timeout: 60_000 });
         await page.waitForTimeout(3500);

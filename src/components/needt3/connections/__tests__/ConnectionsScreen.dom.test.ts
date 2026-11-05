@@ -69,6 +69,17 @@ jest.mock("@/store/needt3-ui", () => ({
 jest.mock("@/lib/notifications", () => ({
   notify: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
+/** The person's settings as the server keeps them (survives a sign-out). */
+const serverPrefs: { current: Record<string, unknown> } = { current: {} };
+jest.mock("@/lib/needt3/hooks/settings", () => ({
+  useSettings: () => ({
+    data: { prefs: serverPrefs.current, userId: "u1" },
+  }),
+  useSetPref: () => (key: string, value: unknown) => {
+    serverPrefs.current = { ...serverPrefs.current, [key]: value };
+    return Promise.resolve(null);
+  },
+}));
 
 type Cat =
   | "calendar"
@@ -204,8 +215,8 @@ beforeEach(() => {
   planKind = "monthly";
   window.localStorage.clear();
   window.sessionStorage.clear();
-  // The first-visit setup has its own suite (ConnectionsSetup.dom.test.ts).
-  window.localStorage.setItem("needt.cnSetup", JSON.stringify("skipped"));
+  // The first-visit setup has its own suite at the end of this file.
+  serverPrefs.current = { connectionsSetup: "skipped" };
   window.history.replaceState(null, "", "/");
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -951,19 +962,36 @@ describe("the first-visit setup", () => {
   const { startOAuth } = jest.requireMock("@/lib/needt3/hooks/catalog") as {
     startOAuth: jest.Mock;
   };
+  const RUN = "needt.cnSetupRun:u1";
   beforeEach(() => {
-    window.localStorage.removeItem("needt.cnSetup");
+    serverPrefs.current = {};
     startOAuth.mockReset();
     startOAuth.mockResolvedValue({ ok: true });
   });
   const step = () => $("[data-cs-setup]")?.dataset.csSetup ?? null;
   const pressed = () =>
     $$("[data-cs-tile][aria-pressed=true]").map((t) => t.dataset.csTile);
+  const remount = () => {
+    act(() => root.unmount());
+    root = createRoot(host);
+    render();
+  };
+  const esc = (target: Element = document.body) =>
+    act(() => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    });
 
-  it("opens on step 1 for an account with nothing connected", () => {
+  it("opens on step 1 for an account with nothing connected, heading focused", () => {
     render();
     expect(step()).toBe("1");
     expect(text(".cs-title")).toBe("Connect your day");
+    expect(document.activeElement).toBe($(".cs-title"));
     expect($("[data-cs-steps]").textContent).toContain("Step 1 of 3");
     // The screen's own sky, no second one.
     expect($$("[data-px-sky]")).toHaveLength(1);
@@ -973,24 +1001,60 @@ describe("the first-visit setup", () => {
     click($("[data-cs-tile=notion]"));
     expect(text("[data-cs-continue]")).toBe("Continue (4)");
   });
-  it("Skip for now is remembered and ends on Set up later", () => {
+  it("Skip for now is saved to the person's settings and survives a sign-out", () => {
     render();
     click($("[data-cs-skip]"));
     expect(step()).toBe("3");
     expect(text(".cs-title")).toBe("Set up later");
-    expect(window.localStorage.getItem("needt.cnSetup")).toBe(
-      JSON.stringify("skipped")
-    );
+    expect(serverPrefs.current.connectionsSetup).toBe("skipped");
     click($("[data-cs-go]"));
     expect(step()).toBeNull();
     expect($("[data-cn-card]")).not.toBeNull();
-    // Coming back does not open it again.
-    act(() => root.unmount());
-    root = createRoot(host);
-    render();
+    // Sign-out wipes the device's storage; the setting is on the server.
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    remount();
     expect(step()).toBeNull();
   });
-  it("step 2 connects through the card's own flow and remembers the run", async () => {
+  it("× leaves from any step as skipped, and gives the focus to Set up", async () => {
+    render();
+    click($("[data-cs-continue]"));
+    expect(step()).toBe("2");
+    click($("[data-cs-close]"));
+    expect(step()).toBeNull();
+    expect(serverPrefs.current.connectionsSetup).toBe("skipped");
+    expect(window.sessionStorage.getItem(RUN)).toBeNull();
+    await frame();
+    expect(document.activeElement).toBe($("[data-cn-setup-open]"));
+  });
+  it("Escape leaves it too; Escape in the search only clears the search", () => {
+    render();
+    const search = $("[data-cs-search]") as HTMLInputElement;
+    type(search, "zz");
+    esc(search);
+    expect(search.value).toBe("");
+    expect(step()).toBe("1");
+    esc();
+    expect(step()).toBeNull();
+    expect(serverPrefs.current.connectionsSetup).toBe("skipped");
+  });
+  it("Escape inside the iCloud form cancels the form (skips iCloud), not the setup", () => {
+    window.sessionStorage.setItem(
+      RUN,
+      JSON.stringify({
+        step: 2,
+        picked: ["icloud-calendar", "notion"],
+        skipped: [],
+      })
+    );
+    render();
+    expect($("[data-cs-card=icloud-calendar]").dataset.state).toBe("active");
+    esc($("[data-cs-caldav]"));
+    expect(step()).toBe("2");
+    expect($("[data-cs-card=icloud-calendar]").dataset.state).toBe("skipped");
+    expect(serverPrefs.current.connectionsSetup).toBeUndefined();
+  });
+  it("step 2 connects through the card's own flow and keeps the run under the person", async () => {
     render();
     click($("[data-cs-continue]"));
     expect(step()).toBe("2");
@@ -1003,13 +1067,13 @@ describe("the first-visit setup", () => {
     click($("[data-cs-connect]"));
     await flush();
     expect(startOAuth).toHaveBeenCalledWith("/api/calendar/google/auth");
-    expect(
-      JSON.parse(window.sessionStorage.getItem("needt.cnSetupRun") ?? "{}").step
-    ).toBe(2);
+    expect(JSON.parse(window.sessionStorage.getItem(RUN) ?? "{}").step).toBe(2);
+    // Not under a bare key another person on this device would resume.
+    expect(window.sessionStorage.getItem("needt.cnSetupRun")).toBeNull();
   });
   it("back from the provider it resumes step 2 with that source connected", () => {
     window.sessionStorage.setItem(
-      "needt.cnSetupRun",
+      RUN,
       JSON.stringify({
         step: 2,
         picked: ["google-calendar", "notion"],
@@ -1032,9 +1096,7 @@ describe("the first-visit setup", () => {
       "google-calendar",
     ]);
     click($("[data-cs-go]"));
-    expect(window.localStorage.getItem("needt.cnSetup")).toBe(
-      JSON.stringify("done")
-    );
+    expect(serverPrefs.current.connectionsSetup).toBe("done");
   });
   it("does not open when something is connected; Set up opens it", () => {
     accountsData = [acct({})];

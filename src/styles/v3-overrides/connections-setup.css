@@ -537,10 +537,14 @@
 }
 
 /* The phone: the setup over the whole screen, on its own sky layer. */
+/* z 55: over the phone nav (.nva 45) and ha-weather / state layers (40),
+   under Settings (59), sheets and the first-run onboarding (60). The AI
+   companion (500) stays above and steers clear of the marked action rows
+   (data-assistant-avoid). */
 .needt-v3 .cs-phone {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 55;
   overflow: hidden;
 }
 .needt-v3 .cs-phone > .px-sky,
@@ -615,4 +619,37 @@
   .needt-v3 .cs-dots {
     display: none;
   }
+}
+
+/* The way out, on every step. */
+.needt-v3 .cs-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--px-ink) 8%, transparent);
+  color: var(--px-ink-2);
+  cursor: default;
+}
+.needt-v3 .cs-close:hover {
+  color: var(--px-ink);
+  background: color-mix(in oklch, var(--px-ink) 14%, transparent);
+}
+.needt-v3 .cs-close:focus-visible,
+.needt-v3 .cs-title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.needt-v3 .cs-title:focus:not(:focus-visible) {
+  outline: none;
+}
+.needt-v3 .cs-phone .cs-close {
+  top: calc(env(safe-area-inset-top) + 12px);
 }

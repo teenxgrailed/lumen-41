@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 
 import type { CnItem } from "./derive";
+import { SETUP_PREF, setupRunKey } from "./setup-keys";
 
 /*
  * The first visit to Connections ("Connect your day", owner 05.11.26): pick
@@ -11,16 +14,15 @@ import type { CnItem } from "./derive";
  * Needt - Design/needt-app/additions-4/agents-variants/connections-setup.html.
  *
  * It opens by itself while a person has nothing connected and has not
- * skipped or finished it; "Set up" in the hero opens it again. Connecting
- * leaves the page for the provider, so the run (step and picks) lives in
- * sessionStorage and the screen comes back to step 2 on return; what is
- * connected is read from the real cards, never from the run.
+ * skipped or finished it; "Set up" in the hero opens it again. Whether it was
+ * skipped or finished is the person's setting (`prefs.connectionsSetup`, on
+ * the server), so it holds across sign-outs and devices. Connecting leaves
+ * the page for the provider, so the run (step and picks) lives in
+ * sessionStorage under the person's id, and the screen comes back to step 2
+ * on return; what is connected is read from the real cards, never the run.
  */
 
-/** "skipped" or "done": the setup does not open by itself again. */
-export const SETUP_SEEN_KEY = "needt.cnSetup";
-/** The run in progress: step and picks, for the round trip to a provider. */
-export const SETUP_RUN_KEY = "needt.cnSetupRun";
+export { SETUP_PREF, SETUP_RUN_KEY, setupRunKey } from "./setup-keys";
 
 export type SetupStep = 1 | 2 | 3;
 
@@ -141,60 +143,71 @@ export function listNames(names: readonly string[]) {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-function read<T>(store: () => Storage, key: string): T | null {
+function readRun(key: string): SetupRun | null {
   try {
-    const v = store().getItem(key);
-    return v ? (JSON.parse(v) as T) : null;
+    const v = window.sessionStorage.getItem(key);
+    const saved = v ? (JSON.parse(v) as Partial<SetupRun>) : null;
+    if (!saved || !Array.isArray(saved.picked)) return null;
+    return {
+      step: saved.step === 3 ? 3 : saved.step === 2 ? 2 : 1,
+      picked: saved.picked.filter((x) => typeof x === "string"),
+      skipped: Array.isArray(saved.skipped)
+        ? saved.skipped.filter((x) => typeof x === "string")
+        : [],
+    };
   } catch {
     return null;
   }
 }
-function write(store: () => Storage, key: string, value: unknown) {
+function writeRun(key: string, run: SetupRun | null) {
   try {
-    if (value === null) store().removeItem(key);
-    else store().setItem(key, JSON.stringify(value));
+    if (run) window.sessionStorage.setItem(key, JSON.stringify(run));
+    else window.sessionStorage.removeItem(key);
   } catch {
-    /* private mode: the setup lasts until reload */
+    /* private mode: the run lasts until reload */
   }
 }
-const local = () => window.localStorage;
-const session = () => window.sessionStorage;
 
 /**
  * The setup's state over the connections controller's cards. `run` is null
- * while it is closed.
+ * while it is closed. Nothing opens or comes back until both the cards and
+ * the person's settings are in, so step 2 never draws against an empty list.
  */
 export function useConnectionsSetup(items: readonly CnItem[], loaded: boolean) {
+  const settings = useSettings();
+  const setPref = useSetPref();
+  const userId = settings.data?.userId;
+  const seen = settings.data?.prefs?.[SETUP_PREF];
+  const ready = loaded && !!settings.data;
+  const key = setupRunKey(userId);
   const [run, setRunState] = useState<SetupRun | null>(null);
-  const [checked, setChecked] = useState(false);
+  const checked = useRef(false);
   const sources = useMemo(() => setupSources(items), [items]);
 
-  const setRun = useCallback((next: SetupRun | null) => {
-    setRunState(next);
-    write(session, SETUP_RUN_KEY, next);
-  }, []);
+  const setRun = useCallback(
+    (next: SetupRun | null) => {
+      setRunState(next);
+      writeRun(key, next);
+    },
+    [key]
+  );
 
   // A run in progress (back from a provider) comes back first; otherwise the
-  // setup opens once the cards are in, if nothing is connected.
+  // setup opens if nothing is connected and it was never dismissed.
   useEffect(() => {
-    if (checked) return;
-    const saved = read<SetupRun>(session, SETUP_RUN_KEY);
-    if (saved && Array.isArray(saved.picked)) {
-      setRunState({
-        step: saved.step === 3 ? 3 : saved.step === 2 ? 2 : 1,
-        picked: saved.picked.filter((s) => typeof s === "string"),
-        skipped: Array.isArray(saved.skipped) ? saved.skipped : [],
-      });
-      setChecked(true);
-      return;
-    }
-    if (!loaded) return;
-    setChecked(true);
-    const seen = read<string>(local, SETUP_SEEN_KEY);
-    if (shouldAutoOpen(items, loaded, seen))
+    if (checked.current || !ready) return;
+    checked.current = true;
+    const saved = readRun(key);
+    if (saved) return setRunState(saved);
+    if (shouldAutoOpen(items, ready, typeof seen === "string" ? seen : null))
       setRunState({ step: 1, picked: defaultPicks(sources), skipped: [] });
-  }, [checked, loaded, items, sources]);
+  }, [ready, key, items, sources, seen]);
 
+  const remember = useCallback(
+    (why: "skipped" | "done") =>
+      void setPref(SETUP_PREF, why).catch(() => null),
+    [setPref]
+  );
   const open = useCallback(
     () => setRun({ step: 1, picked: defaultPicks(sources), skipped: [] }),
     [setRun, sources]
@@ -202,14 +215,13 @@ export function useConnectionsSetup(items: readonly CnItem[], loaded: boolean) {
   /** Closes it for good: it does not open by itself again. */
   const close = useCallback(
     (why: "skipped" | "done") => {
-      write(local, SETUP_SEEN_KEY, why);
+      remember(why);
       setRun(null);
     },
-    [setRun]
+    [remember, setRun]
   );
-
   /** "Skip for now" on step 1: remembered, so it does not open by itself. */
-  const skip = useCallback(() => write(local, SETUP_SEEN_KEY, "skipped"), []);
+  const skip = useCallback(() => remember("skipped"), [remember]);
 
   return { run, setRun, sources, open, restart: open, skip, close };
 }

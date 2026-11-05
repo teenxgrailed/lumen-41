@@ -239,8 +239,6 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
-  // Connections' first-visit setup is not what these surfaces test.
-  window.localStorage.setItem("needt.cnSetup", JSON.stringify("skipped"));
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: (q: string) => ({

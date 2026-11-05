@@ -1,5 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
+import { SETUP_PREF } from "@/components/needt3/connections/setup-keys";
+
 import { VISUAL_TEST_NOW } from "./fixtures";
 import { signInVisualUser } from "./helpers";
 
@@ -13,8 +15,6 @@ async function prepare(page: Page, theme: "dark" | "light") {
   await page.addInitScript(() => {
     localStorage.setItem("needt:quick-tip:last-shown-at", "9999999999999");
     localStorage.setItem("needt-visit-count", "0");
-    localStorage.removeItem("needt.cnSetup");
-    sessionStorage.removeItem("needt.cnSetupRun");
   });
   await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
   const json = (body: unknown) => ({
@@ -43,6 +43,14 @@ async function prepare(page: Page, theme: "dark" | "light") {
     await r.fulfill({ response, json: { ...(body ?? {}), connections: [] } });
   });
   await signInVisualUser(page);
+  // The setup opens only while it was never skipped or finished.
+  const cur = await page.request.get("/api/user-settings");
+  const row = (await cur.json().catch(() => ({}))) as {
+    prefs?: Record<string, unknown>;
+  };
+  const prefs = { ...(row.prefs ?? {}) };
+  delete prefs[SETUP_PREF];
+  await page.request.patch("/api/user-settings", { data: { prefs } });
   const themeResponse = await page.request.patch("/api/user-settings", {
     data: { theme },
   });

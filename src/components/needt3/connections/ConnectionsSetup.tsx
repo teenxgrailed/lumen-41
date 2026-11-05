@@ -3,17 +3,19 @@
 import {
   type CSSProperties,
   type ReactNode,
+  type RefObject,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 
-import { FiArrowRight, FiCheck, FiSearch } from "react-icons/fi";
+import { FiArrowRight, FiCheck, FiSearch, FiX } from "react-icons/fi";
 
 import { BrandIcon, brandIdFor } from "../brand";
 import { GlassCard } from "../scenes";
 import { CalDavForm } from "./CalDavForm";
+import { refocus } from "./MoreMenu";
 import { type CnItem, connectPlan } from "./derive";
 import {
   type ConnectionsSetupState,
@@ -94,7 +96,9 @@ function Head({
     <div className="cs-head nx-swap" data-px-calm>
       <Steps step={step} />
       <span className="px-kicker">Sources</span>
-      <h1 className="px-display px-on-sky cs-title">{title}</h1>
+      <h1 className="px-display px-on-sky cs-title" tabIndex={-1}>
+        {title}
+      </h1>
       <p className="px-on-sky cs-line">{line}</p>
       {children}
     </div>
@@ -194,6 +198,8 @@ function PickStep({ s }: { s: ConnectionsSetupState }) {
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Escape" && q) {
+                // Clears the search only; the setup stays.
+                e.preventDefault();
                 e.stopPropagation();
                 setQ("");
               }
@@ -201,7 +207,7 @@ function PickStep({ s }: { s: ConnectionsSetupState }) {
           />
           <kbd className="cs-kbd">⌘K</kbd>
         </label>
-        <div className="cs-cta">
+        <div className="cs-cta" data-assistant-avoid="">
           <button
             type="button"
             className="nx-btn nx-btn-primary cs-btn"
@@ -292,7 +298,7 @@ function ConnectStep({
             />
           ))}
         </div>
-        <div className="cs-cta">
+        <div className="cs-cta" data-assistant-avoid="">
           <button
             type="button"
             className="nx-btn nx-btn-text cs-link"
@@ -394,7 +400,19 @@ function SourceCard({
       {open ? (
         <div className="cs-card-body">
           {caldav ? (
-            <CalDavForm onSuccess={onCalDav} onCancel={onSkip} />
+            // Escape in the form cancels the form (skips this source), not
+            // the whole setup.
+            <div
+              data-cs-caldav=""
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  onSkip();
+                }
+              }}
+            >
+              <CalDavForm onSuccess={onCalDav} onCancel={onSkip} />
+            </div>
           ) : (
             <p className="cs-card-p">{promise(item)}</p>
           )}
@@ -483,13 +501,13 @@ function DoneStep({
             : "Nothing is connected yet. You can add calendars, mail and apps any time from Connections."
         }
       >
-        <div className="cs-cta">
+        <div className="cs-cta" data-assistant-avoid="">
           <button
             type="button"
             className="nx-btn nx-btn-primary cs-btn"
             data-cs-go=""
             autoFocus
-            onClick={() => s.close(ok.length ? "done" : "skipped")}
+            onClick={() => exitSetup(s, c)}
           >
             Go to Connections
             <FiArrowRight size={15} aria-hidden />
@@ -509,9 +527,55 @@ function DoneStep({
 }
 
 /**
+ * Leaves the setup from any step (×, Escape, Go to Connections). On steps 1
+ * and 2 it counts as skipped; on step 3 as done when something got
+ * connected. Either way it does not open by itself again, and the focus goes
+ * back to the "Set up" that reopens it.
+ */
+export function exitSetup(s: ConnectionsSetupState, c: ConnectionsController) {
+  const run = s.run;
+  if (!run) return;
+  if (run.step === 3) {
+    const live = new Set(
+      c.items.filter((i) => i.state === "connected").map((i) => i.slug)
+    );
+    s.close(run.picked.some((slug) => live.has(slug)) ? "done" : "skipped");
+  } else {
+    s.skip();
+    s.setRun(null);
+  }
+  refocus("[data-cn-setup-open]", "[data-ppl-setup-open]");
+}
+
+/**
+ * While `on`, everything outside `ref` is inert (the phone's modal layer):
+ * each sibling along the path from the layer up to <body>. Restored after.
+ */
+export function useInertOutside(ref: RefObject<HTMLElement | null>, on = true) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!on || !el) return undefined;
+    const touched: HTMLElement[] = [];
+    for (let node: HTMLElement | null = el; node && node !== document.body; ) {
+      const parent: HTMLElement | null = node.parentElement;
+      if (!parent) break;
+      for (const sib of Array.from(parent.children)) {
+        if (sib === node || !(sib instanceof HTMLElement) || sib.inert)
+          continue;
+        sib.inert = true;
+        touched.push(sib);
+      }
+      node = parent;
+    }
+    return () => touched.forEach((n) => (n.inert = false));
+  }, [ref, on]);
+}
+
+/**
  * The setup itself, drawn on the sky the screen already has (the desktop
  * window's PxSky, or the phone's). Nothing here connects on its own: Connect
- * runs the card's own flow (OAuth, the CalDAV form, Composio).
+ * runs the card's own flow (OAuth, the CalDAV form, Composio). A × and
+ * Escape leave it from any step.
  */
 export function ConnectionsSetup({
   s,
@@ -520,9 +584,42 @@ export function ConnectionsSetup({
   s: ConnectionsSetupState;
   c: ConnectionsController;
 }) {
+  const root = useRef<HTMLDivElement>(null);
+  const step = s.run?.step ?? null;
+  // Each step starts with its heading focused (and read).
+  useEffect(() => {
+    if (step)
+      root.current
+        ?.querySelector<HTMLElement>(".cs-title")
+        ?.focus({ preventScroll: true });
+  }, [step]);
+  const latest = useRef({ s, c });
+  latest.current = { s, c };
+  useEffect(() => {
+    if (!step) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest?.("[data-cs-caldav]")) return;
+      e.preventDefault();
+      exitSetup(latest.current.s, latest.current.c);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [step]);
   if (!s.run) return null;
   return (
-    <div className="cs-root" data-cs-setup={s.run.step}>
+    <div className="cs-root" data-cs-setup={s.run.step} ref={root}>
+      <button
+        type="button"
+        className="cs-close"
+        aria-label="Close setup"
+        data-cs-close=""
+        data-assistant-avoid=""
+        onClick={() => exitSetup(s, c)}
+      >
+        <FiX size={16} aria-hidden />
+      </button>
       {s.run.step === 1 ? (
         <PickStep key="1" s={s} />
       ) : s.run.step === 2 ? (
