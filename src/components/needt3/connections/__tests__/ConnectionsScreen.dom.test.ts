@@ -680,6 +680,54 @@ describe("the AI tools tab", () => {
     });
     expect(rows()).toEqual(["default"]);
   });
+  it("Disconnect that fails on the network keeps the confirm open with a live button; success reads the list again", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    appsData = [
+      {
+        id: "g1",
+        clientName: "Claude",
+        scopes: ["needt.read"],
+        connectedAt: "2026-10-01T00:00:00Z",
+        lastUsedAt: null,
+      },
+    ];
+    render();
+    await flush();
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url: string, init?: object) => {
+      if (String(url).startsWith("/api/oauth/connected-apps/"))
+        throw new TypeError("Failed to fetch");
+      return base(url, init);
+    });
+    click($("[data-cn-more=app-g1]"));
+    click(document.body.querySelector("[data-cn-app-bye=g1]"));
+    const confirm = () =>
+      document.body.querySelector(
+        "[data-cn-app-confirm=g1]"
+      ) as HTMLButtonElement | null;
+    click(confirm());
+    await flush();
+    await flush();
+    expect(notify.error).toHaveBeenCalledWith(
+      "Could not disconnect Claude. Try again."
+    );
+    expect(confirm()).not.toBeNull();
+    expect(confirm()!.disabled).toBe(false);
+    // The network is back: it goes, and the list is read from the server.
+    fetchMock.mockImplementation(base);
+    const reads = () =>
+      fetchMock.mock.calls.filter((c) => c[0] === "/api/oauth/connected-apps")
+        .length;
+    const before = reads();
+    appsData = [];
+    click(confirm());
+    await flush();
+    await flush();
+    expect(confirm()).toBeNull();
+    expect(reads()).toBeGreaterThan(before);
+    expect($("[data-cn-apps-empty]")).not.toBeNull();
+  });
   it("Connected apps: an empty state, and a failed load offers Try again", async () => {
     planKind = "monthly";
     window.localStorage.setItem("needt.connections.tab", "ai");
@@ -737,6 +785,7 @@ describe("the AI tools tab", () => {
     expect(fetchMock).not.toHaveBeenCalledWith("/api/oauth/connected-apps/g1", {
       method: "DELETE",
     });
+    appsData = []; // what the server lists once the grant is revoked
     click(document.body.querySelector("[data-cn-app-confirm=g1]"));
     await flush();
     expect(fetchMock).toHaveBeenCalledWith("/api/oauth/connected-apps/g1", {

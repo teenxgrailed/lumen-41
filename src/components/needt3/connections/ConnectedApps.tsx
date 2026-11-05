@@ -236,9 +236,10 @@ export function ConnectedApps({
                 disabled={going}
                 onClick={async () => {
                   setGoing(true);
-                  await mcp.disconnectApp(bye);
+                  const ok = await mcp.disconnectApp(bye);
                   setGoing(false);
-                  setBye(null);
+                  // A failure keeps the confirm open, the button live again.
+                  if (ok) setBye(null);
                 }}
               >
                 Disconnect

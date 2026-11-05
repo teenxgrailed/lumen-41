@@ -549,9 +549,10 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
               onClick={async () => {
                 if (!B) return;
                 setAppGoing(true);
-                await c.mcp.disconnectApp(B);
+                const ok = await c.mcp.disconnectApp(B);
                 setAppGoing(false);
-                setAppBye(null);
+                // A failure keeps the confirm open, the button live again.
+                if (ok) setAppBye(null);
               }}
               data-ppl-app-confirm=""
             >

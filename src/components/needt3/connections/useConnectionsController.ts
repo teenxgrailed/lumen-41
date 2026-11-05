@@ -215,8 +215,9 @@ export function useConnectionsController() {
               ? await disconnectGoogleTasks(item.accountId)
               : await disconnectToolkit(item.accountId);
     setBusy(null);
-    setConfirm(null);
+    // A failure keeps the confirm open with its button live, to try again.
     if (!r.ok) return void notify.error(r.error);
+    setConfirm(null);
     notify.success(
       item.account && item.account !== item.name
         ? `${item.name} (${item.account}) disconnected`

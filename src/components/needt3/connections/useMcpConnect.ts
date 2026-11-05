@@ -129,14 +129,27 @@ export function useMcpConnect(enabled: boolean) {
     }
   };
 
-  const disconnectApp = async (app: ConnectedApp) => {
-    const r = await fetch(`/api/oauth/connected-apps/${app.id}`, {
-      method: "DELETE",
-    });
-    if (!r.ok)
-      return void notify.error(`Could not disconnect ${app.clientName}`);
+  /**
+   * Revokes one app. Never throws: a refused or failed request (offline
+   * included) says so and answers false, so a confirm can stay open and be
+   * tried again. On success the row goes at once and the list is read again
+   * from the server.
+   */
+  const disconnectApp = async (app: ConnectedApp): Promise<boolean> => {
+    try {
+      const r = await fetch(
+        `/api/oauth/connected-apps/${encodeURIComponent(app.id)}`,
+        { method: "DELETE" }
+      );
+      if (!r.ok) throw new Error(String(r.status));
+    } catch {
+      notify.error(`Could not disconnect ${app.clientName}. Try again.`);
+      return false;
+    }
     notify.success(`${app.clientName} disconnected`);
     setApps((cur) => cur?.filter((x) => x.id !== app.id) ?? null);
+    void load();
+    return true;
   };
 
   return {
