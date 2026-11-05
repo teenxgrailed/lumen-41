@@ -293,6 +293,8 @@ export function QuitPullHost({
       }}
       onSlip={async () => {
         if (readOnly) {
+          // Close first: the paywall cannot open under an inert page.
+          ctl.pull(null);
           onUpgrade();
           return false;
         }
@@ -305,6 +307,7 @@ export function QuitPullHost({
       }}
       onStill={() => {
         if (readOnly) {
+          ctl.pull(null);
           onUpgrade();
           return;
         }

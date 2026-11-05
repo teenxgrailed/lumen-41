@@ -80,8 +80,13 @@ export function QuitTrigger({
   const [text, setText] = useState("");
   const known = URGE_TAGS.some(([k]) => k === value?.tag);
   const strength = value?.strength ?? null;
+  // Enter or Esc, then the blur that follows: one write per entry.
+  const sent = useRef("");
   const commit = () => {
-    if (text.trim()) onChange({ tag: text.trim(), strength });
+    const t = text.trim();
+    if (!t || t === sent.current) return;
+    sent.current = t;
+    onChange({ tag: t, strength });
   };
   return (
     <div className="hq-trig">
@@ -237,6 +242,8 @@ export function QuitPull(p: QuitPullProps) {
     Math.max(0, newDate().getTime() - p.startedAt)
   );
   const [slipping, setSlipping] = useState(false);
+  // Said in the flow itself: the notice stack is inert while it is open.
+  const [slipFailed, setSlipFailed] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const live = useRef(p);
   live.current = p;
@@ -260,7 +267,16 @@ export function QuitPull(p: QuitPullProps) {
     root.current?.querySelector<HTMLElement>("[data-hq-focus]")?.focus();
   }, [step]);
 
-  const onKeyDown = (e: React.KeyboardEvent) => {
+  // On the document, so Esc and Tab work even when focus has fallen to
+  // <body> (a click on a non-focusable part of the flow). The "Other" field
+  // stops its own Esc before it gets here.
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => onKeyDown(e);
+    document.addEventListener("keydown", on);
+    return () => document.removeEventListener("keydown", on);
+  }, []);
+
+  function onKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") {
       e.preventDefault();
       // From the slip question Esc goes back a step, not out of the flow.
@@ -283,7 +299,7 @@ export function QuitPull(p: QuitPullProps) {
       e.preventDefault();
       first.focus();
     }
-  };
+  }
 
   const labelId = `hq-pull-${step}`;
   const close = (
@@ -334,7 +350,7 @@ export function QuitPull(p: QuitPullProps) {
           “{p.reason}”
           <small>
             {p.since ? `Since ${p.since}: ` : ""}
-            {p.run.days} {p.run.days === 1 ? "day" : "days"} without so far.
+            {p.days} {p.days === 1 ? "day" : "days"} without so far.
           </small>
         </div>
         <div className="acts">
@@ -404,14 +420,23 @@ export function QuitPull(p: QuitPullProps) {
           onConfirm={() => {
             if (slipping) return;
             setSlipping(true);
+            setSlipFailed(false);
+            const mine = p.startedAt;
             // Closes only once the slip is saved; on a failure the flow stays
-            // open and the hook has said why.
+            // open and says so. A pull started since is left alone.
             void p.onSlip().then((ok) => {
+              if (live.current.startedAt !== mine) return;
               setSlipping(false);
               if (ok) live.current.onClose();
+              else setSlipFailed(true);
             });
           }}
         />
+        {slipFailed ? (
+          <p className="hq-meta" role="alert" data-hq-slip-failed="">
+            Could not start again. Try once more.
+          </p>
+        ) : null}
       </>
     );
   else
@@ -448,7 +473,6 @@ export function QuitPull(p: QuitPullProps) {
       aria-modal="true"
       aria-labelledby={step === "slip" ? "hq-slip-q" : labelId}
       data-hq-step={step}
-      onKeyDown={onKeyDown}
     >
       {content}
     </div>

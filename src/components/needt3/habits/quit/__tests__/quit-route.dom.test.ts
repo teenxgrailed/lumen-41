@@ -349,8 +349,8 @@ describe("Pulling", () => {
     expect(q("[data-hq-still]")?.textContent).toContain("PRO");
     click(q("[data-hq-still]"));
     expect(usePhoneOverlays.getState().paywall).toBeTruthy();
-    // Breathing and the reason stay free: the flow is still open.
-    expect(q('[data-hq-step="ask"]')).not.toBeNull();
+    // The flow closes first, so the paywall is not under an inert page.
+    expect(q("[data-hq-step]")).toBeNull();
   });
 
   it("asks before a slip, writes it, and closes once it is saved", async () => {
@@ -383,6 +383,39 @@ describe("Pulling", () => {
     await flush();
     await flush();
     expect(q('[data-hq-step="slip"]')).not.toBeNull();
+    // Said in the flow: the notice stack is inert while it is open.
+    expect(q("[data-hq-slip-failed]")?.getAttribute("role")).toBe("alert");
+  });
+
+  it("makes the page inert while open and gives focus back to Pulling", () => {
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    render("desktop");
+    click(q('[data-hq-pull="q"]'));
+    expect(outside.inert).toBe(true);
+    expect(document.activeElement?.textContent).toBe(
+      "Stay with the breath for a minute."
+    );
+    click(byText("Skip to my reason"));
+    click(byText("Next"));
+    click(q('[aria-label="Close"]'));
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    expect(outside.inert).toBe(false);
+    expect(document.activeElement?.getAttribute("data-hq-pull")).toBe("q");
+  });
+
+  it("closes on Esc even when focus has fallen to the page", () => {
+    render("desktop");
+    click(q('[data-hq-pull="q"]'));
+    act(() => {
+      (document.activeElement as HTMLElement | null)?.blur();
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(q("[data-hq-step]")).toBeNull();
   });
 
   it("goes back a step on Esc from the slip question, and closes from the others", () => {
