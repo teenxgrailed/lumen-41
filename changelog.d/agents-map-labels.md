@@ -1,0 +1,1 @@
+- Agents Map: an agent's name no longer sits under a result pill on the right; it moves to the other side of its node.

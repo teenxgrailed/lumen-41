@@ -11,6 +11,7 @@ import {
   statsLine,
   worstStatus,
 } from "../map-scene";
+import { labelX } from "../map-scene";
 
 const NOW = Date.UTC(2026, 10, 5, 12);
 const day = (n: number) => new Date(NOW - n * 86_400_000).toISOString();
@@ -265,5 +266,16 @@ describe("buildMapScene", () => {
     expect(scene.pills.every((p) => p.anchor === -1)).toBe(true);
     expect(scene.pills.every((p) => p.y > 760 / 2)).toBe(true);
     expect(sceneSize(scene)).toBeLessThanOrEqual(MAP_BUDGET_PHONE);
+  });
+
+  it("moves an agent's label off a result pill, to the node's left", () => {
+    const pill = { x: 400, y: 100, w: 280, h: 64 };
+    const size = { w: 120, h: 22 };
+    // Clear of the pill: stays on the right.
+    expect(labelX(200, 100, size, [pill])).toBe(200);
+    // Its right side would run under the pill: flips left of the node.
+    expect(labelX(320, 110, size, [pill])).toBe(320 - 28 - 120);
+    // Above the pill: stays.
+    expect(labelX(320, 20, size, [pill])).toBe(320);
   });
 });

@@ -910,6 +910,31 @@ export function sceneSize(scene: MapScene) {
  * What a node says on hover. In presentation mode the owner's words go: a
  * task reads "Task", a thread "Thread"; agent names stay.
  */
+/**
+ * Where an agent's label goes: right of its node (x is that spot), or left
+ * of it when the right side would overlap a result pill.
+ */
+export function labelX(
+  x: number,
+  y: number,
+  size: { w: number; h: number },
+  pills: readonly { x: number; y: number; w: number; h: number }[]
+) {
+  const M = 8;
+  const hits = (lx: number) =>
+    pills.some(
+      (p) =>
+        lx < p.x + p.w + M &&
+        lx + size.w > p.x - M &&
+        y < p.y + p.h + M &&
+        y + size.h > p.y - M
+    );
+  if (!hits(x)) return x;
+  // x is 14 px right of the node: the same gap on the left.
+  const left = x - 28 - size.w;
+  return hits(left) ? x : left;
+}
+
 export function nodeLabel(node: MapNode, presentation: boolean) {
   if (!node.real || !node.label) return null;
   if (!presentation || node.kind === "agent") return node.label;
