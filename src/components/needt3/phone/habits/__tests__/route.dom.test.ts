@@ -40,6 +40,11 @@ const query = (data: unknown) => ({
   refetch: jest.fn(),
 });
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
+  usePathname: () => "/habits",
+  useSearchParams: () => new URLSearchParams(""),
+}));
 jest.mock("@/lib/needt3/hooks/habits", () => ({
   useHabits: () => query(mockHabits),
   useCheckins: () => query([]),

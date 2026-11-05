@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
 import { askNeedt } from "@/components/needt3/corner/ask-bridge";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
@@ -66,6 +68,17 @@ export function useQuitController() {
   const gate = useQuitGate();
   const log = useLogHabitEvent();
   const [openId, setOpenId] = useState<string | null>(null);
+  // `/habits?quit=<id>` (a milestone's Open) lands on that Quit habit, also
+  // when /habits is already open; the parameter is then taken off the URL so
+  // Back and a reload do not reopen it.
+  const router = useRouter();
+  const pathname = usePathname();
+  const deep = useSearchParams()?.get("quit") ?? null;
+  useEffect(() => {
+    if (!deep) return;
+    setOpenId(deep);
+    router.replace(pathname ?? "/habits", { scroll: false });
+  }, [deep, pathname, router]);
   const [session, setSession] = useState<PullSession | null>(null);
   const writes = useRef<{
     urge: Promise<string | null> | null;

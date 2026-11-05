@@ -6,6 +6,7 @@ import { AppIconHost } from "../app-icon/AppIconHost";
 import { ComposerHost } from "../composer/Composer";
 import { CornerLayer } from "../corner/CornerLayer";
 import { FocusHost } from "../focus/FocusHost";
+import { HabitPresenceHost } from "../habits/quit/HabitPresenceHost";
 import { NativePushHost } from "../push/NativePushHost";
 import { usePhoneUi } from "../root/phone-ui-context";
 import { SettingsSheet } from "../settings/SettingsSheet";
@@ -44,6 +45,9 @@ export function PermanentHosts() {
         <>
           <ComposerHost />
           <CornerLayer />
+          {/* Habits speaking up in the corner (behind habits_quit). Where
+              the island lives: the phone has none, its channel is the push. */}
+          <HabitPresenceHost />
         </>
       )}
     </>

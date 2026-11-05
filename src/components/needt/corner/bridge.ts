@@ -54,6 +54,11 @@ const pendingSurface = new Map<string, NoticeSurface>();
  * The provider calls this on mount, and with `null` on unmount. The island
  * is the default surface for callers that predate the toast.
  */
+/** True while a surface has a mounted receiver (the island: the desktop corner). */
+export function hasNoticeSink(surface: NoticeSurface): boolean {
+  return channels[surface].live !== null;
+}
+
 export function setNoticeSink(
   api: NoticeApi | null,
   surface: NoticeSurface = "island"

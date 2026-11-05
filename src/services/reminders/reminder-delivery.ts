@@ -124,6 +124,11 @@ export async function deliverPush(
     url: string;
     /** A Focus-ended push for a task: the service worker adds "Mark done". */
     taskId?: string;
+    /**
+     * Names the moment, so a repeat replaces the earlier notification
+     * (web: the tag; iOS: apns-collapse-id). The URL when absent.
+     */
+    tag?: string;
   }
 ) {
   if ("token" in subscription) {

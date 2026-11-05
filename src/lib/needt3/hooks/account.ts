@@ -129,6 +129,15 @@ export interface V3Alerts {
   quietEnd: string;
   digest: boolean;
   digestTime: string;
+  /** Habit presence (behind `habits_quit`): reminder at a habit's own time. */
+  habitReminders: boolean;
+  /** The evening check-in, and when ("HH:MM"). */
+  habitCheckin: boolean;
+  habitCheckinTime: string;
+  /** Quit milestones (1, 3, 7, 14, 30, 90, 365 days). */
+  habitMilestones: boolean;
+  /** "Been a while", once, after days without opening Needt. Off by default. */
+  habitReengage: boolean;
 }
 
 const ALERTS = [...qk.settings(), "alerts"] as const;
@@ -159,6 +168,11 @@ export function useAlerts() {
         quietEnd: row.quietEnd ?? "08:00",
         digest: row.digest ?? false,
         digestTime: row.digestTime ?? "08:00",
+        habitReminders: row.habitReminders ?? true,
+        habitCheckin: row.habitCheckin ?? true,
+        habitCheckinTime: row.habitCheckinTime ?? "21:00",
+        habitMilestones: row.habitMilestones ?? true,
+        habitReengage: row.habitReengage ?? false,
       };
     },
     staleTime: 5 * 60_000,

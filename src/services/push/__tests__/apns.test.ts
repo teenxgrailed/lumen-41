@@ -68,6 +68,21 @@ function transport(...answers: { status: number; reason?: string }[]) {
 }
 
 describe("deliverNativePush", () => {
+  it("sends a tag as apns-collapse-id, and none without one", async () => {
+    const tagged = transport({ status: 200 });
+    await deliverNativePush(
+      target,
+      { ...payload, tag: "rem:h1:2026-11-04" },
+      tagged.fn
+    );
+    expect(tagged.calls[0].headers["apns-collapse-id"]).toBe(
+      "rem:h1:2026-11-04"
+    );
+    const plain = transport({ status: 200 });
+    await deliverNativePush(target, payload, plain.fn);
+    expect(plain.calls[0].headers["apns-collapse-id"]).toBeUndefined();
+  });
+
   it("posts a signed alert to the production host", async () => {
     const { fn, calls } = transport({ status: 200 });
     await expect(deliverNativePush(target, payload, fn)).resolves.toBe(true);
