@@ -15,6 +15,7 @@ import {
 import { AIProvider } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     const redirectUri = getChatGptPlanRedirectUri();
     await prisma.$transaction([
       prisma.aIOAuthState.deleteMany({
-        where: { expiresAt: { lt: new Date() } },
+        where: { expiresAt: { lt: newDate() } },
       }),
       prisma.aIOAuthState.create({
         data: {
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
           stateHash: hashOAuthState(state),
           encryptedCodeVerifier: encryptSecret(codeVerifier),
           redirectUri,
-          expiresAt: new Date(Date.now() + aiOAuthStateTtlMs),
+          expiresAt: newDate(newDate().getTime() + aiOAuthStateTtlMs),
         },
       }),
     ]);

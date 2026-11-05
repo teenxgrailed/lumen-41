@@ -6,6 +6,7 @@ import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { logger } from "@/lib/logger";
 
 import { zodToJsonSchema } from "../../ops/json-schema";
+import { ChatGptPlanError } from "../chatgpt-plan/errors";
 import {
   getAgentToolDefinitions,
   validateAgentToolCall,
@@ -121,6 +122,11 @@ export interface AgentTurnResult {
   taskId: string | null;
   /** The turn stopped at `MAX_WRITES_PER_TURN` changes. */
   writeLimitReached: boolean;
+  /**
+   * The ChatGPT plan stopped answering partway through the turn. Everything
+   * above is what happened before it did; the caller adds the explanation.
+   */
+  providerStop: ChatGptPlanError | null;
 }
 
 interface TurnInput {
@@ -299,11 +305,12 @@ export async function runAgentTurn(input: TurnInput): Promise<AgentTurnResult> {
   let pending: PendingConfirmation | null = null;
   let writes = 0;
   let writeLimitReached = false;
+  let providerStop: ChatGptPlanError | null = null;
 
   try {
     for (
       let step = 0;
-      step < MAX_AGENT_STEPS && !pending && !writeLimitReached;
+      step < MAX_AGENT_STEPS && !pending && !writeLimitReached && !providerStop;
       step += 1
     ) {
       if (input.signal?.aborted) break;
@@ -314,19 +321,26 @@ export async function runAgentTurn(input: TurnInput): Promise<AgentTurnResult> {
         arguments: Record<string, unknown>;
         rawArguments: string;
       }> = [];
-      for await (const event of ai.streamTurn({
-        systemPrompt: input.systemPrompt,
-        messages,
-        tools: step === MAX_AGENT_STEPS - 1 ? [] : tools,
-      })) {
-        if (event.type === "text") {
-          const prefix = stepText ? "" : tail(text);
-          stepText += event.value;
-          text += prefix + event.value;
-          input.emit({ type: "token", value: prefix + event.value });
-        } else {
-          calls.push(event);
+      try {
+        for await (const event of ai.streamTurn({
+          systemPrompt: input.systemPrompt,
+          messages,
+          tools: step === MAX_AGENT_STEPS - 1 ? [] : tools,
+        })) {
+          if (event.type === "text") {
+            const prefix = stepText ? "" : tail(text);
+            stepText += event.value;
+            text += prefix + event.value;
+            input.emit({ type: "token", value: prefix + event.value });
+          } else {
+            calls.push(event);
+          }
         }
+      } catch (error) {
+        // The plan ran out partway through: keep what was done and said.
+        if (!(error instanceof ChatGptPlanError)) throw error;
+        providerStop = error;
+        break;
       }
       if (!calls.length) break;
 
@@ -435,6 +449,7 @@ export async function runAgentTurn(input: TurnInput): Promise<AgentTurnResult> {
     changed,
     taskId,
     writeLimitReached,
+    providerStop,
   };
 }
 
@@ -490,5 +505,6 @@ export async function runConfirmedToolCall(
     changed: outcome.changed,
     taskId: outcome.taskId ?? null,
     writeLimitReached: false,
+    providerStop: null,
   };
 }

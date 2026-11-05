@@ -1,3 +1,4 @@
+import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 
 import { parseStrictJson } from "../json";
@@ -69,7 +70,7 @@ const END_STATE: Record<string, AiProviderReport["state"]> = {
  * Needt AI on the person's own ChatGPT plan, through the Responses API.
  *
  * Fallback rule: when the plan cannot answer (limit, revoked, ineligible,
- * auth, unavailable) and nothing has been yielded yet, the request moves to
+ * auth, unavailable) and nothing has been yielded yet in the whole turn, the request moves to
  * `options.fallback` (the person's own key, else the hosted quota) and the
  * report says whether that was charged. Once text has been yielded the
  * request cannot move; the failure ends the turn and the report carries the
@@ -79,13 +80,21 @@ export class ChatGptPlanProvider implements SchedulerAI {
   name = "ChatGPT plan";
   private fallbackAi: SchedulerAI | null = null;
   private planDown = false;
+  /**
+   * Whether anything reached the caller in this turn. The agent loop calls
+   * `streamTurn` once per step, so this lives on the instance: a later step
+   * that hits the limit must end the turn cleanly, not restart on Needt AI
+   * after text or tool calls were already shown.
+   */
+  private yieldedAny = false;
 
   constructor(private options: ChatGptPlanProviderOptions) {}
 
   private async model(accessToken: string): Promise<string> {
     if (this.options.config.model) return this.options.config.model;
     const cached = models.get(this.options.userId);
-    if (cached && Date.now() - cached.at < MODEL_TTL_MS) return cached.slug;
+    if (cached && newDate().getTime() - cached.at < MODEL_TTL_MS)
+      return cached.slug;
     let response: Response;
     try {
       response = await fetch(CHATGPT_PLAN_MODELS_URL, {
@@ -103,7 +112,10 @@ export class ChatGptPlanProvider implements SchedulerAI {
         m?.visibility === "list" && typeof m.slug === "string"
     );
     if (!first) throw new ChatGptPlanError("other", "No model is available");
-    models.set(this.options.userId, { slug: first.slug, at: Date.now() });
+    models.set(this.options.userId, {
+      slug: first.slug,
+      at: newDate().getTime(),
+    });
     return first.slug as string;
   }
 
@@ -229,13 +241,12 @@ export class ChatGptPlanProvider implements SchedulerAI {
       yield* this.fallbackAi.streamTurn(input);
       return;
     }
-    let yielded = false;
     try {
       if (this.planDown) {
         throw new ChatGptPlanError("limit", "Plan unavailable for this turn");
       }
       for await (const event of this.planTurn(input)) {
-        yielded = true;
+        this.yieldedAny = true;
         yield event;
       }
       return;
@@ -249,7 +260,7 @@ export class ChatGptPlanProvider implements SchedulerAI {
       );
       const reason = REPORT_REASON[error.kind];
       const state = END_STATE[error.kind];
-      if (yielded || !FALLBACK_KINDS.has(error.kind) || !reason) {
+      if (this.yieldedAny || !FALLBACK_KINDS.has(error.kind) || !reason) {
         this.options.report.used = "none";
         if (state) this.options.report.state = state;
         throw error;

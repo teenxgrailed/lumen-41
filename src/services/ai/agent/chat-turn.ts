@@ -44,6 +44,21 @@ const PLAN_LIMIT_TEXT =
 const PLAN_RECONNECT_TEXT =
   "Your ChatGPT connection needs to be renewed. Reconnect it in settings. Nothing was charged to your Needt AI.";
 
+const PLAN_STOPPED_TEXT =
+  "Your ChatGPT plan stopped answering, so I stopped. Nothing was charged to your Needt AI.";
+
+/** What to tell the person when the plan could not finish, by end state. */
+function planStopText(
+  report?: AiProviderReport | null,
+  otherwise: string = PLAN_STOPPED_TEXT
+) {
+  return report?.state === "plan_limit_reached"
+    ? PLAN_LIMIT_TEXT
+    : report?.state === "reconnect_required"
+      ? PLAN_RECONNECT_TEXT
+      : otherwise;
+}
+
 /** A copy, so a later change to the live report cannot alter a sent event. */
 function snapshot(report?: AiProviderReport | null) {
   return report ? JSON.parse(JSON.stringify(report)) : undefined;
@@ -103,14 +118,20 @@ export function agentChatResponse(input: AgentChatInput): Response {
       }
 
       let text = result?.text.trim() ? result.text : "";
-      if (!text) {
+      if (result?.providerStop) {
+        // The plan stopped partway: keep what was said and done, then say why.
+        if (!text && result.actions.length) {
+          text = result.actions.map((action) => `${action.label}.`).join(" ");
+          emit({ type: "token", value: text });
+        }
+        const separator = text && !/\n\s*$/.test(text) ? "\n\n" : "";
+        const note = planStopText(input.providerReport);
+        text += separator + note;
+        emit({ type: "token", value: separator + note });
+      } else if (!text) {
         text = result?.actions.length
           ? result.actions.map((action) => `${action.label}.`).join(" ")
-          : input.providerReport?.state === "plan_limit_reached"
-            ? PLAN_LIMIT_TEXT
-            : input.providerReport?.state === "reconnect_required"
-              ? PLAN_RECONNECT_TEXT
-              : FAILED;
+          : planStopText(input.providerReport, FAILED);
         emit({ type: "token", value: text });
       }
 

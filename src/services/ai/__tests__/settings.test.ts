@@ -1,7 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
+import { chatGptPlanAvailable } from "../chatgpt-plan/config";
+import { getChatGptPlanAccessToken } from "../chatgpt-plan/oauth";
+import { ChatGptPlanProvider } from "../chatgpt-plan/provider";
 import { createSchedulerAI } from "../providers";
-import { getPreparedSchedulerAI } from "../settings";
+import {
+  getConfiguredSchedulerAI,
+  getPreparedSchedulerAI,
+  slowHostedConfig,
+} from "../settings";
 import { waitForHostedAiSlot } from "../slow-queue";
 import {
   claimHostedAiAction,
@@ -23,6 +30,16 @@ jest.mock("../encryption", () => ({
 jest.mock("../oauth", () => ({
   getCustomAIOAuthAccessToken: jest.fn(),
   getCustomAIOAuthConfig: jest.fn(),
+}));
+jest.mock("../chatgpt-plan/config", () => ({
+  CHATGPT_PLAN_MANAGE_USAGE_URL: "https://chatgpt.example/usage",
+  chatGptPlanAvailable: jest.fn(),
+}));
+jest.mock("../chatgpt-plan/oauth", () => ({
+  getChatGptPlanAccessToken: jest.fn(),
+}));
+jest.mock("../chatgpt-plan/provider", () => ({
+  ChatGptPlanProvider: jest.fn().mockImplementation((options) => ({ options })),
 }));
 jest.mock("../providers", () => ({
   createSchedulerAI: jest.fn((config) => ({ config })),
@@ -168,4 +185,88 @@ describe("prepared scheduler AI", () => {
     expect(claimHostedAiAction).not.toHaveBeenCalled();
     expect(releaseHostedAiAction).not.toHaveBeenCalled();
   });
+});
+
+describe("ChatGPT plan fallback and the default path", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    process.env.NEEDT_AI_API_KEY = "hosted-key";
+    jest
+      .mocked(prisma.aISettings.upsert)
+      .mockResolvedValue(baseSettings as never);
+    jest.mocked(waitForHostedAiSlot).mockResolvedValue(undefined);
+    jest.mocked(getHostedAiUsage).mockResolvedValue({
+      plan: "PRO",
+      allowed: true,
+      mode: "normal",
+      slowMode: false,
+    } as never);
+    jest
+      .mocked(chatGptPlanAvailable)
+      .mockResolvedValue({ clientId: "client" } as never);
+    jest
+      .mocked(getChatGptPlanAccessToken)
+      .mockResolvedValue({ ok: true, accessToken: "t", expiresAt: null });
+  });
+
+  function fallbackOf() {
+    const options = jest.mocked(ChatGptPlanProvider).mock.calls[0][0];
+    return options.fallback!;
+  }
+
+  it("caps the hosted fallback answer in slow mode", async () => {
+    await getConfiguredSchedulerAI("user-1", { provider: "chatgpt_plan" });
+    jest.mocked(claimHostedAiAction).mockResolvedValue({
+      claimed: true,
+      mode: "slow",
+      yearMonth: "2026-11",
+    } as never);
+
+    const fallback = await fallbackOf()();
+
+    expect(fallback?.charged).toBe(true);
+    expect(waitForHostedAiSlot).toHaveBeenCalledWith("user-1");
+    expect(createSchedulerAI).toHaveBeenLastCalledWith(
+      expect.objectContaining({ apiKey: "hosted-key", maxTokens: 600 })
+    );
+  });
+
+  it("does not cap the hosted fallback answer in normal mode", async () => {
+    await getConfiguredSchedulerAI("user-1", { provider: "chatgpt_plan" });
+    jest.mocked(claimHostedAiAction).mockResolvedValue({
+      claimed: true,
+      mode: "normal",
+      yearMonth: "2026-11",
+    } as never);
+
+    await fallbackOf()();
+
+    expect(waitForHostedAiSlot).not.toHaveBeenCalled();
+    expect(createSchedulerAI).toHaveBeenLastCalledWith(
+      expect.not.objectContaining({ maxTokens: expect.anything() })
+    );
+  });
+
+  it("builds the slow config in one place", () => {
+    expect(
+      slowHostedConfig({ requestTimeoutSeconds: 20, soulPreset: "coach" })
+    ).toMatchObject({
+      provider: "OPENAI",
+      maxTokens: 600,
+      timeoutMs: 20_000,
+      soulPreset: "coach",
+    });
+  });
+
+  it.each([[undefined], [{}], [{ provider: "needt" as const }]])(
+    "resolves exactly as before without provider=chatgpt_plan (%j)",
+    async (options) => {
+      const result = await getConfiguredSchedulerAI("user-1", options as never);
+      expect(chatGptPlanAvailable).not.toHaveBeenCalled();
+      expect(getChatGptPlanAccessToken).not.toHaveBeenCalled();
+      expect(ChatGptPlanProvider).not.toHaveBeenCalled();
+      expect(result.providerReport).toBeNull();
+      expect(result.source).toBe("hosted");
+    }
+  );
 });

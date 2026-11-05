@@ -8,11 +8,13 @@ import {
   getChatGptPlanAccessToken,
   nonceFromState,
   parseTokenResponse,
+  resetJwksCache,
+  safeDecrypt,
   verifyChatGptIdToken,
 } from "../oauth";
 
 const tx = {
-  $executeRaw: jest.fn(),
+  $queryRaw: jest.fn(),
   aIOAuthConnection: {
     findUnique: jest.fn(),
     update: jest.fn(),
@@ -21,7 +23,7 @@ const tx = {
 };
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    aIOAuthConnection: { findUnique: jest.fn() },
+    aIOAuthConnection: { findUnique: jest.fn(), updateMany: jest.fn() },
     $transaction: jest.fn((fn: (t: unknown) => unknown) => fn(tx)),
   },
 }));
@@ -30,8 +32,10 @@ jest.mock("@/lib/feature-flags", () => ({
 }));
 jest.mock("../../encryption", () => ({
   encryptSecret: (v: string) => `enc(${v})`,
-  decryptSecret: (v: string | null) =>
-    v ? v.replace(/^enc\((.*)\)$/, "$1") : null,
+  decryptSecret: (v: string | null) => {
+    if (v === "corrupt") throw new Error("bad ciphertext");
+    return v ? v.replace(/^enc\((.*)\)$/, "$1") : null;
+  },
 }));
 
 const config = { clientId: "client-1" };
@@ -156,6 +160,23 @@ describe("ID token check", () => {
       verifyChatGptIdToken(sign({ ...good(), ...over }), expected, [jwk])
     ).rejects.toThrow();
   });
+  it.each(["HS256", "none"])("rejects alg %s", async (alg) => {
+    const enc = (o: unknown) =>
+      Buffer.from(JSON.stringify(o)).toString("base64url");
+    const head = enc({ alg, kid: "k1" });
+    const body = enc(good());
+    const secret = Buffer.from(JSON.stringify(jwk));
+    const sig =
+      alg === "none"
+        ? ""
+        : crypto
+            .createHmac("sha256", secret)
+            .update(`${head}.${body}`)
+            .digest("base64url");
+    await expect(
+      verifyChatGptIdToken(`${head}.${body}.${sig}`, expected, [jwk])
+    ).rejects.toThrow();
+  });
   it("rejects a forged signature", async () => {
     const other = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
     await expect(
@@ -164,11 +185,113 @@ describe("ID token check", () => {
   });
 });
 
+const DO_NOT_FAKE = [
+  "hrtime",
+  "nextTick",
+  "performance",
+  "queueMicrotask",
+  "requestAnimationFrame",
+  "cancelAnimationFrame",
+  "requestIdleCallback",
+  "cancelIdleCallback",
+  "setImmediate",
+  "clearImmediate",
+  "setInterval",
+  "clearInterval",
+  "setTimeout",
+  "clearTimeout",
+];
+
+describe("JWKS rotation", () => {
+  const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+  });
+  const newKey = { ...publicKey.export({ format: "jwk" }), kid: "k2" };
+  const oldKey = {
+    ...crypto
+      .generateKeyPairSync("rsa", { modulusLength: 2048 })
+      .publicKey.export({ format: "jwk" }),
+    kid: "k1",
+  };
+  function token() {
+    const enc = (o: unknown) =>
+      Buffer.from(JSON.stringify(o)).toString("base64url");
+    const head = enc({ alg: "RS256", kid: "k2" });
+    const body = enc({
+      iss: "https://auth.openai.com",
+      aud: "client-1",
+      exp: Math.floor(Date.now() / 1000) + 600,
+      sub: "sub-1",
+      nonce: "n1",
+    });
+    const sig = crypto
+      .sign("RSA-SHA256", Buffer.from(`${head}.${body}`), privateKey)
+      .toString("base64url");
+    return `${head}.${body}.${sig}`;
+  }
+  function discovery(keys: unknown[]) {
+    const reply = (body: unknown) =>
+      new Response(JSON.stringify(body), { status: 200 });
+    global.fetch = jest.fn(async (url: string | URL | Request) =>
+      String(url).includes("openid-configuration")
+        ? reply({
+            issuer: "https://auth.openai.com",
+            jwks_uri: "https://auth.openai.com/.well-known/jwks.json",
+          })
+        : reply({ keys })
+    ) as unknown as typeof fetch;
+  }
+  beforeEach(() => resetJwksCache());
+
+  const keyFetches = () =>
+    (global.fetch as jest.Mock).mock.calls.filter(([url]) =>
+      String(url).includes("jwks")
+    ).length;
+  const check = () =>
+    verifyChatGptIdToken(token(), { clientId: "client-1", nonce: "n1" });
+
+  afterEach(() => jest.useRealTimers());
+
+  it("refetches once on an unknown kid in a cached set, after the window", async () => {
+    jest.useFakeTimers({ doNotFake: DO_NOT_FAKE as never, now: new Date() });
+    discovery([oldKey]);
+    // The first load is fresh, so an unknown kid there is not a rotation.
+    await expect(check()).rejects.toThrow();
+    expect(keyFetches()).toBe(1);
+
+    jest.setSystemTime(Date.now() + 2 * 60 * 1000);
+    discovery([oldKey, newKey]);
+    await expect(check()).resolves.toMatchObject({ subject: "sub-1" });
+    expect(keyFetches()).toBe(1);
+  });
+
+  it("does not refetch again within a minute for a kid that stays unknown", async () => {
+    jest.useFakeTimers({ doNotFake: DO_NOT_FAKE as never, now: new Date() });
+    discovery([oldKey]);
+    await expect(check()).rejects.toThrow();
+    await expect(check()).rejects.toThrow();
+    await expect(check()).rejects.toThrow();
+    expect(keyFetches()).toBe(1);
+  });
+});
+
+describe("safeDecrypt", () => {
+  it("reads a damaged secret as absent instead of throwing", () => {
+    expect(safeDecrypt("corrupt")).toBeNull();
+    expect(safeDecrypt("enc(x)")).toBe("x");
+    expect(safeDecrypt(null)).toBeNull();
+  });
+});
+
 describe("refresh", () => {
   const prev = process.env.OPENAI_SIWC_CLIENT_ID;
   beforeEach(() => {
     process.env.OPENAI_SIWC_CLIENT_ID = "client-1";
     jest.clearAllMocks();
+    tx.$queryRaw.mockResolvedValue([{ locked: true }]);
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      (fn: (t: unknown) => unknown) => fn(tx)
+    );
   });
   afterAll(() => {
     process.env.OPENAI_SIWC_CLIENT_ID = prev;
@@ -196,7 +319,7 @@ describe("refresh", () => {
     });
     const result = await getChatGptPlanAccessToken("u1");
     expect(result).toMatchObject({ ok: true, accessToken: "new-access" });
-    expect(tx.$executeRaw).toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalled();
     expect(tx.aIOAuthConnection.update.mock.calls[0][0].data).toMatchObject({
       encryptedAccessToken: "enc(new-access)",
       encryptedRefreshToken: "enc(new-refresh)",
@@ -251,6 +374,118 @@ describe("refresh", () => {
       reason: "unavailable",
     });
     expect(tx.aIOAuthConnection.delete).not.toHaveBeenCalled();
+  });
+
+  it("saves the rotated tokens again when the commit fails after OpenAI rotated", async () => {
+    findUnique.mockResolvedValue(row());
+    tx.aIOAuthConnection.findUnique.mockResolvedValue(row());
+    tokenReply({
+      access_token: "new-access",
+      refresh_token: "new-refresh",
+      expires_in: 3600,
+    });
+    // The work runs, then the commit itself fails.
+    (prisma.$transaction as jest.Mock).mockImplementationOnce(
+      async (fn: (t: unknown) => unknown) => {
+        await fn(tx);
+        throw new Error("commit failed");
+      }
+    );
+    const result = await getChatGptPlanAccessToken("u1");
+    expect(result).toMatchObject({ ok: true, accessToken: "new-access" });
+    const retry = (prisma.aIOAuthConnection.updateMany as jest.Mock).mock
+      .calls[0][0];
+    // Only if the row still holds the token we rotated away from.
+    expect(retry.where).toEqual({
+      id: "c1",
+      encryptedRefreshToken: "enc(old-refresh)",
+    });
+    expect(retry.data).toMatchObject({
+      encryptedAccessToken: "enc(new-access)",
+      encryptedRefreshToken: "enc(new-refresh)",
+    });
+  });
+
+  it("still returns the access token when the second save fails too", async () => {
+    findUnique.mockResolvedValue(row());
+    tx.aIOAuthConnection.findUnique.mockResolvedValue(row());
+    tokenReply({
+      access_token: "new-access",
+      refresh_token: "new-refresh",
+      expires_in: 3600,
+    });
+    (prisma.$transaction as jest.Mock).mockImplementationOnce(
+      async (fn: (t: unknown) => unknown) => {
+        await fn(tx);
+        throw new Error("commit failed");
+      }
+    );
+    (prisma.aIOAuthConnection.updateMany as jest.Mock).mockRejectedValueOnce(
+      new Error("db down")
+    );
+    await expect(getChatGptPlanAccessToken("u1")).resolves.toMatchObject({
+      ok: true,
+      accessToken: "new-access",
+    });
+  });
+
+  it("polls for the lock instead of waiting inside the transaction", async () => {
+    findUnique.mockResolvedValue(row());
+    tx.aIOAuthConnection.findUnique.mockResolvedValue(
+      row({
+        encryptedAccessToken: "enc(their-access)",
+        encryptedRefreshToken: "enc(their-refresh)",
+        expiresAt: new Date(Date.now() + 3_600_000),
+      })
+    );
+    tx.$queryRaw
+      .mockResolvedValueOnce([{ locked: false }])
+      .mockResolvedValueOnce([{ locked: true }]);
+    global.fetch = jest.fn();
+    await expect(getChatGptPlanAccessToken("u1")).resolves.toMatchObject({
+      ok: true,
+      accessToken: "their-access",
+    });
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+    expect(tx.aIOAuthConnection.findUnique).toHaveBeenCalledTimes(1);
+    const options = (prisma.$transaction as jest.Mock).mock.calls[0][1];
+    expect(options.timeout).toBeGreaterThan(10_000);
+  });
+
+  it("treats an undecryptable refresh token as revoked and clears it", async () => {
+    findUnique.mockResolvedValue(row({ encryptedRefreshToken: "corrupt" }));
+    tx.aIOAuthConnection.findUnique.mockResolvedValue(
+      row({ encryptedRefreshToken: "corrupt" })
+    );
+    await expect(getChatGptPlanAccessToken("u1")).resolves.toEqual({
+      ok: false,
+      reason: "revoked",
+    });
+    expect(tx.aIOAuthConnection.delete).toHaveBeenCalled();
+  });
+
+  it("falls back to a refresh when the stored access token cannot be decrypted", async () => {
+    findUnique.mockResolvedValue(
+      row({
+        encryptedAccessToken: "corrupt",
+        expiresAt: new Date(Date.now() + 3_600_000),
+      })
+    );
+    tx.aIOAuthConnection.findUnique.mockResolvedValue(
+      row({
+        encryptedAccessToken: "corrupt",
+        expiresAt: new Date(Date.now() + 3_600_000),
+      })
+    );
+    tokenReply({
+      access_token: "new-access",
+      refresh_token: "new-refresh",
+      expires_in: 3600,
+    });
+    await expect(getChatGptPlanAccessToken("u1")).resolves.toMatchObject({
+      ok: true,
+      accessToken: "new-access",
+    });
   });
 
   it("is not connected without the client id", async () => {

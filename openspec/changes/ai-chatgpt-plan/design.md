@@ -20,11 +20,18 @@ What was relied on, in the docs' words where short:
 ## Decisions
 
 1. **One seam, one param.** `provider` (`needt` | `chatgpt_plan`) on `/api/ai/chat`; `getConfiguredSchedulerAI(userId, {provider})` returns today's result unless the plan is asked for and available. `ChatGptPlanProvider` implements `SchedulerAI` (`streamTurn`, `streamChat`), so the agent loop is unchanged. Other AI routes keep Needt AI.
-2. **Fallback only before the first event.** Text already shown cannot be unsaid and tool calls only come after `response.completed`, so a failure after the first yielded event ends the turn in a clear state. Before it, the fallback is the person's own key (free to Needt, `charged:false`) else the hosted quota (`claimHostedAiAction`, `charged:true`). The wait lane for slow mode is kept.
+2. **Fallback only before the first event of the whole turn.** The agent loop calls `streamTurn` once per step, so "yielded anything" is tracked per provider instance (per turn), not per call. Text already shown cannot be unsaid and tool calls only come after `response.completed`, so a failure after anything was yielded in any earlier step ends the turn in a clear state: `runAgentTurn` returns what was said and done (with `providerStop`), and the chat appends the limit note to the partial answer. A fallback answer in slow mode is capped like any slow-mode answer (`slowHostedConfig`). Before it, the fallback is the person's own key (free to Needt, `charged:false`) else the hosted quota (`claimHostedAiAction`, `charged:true`). The wait lane for slow mode is kept.
 3. **Free.** Production sets `NEEDT_AI_FREE_ACTION_CAP` so Free has no hosted AI; the fallback just asks the hosted quota, so Free sees `plan_limit_reached`.
 4. **Tokens** reuse `AIOAuthConnection` (new `CHATGPT_PLAN` provider, `accountLabel`) and `AIOAuthState`, encrypted with `AI_ENCRYPTION_KEY`. The nonce is derived from the one-use `state`, so no state column is needed.
 5. **No `jose`.** It is not a declared dependency, so the ID token is checked with Node `crypto` against the JWKS from OpenID discovery (cached 10 minutes).
 6. **Plan is not plan-gated.** It costs Needt nothing, like a bring-your-own key.
+
+7. **Refresh without a long lock wait.** The refresh runs in a short transaction that only *tries* the advisory lock (`pg_try_advisory_xact_lock`); a loser polls (250 ms, up to 15 s) with no connection held between tries, so waiting cannot eat the transaction timeout. The winner holds one connection for at most one token request (10 s) inside a 20 s timeout. If the commit fails after OpenAI rotated the token, the new tokens are written once more outside the transaction (only if the row still holds the old refresh token). An unreadable secret (key rotated, damaged row) reads as absent, never as an exception.
+8. **JWKS.** Cached 10 minutes; an unknown `kid` in a cached set refetches once, and not again for a minute.
+
+## `/v1/models` response shape (checked 2026-11-05)
+
+Source: `openai/sign-in-with-chatgpt-devkit`, `packages/local/src/models.ts` and its refresh test. `GET https://api.openai.com/v1/models` with the access token answers `{ "models": [ { "slug", "display_name", "visibility" } ] }`; entries with `visibility: "list"` are the selectable ones. That is `body.models[].slug`, not the usual `data[].id`, and it is what `provider.ts` parses. `OPENAI_SIWC_MODEL` still pins a model and skips the call.
 
 ## To confirm with OpenAI
 

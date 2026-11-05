@@ -20,6 +20,7 @@ import {
   runAgentTurn,
   runConfirmedToolCall,
 } from "../agent/loop";
+import { ChatGptPlanError } from "../chatgpt-plan/errors";
 import type { AgentTurnEvent, AgentTurnRequest, SchedulerAI } from "../types";
 import { unwrapUntrusted } from "../untrusted";
 
@@ -441,5 +442,47 @@ describe("agent loop: a turn can only change so much", () => {
     expect(isMutatingToolCall("remember", {})).toBe(true);
     // Anything it does not know counts as a change.
     expect(isMutatingToolCall("something_new", {})).toBe(true);
+  });
+});
+
+describe("agent loop: the ChatGPT plan stops mid-turn", () => {
+  it("returns what was said and done, with the stop, instead of throwing", async () => {
+    let step = 0;
+    const ai: SchedulerAI = {
+      name: "plan",
+      suggestSchedule: jest.fn(),
+      parseTasks: jest.fn(),
+      async *streamTurn() {
+        step += 1;
+        if (step === 1) {
+          yield say("On it.");
+          yield call("c1", "create_task", { title: "Call the bank" });
+          return;
+        }
+        throw new ChatGptPlanError("limit", "limit reached");
+      },
+    };
+    const t = turn(ai);
+    const result = await t.run();
+
+    expect(result.providerStop).toMatchObject({ kind: "limit" });
+    expect(result.text).toBe("On it.");
+    expect(result.changed).toBe(true);
+    expect(result.actions).toHaveLength(1);
+    expect(db.tables.task).toHaveLength(1);
+    expect(result.runId).toBeTruthy();
+  });
+
+  it("still throws errors that are not the plan's", async () => {
+    const ai: SchedulerAI = {
+      name: "other",
+      suggestSchedule: jest.fn(),
+      parseTasks: jest.fn(),
+
+      async *streamTurn() {
+        throw new Error("boom");
+      },
+    };
+    await expect(turn(ai).run()).rejects.toThrow("boom");
   });
 });

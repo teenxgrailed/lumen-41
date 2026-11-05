@@ -291,7 +291,12 @@ export async function getConfiguredSchedulerAI(
         return null;
       }
     }
-    return { ai: createSchedulerAI(needt.config), charged: true };
+    return {
+      ai: createSchedulerAI(
+        claim.mode === "slow" ? slowHostedConfig(needt.settings) : needt.config
+      ),
+      charged: true,
+    };
   };
   return {
     ...needt,
@@ -303,6 +308,25 @@ export async function getConfiguredSchedulerAI(
     }) as SchedulerAI,
     source: "chatgpt_plan" as "byok" | "hosted" | "none" | "chatgpt_plan",
     providerReport: report as AiProviderReport | null,
+  };
+}
+
+/** Slow mode (the monthly cap is past): the hosted model, with short answers. */
+export function slowHostedConfig(
+  settings: Pick<
+    Awaited<ReturnType<typeof ensureAISettings>>,
+    "requestTimeoutSeconds" | "soulPreset"
+  >
+): SchedulerAIConfig {
+  return {
+    provider: "OPENAI",
+    apiKey: process.env.NEEDT_AI_API_KEY?.trim() || null,
+    baseUrl: HOSTED_AI_CONFIG.baseUrl,
+    model: HOSTED_AI_CONFIG.model,
+    extraBody: hostedAiRoutingBody(),
+    timeoutMs: settings.requestTimeoutSeconds * 1000,
+    soulPreset: settings.soulPreset === "coach" ? "coach" : "business",
+    maxTokens: 600,
   };
 }
 
@@ -362,21 +386,9 @@ export async function getPreparedSchedulerAI(
         throw error;
       }
     }
-    const hostedKey = process.env.NEEDT_AI_API_KEY?.trim() || null;
-    const config: SchedulerAIConfig = {
-      provider: "OPENAI",
-      apiKey: hostedKey,
-      baseUrl: HOSTED_AI_CONFIG.baseUrl,
-      model: HOSTED_AI_CONFIG.model,
-      extraBody: hostedAiRoutingBody(),
-      timeoutMs: configured.settings.requestTimeoutSeconds * 1000,
-      soulPreset:
-        configured.settings.soulPreset === "coach" ? "coach" : "business",
-      maxTokens: 600,
-    };
     return {
       ...configured,
-      ai: createSchedulerAI(config),
+      ai: createSchedulerAI(slowHostedConfig(configured.settings)),
       usage: claim.usage,
       hostedMode: claim.mode,
     };

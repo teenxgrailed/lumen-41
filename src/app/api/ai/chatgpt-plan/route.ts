@@ -7,8 +7,8 @@ import {
 import {
   hasPlanScope,
   revokeChatGptPlanSession,
+  safeDecrypt,
 } from "@/services/ai/chatgpt-plan/oauth";
-import { decryptSecret } from "@/services/ai/encryption";
 import { AIProvider } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -56,8 +56,11 @@ export async function DELETE(request: NextRequest) {
   const connection = await prisma.aIOAuthConnection.findUnique({
     where: where(auth.userId),
   });
-  let remoteRevoked = true;
-  const refreshToken = decryptSecret(connection?.encryptedRefreshToken);
+  // Nothing stored means nothing to revoke; a stored but unreadable token
+  // could not be revoked, which the answer says.
+  let remoteRevoked = !connection;
+  // An undecryptable token cannot be revoked remotely; still delete the row.
+  const refreshToken = safeDecrypt(connection?.encryptedRefreshToken);
   if (connection && refreshToken) {
     remoteRevoked = await revokeChatGptPlanSession(config, refreshToken);
   }

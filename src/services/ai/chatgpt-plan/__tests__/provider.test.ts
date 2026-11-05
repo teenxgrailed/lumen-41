@@ -171,6 +171,83 @@ describe("ChatGPT plan provider", () => {
     expect(report.fallback).toBeNull();
   });
 
+  it("does not fall back when a later step hits the limit after step one streamed", async () => {
+    // The agent loop calls streamTurn once per step on the same provider.
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        sse([
+          { type: "response.output_text.delta", delta: "Step one" },
+          completed,
+        ])
+      )
+      .mockResolvedValueOnce(
+        json(
+          { error: { code: "subscription_sharing_usage_limit_exceeded" } },
+          429
+        )
+      );
+    const fallback = jest.fn(async () => hosted("restart", true));
+    const { ai, report } = setup(fallback);
+
+    expect(await drain(ai.streamTurn!(turn))).toEqual([
+      { type: "text", value: "Step one" },
+    ]);
+    await expect(drain(ai.streamTurn!(turn))).rejects.toMatchObject({
+      kind: "limit",
+    });
+    expect(fallback).not.toHaveBeenCalled();
+    expect(report.state).toBe("plan_limit_reached");
+    expect(report.fallback).toBeNull();
+    expect(report.used).toBe("none");
+  });
+
+  it("still falls back when the very first step fails and nothing was shown", async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        json(
+          { error: { code: "subscription_sharing_usage_limit_exceeded" } },
+          429
+        )
+      );
+    const { ai, report } = setup(async () => hosted("from needt", true));
+    await drain(ai.streamTurn!(turn));
+    expect(report.used).toBe("needt");
+  });
+
+  it("reads the model from models[].slug with visibility list", async () => {
+    // Shape per the devkit (packages/local/src/models.ts), checked 2026-11-05.
+    global.fetch = jest.fn().mockImplementation(async (url: string) =>
+      String(url).endsWith("/models")
+        ? json(
+            {
+              models: [
+                { slug: "hidden", display_name: "H", visibility: "hide" },
+                { slug: "gpt-x", display_name: "X", visibility: "list" },
+              ],
+            },
+            200
+          )
+        : sse([completed])
+    );
+    const report: AiProviderReport = {
+      requested: "chatgpt_plan",
+      used: "chatgpt_plan",
+      fallback: null,
+    };
+    const ai = new ChatGptPlanProvider({
+      userId: "model-user",
+      config: { clientId: "c" },
+      report,
+    });
+    await drain(ai.streamTurn!(turn));
+    const call = (global.fetch as jest.Mock).mock.calls.find(([u]) =>
+      String(u).endsWith("/responses")
+    );
+    expect(JSON.parse(call[1].body).model).toBe("gpt-x");
+  });
+
   it("falls back when the connection was revoked", async () => {
     token.mockResolvedValue({ ok: false, reason: "revoked" });
     global.fetch = jest.fn();

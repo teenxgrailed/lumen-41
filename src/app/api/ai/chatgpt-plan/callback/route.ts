@@ -5,6 +5,7 @@ import {
   exchangeChatGptPlanCode,
   hasPlanScope,
   nonceFromState,
+  revokeChatGptPlanSession,
   verifyChatGptIdToken,
 } from "@/services/ai/chatgpt-plan/oauth";
 import { decryptSecret, encryptSecret } from "@/services/ai/encryption";
@@ -12,6 +13,7 @@ import { hashOAuthState } from "@/services/ai/oauth";
 import { AIProvider } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
     !oauthState ||
     oauthState.userId !== auth.userId ||
     oauthState.provider !== AIProvider.CHATGPT_PLAN ||
-    oauthState.expiresAt <= new Date()
+    oauthState.expiresAt <= newDate()
   ) {
     if (oauthState?.userId === auth.userId) {
       await prisma.aIOAuthState.delete({ where: { id: oauthState.id } });
@@ -79,9 +81,16 @@ export async function GET(request: NextRequest) {
     });
     // An ID token alone does not let Needt use the plan.
     if (!hasPlanScope(tokens.scope)) {
+      // Tokens were issued, so end that session before leaving.
+      if (tokens.refreshToken) {
+        await revokeChatGptPlanSession(config, tokens.refreshToken);
+      }
       return backToSettings(oauthState.redirectUri, "not_granted");
     }
     if (!tokens.idToken || !tokens.refreshToken) {
+      if (tokens.refreshToken) {
+        await revokeChatGptPlanSession(config, tokens.refreshToken);
+      }
       return backToSettings(oauthState.redirectUri, "failed");
     }
     const identity = await verifyChatGptIdToken(tokens.idToken, {
