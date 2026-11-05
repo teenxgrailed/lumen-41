@@ -115,7 +115,14 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
   useTrashDoc: () => ({ mutateAsync: jest.fn() }),
   useDeleteDocForever: () => ({ mutateAsync: jest.fn() }),
 }));
-jest.mock("@/lib/needt3/hooks/settings", () => ({ useTimeZone: () => "UTC" }));
+jest.mock("@/lib/needt3/hooks/settings", () => ({
+  useTimeZone: () => "UTC",
+  // Connections' first-visit setup: already skipped; its own suite opens it.
+  useSettings: () => ({
+    data: { prefs: { connectionsSetup: "skipped" }, userId: "u1" },
+  }),
+  useSetPref: () => () => Promise.resolve(null),
+}));
 const restore = jest.fn();
 jest.mock("@/lib/needt3/hooks/tasks", () => ({
   useTasks: () => ({ ...idle, data: [] }),

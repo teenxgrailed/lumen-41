@@ -32,6 +32,7 @@ import {
   inPresenceWindow,
   localClock,
   milestoneToAnnounce,
+  presenceTag,
   presenceText,
   reengageDue,
 } from "./presence";
@@ -52,6 +53,8 @@ interface Candidate {
   /** The dedup scope: the habit id, or "user". */
   scope: string;
   dayKey: string;
+  /** The notification's tag (`presenceTag`). */
+  tag: string;
   text: PresenceText;
   /** Runs after the push was delivered. */
   after?: () => Promise<unknown>;
@@ -100,6 +103,7 @@ async function send(
         title: candidate.text.title,
         body: candidate.text.body,
         url: HABITS_URL,
+        tag: candidate.tag,
       })
     )
   );
@@ -192,6 +196,11 @@ export function presenceCandidates(input: {
           habitId: habit.id,
           scope: habit.id,
           dayKey: clock.dayKey,
+          tag: presenceTag({
+            kind: "reminder",
+            habitId: habit.id,
+            dayKey: clock.dayKey,
+          }),
           text: presenceText.reminder(habit.title),
         });
       }
@@ -215,6 +224,11 @@ export function presenceCandidates(input: {
         habitId: null,
         scope: "user",
         dayKey: clock.dayKey,
+        tag: presenceTag({
+          kind: "checkin",
+          habitId: null,
+          dayKey: clock.dayKey,
+        }),
         text: presenceText.checkin(open),
       });
     }
@@ -238,6 +252,12 @@ export function presenceCandidates(input: {
         // day the streak began.
         scope: `${habit.id}:${days}`,
         dayKey: localClock(summary.streakStartedAt, prefs.timeZone).dayKey,
+        tag: presenceTag({
+          kind: "milestone",
+          habitId: habit.id,
+          dayKey: clock.dayKey,
+          days,
+        }),
         text: presenceText.milestone(habit.title, days),
         after: () => input.recordMilestone(habit.id, now),
       });
@@ -269,6 +289,11 @@ export function presenceCandidates(input: {
         habitId: null,
         scope: "user",
         dayKey: clock.dayKey,
+        tag: presenceTag({
+          kind: "reengage",
+          habitId: null,
+          dayKey: clock.dayKey,
+        }),
         text: presenceText.reengage(),
       });
     }

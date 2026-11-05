@@ -122,6 +122,11 @@ describe("summaries", () => {
       quietEnd: "08:00",
       digest: false,
       digestTime: "08:00",
+      habitReminders: true,
+      habitCheckin: true,
+      habitCheckinTime: "21:00",
+      habitMilestones: true,
+      habitReengage: false,
     };
     expect(alertsSummary(undefined)).toMatch(/focus ended/);
     expect(alertsSummary({ ...base, nudges: true, focusEnded: true })).toBe(

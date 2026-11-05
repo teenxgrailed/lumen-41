@@ -26,6 +26,22 @@ export function getWelcomeTemplate(input: {
   });
 }
 
+/** "Friday, 30 October 2026, 10:00 UTC"; an unparseable value is printed as is. */
+function readableStart(startIso: string): string {
+  const date = new Date(startIso);
+  if (Number.isNaN(date.getTime())) return startIso;
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short",
+  }).format(date);
+}
+
 export function getBookingConfirmationTemplate(input: {
   title: string;
   startIso: string;
@@ -33,9 +49,9 @@ export function getBookingConfirmationTemplate(input: {
 }) {
   return renderEmail({
     subject: `Confirmed: ${input.title}`,
-    preheader: `Your booking is confirmed for ${input.startIso}.`,
+    preheader: `Your booking is confirmed for ${readableStart(input.startIso)}.`,
     heading: "Your booking is confirmed",
-    paragraphs: [`${input.title}: ${input.startIso}`],
+    paragraphs: [`${input.title}: ${readableStart(input.startIso)}`],
     button: { label: "Cancel booking", url: input.cancelUrl },
     note: "Plans changed? Use the button to cancel.",
     kind: "security",

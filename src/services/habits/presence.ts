@@ -126,6 +126,30 @@ export function reengageDue(input: {
 
 export type PresenceKind = "reminder" | "checkin" | "milestone" | "reengage";
 
+/**
+ * One name for one moment, shared by the push (the notification's tag, so
+ * the OS replaces a repeat instead of stacking it) and the open app's island
+ * (which closes the push with that tag once it has said the same thing).
+ */
+export function presenceTag(moment: {
+  kind: PresenceKind;
+  habitId: string | null;
+  dayKey: string;
+  /** Milestones: the step in days. */
+  days?: number;
+}): string {
+  switch (moment.kind) {
+    case "reminder":
+      return `rem:${moment.habitId}:${moment.dayKey}`;
+    case "checkin":
+      return `checkin:${moment.dayKey}`;
+    case "milestone":
+      return `ms:${moment.habitId}:${moment.days}`;
+    case "reengage":
+      return `reengage:${moment.dayKey}`;
+  }
+}
+
 export interface PresenceText {
   title: string;
   body: string;

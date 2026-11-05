@@ -3,41 +3,57 @@
 exports[`email templates account-export matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Your Needt data export is ready</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">The download link works once and expires in 24 hours.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">The download link works once and expires in 24 hours.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your data export is ready</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Your account archive is ready to download.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/api/account/export/download?token=SAMPLE" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Download your archive</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/api/account/export/download?token=SAMPLE" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/api/account/export/download?token=SAMPLE</a></p><p class="muted" style="margin:0;font-size:13px;line-height:20px;color:#6a665e;">This one-use link expires in 24 hours.</p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your data export is ready</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Your account archive is ready to download.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app/api/account/export/download?token=SAMPLE" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">Download your archive</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/api/account/export/download?token=SAMPLE" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app/api/account/export/download?token=SAMPLE</a></p><p class="muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">This one-use link expires in 24 hours.</p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>
@@ -60,41 +76,57 @@ Needt - needt.app",
 exports[`email templates booking-confirmed matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Confirmed: Intro call</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Your booking is confirmed for 2026-10-30T10:00:00.000Z.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">Your booking is confirmed for Friday, 30 October 2026 at 10:00 UTC.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your booking is confirmed</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Intro call: 2026-10-30T10:00:00.000Z</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/book/cancel/SAMPLE" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Cancel booking</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/book/cancel/SAMPLE" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/book/cancel/SAMPLE</a></p><p class="muted" style="margin:0;font-size:13px;line-height:20px;color:#6a665e;">Plans changed? Use the button to cancel.</p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your booking is confirmed</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Intro call: Friday, 30 October 2026 at 10:00 UTC</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app/book/cancel/SAMPLE" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">Cancel booking</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/book/cancel/SAMPLE" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app/book/cancel/SAMPLE</a></p><p class="muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Plans changed? Use the button to cancel.</p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>
@@ -102,7 +134,7 @@ exports[`email templates booking-confirmed matches its snapshot 1`] = `
   "subject": "Confirmed: Intro call",
   "text": "Your booking is confirmed
 
-Intro call: 2026-10-30T10:00:00.000Z
+Intro call: Friday, 30 October 2026 at 10:00 UTC
 
 Cancel booking: https://use.needt.app/book/cancel/SAMPLE
 
@@ -117,41 +149,57 @@ Needt - needt.app",
 exports[`email templates daily-digest matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>3 things need you</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">A mention, a shared page and a sync problem are waiting.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">A mention, a shared page and a sync problem are waiting.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">3 things need you</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">A mention, a shared page and a sync problem are waiting.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/today" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Open in Needt</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/today" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/today</a></p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">3 things need you</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">A mention, a shared page and a sync problem are waiting.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app/today" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">Open in Needt</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/today" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app/today</a></p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of your Needt notification settings. You can change them in Settings. <a href="https://use.needt.app/api/email/unsubscribe?t=SAMPLE" class="muted" style="color:#6a665e;text-decoration:underline;">Unsubscribe</a><br>Needt &middot; needt.app</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of your Needt notification settings. You can change them in Settings. <a href="https://use.needt.app/api/email/unsubscribe?t=SAMPLE" class="muted" style="color:#6a665e;text-decoration:underline;">Unsubscribe</a><br>Needt &middot; needt.app</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>
@@ -172,41 +220,57 @@ Needt - needt.app",
 exports[`email templates password-reset matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Reset Your Needt Password</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Choose a new password. The link works once.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">Choose a new password. The link works once.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Reset your password</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Hi Alex,</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">We received a request to reset the password for your Needt account. If you did not make it, you can ignore this email and nothing changes.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/auth/reset-password?token=SAMPLE" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Choose a new password</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/auth/reset-password?token=SAMPLE" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/auth/reset-password?token=SAMPLE</a></p><p class="muted" style="margin:0;font-size:13px;line-height:20px;color:#6a665e;">This link works once and expires on Wednesday, October 28, 2026 at 12:00 PM.</p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Reset your password</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Hi Alex,</p><p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">We received a request to reset the password for your Needt account. If you did not make it, you can ignore this email and nothing changes.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app/auth/reset-password?token=SAMPLE" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">Choose a new password</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/auth/reset-password?token=SAMPLE" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app/auth/reset-password?token=SAMPLE</a></p><p class="muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">This link works once and expires in 1 hour.</p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>
@@ -220,7 +284,7 @@ We received a request to reset the password for your Needt account. If you did n
 
 Choose a new password: https://use.needt.app/auth/reset-password?token=SAMPLE
 
-This link works once and expires on Wednesday, October 28, 2026 at 12:00 PM.
+This link works once and expires in 1 hour.
 
 --
 You get this because of activity on your Needt account.
@@ -231,41 +295,57 @@ Needt - needt.app",
 exports[`email templates student-price-ending matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Your student price ends at your next renewal</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">From 26 Nov 2026, Needt Pro is $59 / year.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">From 26 Nov 2026, Needt Pro is $59 / year.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your student price ends at your next renewal</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">We could not confirm your university email this year.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">From your renewal on 26 Nov 2026, Needt Pro is the regular price, $59 / year.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Still a student? Add your university email again in Settings, Plan, before that date. No university email? Write to students@needt.app with proof of enrolment.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/settings?section=billing" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Open Settings</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/settings?section=billing" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/settings?section=billing</a></p><p class="muted" style="margin:0;font-size:13px;line-height:20px;color:#6a665e;">You can cancel any time in Settings, Plan &amp; billing, Invoices and payment.</p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your student price ends at your next renewal</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">We could not confirm your university email this year.</p><p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">From your renewal on 26 Nov 2026, Needt Pro is the regular price, $59 / year.</p><p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Still a student? Add your university email again in Settings, Plan, before that date. No university email? Write to students@needt.app with proof of enrolment.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app/settings?section=billing" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">Open Settings</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/settings?section=billing" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app/settings?section=billing</a></p><p class="muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">You can cancel any time in Settings, Plan &amp; billing, Invoices and payment.</p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>
@@ -292,41 +372,57 @@ Needt - needt.app",
 exports[`email templates student-recheck matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Are you still a student?</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Keep your Needt student price with one tap.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">Keep your Needt student price with one tap.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Are you still a student?</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Once a year we check that the student price on your Needt Pro plan still applies.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Confirm with the button below before 26 Nov 2026 to keep 40% off.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">I&#39;m still a student</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/api/students/confirm?t=SAMPLE</a></p><p class="muted" style="margin:0;font-size:13px;line-height:20px;color:#6a665e;">If you have finished, there is nothing to do. We will email you before anything changes.</p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Are you still a student?</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Once a year we check that the student price on your Needt Pro plan still applies.</p><p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Confirm with the button below before 26 Nov 2026 to keep 40% off.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">I&#39;m still a student</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app/api/students/confirm?t=SAMPLE</a></p><p class="muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">If you have finished, there is nothing to do. We will email you before anything changes.</p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>
@@ -351,41 +447,57 @@ Needt - needt.app",
 exports[`email templates student-verify matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Confirm your university email for Needt</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">One tap and Needt Pro is 40% off for you.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">One tap and Needt Pro is 40% off for you.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Confirm your university email</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Someone added this address to a Needt account to get the student price on Pro: 40% off monthly and yearly.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">If that was you, confirm it below.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Confirm</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/api/students/confirm?t=SAMPLE</a></p><p class="muted" style="margin:0;font-size:13px;line-height:20px;color:#6a665e;">The link works for 24 hours. If you did not ask for this, ignore this email and nothing changes.</p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Confirm your university email</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Someone added this address to a Needt account to get the student price on Pro: 40% off monthly and yearly.</p><p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">If that was you, confirm it below.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">Confirm</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/api/students/confirm?t=SAMPLE" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app/api/students/confirm?t=SAMPLE</a></p><p class="muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">The link works for 24 hours. If you did not ask for this, ignore this email and nothing changes.</p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>
@@ -410,41 +522,57 @@ Needt - needt.app",
 exports[`email templates trial-ended matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Your Pro trial has ended</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Your data is still here.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">Your data is still here.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your Pro trial has ended</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Your Needt account is now on Free. Your data is still here.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Choose Pro whenever you want the Pro features back.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/pricing" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Choose Pro</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/pricing" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/pricing</a></p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your Pro trial has ended</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Your Needt account is now on Free. Your data is still here.</p><p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Choose Pro whenever you want the Pro features back.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app/settings#billing" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">Choose Pro</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/settings#billing" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app/settings#billing</a></p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because you have a Needt account. <a href="https://use.needt.app/api/email/unsubscribe?t=SAMPLE" class="muted" style="color:#6a665e;text-decoration:underline;">Unsubscribe</a><br>Needt &middot; Example Operator, 1 Example Street, Example City</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because you have a Needt account. <a href="https://use.needt.app/api/email/unsubscribe?t=SAMPLE" class="muted" style="color:#6a665e;text-decoration:underline;">Unsubscribe</a><br>Needt &middot; Example Operator, 1 Example Street, Example City</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>
@@ -456,7 +584,7 @@ Your Needt account is now on Free. Your data is still here.
 
 Choose Pro whenever you want the Pro features back.
 
-Choose Pro: https://use.needt.app/pricing
+Choose Pro: https://use.needt.app/settings#billing
 
 --
 You get this because you have a Needt account. Unsubscribe: https://use.needt.app/api/email/unsubscribe?t=SAMPLE
@@ -467,41 +595,57 @@ Needt - Example Operator, 1 Example Street, Example City",
 exports[`email templates trial-ending matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Your Pro trial ends in 3 days</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Choose Pro to keep Pro features after the trial.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">Choose Pro to keep Pro features after the trial.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your Pro trial ends in 3 days</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Your Needt Pro trial ends in 3 days. Choose Pro to keep Pro features after that.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">If you do nothing, your account moves to Free and everything you made stays where it is.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/pricing" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Choose Pro</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/pricing" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/pricing</a></p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Your Pro trial ends in 3 days</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Your Needt Pro trial ends in 3 days. Choose Pro to keep Pro features after that.</p><p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">If you do nothing, your account moves to Free and everything you made stays where it is.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app/settings#billing" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">Choose Pro</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/settings#billing" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app/settings#billing</a></p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because you have a Needt account. <a href="https://use.needt.app/api/email/unsubscribe?t=SAMPLE" class="muted" style="color:#6a665e;text-decoration:underline;">Unsubscribe</a><br>Needt &middot; Example Operator, 1 Example Street, Example City</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because you have a Needt account. <a href="https://use.needt.app/api/email/unsubscribe?t=SAMPLE" class="muted" style="color:#6a665e;text-decoration:underline;">Unsubscribe</a><br>Needt &middot; Example Operator, 1 Example Street, Example City</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>
@@ -513,7 +657,7 @@ Your Needt Pro trial ends in 3 days. Choose Pro to keep Pro features after that.
 
 If you do nothing, your account moves to Free and everything you made stays where it is.
 
-Choose Pro: https://use.needt.app/pricing
+Choose Pro: https://use.needt.app/settings#billing
 
 --
 You get this because you have a Needt account. Unsubscribe: https://use.needt.app/api/email/unsubscribe?t=SAMPLE
@@ -524,41 +668,57 @@ Needt - Example Operator, 1 Example Street, Example City",
 exports[`email templates verify-email matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Confirm your email to start 14 days of Pro</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">One tap and Needt is yours. The link works once and expires in 24 hours.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">One tap and Needt is yours. The link works once and expires in 24 hours.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Confirm your email</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Hi Alex,</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Confirm your email to open Needt and start 14 days of Pro, no card needed.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app/auth/confirm-email?token=SAMPLE" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Confirm email</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/auth/confirm-email?token=SAMPLE" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app/auth/confirm-email?token=SAMPLE</a></p><p class="muted" style="margin:0;font-size:13px;line-height:20px;color:#6a665e;">This one-time link expires in 24 hours. If you did not create a Needt account, you can ignore this email.</p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">Confirm your email</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Hi Alex,</p><p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Confirm your email to open Needt and start 14 days of Pro, no card needed.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app/auth/confirm-email?token=SAMPLE" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">Confirm email</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app/auth/confirm-email?token=SAMPLE" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app/auth/confirm-email?token=SAMPLE</a></p><p class="muted" style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">This one-time link expires in 24 hours. If you did not create a Needt account, you can ignore this email.</p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of activity on your Needt account.<br>Needt &middot; needt.app</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>
@@ -583,41 +743,57 @@ Needt - needt.app",
 exports[`email templates welcome matches its snapshot 1`] = `
 {
   "html": "<!doctype html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <title>Welcome to Needt</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
 :root{color-scheme:light dark;supported-color-schemes:light dark;}
+body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
+table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
+img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
-.paper{background-color:#12110f !important;}
-.card{background-color:#1c1b18 !important;border-color:#2c2a26 !important;}
-.ink,.mark{color:#f1ede6 !important;}
-.muted{color:#a29d93 !important;}
-.btn{background-color:#f1ede6 !important;}
+.paper{background-color:#151412 !important;}
+.card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+.ink,.mark{color:#ece8e1 !important;}
+.muted,.muted a{color:#a8a399 !important;}
+.btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
 .btn-a{color:#1b1a17 !important;}
 }
+[data-ogsb] .paper{background-color:#151412 !important;}
+[data-ogsb] .card{background-color:#1f1e1b !important;border-color:#2e2c28 !important;}
+[data-ogsc] .ink,[data-ogsc] .mark{color:#ece8e1 !important;}
+[data-ogsc] .muted,[data-ogsc] .muted a{color:#a8a399 !important;}
+[data-ogsb] .btn{background-color:#ece8e1 !important;border-color:#ece8e1 !important;}
+[data-ogsc] .btn-a{color:#1b1a17 !important;}
 @media only screen and (max-width:620px){
 .wrap{width:100% !important;}
 .pad{padding:24px 20px !important;}
 }
 </style>
 </head>
-<body class="paper" style="margin:0;padding:0;background-color:#f6f3ee;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Your email is confirmed and your 14 days of Pro have started.</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" style="background-color:#f6f3ee;">
-<tr><td align="center" style="padding:32px 12px;">
+<body class="paper" bgcolor="#f4f1ec" style="margin:0;padding:0;background-color:#f4f1ec;width:100%;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">Your email is confirmed and your 14 days of Pro have started.&#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; &#8199;&#847; </div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="#f4f1ec" style="background-color:#f4f1ec;">
+<tr><td align="center" class="paper" bgcolor="#f4f1ec" style="padding:32px 12px;background-color:#f4f1ec;">
+<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><span class="mark" style="font-size:20px;line-height:24px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr>
-<tr><td class="card pad" bgcolor="#fffdf9" style="background-color:#fffdf9;border:1px solid #e7e2d9;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<h1 class="ink" style="margin:0 0 16px 0;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">You are in</h1>
-<p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Hi Alex,</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Your email is confirmed and your 14 days of Needt Pro have started. No card was needed.</p><p class="ink" style="margin:0 0 16px 0;font-size:16px;line-height:24px;color:#1b1a17;">Put your calendars, tasks and notes in one place and let Needt find the time.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" bgcolor="#1b1a17" style="background-color:#1b1a17;border-radius:10px;"><a href="https://use.needt.app" class="btn-a" style="display:inline-block;padding:13px 22px;font-size:16px;line-height:20px;font-weight:600;color:#fffdf9;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Open Needt</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app" class="muted" style="color:#6a665e;word-break:break-all;">https://use.needt.app</a></p>
+<tr><td style="padding:0 4px 16px 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="https://use.needt.app/icons/icon-192.png" width="28" height="28" alt="Needt" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:#1b1a17;font-size:12px;"></td><td style="vertical-align:middle;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;"><span class="mark" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:#1b1a17;">Needt</span></td></tr></table></td></tr>
+<tr><td class="card pad" bgcolor="#fbf9f5" style="background-color:#fbf9f5;border:1px solid #e3ded5;border-radius:16px;padding:32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<h1 class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:22px;line-height:28px;font-weight:700;color:#1b1a17;">You are in</h1>
+<p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Hi Alex,</p><p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Your email is confirmed and your 14 days of Needt Pro have started. No card was needed.</p><p class="ink" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;color:#1b1a17;">Put your calendars, tasks and notes in one place and let Needt find the time.</p><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="#1b1a17" style="background-color:#1b1a17;border:1px solid #1b1a17;border-radius:10px;mso-padding-alt:13px 22px;"><a href="https://use.needt.app" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:16px;line-height:20px;font-weight:600;color:#fbf9f5;text-decoration:none;">Open Needt</a></td></tr></table><p class="muted" style="margin:0 0 16px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:#6a665e;">Button not working? Paste this link into your browser:<br><a href="https://use.needt.app" class="muted" target="_blank" style="color:#6a665e;word-break:break-all;">https://use.needt.app</a></p>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of your Needt notification settings. You can change them in Settings.<br>Needt &middot; needt.app</td></tr>
+<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6a665e;">You get this because of your Needt notification settings. You can change them in Settings.<br>Needt &middot; needt.app</td></tr>
 </table>
+<!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
 </table>
 </body>

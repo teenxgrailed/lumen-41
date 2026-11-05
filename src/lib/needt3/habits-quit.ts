@@ -38,6 +38,8 @@ export interface QuitSummary {
   currentStreak: number;
   bestStreak: number;
   totalCleanDays: number;
+  /** The largest milestone the run has reached; null before the first. */
+  lastMilestone?: number | null;
   nextMilestone: { days: number; daysLeft: number } | null;
   counts: Record<HabitEventType, number>;
 }
