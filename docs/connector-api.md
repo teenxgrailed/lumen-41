@@ -1924,11 +1924,26 @@ and is read and written with `GET` / `PATCH /api/user-settings`:
 curl -s https://needt.app/api/user-settings
 # → { "prefs": { "taskView": { "completed": "today", … } }, … }
 
-# `prefs` replaces the whole stored map: send it back with your change merged in
+# `prefs` is a patch: only the keys you send change. Merging is shallow:
+# `taskView` is one key, so its value is replaced whole (send all of it).
 curl -X PATCH -H "Content-Type: application/json" \
   -d '{ "prefs": { "taskView": { "completed": "hide", "sort": "priority" } } }' \
   https://needt.app/api/user-settings
+
+# null removes a key: taskView goes back to its defaults
+curl -X PATCH -H "Content-Type: application/json" \
+  -d '{ "prefs": { "taskView": null } }' \
+  https://needt.app/api/user-settings
 ```
+
+How `prefs` is written: the `PATCH` body's `prefs` is merged into the stored
+map on the server, one top-level key at a time. A key you send replaces that
+key's value whole (nested maps such as `taskView` and `homeBlocks` are not
+merged inside); a key sent as `null` is removed; keys you do not send are left
+as they are, so two clients writing different keys never undo each other. The
+stored map holds at most 200 keys and 32,000 bytes; a write that would pass
+either is refused with `413` and nothing is saved. `__proto__`, `constructor`
+and `prototype` are not allowed as keys (`400`).
 
 | Key            | Values                        | Default | Meaning                                                                                                                                                                                            |
 | -------------- | ----------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1947,8 +1962,9 @@ end of the day" counts from the task's `completedAt`.
 
 Which blocks Home shows (desktop and phone) lives in the same settings map,
 under `prefs.homeBlocks`, read and written with `GET` / `PATCH
-/api/user-settings` (send the whole `prefs` map back with your change merged
-in):
+/api/user-settings`. `prefs` is a patch (see Task view above): send just
+`homeBlocks`; its value is replaced whole, so send every field you want kept,
+and `null` resets it to the default:
 
 ```bash
 curl -X PATCH -H "Content-Type: application/json" \

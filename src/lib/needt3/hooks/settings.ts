@@ -76,8 +76,9 @@ export function useTimeZone() {
 }
 
 /**
- * Patch settings. `prefs` replaces the whole stored map, as the server does;
- * use `useSetPref` to change one key.
+ * Patch settings. `prefs` is a patch, as the server applies it: a shallow
+ * merge of top-level keys, each key's value replaced whole (taskView,
+ * homeBlocks), `null` removing a key. Use `useSetPref` to change one key.
  */
 export function useUpdateSettings() {
   return useUndoableMutation<SettingsPatch, V3Settings>({

@@ -5,6 +5,7 @@ import { newDate } from "@/lib/date-utils";
 import { appIconPrefsError } from "./app-icon";
 import { parseCityPlace } from "./city";
 import { HOME_BLOCKS_PREF, homeBlocksError } from "./home-blocks";
+import { PREFS_FORBIDDEN_KEYS } from "./prefs-limits";
 import { TASK_VIEW_PREF, taskViewError } from "./task-view";
 
 /**
@@ -82,6 +83,10 @@ export const userSettingsV3FieldsSchema = z.object({
   // null is removed, so null is never checked as a value.
   prefs: jsonObjectSchema
     .superRefine((patch, ctx) => {
+      // never a key that could reach an object's prototype
+      for (const key of Object.keys(patch))
+        if (PREFS_FORBIDDEN_KEYS.includes(key))
+          ctx.addIssue({ code: "custom", message: `Invalid key: ${key}` });
       const value = Object.fromEntries(
         Object.entries(patch).filter(([, v]) => v !== null)
       );
