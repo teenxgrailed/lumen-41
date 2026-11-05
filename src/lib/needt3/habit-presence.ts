@@ -1,23 +1,28 @@
 /**
- * Habit presence in the app (additions-4/habits-quit HANDOFF §4): the corner
- * grows into an island at a habit's time, at a Quit milestone, and for the
- * evening check-in. Nothing arrives beside it; this module only decides
- * which island, if any, is due now. Pure: the host passes the clock, the
- * zone, the data and what was already shown.
+ * Habit presence in the open app (additions-4/habits-quit HANDOFF §4): the
+ * corner grows into an island at a habit's time, at a Quit milestone, and for
+ * the evening check-in. This module only decides which island, if any, is due
+ * now. Pure: the host passes the clock, the zone, the data and what was
+ * already shown.
  *
- * The server pushes the same moments to closed apps (presence-sweep, #612);
- * this is the open app's half, and keeps its own record of what it showed.
+ * The rules are the server's (src/services/habits/presence.ts, used by the
+ * push sweep), not a copy of them: the same 60-minute windows, the same
+ * weekdays, the same "reached today or yesterday" milestone, the same
+ * check-in count. Each island carries the push's tag, so the host can close
+ * the push that said the same thing.
  */
-import { formatInTimeZone } from "@/lib/date-utils";
-
-import { QUIT_STEPS } from "./habits-quit";
+import {
+  MILESTONE_TIME,
+  habitReminderDue,
+  habitRunsToday,
+  inPresenceWindow,
+  localClock,
+  milestoneToAnnounce,
+  presenceTag,
+} from "@/services/habits/presence";
 
 /** At most one island in this long. */
 export const ISLAND_GAP_MS = 20 * 60_000;
-/** A reminder shows within this long after the habit's time. */
-const REMINDER_WINDOW_MIN = 30;
-/** "Later" brings the reminder back once, this much later. */
-export const LATER_MS = 30 * 60_000;
 
 export interface PresenceSettings {
   habitReminders: boolean;
@@ -27,6 +32,10 @@ export interface PresenceSettings {
   quietHours: boolean;
   quietStart: string;
   quietEnd: string;
+  /** The general switches every notice obeys (preferences.ts). */
+  reminders: boolean;
+  channelInApp: boolean;
+  digest: boolean;
 }
 
 export interface PresenceDo {
@@ -34,54 +43,60 @@ export interface PresenceDo {
   title: string;
   /** "HH:MM" in the person's zone, or null for no set time. */
   at: string | null;
-  keptToday: boolean;
+  /** 0 = Sunday; empty means every day. */
+  daysOfWeek: readonly number[];
+  doneToday: boolean;
   remindersEnabled: boolean;
   /** Days kept of the last fourteen, for the reminder's line. */
   of14: number;
 }
 
+/** A Quit habit with its summary (Pro only; the host passes none on Free). */
 export interface PresenceQuit {
   id: string;
   title: string;
-  /** The current run's start: the last slip, or the quit date. */
-  runStart: string | null;
-  best: number;
-  /** Its milestones may speak (the per-habit switch; the server reads it too). */
   remindersEnabled: boolean;
+  currentStreak: number;
+  lastMilestone: number | null;
+  /** The current run's start; null before the person started. */
+  streakStartedAt: string | null;
 }
 
 /** What was shown, kept per device. */
 export interface PresenceMemory {
   seen: readonly string[];
-  /** Key → when a snoozed reminder may come back (epoch ms). */
-  later: Readonly<Record<string, number>>;
   lastShownAt: number | null;
+  /**
+   * Set once the milestones standing at the first run were marked seen, so
+   * an old milestone is not announced as news the first time the app opens.
+   */
+  seeded: boolean;
 }
 
 export const EMPTY_MEMORY: PresenceMemory = {
   seen: [],
-  later: {},
   lastShownAt: null,
+  seeded: false,
 };
 
 export type PresenceIsland =
   | {
       kind: "reminder";
       key: string;
+      tag: string;
       habitId: string;
       title: string;
       body: string;
-      /** False once Later was used: it comes back once. */
-      canLater: boolean;
     }
   | {
       kind: "milestone";
       key: string;
+      tag: string;
       habitId: string;
       title: string;
       body: string;
     }
-  | { kind: "checkin"; key: string; title: string; body: string };
+  | { kind: "checkin"; key: string; tag: string; title: string; body: string };
 
 export interface PresenceInput {
   now: Date;
@@ -120,75 +135,96 @@ const STEP_WORDS: Record<number, string> = {
   365: "One year",
 };
 
-/** The last milestone the run has reached, or null. */
-export function reachedStep(runStart: string | null, now: Date): number | null {
-  if (!runStart) return null;
-  const days = Math.floor(
-    (now.getTime() - new Date(runStart).getTime()) / 86_400_000
-  );
-  let step: number | null = null;
-  for (const s of QUIT_STEPS) if (s <= days) step = s;
-  return step;
+const MILESTONE_FROM = minutesOf(MILESTONE_TIME) ?? 9 * 60;
+
+/** The milestone a Quit habit may announce now, as the server picks it. */
+function milestoneOf(q: PresenceQuit) {
+  if (!q.remindersEnabled || !q.streakStartedAt) return null;
+  return milestoneToAnnounce(q);
 }
+
+/** Per run: a new run may reach the same step again. */
+const milestoneKey = (q: PresenceQuit, days: number) =>
+  `ms:${q.id}:${days}:${q.streakStartedAt}`;
 
 /** The island due now, or null. Milestone first, then a reminder, then the check-in. */
 export function nextIsland(i: PresenceInput): PresenceIsland | null {
+  const s = i.settings;
   if (i.busy) return null;
+  // The switches every in-app notice obeys: nothing interrupts with
+  // Reminders off, In the app off, or a daily digest instead of a stream.
+  if (!s.reminders || !s.channelInApp || s.digest) return null;
   const nowMs = i.now.getTime();
   if (i.memory.lastShownAt && nowMs - i.memory.lastShownAt < ISLAND_GAP_MS)
     return null;
-  const nowMin = minutesOf(formatInTimeZone(i.now, i.timeZone, "HH:mm")) ?? 0;
-  if (inQuiet(i.settings, nowMin)) return null;
-  const day = formatInTimeZone(i.now, i.timeZone, "yyyy-MM-dd");
+  const clock = localClock(i.now, i.timeZone);
+  if (inQuiet(s, clock.minutes)) return null;
   const seen = new Set(i.memory.seen);
 
-  if (i.settings.habitMilestones) {
+  // In the morning, as the push: never a milestone at night.
+  if (s.habitMilestones && clock.minutes >= MILESTONE_FROM) {
     for (const q of i.quits) {
-      if (!q.remindersEnabled) continue;
-      const step = reachedStep(q.runStart, i.now);
-      if (!step || !q.runStart) continue;
-      const key = `ms:${q.id}:${step}:${q.runStart}`;
+      const days = milestoneOf(q);
+      if (days === null) continue;
+      const key = milestoneKey(q, days);
       if (seen.has(key)) continue;
       return {
         kind: "milestone",
         key,
+        tag: presenceTag({
+          kind: "milestone",
+          habitId: q.id,
+          dayKey: clock.dayKey,
+          days,
+        }),
         habitId: q.id,
-        title: `${STEP_WORDS[step]} without ${q.title.toLowerCase()}`,
-        body: `${step} ${step === 1 ? "day" : "days"}. Best run is ${Math.max(q.best, step)}.`,
+        title: `${STEP_WORDS[days] ?? `${days} days`} without ${q.title.toLowerCase()}`,
+        body: `${days} ${days === 1 ? "day" : "days"} in.`,
       };
     }
   }
 
-  if (i.settings.habitReminders) {
+  if (s.habitReminders) {
     for (const h of i.dos) {
-      if (!h.at || !h.remindersEnabled || h.keptToday) continue;
-      const at = minutesOf(h.at);
-      if (at === null) continue;
-      const key = `rem:${h.id}:${day}`;
-      const later = i.memory.later[key];
-      const due = later
-        ? nowMs >= later && !seen.has(`${key}:again`)
-        : !seen.has(key) && nowMin >= at && nowMin <= at + REMINDER_WINDOW_MIN;
-      if (!due) continue;
+      if (!h.remindersEnabled) continue;
+      if (!habitReminderDue(h, clock, h.doneToday)) continue;
+      const tag = presenceTag({
+        kind: "reminder",
+        habitId: h.id,
+        dayKey: clock.dayKey,
+      });
+      if (seen.has(tag)) continue;
       return {
         kind: "reminder",
-        key: later ? `${key}:again` : key,
+        key: tag,
+        tag,
         habitId: h.id,
         title: `${h.title}, ${h.at}`,
         body: `Your slot starts now · ${h.of14} of 14`,
-        canLater: !later,
       };
     }
   }
 
-  if (i.settings.habitCheckin) {
-    const at = minutesOf(i.settings.habitCheckinTime);
-    const open = i.dos.filter((h) => !h.keptToday).length;
-    const key = `ci:${day}`;
-    if (at !== null && nowMin >= at && open > 0 && !seen.has(key))
+  if (s.habitCheckin && inPresenceWindow(s.habitCheckinTime, clock)) {
+    // The server's count: Do habits that run today, remind and are open,
+    // plus the Quit habits that remind (Pro only; none are passed on Free).
+    const open =
+      i.dos.filter(
+        (h) =>
+          h.remindersEnabled &&
+          habitRunsToday(h.daysOfWeek, clock) &&
+          !h.doneToday
+      ).length + i.quits.filter((q) => q.remindersEnabled).length;
+    const tag = presenceTag({
+      kind: "checkin",
+      habitId: null,
+      dayKey: clock.dayKey,
+    });
+    if (open > 0 && !seen.has(tag))
       return {
         kind: "checkin",
-        key,
+        key: tag,
+        tag,
         title: "Evening check-in",
         body: `${open} ${open === 1 ? "habit" : "habits"} · takes ten seconds`,
       };
@@ -196,7 +232,24 @@ export function nextIsland(i: PresenceInput): PresenceIsland | null {
   return null;
 }
 
-/** Record that an island was shown. Keys older than a few days are dropped. */
+/**
+ * The first run on a device: every milestone that could be announced now is
+ * marked seen without showing it, so opening the app is not "news" about a
+ * milestone the person already knows.
+ */
+export function seedMemory(
+  m: PresenceMemory,
+  quits: readonly PresenceQuit[]
+): PresenceMemory {
+  if (m.seeded) return m;
+  const keys = quits.flatMap((q) => {
+    const days = milestoneOf(q);
+    return days === null ? [] : [milestoneKey(q, days)];
+  });
+  return { ...m, seen: [...m.seen, ...keys].slice(-200), seeded: true };
+}
+
+/** Record that an island was shown. */
 export function rememberShown(
   m: PresenceMemory,
   key: string,
@@ -206,15 +259,6 @@ export function rememberShown(
   return { ...m, seen, lastShownAt: nowMs };
 }
 
-/** "Later": the reminder comes back once, half an hour on. */
-export function rememberLater(
-  m: PresenceMemory,
-  key: string,
-  nowMs: number
-): PresenceMemory {
-  return { ...m, later: { ...m.later, [key]: nowMs + LATER_MS } };
-}
-
 /** Parse what the device kept; anything unreadable starts empty. */
 export function readMemory(raw: string | null): PresenceMemory {
   if (!raw) return EMPTY_MEMORY;
@@ -222,15 +266,27 @@ export function readMemory(raw: string | null): PresenceMemory {
     const v = JSON.parse(raw) as Partial<PresenceMemory>;
     return {
       seen: Array.isArray(v.seen)
-        ? v.seen.filter((k) => typeof k === "string")
+        ? v.seen.filter((k): k is string => typeof k === "string")
         : [],
-      later:
-        v.later && typeof v.later === "object"
-          ? (v.later as Record<string, number>)
-          : {},
       lastShownAt: typeof v.lastShownAt === "number" ? v.lastShownAt : null,
+      seeded: v.seeded === true,
     };
   } catch {
     return EMPTY_MEMORY;
   }
+}
+
+/**
+ * The check-in times on offer: half hours from 18:00 to 23:30, plus the
+ * stored one when it is not among them (set elsewhere, or an older default),
+ * so the control always shows what is saved.
+ */
+export function checkinTimeOptions(current: string): [string, string][] {
+  const out = Array.from({ length: 12 }, (_, i) => {
+    const m = 18 * 60 + i * 30;
+    return `${String(Math.floor(m / 60)).padStart(2, "0")}:${m % 60 ? "30" : "00"}`;
+  });
+  if (/^\d{2}:\d{2}$/.test(current) && !out.includes(current))
+    out.push(current);
+  return out.sort().map((v) => [v, v]);
 }

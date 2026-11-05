@@ -34,28 +34,13 @@ import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { createPortal } from "react-dom";
-import {
-  LuCalendarCheck,
-  LuCheck,
-  LuLink,
-  LuMoveRight,
-  LuSparkles,
-  LuTriangleAlert,
-  LuUser,
-  LuX,
-} from "react-icons/lu";
 
-import { setNoticeSink } from "@/components/needt/corner/bridge";
 import {
   NeedtNoticeProvider,
   useNoticeStack,
   useNotify,
 } from "@/components/needt/corner/notices";
-import type {
-  Notice,
-  NoticeAct,
-  NoticeKind,
-} from "@/components/needt/corner/types";
+import type { Notice, NoticeAct } from "@/components/needt/corner/types";
 
 import {
   CORNER_PILL,
@@ -82,9 +67,10 @@ import { useShellApi } from "../shell/ShellContext";
 import { useAsk } from "./AskProvider";
 import { PANEL_EXIT_MS } from "./ChatDockSlot";
 import { ChatPanel } from "./ChatPanel";
+import { IslandRow, IslandSink } from "./IslandRow";
 import { NudgeTip } from "./NudgeTip";
 import { useChatDock } from "./dock";
-import { hiddenLabel, islandHasRows, islandView, primaryAct } from "./island";
+import { hiddenLabel, islandHasRows, islandView } from "./island";
 import {
   TIP_AUTO_MS,
   TIP_MIN_LEFT_MS,
@@ -101,83 +87,6 @@ function settle(e: React.AnimationEvent<HTMLElement>) {
   if (e.target === e.currentTarget) {
     e.currentTarget.classList.remove("is-opening");
   }
-}
-
-const KINDS: Record<
-  NoticeKind,
-  { Icon: React.ComponentType<{ size?: number }>; tone: string }
-> = {
-  placed: { Icon: LuCalendarCheck, tone: "var(--accent)" },
-  moved: { Icon: LuMoveRight, tone: "var(--accent)" },
-  risk: { Icon: LuTriangleAlert, tone: "var(--destructive)" },
-  done: { Icon: LuCheck, tone: "var(--success)" },
-  agent: { Icon: LuSparkles, tone: "var(--accent)" },
-  person: { Icon: LuUser, tone: "var(--info)" },
-  blocked: { Icon: LuLink, tone: "var(--destructive)" },
-};
-
-/** Hands the mounted island to the plain-function `notify` facade. */
-function Sink() {
-  const api = useNotify();
-  React.useEffect(() => {
-    setNoticeSink(api, "island");
-    return () => setNoticeSink(null, "island");
-  }, [api]);
-  return null;
-}
-
-function IslandRow({
-  notice,
-  onAct,
-  onClose,
-}: {
-  notice: Notice;
-  onAct: (n: Notice, a: NoticeAct) => void;
-  onClose: (id: string) => void;
-}) {
-  const kind = KINDS[notice.kind] ?? KINDS.agent;
-  const act = primaryAct(notice);
-  return (
-    <div
-      className="v3c-row chat-msg-in"
-      data-island-row={notice.id}
-      data-leaving={notice.leaving ? "" : undefined}
-    >
-      <span
-        className="shell-nf-card-grid"
-        aria-hidden="true"
-        style={{
-          color: kind.tone,
-          background: `color-mix(in oklab, ${kind.tone} 15%, transparent)`,
-        }}
-      >
-        <kind.Icon size={15} />
-      </span>
-      <span className="v3c-text">
-        <span className="chat-span-4 v3c-line">{notice.title}</span>
-        {notice.body ? (
-          <span className="chat-span-8 v3c-line">{notice.body}</span>
-        ) : null}
-      </span>
-      {act ? (
-        <button
-          type="button"
-          className="nx-btn nx-btn-secondary nx-btn-sm nx-press"
-          onClick={() => onAct(notice, act)}
-        >
-          {act.label}
-        </button>
-      ) : null}
-      <button
-        type="button"
-        className="chat-tool v3c-x"
-        aria-label="Dismiss"
-        onClick={() => onClose(notice.id)}
-      >
-        <LuX size={13} />
-      </button>
-    </div>
-  );
 }
 
 function Corner() {
@@ -521,9 +430,7 @@ function Corner() {
             {/* The pill is 142px wide: "⌘J" fits, "Ctrl+J" does not. Off the
                 Mac the key stays in the label for screen readers and the
                 pill goes without the cap. */}
-            {hint("⌘J") === "⌘J" ? (
-              <span className="chat-grid">⌘J</span>
-            ) : null}
+            {hint("⌘J") === "⌘J" ? <span className="chat-grid">⌘J</span> : null}
           </button>
         </div>
 
@@ -560,7 +467,7 @@ function Corner() {
 export function AskCorner() {
   return (
     <NeedtNoticeProvider>
-      <Sink />
+      <IslandSink />
       <Corner />
     </NeedtNoticeProvider>
   );

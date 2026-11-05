@@ -39,14 +39,15 @@ export function PermanentHosts() {
       <ActionToasts />
       {/* One instance for both UIs; the controller inside survives the swap. */}
       <FocusHost />
-      {/* Habits speaking up in the corner (behind habits_quit). */}
-      <HabitPresenceHost />
       {/* The iOS app: notification taps and the APNs token. */}
       <NativePushHost />
       {ui === "phone" ? null : (
         <>
           <ComposerHost />
           <CornerLayer />
+          {/* Habits speaking up in the corner (behind habits_quit). Where
+              the island lives: the phone has none, its channel is the push. */}
+          <HabitPresenceHost />
         </>
       )}
     </>

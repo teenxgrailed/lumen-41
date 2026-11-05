@@ -4,6 +4,7 @@ import {
   inPresenceWindow,
   localClock,
   milestoneToAnnounce,
+  presenceTag,
   presenceText,
   reengageDue,
 } from "@/services/habits/presence";
@@ -181,5 +182,24 @@ describe("texts", () => {
     }
     expect(presenceText.checkin(1).body).toBe("1 habit is still open today.");
     expect(presenceText.milestone("x", 7).title).toBe("7 days in");
+  });
+});
+
+describe("presenceTag", () => {
+  it("names each moment as the island does", () => {
+    expect(
+      presenceTag({ kind: "reminder", habitId: "h", dayKey: "2026-11-04" })
+    ).toBe("rem:h:2026-11-04");
+    expect(
+      presenceTag({ kind: "checkin", habitId: null, dayKey: "2026-11-04" })
+    ).toBe("checkin:2026-11-04");
+    expect(
+      presenceTag({
+        kind: "milestone",
+        habitId: "q",
+        dayKey: "2026-11-04",
+        days: 14,
+      })
+    ).toBe("ms:q:14");
   });
 });

@@ -6,6 +6,7 @@ import { LuDownload } from "react-icons/lu";
 
 import { currentBuildLabel } from "@/lib/build-info";
 import { type CityPlace, parseCityPlace } from "@/lib/needt3/city";
+import { checkinTimeOptions } from "@/lib/needt3/habit-presence";
 import { openHelp } from "@/lib/needt3/help";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 import { sendJson } from "@/lib/needt3/hooks/core";
@@ -320,12 +321,21 @@ export function AlertsPage() {
           title="Habits"
           hint={
             a
-              ? `Check-in at ${a.habitCheckinTime}. A pull you log in quiet hours still works — only Needt stays quiet.`
+              ? "On the phone these arrive as push notifications. A pull you log in quiet hours still works — only Needt stays quiet."
               : undefined
           }
         >
           {row("Reminders at each habit's time", "habitReminders")}
           {row("Evening check-in", "habitCheckin")}
+          {a?.habitCheckin ? (
+            <PsPick
+              title="Check-in at"
+              value={a.habitCheckinTime}
+              options={checkinTimeOptions(a.habitCheckinTime)}
+              onChange={(v) => save({ habitCheckinTime: v })}
+              data={{ "data-ps-checkin-time": "" }}
+            />
+          ) : null}
           {row("Milestones", "habitMilestones")}
           {row("Been a while", "habitReengage")}
         </PsGroup>

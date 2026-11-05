@@ -1,6 +1,7 @@
 "use client";
 
 import { isMacApp } from "@/lib/desktop";
+import { checkinTimeOptions } from "@/lib/needt3/habit-presence";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 import { useHabits, useUpdateHabit } from "@/lib/needt3/hooks/habits";
 import { useQuitGate } from "@/lib/needt3/hooks/habits-quit";
@@ -190,7 +191,7 @@ function HabitsGroup() {
             <SSelect
               label="Check-in time"
               value={a.habitCheckinTime}
-              options={CHECKIN_TIMES}
+              options={checkinTimeOptions(a.habitCheckinTime)}
               width={100}
               onChange={(v) => save({ habitCheckinTime: v })}
             />
@@ -225,11 +226,13 @@ function HabitsGroup() {
               title={h.title}
               desc={
                 h.kind === "QUIT"
-                  ? "Quit: its milestones"
+                  ? gate === "on"
+                    ? "Quit: its milestones"
+                    : "Quit: milestones are Pro"
                   : (h.schedule.time ?? "No time set")
               }
             >
-              {
+              {h.kind === "QUIT" && gate !== "on" ? null : (
                 <V3Switch
                   label={
                     h.kind === "QUIT"
@@ -243,7 +246,7 @@ function HabitsGroup() {
                       .then(mark)
                   }
                 />
-              }
+              )}
             </SRow>
           ))}
         </SGroup>
@@ -251,13 +254,3 @@ function HabitsGroup() {
     </>
   );
 }
-
-/** Half-hour steps from 18:00 to 23:30, where an evening check-in belongs. */
-const CHECKIN_TIMES: readonly (readonly [string, string])[] = Array.from(
-  { length: 12 },
-  (_, i) => {
-    const m = 18 * 60 + i * 30;
-    const v = `${String(Math.floor(m / 60)).padStart(2, "0")}:${m % 60 ? "30" : "00"}`;
-    return [v, v] as const;
-  }
-);
