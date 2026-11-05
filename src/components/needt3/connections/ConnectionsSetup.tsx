@@ -262,7 +262,7 @@ function ConnectStep({
         line="Sign in to each source. You can skip any of them and add it later."
       />
       <div className="cs-wrap">
-        <GlassCard className="cs-prog" pad={0} radius={20} data-cs-prog="">
+        <GlassCard className="cs-prog" pad={14} radius={20} data-cs-prog="">
           <span className="cs-prog-t">
             <b>{done}</b> of {picked.length} connected
           </span>
@@ -371,7 +371,7 @@ function SourceCard({
   return (
     <GlassCard
       className={"cs-card nx-swap" + (status === "queued" ? " is-queued" : "")}
-      pad={0}
+      pad={14}
       radius={20}
       data-cs-card={item.slug}
       data-state={status}

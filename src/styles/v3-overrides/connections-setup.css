@@ -320,7 +320,6 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 13px 16px;
 }
 .needt-v3 .cs-prog-t {
   font: 400 13px/18px var(--font-sans);
@@ -366,8 +365,8 @@
   gap: 10px;
   margin-top: 12px;
 }
+/* GlassCard sets the padding (14). */
 .needt-v3 .cs-card {
-  padding: 12px 14px;
   transition: opacity 0.42s var(--cs-ease);
 }
 .needt-v3 .cs-card.is-queued {
