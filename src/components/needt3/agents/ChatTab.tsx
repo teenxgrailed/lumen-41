@@ -7,6 +7,7 @@ import { FiArrowUp, FiList, FiMic, FiSquare } from "react-icons/fi";
 import { newDate } from "@/lib/date-utils";
 import { sendJson } from "@/lib/needt3/hooks/core";
 
+import { useSharedAsk } from "../corner/AskProvider";
 import { useAskNeedt } from "../corner/useAskNeedt";
 import { listKeys, shortWhen } from "./AgParts";
 import { AgentIcon } from "./AgentIcon";
@@ -102,7 +103,11 @@ export function ChatTab({
   itemTitle: (id: string) => string | null;
   run: Run;
 }) {
-  const ai = useAskNeedt();
+  // The same conversation as the corner's Ask Needt when the shell holds
+  // one; its own (restored from the server) outside it.
+  const shared = useSharedAsk();
+  const own = useAskNeedt({ restore: !shared });
+  const ai = shared ?? own;
   const wave = useRef<WaveHandle>(null);
   const [drawer, setDrawer] = useState(false);
   const [thread, setThread] = useState<string | null>(focusThread);
@@ -363,7 +368,7 @@ export function ChatTab({
         </div>
       </aside>
 
-      {!started && !open ? (
+      {!started && !open && !ai.restoring ? (
         <div
           className="ag-hint"
           aria-hidden="true"

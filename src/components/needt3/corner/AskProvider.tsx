@@ -52,6 +52,11 @@ export function useAskPhase() {
   return React.useContext(AskContext)?.ask.phase ?? "idle";
 }
 
+/** The shared conversation, or null outside the v3 shell. */
+export function useSharedAsk() {
+  return React.useContext(AskContext)?.ask ?? null;
+}
+
 /** The shared Ask controller; only inside the v3 shell (`AskProvider`). */
 export function useAsk(): AskApi {
   const api = React.useContext(AskContext);

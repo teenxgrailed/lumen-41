@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
-import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 
 import * as route from "@/app/api/ai/conversations/route";
+import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
+
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -10,13 +11,18 @@ jest.mock("@/lib/auth/api-auth", () => ({
 }));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    aiConversation: { create: jest.fn(), findMany: jest.fn() },
+    aiConversation: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+    },
   },
 }));
 
 const conversations = prisma.aiConversation as unknown as {
   create: jest.Mock;
   findMany: jest.Mock;
+  findFirst: jest.Mock;
 };
 
 const workspace = {
@@ -50,6 +56,31 @@ describe("AI conversations workspace scope", () => {
       })
     );
     expect(response.status).toBe(200);
+  });
+
+  it("returns only the latest conversation's last messages with ?latest=1", async () => {
+    conversations.findFirst.mockResolvedValue({
+      id: "c1",
+      messages: [
+        { id: "m2", role: "assistant", content: "Later" },
+        { id: "m1", role: "user", content: "Earlier" },
+      ],
+    });
+    const response = await route.GET(
+      new NextRequest("http://localhost/api/ai/conversations?latest=1")
+    );
+    if (!response) throw new Error("Expected a response");
+    expect(conversations.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: "user-1", workspaceId: "workspace-1" },
+        orderBy: { updatedAt: "desc" },
+      })
+    );
+    expect(conversations.findMany).not.toHaveBeenCalled();
+    const body = await response.json();
+    expect(
+      body.conversations[0].messages.map((m: { id: string }) => m.id)
+    ).toEqual(["m1", "m2"]);
   });
 
   it("creates conversations in the authenticated workspace", async () => {
