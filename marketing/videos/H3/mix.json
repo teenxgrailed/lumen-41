@@ -1,5 +1,5 @@
 {
-  "note": "Times from H3/sound.md (scene.js 3c138c9). Logo swell starts 1.2 s before its hit. Lines retimed 05.11 to the generated takes so none overlap.",
+  "note": "Times from H3/sound.md (scene.js 3c138c9). Logo swell starts 1.2 s before its hit. Lines retimed 05.11 to the generated takes so none overlap. 05.11 mix: logo take a swells to 1.3 s and cuts off at 1.4 s (no separate hit in a, b or c), so at 9.6 puts the cut on 11.0.",
   "renders": [
     {
       "video": "H3_9x16.mp4",
@@ -115,7 +115,7 @@
     {
       "id": "cue9_logo",
       "at": [
-        9.8
+        9.6
       ],
       "gainDb": -4
     }

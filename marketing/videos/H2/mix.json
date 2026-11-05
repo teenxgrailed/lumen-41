@@ -1,5 +1,5 @@
 {
-  "note": "Times from H2/sound.md (scene.js 3c138c9). The 'now'-line ticks are spaced evenly over 7.9\u20139.9; snap them to passed() in scene.js before the final mix. Logo swell starts 1.2 s before its hit. Lines retimed 05.11 to the generated takes so none overlap.",
+  "note": "Times from H2/sound.md (scene.js 3c138c9). The 'now'-line ticks are spaced evenly over 7.9\u20139.9; snap them to passed() in scene.js before the final mix. Logo swell starts 1.2 s before its hit. Lines retimed 05.11 to the generated takes so none overlap. 05.11 mix: ticks snapped to passed() for the three Today tasks (8.62/8.81/9.05; the pin at 9.27 stays silent per sound.md); vo4 10.45 and vo5 12.3 so they no longer overlap; logo take a peaks 1.11 s in, at 9.79 hits 10.9.",
   "renders": [
     {
       "video": "H2_9x16.mp4",
@@ -27,11 +27,11 @@
     },
     {
       "id": "vo4_showup",
-      "at": 11.35
+      "at": 10.45
     },
     {
       "id": "vo5_needt",
-      "at": 12.2
+      "at": 12.3
     }
   ],
   "sfx": [
@@ -113,17 +113,16 @@
     {
       "id": "cue7_tick",
       "at": [
-        8.2,
-        8.7,
-        9.2,
-        9.7
+        8.62,
+        8.81,
+        9.05
       ],
       "gainDb": -10
     },
     {
       "id": "cue8_logo",
       "at": [
-        9.7
+        9.79
       ],
       "gainDb": -4
     }
