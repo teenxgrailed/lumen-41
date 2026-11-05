@@ -1,0 +1,1 @@
+- Security reports: `/.well-known/security.txt` names where to report a vulnerability.
