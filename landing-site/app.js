@@ -495,7 +495,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     props.page = location.pathname;
     try { (window.dataLayer = window.dataLayer || []).push({ event: ev, ...props }); } catch (_) {}
     try { if (window.plausible) window.plausible(ev, { props }); } catch (_) {}
-    try { if (window.umami && window.umami.track) window.umami.track(ev, props); } catch (_) {}
+    try { if (window.umami && window.umami.track && window.NeedtConsent && window.NeedtConsent.allowed()) window.umami.track(ev, props); } catch (_) {}
   });
   const plan = (h) => /checkout=lifetime/.test(h) ? "lifetime" : /checkout=pro-month/.test(h) ? "pro_month" : /checkout=pro/.test(h) ? "pro_year" : null;
   document.addEventListener("click", (e) => {

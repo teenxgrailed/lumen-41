@@ -20,22 +20,21 @@ COPY landing-site/ /usr/share/nginx/html/
 # Umami website ID, injected at build time and never committed.
 # Coolify: add UMAMI_SITE_ID in the application's Environment Variables and tick
 # "Build Variable" (otherwise it is not passed to `docker build` as a build arg).
-# The pages ship the Umami tag inside an HTML comment with the placeholder
-# __UMAMI_SITE_ID__. With a non-empty ID this step uncomments the tag, fills in
-# the ID and fails the build if any placeholder is left. With an empty ID the
-# page stays as is (no analytics) and a warning is printed.
+# The pages load consent.js with data-umami-id="__UMAMI_SITE_ID__"; consent.js adds the Umami
+# script only after the visitor accepts. With a non-empty ID this step fills in the ID in every
+# page, checks that every page got it and fails the build if any placeholder is left. With an
+# empty ID the pages stay as they are (no analytics) and a warning is printed.
 ARG UMAMI_SITE_ID=
 RUN set -eu; \
     if [ -n "$UMAMI_SITE_ID" ]; then \
       case "$UMAMI_SITE_ID" in *[!A-Za-z0-9-]*) echo "UMAMI_SITE_ID must be [A-Za-z0-9-] only" >&2; exit 1;; esac; \
-      find /usr/share/nginx/html -name '*.html' -exec sed -i \
-        -e '/<!-- Analytics (Umami/s/$/ -->/' \
-        -e "/<script defer src=\"https:\\/\\/stats.needt.app/{s/__UMAMI_SITE_ID__/$UMAMI_SITE_ID/;n;/^-->$/d;}" {} +; \
+      find /usr/share/nginx/html -name '*.html' -exec sed -i "s/__UMAMI_SITE_ID__/$UMAMI_SITE_ID/g" {} +; \
       LEFT=$(find /usr/share/nginx/html -name '*.html' -exec grep -l '__UMAMI_SITE_ID__' {} + || true); \
       if [ -n "$LEFT" ]; then echo "ERROR: UMAMI_SITE_ID placeholder left in: $LEFT" >&2; exit 1; fi; \
-      N=$(find /usr/share/nginx/html -name '*.html' -exec grep -l "data-website-id=\"$UMAMI_SITE_ID\"" {} + 2>/dev/null | wc -l); \
-      if [ "$N" -eq 0 ]; then echo "ERROR: Umami tag not found in any page" >&2; exit 1; fi; \
-      echo "Umami enabled in $N pages"; \
+      PAGES=$(find /usr/share/nginx/html -name '*.html' | wc -l); \
+      N=$(find /usr/share/nginx/html -name '*.html' -exec grep -l "data-umami-id=\"$UMAMI_SITE_ID\"" {} + 2>/dev/null | wc -l); \
+      if [ "$N" -ne "$PAGES" ]; then echo "ERROR: Umami ID set in $N of $PAGES pages" >&2; exit 1; fi; \
+      echo "Umami ID set in $N pages"; \
     else \
       echo "WARNING: UMAMI_SITE_ID is empty, analytics stay disabled (placeholder left in place)"; \
     fi

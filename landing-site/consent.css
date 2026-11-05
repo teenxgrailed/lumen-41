@@ -1,0 +1,24 @@
+/* Cookie consent banner. Uses the landing tokens and the existing .btn .btn-raised .btn-sm. */
+.cc { position: fixed; z-index: 80; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 10px; padding: 14px 14px 12px; border-radius: 16px;
+  background: var(--white, #fff); color: var(--ink, #0e1520); box-shadow: var(--shadow-floating);
+  font: 500 13px/1.45 var(--sans); transition: transform .3s var(--ease), opacity .3s var(--ease); }
+.cc:focus { outline: none; }
+.cc:focus-visible { box-shadow: var(--shadow-floating), 0 0 0 2px var(--blue, #2e6de9); }
+.cc.cc-in { opacity: 0; transform: translateY(12px); }
+.cc p { margin: 0; color: var(--ink-2, rgba(14, 21, 32, .68)); }
+.cc a { color: var(--ink, #0e1520); text-decoration: underline; text-underline-offset: 2px; }
+.cc-actions { display: flex; gap: 8px; }
+.cc-actions .btn { flex: 1 1 0; }
+.cc .btn:focus-visible, .cc a:focus-visible { outline: 2px solid var(--blue, #2e6de9); outline-offset: 2px; }
+@media (min-width: 761px) {
+  .cc { left: 20px; right: auto; bottom: 20px; width: min(400px, calc(100vw - 40px)); }
+}
+/* The phone sticky CTA sits above the banner while the banner is open. */
+@media (max-width: 760px) {
+  html.cc-open .m-cta { bottom: calc(var(--cc-h, 0px) + 24px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc { transition: none; }
+  .cc.cc-in { transform: none; }
+}
