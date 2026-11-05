@@ -965,12 +965,16 @@
 .hq-pull:not(.is-desk) .step {
   top: max(64px, calc(env(safe-area-inset-top, 0px) + 20px));
 }
+/* Close stays put while the flow scrolls or the keyboard is up: fixed to
+   the screen (the pull layer fills it), above the content. */
 .hq-pull:not(.is-desk) .x {
+  position: fixed;
+  z-index: 2;
   top: max(56px, calc(env(safe-area-inset-top, 0px) + 12px));
 }
 /* 44-px touch targets for the 36-px controls, without changing how they
    look: the hit area reaches past the drawn shape. */
-.hq-phone .hq-btn.is-sm,
+.hq-phone .hq-btn.is-sm:not(.x),
 .hq-phone .hq-chip {
   position: relative;
 }
@@ -979,6 +983,10 @@
   content: "";
   position: absolute;
   inset: -4px -2px;
+}
+/* Chips sit 6 px apart in wrapped rows: their hit areas must not meet. */
+.hq-phone .hq-chip::after {
+  inset: -3px -2px;
 }
 /* A long word (a name, a tag typed in "Other…") wraps instead of pushing
    past the screen. */
