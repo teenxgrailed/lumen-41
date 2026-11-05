@@ -166,7 +166,8 @@ export function ApprovalCard({
       if (!timer.current) return;
       window.clearTimeout(timer.current);
       timer.current = null;
-      void send.current();
+      // Not if the item has moved on meanwhile (no longer waiting on you).
+      if (status.current === "needs_owner") void send.current();
     },
     []
   );

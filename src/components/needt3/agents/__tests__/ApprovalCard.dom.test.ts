@@ -182,4 +182,13 @@ describe("ApprovalCard", () => {
     });
     expect(onLeavePage).not.toHaveBeenCalled();
   });
+
+  it("does not send on unmount once the item no longer waits on you", async () => {
+    await mount(item());
+    act(() => $("[data-ag-approve]")!.click());
+    await mount(item({ status: "done" }));
+    act(() => root.unmount());
+    expect(onApprove).not.toHaveBeenCalled();
+    root = createRoot(host);
+  });
 });

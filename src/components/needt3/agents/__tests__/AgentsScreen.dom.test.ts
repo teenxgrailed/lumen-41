@@ -481,6 +481,19 @@ describe("Agents screen", () => {
     expect(host.querySelector("[data-ag-item='i2']")).toBeNull();
   });
 
+  it("draws the Map without its counts when the graph failed (null)", async () => {
+    (fetchJson as jest.Mock).mockImplementation((url: string) =>
+      Promise.resolve(
+        url.startsWith("/api/agent-hub/overview")
+          ? { ...OVERVIEW, graph: null }
+          : route(url)
+      )
+    );
+    await mount();
+    expect(selected()).toBe("map");
+    expect(host.querySelector(".ag-map-stage [data-ag-map]")).not.toBeNull();
+  });
+
   it("asks for the graph only on the tabs that draw it", async () => {
     await mount("tab=tasks");
     const urls = (fetchJson as jest.Mock).mock.calls

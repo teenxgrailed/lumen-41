@@ -8,6 +8,10 @@ jest.mock("@/services/agent-hub/http", () => ({
   hubRoute: (run: () => Promise<unknown>) => run(),
   queryOf: (request: NextRequest) => ({ params: request.nextUrl.searchParams }),
 }));
+const logError = jest.fn();
+jest.mock("@/lib/logger", () => ({
+  logger: { error: (...a: unknown[]) => logError(...a) },
+}));
 jest.mock("@/services/agent-hub/agents", () => ({
   listAgentsForOwner: jest.fn(async () => []),
 }));
@@ -75,5 +79,20 @@ describe("GET /api/agent-hub/overview", () => {
       { id: "f-i1", mime: "video/mp4", name: "a.mp4" },
     ]);
     expect(body.items[1].media).toBeUndefined();
+  });
+
+  it("sends the whole overview with graph null when the graph fails", async () => {
+    mapGraph.mockRejectedValueOnce(new Error("db down"));
+    const res = (await get("?graph=1")) as NextResponse;
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.graph).toBeNull();
+    expect(body.agents).toEqual([]);
+    expect(body.items).toEqual([]);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining("Map graph failed"),
+      expect.objectContaining({ error: "db down" }),
+      "agent-hub-overview"
+    );
   });
 });

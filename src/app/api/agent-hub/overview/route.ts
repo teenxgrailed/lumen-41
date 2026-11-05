@@ -12,6 +12,10 @@ import { mapGraph } from "@/services/agent-hub/map-graph";
 import { searchNotes } from "@/services/agent-hub/notes";
 import { listReservations } from "@/services/agent-hub/reservations";
 
+import { logger } from "@/lib/logger";
+
+const LOG_SOURCE = "agent-hub-overview";
+
 /**
  * Everything the Agents screen shows, for the signed-in owner. `?graph=1`
  * adds the Map's compact links and counts (per-agent activity by day, thread
@@ -35,7 +39,18 @@ export async function GET(request: NextRequest) {
         ...(tag ? { tags: [tag] } : {}),
       }),
       listReservations(auth.scope),
-      withGraph ? mapGraph(auth.scope) : null,
+      // The graph is decoration: if it fails, the overview still goes out
+      // whole, with `graph: null`, and the Map draws without its counts.
+      withGraph
+        ? mapGraph(auth.scope).catch((error: unknown) => {
+            logger.error(
+              "Map graph failed; overview sent without it",
+              { error: error instanceof Error ? error.message : String(error) },
+              LOG_SOURCE
+            );
+            return null;
+          })
+        : null,
     ]);
     const waiting = items.filter((i) => i.status === "needs_owner");
     const media = await mediaStubs(
@@ -52,7 +67,7 @@ export async function GET(request: NextRequest) {
         : items,
       notes: notes.notes,
       reservations: reservations.reservations,
-      ...(graph ? { graph } : {}),
+      ...(withGraph ? { graph } : {}),
     });
   });
 }

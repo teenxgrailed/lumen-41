@@ -65,8 +65,8 @@ interface Overview {
   items: HubItemRow[];
   notes: HubNoteRow[];
   reservations?: HubReservationRow[];
-  /** `?graph=1`: the Map's compact links and counts. */
-  graph?: MapGraph;
+  /** `?graph=1`: the Map's compact links and counts; null when it failed. */
+  graph?: MapGraph | null;
 }
 
 type Tab = "map" | "agents" | "tasks" | "chat" | "activity" | "memory";
