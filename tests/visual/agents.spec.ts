@@ -338,6 +338,8 @@ const TABS = [
   ["agents", "[data-ag-card]"],
   ["tasks", "[data-ag-item]"],
   ["chat", "[data-ag-chat]"],
+  ["activity", "[data-ag-event]"],
+  ["memory", "[data-ag-note]"],
 ] as const;
 
 for (const theme of ["dark", "light"] as const) {
