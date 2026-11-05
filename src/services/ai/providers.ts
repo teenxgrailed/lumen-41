@@ -40,7 +40,7 @@ async function fetchWithTimeout(
   }
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
+export function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
@@ -81,7 +81,7 @@ async function reportUsage(
   await config.onUsage?.(usage);
 }
 
-function parseToolArguments(value: unknown): Record<string, unknown> {
+export function parseToolArguments(value: unknown): Record<string, unknown> {
   if (!value) return {};
   if (typeof value === "string") {
     try {
@@ -104,7 +104,7 @@ function openAITools(tools?: AIChatToolDefinition[]) {
   }));
 }
 
-async function* parseSseJson(
+export async function* parseSseJson(
   response: Response
 ): AsyncGenerator<Record<string, unknown>> {
   if (!response.body) {

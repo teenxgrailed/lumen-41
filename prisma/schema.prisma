@@ -2618,6 +2618,8 @@ model AIOAuthConnection {
   tokenType             String?
   scope                 String?
   expiresAt             DateTime?
+  // CHATGPT_PLAN only: the verified email of the ChatGPT account, for display.
+  accountLabel          String?
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
@@ -3598,6 +3600,10 @@ enum AIProvider {
   GROK
   GLM
   CUSTOM
+  // The person's own ChatGPT plan via Sign in with ChatGPT (flag
+  // ai_chatgpt_plan). Only an AIOAuthConnection / AIOAuthState provider, never
+  // AISettings.provider.
+  CHATGPT_PLAN
 }
 
 enum AgentMemoryKind {
