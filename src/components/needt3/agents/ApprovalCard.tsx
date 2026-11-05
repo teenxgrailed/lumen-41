@@ -21,16 +21,28 @@ interface HubFile {
 /** How long Approve waits before it is sent, so Undo is real. */
 export const UNDO_MS = 5000;
 
-const hhmm = (iso: string) => formatDateToLocal(newDate(iso)).slice(11, 16);
+/** "18:00" today, "Tue 18:00" another day, "" for a date that is not one. */
+export function hhmm(
+  iso: string | null | undefined,
+  now = newDate().getTime()
+) {
+  if (!iso) return "";
+  const d = newDate(iso);
+  if (isNaN(d.getTime())) return "";
+  const time = formatDateToLocal(d).slice(11, 16);
+  if (d.toDateString() === newDate(now).toDateString()) return time;
+  return `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${time}`;
+}
 
-/** "in 2 h 14 min", "in 12 min", or null once it has passed. */
+/** "in 12 min", "in 2 h 14 min", "in 3 d", or null once it has passed. */
 function until(iso: string, now: number) {
   const ms = newDate(iso).getTime() - now;
   if (!Number.isFinite(ms) || ms <= 0) return null;
   const m = Math.round(ms / 60000);
   if (m < 60) return `in ${m} min`;
   const h = Math.floor(m / 60);
-  return `in ${h} h ${m % 60} min`;
+  if (h < 24) return `in ${h} h ${m % 60} min`;
+  return `in ${Math.round(h / 24)} d`;
 }
 
 /** A 9:16 preview of a media file: plays in place with its progress. */
@@ -117,17 +129,24 @@ export function ApprovalCard({
   agent: string;
   now: number;
   done: "approved" | "answered" | null;
-  /** Sends the approval; called after the Undo window. */
-  onApprove: () => Promise<unknown> | void;
+  /** Sends the approval after the Undo window; false when it failed. */
+  onApprove: () => Promise<boolean | void> | void;
   onAnswer: () => void;
   onOpen: () => void;
 }) {
   const risky = item.risks.some((r) => !item.approvals[r]);
   const [pending, setPending] = useState(false);
   const timer = useRef<number | null>(null);
+  const send = useRef(onApprove);
+  send.current = onApprove;
+  // Leaving the card inside the Undo window (another tab, a refetch) sends
+  // the approval now: it was shown as approved, so it must not be lost.
   useEffect(
     () => () => {
-      if (timer.current) window.clearTimeout(timer.current);
+      if (!timer.current) return;
+      window.clearTimeout(timer.current);
+      timer.current = null;
+      void send.current();
     },
     []
   );
@@ -153,7 +172,10 @@ export function ApprovalCard({
     setPending(true);
     timer.current = window.setTimeout(() => {
       timer.current = null;
-      void onApprove();
+      void Promise.resolve(send.current()).then((ok) => {
+        // A failed approval reopens the card.
+        if (ok === false) setPending(false);
+      });
     }, UNDO_MS);
   };
   const undo = () => {

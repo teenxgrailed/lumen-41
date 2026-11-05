@@ -62,6 +62,15 @@ export const ChatWave = forwardRef<
     const ctx = el?.getContext?.("2d");
     if (!el || !ctx) return undefined;
     const still = reducedMotion();
+    // Safari repaints canvas shadows at a high cost: none there (owner's
+    // report, 05.11.26). Everywhere, 30 frames a second is plenty.
+    const safari =
+      typeof navigator !== "undefined" &&
+      /Safari\//.test(navigator.userAgent) &&
+      !/Chrome|Chromium|CriOS|Edg\//.test(navigator.userAgent);
+    const shadows = !safari;
+    const FRAME = 1000 / 30;
+    let drawn = 0;
     const hs = new Float32Array(NB);
     const gs = new Float32Array(NB);
     const P = { cx: 0, cy: 0, sc: 1, amp: 0.5, spread: 1 };
@@ -193,15 +202,19 @@ export const ChatWave = forwardRef<
           ctx.save();
           if (pass === 0) {
             const h = gs[i];
-            ctx.shadowColor = "rgba(255,255,255,.18)";
-            ctx.shadowBlur = 16 * D;
+            if (shadows) {
+              ctx.shadowColor = "rgba(255,255,255,.18)";
+              ctx.shadowBlur = 16 * D;
+            }
             ctx.fillStyle = `rgba(255,255,255,${0.07 + 0.05 * env})`;
             capsule(x - bw * 0.5, P.cy - h / 2, bw, h);
           } else {
             const h = hs[i];
             const a = 0.34 + 0.66 * Math.pow(env, 0.7);
-            ctx.shadowColor = `rgba(255,255,255,${0.22 + 0.3 * env})`;
-            ctx.shadowBlur = 12 * D;
+            if (shadows) {
+              ctx.shadowColor = `rgba(255,255,255,${0.22 + 0.3 * env})`;
+              ctx.shadowBlur = 12 * D;
+            }
             const g = ctx.createLinearGradient(
               0,
               P.cy - h / 2,
@@ -237,6 +250,8 @@ export const ChatWave = forwardRef<
         last = now;
         return;
       }
+      if (now - drawn < FRAME - 2) return;
+      drawn = now;
       const dt = Math.min(0.05, (now - last) / 1000 || 0.016);
       last = now;
       update(dt);

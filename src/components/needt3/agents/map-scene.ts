@@ -237,8 +237,12 @@ export interface MapScene {
 export const MAP_BUDGET = 1000;
 /** On a phone the scene is about half. */
 export const MAP_BUDGET_PHONE = 520;
-/** Below this width the scene is laid out for a phone. */
-export const PHONE_WIDTH = 700;
+/**
+ * Below this width the scene is laid out for a phone: under it the right
+ * column of pills would cover the core's agents (a tablet in portrait, a
+ * narrow window).
+ */
+export const PHONE_WIDTH = 960;
 
 export const WHITE: Rgb = [236, 242, 255];
 /** The one ambient colour: the cold blue glow. */
@@ -589,11 +593,17 @@ export function buildMapScene(
   const shown = drafts.slice(0, phone ? 2 : 4);
   const pw = phone ? W - 32 : 288;
   const ph = phone ? 58 : 68;
+  // Pills never overlap and never leave the canvas, however short it is.
+  const step = Math.max(ph + 8, H * 0.17);
   const pills: MapPill[] = shown.map((p, i) => {
     const x = phone ? 16 : W - pw - 44;
     const y = phone
-      ? H - 150 - (shown.length - i) * 66
-      : H * (0.5 + (i - (shown.length - 1) / 2) * 0.17) - ph / 2;
+      ? clamp(H - 150 - (shown.length - i) * 66, 12 + i * 66, H - ph - 12)
+      : clamp(
+          H * 0.5 + (i - (shown.length - 1) / 2) * step - ph / 2,
+          12,
+          H - ph - 12
+        );
     let anchor = -1;
     if (!phone) {
       const yc = y + ph / 2;
@@ -782,10 +792,18 @@ export function buildMapScene(
 
   // Status tint: how near each node is to an agent, fading with distance.
   const R = phone ? 55 : 88;
+  const anchorOf = new Map(pills.map((p) => [p.anchor, p.agent]));
   nodes.forEach((n, ni) => {
     if (n.kind === "agent") {
       n.sw = 1;
       n.sa = ni;
+      return;
+    }
+    // A pill's anchor takes its own agent's colour, not the nearest one's.
+    const own = anchorOf.get(ni);
+    if (own !== undefined) {
+      n.sw = 0.6;
+      n.sa = own;
       return;
     }
     let bd = Infinity;

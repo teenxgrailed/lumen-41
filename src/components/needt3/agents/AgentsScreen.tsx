@@ -50,15 +50,14 @@ import {
   inView,
   waitsForYou,
 } from "./TasksTab";
+import { agentStatuses, recentFailures } from "./agent-status";
 import {
-  type AgentStatus,
   type MapGraph,
   type MapInput,
   type MapSourceInput,
   freshSeed,
   mapStats,
   statsLine,
-  worstStatus,
 } from "./map-scene";
 
 interface Overview {
@@ -320,13 +319,16 @@ export function AgentsScreen() {
       qc.invalidateQueries({ queryKey: ["agent-hub"] }),
       qc.invalidateQueries({ queryKey: qk.agentHubNav() }),
     ]);
+  /** Runs a hub action; resolves true when it worked, false (and says why) when not. */
   const run = async (task: () => Promise<unknown>, done?: string) => {
     try {
       await task();
       if (done) notify.success(done);
       await refresh();
+      return true;
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Failed");
+      return false;
     }
   };
 
@@ -386,53 +388,16 @@ export function AgentsScreen() {
     () => new Map(threadRows.map((t) => [t.id, t.subject])),
     [threadRows]
   );
-  // Each agent's status on the Map (owner, 05.11.26): red when broken or a
-  // risky step waits on you, orange when it asks you in Chat, blue while it
-  // works, green otherwise.
-  const statusOf = useMemo(() => {
-    const map = new Map<
-      string,
-      { status: AgentStatus; line: string; reason: string | null }
-    >();
-    for (const a of agents) {
-      const own = items.filter(
-        (i) => i.assignee && i.assignee !== "any" && i.assignee.id === a.id
-      );
-      const list: AgentStatus[] = [];
-      let reason: string | null = null;
-      let asked: string | null = null;
-      if (a.token?.revoked) {
-        list.push("alert");
-        reason = "connection expired";
-      }
-      for (const i of own) {
-        if (i.status === "failed") {
-          list.push("alert");
-          reason ??= "a task failed";
-        } else if (i.status === "needs_owner") {
-          // A question or an approval waits on you: orange, not red (owner,
-          // 05.11.26). Red is for broken: a revoked token, a failed task.
-          list.push("waiting");
-          asked ??= i.question ?? i.title;
-        }
-      }
-      if (working.has(a.id)) list.push("working");
-      const status = worstStatus(list);
-      const line =
-        status === "alert"
-          ? reason === "connection expired"
-            ? "Connection expired — reconnect"
-            : `Needs you · ${reason}`
-          : status === "waiting"
-            ? `Asked: ${asked}`
-            : status === "working"
-              ? `Working · ${nowOf.get(a.id) ?? "on a task"}`
-              : "All good";
-      map.set(a.id, { status, line, reason });
-    }
-    return map;
-  }, [agents, items, working, nowOf]);
+  const recent = useMemo(
+    () => recentFailures(items, newDate().getTime()),
+    [items]
+  );
+  const statusOf = useMemo(
+    () => agentStatuses(agents, items, working, nowOf, newDate().getTime()),
+    [agents, items, working, nowOf]
+  );
   // Red in Chat: what is broken, with the one action that fixes it.
+  // A failure counts for three days; older ones live in Tasks.
   const chatAlerts: ChatAlert[] = [];
   for (const a of live) {
     if (a.token?.revoked)
@@ -446,8 +411,8 @@ export function AgentsScreen() {
         run: () => openAgent(a.id),
       });
   }
-  for (const i of items) {
-    if (i.status !== "failed" || !i.assignee || i.assignee === "any") continue;
+  for (const i of recent) {
+    if (!i.assignee || i.assignee === "any") continue;
     chatAlerts.push({
       key: `failed-${i.id}`,
       agent: i.assignee.name ?? "An agent",
@@ -781,7 +746,7 @@ export function AgentsScreen() {
     content = (
       <ChatTab
         threads={threadRows}
-        waiting={items.filter(waitsForYou)}
+        waiting={items.filter((i) => i.status === "needs_owner")}
         alerts={chatAlerts}
         focusThread={threadFocus}
         onOpenThread={(id) => {

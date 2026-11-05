@@ -243,7 +243,7 @@ export function filterItems(items: HubItemRow[], f: TaskFilters) {
   });
 }
 
-type Run = (task: () => Promise<unknown>, done?: string) => Promise<void>;
+type Run = (task: () => Promise<unknown>, done?: string) => Promise<unknown>;
 
 function ringOf(item: HubItemRow) {
   if (item.status === "done") return "done";

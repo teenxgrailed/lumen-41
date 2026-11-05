@@ -324,7 +324,14 @@ export function startLoop(
    * Carried across rebuilds of the same layout (new data, full screen): the
    * entry does not replay and the mood does not reset. Mutated in place.
    */
-  clock: { born: number; mood: number; moodAt: number } = {
+  clock: {
+    born: number;
+    mood: number;
+    moodAt: number;
+    /** Learned by adaptive quality; kept across rebuilds. */
+    dpr?: number;
+    frameMs?: number;
+  } = {
     born: performance.now(),
     mood: 0,
     moodAt: performance.now(),
@@ -341,8 +348,12 @@ export function startLoop(
   // Adaptive quality: while the smoothed frame time stays over 22 ms for
   // 1.5 s, the resolution steps down to 1, then the frame rate. Only the
   // canvas's pixel size changes; the scene is not rebuilt.
-  let dpr = dprStart;
-  let frameMs = lite ? 1000 / 24 : FRAME_MS;
+  let dpr = Math.min(dprStart, clock.dpr ?? dprStart);
+  let frameMs = Math.max(lite ? 1000 / 24 : FRAME_MS, clock.frameMs ?? 0);
+  if (dpr !== dprStart) {
+    ctx.canvas.width = Math.round(W * dpr);
+    ctx.canvas.height = Math.round(H * dpr);
+  }
   let ema = 0;
   let slowSince = 0;
   const degrade = (now: number) => {
@@ -353,6 +364,8 @@ export function startLoop(
     } else if (frameMs < 1000 / 20) {
       frameMs = 1000 / 20;
     }
+    clock.dpr = dpr;
+    clock.frameMs = frameMs;
     slowSince = now;
     ema = 0;
   };
@@ -1250,6 +1263,8 @@ export function AgentsMap({
     born: number;
     mood: number;
     moodAt: number;
+    dpr?: number;
+    frameMs?: number;
   } | null>(null);
 
   useEffect(() => {
@@ -1272,7 +1287,15 @@ export function AgentsMap({
     el.height = Math.round(scene.height * dpr);
     if (!clock.current || clock.current.seed !== seed) {
       const now = performance.now();
-      clock.current = { seed, born: now, mood: 0, moodAt: now };
+      // A new layout replays the entry; what adaptive quality learned stays.
+      clock.current = {
+        seed,
+        born: now,
+        mood: 0,
+        moodAt: now,
+        dpr: clock.current?.dpr,
+        frameMs: clock.current?.frameMs,
+      };
     }
     live.current.hover = -1;
     if (tip.current) tip.current.style.opacity = "0";

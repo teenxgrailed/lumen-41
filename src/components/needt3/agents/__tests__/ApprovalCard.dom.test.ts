@@ -129,4 +129,26 @@ describe("ApprovalCard", () => {
     expect($(".ag-checks")).toBeNull();
     expect($(".ag-acard3-what")?.textContent).toBe("Question");
   });
+
+  it("sends the approval at once when the card goes inside the window", async () => {
+    await mount(item());
+    act(() => $("[data-ag-approve]")!.click());
+    expect(onApprove).not.toHaveBeenCalled();
+    act(() => root.unmount());
+    expect(onApprove).toHaveBeenCalledTimes(1);
+    root = createRoot(host);
+  });
+
+  it("reopens the card when the approval fails", async () => {
+    onApprove.mockResolvedValueOnce(false);
+    await mount(item());
+    act(() => $("[data-ag-approve]")!.click());
+    await act(async () => {
+      jest.advanceTimersByTime(UNDO_MS + 100);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect($("[data-ag-ask]")?.getAttribute("data-ag-ask-state")).toBe("open");
+    expect($("[data-ag-approve]")).not.toBeNull();
+  });
 });

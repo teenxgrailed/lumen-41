@@ -121,14 +121,48 @@ export function AgentsSetup({
     return () => window.removeEventListener("resize", measure);
   }, [step]);
 
+  // A modal dialog: focus starts on the first agent, Tab stays inside, Esc
+  // leaves (and goes no further), and focus returns where it was.
+  const root = useRef<HTMLDivElement>(null);
+  const finishTimer = useRef<number | null>(null);
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      remember();
-      onDone();
+    const back = document.activeElement as HTMLElement | null;
+    window.requestAnimationFrame(() =>
+      root.current?.querySelector<HTMLElement>("[data-ag-setup-agent]")?.focus()
+    );
+    return () => {
+      if (finishTimer.current) window.clearTimeout(finishTimer.current);
+      back?.focus?.();
     };
-    document.addEventListener("keydown", esc);
-    return () => document.removeEventListener("keydown", esc);
+  }, []);
+  useEffect(() => {
+    const keys = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        remember();
+        onDone();
+        return;
+      }
+      if (e.key !== "Tab" || !root.current) return;
+      const stops = Array.from(
+        root.current.querySelectorAll<HTMLElement>(
+          ".ag-step.is-on button:not([disabled]), .ag-setup-skip"
+        )
+      );
+      if (!stops.length) return;
+      const at = stops.indexOf(document.activeElement as HTMLElement);
+      const next = e.shiftKey
+        ? at <= 0
+          ? stops.length - 1
+          : at - 1
+        : at === stops.length - 1
+          ? 0
+          : at + 1;
+      e.preventDefault();
+      stops[next].focus();
+    };
+    document.addEventListener("keydown", keys, true);
+    return () => document.removeEventListener("keydown", keys, true);
   }, [onDone]);
 
   const toggle = (id: string) => {
@@ -164,7 +198,7 @@ export function AgentsSetup({
     setFlyers(list);
     setStep(3);
     onFinish();
-    window.setTimeout(onDone, still ? 50 : 3800);
+    finishTimer.current = window.setTimeout(onDone, still ? 50 : 3800);
   };
 
   // Geometry of the arc (the reference's layoutSetup), in px of the top box.
@@ -198,9 +232,11 @@ export function AgentsSetup({
 
   return (
     <div
+      ref={root}
       className={"ag-setup" + (step === 3 ? " is-fly" : "")}
       data-ag-onboarding=""
       role="dialog"
+      aria-modal="true"
       aria-label="Connect your agents"
     >
       <div className="ag-eg is-l" aria-hidden="true" />

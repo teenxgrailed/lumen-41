@@ -31,7 +31,10 @@ export interface ChatAlert {
   run: () => void;
 }
 
-type Run = (task: () => Promise<unknown>, done?: string) => Promise<void>;
+type Run = (
+  task: () => Promise<unknown>,
+  done?: string
+) => Promise<boolean | void>;
 
 /** Where the person came from, by `?from=`; a label only. */
 const FROM_LABEL: Record<string, string> = {
@@ -198,6 +201,18 @@ export function ChatTab({
     if (ai.phase === "streaming") wave.current?.spike(0.7);
   }, [ai.phase]);
 
+  // The mic stops with the Chat.
+  useEffect(
+    () => () => {
+      const r = rec.current;
+      if (!r) return;
+      r.onresult = null;
+      r.onend = null;
+      r.stop();
+    },
+    []
+  );
+
   useEffect(() => {
     if (!menu) return undefined;
     const away = () => setMenu(false);
@@ -220,7 +235,12 @@ export function ChatTab({
           answer: text,
         }),
       "Answered"
-    ).then(() => setAnswered((a) => ({ ...a, [item.id]: "answered" })));
+    ).then((ok) => {
+      // Only a real answer turns the card green; a failed one keeps it open.
+      if (ok === false) return false;
+      setAnswered((a) => ({ ...a, [item.id]: "answered" }));
+      return true;
+    });
   const approve = (item: HubItemRow) =>
     run(
       () =>
@@ -228,32 +248,41 @@ export function ChatTab({
           risks: item.risks.filter((r) => !item.approvals[r]),
         }),
       "Approved"
-    ).then(() => {
+    ).then((ok) => {
+      if (ok === false) return false;
       setAnswered((a) => ({ ...a, [item.id]: "approved" }));
       wave.current?.spike(1);
       wave.current?.ripple(0.8);
+      return true;
     });
 
   const submit = async () => {
     const text = line.trim();
     if (!text) return;
-    setLine("");
     if (open) {
-      await run(() =>
+      setLine("");
+      const ok = await run(() =>
         sendJson("/api/agent-hub/messages", "POST", {
           threadId: open.id,
           body: text,
         })
       );
+      if (ok === false) setLine(text);
       return;
     }
     if (replyTo) {
       const item = replyTo;
+      setLine("");
       setReplyTo(null);
-      await answer(item, text);
+      if ((await answer(item, text)) === false) {
+        setLine(text);
+        setReplyTo(item);
+      }
       return;
     }
+    // Needt AI is still answering: the text stays in the line.
     if (busy) return;
+    setLine("");
     wave.current?.spike(0.5);
     await ai.send(text);
   };

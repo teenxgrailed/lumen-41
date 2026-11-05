@@ -57,7 +57,7 @@ export interface HubReservationRow {
   expiresAt: string;
 }
 
-type Run = (task: () => Promise<unknown>, done?: string) => Promise<void>;
+type Run = (task: () => Promise<unknown>, done?: string) => Promise<unknown>;
 
 export type AgentState = "working" | "idle" | "offline";
 

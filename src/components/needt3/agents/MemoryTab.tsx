@@ -10,7 +10,7 @@ import { MemoriesGroup } from "../settings/MemoriesGroup";
 import { AgBtn, shortWhen, useAgentHue } from "./AgParts";
 import type { HubNoteRow } from "./TasksTab";
 
-type Run = (task: () => Promise<unknown>, done?: string) => Promise<void>;
+type Run = (task: () => Promise<unknown>, done?: string) => Promise<unknown>;
 
 /** Every tag with its count, most used first. */
 export function noteTags(notes: HubNoteRow[]) {
