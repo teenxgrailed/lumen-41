@@ -25,13 +25,13 @@ import type { V3Habit } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 
 import {
-  BLANK_HABIT_FORM,
   type HabitForm,
   checkHabitForm,
   formFields,
   formFromHabit,
   habitQuota,
   keptToday,
+  newHabitForm,
 } from "../phone/habits/model";
 import { snack } from "../phone/overlays/snack";
 import { capHabits } from "./derive";
@@ -122,7 +122,7 @@ export function useHabitsController(opts: HabitsControllerOptions) {
 
   const openNew = () => {
     if (blocked()) return;
-    setForm({ ...BLANK_HABIT_FORM, timeZone: tz });
+    setForm(newHabitForm(tz));
   };
   const openEdit = (h: V3Habit) => setForm(formFromHabit(h, tz));
   const closeForm = () => setForm(null);

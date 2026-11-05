@@ -262,6 +262,19 @@ export const BLANK_HABIT_FORM: HabitForm = {
   initial: null,
 };
 
+/**
+ * A new habit's form. Since starts at now in the person's zone, to the
+ * minute: an empty datetime-local field draws the browser's own grey
+ * placeholder (Safari: today, 12:30), a time that would never be saved.
+ */
+export function newHabitForm(timeZone: string, now = newDate()): HabitForm {
+  return {
+    ...BLANK_HABIT_FORM,
+    timeZone,
+    quitSince: formatInTimeZone(now, timeZone, "yyyy-MM-dd'T'HH:mm"),
+  };
+}
+
 export function formFromHabit(
   h: {
     id: string;
