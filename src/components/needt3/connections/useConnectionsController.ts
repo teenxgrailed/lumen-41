@@ -38,6 +38,7 @@ import {
   visibleItems,
 } from "./derive";
 import type { AiToolId } from "./mcp";
+import { useConnectionsSetup } from "./setup";
 import { strings } from "./strings";
 import { useMcpConnect } from "./useMcpConnect";
 
@@ -181,6 +182,11 @@ export function useConnectionsController() {
   const shown = filterItems(items, { q, chip, show });
   const c = counts(items);
   const locked = aiToolsLocked(plan.data?.kind);
+  // The first-visit setup reads the cards once both lists are in.
+  const onboarding = useConnectionsSetup(
+    items,
+    !!catalog.data && accounts.status === "success"
+  );
   const mcp = useMcpConnect(api || (tab === "ai" && !locked && !!plan.data));
 
   const refresh = () => qc.invalidateQueries({ queryKey: qk.connections() });
@@ -309,6 +315,7 @@ export function useConnectionsController() {
     mcp,
     setup,
     setSetup,
+    onboarding,
   };
 }
 

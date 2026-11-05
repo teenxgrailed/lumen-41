@@ -20,6 +20,7 @@
 @import "./v3-overrides/doc-opened.css";
 @import "./v3-overrides/docs-miniature.css";
 @import "./v3-overrides/connections-desktop.css";
+@import "./v3-overrides/connections-setup.css";
 @import "./v3-overrides/settings-desktop.css";
 @import "./v3-overrides/mail-header.css";
 @import "./v3-overrides/theme-time.css";

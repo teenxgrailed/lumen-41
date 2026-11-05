@@ -14,6 +14,10 @@ import { visibleTools } from "../../connections/AiToolsPanel";
 import { ApiAccess } from "../../connections/ApiAccess";
 import { CalDavForm } from "../../connections/CalDavForm";
 import { appBrand, appUsed, scopeChips } from "../../connections/ConnectedApps";
+import {
+  ConnectionsSetup,
+  useInertOutside,
+} from "../../connections/ConnectionsSetup";
 import { GoogleTasksLists } from "../../connections/GoogleTasksLists";
 import { refocus } from "../../connections/MoreMenu";
 import {
@@ -29,6 +33,7 @@ import { mergeQueries } from "../../connections/query";
 import { strings } from "../../connections/strings";
 import type { ConnectionsController } from "../../connections/useConnectionsController";
 import type { ConnectedApp } from "../../connections/useMcpConnect";
+import { PxSky } from "../../scenes";
 import {
   PkButton,
   PkChips,
@@ -77,6 +82,31 @@ function useLast<T>(value: T | null) {
  *
  * //todo: the calendar sync settings, the consent sheet's scope list.
  */
+/**
+ * The setup on the phone: a modal layer over the app (dialog, everything
+ * behind it inert), on the same PxSky the screens use. Under reduced motion
+ * the sky paints one still frame (sky-engine).
+ */
+function SetupLayer({ c }: { c: ConnectionsController }) {
+  const layer = useRef<HTMLDivElement>(null);
+  useInertOutside(layer);
+  return (
+    <div
+      ref={layer}
+      className="cs-phone"
+      data-px-scope=""
+      role="dialog"
+      aria-modal="true"
+      aria-label="Set up connections"
+    >
+      <PxSky variant="a" horizon="cloudsea" fps={15} />
+      <div className="cs-phone-scroll">
+        <ConnectionsSetup s={c.onboarding} c={c} />
+      </div>
+    </div>
+  );
+}
+
 export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
   const openPaywall = usePhoneOverlays((s) => s.openPaywall);
   const plan = usePlan();
@@ -171,6 +201,14 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
   const chips = connectionChips(c.items);
   const appsTab = (
     <PhoneState query={query} screen="connections">
+      <PkButton
+        kind="chip"
+        className="ppl-setup-open"
+        onClick={c.onboarding.open}
+        data-ppl-setup-open=""
+      >
+        Set up
+      </PkButton>
       <label className="ppl-search pk-glass is-round">
         <LuSearch size={16} aria-hidden />
         <input
@@ -387,6 +425,9 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         ? (A.detail ?? "Lost access")
         : (CATEGORY_LABEL[A.category] ?? A.category)
     : null;
+
+  // The first-visit setup takes the whole screen, on the sky.
+  if (c.onboarding.run) return <SetupLayer c={c} />;
 
   return (
     <>
