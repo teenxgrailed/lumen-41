@@ -63,6 +63,13 @@ jest.mock("@/services/admin/overview", () => ({
     signupsOpen: false,
   }),
 }));
+jest.mock("@/services/admin/growth", () => ({
+  getAdminGrowth: jest.fn().mockResolvedValue({
+    weeklyActives: 42,
+    paying: { total: 5, pro: 4, lifetime: 1 },
+    activeTrials: 7,
+  }),
+}));
 jest.mock("@/services/admin/feature-flags", () => ({
   listAdminFeatureFlags: jest.fn().mockResolvedValue([
     {
@@ -287,6 +294,11 @@ describe("needt.admin.read scope and role", () => {
       plans: { pro: 1, lifetime: 1, free: 6 },
       signupsOpen: false,
       mrr: null,
+      growth: {
+        weeklyActives: 42,
+        paying: { total: 5, pro: 4, lifetime: 1 },
+        activeTrials: 7,
+      },
     });
     expect(recordAdminAudit).toHaveBeenCalledWith(
       expect.objectContaining({

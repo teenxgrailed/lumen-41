@@ -308,6 +308,44 @@
   gap: 12px;
 }
 
+/* --- Feature flags and growth ---------------------------------------------- */
+.needt-v3 .admin-flag-key {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .admin-flag-rollout,
+.needt-v3 .admin-flag-form,
+.needt-v3 .admin-flag-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.needt-v3 .admin-flag-rollout .nt-input {
+  width: 72px;
+}
+.needt-v3 .admin-flag-form {
+  max-width: 560px;
+  margin-bottom: 12px;
+}
+.needt-v3 .admin-flag-detail {
+  padding: 8px 0 4px;
+}
+.needt-v3 .admin-history li {
+  align-items: center;
+}
+.needt-v3 .admin-bar {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-4);
+  overflow: hidden;
+}
+.needt-v3 .admin-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--text-tertiary);
+}
+
 /* --- Confirm dialog -------------------------------------------------------- */
 .needt-v3 .admin-confirm {
   display: flex;

@@ -1,5 +1,6 @@
 import { recordAdminAudit } from "@/services/admin/audit";
 import { listAdminFeatureFlags } from "@/services/admin/feature-flags";
+import { getAdminGrowth } from "@/services/admin/growth";
 import { queryAdminLogs } from "@/services/admin/logs";
 import { getAdminOperations } from "@/services/admin/operations";
 import {
@@ -139,7 +140,7 @@ export const ADMIN_TOOLS: McpTool[] = [
   defineAdminTool({
     name: "needt_admin_overview",
     description:
-      "Admin only, read only. The Admin Overview in numbers: total users, sign-ups today and in the last 7 days, confirmed vs unconfirmed email, paying plans (Pro, Lifetime), active trials, Free, waitlist size, whether sign-ups are open, and every feature flag's state. MRR is not computed (Pro monthly and yearly are not told apart) and comes back null. Needs needt.admin.read.",
+      "Admin only, read only. The Admin Overview in numbers: total users, sign-ups today and in the last 7 days, confirmed vs unconfirmed email, paying plans (Pro, Lifetime), active trials, Free, waitlist size, whether sign-ups are open, every feature flag's state, and growth against the goal (weekly actives and paying people vs 300 and 100 by 05.05.2027, trials counted separately, 8-week trend). MRR is not computed (Pro monthly and yearly are not told apart) and comes back null. Needs needt.admin.read.",
     annotations: {
       title: "Admin overview",
       readOnlyHint: true,
@@ -150,10 +151,11 @@ export const ADMIN_TOOLS: McpTool[] = [
     input: z.object({}).strict(),
     invoke: (ctx) =>
       audited(ctx, "needt_admin_overview", {}, async () => {
-        const [overview, signups, flags] = await Promise.all([
+        const [overview, signups, flags, growth] = await Promise.all([
           getAdminOverview(),
           getAdminSignupStats(),
           listAdminFeatureFlags(),
+          getAdminGrowth(),
         ]);
         return {
           users: {
@@ -169,6 +171,7 @@ export const ADMIN_TOOLS: McpTool[] = [
           waitlist: overview.waitlist,
           signupsOpen: signups.signupsOpen,
           mrr: null,
+          growth,
           flags: flags.map((flag) => ({
             key: flag.key,
             enabled: flag.enabled,

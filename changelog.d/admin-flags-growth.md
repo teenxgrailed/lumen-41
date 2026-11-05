@@ -1,0 +1,1 @@
+- Admin has a Feature flags screen: switch a flag, set its rollout, add or remove a per-person override by email, and see the last changes. The Overview shows weekly actives and paying people against the launch goal.

@@ -14,6 +14,9 @@ jest.mock("@/services/admin/overview", () => ({
     generatedAt: "2026-10-16T12:00:00.000Z",
   }),
 }));
+jest.mock("@/services/admin/growth", () => ({
+  getAdminGrowth: jest.fn().mockResolvedValue({ weeklyActives: 5 }),
+}));
 jest.mock("@/lib/health/build-info", () => ({
   readBuildInfo: jest
     .fn()
@@ -42,5 +45,6 @@ describe("GET /api/admin/overview", () => {
     expect(body.overview.users.total).toBe(1);
     expect(body.build.buildSha).toBe("a".repeat(40));
     expect(body.build.workerBuildSha).toBeNull();
+    expect(body.growth.weeklyActives).toBe(5);
   });
 });

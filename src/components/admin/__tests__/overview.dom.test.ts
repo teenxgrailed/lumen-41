@@ -116,6 +116,51 @@ describe("OverviewScreen", () => {
     expect(stat("Worker build")).toBe("unknown");
   });
 
+  it("shows the growth block against 300 and 100 with trials apart", async () => {
+    await renderWith({
+      ok: true,
+      status: 200,
+      body: {
+        overview: {
+          users: { total: 1, newLast7Days: 0 },
+          activeTrials: 0,
+          plans: { pro: 0, lifetime: 0, free: 1 },
+          waitlist: 0,
+          generatedAt: "2026-11-05T12:00:00.000Z",
+        },
+        build: { buildSha: SHA, workerBuildSha: SHA },
+        growth: {
+          goal: {
+            weeklyActives: 300,
+            paying: 100,
+            checkpoint: "2027-02-05",
+            deadline: "2027-05-05",
+          },
+          weeklyActives: 120,
+          paying: { total: 36, pro: 30, lifetime: 6 },
+          activeTrials: 15,
+          daysToCheckpoint: 92,
+          daysToDeadline: 181,
+          neededPerWeek: { weeklyActives: 7, paying: 3 },
+          weeks: [
+            { from: "2026-10-29T12:00:00.000Z", lastSeen: 120, newPaying: 3 },
+          ],
+          generatedAt: "2026-11-05T12:00:00.000Z",
+        },
+      },
+    });
+    const goal = (label: string) =>
+      host.querySelector(`[data-admin-goal="${label}"] .admin-stat-value`)
+        ?.textContent;
+    expect(goal("Weekly actives")).toBe("120 / 300");
+    expect(goal("Paying")).toBe("36 / 100");
+    expect(stat("In a trial, not paying")).toBe("15");
+    expect(host.textContent).toContain("2027-02-05");
+    expect(
+      host.querySelectorAll("[data-admin-growth-trend] tbody tr")
+    ).toHaveLength(1);
+  });
+
   it("shows the refusal instead of numbers for a non-admin", async () => {
     await renderWith({ ok: false, status: 403, body: { error: "Forbidden" } });
     expect(host.textContent).toContain("Admin access required.");

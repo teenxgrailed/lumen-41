@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getAdminGrowth } from "@/services/admin/growth";
 import { getAdminOverview } from "@/services/admin/overview";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
@@ -14,11 +15,12 @@ export async function GET(request: NextRequest) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
   try {
-    const [overview, build] = await Promise.all([
+    const [overview, build, growth] = await Promise.all([
       getAdminOverview(),
       readBuildInfo(),
+      getAdminGrowth(),
     ]);
-    return NextResponse.json({ overview, build });
+    return NextResponse.json({ overview, build, growth });
   } catch (error) {
     return routeErrorResponse(
       error,
