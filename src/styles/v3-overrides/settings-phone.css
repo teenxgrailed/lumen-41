@@ -155,3 +155,51 @@
     transition: none;
   }
 }
+
+/* ── the 390-px phone (audit 05.11) ────────────────────────────────────── */
+/* A row whose control is two or more buttons (Keep / Delete / Cancel,
+   Cancel + Sign out everywhere): the buttons take their own line instead of
+   squeezing the title to a word per line. */
+.needt-v3 .ps-row:has(> .ps-row-ctl > :nth-child(2)) {
+  flex-wrap: wrap;
+}
+.needt-v3 .ps-row:has(> .ps-row-ctl > :nth-child(2)) > .ps-row-ctl {
+  flex: 1 0 100%;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+/* A long email or value: the title and description wrap, the value ends in
+   "…" (its text sits in a span; an inline-flex box cannot ellipsize). */
+.needt-v3 .ps-row-title,
+.needt-v3 .ps-row-desc {
+  overflow-wrap: anywhere;
+}
+.needt-v3 .ps-row-value > .ps-row-value-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A page sliding in never scrolls the sheet sideways. */
+.needt-v3 .ps11-body {
+  overflow-x: hidden;
+}
+/* 44-px touch targets for the smaller controls, drawn size unchanged. */
+.needt-v3 :is(.ps-switch, .ps11-back, .ps-seg-btn, .ps-accent, .pb-default-day),
+.needt-v3 .ps-row .pk-btn.is-chip {
+  position: relative;
+}
+.needt-v3
+  :is(.ps-switch, .ps11-back, .ps-seg-btn, .ps-accent, .pb-default-day)::after,
+.needt-v3 .ps-row .pk-btn.is-chip::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 22px);
+  height: 44px;
+}
+/* Nothing under 12 px: the PRO tag comes up to the floor. */
+.needt-v3 .ps-pro {
+  font-size: 12px;
+}

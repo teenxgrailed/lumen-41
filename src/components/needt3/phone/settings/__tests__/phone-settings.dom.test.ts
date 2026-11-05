@@ -216,6 +216,8 @@ const sw = (label: string) =>
   q<HTMLButtonElement>(`button[role="switch"][aria-label="${label}"]`);
 const settingsWrites = () => writes.filter((w) => w.url === URLS.settings);
 
+let mockFinePointer = false;
+
 beforeEach(() => {
   routes = {};
   writes = [];
@@ -240,7 +242,9 @@ beforeEach(() => {
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: (query: string) => ({
-      matches: query.includes("reduce"),
+      matches:
+        query.includes("reduce") ||
+        (mockFinePointer && query.includes("pointer: fine")),
       media: query,
       addEventListener() {},
       removeEventListener() {},
@@ -265,6 +269,14 @@ afterEach(() => {
 /* ---------- tests ---------- */
 
 describe("the list and its pages", () => {
+  it("lists Shortcuts where there is a keyboard (a fine pointer)", async () => {
+    mockFinePointer = true;
+    routes[URLS.billing] = billing();
+    await mount();
+    expect(q('[data-ps-open="keys"]')).not.toBeNull();
+    mockFinePointer = false;
+  });
+
   it("shows you, the Pro plate on Free and a row for every page", async () => {
     routes[URLS.billing] = billing();
     await mount();
@@ -282,10 +294,11 @@ describe("the list and its pages", () => {
       "alerts",
       "menu",
       "data",
-      "keys",
       "about",
     ])
       expect(q(`[data-ps-open="${id}"]`)).not.toBeNull();
+    // A phone has no keyboard for ⌘ shortcuts.
+    expect(q('[data-ps-open="keys"]')).toBeNull();
     expect(q("[data-ps-connections]")).not.toBeNull();
     expect(q("[data-ps-signout]")).not.toBeNull();
     expect(q("[data-ps-open='sidebar']")).toBeNull();
