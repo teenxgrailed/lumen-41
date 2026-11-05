@@ -11,6 +11,7 @@ import { renderEmail } from "./layout";
 export function getPasswordResetTemplate(
   name: string,
   resetLink: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept so callers are unchanged
   _expirationDate: Date
 ) {
   return renderEmail({
