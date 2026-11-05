@@ -34,6 +34,8 @@ export interface PkAskProps {
   onClose: () => void;
   /** The thread, newest last (`useAskNeedt`, shared with the desktop panel). */
   messages: readonly AskMessage[];
+  /** The saved thread is still loading: no suggestions yet. */
+  restoring?: boolean;
   phase: AskPhase;
   /** What it is looking at; the six suggestions follow it. */
   scope: AskScope;
@@ -59,6 +61,7 @@ export function PkAsk({
   open,
   onClose,
   messages,
+  restoring = false,
   phase,
   scope,
   onSend,
@@ -266,7 +269,7 @@ export function PkAsk({
             </div>
           );
         })}
-        {messages.length ? null : (
+        {messages.length || restoring ? null : (
           <div className="pov-ask-sugg">
             {suggestionsFor(scope).map((s) => (
               <button
@@ -304,6 +307,7 @@ export function StoreAsk() {
       open={open}
       onClose={close}
       messages={ask.messages}
+      restoring={ask.restoring}
       phase={ask.phase}
       scope={asking.scope}
       onSend={(line, confirmed, shown) => void ask.send(line, confirmed, shown)}
