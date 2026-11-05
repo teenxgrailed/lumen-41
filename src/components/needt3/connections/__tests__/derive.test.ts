@@ -18,6 +18,7 @@ import {
   filterItems,
   heroStatus,
   pillOf,
+  syncLine,
   unavailableReason,
   visibleItems,
 } from "../derive";
@@ -51,6 +52,7 @@ const acct = (over: Partial<V3Connection>): V3Connection => ({
   label: "me@example.com",
   detail: null,
   accountId: "a1",
+  lastSync: null,
   ...over,
 });
 const rows: IntegrationRow[] = [
@@ -499,5 +501,39 @@ describe("Google Tasks", () => {
     expect(disconnectKind(item)).toBe("tasks");
     const [off] = buildItems([tasks], [], []);
     expect(canChooseLists(off)).toBe(false);
+  });
+});
+
+describe("syncLine", () => {
+  const now = new Date("2026-11-05T12:00:00");
+  const cal = {
+    kind: "calendar" as const,
+    state: "connected" as const,
+    accountId: "a1",
+  };
+  it("says when a calendar, mailbox or task list last synced", () => {
+    expect(
+      syncLine({ ...cal, lastSync: "2026-11-05T11:55:00" }, false, now)
+    ).toBe("Synced 5 min ago");
+    expect(
+      syncLine({ ...cal, lastSync: "2026-11-05T09:10:00" }, false, now)
+    ).toBe("Synced 2 h ago");
+    expect(
+      syncLine({ ...cal, lastSync: "2026-11-04T09:10:00" }, false, now)
+    ).toBe("Synced yesterday");
+  });
+  it("says Syncing… while Sync now runs, and waits before the first sync", () => {
+    expect(syncLine({ ...cal, lastSync: null }, true, now)).toBe("Syncing…");
+    expect(syncLine({ ...cal, lastSync: null }, false, now)).toBe(
+      "Waiting for the first sync"
+    );
+  });
+  it("draws nothing for apps read live, or for a card that is not connected", () => {
+    expect(
+      syncLine({ ...cal, kind: "app", lastSync: null }, false, now)
+    ).toBeNull();
+    expect(
+      syncLine({ ...cal, state: "disconnected", lastSync: null }, false, now)
+    ).toBeNull();
   });
 });

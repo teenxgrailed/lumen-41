@@ -22,6 +22,7 @@ const item = (slug: string, state: CnItem["state"] = "none"): CnItem => ({
   account: null,
   detail: null,
   accountId: null,
+  lastSync: null,
 });
 
 describe("setupSources", () => {

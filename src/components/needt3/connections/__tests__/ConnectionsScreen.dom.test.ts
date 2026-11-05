@@ -155,6 +155,9 @@ let appsData: unknown[] = [];
 let tokensData: unknown[] = [];
 const fetchMock = jest.fn();
 const flush = () => act(async () => void (await Promise.resolve()));
+/** A frame and a little: `refocus` waits for the next animation frame. */
+const frame = () =>
+  act(async () => void (await new Promise((r) => setTimeout(r, 40))));
 beforeEach(() => {
   appsData = [];
   tokensData = [];
@@ -331,6 +334,21 @@ describe("the tabs", () => {
   });
 });
 
+describe("screen memory", () => {
+  it("the search and Connected / All come back after leaving the screen", () => {
+    render();
+    type($(".cn-search input") as HTMLInputElement, "notion");
+    click($("[data-cn-show=connected]"));
+    act(() => root.unmount());
+    root = createRoot(host);
+    render();
+    expect(($(".cn-search input") as HTMLInputElement).value).toBe("notion");
+    expect($("[data-cn-show=connected]").getAttribute("aria-pressed")).toBe(
+      "true"
+    );
+  });
+});
+
 describe("the toolbar", () => {
   it("has the Connected / All apps segment, the chips and the search", () => {
     render();
@@ -476,6 +494,90 @@ describe("the cards", () => {
     await flush();
     expect(syncAccountNow).toHaveBeenCalledWith("calendar", "a1");
     expect(notify.success).toHaveBeenCalledWith("Syncing Google Calendar…");
+    // The card says so while the job runs.
+    expect(
+      $("[data-cn-card='google-calendar'] [data-cn-sync-line]").textContent
+    ).toBe("Syncing…");
+  });
+  it("a connected calendar says when it last synced", () => {
+    accountsData = [acct({ lastSync: new Date().toISOString() })];
+    render();
+    expect(
+      $("[data-cn-card='google-calendar'] [data-cn-sync-line]").textContent
+    ).toBe("Synced just now");
+  });
+  it("the menu works from the keyboard: first row focused, arrows move, Escape returns", () => {
+    accountsData = [acct({})];
+    render();
+    const more = $("[data-cn-more='google-calendar']");
+    click(more);
+    const rows = [
+      ...document.querySelectorAll<HTMLElement>(
+        "[data-cn-menu] [role=menuitem]"
+      ),
+    ];
+    expect(rows.map((r) => r.textContent)).toEqual(["Sync now", "Disconnect…"]);
+    expect(document.activeElement).toBe(rows[0]);
+    act(() => {
+      rows[0].dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
+      );
+    });
+    expect(document.activeElement).toBe(rows[1]);
+    act(() => {
+      rows[1].dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(document.activeElement).toBe(more);
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+  });
+  it("ArrowUp on the trigger opens the menu at its last row", () => {
+    accountsData = [acct({})];
+    render();
+    const more = $("[data-cn-more='google-calendar']");
+    act(() => {
+      more.focus();
+      more.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })
+      );
+    });
+    const rows = [
+      ...document.querySelectorAll<HTMLElement>(
+        "[data-cn-menu] [role=menuitem]"
+      ),
+    ];
+    expect(rows).toHaveLength(2);
+    expect(document.activeElement).toBe(rows[1]);
+  });
+  it("the disconnect confirm gives the focus back to the card's …: on Cancel, and to Connect once it went", async () => {
+    accountsData = [acct({})];
+    render();
+    const more = () =>
+      document.querySelector<HTMLElement>("[data-cn-more='google-calendar']");
+    click(more());
+    click(document.querySelector("[data-cn-disconnect]"));
+    const cancel = [
+      ...document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((b) => b.textContent === "Cancel");
+    click(cancel!);
+    await frame();
+    expect(document.activeElement).toBe(more());
+    // Confirmed: the card stays without its menu, so Connect takes the focus.
+    const { disconnectCalendar } = jest.requireMock(
+      "@/lib/needt3/hooks/catalog"
+    ) as { disconnectCalendar: jest.Mock };
+    disconnectCalendar.mockResolvedValue({ ok: true });
+    click(more());
+    click(document.querySelector("[data-cn-disconnect]"));
+    accountsData = [];
+    click(document.body.querySelector("[data-cn-confirm='google-calendar']"));
+    await flush();
+    act(() => root.render(h(Screen)));
+    await frame();
+    expect(document.activeElement).toBe(
+      $("[data-cn-connect='google-calendar']")
+    );
   });
   it("a sync that cannot start shows the reason", async () => {
     syncAccountNow.mockResolvedValue({ ok: false, error: "Not configured" });
@@ -498,6 +600,13 @@ describe("the AI tools tab", () => {
     expect(promo.querySelector(".cn-promo-title")?.textContent).toBe(
       "Bring Needt into your AI tools"
     );
+    expect(
+      [...promo.querySelectorAll(".cn-promo-li")].map((n) => n.textContent)
+    ).toEqual([
+      "Plan with your real tasks in Claude and ChatGPT",
+      "Your own MCP and API links",
+      "Works with Cursor, Gemini and any MCP client",
+    ]);
     // No filter bar, no cards on Free.
     expect($(".cn-bar")).toBeNull();
     expect($("[data-cn-card]")).toBeNull();
@@ -623,6 +732,103 @@ describe("the AI tools tab", () => {
     });
     expect(rows()).toEqual(["default"]);
   });
+  it("Disconnect that fails on the network keeps the confirm open with a live button; success reads the list again", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    appsData = [
+      {
+        id: "g1",
+        clientName: "Claude",
+        scopes: ["needt.read"],
+        connectedAt: "2026-10-01T00:00:00Z",
+        lastUsedAt: null,
+      },
+    ];
+    render();
+    await flush();
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url: string, init?: object) => {
+      if (String(url).startsWith("/api/oauth/connected-apps/"))
+        throw new TypeError("Failed to fetch");
+      return base(url, init);
+    });
+    click($("[data-cn-more=app-g1]"));
+    click(document.body.querySelector("[data-cn-app-bye=g1]"));
+    const confirm = () =>
+      document.body.querySelector(
+        "[data-cn-app-confirm=g1]"
+      ) as HTMLButtonElement | null;
+    click(confirm());
+    await flush();
+    await flush();
+    expect(notify.error).toHaveBeenCalledWith(
+      "Could not disconnect Claude. Try again."
+    );
+    expect(confirm()).not.toBeNull();
+    expect(confirm()!.disabled).toBe(false);
+    // The network is back: it goes, and the list is read from the server.
+    fetchMock.mockImplementation(base);
+    const reads = () =>
+      fetchMock.mock.calls.filter((c) => c[0] === "/api/oauth/connected-apps")
+        .length;
+    const before = reads();
+    appsData = [];
+    click(confirm());
+    await flush();
+    await flush();
+    expect(confirm()).toBeNull();
+    expect(reads()).toBeGreaterThan(before);
+    expect($("[data-cn-apps-empty]")).not.toBeNull();
+    // Its row went: the focus lands on the panel's heading.
+    await frame();
+    expect(document.activeElement).toBe($("#cn-apps-title"));
+  });
+  it("Cancel on an app's confirm gives the focus back to its …", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    appsData = [
+      {
+        id: "g1",
+        clientName: "Claude",
+        scopes: ["needt.read"],
+        connectedAt: "2026-10-01T00:00:00Z",
+        lastUsedAt: null,
+      },
+    ];
+    render();
+    await flush();
+    const more = $("[data-cn-more=app-g1]");
+    click(more);
+    click(document.body.querySelector("[data-cn-app-bye=g1]"));
+    const cancel = [
+      ...document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((b) => b.textContent === "Cancel");
+    click(cancel!);
+    await frame();
+    expect(document.activeElement).toBe(more);
+  });
+  it("Connected apps: an empty state, and a failed load offers Try again", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    render();
+    await flush();
+    expect($("[data-cn-apps-empty]")).not.toBeNull();
+    // No Beta mark left on the AI tab: Needt MCP is live.
+    expect($(".cn-badge")).toBeNull();
+    act(() => root.unmount());
+    host.remove();
+    fetchMock.mockImplementation(async () => ({
+      ok: false,
+      json: async () => ({}),
+    }));
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    render();
+    await flush();
+    expect($("[data-cn-apps-failed]")).not.toBeNull();
+    expect($("[data-cn-apps-retry]").textContent).toBe("Try again");
+  });
   it("lists connected apps, Connected hides tools without one, Disconnect deletes", async () => {
     planKind = "monthly";
     window.localStorage.setItem("needt.connections.tab", "ai");
@@ -641,12 +847,31 @@ describe("the AI tools tab", () => {
     click($("[data-cn-show=connected]"));
     expect(cards()).toEqual(["claude"]);
     expect($("[data-cn-card=claude]").dataset.state).toBe("connected");
-    click($("[data-cn-app-bye=g1]"));
+    // The hero counts the apps that signed in.
+    expect(text("[data-cn-status]")).toBe("1 connected app");
+    // Permissions are chips, dates are words; Disconnect is in "…" and asks.
+    const row = $("[data-cn-app=g1]");
+    expect(
+      [...row.querySelectorAll("[data-cn-scope]")].map((n) => n.textContent)
+    ).toEqual(["Read"]);
+    expect(row.querySelector("[data-cn-app-dates]")?.textContent).toMatch(
+      /^Connected .+ · Not used yet$/
+    );
+    expect(row.querySelector("button.nx-btn")).toBeNull();
+    click($("[data-cn-more=app-g1]"));
+    click(document.body.querySelector("[data-cn-app-bye=g1]"));
+    await flush();
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/oauth/connected-apps/g1", {
+      method: "DELETE",
+    });
+    appsData = []; // what the server lists once the grant is revoked
+    click(document.body.querySelector("[data-cn-app-confirm=g1]"));
     await flush();
     expect(fetchMock).toHaveBeenCalledWith("/api/oauth/connected-apps/g1", {
       method: "DELETE",
     });
     expect($$("[data-cn-app]").length).toBe(0);
+    expect($("[data-cn-apps-empty]")).not.toBeNull();
     expect($("[data-cn-ai-soon]")).not.toBeNull();
   });
 });
