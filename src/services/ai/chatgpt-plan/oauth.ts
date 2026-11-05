@@ -431,16 +431,17 @@ export async function getChatGptPlanAccessToken(
               refreshToken,
               current.scope
             );
+            if (!hasPlanScope(tokens.scope)) {
+              // Never remember tokens without the plan scope, even if the
+              // delete below fails and the outer catch runs.
+              await tx.aIOAuthConnection.delete({ where: { id: current.id } });
+              return { ok: false, reason: "revoked" } as const;
+            }
             rotated.value = {
               id: current.id,
               previousRefresh: current.encryptedRefreshToken,
               tokens,
             };
-            if (!hasPlanScope(tokens.scope)) {
-              await tx.aIOAuthConnection.delete({ where: { id: current.id } });
-              rotated.value = null;
-              return { ok: false, reason: "revoked" } as const;
-            }
             await tx.aIOAuthConnection.update({
               where: { id: current.id },
               data: persistedTokens(tokens, current.encryptedRefreshToken),
