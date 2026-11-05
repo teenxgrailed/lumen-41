@@ -23,7 +23,7 @@ so the folder also opens from disk (`site.js` rewrites folder links to `index.ht
   (search for `<header class="nav"` / `<footer class="foot">`).
 - Assets are cached 30 days `immutable` by nginx, so CSS/JS are linked with `?v=21` — bump it on every change.
 - Sign-up target: `window.NEEDT_SIGNUP` (inline in each page) → `https://use.needt.app/auth/signin`.
-- Analytics: commented Umami tag in each `<head>` (`__UMAMI_SITE_ID__`); enabling it needs `stats.needt.app`
+- Analytics + consent: every `<head>` loads `consent.js` (`data-umami-id="__UMAMI_SITE_ID__"`) and `consent.css`. Umami is injected only after the visitor accepts (cookie `needt_consent`, `.needt.app`, 180 days); enabling it needs `stats.needt.app`
   in `script-src` and `connect-src`.
 - Inline `<script>` (NEEDT_SIGNUP, JSON-LD on posts) relies on `'unsafe-inline'` in the current CSP.
 
