@@ -44,7 +44,7 @@ test("no page loads Umami directly, only the consent script may", () => {
   assert.ok(consent.includes("stats.needt.app/script.js"));
   // the Umami tag is created inside loadAnalytics, which only runs on accept or on a saved accept
   assert.match(consent, /if \(value === "accepted"\) \{[^}]*loadAnalytics\(\)/s);
-  assert.match(consent, /if \(v === "accepted"\) loadAnalytics\(\)/);
+  assert.match(consent, /if \(v === "accepted"\) \{[^}]*loadAnalytics\(\)/s);
 });
 
 test("the cookie is first-party, shared across .needt.app, Lax, Secure, 180 days", () => {
@@ -74,4 +74,19 @@ test("the banner has two equal buttons and a privacy link", () => {
   assert.deepEqual(btns.map((b) => b[2]).sort(), ["accepted", "declined"]);
   assert.ok(consent.includes("https://use.needt.app/privacy"));
   assert.ok(consent.includes('aria-label", "Cookie consent"'));
+});
+
+test("a saved choice re-syncs umami.disabled, and a malformed cookie is no choice", () => {
+  const consent = readFileSync(join(root, "consent.js"), "utf8");
+  assert.match(consent, /if \(v === "accepted"\) \{\s*setUmamiDisabled\(false\);\s*loadAnalytics\(\);/);
+  assert.match(consent, /else if \(v === "declined"\) setUmamiDisabled\(true\)/);
+  assert.match(consent, /try \{\s*v = m \? decodeURIComponent\(m\[1\]\) : "";\s*\} catch/);
+});
+
+test("the Dockerfile fills the placeholder in every page and checks the count", () => {
+  const d = readFileSync(join(root, "..", "docker", "landing", "Dockerfile"), "utf8");
+  assert.ok(d.includes("s/__UMAMI_SITE_ID__/$UMAMI_SITE_ID/g"));
+  assert.ok(!d.includes("Analytics (Umami"), "old uncomment step is gone");
+  assert.ok(d.includes('data-umami-id=\\"$UMAMI_SITE_ID\\"'));
+  assert.ok(d.includes('"$N" -ne "$PAGES"'));
 });

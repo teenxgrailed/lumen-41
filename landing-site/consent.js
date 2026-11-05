@@ -16,7 +16,12 @@
 
   function read() {
     var m = document.cookie.match(new RegExp("(?:^|; )" + COOKIE + "=([^;]*)"));
-    var v = m ? decodeURIComponent(m[1]) : "";
+    var v = "";
+    try {
+      v = m ? decodeURIComponent(m[1]) : "";
+    } catch (e) {
+      v = ""; /* malformed cookie value: treat as no choice */
+    }
     return v === "accepted" || v === "declined" ? v : null;
   }
 
@@ -125,8 +130,12 @@
 
   function init() {
     var v = read();
-    if (v === "accepted") loadAnalytics();
-    else if (!v) open(false);
+    /* umami.disabled lives in per-origin localStorage, the choice in the shared cookie: re-sync */
+    if (v === "accepted") {
+      setUmamiDisabled(false);
+      loadAnalytics();
+    } else if (v === "declined") setUmamiDisabled(true);
+    else open(false);
   }
   if (document.body) init();
   else document.addEventListener("DOMContentLoaded", init);
