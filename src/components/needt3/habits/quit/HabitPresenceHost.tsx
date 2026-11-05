@@ -62,10 +62,12 @@ function saveMemory(m: PresenceMemory) {
 export function HabitPresenceHost() {
   const gate = useQuitGate();
   if (gate === "off") return null;
-  return <Presence />;
+  // Milestones are Pro, as on the server (presence-sweep): a downgrade keeps
+  // the Do reminders and the check-in, not the milestones.
+  return <Presence milestones={gate === "on"} />;
 }
 
-function Presence() {
+function Presence({ milestones }: { milestones: boolean }) {
   const router = useRouter();
   const tz = useTimeZone();
   const habits = useHabits().data ?? [];
@@ -76,7 +78,7 @@ function Presence() {
   const phase = useAskPhase();
   const toggle = useToggleHabitToday();
   const live = habits.filter((h) => !h.archivedAt);
-  const quits = live.filter((h) => h.kind === "QUIT");
+  const quits = milestones ? live.filter((h) => h.kind === "QUIT") : [];
   const summaries = useQueries({
     queries: quits.map((h) => ({
       queryKey: qk.quitSummary(h.id),
@@ -188,6 +190,7 @@ function Presence() {
             title: h.title,
             runStart: s?.streakStartedAt ?? h.quitStartedAt ?? null,
             best: s?.bestStreak ?? 0,
+            remindersEnabled: h.remindersEnabled !== false,
           };
         }),
       });

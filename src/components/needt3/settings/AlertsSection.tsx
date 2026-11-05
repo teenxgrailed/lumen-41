@@ -225,13 +225,17 @@ function HabitsGroup() {
               title={h.title}
               desc={
                 h.kind === "QUIT"
-                  ? "Milestones only"
+                  ? "Quit: its milestones"
                   : (h.schedule.time ?? "No time set")
               }
             >
-              {h.kind === "QUIT" ? null : (
+              {
                 <V3Switch
-                  label={`Reminder for ${h.title}`}
+                  label={
+                    h.kind === "QUIT"
+                      ? `Milestones for ${h.title}`
+                      : `Reminder for ${h.title}`
+                  }
                   checked={h.remindersEnabled !== false}
                   onChange={(v) =>
                     void updateHabit
@@ -239,7 +243,7 @@ function HabitsGroup() {
                       .then(mark)
                   }
                 />
-              )}
+              }
             </SRow>
           ))}
         </SGroup>

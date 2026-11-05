@@ -46,6 +46,8 @@ export interface PresenceQuit {
   /** The current run's start: the last slip, or the quit date. */
   runStart: string | null;
   best: number;
+  /** Its milestones may speak (the per-habit switch; the server reads it too). */
+  remindersEnabled: boolean;
 }
 
 /** What was shown, kept per device. */
@@ -142,6 +144,7 @@ export function nextIsland(i: PresenceInput): PresenceIsland | null {
 
   if (i.settings.habitMilestones) {
     for (const q of i.quits) {
+      if (!q.remindersEnabled) continue;
       const step = reachedStep(q.runStart, i.now);
       if (!step || !q.runStart) continue;
       const key = `ms:${q.id}:${step}:${q.runStart}`;

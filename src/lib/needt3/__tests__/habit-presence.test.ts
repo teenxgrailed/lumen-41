@@ -120,6 +120,7 @@ describe("milestones", () => {
     title: "Smoking",
     runStart: "2026-10-21T09:00:00Z",
     best: 31,
+    remindersEnabled: true,
   };
 
   it("names the step reached, once per run, before anything else", () => {
@@ -147,6 +148,14 @@ describe("milestones", () => {
       kind: "milestone",
       title: "One day without smoking",
     });
+  });
+
+  it("stay quiet for a habit whose switch is off", () => {
+    expect(
+      nextIsland(
+        input({ quits: [{ ...quit, remindersEnabled: false }], dos: [] })
+      )
+    ).toBeNull();
   });
 
   it("stay off with the setting off", () => {
