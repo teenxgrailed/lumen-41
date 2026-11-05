@@ -6,9 +6,7 @@ A person with a ChatGPT plan can run Needt AI on it instead of Needt's metered q
 
 Behind the server flag `ai_chatgpt_plan` (default off) and the env `OPENAI_SIWC_CLIENT_ID` (absent means the feature does not exist). Usage counts against the limits of the user's own ChatGPT plan; when a limit is reached, Needt AI falls back to the user's Needt quota.
 
-Status of this PR (foundation only, draft):
-- Done: flag, additive migrations (`AIProvider.CHATGPT_PLAN`, `AIOAuthConnection.accountLabel`), config, error classification, OAuth (PKCE, state-derived nonce, code exchange, ID token check, locked refresh, revoke), Responses request builder.
-- Not done: provider adapter with fallback, `provider` param on `/api/ai/chat`, connect/disconnect/status routes, tests, spec and design text.
+Scope: flag, additive migrations (`AIProvider.CHATGPT_PLAN`, `AIOAuthConnection.accountLabel`), OAuth (PKCE, state-derived nonce, ID token check, locked refresh, revoke), Responses adapter with fallback, the `provider` param on `/api/ai/chat` with response metadata, and `GET/DELETE /api/ai/chatgpt-plan` plus authorize and callback. No UI here; the Chat provider chip and the settings card live in the screens that own them.
 
 ## Source facts (checked 2026-11-05)
 

@@ -1,1 +1,1 @@
-- Groundwork for running Needt AI on your own ChatGPT plan (off for everyone, nothing visible yet).
+- Needt AI can run on your own ChatGPT plan (off for everyone for now, nothing visible yet). Usage counts against your plan's limits; when a limit is reached, Needt AI falls back to your Needt quota.

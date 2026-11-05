@@ -56,14 +56,17 @@ export interface ChatGptPlanRequestBody {
 }
 
 /** Defence in depth: drops anything the route rejects, whoever added it. */
-export function stripUnsupportedFields<T extends Record<string, unknown>>(
-  body: T
-): T {
+export function stripUnsupportedFields<T extends object>(body: T): T {
   const copy: Record<string, unknown> = { ...body };
   for (const field of UNSUPPORTED_RESPONSES_FIELDS) delete copy[field];
   return copy as T;
 }
 
+//todo: verify live that the plan route accepts this namespace tool shape
+// (the preview-limitations page says "group function/custom tools in
+// namespaces" without giving the schema; this follows the public function
+// calling guide). If it answers `subscription_sharing_unsupported_capability`
+// with param `tools`, fall back to tools as `additional_tools` input items.
 function toolNamespace(tools: AIChatToolDefinition[]) {
   return {
     type: "namespace",

@@ -6,6 +6,7 @@ import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
+import type { AiProviderReport } from "../provider-choice";
 import type { AIChatMessage, SchedulerAI } from "../types";
 import type { AgentStreamEvent } from "./events";
 import {
@@ -33,7 +34,19 @@ export interface AgentChatInput {
   confirmedTool: { name: string; arguments: Record<string, unknown> } | null;
   confirmationMessageId: string | null;
   notice?: string;
+  /** Who answered, when the request asked for the ChatGPT plan. */
+  providerReport?: AiProviderReport | null;
   signal?: AbortSignal;
+}
+
+const PLAN_LIMIT_TEXT =
+  "Your ChatGPT plan limit is reached, so I stopped. Manage usage in ChatGPT settings. Nothing was charged to your Needt AI.";
+const PLAN_RECONNECT_TEXT =
+  "Your ChatGPT connection needs to be renewed. Reconnect it in settings. Nothing was charged to your Needt AI.";
+
+/** A copy, so a later change to the live report cannot alter a sent event. */
+function snapshot(report?: AiProviderReport | null) {
+  return report ? JSON.parse(JSON.stringify(report)) : undefined;
 }
 
 function line(event: AgentStreamEvent) {
@@ -56,6 +69,7 @@ export function agentChatResponse(input: AgentChatInput): Response {
         type: "meta",
         conversationId: input.conversationId,
         notice: input.notice,
+        provider: snapshot(input.providerReport),
       });
 
       let result: AgentTurnResult | null = null;
@@ -92,7 +106,11 @@ export function agentChatResponse(input: AgentChatInput): Response {
       if (!text) {
         text = result?.actions.length
           ? result.actions.map((action) => `${action.label}.`).join(" ")
-          : FAILED;
+          : input.providerReport?.state === "plan_limit_reached"
+            ? PLAN_LIMIT_TEXT
+            : input.providerReport?.state === "reconnect_required"
+              ? PLAN_RECONNECT_TEXT
+              : FAILED;
         emit({ type: "token", value: text });
       }
 
@@ -104,6 +122,7 @@ export function agentChatResponse(input: AgentChatInput): Response {
         requiresConfirm: Boolean(result?.pending),
         changed: result?.changed ?? false,
         taskId: result?.taskId ?? null,
+        provider: snapshot(input.providerReport),
       });
 
       try {

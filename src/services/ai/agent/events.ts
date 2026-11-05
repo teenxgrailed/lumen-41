@@ -1,3 +1,4 @@
+import type { AiProviderReport } from "../provider-choice";
 import type { AgentActionRef, AgentSource } from "./tools";
 
 /**
@@ -13,6 +14,7 @@ export interface StreamMeta {
   toolName?: string | null;
   toolPayload?: unknown;
   notice?: string;
+  provider?: AiProviderReport;
 }
 export interface StreamToken {
   type: "token";
@@ -38,6 +40,8 @@ export interface StreamDone {
   changed: boolean;
   /** The last task a tool touched. */
   taskId: string | null;
+  /** Who answered; present only for requests that asked for the ChatGPT plan. */
+  provider?: AiProviderReport;
 }
 
 export type AgentStreamEvent =

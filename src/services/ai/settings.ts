@@ -3,11 +3,23 @@ import { AIProvider } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
+import {
+  CHATGPT_PLAN_MANAGE_USAGE_URL,
+  chatGptPlanAvailable,
+} from "./chatgpt-plan/config";
+import { getChatGptPlanAccessToken } from "./chatgpt-plan/oauth";
+import { ChatGptPlanProvider } from "./chatgpt-plan/provider";
 import { decryptSecret } from "./encryption";
 import { getCustomAIOAuthAccessToken, getCustomAIOAuthConfig } from "./oauth";
+import type { AiProviderChoice, AiProviderReport } from "./provider-choice";
 import { createSchedulerAI } from "./providers";
 import { waitForHostedAiSlot } from "./slow-queue";
-import { AIProviderName, AIProviderUsage, SchedulerAIConfig } from "./types";
+import {
+  AIProviderName,
+  AIProviderUsage,
+  SchedulerAI,
+  SchedulerAIConfig,
+} from "./types";
 import {
   HOSTED_AI_CONFIG,
   claimHostedAiAction,
@@ -155,7 +167,7 @@ export function defaultModelForProvider(provider: AIProvider | string) {
   }
 }
 
-export async function getConfiguredSchedulerAI(userId: string) {
+async function resolveNeedtAI(userId: string) {
   const settings = await ensureAISettings(userId);
   let oauthToken: string | null = null;
   if (settings.provider === AIProvider.CUSTOM) {
@@ -207,8 +219,90 @@ export async function getConfiguredSchedulerAI(userId: string) {
   return {
     settings,
     ai: createSchedulerAI(config),
-    source,
+    source: source as "byok" | "hosted" | "none" | "chatgpt_plan",
     usage,
+    config,
+    providerReport: null as AiProviderReport | null,
+  };
+}
+
+/**
+ * Needt AI on the person's own ChatGPT plan, when the request asks for it
+ * (`provider: "chatgpt_plan"`), the `ai_chatgpt_plan` flag is on for them and
+ * the deployment has `OPENAI_SIWC_CLIENT_ID`. In every other case this is
+ * exactly `resolveNeedtAI`, with no report, so a deployment with the feature
+ * off shows no trace of it.
+ *
+ * If the plan connection is missing or unusable up front, Needt AI answers
+ * (their own key first, else the hosted quota) and the report says so. A
+ * failure after the request starts is handled by `ChatGptPlanProvider`.
+ */
+export async function getConfiguredSchedulerAI(
+  userId: string,
+  options: { provider?: AiProviderChoice } = {}
+) {
+  const needt = await resolveNeedtAI(userId);
+  if (options.provider !== "chatgpt_plan") return needt;
+  const planConfig = await chatGptPlanAvailable(userId);
+  if (!planConfig) return needt;
+
+  const token = await getChatGptPlanAccessToken(userId);
+  if (!token.ok) {
+    const state =
+      needt.source !== "none"
+        ? undefined
+        : token.reason === "revoked"
+          ? ("reconnect_required" as const)
+          : token.reason === "unavailable"
+            ? ("plan_unavailable" as const)
+            : undefined;
+    const report: AiProviderReport = {
+      requested: "chatgpt_plan",
+      used: needt.source === "none" ? "none" : "needt",
+      fallback: {
+        reason: token.reason,
+        // A hosted answer is claimed (counted) by getPreparedSchedulerAI.
+        charged: needt.source === "hosted",
+      },
+      state,
+      manageUsageUrl: CHATGPT_PLAN_MANAGE_USAGE_URL,
+    };
+    return { ...needt, providerReport: report };
+  }
+
+  const report: AiProviderReport = {
+    requested: "chatgpt_plan",
+    used: "chatgpt_plan",
+    fallback: null,
+    manageUsageUrl: CHATGPT_PLAN_MANAGE_USAGE_URL,
+  };
+  const fallback = async () => {
+    if (needt.source === "byok") {
+      return { ai: createSchedulerAI(needt.config), charged: false };
+    }
+    if (needt.source !== "hosted") return null;
+    const claim = await claimHostedAiAction(userId);
+    if (!claim.claimed) return null;
+    if (claim.mode === "slow") {
+      try {
+        await waitForHostedAiSlot(userId);
+      } catch {
+        await releaseHostedAiAction(userId, claim.yearMonth).catch(() => {});
+        return null;
+      }
+    }
+    return { ai: createSchedulerAI(needt.config), charged: true };
+  };
+  return {
+    ...needt,
+    ai: new ChatGptPlanProvider({
+      userId,
+      config: planConfig,
+      report,
+      fallback,
+    }) as SchedulerAI,
+    source: "chatgpt_plan" as "byok" | "hosted" | "none" | "chatgpt_plan",
+    providerReport: report as AiProviderReport | null,
   };
 }
 
@@ -229,6 +323,13 @@ export async function getPreparedSchedulerAI(
 
   const claim = await claimHostedAiAction(userId);
   if (!claim.claimed) {
+    if (configured.providerReport) {
+      // Nothing answered and nothing was charged.
+      configured.providerReport.used = "none";
+      if (configured.providerReport.fallback) {
+        configured.providerReport.fallback.charged = false;
+      }
+    }
     return {
       ...configured,
       ai: createSchedulerAI({ provider: "NONE" }),

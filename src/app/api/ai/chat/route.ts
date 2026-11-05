@@ -4,6 +4,10 @@ import { agentChatResponse } from "@/services/ai/agent/chat-turn";
 import { type ToolResult, executeTool } from "@/services/ai/agent/legacy-tools";
 import { buildAgentPromptForUser } from "@/services/ai/context";
 import {
+  type AiProviderReport,
+  parseAiProviderChoice,
+} from "@/services/ai/provider-choice";
+import {
   getConfiguredSchedulerAI,
   getPreparedSchedulerAI,
 } from "@/services/ai/settings";
@@ -37,6 +41,35 @@ import {
 } from "@/lib/security/rate-limit";
 
 const LOG_SOURCE = "ai-chat";
+
+const PLAN_END_CODE = {
+  plan_limit_reached: "CHATGPT_PLAN_LIMIT_REACHED",
+  reconnect_required: "CHATGPT_PLAN_RECONNECT",
+  plan_ineligible: "CHATGPT_PLAN_INELIGIBLE",
+  plan_unavailable: "CHATGPT_PLAN_UNAVAILABLE",
+} as const;
+
+/**
+ * Nothing could answer a `chatgpt_plan` request and the person has no Needt AI
+ * quota to fall back on: say so with the plan's end state. Null when the
+ * request did not ask for the plan (or the feature is off).
+ */
+function planEndState(report: AiProviderReport | null) {
+  if (!report?.state) return null;
+  return NextResponse.json(
+    {
+      error:
+        report.state === "plan_limit_reached"
+          ? "Your ChatGPT plan limit is reached. Manage usage in ChatGPT settings."
+          : report.state === "reconnect_required"
+            ? "Reconnect your ChatGPT plan to use it with Needt AI."
+            : "Your ChatGPT plan cannot answer right now.",
+      code: PLAN_END_CODE[report.state],
+      provider: report,
+    },
+    { status: report.state === "plan_limit_reached" ? 429 : 409 }
+  );
+}
 
 function titleFromMessage(message: string) {
   return message.trim().slice(0, 42) || "New chat";
@@ -122,8 +155,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Message is required" }, { status: 400 });
   }
 
-  const configured = await getConfiguredSchedulerAI(auth.userId);
+  const configured = await getConfiguredSchedulerAI(auth.userId, {
+    provider: parseAiProviderChoice(body.provider),
+  });
   if (configured.source === "none") {
+    const planEnd = planEndState(configured.providerReport);
+    if (planEnd) return planEnd;
     const upgradeRequired = configured.usage.plan === "FREE";
     return NextResponse.json(
       {
@@ -222,6 +259,8 @@ export async function POST(request: NextRequest) {
   }
   const { settings, ai, source, usage, hostedMode } = prepared;
   if (source === "none") {
+    const planEnd = planEndState(prepared.providerReport);
+    if (planEnd) return planEnd;
     const upgradeRequired = usage.plan === "FREE";
     return NextResponse.json(
       {
@@ -293,6 +332,7 @@ export async function POST(request: NextRequest) {
       confirmedTool,
       confirmationMessageId,
       notice: hostedMode === "slow" ? HOSTED_AI_BUSY_MESSAGE : undefined,
+      providerReport: prepared.providerReport,
       signal: request.signal,
     });
   }
