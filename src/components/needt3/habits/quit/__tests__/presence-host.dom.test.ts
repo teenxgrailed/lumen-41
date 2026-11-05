@@ -427,10 +427,14 @@ describe("a Mac app that schedules", () => {
     delete (window as unknown as Record<string, unknown>).__TAURI__;
   });
 
-  it("hands it the coming moments once, and again only when they change", () => {
+  it("hands it the coming moments once, and again only when they change", async () => {
     jest.setSystemTime(new Date("2026-11-04T15:00:00Z"));
     jest.spyOn(document, "hasFocus").mockReturnValue(false);
     mount();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
     expect(api.schedule).toHaveBeenCalledTimes(1);
     expect(
       api.schedule.mock.calls[0][0].map((m: { tag: string }) => m.tag)
@@ -441,6 +445,10 @@ describe("a Mac app that schedules", () => {
       "checkin:2026-11-05",
     ]);
     minute();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
     expect(api.schedule).toHaveBeenCalledTimes(1);
     // It shows them at their times itself: no live system notification.
     expect(api.sendNotification).not.toHaveBeenCalled();
@@ -451,5 +459,95 @@ describe("a Mac app that schedules", () => {
     mount();
     expect(rows()).toHaveLength(1);
     expect(api.cancel).toHaveBeenCalledWith(["rem:de:2026-11-04"]);
+  });
+});
+
+describe("the Mac app's schedule, kept in step", () => {
+  let api: {
+    isPermissionGranted: jest.Mock;
+    sendNotification: jest.Mock;
+    schedule: jest.Mock;
+    cancel: jest.Mock;
+  };
+  const flush = () =>
+    act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  beforeEach(() => {
+    jest.setSystemTime(new Date("2026-11-04T15:00:00Z"));
+    api = {
+      isPermissionGranted: jest.fn(async () => true),
+      sendNotification: jest.fn(),
+      schedule: jest.fn(),
+      cancel: jest.fn(),
+    };
+    (window as unknown as Record<string, unknown>).__TAURI__ = {
+      notification: api,
+    };
+  });
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).__TAURI__;
+  });
+
+  it("schedules nothing without the system's permission", async () => {
+    api.isPermissionGranted.mockResolvedValue(false);
+    mount();
+    await flush();
+    expect(api.schedule).toHaveBeenLastCalledWith([]);
+  });
+
+  it("carries the person's zone with each moment", async () => {
+    mount();
+    await flush();
+    const set = api.schedule.mock.calls.at(-1)?.[0] as { timeZone: string }[];
+    expect(set.length).toBeGreaterThan(0);
+    expect(set.every((m) => m.timeZone === "UTC")).toBe(true);
+  });
+
+  it("takes the whole set back when it unmounts", async () => {
+    mount();
+    await flush();
+    act(() => root.render(h(NeedtNoticeProvider, null)));
+    expect(api.schedule).toHaveBeenLastCalledWith([]);
+  });
+
+  it("takes the whole set back when habits_quit is off for this account", async () => {
+    mockGate = "off";
+    mount();
+    await flush();
+    expect(api.schedule).toHaveBeenLastCalledWith([]);
+  });
+
+  it("shows the banner when a moment comes due and the island cannot say it", async () => {
+    jest.setSystemTime(new Date("2026-11-04T18:00:00Z"));
+    jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    mockAskOpen = true;
+    mount();
+    await flush();
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("needt:presence-due", { detail: "checkin:2026-11-04" })
+      );
+    });
+    await flush();
+    expect(api.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ tag: "checkin:2026-11-04", banner: true })
+    );
+  });
+
+  it("lets the island say it when it can, with no banner", async () => {
+    jest.setSystemTime(new Date("2026-11-04T18:05:00Z"));
+    jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    mount();
+    await flush();
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("needt:presence-due", { detail: "rem:de:2026-11-04" })
+      );
+    });
+    await flush();
+    expect(rows()).toHaveLength(1);
+    expect(api.sendNotification).not.toHaveBeenCalled();
   });
 });

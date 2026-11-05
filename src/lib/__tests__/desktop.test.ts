@@ -170,3 +170,15 @@ describe("the Mac app's push token", () => {
     ).toBeNull();
   });
 });
+
+describe("a due habit moment from the Mac app", () => {
+  it("is a command with a presence tag, and nothing else is", () => {
+    const { parseDesktopCommand } = jest.requireActual("@/lib/desktop");
+    expect(
+      parseDesktopCommand({ type: "presence-due", tag: "rem:h1:2026-11-04" })
+    ).toEqual({ type: "presence-due", tag: "rem:h1:2026-11-04" });
+    expect(
+      parseDesktopCommand({ type: "presence-due", tag: "<script>" })
+    ).toBeNull();
+  });
+});

@@ -1715,7 +1715,7 @@ model NativePushToken {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token       String   @unique
-  /// "ios" today; the Mac app joins later.
+  /// "ios" or "macos" (the Mac app, bundle app.needt.mac).
   platform    String
   /// The bundle id the token belongs to; it is the APNs topic.
   bundleId    String

@@ -311,6 +311,8 @@ export interface ScheduledMoment {
   body: string;
   /** A same-origin path the click opens. */
   url: string;
+  /** The person's zone: the app keeps the instant if the Mac's zone changes. */
+  timeZone: string;
 }
 
 const dayAfter = (dayKey: string) =>
@@ -341,19 +343,20 @@ export function presenceSchedule(
   const nowMs = i.now.getTime();
   const until = nowMs + hours * 3_600_000;
   const today = localClock(i.now, i.timeZone).dayKey;
-  const days = [today, dayAfter(today)];
+  // Three calendar days cover any 36-hour window; `until` trims the rest.
+  const days = [today, dayAfter(today), dayAfter(dayAfter(today))];
   const out: ScheduledMoment[] = [];
   const add = (
     dayKey: string,
     hhmm: string,
-    m: Omit<ScheduledMoment, "at">
+    m: Omit<ScheduledMoment, "at" | "timeZone">
   ) => {
     const minutes = minutesOf(hhmm);
     if (minutes === null || inQuiet(s, minutes)) return;
     const at = wallInstant(dayKey, hhmm, i.timeZone);
     const t = at.getTime();
     if (!Number.isFinite(t) || t <= nowMs || t > until) return;
-    out.push({ ...m, at: at.toISOString() });
+    out.push({ ...m, at: at.toISOString(), timeZone: i.timeZone });
   };
 
   for (const dayKey of days) {

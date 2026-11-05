@@ -75,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #else
         let environment = "production"
         #endif
-        AppController.shared.sendCommand(["type": "push-token", "token": token, "environment": environment])
+        AppController.shared.reportPushToken(token, environment: environment)
     }
 
     func application(_ application: NSApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {

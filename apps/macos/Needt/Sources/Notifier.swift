@@ -36,8 +36,9 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// the moment (the web's presenceTag): it is the request's identifier, so
     /// a later notification of the same moment replaces this one, and the
     /// server's push (apns-collapse-id = the same tag) does too.
-    func send(title: String, body: String, path: String? = nil, tag: String? = nil) {
+    func send(title: String, body: String, path: String? = nil, tag: String? = nil, banner: Bool = false) {
         guard let center, !title.isEmpty else { return }
+        if banner, let id = Notifier.safeTag(tag) { forceBanner.insert(id) }
         let identifier = Notifier.safeTag(tag) ?? UUID().uuidString
         let request = UNNotificationRequest(
             identifier: identifier,
@@ -54,6 +55,9 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         let title: String
         let body: String
         let path: String?
+        /// The person's zone (the setting, not this Mac's): the trigger keeps
+        /// the instant if the Mac's zone changes before it fires.
+        let timeZone: TimeZone
 
         init?(json: [String: Any]) {
             guard let tag = Notifier.safeTag(json["tag"] as? String),
@@ -66,6 +70,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             self.title = title
             self.body = json["body"] as? String ?? ""
             self.path = json["url"] as? String
+            self.timeZone = (json["timeZone"] as? String).flatMap(TimeZone.init(identifier:)) ?? .current
         }
     }
 
@@ -73,6 +78,34 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// the set (a habit marked done, a time moved) are taken back, the rest
     /// are (re)added under their tag. Only presence tags are touched.
     func schedule(_ items: [Scheduled]) async {
+        // One at a time: a second call waits for the first, so two sets never
+        // interleave their removals and adds.
+        let previous = scheduling
+        let next = Task { @MainActor in
+            await previous?.value
+            await self.replaceScheduled(items)
+        }
+        scheduling = next
+        await next.value
+    }
+
+    private var scheduling: Task<Void, Never>?
+    /// Presence tags the page asked to show as a banner even with Needt in
+    /// front (the island could not say them).
+    private var forceBanner = Set<String>()
+
+    /// Every habit moment of this account, pending or shown (sign-out).
+    func clearPresence() {
+        guard let center else { return }
+        Task { @MainActor in
+            let pending = await center.pendingNotificationRequests().map(\.identifier).filter(Notifier.isPresenceTag)
+            center.removePendingNotificationRequests(withIdentifiers: pending)
+            let shown = await center.deliveredNotifications().map(\.request.identifier).filter(Notifier.isPresenceTag)
+            center.removeDeliveredNotifications(withIdentifiers: shown)
+        }
+    }
+
+    private func replaceScheduled(_ items: [Scheduled]) async {
         guard let center else { return }
         let keep = Set(items.map(\.tag))
         let pending = await center.pendingNotificationRequests()
@@ -80,7 +113,9 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         if !stale.isEmpty { center.removePendingNotificationRequests(withIdentifiers: stale) }
         let now = Date()
         for item in items.prefix(60) where item.at > now {
-            let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: item.at)
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = item.timeZone
+            let parts = calendar.dateComponents(in: item.timeZone, from: item.at)
             let request = UNNotificationRequest(
                 identifier: item.tag,
                 content: Notifier.content(title: item.title, body: item.body, path: item.path),
@@ -146,11 +181,18 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     ) {
         // A habit moment while Needt is in front: the page's island says it,
         // so no banner over it (it stays in Notification Center until the
-        // island takes it back).
+        // island takes it back). The page is told; when the island cannot
+        // speak (Ask open, a focus, the 20-minute gap) it sends the moment
+        // again with `banner`, and that one shows.
         let id = notification.request.identifier
         Task { @MainActor in
             if Notifier.isPresenceTag(id) && NSApp.isActive {
-                completionHandler([.list])
+                if Notifier.shared.forceBanner.remove(id) != nil {
+                    completionHandler([.banner, .sound])
+                } else {
+                    completionHandler([.list])
+                    AppController.shared.presenceDue(tag: id)
+                }
             } else {
                 completionHandler([.banner, .sound])
             }

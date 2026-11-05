@@ -90,7 +90,7 @@ enum WebBridge {
           },
           sendNotification: function (options) {
             options = options || {};
-            post({ kind: 'notification.send', title: String(options.title || ''), body: String(options.body || ''), url: typeof options.url === 'string' ? options.url : '', tag: typeof options.tag === 'string' ? options.tag : '' });
+            post({ kind: 'notification.send', title: String(options.title || ''), body: String(options.body || ''), url: typeof options.url === 'string' ? options.url : '', tag: typeof options.tag === 'string' ? options.tag : '', banner: options.banner === true });
           },
           // Habit moments shown at their times by the system, the window
           // closed or the page asleep; each call replaces the set.
@@ -220,7 +220,8 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
                 title: body["title"] as? String ?? "",
                 body: body["body"] as? String ?? "",
                 path: body["url"] as? String,
-                tag: body["tag"] as? String
+                tag: body["tag"] as? String,
+                banner: body["banner"] as? Bool ?? false
             )
             reply(nil, nil)
         case "notification.schedule":

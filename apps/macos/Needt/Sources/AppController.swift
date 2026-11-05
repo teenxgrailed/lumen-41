@@ -87,6 +87,8 @@ final class AppController {
 
     /// The page reported a session: the start window has done its job.
     func signInFinished() {
+        pageSignedIn = true
+        flushPushToken()
         if revealOnSignIn {
             revealOnSignIn = false
             main?.show()
@@ -142,6 +144,7 @@ final class AppController {
 
     /// Signed out: the start window first, then drop the main window.
     func showStartAfterSignOut() {
+        pageSignedIn = false
         showStart()
         if let controller = main {
             controller.window?.delegate = nil
@@ -150,6 +153,34 @@ final class AppController {
             main = nil
         }
         revealOnSignIn = false
+    }
+
+    // MARK: remote push token
+
+    /// True once the page reported a signed-in load, until sign-out.
+    private var pageSignedIn = false
+    /// The APNs token waits here until a signed-in page can save it.
+    private var pendingPushToken: [String: Any]?
+
+    /// From `didRegisterForRemoteNotificationsWithDeviceToken`. Kept, and
+    /// handed to the page once it is signed in, never by bringing the
+    /// window forward (`sendCommand` would).
+    func reportPushToken(_ token: String, environment: String) {
+        pendingPushToken = ["type": "push-token", "token": token, "environment": environment]
+        flushPushToken()
+    }
+
+    private func flushPushToken() {
+        guard pageSignedIn, let command = pendingPushToken, let main else { return }
+        main.send(command)
+        pendingPushToken = nil
+    }
+
+    /// A scheduled habit moment came due with Needt in front: the page shows
+    /// it on the island, or asks for the banner when the island cannot speak.
+    func presenceDue(tag: String) {
+        guard pageSignedIn, let main else { return }
+        main.send(["type": "presence-due", "tag": tag])
     }
 
     // MARK: commands

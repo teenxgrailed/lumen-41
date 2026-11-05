@@ -21,6 +21,8 @@ interface TauriNotificationApi {
      * earlier notification with the same tag. Older shells ignore it.
      */
     tag?: string;
+    /** Show as a banner even with the app in front (the island could not). */
+    banner?: boolean;
   }) => void;
   /**
    * Replace the app's scheduled habit moments with these (Mac shell 2b):
@@ -41,6 +43,8 @@ export interface DesktopScheduled {
   body: string;
   /** A same-origin path the click opens. */
   url: string;
+  /** IANA zone the instant is shown in (the person's setting). */
+  timeZone?: string;
 }
 
 interface TauriGlobal {
@@ -86,6 +90,7 @@ export async function sendDesktopNotification(
      * anything not started by the person: no prompt out of nowhere. */
     ask?: boolean;
     tag?: string;
+    banner?: boolean;
   } = {}
 ): Promise<boolean> {
   const api = tauriGlobal()?.notification;
@@ -101,12 +106,16 @@ export async function sendDesktopNotification(
       body,
       ...(url && /^\/(?!\/)/.test(url) ? { url } : {}),
       ...(options.tag ? { tag: options.tag } : {}),
+      ...(options.banner ? { banner: true } : {}),
     });
     return true;
   } catch {
     return false;
   }
 }
+
+/** The window event a due habit moment arrives as (DesktopBridge → presence). */
+export const PRESENCE_DUE_EVENT = "needt:presence-due";
 
 /** True when the desktop app can show notifications at a time by itself. */
 export function desktopCanSchedule(): boolean {
@@ -188,7 +197,9 @@ export type DesktopCommand =
       type: "push-token";
       token: string;
       environment: "production" | "sandbox";
-    };
+    }
+  /** A scheduled habit moment came due with the app in front. */
+  | { type: "presence-due"; tag: string };
 
 type DesktopHost = {
   platform?: unknown;
@@ -224,7 +235,10 @@ const NAVIGABLE = /^\/[A-Za-z0-9\-._~!$&'()*+,;=:@%/?#]*$/;
 /** A command from the shell, or null for anything that is not one. */
 export function parseDesktopCommand(raw: unknown): DesktopCommand | null {
   if (!raw || typeof raw !== "object") return null;
-  const { type, path, id, token, environment } = raw as Record<string, unknown>;
+  const { type, path, id, token, environment, tag } = raw as Record<
+    string,
+    unknown
+  >;
   switch (type) {
     case "navigate":
       return typeof path === "string" &&
@@ -236,6 +250,11 @@ export function parseDesktopCommand(raw: unknown): DesktopCommand | null {
     case "open-task":
       return typeof id === "string" && /^[\w-]{1,64}$/.test(id)
         ? { type, id }
+        : null;
+    case "presence-due":
+      return typeof tag === "string" &&
+        /^[a-z]+:[A-Za-z0-9:_-]{1,120}$/.test(tag)
+        ? { type, tag }
         : null;
     case "push-token":
       return typeof token === "string" && /^[0-9a-fA-F]{64,200}$/.test(token)
