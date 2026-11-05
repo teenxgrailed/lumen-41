@@ -235,6 +235,118 @@ describe("admin feature flags", () => {
     });
   });
 
+  it.each<[Record<string, unknown>, string]>([
+    [{}, "an empty body"],
+    [{ enabled: "yes" }, "a non-boolean enabled"],
+    [{ rolloutPercentage: 50.5 }, "a fractional rollout"],
+    [{ rolloutPercentage: 101 }, "a rollout above 100"],
+    [{ rolloutPercentage: -1 }, "a negative rollout"],
+    [{ enabled: true, rolloutPercentage: "50" }, "a string rollout"],
+  ])("answers 400 and writes nothing for %j (%s)", async (body) => {
+    const response = await patch("onboarding_v3", body);
+    expect(response.status).toBe(400);
+    expect(prisma.featureFlag.upsert).not.toHaveBeenCalled();
+    expect(prisma.featureFlagChange.create).not.toHaveBeenCalled();
+  });
+
+  it("accepts a rollout of 0 on its own", async () => {
+    jest
+      .mocked(prisma.featureFlag.findUnique)
+      .mockResolvedValue({ enabled: true, rolloutPercentage: 40 } as never);
+    jest.mocked(prisma.featureFlag.upsert).mockResolvedValue({
+      key: "onboarding_v3",
+      enabled: true,
+      rolloutPercentage: 0,
+    } as never);
+    const response = await patch("onboarding_v3", { rolloutPercentage: 0 });
+    expect(response.status).toBe(200);
+    expect(prisma.featureFlagChange.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes no history row when the flag ends up as it was", async () => {
+    jest
+      .mocked(prisma.featureFlag.findUnique)
+      .mockResolvedValue({ enabled: true, rolloutPercentage: 30 } as never);
+    jest.mocked(prisma.featureFlag.upsert).mockResolvedValue({
+      key: "onboarding_v3",
+      enabled: true,
+      rolloutPercentage: 30,
+    } as never);
+    const response = await patch("onboarding_v3", {
+      enabled: true,
+      rolloutPercentage: 30,
+    });
+    expect(response.status).toBe(200);
+    expect(prisma.featureFlagChange.create).not.toHaveBeenCalled();
+  });
+
+  it("writes no history row when an override is set to what it already is", async () => {
+    jest
+      .mocked(prisma.user.findUnique)
+      .mockResolvedValue({ id: "u1", email: "u1@example.com" } as never);
+    jest
+      .mocked(prisma.featureFlagOverride.findUnique)
+      .mockResolvedValue({ enabled: true } as never);
+    jest
+      .mocked(prisma.featureFlagOverride.upsert)
+      .mockResolvedValue({ enabled: true } as never);
+    await patch("onboarding_v3", { userId: "u1", userEnabled: true });
+    expect(prisma.featureFlagChange.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      { email: "x@y.com", userEnabled: true },
+      "No account found for that email.",
+    ],
+    [
+      { userId: "nope", userEnabled: true },
+      "No account found for that user id.",
+    ],
+    [{ self: true, userEnabled: true }, "Your own account was not found."],
+  ])(
+    "names the selector used when %j matches nobody",
+    async (body, message) => {
+      jest.mocked(prisma.user.findFirst).mockResolvedValue(null);
+      jest.mocked(prisma.user.findUnique).mockResolvedValue(null);
+      const response = await patch("onboarding_v3", body);
+      expect(response.status).toBe(404);
+      expect((await response.json()).error).toBe(message);
+    }
+  );
+
+  it("does not commit the flag change when the history row fails to write", async () => {
+    const committed: unknown[] = [];
+    (prisma.$transaction as jest.Mock).mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) => {
+        const staged: unknown[] = [];
+        const tx = {
+          featureFlag: {
+            findUnique: jest.fn().mockResolvedValue(null),
+            upsert: jest.fn(async (args: unknown) => {
+              staged.push(args);
+              return {
+                key: "onboarding_v3",
+                enabled: true,
+                rolloutPercentage: 0,
+              };
+            }),
+          },
+          featureFlagChange: {
+            create: jest.fn().mockRejectedValue(new Error("history down")),
+          },
+        };
+        const result = await fn(tx); /* a rejection skips the commit below */
+        committed.push(...staged);
+        return result;
+      }
+    );
+    await expect(patch("onboarding_v3", { enabled: true })).rejects.toThrow(
+      "history down"
+    );
+    expect(committed).toEqual([]);
+  });
+
   it("returns the last 20 changes with the flag", async () => {
     jest.mocked(prisma.featureFlag.findUnique).mockResolvedValue(null);
     await GET_ONE(

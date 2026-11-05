@@ -179,6 +179,55 @@ describe("FlagsScreen", () => {
     });
   });
 
+  it("asks before lowering the rollout of an enabled flag, including to 0", async () => {
+    await mount();
+    const typeAndSave = async (value: string) => {
+      await type(
+        row("habits_quit").querySelector<HTMLInputElement>("input")!,
+        value
+      );
+      await click(
+        row("habits_quit").querySelector("[data-admin-flag-rollout-save]")!
+      );
+    };
+    await typeAndSave("10");
+    expect(confirmButton()).not.toBeNull();
+    expect(document.body.textContent).toContain("25% to 10%");
+    expect(patches()).toHaveLength(0);
+    await click(confirmButton()!);
+    expect(JSON.parse(String(patches()[0].init?.body))).toEqual({
+      rolloutPercentage: 10,
+    });
+  });
+
+  it("asks before dropping an enabled flag to 0%", async () => {
+    await mount();
+    await type(
+      row("habits_quit").querySelector<HTMLInputElement>("input")!,
+      "0"
+    );
+    await click(
+      row("habits_quit").querySelector("[data-admin-flag-rollout-save]")!
+    );
+    expect(confirmButton()).not.toBeNull();
+    expect(document.body.textContent).toContain("everyone loses it");
+    expect(patches()).toHaveLength(0);
+  });
+
+  it("keeps what is typed in other rows when one flag is changed", async () => {
+    await mount();
+    await type(
+      row("ai_chatgpt_plan").querySelector<HTMLInputElement>("input")!,
+      "7"
+    );
+    await click(row("habits_quit").querySelector("[data-admin-flag-toggle]")!);
+    await click(confirmButton()!);
+    expect(patches()).toHaveLength(1);
+    expect(
+      row("ai_chatgpt_plan").querySelector<HTMLInputElement>("input")!.value
+    ).toBe("7");
+  });
+
   it("adds an override by email, and shows overrides and history", async () => {
     await mount();
     await click(row("habits_quit").querySelector("[data-admin-flag-open]")!);

@@ -6,6 +6,7 @@ import { getAdminOverview } from "@/services/admin/overview";
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { requireAdmin } from "@/lib/auth/api-auth";
 import { readBuildInfo } from "@/lib/health/build-info";
+import { logger } from "@/lib/logger";
 
 const LOG_SOURCE = "AdminOverviewAPI";
 
@@ -18,7 +19,11 @@ export async function GET(request: NextRequest) {
     const [overview, build, growth] = await Promise.all([
       getAdminOverview(),
       readBuildInfo(),
-      getAdminGrowth(),
+      /* Growth is extra: it never takes the overview down with it. */
+      getAdminGrowth().catch(async (error) => {
+        await logger.error("Admin growth failed", { error }, LOG_SOURCE);
+        return null;
+      }),
     ]);
     return NextResponse.json({ overview, build, growth });
   } catch (error) {

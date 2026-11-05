@@ -259,7 +259,9 @@ function FlagRow({
       confirm: !turningOn || everyone,
     });
   };
-  const saveRollout = () =>
+  const saveRollout = () => {
+    /* Lowering a live rollout takes the flag away from people who have it. */
+    const lowersLive = flag.enabled && parsed < flag.rolloutPercentage;
     ask({
       key: flag.key,
       body: { rolloutPercentage: parsed },
@@ -269,10 +271,15 @@ function FlagRow({
           ? flag.enabled
             ? "Everyone gets it."
             : "Everyone will get it as soon as the flag is on."
-          : `Rollout goes from ${flag.rolloutPercentage}% to ${parsed}%.`,
+          : lowersLive
+            ? parsed === 0
+              ? "The flag is on, so everyone loses it, except people with an override set to on."
+              : `The flag is on, so rollout drops from ${flag.rolloutPercentage}% to ${parsed}% and some people lose it.`
+            : `Rollout goes from ${flag.rolloutPercentage}% to ${parsed}%.`,
       confirmLabel: "Set rollout",
-      confirm: parsed === 100,
+      confirm: parsed === 100 || lowersLive,
     });
+  };
 
   return (
     <>
@@ -366,8 +373,9 @@ export function FlagsScreen() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
-  /* Bumps the open detail panel's data after a change made from the list. */
-  const [detailTick, setDetailTick] = useState(0);
+  /* Per flag: bumps its open detail panel after a change made from the list,
+     so the other rows keep what is typed in them. */
+  const [detailTicks, setDetailTicks] = useState<Record<string, number>>({});
 
   const apply = async (change: Pending, inDialog: boolean) => {
     setBusy(true);
@@ -385,7 +393,7 @@ export function FlagsScreen() {
     }
     notify.success(`${change.key} updated.`);
     setPending(null);
-    setDetailTick((n) => n + 1);
+    setDetailTicks((t) => ({ ...t, [change.key]: (t[change.key] ?? 0) + 1 }));
     reload();
   };
   const confirm = () => {
@@ -424,7 +432,7 @@ export function FlagsScreen() {
               {data.flags.map((flag) => (
                 <FlagRow
                   /* A changed server value resets the draft input. */
-                  key={`${flag.key}:${flag.rolloutPercentage}:${detailTick}`}
+                  key={`${flag.key}:${flag.rolloutPercentage}:${detailTicks[flag.key] ?? 0}`}
                   flag={flag}
                   open={openKey === flag.key}
                   onToggleOpen={() =>

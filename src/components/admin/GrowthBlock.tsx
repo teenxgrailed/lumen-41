@@ -88,7 +88,7 @@ export function GrowthBlock({ growth }: { growth: AdminGrowth }) {
             <tr>
               <th>Week from</th>
               <th>Last seen in week</th>
-              <th>New paying</th>
+              <th>Paying, changed in week</th>
             </tr>
           </thead>
           <tbody>
@@ -96,7 +96,7 @@ export function GrowthBlock({ growth }: { growth: AdminGrowth }) {
               <tr key={week.from}>
                 <td>{dayOf(week.from)}</td>
                 <td>{week.lastSeen}</td>
-                <td>{week.newPaying}</td>
+                <td>{week.paidActivity}</td>
               </tr>
             ))}
           </tbody>
@@ -106,7 +106,10 @@ export function GrowthBlock({ growth }: { growth: AdminGrowth }) {
         Paying is a Pro or Lifetime subscription that still holds its plan;
         trials are not in it. Activity keeps only the latest visit, so older
         weeks show who was last seen then and understate; the newest week is the
-        weekly-actives number. Sandbox accounts are left out of actives.
+        weekly-actives number. The paying column counts paying people whose
+        subscription last changed that week (purchase, renewal or plan change);
+        there is no first-paid date to count real new buyers. Sandbox accounts
+        are left out of actives, paying and trials.
       </p>
     </section>
   );

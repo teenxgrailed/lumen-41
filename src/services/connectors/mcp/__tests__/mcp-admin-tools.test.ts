@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 
 import { POST } from "@/app/api/mcp/route";
 import { recordAdminAudit } from "@/services/admin/audit";
+import { getAdminGrowth } from "@/services/admin/growth";
 import { getAdminUserDetail, searchAdminUsers } from "@/services/admin/users";
 import {
   type BearerAuth,
@@ -17,6 +18,7 @@ import { handleMcpMessage } from "@/services/connectors/mcp/server";
 import { listMcpTools } from "@/services/connectors/mcp/tools";
 import { grantedScopes } from "@/services/oauth/consent";
 
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
@@ -275,6 +277,19 @@ describe("needt.admin.read scope and role", () => {
     const { status } = await call("needt_admin_overview");
     expect(status).toBe(403);
     expect(recordAdminAudit).not.toHaveBeenCalled();
+  });
+
+  it("still answers the overview, with growth null, when growth fails", async () => {
+    jest.mocked(getAdminGrowth).mockRejectedValueOnce(new Error("db down"));
+    setCaller(oauth(["needt.read", "needt.admin.read"]), ADMIN);
+    const { status, payload } = await call("needt_admin_overview");
+    expect(status).toBe(200);
+    expect(payload).toMatchObject({ users: { total: 10 }, growth: null });
+    expect(logger.error).toHaveBeenCalledWith(
+      "Admin growth failed",
+      expect.anything(),
+      "McpAdminTools"
+    );
   });
 
   it("refuses an admin without the scope with 403 insufficient_scope", async () => {

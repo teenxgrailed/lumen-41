@@ -143,7 +143,11 @@ describe("OverviewScreen", () => {
           daysToDeadline: 181,
           neededPerWeek: { weeklyActives: 7, paying: 3 },
           weeks: [
-            { from: "2026-10-29T12:00:00.000Z", lastSeen: 120, newPaying: 3 },
+            {
+              from: "2026-10-29T12:00:00.000Z",
+              lastSeen: 120,
+              paidActivity: 3,
+            },
           ],
           generatedAt: "2026-11-05T12:00:00.000Z",
         },

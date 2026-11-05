@@ -145,7 +145,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const target = await resolveTarget(body, actorUserId);
     if (!target) {
       return NextResponse.json(
-        { error: "No account found for that email." },
+        { error: missingTargetMessage(body) },
         { status: 404 }
       );
     }
@@ -172,28 +172,50 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
           create: { flagKey: key, userId: target.id, enabled: userEnabled },
         });
       }
-      await tx.featureFlagChange.create({
-        data: {
-          flagKey: key,
-          actorUserId,
-          before: previous
-            ? { override: { email: target.email, enabled: previous.enabled } }
-            : { override: null },
-          after: wantsRemove
-            ? { override: null, email: target.email }
-            : { override: { email: target.email, enabled: userEnabled } },
-        },
-      });
+      /* Removing nothing, or setting what is already set, is not a change. */
+      const unchanged = wantsRemove
+        ? !previous
+        : previous?.enabled === userEnabled;
+      if (!unchanged) {
+        await tx.featureFlagChange.create({
+          data: {
+            flagKey: key,
+            actorUserId,
+            before: previous
+              ? { override: { email: target.email, enabled: previous.enabled } }
+              : { override: null },
+            after: wantsRemove
+              ? { override: null, email: target.email }
+              : { override: { email: target.email, enabled: userEnabled } },
+          },
+        });
+      }
       return saved;
     });
     return NextResponse.json({ override });
   }
-  const rolloutPercentage =
+  const hasRollout = body.rolloutPercentage !== undefined;
+  const rolloutValid =
     typeof body.rolloutPercentage === "number" &&
-    Number.isFinite(body.rolloutPercentage)
-      ? Math.max(0, Math.min(100, Math.round(body.rolloutPercentage)))
-      : undefined;
+    Number.isInteger(body.rolloutPercentage) &&
+    body.rolloutPercentage >= 0 &&
+    body.rolloutPercentage <= 100;
   const enabled = typeof body.enabled === "boolean" ? body.enabled : undefined;
+  if (
+    (hasRollout && !rolloutValid) ||
+    (enabled === undefined && !rolloutValid)
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Send enabled as true or false, or a rollout percentage as a whole number from 0 to 100.",
+      },
+      { status: 400 }
+    );
+  }
+  const rolloutPercentage = rolloutValid
+    ? (body.rolloutPercentage as number)
+    : undefined;
   const flag = await prisma.$transaction(async (tx) => {
     const previous = await tx.featureFlag.findUnique({
       where: { key },
@@ -209,20 +231,30 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         rolloutPercentage: rolloutPercentage ?? 0,
       },
     });
-    await tx.featureFlagChange.create({
-      data: {
-        flagKey: key,
-        actorUserId,
-        before: previous ?? { enabled: false, rolloutPercentage: 0 },
-        after: {
-          enabled: saved.enabled,
-          rolloutPercentage: saved.rolloutPercentage,
-        },
-      },
-    });
+    const before = previous ?? { enabled: false, rolloutPercentage: 0 };
+    const after = {
+      enabled: saved.enabled,
+      rolloutPercentage: saved.rolloutPercentage,
+    };
+    /* A save that changes nothing leaves no history row. */
+    if (
+      before.enabled !== after.enabled ||
+      before.rolloutPercentage !== after.rolloutPercentage
+    ) {
+      await tx.featureFlagChange.create({
+        data: { flagKey: key, actorUserId, before, after },
+      });
+    }
     return saved;
   });
   return NextResponse.json({ flag });
+}
+
+/** Which selector the caller used decides what "not found" says. */
+function missingTargetMessage(body: Body): string {
+  if (body.self === true) return "Your own account was not found.";
+  if (typeof body.email === "string") return "No account found for that email.";
+  return "No account found for that user id.";
 }
 
 /** The account an override is about: the caller, an email, or a raw id. */

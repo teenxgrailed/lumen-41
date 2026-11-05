@@ -12,3 +12,6 @@ CREATE TABLE "FeatureFlagChange" (
 );
 
 CREATE INDEX "FeatureFlagChange_flagKey_createdAt_idx" ON "FeatureFlagChange"("flagKey", "createdAt");
+
+-- The growth block counts people by last activity window.
+CREATE INDEX "User_lastActiveAt_idx" ON "User"("lastActiveAt");

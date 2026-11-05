@@ -23,8 +23,13 @@ export interface GrowthWeek {
   from: string;
   /** People whose latest activity falls in this week. */
   lastSeen: number;
-  /** Paying people whose subscription row was created in this week. */
-  newPaying: number;
+  /**
+   * Paying people whose subscription row last changed in this week. No
+   * first-paid timestamp exists (`createdAt` is the signup Free row), so this
+   * is `updatedAt`: a purchase, renewal or plan change all land here, and a
+   * later change moves the person to a later week.
+   */
+  paidActivity: number;
 }
 
 export interface AdminGrowth {
@@ -73,7 +78,11 @@ export async function getAdminGrowth(
   );
   /* Index 0 is the current week: (edges[1], edges[0]]. */
   const window = (i: number) => ({ gt: edges[i + 1], lte: edges[i] });
-  const paid = (plan: SubscriptionPlan) => holdsPlan(plan, now);
+  /* Sandbox accounts are never counted, as for the actives. */
+  const paid = (plan: SubscriptionPlan) => ({
+    ...holdsPlan(plan, now),
+    user: { sandboxKind: null },
+  });
   const anyPaid = {
     OR: [paid(SubscriptionPlan.PRO), paid(SubscriptionPlan.LIFETIME)],
   };
@@ -86,6 +95,7 @@ export async function getAdminGrowth(
         endsAt: { gt: now },
         userId: { not: null },
         user: {
+          sandboxKind: null,
           OR: [
             { subscription: { is: null } },
             { subscription: { is: { plan: SubscriptionPlan.FREE } } },
@@ -100,18 +110,18 @@ export async function getAdminGrowth(
     ),
     ...Array.from({ length: GROWTH_TREND_WEEKS }, (_, i) =>
       prisma.subscription.count({
-        where: { AND: [anyPaid, { createdAt: window(i) }] },
+        where: { AND: [anyPaid, { updatedAt: window(i) }] },
       })
     ),
   ]);
   const lastSeen = series.slice(0, GROWTH_TREND_WEEKS);
-  const newPaying = series.slice(GROWTH_TREND_WEEKS);
+  const paidActivity = series.slice(GROWTH_TREND_WEEKS);
   const weeks: GrowthWeek[] = Array.from(
     { length: GROWTH_TREND_WEEKS },
     (_, i) => ({
       from: edges[i + 1].toISOString(),
       lastSeen: lastSeen[i],
-      newPaying: newPaying[i],
+      paidActivity: paidActivity[i],
     })
   ).reverse();
   const weeklyActives = lastSeen[0];

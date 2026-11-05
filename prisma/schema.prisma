@@ -273,6 +273,8 @@ model User {
   importRuns                   ImportRun[]
   importItemMaps               ImportItemMap[]
   HabitPush                    HabitPush[]
+
+  @@index([lastActiveAt])
 }
 
 model Workspace {

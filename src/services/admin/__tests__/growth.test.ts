@@ -23,15 +23,33 @@ const NOW = newDate("2026-11-05T12:00:00.000Z");
 
 /** Counts the user table returns, newest week first (index 0 = this week). */
 const SEEN = [120, 90, 70, 50, 40, 30, 20, 10];
-const NEW_PAID = [3, 2, 1, 0, 4, 0, 0, 1];
+const PAID_ACTIVITY = [3, 2, 1, 0, 4, 0, 0, 1];
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+/** Week index (0 = this week) from the upper edge of a count's window. */
+const weekOf = (lte: Date) =>
+  Math.round((NOW.getTime() - lte.getTime()) / WEEK_MS);
+
+/* Mocks answer by what the query asks for, never by call order. */
 function seed(seen: number[]) {
-  let userCall = 0;
-  db.user.count.mockImplementation(async () => seen[userCall++]);
-  /* subscription.count order: Pro, Lifetime, then eight new-paying weeks. */
-  const subs = [30, 6, ...NEW_PAID];
-  let subCall = 0;
-  db.subscription.count.mockImplementation(async () => subs[subCall++]);
+  db.user.count.mockImplementation(
+    async ({ where }: { where: { lastActiveAt: { lte: Date } } }) =>
+      seen[weekOf(where.lastActiveAt.lte)]
+  );
+  db.subscription.count.mockImplementation(
+    async ({
+      where,
+    }: {
+      where: {
+        plan?: SubscriptionPlan;
+        AND?: [unknown, { updatedAt: { lte: Date } }];
+      };
+    }) => {
+      if (where.plan === SubscriptionPlan.PRO) return 30;
+      if (where.plan === SubscriptionPlan.LIFETIME) return 6;
+      return PAID_ACTIVITY[weekOf(where.AND![1].updatedAt.lte)];
+    }
+  );
 }
 
 beforeEach(() => {
@@ -60,10 +78,13 @@ describe("getAdminGrowth", () => {
 
   it("uses the app's hold-the-plan rule and a trial count that excludes subscribers", async () => {
     await getAdminGrowth(NOW);
-    const proWhere = db.subscription.count.mock.calls[0][0].where;
-    const lifetimeWhere = db.subscription.count.mock.calls[1][0].where;
-    expect(proWhere.plan).toBe(SubscriptionPlan.PRO);
-    expect(lifetimeWhere.plan).toBe(SubscriptionPlan.LIFETIME);
+    const wheres = db.subscription.count.mock.calls.map((c) => c[0].where);
+    const proWhere = wheres.find((w) => w.plan === SubscriptionPlan.PRO);
+    const lifetimeWhere = wheres.find(
+      (w) => w.plan === SubscriptionPlan.LIFETIME
+    );
+    expect(proWhere).toBeDefined();
+    expect(lifetimeWhere).toBeDefined();
     const trialWhere = db.trialGrant.count.mock.calls[0][0].where;
     expect(trialWhere.user.OR).toEqual([
       { subscription: { is: null } },
@@ -71,12 +92,37 @@ describe("getAdminGrowth", () => {
     ]);
   });
 
+  it("leaves sandbox accounts out of paying, paid activity and trials", async () => {
+    await getAdminGrowth(NOW);
+    for (const [{ where }] of db.subscription.count.mock.calls) {
+      const parts = where.AND ? where.AND[0].OR : [where];
+      for (const part of parts) {
+        expect(part.user).toEqual({ sandboxKind: null });
+      }
+    }
+    expect(
+      db.trialGrant.count.mock.calls[0][0].where.user.sandboxKind
+    ).toBeNull();
+  });
+
+  it("buckets paid activity by when the row last changed, not created", async () => {
+    await getAdminGrowth(NOW);
+    const weekly = db.subscription.count.mock.calls
+      .map((c) => c[0].where)
+      .filter((w) => w.AND);
+    expect(weekly).toHaveLength(GROWTH_TREND_WEEKS);
+    for (const w of weekly) {
+      expect(w.AND[1]).toHaveProperty("updatedAt");
+      expect(w.AND[1]).not.toHaveProperty("createdAt");
+    }
+  });
+
   it("returns eight week buckets, oldest first, the last being this week", async () => {
     const growth = await getAdminGrowth(NOW);
     expect(growth.weeks).toHaveLength(GROWTH_TREND_WEEKS);
     expect(growth.weeks.map((w) => w.lastSeen)).toEqual([...SEEN].reverse());
-    expect(growth.weeks.map((w) => w.newPaying)).toEqual(
-      [...NEW_PAID].reverse()
+    expect(growth.weeks.map((w) => w.paidActivity)).toEqual(
+      [...PAID_ACTIVITY].reverse()
     );
     expect(growth.weeks[7].from).toBe("2026-10-29T12:00:00.000Z");
     expect(growth.weeks[0].from).toBe("2026-09-10T12:00:00.000Z");

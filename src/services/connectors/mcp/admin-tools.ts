@@ -12,10 +12,13 @@ import { listBugReports } from "@/services/bug-reports/bug-report-service";
 import { z } from "zod";
 
 import { isAdminUserId } from "@/lib/auth/admin-role";
+import { logger } from "@/lib/logger";
 import { ADMIN_READ_SCOPE, type McpScope } from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
 
 import type { McpTool, McpToolContext, McpToolResult } from "./tools";
+
+const LOG_SOURCE = "McpAdminTools";
 
 /**
  * Read-only MCP view of the Admin area (`needt.admin.read`).
@@ -155,7 +158,11 @@ export const ADMIN_TOOLS: McpTool[] = [
           getAdminOverview(),
           getAdminSignupStats(),
           listAdminFeatureFlags(),
-          getAdminGrowth(),
+          /* Growth is extra: it never fails the overview. */
+          getAdminGrowth().catch(async (error) => {
+            await logger.error("Admin growth failed", { error }, LOG_SOURCE);
+            return null;
+          }),
         ]);
         return {
           users: {
