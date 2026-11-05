@@ -1,9 +1,10 @@
 "use client";
 
-import { FiLink2, FiPlus } from "react-icons/fi";
+import { FiCheckCircle, FiLink2, FiPlus } from "react-icons/fi";
 
 import { BrandIcon, brandIdFor } from "../brand";
 import { GlassCard } from "../scenes";
+import { ConnectedApps } from "./ConnectedApps";
 import {
   AI_META,
   AI_TOOL_IDS,
@@ -12,16 +13,6 @@ import {
   toolAvailable,
 } from "./mcp";
 import type { ConnectionsController } from "./useConnectionsController";
-import type { ConnectedApp } from "./useMcpConnect";
-
-const day = (v: string | null) =>
-  v ? new Date(v).toLocaleDateString() : "never";
-const SCOPE: Record<string, string> = {
-  "needt.read": "read",
-  "needt.write": "write",
-  "mail.read": "mail",
-  "needt.admin.read": "admin (read)",
-};
 
 /** Cards that match the search and the Connected / All apps toggle. */
 export function visibleTools(
@@ -37,34 +28,6 @@ export function visibleTools(
       return false;
     return c.show === "all" || appsFor(id, c.mcp.apps ?? []).length > 0;
   });
-}
-
-export function AppRow({
-  app,
-  onDisconnect,
-}: {
-  app: ConnectedApp;
-  onDisconnect: () => void;
-}) {
-  return (
-    <div className="cn-app-row" data-cn-app={app.id}>
-      <span className="cn-setup-col">
-        <span className="cn-c-name">{app.clientName}</span>
-        <span className="cn-meta">
-          {app.scopes.map((s) => SCOPE[s] ?? s).join(", ")} · connected{" "}
-          {day(app.connectedAt)} · last used {day(app.lastUsedAt)}
-        </span>
-      </span>
-      <button
-        type="button"
-        className="nx-btn nx-btn-secondary nx-btn-sm"
-        data-cn-app-bye={app.id}
-        onClick={onDisconnect}
-      >
-        Disconnect
-      </button>
-    </div>
-  );
 }
 
 function AiCard({
@@ -94,10 +57,16 @@ function AiCard({
         <span className="cn-card-col">
           <span className="cn-card-row">
             <span className="cn-c-name">{m.label}</span>
-            <span className="cn-badge">Beta</span>
           </span>
           <span className="cn-card-row-2">
-            <span className="cn-c-kind">{on ? "Connected" : m.kind}</span>
+            {on ? (
+              <span className="cn-pill" data-cn-pill="connected">
+                <FiCheckCircle size={12} aria-hidden />
+                Connected
+              </span>
+            ) : (
+              <span className="cn-c-kind">{m.kind}</span>
+            )}
           </span>
         </span>
       </div>
@@ -136,11 +105,6 @@ function AiCard({
  */
 export function AiToolsPanel({ c }: { c: ConnectionsController }) {
   const tools = visibleTools(c);
-  const apps = (c.mcp.apps ?? []).filter(
-    (a) =>
-      !c.q.trim() ||
-      a.clientName.toLowerCase().includes(c.q.trim().toLowerCase())
-  );
   return (
     <>
       <p className="cn-explain nx-swap" data-cn-explain="">
@@ -148,7 +112,6 @@ export function AiToolsPanel({ c }: { c: ConnectionsController }) {
           <b>Needt MCP</b> — use your Needt tasks, calendar and notes in your
           favourite AI.
         </span>
-        <span className="cn-badge">Beta</span>
       </p>
       {tools.length ? (
         <div className="cn-grid" data-cn-grid="ai" key={c.show + c.q}>
@@ -177,22 +140,7 @@ export function AiToolsPanel({ c }: { c: ConnectionsController }) {
           </span>
         </GlassCard>
       )}
-      {apps.length ? (
-        <section className="cn-apps" data-cn-apps="">
-          <span className="cn-sheet-title">Connected apps</span>
-          <span className="cn-meta">
-            Apps you allowed through Needt&apos;s sign-in. Disconnecting stops
-            them at once.
-          </span>
-          {apps.map((a) => (
-            <AppRow
-              key={a.id}
-              app={a}
-              onDisconnect={() => void c.mcp.disconnectApp(a)}
-            />
-          ))}
-        </section>
-      ) : null}
+      <ConnectedApps mcp={c.mcp} query={c.q} />
     </>
   );
 }

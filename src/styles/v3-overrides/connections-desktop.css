@@ -17,11 +17,17 @@
 .needt-v3 .cn-wrap {
   container-type: inline-size;
   container-name: cn;
+  /* Keyboard focus and scrollIntoView stop above the Ask Needt dock, as the
+     page's bottom padding does for the pointer (both widths: this is the
+     scroller, the container query below only moves the padding). */
+  scroll-padding-bottom: 140px;
 }
 .needt-v3 .cn-page {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 60px 40px 96px;
+  /* The bottom clears the Ask Needt dock (about 44 px tall, 20 px up), so
+     the last row and its "…" can always be scrolled above it. */
+  padding: 60px 40px 140px;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -46,7 +52,7 @@
 }
 @container cn (max-width: 599px) {
   .needt-v3 .cn-page {
-    padding: 40px 16px 80px;
+    padding: 40px 16px 140px;
   }
   .needt-v3 .cn-h1.cn-screen-text-4 {
     font-size: 56px;
@@ -326,4 +332,104 @@
 .needt-v3 .cn-h1.cn-screen-text-4 {
   line-height: 1.1;
   padding-bottom: 6px;
+}
+
+/* ── Connected apps (AI tools tab): one glass panel, a row per app that
+ * signed in through Needt's OAuth. Same 13 / 12 type, hairlines and pill
+ * geometry as the cards; permissions are neutral chips, never accent. */
+.needt-v3 .cn-apps-wrap {
+  width: 100%;
+  margin-top: 8px;
+}
+.needt-v3 .cn-apps {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+.needt-v3 .cn-apps-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 18px 12px;
+}
+.needt-v3 .cn-apps-title {
+  margin: 0;
+  font: 600 13px/20px var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .cn-app-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.needt-v3 .cn-apps .cn-app-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 12px 10px 18px;
+  box-shadow: var(--border) 0 1px 0 0 inset;
+}
+.needt-v3 .cn-app-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.needt-v3 .cn-app-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.needt-v3 .cn-app-scopes {
+  display: inline-flex;
+  gap: 4px;
+  flex: none;
+}
+.needt-v3 .cn-scope {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  font: 500 12px/14px var(--font-sans);
+  color: var(--text-secondary);
+  background: var(--fill-3);
+  white-space: nowrap;
+}
+.needt-v3 .cn-app-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 12px 14px 18px;
+  box-shadow: var(--border) 0 1px 0 0 inset;
+  color: var(--text-tertiary);
+}
+.needt-v3 .cn-app-note[data-cn-apps-failed] > svg {
+  color: var(--destructive);
+}
+.needt-v3 .cn-app-skel {
+  display: block;
+  height: 10px;
+  margin: 3px 0;
+  border-radius: 5px;
+  background: var(--fill-3);
+}
+.needt-v3 .cn-app-skel-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  border-radius: 8px;
+}
+
+/* The promo's benefit lines: chrome type is 13 px, never the vendored 14. */
+.needt-v3 .cn-promo-li {
+  font-size: 13px;
+  line-height: 18px;
 }

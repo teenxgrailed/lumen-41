@@ -146,6 +146,7 @@ describe("summaries", () => {
       label,
       detail: null,
       accountId: null,
+      lastSync: null,
     });
     expect(connectionsLine(undefined)).toEqual({
       connected: 0,
@@ -171,6 +172,7 @@ describe("summaries", () => {
       label: provider,
       detail: null,
       accountId: null,
+      lastSync: null,
     });
     expect(connectionMarks(undefined)).toEqual([]);
     expect(

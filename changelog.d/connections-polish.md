@@ -1,0 +1,3 @@
+- Connections: apps that signed in through Needt (Claude, Cursor, ChatGPT…) are listed in one panel with their mark, their permissions as Read / Write chips and when they connected and were last used; Disconnect is in the "…" menu and asks first.
+- Connections: a connected calendar, mailbox or Google Tasks list says when it last synced ("Synced 5 min ago") and shows "Syncing…" while Sync now runs.
+- Connections: the Beta marks on the AI tools are gone, the Free AI panel lists what Pro adds, the "…" menus work from the keyboard, and the search, category and Connected / All filters are remembered when you come back to the screen.

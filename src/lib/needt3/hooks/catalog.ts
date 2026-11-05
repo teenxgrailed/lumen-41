@@ -43,6 +43,8 @@ export interface IntegrationRow {
   status: string;
   /** The account a native connection belongs to (Google Tasks: the address). */
   label?: string;
+  /** When the native connection last synced (Google Tasks), if it tracks it. */
+  lastSyncedAt?: string | null;
 }
 
 export interface V3Catalog {
