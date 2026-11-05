@@ -81,6 +81,15 @@ export const APPLE_IAP = "apple_iap";
  */
 export const HABITS_QUIT = "habits_quit";
 
+/**
+ * Needt AI on the person's own ChatGPT plan (Sign in with ChatGPT plan usage,
+ * `/api/ai/chatgpt-plan`, the `provider=chatgpt_plan` param of `/api/ai/chat`).
+ * Off for everybody. Even with the flag on, the feature stays invisible until
+ * the deployment has `OPENAI_SIWC_CLIENT_ID`: OpenAI approves hosted paid apps
+ * one by one, so no client id means no feature.
+ */
+export const AI_CHATGPT_PLAN = "ai_chatgpt_plan";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -93,6 +102,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [AGENT_HUB]:
     "Agent hub: handoffs and notes between agents (per-user override).",
   [HABITS_QUIT]: "QUIT habits and habit presence (Pro).",
+  [AI_CHATGPT_PLAN]:
+    "Needt AI on the person's own ChatGPT plan (needs OPENAI_SIWC_CLIENT_ID).",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

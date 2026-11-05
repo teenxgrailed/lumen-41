@@ -6,6 +6,7 @@ import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
+import type { AiProviderReport } from "../provider-choice";
 import type { AIChatMessage, SchedulerAI } from "../types";
 import type { AgentStreamEvent } from "./events";
 import {
@@ -33,7 +34,34 @@ export interface AgentChatInput {
   confirmedTool: { name: string; arguments: Record<string, unknown> } | null;
   confirmationMessageId: string | null;
   notice?: string;
+  /** Who answered, when the request asked for the ChatGPT plan. */
+  providerReport?: AiProviderReport | null;
   signal?: AbortSignal;
+}
+
+const PLAN_LIMIT_TEXT =
+  "Your ChatGPT plan limit is reached, so I stopped. Manage usage in ChatGPT settings. Nothing was charged to your Needt AI.";
+const PLAN_RECONNECT_TEXT =
+  "Your ChatGPT connection needs to be renewed. Reconnect it in settings. Nothing was charged to your Needt AI.";
+
+const PLAN_STOPPED_TEXT =
+  "Your ChatGPT plan stopped answering, so I stopped. Nothing was charged to your Needt AI.";
+
+/** What to tell the person when the plan could not finish, by end state. */
+function planStopText(
+  report?: AiProviderReport | null,
+  otherwise: string = PLAN_STOPPED_TEXT
+) {
+  return report?.state === "plan_limit_reached"
+    ? PLAN_LIMIT_TEXT
+    : report?.state === "reconnect_required"
+      ? PLAN_RECONNECT_TEXT
+      : otherwise;
+}
+
+/** A copy, so a later change to the live report cannot alter a sent event. */
+function snapshot(report?: AiProviderReport | null) {
+  return report ? JSON.parse(JSON.stringify(report)) : undefined;
 }
 
 function line(event: AgentStreamEvent) {
@@ -56,6 +84,7 @@ export function agentChatResponse(input: AgentChatInput): Response {
         type: "meta",
         conversationId: input.conversationId,
         notice: input.notice,
+        provider: snapshot(input.providerReport),
       });
 
       let result: AgentTurnResult | null = null;
@@ -89,10 +118,20 @@ export function agentChatResponse(input: AgentChatInput): Response {
       }
 
       let text = result?.text.trim() ? result.text : "";
-      if (!text) {
+      if (result?.providerStop) {
+        // The plan stopped partway: keep what was said and done, then say why.
+        if (!text && result.actions.length) {
+          text = result.actions.map((action) => `${action.label}.`).join(" ");
+          emit({ type: "token", value: text });
+        }
+        const separator = text && !/\n\s*$/.test(text) ? "\n\n" : "";
+        const note = planStopText(input.providerReport);
+        text += separator + note;
+        emit({ type: "token", value: separator + note });
+      } else if (!text) {
         text = result?.actions.length
           ? result.actions.map((action) => `${action.label}.`).join(" ")
-          : FAILED;
+          : planStopText(input.providerReport, FAILED);
         emit({ type: "token", value: text });
       }
 
@@ -104,6 +143,7 @@ export function agentChatResponse(input: AgentChatInput): Response {
         requiresConfirm: Boolean(result?.pending),
         changed: result?.changed ?? false,
         taskId: result?.taskId ?? null,
+        provider: snapshot(input.providerReport),
       });
 
       try {
