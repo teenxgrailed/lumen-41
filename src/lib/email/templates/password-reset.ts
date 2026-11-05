@@ -6,26 +6,13 @@ import { renderEmail } from "./layout";
  * The password reset email.
  * @param name User's name
  * @param resetLink The password reset link
- * @param expirationDate The expiration date of the reset token
+ * @param _expirationDate Unused: the token window is a fixed 1 hour (reset-password/request route)
  */
 export function getPasswordResetTemplate(
   name: string,
   resetLink: string,
-  expirationDate: Date
+  _expirationDate: Date
 ) {
-  const formattedExpirationDate = expirationDate.toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    // Fixed zone, labelled: the server's own zone is unknown to the reader and
-    // made the snapshot depend on the machine that ran it.
-    timeZone: "UTC",
-    timeZoneName: "short",
-  });
-
   return renderEmail({
     subject: `Reset Your ${APP_NAME} Password`,
     preheader: "Choose a new password. The link works once.",
@@ -35,7 +22,7 @@ export function getPasswordResetTemplate(
       `We received a request to reset the password for your ${APP_NAME} account. If you did not make it, you can ignore this email and nothing changes.`,
     ],
     button: { label: "Choose a new password", url: resetLink },
-    note: `This link works once and expires on ${formattedExpirationDate}.`,
+    note: `This link works once and expires in 1 hour.`,
     kind: "security",
   });
 }

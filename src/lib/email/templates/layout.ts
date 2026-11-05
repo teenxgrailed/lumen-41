@@ -81,6 +81,11 @@ export type EmailContent = {
    * from the environment.
    */
   footer?: EmailFooter | null;
+  /**
+   * Replaces the "You get this because..." line for mail that does not go to
+   * an end user (the owner's operations alerts).
+   */
+  footerNote?: string;
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -124,8 +129,9 @@ export function renderEmail(content: EmailContent): RenderedEmail {
   const address = footer
     ? `${footer.name}, ${footer.address}`
     : footerAddress();
-  const baseLine =
-    content.kind === "commercial"
+  const baseLine = content.footerNote
+    ? content.footerNote
+    : content.kind === "commercial"
       ? `You get this because you have a ${APP_NAME} account.`
       : content.kind === "notification"
         ? content.settingsUrl
@@ -204,7 +210,7 @@ img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 <tr><td align="center" class="paper" bgcolor="${PAPER}" style="padding:32px 12px;background-color:${PAPER};">
 <!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:${FONT};"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="${EMAIL_LOGO_URL}" width="28" height="28" alt="" style="display:block;width:28px;height:28px;border:0;border-radius:7px;"></td><td style="vertical-align:middle;font-family:${FONT};"><span class="mark" style="font-family:${FONT};font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:${INK};">${escapeHtml(APP_NAME)}</span></td></tr></table></td></tr>
+<tr><td style="padding:0 4px 16px 4px;font-family:${FONT};"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="${EMAIL_LOGO_URL}" width="28" height="28" alt="${escapeHtml(APP_NAME)}" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:${INK};font-size:12px;"></td><td style="vertical-align:middle;font-family:${FONT};"><span class="mark" style="font-family:${FONT};font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:${INK};">${escapeHtml(APP_NAME)}</span></td></tr></table></td></tr>
 <tr><td class="card pad" bgcolor="${CARD}" style="background-color:${CARD};border:1px solid ${RULE};border-radius:16px;padding:32px;font-family:${FONT};">
 <h1 class="ink" style="margin:0 0 16px 0;font-family:${FONT};font-size:22px;line-height:28px;font-weight:700;color:${INK};">${escapeHtml(content.heading)}</h1>
 ${paragraphs}${button}${note}

@@ -52,6 +52,7 @@ async function emailOwner(level: AlertLevel, message: string) {
       heading: level === "critical" ? "Critical alert" : "Warning",
       paragraphs: [message],
       kind: "security",
+      footerNote: "Needt operations alert.",
     });
     await EmailService.sendEmail({
       to,
