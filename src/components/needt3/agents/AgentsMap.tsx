@@ -345,10 +345,11 @@ export function startLoop(
   const still = reducedMotion();
   // A phone rasterises the canvas on a slow CPU (perf, iPhone 13 at 4x):
   // fewer frames, no additive blending, fewer glows.
-  // Adaptive quality: while frames run slow for a second (the script takes
+  // Adaptive quality: while frames run slow for 0.6 s (the script takes
   // over 22 ms, or frames land 40% later than asked, which is where a
   // software raster shows), the resolution steps down to 1, then the light
-  // drawing a phone uses, then the frame rate. The scene is not rebuilt.
+  // drawing a phone uses, then the resolution to 0.75 and 0.5, then the
+  // frame rate. The scene is not rebuilt.
   let lite = scene.phone || !!clock.lite;
   let dpr = Math.min(dprStart, clock.dpr ?? dprStart);
   let frameMs = Math.max(lite ? 1000 / 24 : FRAME_MS, clock.frameMs ?? 0);
@@ -360,12 +361,18 @@ export function startLoop(
   let gapEma = 0;
   let slowSince = 0;
   const degrade = (now: number) => {
-    if (dpr > 1) {
-      dpr = Math.max(1, Math.round((dpr - 0.25) * 4) / 4);
+    const resize = (to: number) => {
+      dpr = to;
       ctx.canvas.width = Math.round(W * dpr);
       ctx.canvas.height = Math.round(H * dpr);
+    };
+    if (dpr > 1) {
+      resize(Math.max(1, Math.round((dpr - 0.25) * 4) / 4));
     } else if (!lite) {
       lite = true;
+    } else if (dpr > 0.5) {
+      // Below 1 the glow softens; the labels and pills are DOM and stay sharp.
+      resize(dpr > 0.75 ? 0.75 : 0.5);
     } else if (frameMs < 1000 / 20) {
       frameMs = 1000 / 20;
     }
@@ -1008,7 +1015,7 @@ export function startLoop(
       if (gap < 250) gapEma = gapEma ? gapEma * 0.9 + gap * 0.1 : gap;
       if (ema > 22 || gapEma > frameMs * 1.4) {
         if (!slowSince) slowSince = now;
-        else if (now - slowSince > 1000) degrade(now);
+        else if (now - slowSince > 600) degrade(now);
       } else slowSince = 0;
     }
     raf = requestAnimationFrame(loop);

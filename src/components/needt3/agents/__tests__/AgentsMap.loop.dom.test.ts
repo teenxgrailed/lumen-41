@@ -248,5 +248,7 @@ describe("Map drawing loop", () => {
     raf.mockRestore();
     now.mockRestore();
     expect(loop.quality().lite).toBe(true);
+    expect(loop.quality().dpr).toBeLessThan(1);
+    expect(canvas.width).toBe(Math.round(1200 * loop.quality().dpr));
   });
 });
