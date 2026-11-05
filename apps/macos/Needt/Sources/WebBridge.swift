@@ -90,7 +90,15 @@ enum WebBridge {
           },
           sendNotification: function (options) {
             options = options || {};
-            post({ kind: 'notification.send', title: String(options.title || ''), body: String(options.body || ''), url: typeof options.url === 'string' ? options.url : '' });
+            post({ kind: 'notification.send', title: String(options.title || ''), body: String(options.body || ''), url: typeof options.url === 'string' ? options.url : '', tag: typeof options.tag === 'string' ? options.tag : '' });
+          },
+          // Habit moments shown at their times by the system, the window
+          // closed or the page asleep; each call replaces the set.
+          schedule: function (items) {
+            return post({ kind: 'notification.schedule', items: Array.isArray(items) ? items : [] });
+          },
+          cancel: function (tags) {
+            return post({ kind: 'notification.cancel', tags: Array.isArray(tags) ? tags : [] });
           }
         }
       };
@@ -211,8 +219,16 @@ final class BridgeHandler: NSObject, WKScriptMessageHandlerWithReply {
             Notifier.shared.send(
                 title: body["title"] as? String ?? "",
                 body: body["body"] as? String ?? "",
-                path: body["url"] as? String
+                path: body["url"] as? String,
+                tag: body["tag"] as? String
             )
+            reply(nil, nil)
+        case "notification.schedule":
+            let items = (body["items"] as? [[String: Any]] ?? []).compactMap(Notifier.Scheduled.init(json:))
+            await Notifier.shared.schedule(items)
+            reply(nil, nil)
+        case "notification.cancel":
+            Notifier.shared.cancel(tags: (body["tags"] as? [Any] ?? []).compactMap { $0 as? String })
             reply(nil, nil)
         case "drag":
             host?.bridgeDidRequestDrag(NSApp.currentEvent)

@@ -45,6 +45,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
         _ = Connectivity.shared
         Notifier.shared.start()
+        // Remote pushes (APNs) once the build carries the aps-environment
+        // entitlement and NeedtRemotePush is YES in Info.plist; off until then,
+        // so a build without the capability never asks.
+        if Bundle.main.object(forInfoDictionaryKey: "NeedtRemotePush") as? Bool == true {
+            NSApp.registerForRemoteNotifications()
+        }
         Updater.shared.start()
         installMainMenu()
         #if NEEDT_CI
@@ -57,6 +63,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         StatusItemController.shared.start(tray: AppController.shared.tray)
         CIFixture.start(tray: AppController.shared.tray)
         Task { await AppController.shared.tray.focusFilterChanged() }
+    }
+
+    /// The device token goes to the page, which saves it for the account it
+    /// is signed in to (POST /api/push-subscriptions/native, platform macos).
+    @MainActor
+    func application(_ application: NSApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        #if DEBUG
+        let environment = "sandbox"
+        #else
+        let environment = "production"
+        #endif
+        AppController.shared.sendCommand(["type": "push-token", "token": token, "environment": environment])
+    }
+
+    func application(_ application: NSApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        // No capability in this build, or no network: local notifications
+        // (the habit schedule) still work.
+        NSLog("Needt: remote notifications unavailable: \(error.localizedDescription)")
     }
 
     /// The island (and anything else) asks for Settings with this action.

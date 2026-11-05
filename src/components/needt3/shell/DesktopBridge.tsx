@@ -152,6 +152,20 @@ function DesktopBridgeInApp() {
       case "focus-end":
         if (focus) void focusActions.stop(focus, false);
         return;
+      case "push-token":
+        // The Mac app's APNs device token: saved like the iOS app's, so the
+        // server's pushes reach this Mac once APNs is set up.
+        void fetch("/api/push-subscriptions/native", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: command.token,
+            platform: "macos",
+            environment: command.environment,
+          }),
+        }).catch(() => undefined);
+        return;
       case "focus-start-next": {
         const next = nextTasks(tasks ?? [], today, nowHour)[0];
         if (!next) {

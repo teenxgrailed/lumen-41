@@ -10,7 +10,13 @@ import { useAskPhase } from "@/components/needt3/corner/AskProvider";
 import { hasNoticeSink } from "@/components/needt/corner/bridge";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
-import { isDesktopApp, sendDesktopNotification } from "@/lib/desktop";
+import {
+  cancelDesktopNotifications,
+  desktopCanSchedule,
+  isDesktopApp,
+  scheduleDesktopNotifications,
+  sendDesktopNotification,
+} from "@/lib/desktop";
 import {
   EMPTY_MEMORY,
   ISLAND_GAP_MS,
@@ -18,6 +24,7 @@ import {
   type PresenceMemory,
   type PresenceSettings,
   nextIsland,
+  presenceSchedule,
   readMemory,
   rememberShown,
   seedMemory,
@@ -159,7 +166,13 @@ function Presence({ quitOn }: { quitOn: boolean }) {
       // says it instead, with the push's tag, if Mac notifications are on.
       const front =
         document.visibilityState === "visible" && document.hasFocus();
-      if (isDesktopApp() && !front && settings.channelMac !== false) {
+      // (A shell that schedules has shown it at its time already.)
+      if (
+        isDesktopApp() &&
+        !desktopCanSchedule() &&
+        !front &&
+        settings.channelMac !== false
+      ) {
         // Claimed before the send, so a second window of the app does not
         // send it too while this one waits; given back if the send fails.
         const before = loadMemory();
@@ -187,6 +200,8 @@ function Presence({ quitOn }: { quitOn: boolean }) {
       if (!due(fresh)) return;
       saveMemory(rememberShown(fresh, island.key, now));
       closePush(island.tag);
+      // The Mac app's own notification of the same moment, if it showed one.
+      cancelDesktopNotifications([island.tag]);
       if (island.kind === "reminder") {
         notify.info(island.title, {
           surface: "island",
@@ -218,6 +233,7 @@ function Presence({ quitOn }: { quitOn: boolean }) {
       });
     };
 
+    const scheduled = { current: "" };
     const tick = () => {
       const l = latest.current;
       // No receiver (the corner is not mounted, and no desktop app to show a
@@ -238,6 +254,7 @@ function Presence({ quitOn }: { quitOn: boolean }) {
                 currentStreak: s.currentStreak,
                 lastMilestone: s.lastMilestone ?? null,
                 streakStartedAt: s.streakStartedAt,
+                nextMilestone: s.nextMilestone,
               },
             ]
           : [];
@@ -247,26 +264,45 @@ function Presence({ quitOn }: { quitOn: boolean }) {
         memory = seedMemory(memory, quits);
         saveMemory(memory);
       }
+      const dos = l.live
+        .filter((h) => h.kind !== "QUIT")
+        .map((h) => {
+          const mine = l.checkins.filter((c) => c.habitId === h.id && c.done);
+          return {
+            id: h.id,
+            title: h.title,
+            at: h.schedule.time,
+            daysOfWeek: h.daysOfWeek ?? [],
+            doneToday: mine.some((c) => c.date === today),
+            remindersEnabled: h.remindersEnabled !== false,
+            of14: mine.length,
+          };
+        });
+      // A Mac app that can schedule gets the next day and a half of moments
+      // to show at their times by itself, the window closed or the page
+      // asleep. Sent again only when the set changes: a habit marked done
+      // drops its reminder, a new time moves it.
+      if (desktopCanSchedule()) {
+        const plan = presenceSchedule({
+          now,
+          timeZone: tz,
+          settings: l.alerts,
+          dos,
+          quits,
+        });
+        const key = JSON.stringify(plan);
+        if (key !== scheduled.current) {
+          scheduled.current = key;
+          scheduleDesktopNotifications(plan);
+        }
+      }
       const island = nextIsland({
         now,
         timeZone: tz,
         busy: l.busy,
         memory,
         settings: l.alerts,
-        dos: l.live
-          .filter((h) => h.kind !== "QUIT")
-          .map((h) => {
-            const mine = l.checkins.filter((c) => c.habitId === h.id && c.done);
-            return {
-              id: h.id,
-              title: h.title,
-              at: h.schedule.time,
-              daysOfWeek: h.daysOfWeek ?? [],
-              doneToday: mine.some((c) => c.date === today),
-              remindersEnabled: h.remindersEnabled !== false,
-              of14: mine.length,
-            };
-          }),
+        dos,
         quits,
       });
       if (island) void show(island, l.alerts);

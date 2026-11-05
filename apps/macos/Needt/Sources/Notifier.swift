@@ -32,9 +32,74 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// `path` is a same-origin path (from the page's notification feed); a
-    /// click opens the window there. Anything else is dropped.
-    func send(title: String, body: String, path: String? = nil) {
+    /// click opens the window there. Anything else is dropped. `tag` names
+    /// the moment (the web's presenceTag): it is the request's identifier, so
+    /// a later notification of the same moment replaces this one, and the
+    /// server's push (apns-collapse-id = the same tag) does too.
+    func send(title: String, body: String, path: String? = nil, tag: String? = nil) {
         guard let center, !title.isEmpty else { return }
+        let identifier = Notifier.safeTag(tag) ?? UUID().uuidString
+        let request = UNNotificationRequest(
+            identifier: identifier,
+            content: Notifier.content(title: title, body: body, path: path),
+            trigger: nil
+        )
+        center.add(request, withCompletionHandler: nil)
+    }
+
+    /// A habit moment the system shows at its time by itself.
+    struct Scheduled {
+        let tag: String
+        let at: Date
+        let title: String
+        let body: String
+        let path: String?
+
+        init?(json: [String: Any]) {
+            guard let tag = Notifier.safeTag(json["tag"] as? String),
+                  let raw = json["at"] as? String,
+                  let at = Notifier.parseInstant(raw),
+                  let title = json["title"] as? String, !title.isEmpty
+            else { return nil }
+            self.tag = tag
+            self.at = at
+            self.title = title
+            self.body = json["body"] as? String ?? ""
+            self.path = json["url"] as? String
+        }
+    }
+
+    /// Replace the scheduled habit moments with `items`: ones no longer in
+    /// the set (a habit marked done, a time moved) are taken back, the rest
+    /// are (re)added under their tag. Only presence tags are touched.
+    func schedule(_ items: [Scheduled]) async {
+        guard let center else { return }
+        let keep = Set(items.map(\.tag))
+        let pending = await center.pendingNotificationRequests()
+        let stale = pending.map(\.identifier).filter { Notifier.isPresenceTag($0) && !keep.contains($0) }
+        if !stale.isEmpty { center.removePendingNotificationRequests(withIdentifiers: stale) }
+        let now = Date()
+        for item in items.prefix(60) where item.at > now {
+            let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: item.at)
+            let request = UNNotificationRequest(
+                identifier: item.tag,
+                content: Notifier.content(title: item.title, body: item.body, path: item.path),
+                trigger: UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
+            )
+            try? await center.add(request)
+        }
+    }
+
+    /// Take moments back: not shown yet, or already in Notification Center.
+    func cancel(tags: [String]) {
+        guard let center else { return }
+        let ids = tags.compactMap(Notifier.safeTag)
+        guard !ids.isEmpty else { return }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+        center.removeDeliveredNotifications(withIdentifiers: ids)
+    }
+
+    private static func content(title: String, body: String, path: String?) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.title = String(title.prefix(200))
         content.body = String(body.prefix(1000))
@@ -42,8 +107,28 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         if let path = Notifier.safePath(path) {
             content.userInfo = ["path": path]
         }
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-        center.add(request, withCompletionHandler: nil)
+        return content
+    }
+
+    /// An ISO instant from the page (`toISOString`, with or without the
+    /// fractional seconds).
+    nonisolated static func parseInstant(_ raw: String) -> Date? {
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return withFraction.date(from: raw) ?? ISO8601DateFormatter().date(from: raw)
+    }
+
+    /// A presence tag: `rem:<id>:<day>`, `checkin:<day>`, `ms:<id>:<n>`,
+    /// `reengage:<day>`; short, plain characters only.
+    nonisolated static func safeTag(_ tag: String?) -> String? {
+        guard let tag, !tag.isEmpty, tag.count <= 120,
+              tag.range(of: #"^[a-z]+:[A-Za-z0-9:_\-]+$"#, options: .regularExpression) != nil
+        else { return nil }
+        return tag
+    }
+
+    nonisolated static func isPresenceTag(_ id: String) -> Bool {
+        ["rem:", "checkin:", "ms:", "reengage:"].contains { id.hasPrefix($0) } && safeTag(id) != nil
     }
 
     /// A path inside the app: one leading slash, no scheme, bounded length.
@@ -59,7 +144,17 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.banner, .sound])
+        // A habit moment while Needt is in front: the page's island says it,
+        // so no banner over it (it stays in Notification Center until the
+        // island takes it back).
+        let id = notification.request.identifier
+        Task { @MainActor in
+            if Notifier.isPresenceTag(id) && NSApp.isActive {
+                completionHandler([.list])
+            } else {
+                completionHandler([.banner, .sound])
+            }
+        }
     }
 
     nonisolated func userNotificationCenter(

@@ -158,6 +158,9 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: "Needt"
         NSPrincipalClass: NSApplication
+        # Remote pushes (APNs): YES once the App ID has the Push capability and
+        # the entitlements carry aps-environment (see docs/release/STORE-RELEASE.md).
+        NeedtRemotePush: false
         # Resolves to "<TeamID>.app.needt.mac" when signed; NeedtKit falls back
         # to a private folder while the team prefix is empty (unsigned builds).
         NeedtAppGroup: $(TeamIdentifierPrefix)app.needt.mac
@@ -384,6 +387,9 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: "Needt"
         NSPrincipalClass: NSApplication
+        # Remote pushes (APNs): YES once the App ID has the Push capability and
+        # the entitlements carry aps-environment (see docs/release/STORE-RELEASE.md).
+        NeedtRemotePush: false
         # Only HTTPS through the system and hashing (CryptoKit SHA-256 for the
         # sign-in challenge): exempt. No Bluetooth, Desktop, Documents,
         # Downloads or screen strings: the sandbox build has neither the
@@ -476,6 +482,9 @@ targets:
         LSApplicationCategoryType: public.app-category.productivity
         NSHumanReadableCopyright: "Needt"
         NSPrincipalClass: NSApplication
+        # Remote pushes (APNs): YES once the App ID has the Push capability and
+        # the entitlements carry aps-environment (see docs/release/STORE-RELEASE.md).
+        NeedtRemotePush: false
         ITSAppUsesNonExemptEncryption: false
         NeedtAppGroup: $(TeamIdentifierPrefix)app.needt.mac
         CFBundleURLTypes:

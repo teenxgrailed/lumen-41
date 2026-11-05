@@ -1,0 +1,1 @@
+- The Mac app shows habit reminders, the evening check-in and Quit milestones at their times by itself, even with its window closed (from its next build), and is ready for remote notifications once Apple push is set up for it.

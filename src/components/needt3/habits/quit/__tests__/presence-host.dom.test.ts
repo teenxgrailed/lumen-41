@@ -404,3 +404,52 @@ describe("in the desktop app", () => {
     expect(api.sendNotification).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("a Mac app that schedules", () => {
+  let api: {
+    isPermissionGranted: jest.Mock;
+    sendNotification: jest.Mock;
+    schedule: jest.Mock;
+    cancel: jest.Mock;
+  };
+  beforeEach(() => {
+    api = {
+      isPermissionGranted: jest.fn(async () => true),
+      sendNotification: jest.fn(),
+      schedule: jest.fn(),
+      cancel: jest.fn(),
+    };
+    (window as unknown as Record<string, unknown>).__TAURI__ = {
+      notification: api,
+    };
+  });
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).__TAURI__;
+  });
+
+  it("hands it the coming moments once, and again only when they change", () => {
+    jest.setSystemTime(new Date("2026-11-04T15:00:00Z"));
+    jest.spyOn(document, "hasFocus").mockReturnValue(false);
+    mount();
+    expect(api.schedule).toHaveBeenCalledTimes(1);
+    expect(
+      api.schedule.mock.calls[0][0].map((m: { tag: string }) => m.tag)
+    ).toEqual([
+      "rem:de:2026-11-04",
+      "checkin:2026-11-04",
+      "rem:de:2026-11-05",
+      "checkin:2026-11-05",
+    ]);
+    minute();
+    expect(api.schedule).toHaveBeenCalledTimes(1);
+    // It shows them at their times itself: no live system notification.
+    expect(api.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("takes its own notification back when the island says the moment", () => {
+    jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    mount();
+    expect(rows()).toHaveLength(1);
+    expect(api.cancel).toHaveBeenCalledWith(["rem:de:2026-11-04"]);
+  });
+});

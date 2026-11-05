@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { APNS_TOKEN_PATTERN } from "@/services/push/apns";
 
-import { IOS_BUNDLE_ID, getApnsConfiguration } from "@/lib/apns-config";
+import {
+  IOS_BUNDLE_ID,
+  MAC_BUNDLE_ID,
+  getApnsConfiguration,
+} from "@/lib/apns-config";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -35,9 +39,15 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as {
     token?: unknown;
     platform?: unknown;
+    environment?: unknown;
   };
   const token = readToken(body.token);
-  if (!token || body.platform !== "ios") {
+  // The iOS app, or the Mac app (its own bundle, so its own APNs topic). A
+  // Mac build says which APNs environment its token belongs to; iOS learns
+  // it when production refuses a sandbox token.
+  const platform =
+    body.platform === "ios" || body.platform === "macos" ? body.platform : null;
+  if (!token || !platform) {
     return NextResponse.json(
       { error: "Invalid device token" },
       { status: 400 }
@@ -60,8 +70,11 @@ export async function POST(request: NextRequest) {
     create: {
       userId: auth.userId,
       token,
-      platform: "ios",
-      bundleId: IOS_BUNDLE_ID,
+      platform,
+      bundleId: platform === "macos" ? MAC_BUNDLE_ID : IOS_BUNDLE_ID,
+      ...(platform === "macos" && body.environment === "sandbox"
+        ? { environment: "sandbox" }
+        : {}),
     },
     select: { id: true },
   });
