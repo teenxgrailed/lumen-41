@@ -4,12 +4,11 @@ import { useEffect, useState } from "react";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { formatDateToLocal, newDate } from "@/lib/date-utils";
 import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 
-import { AgBtn, AgEmpty, AgRow, AgSection } from "./AgParts";
+import { AgBtn, shortWhen, useAgentHue } from "./AgParts";
 
 export interface HubThreadRow {
   id: string;
@@ -53,55 +52,22 @@ function acks(message: ThreadMessage) {
 }
 
 /**
- * The Messages tab: threads between agents and to you. Opening a thread marks
- * its alert read. You can reply as yourself; the reply goes to every agent in
- * the thread. Message text comes from agents, so it is shown as plain text.
+ * One thread: its messages as bubbles, the item it hangs on as a card, and
+ * a reply line (`withReply`; Chat sends from its own line). Loading it marks
+ * its alert read. Message text comes from agents, so it is plain text.
  */
-export function MessagesTab({
-  threads,
-  focusId,
+export function ThreadDetail({
+  id,
+  task,
+  onOpenItem,
+  withReply = true,
 }: {
-  threads: HubThreadRow[];
-  focusId: string | null;
+  id: string;
+  task: { id: string; title: string } | null;
+  onOpenItem?: (id: string) => void;
+  withReply?: boolean;
 }) {
-  const [open, setOpen] = useState<string | null>(focusId);
-  if (threads.length === 0) {
-    return (
-      <AgEmpty
-        art="mail"
-        title="No messages yet"
-        line="Threads between agents show up here."
-      />
-    );
-  }
-  return (
-    <AgSection
-      title="Messages"
-      hint="What agents say to each other and to you. A message to you rings like an alert but never blocks their work. Your reply goes to every agent in the thread."
-    >
-      {threads.map((thread) => (
-        <AgRow
-          key={thread.id}
-          title={thread.subject}
-          tone={thread.ownerUnread ? "accent" : "none"}
-          meta={
-            <>
-              {thread.ownerUnread ? <span className="ag-new">New </span> : null}
-              {thread.last
-                ? `${thread.last.from}: ${thread.last.text}`
-                : "Empty"}
-            </>
-          }
-          expanded={open === thread.id}
-          onToggle={() => setOpen(open === thread.id ? null : thread.id)}
-          detail={<ThreadDetail id={thread.id} />}
-        />
-      ))}
-    </AgSection>
-  );
-}
-
-function ThreadDetail({ id }: { id: string }) {
+  const hue = useAgentHue();
   const qc = useQueryClient();
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
@@ -143,37 +109,87 @@ function ThreadDetail({ id }: { id: string }) {
     }
   };
 
-  if (detail.isLoading) return <span className="ag-detail-k">Loading</span>;
+  if (detail.isLoading)
+    return <span className="ag-convo-state">Loading the thread</span>;
   if (detail.isError || !detail.data) {
-    return <span className="ag-detail-k">Could not load this thread.</span>;
+    return (
+      <span className="ag-convo-state">
+        Could not load this thread.{" "}
+        <AgBtn tone="text" onClick={() => void detail.refetch()}>
+          Try again
+        </AgBtn>
+      </span>
+    );
   }
   return (
     <>
-      {detail.data.messages.map((message) => (
-        <span key={message.id} className="ag-detail-ev">
-          <span>{formatDateToLocal(newDate(message.createdAt))}</span>
-          <span>{`${
-            message.from.kind === "owner"
-              ? "You"
-              : (message.from.name ?? "agent")
-          }${message.importance === "high" ? " (urgent)" : ""}: ${
-            message.body
-          }${acks(message)}`}</span>
+      <ol className="ag-convo-list" aria-label="Messages">
+        {task ? (
+          <li className="ag-sys">
+            <button
+              type="button"
+              className="ag-card-in"
+              data-ag-thread-item={task.id}
+              onClick={() => onOpenItem?.(task.id)}
+            >
+              <span className="ag-ring is-prog" aria-hidden="true" />
+              <span>
+                <b>{task.title}</b>
+                <span>Open the task</span>
+              </span>
+            </button>
+          </li>
+        ) : null}
+        {detail.data.messages.map((message) => {
+          const mine = message.from.kind === "owner";
+          const from = mine ? "You" : (message.from.name ?? "agent");
+          return (
+            <li
+              key={message.id}
+              className={"ag-msg" + (mine ? " is-mine" : "")}
+              data-ag-msg=""
+            >
+              <span className="ag-msg-head">
+                {mine ? null : (
+                  <span
+                    className="ag-dotc"
+                    aria-hidden="true"
+                    style={{ background: hue(message.from.name) }}
+                  />
+                )}
+                {`${from}${message.importance === "high" ? " (urgent)" : ""} · ${shortWhen(
+                  message.createdAt
+                )}`}
+              </span>
+              <span className="ag-msg-body">{message.body}</span>
+              {acks(message) ? (
+                <span className="ag-msg-ack">{acks(message).trim()}</span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+      {withReply ? (
+        <span className="ag-form ag-convo-reply">
+          <input
+            className="nt-input"
+            aria-label="Reply as yourself"
+            value={reply}
+            maxLength={2000}
+            placeholder="Reply to everyone in the thread"
+            onChange={(e) => setReply(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && reply.trim() && !sending) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+          />
+          <AgBtn disabled={!reply.trim() || sending} onClick={send}>
+            Send
+          </AgBtn>
         </span>
-      ))}
-      <span className="ag-form">
-        <input
-          className="nt-input"
-          aria-label="Reply as yourself"
-          value={reply}
-          maxLength={2000}
-          placeholder="Reply"
-          onChange={(e) => setReply(e.target.value)}
-        />
-        <AgBtn disabled={!reply.trim() || sending} onClick={send}>
-          Send
-        </AgBtn>
-      </span>
+      ) : null}
     </>
   );
 }
