@@ -1,0 +1,1 @@
+- Ask Needt keeps its conversation: after a reload or a new sign-in the last chat with Needt AI is back, in the corner and in Agents → Chat alike (the same thread). New chat still starts a fresh one.

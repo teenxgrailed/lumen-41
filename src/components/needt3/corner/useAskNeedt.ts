@@ -10,7 +10,7 @@
  */
 import * as React from "react";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -73,12 +73,79 @@ function uid(): string {
 
 const FAILED = REACH_FAILED;
 
-export function useAskNeedt() {
+interface SavedMessage {
+  id: string;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+/**
+ * The saved thread as messages: what you said and what Needt answered, as
+ * text. Tool rows and system lines are not shown; actions from a past turn
+ * cannot be undone from here, so they come back as the reply's text only.
+ */
+export function restoredMessages(saved: SavedMessage[]): AskMessage[] {
+  return saved.flatMap((m): AskMessage[] => {
+    if (m.role !== "user" && m.role !== "assistant") return [];
+    const text = typeof m.content === "string" ? m.content : "";
+    if (!text.trim()) return [];
+    const at = newDate(m.createdAt).getTime();
+    return [
+      {
+        id: `saved-${m.id}`,
+        from: m.role === "user" ? "you" : "needt",
+        text,
+        at: Number.isFinite(at) ? at : 0,
+      },
+    ];
+  });
+}
+
+/** The latest saved conversation; null when signed out or not allowed. */
+async function latestConversation() {
+  const res = await fetch("/api/ai/conversations?latest=1");
+  if (res.status === 401 || res.status === 403) return null;
+  if (!res.ok) throw new Error(`conversations ${res.status}`);
+  const body = (await res.json()) as {
+    conversations?: { id: string; messages?: SavedMessage[] }[];
+  };
+  return body.conversations?.[0] ?? null;
+}
+
+export function useAskNeedt({ restore = true }: { restore?: boolean } = {}) {
   const qc = useQueryClient();
   const [messages, setMessages] = React.useState<AskMessage[]>([]);
   const [phase, setPhase] = React.useState<AskPhase>("idle");
   const conversation = React.useRef<string | null>(null);
   const abort = React.useRef<AbortController | null>(null);
+
+  // The thread survives a reload: on mount the latest saved conversation is
+  // fetched fresh and becomes this thread, unless something was already
+  // said here. Until it lands, `restoring` lets a face stay quiet instead of
+  // flashing its empty state.
+  const history = useQuery({
+    queryKey: ["ai", "conversation", "latest"],
+    queryFn: latestConversation,
+    enabled: restore,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+  const [restored, setRestored] = React.useState(!restore);
+  React.useEffect(() => {
+    if (restored || history.isFetching) return;
+    if (history.isError || history.data !== undefined) {
+      const saved = history.data;
+      if (saved && !conversation.current) {
+        conversation.current = saved.id;
+        setMessages((list) =>
+          list.length ? list : restoredMessages(saved.messages ?? [])
+        );
+      }
+      setRestored(true);
+    }
+  }, [restored, history.isFetching, history.isError, history.data]);
+  const restoring = !restored && messages.length === 0;
 
   React.useEffect(() => () => abort.current?.abort(), []);
 
@@ -310,9 +377,11 @@ export function useAskNeedt() {
     [qc, setActionState]
   );
 
+  /** New chat: a fresh conversation; the saved one stays on the server. */
   const reset = React.useCallback(() => {
     abort.current?.abort();
     conversation.current = null;
+    setRestored(true);
     setMessages([]);
   }, []);
 
@@ -333,5 +402,15 @@ export function useAskNeedt() {
     return list[i].text;
   }, []);
 
-  return { messages, phase, send, stop, reset, popLast, undo, undoAll };
+  return {
+    messages,
+    phase,
+    restoring,
+    send,
+    stop,
+    reset,
+    popLast,
+    undo,
+    undoAll,
+  };
 }
