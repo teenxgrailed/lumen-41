@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import type { Prisma } from "@prisma/client";
+
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import {
@@ -63,14 +65,37 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: v3.error }, { status: 400 });
     }
 
-    const settings = await prisma.userSettings.upsert({
+    // `prefs` is a patch, merged into the stored map by Postgres in one
+    // statement (`prefs || patch`), so two writers of different keys (two
+    // tabs, two devices, a stale cache) both keep theirs. A key sent as null
+    // is removed. Every other field is written as before.
+    const { prefs: prefsPatch, ...rest } = updates as Record<string, unknown>;
+    const patch = prefsPatch as Record<string, unknown> | undefined;
+    const put: Record<string, unknown> = {};
+    const drop: string[] = [];
+    for (const [key, value] of Object.entries(patch ?? {})) {
+      if (value === null) drop.push(key);
+      else put[key] = value;
+    }
+
+    await prisma.userSettings.upsert({
       where: { userId },
-      update: updates,
+      update: rest,
       create: {
         userId,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        ...updates,
+        ...rest,
+        prefs: put as Prisma.InputJsonObject,
       },
+    });
+    if (patch) {
+      await prisma.$executeRaw`
+        UPDATE "UserSettings"
+        SET "prefs" = (COALESCE("prefs", '{}'::jsonb) || ${JSON.stringify(put)}::jsonb) - ${drop}::text[]
+        WHERE "userId" = ${userId}`;
+    }
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
     });
 
     return NextResponse.json(settings);

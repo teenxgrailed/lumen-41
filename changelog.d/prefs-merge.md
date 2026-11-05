@@ -1,0 +1,1 @@
+- Settings saved from two tabs or two devices no longer undo each other: each change now updates only its own preference on the server.

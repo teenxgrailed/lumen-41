@@ -6,7 +6,7 @@ import { createRoot } from "react-dom/client";
 
 import { qk } from "@/lib/needt3/query-keys";
 
-import { type V3Settings, useSetPref } from "../settings";
+import { type V3Settings, applyPrefsPatch, useSetPref } from "../settings";
 
 jest.mock("@/lib/notifications", () => ({
   notify: { error: jest.fn(), success: jest.fn() },
@@ -56,15 +56,7 @@ describe("useSetPref", () => {
     Object.assign(globalThis, { fetch: fetchMock });
   });
 
-  it("refuses to write before settings are cached, so prefs are never clobbered", async () => {
-    const qc = new QueryClient();
-    await withSetPref(qc, async (setPref) => {
-      await expect(setPref("usage", false)).resolves.toBeNull();
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("merges one key into the cached map once settings are loaded", async () => {
+  it("sends only the key it sets: the server merges, so a stale cache cannot clobber other keys", async () => {
     const qc = new QueryClient();
     qc.setQueryData(qk.settings(), settings);
     await withSetPref(qc, async (setPref) => {
@@ -74,11 +66,21 @@ describe("useSetPref", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/user-settings");
     expect(JSON.parse(String(init.body))).toEqual({
-      prefs: { accent: "green", docsSort: "viewed", usage: false },
+      prefs: { usage: false },
     });
   });
 
-  it("keeps both keys when two writes start together (the dismissed popup stays dismissed)", async () => {
+  it("writes before settings are cached too: a patch wipes nothing", async () => {
+    const qc = new QueryClient();
+    await withSetPref(qc, async (setPref) => {
+      await setPref("usage", false);
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+      prefs: { usage: false },
+    });
+  });
+
+  it("two writes started together each send their own key, in order, and the cache keeps both", async () => {
     const qc = new QueryClient();
     qc.setQueryData(qk.settings(), settings);
     await withSetPref(qc, async (setPref) => {
@@ -88,12 +90,18 @@ describe("useSetPref", () => {
       ]);
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const last = JSON.parse(String(fetchMock.mock.calls[1][1].body));
-    expect(last.prefs).toEqual({
-      accent: "green",
-      docsSort: "viewed",
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body)).prefs).toEqual({
       seenIconPicker: true,
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1].body)).prefs).toEqual({
       sidebar: { open: true },
+    });
+  });
+
+  it("null removes a key from the cache, as the server does", () => {
+    expect(applyPrefsPatch({ a: 1, b: 2 }, { b: null, c: 3 })).toEqual({
+      a: 1,
+      c: 3,
     });
   });
 });

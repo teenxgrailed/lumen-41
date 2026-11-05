@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 
 import type { CnItem } from "./derive";
-import { SETUP_PREF, setupRunKey } from "./setup-keys";
+import { SETUP_PREF, setupRunKey, setupSeenKey } from "./setup-keys";
 
 /*
  * The first visit to Connections ("Connect your day", owner 05.11.26): pick
@@ -22,7 +22,13 @@ import { SETUP_PREF, setupRunKey } from "./setup-keys";
  * on return; what is connected is read from the real cards, never the run.
  */
 
-export { SETUP_PREF, SETUP_RUN_KEY, setupRunKey } from "./setup-keys";
+export {
+  SETUP_PREF,
+  SETUP_RUN_KEY,
+  SETUP_SEEN_SESSION_KEY,
+  setupRunKey,
+  setupSeenKey,
+} from "./setup-keys";
 
 export type SetupStep = 1 | 2 | 3;
 
@@ -143,6 +149,21 @@ export function listNames(names: readonly string[]) {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
+function readSession(key: string): string | null {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeSession(key: string, value: string) {
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    /* private mode: the setting on the server is all there is */
+  }
+}
+
 function readRun(key: string): SetupRun | null {
   try {
     const v = window.sessionStorage.getItem(key);
@@ -199,14 +220,31 @@ export function useConnectionsSetup(items: readonly CnItem[], loaded: boolean) {
     checked.current = true;
     const saved = readRun(key);
     if (saved) return setRunState(saved);
-    if (shouldAutoOpen(items, ready, typeof seen === "string" ? seen : null))
+    const said =
+      typeof seen === "string" ? seen : readSession(setupSeenKey(userId));
+    if (shouldAutoOpen(items, ready, said))
       setRunState({ step: 1, picked: defaultPicks(sources), skipped: [] });
-  }, [ready, key, items, sources, seen]);
+  }, [ready, key, items, sources, seen, userId]);
 
+  /**
+   * Saves the dismissal to the person's settings, once more after a second
+   * if the first write fails; this session also notes it, so a write that
+   * fails twice still does not bring the setup back on the next load.
+   */
   const remember = useCallback(
-    (why: "skipped" | "done") =>
-      void setPref(SETUP_PREF, why).catch(() => null),
-    [setPref]
+    (why: "skipped" | "done") => {
+      writeSession(setupSeenKey(userId), why);
+      void setPref(SETUP_PREF, why).catch(
+        () =>
+          new Promise((done) =>
+            window.setTimeout(
+              () => void setPref(SETUP_PREF, why).then(done, done),
+              1000
+            )
+          )
+      );
+    },
+    [setPref, userId]
   );
   const open = useCallback(
     () => setRun({ step: 1, picked: defaultPicks(sources), skipped: [] }),

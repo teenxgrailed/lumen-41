@@ -78,8 +78,13 @@ export const userSettingsV3FieldsSchema = z.object({
   timeFormat: z.enum(["12h", "24h"]).optional(),
   // `prefs.taskView` is the one task-list view setting (task-view.ts); when
   // present it must be a valid one, so a bad write is a 400, not a stored typo
+  // A patch: the server merges it into the stored map, and a key sent as
+  // null is removed, so null is never checked as a value.
   prefs: jsonObjectSchema
-    .superRefine((value, ctx) => {
+    .superRefine((patch, ctx) => {
+      const value = Object.fromEntries(
+        Object.entries(patch).filter(([, v]) => v !== null)
+      );
       // a picked city is a place with real coordinates, or absent
       if (value.cityPlace != null && !parseCityPlace(value.cityPlace))
         ctx.addIssue({ code: "custom", message: "Invalid city" });

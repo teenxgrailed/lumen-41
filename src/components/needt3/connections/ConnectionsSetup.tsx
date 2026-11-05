@@ -506,7 +506,6 @@ function DoneStep({
             type="button"
             className="nx-btn nx-btn-primary cs-btn"
             data-cs-go=""
-            autoFocus
             onClick={() => exitSetup(s, c)}
           >
             Go to Connections
@@ -544,7 +543,14 @@ export function exitSetup(s: ConnectionsSetupState, c: ConnectionsController) {
     s.skip();
     s.setRun(null);
   }
-  refocus("[data-cn-setup-open]", "[data-ppl-setup-open]");
+  // "Set up" (desktop hero, phone Apps tab); on the phone's AI tab it is not
+  // drawn, so the selected tab, else the page heading.
+  refocus(
+    "[data-cn-setup-open]",
+    "[data-ppl-setup-open]",
+    "[data-ppl-tab][aria-selected='true']",
+    "h1"
+  );
 }
 
 /**
