@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  desktopNotificationsAllowed,
+  isDesktopApp,
+  requestDesktopNotifications,
+  sendDesktopNotification,
+} from "@/lib/desktop";
+import {
   currentNativePushToken,
   isIosApp,
   nativePushPermission,
@@ -111,6 +117,11 @@ export type PushController = {
   state: PushState;
   /** True inside the iOS app, where this is APNs and not Web Push. */
   native: boolean;
+  /**
+   * True inside the desktop app (the Mac shell, Tauri): no Web Push there;
+   * notifications are the system's, through the app.
+   */
+  app?: boolean;
   busy: boolean;
   /** Must be called from a click: iOS only shows the prompt from a gesture. */
   enable: () => Promise<"ok" | "denied" | "failed">;
@@ -121,10 +132,86 @@ export type PushController = {
 export function usePushNotifications(): PushController {
   // Not rendered, so the server's `false` here cannot mismatch.
   const [native] = useState(() => typeof window !== "undefined" && isIosApp());
-  const web = useWebPush(!native);
+  const [desktop] = useState(
+    () => typeof window !== "undefined" && !native && isDesktopApp()
+  );
+  const web = useWebPush(!native && !desktop);
   const app = useNativePush(native);
-  return native ? app : web;
+  const shell = useAppNotifications(desktop);
+  return native ? app : desktop ? shell : web;
 }
+
+/**
+ * The desktop app (the Mac shell, Tauri): its WebView has no Push API, so
+ * "this device" is the system's permission for the app. It cannot be revoked
+ * from here (System Settings does that), so there is no Turn off.
+ */
+function useAppNotifications(active: boolean): PushController {
+  const [state, setState] = useState<PushState>("loading");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!active) return;
+    void desktopNotificationsAllowed().then((ok) =>
+      setState(ok ? "on" : "off")
+    );
+  }, [active]);
+
+  const enable = useCallback(async () => {
+    setBusy(true);
+    try {
+      const result = await requestDesktopNotifications();
+      setState(
+        result === "granted" ? "on" : result === "denied" ? "blocked" : "off"
+      );
+      return result === "granted" ? ("ok" as const) : ("denied" as const);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const sendTest = useCallback(async () => {
+    const ok = await sendDesktopNotification(
+      "Notifications work",
+      "This is how Needt reaches you on this computer.",
+      undefined,
+      { ask: false }
+    );
+    return ok ? ("ok" as const) : ("failed" as const);
+  }, []);
+
+  return {
+    state,
+    busy,
+    native: false,
+    app: true,
+    enable,
+    disable: async () => undefined,
+    sendTest,
+  };
+}
+
+/** The desktop app's wording: notifications are the system's, through the app. */
+export const APP_PUSH_COPY: Partial<
+  Record<PushState, { title: string; desc: string }>
+> = {
+  loading: {
+    title: "Notifications come through the Needt app",
+    desc: "Checking…",
+  },
+  off: {
+    title: "Notifications come through the Needt app",
+    desc: "Allow them so habit reminders and the evening check-in reach you while Needt is open.",
+  },
+  on: {
+    title: "Notifications come through the Needt app",
+    desc: "Allowed. While Needt is open, reminders arrive as system notifications. Turn them off in System Settings, Notifications, Needt.",
+  },
+  blocked: {
+    title: "Turned off in System Settings",
+    desc: "Notifications are off for Needt. Allow them in System Settings, Notifications, Needt, then come back here.",
+  },
+};
 
 function useWebPush(active: boolean): PushController {
   const [state, setState] = useState<PushState>("loading");

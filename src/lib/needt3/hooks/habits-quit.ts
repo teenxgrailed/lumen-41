@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
@@ -28,6 +30,21 @@ export function useQuitGate(): QuitGate {
     enabled: false,
   });
   return data ?? "off";
+}
+
+/**
+ * The gate, read again when the caller mounts (Settings → Notifications): a
+ * window left open since before `habits_quit` changed would otherwise keep
+ * the old answer until the habits are read again (focus events do not always
+ * reach a desktop app's WebView).
+ */
+export function useFreshQuitGate(): QuitGate {
+  const habits = useHabits();
+  const refetch = habits.refetch;
+  useEffect(() => {
+    void refetch();
+  }, [refetch]);
+  return useQuitGate();
 }
 
 /** Streaks, clean days and counts (GET /api/habits/:id/quit-summary). */

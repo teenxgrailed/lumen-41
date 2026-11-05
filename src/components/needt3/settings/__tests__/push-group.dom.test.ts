@@ -125,7 +125,24 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  delete (window as unknown as Record<string, unknown>).__TAURI__;
 });
+
+/** The desktop app's bridge (the Mac shell's `__TAURI__.notification`). */
+function desktopApp(
+  granted: boolean,
+  answer: "granted" | "denied" = "granted"
+) {
+  const api = {
+    isPermissionGranted: jest.fn(async () => granted),
+    requestPermission: jest.fn(async () => answer),
+    sendNotification: jest.fn(),
+  };
+  (window as unknown as Record<string, unknown>).__TAURI__ = {
+    notification: api,
+  };
+  return api;
+}
 
 describe("PushGroup", () => {
   it("asks an iPhone Safari tab to add Needt to the Home Screen first", async () => {
@@ -218,6 +235,68 @@ describe("PushGroup", () => {
     );
     expect(JSON.parse(call![1].body)).toEqual({
       endpoint: "https://fcm.test/abc",
+    });
+  });
+
+  describe("in the desktop app (no Web Push in its WebView)", () => {
+    it("says notifications come through the app and offers Allow", async () => {
+      env({ push: false });
+      const api = desktopApp(false);
+      await render();
+      // Nothing asks the system until the person taps Allow.
+      expect(api.requestPermission).not.toHaveBeenCalled();
+      expect(host.textContent).toContain(
+        "Notifications come through the Needt app"
+      );
+      expect(host.textContent).not.toContain("Try Chrome");
+      expect(buttons()).toEqual(["Allow"]);
+      await act(async () => {
+        host.querySelector("button")?.click();
+      });
+      expect(api.requestPermission).toHaveBeenCalled();
+      expect(buttons()).toEqual(["Send test notification"]);
+    });
+
+    it("points to System Settings when the system said no", async () => {
+      env({ push: false });
+      desktopApp(false, "denied");
+      await render();
+      await act(async () => {
+        host.querySelector("button")?.click();
+      });
+      expect(host.textContent).toContain("Turned off in System Settings");
+      expect(buttons()).toEqual([]);
+    });
+
+    it("says Settings, not System Settings, on Windows", async () => {
+      env({ push: false });
+      desktopApp(false, "denied");
+      (window as unknown as Record<string, unknown>).__needtDesktop = {
+        platform: "windows",
+      };
+      try {
+        await render();
+        await act(async () => {
+          host.querySelector("button")?.click();
+        });
+        expect(host.textContent).toContain("Turned off in Settings");
+        expect(host.textContent).not.toContain("System Settings");
+      } finally {
+        delete (window as unknown as Record<string, unknown>).__needtDesktop;
+      }
+    });
+
+    it("tests through the app, with no Turn off to offer", async () => {
+      env({ push: false });
+      const api = desktopApp(true);
+      await render();
+      expect(buttons()).toEqual(["Send test notification"]);
+      await act(async () => {
+        host.querySelector("button")?.click();
+      });
+      expect(api.sendNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Notifications work" })
+      );
     });
   });
 });

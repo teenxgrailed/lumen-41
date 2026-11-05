@@ -10,11 +10,13 @@ import { useAskPhase } from "@/components/needt3/corner/AskProvider";
 import { hasNoticeSink } from "@/components/needt/corner/bridge";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { isDesktopApp, sendDesktopNotification } from "@/lib/desktop";
 import {
   EMPTY_MEMORY,
   ISLAND_GAP_MS,
   type PresenceIsland,
   type PresenceMemory,
+  type PresenceSettings,
   nextIsland,
   readMemory,
   rememberShown,
@@ -147,12 +149,42 @@ function Presence({ quitOn }: { quitOn: boolean }) {
   };
 
   useEffect(() => {
-    const show = (island: PresenceIsland) => {
+    const show = async (island: PresenceIsland, settings: PresenceSettings) => {
+      const now = newDate().getTime();
+      const due = (m: PresenceMemory) =>
+        !m.seen.includes(island.key) &&
+        !(m.lastShownAt && now - m.lastShownAt < ISLAND_GAP_MS);
+      // In the desktop app with its window not in front (hidden, or another
+      // window focused), the island would go unseen: a system notification
+      // says it instead, with the push's tag, if Mac notifications are on.
+      const front =
+        document.visibilityState === "visible" && document.hasFocus();
+      if (isDesktopApp() && !front && settings.channelMac !== false) {
+        // Claimed before the send, so a second window of the app does not
+        // send it too while this one waits; given back if the send fails.
+        const before = loadMemory();
+        if (!due(before)) return;
+        saveMemory(rememberShown(before, island.key, now));
+        const sent = await sendDesktopNotification(
+          island.title,
+          island.body,
+          island.kind === "milestone"
+            ? `/habits?quit=${encodeURIComponent(island.habitId)}`
+            : "/habits",
+          { ask: false, tag: island.tag }
+        );
+        if (sent) return;
+        const after = loadMemory();
+        saveMemory({
+          ...after,
+          seen: after.seen.filter((k) => k !== island.key),
+          lastShownAt: before.lastShownAt,
+        });
+      }
+      if (!settings.channelInApp || !hasNoticeSink("island")) return;
       // Read again right before showing: another tab may have shown it.
       const fresh = loadMemory();
-      const now = newDate().getTime();
-      if (fresh.seen.includes(island.key)) return;
-      if (fresh.lastShownAt && now - fresh.lastShownAt < ISLAND_GAP_MS) return;
+      if (!due(fresh)) return;
       saveMemory(rememberShown(fresh, island.key, now));
       closePush(island.tag);
       if (island.kind === "reminder") {
@@ -188,9 +220,11 @@ function Presence({ quitOn }: { quitOn: boolean }) {
 
     const tick = () => {
       const l = latest.current;
-      // No receiver (the corner is not mounted): say nothing and remember
-      // nothing, so the moment is not spent on a notice no one sees.
-      if (!l.ready || !l.alerts || !hasNoticeSink("island")) return;
+      // No receiver (the corner is not mounted, and no desktop app to show a
+      // system notification): say nothing and remember nothing, so the
+      // moment is not spent on a notice no one sees.
+      if (!l.ready || !l.alerts) return;
+      if (!hasNoticeSink("island") && !isDesktopApp()) return;
       const now = newDate();
       const today = formatInTimeZone(now, tz, "yyyy-MM-dd");
       const quits = l.quits.flatMap((h, i) => {
@@ -235,7 +269,7 @@ function Presence({ quitOn }: { quitOn: boolean }) {
           }),
         quits,
       });
-      if (island) show(island);
+      if (island) void show(island, l.alerts);
     };
 
     const t = window.setInterval(tick, TICK_MS);
