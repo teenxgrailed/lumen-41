@@ -104,6 +104,25 @@ describe("CookieConsent", () => {
     expect(umami()).toBeNull();
   });
 
+  it("a saved choice re-syncs umami.disabled from the shared cookie", () => {
+    window.localStorage.setItem("umami.disabled", "1");
+    document.cookie = `${CONSENT_COOKIE}=accepted; Path=/`;
+    mount();
+    expect(window.localStorage.getItem("umami.disabled")).toBeNull();
+    act(() => root.unmount());
+    root = createRoot(host);
+    document.cookie = `${CONSENT_COOKIE}=declined; Path=/`;
+    mount();
+    expect(window.localStorage.getItem("umami.disabled")).toBe("1");
+  });
+
+  it("a malformed cookie is no choice: no throw, the banner shows", () => {
+    document.cookie = `${CONSENT_COOKIE}=%E0%A4%A; Path=/`;
+    expect(() => mount()).not.toThrow();
+    expect(banner()).not.toBeNull();
+    expect(umami()).toBeNull();
+  });
+
   it("injects nothing when no Umami website id is configured", () => {
     mount(null);
     act(() => button("Accept").click());
@@ -162,5 +181,6 @@ describe("consent cookie", () => {
     expect(parseConsent("a=1; needt_consent=declined")).toBe("declined");
     expect(parseConsent("needt_consent=maybe")).toBeNull();
     expect(parseConsent("")).toBeNull();
+    expect(parseConsent("needt_consent=%E0%A4%A")).toBeNull();
   });
 });

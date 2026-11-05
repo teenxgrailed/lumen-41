@@ -6,7 +6,13 @@
   z-index: 1500;
   left: 12px;
   right: 12px;
-  bottom: calc(12px + env(safe-area-inset-bottom));
+  /* Narrow screens are the phone layout, whose floating dock (menu pill, + and
+   * focus buttons) sits above the bottom edge. The banner stands where the
+   * snackbar does (phone-ground.css .pov-snack: 92px + dock lift + inset), so
+   * it never covers the dock. The lift is 20px, or 74px with Safari's tab bar
+   * at the bottom (html[data-safari-bar="bottom"], below). The banner lives
+   * outside .needt-v3, so it cannot read --v3-dock-lift and repeats the values. */
+  bottom: calc(112px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -65,10 +71,16 @@
   outline: none;
   box-shadow: var(--shadow-focus);
 }
+html[data-display-mode="browser"][data-safari-bar="bottom"] .needt-consent {
+  bottom: calc(166px + env(safe-area-inset-bottom, 0px));
+}
+/* Desktop: the sidebar and its footer (account, settings) fill the bottom-left
+ * (--sidebar-w, 268-300px), so the banner goes bottom-right. */
 @media (min-width: 640px) {
-  .needt-consent {
-    left: 20px;
-    right: auto;
+  .needt-consent,
+  html[data-display-mode="browser"][data-safari-bar="bottom"] .needt-consent {
+    left: auto;
+    right: 20px;
     bottom: 20px;
     width: min(380px, calc(100vw - 40px));
   }

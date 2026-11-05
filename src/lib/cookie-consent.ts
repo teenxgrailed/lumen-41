@@ -20,7 +20,12 @@ export function parseConsent(cookieHeader: string): ConsentChoice | null {
   for (const part of cookieHeader.split(";")) {
     const [name, ...rest] = part.trim().split("=");
     if (name !== CONSENT_COOKIE) continue;
-    const value = decodeURIComponent(rest.join("="));
+    let value: string;
+    try {
+      value = decodeURIComponent(rest.join("="));
+    } catch {
+      return null; // malformed cookie (a stray %): no choice, never throw in the layout
+    }
     return value === "accepted" || value === "declined" ? value : null;
   }
   return null;

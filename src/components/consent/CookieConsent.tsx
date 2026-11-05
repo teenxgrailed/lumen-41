@@ -30,8 +30,12 @@ export function CookieConsent({ umamiWebsiteId }: { umamiWebsiteId?: string }) {
   useEffect(() => {
     const current = readConsent();
     setSaved(current);
-    if (current === "accepted") loadAnalytics(umamiWebsiteId);
-    else if (!current) setOpen(true);
+    // umami.disabled is per-origin localStorage, the choice is the shared cookie: re-sync
+    if (current === "accepted") {
+      setAnalyticsDisabled(false);
+      loadAnalytics(umamiWebsiteId);
+    } else if (current === "declined") setAnalyticsDisabled(true);
+    else setOpen(true);
   }, [umamiWebsiteId]);
 
   useEffect(() => {
