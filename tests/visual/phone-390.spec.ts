@@ -177,7 +177,9 @@ async function settle(page: import("@playwright/test").Page) {
 
 const shot = async (page: import("@playwright/test").Page, name: string) => {
   await settle(page);
-  await expect(page).toHaveScreenshot(`${name}-390.png`);
+  await expect(page).toHaveScreenshot(
+    name.endsWith("-667") ? `${name}.png` : `${name}-390.png`
+  );
 };
 
 test("Settings on a 390-px phone", async ({ page }) => {
@@ -256,4 +258,48 @@ test("New habit and the paywall on a 390-px phone", async ({ page }) => {
     .click();
   await expect(page.getByRole("dialog").last()).toBeVisible();
   await shot(page, "paywall");
+});
+
+/*
+ * The short phone: an SE / mini at 375×667, where the paywall was the
+ * tightest and the Pulling flow has to scroll.
+ */
+test.describe("on a 667-px phone", () => {
+  test.use({ viewport: { width: 375, height: 667 } });
+
+  test("Pulling fits and scrolls", async ({ page }) => {
+    test.setTimeout(240_000);
+    await freeBilling(page);
+    await serveHabits(page, "on", [german, smoking]);
+    await prepare(page);
+
+    await page.goto("/habits", { waitUntil: "domcontentloaded" });
+    await page.locator(`[data-hq-pull="${smoking.id}"]`).first().click();
+    await expect(page.locator('[data-hq-step="breathe"]')).toBeVisible();
+    await shot(page, "habits-pull-breathe-667");
+    await page.getByRole("button", { name: "Skip to my reason" }).click();
+    await page.getByRole("button", { name: "Next" }).click();
+    await page.locator("[data-hq-passed]").click();
+    await expect(page.locator('[data-hq-step="held"]')).toBeVisible();
+    await shot(page, "habits-pull-held-667");
+    await page.getByRole("button", { name: "Other…" }).click();
+    await shot(page, "habits-pull-other-667");
+  });
+
+  test("the paywall", async ({ page }) => {
+    test.setTimeout(240_000);
+    await freeBilling(page);
+    await serveHabits(page, "upgrade", [german]);
+    await prepare(page);
+
+    await page.goto("/habits", { waitUntil: "domcontentloaded" });
+    await page.locator("[data-phb-new]").click();
+    await page.locator("[data-hq-kind-quit]").click();
+    await page
+      .locator(".phb-form [data-hq-lock]")
+      .getByRole("button", { name: "See Pro" })
+      .click();
+    await expect(page.getByRole("dialog").last()).toBeVisible();
+    await shot(page, "paywall-667");
+  });
 });
