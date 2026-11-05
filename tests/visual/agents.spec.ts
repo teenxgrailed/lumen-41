@@ -280,12 +280,19 @@ async function serveHub(page: Page) {
   );
 }
 
-async function prepare(page: Page, theme: "dark" | "light") {
+async function prepare(
+  page: Page,
+  theme: "dark" | "light",
+  { setup = false } = {}
+) {
   await page.clock.setFixedTime(new Date(VISUAL_TEST_NOW));
-  await page.addInitScript(() => {
+  await page.addInitScript((showSetup) => {
     localStorage.setItem("needt:quick-tip:last-shown-at", "9999999999999");
     localStorage.setItem("needt-visit-count", "0");
-  });
+    // The first-visit setup has its own shot; the tabs start past it.
+    if (showSetup) localStorage.removeItem("needt:agents-onboarded");
+    else localStorage.setItem("needt:agents-onboarded", "1");
+  }, setup);
   await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
   const user = await prisma.user.findUnique({
     where: { email: VISUAL_TEST_EMAIL },
@@ -345,9 +352,11 @@ for (const theme of ["dark", "light"] as const) {
       await page.goto(`/agents?${query}`, { waitUntil: "domcontentloaded" });
       await expect(page.locator(".ag-night")).toBeVisible({ timeout: 45_000 });
       await expect(page.locator(ready).first()).toBeVisible();
-      await expect(page.locator("[data-ag-status]")).toHaveText(
-        "3 agents · 7 tasks this week · 2 working now"
-      );
+      // Chat is one column with no counts; every other tab shows them.
+      if (tab !== "chat")
+        await expect(page.locator("[data-ag-status]")).toHaveText(
+          "3 agents · 7 tasks this week · 2 working now"
+        );
       if (tab === "map") {
         await expect(page.locator("[data-ag-map-result]")).toHaveCount(
           phone ? 2 : 3
@@ -360,4 +369,23 @@ for (const theme of ["dark", "light"] as const) {
       );
     });
   }
+}
+
+for (const theme of ["dark", "light"] as const) {
+  test(`Agents setup, ${theme}`, async ({ page }) => {
+    const width = page.viewportSize()?.width ?? 0;
+    test.skip(width >= 768 && width < 1024, "Desktop and phone only.");
+    const phone = width < 768;
+    await prepare(page, theme, { setup: true });
+    await page.goto("/agents?seed=7", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-ag-onboarding]")).toBeVisible({
+      timeout: 45_000,
+    });
+    await expect(page.locator("[data-ag-setup-agent]")).toHaveCount(8);
+    await settle(page);
+    await expect(page).toHaveScreenshot(
+      `agents-setup-${phone ? "phone" : "desktop"}-${theme}.png`,
+      { maxDiffPixelRatio: 0.01 }
+    );
+  });
 }
