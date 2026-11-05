@@ -13,9 +13,8 @@
  * They look the same but are dimmer, carry no label, and the numbers in
  * `stats` never include them.
  *
- * Colour: each source and each agent has its own hue, used only on thin
- * lines and dots inside the night panel. This widens "the accent is only a
- * mark" by the owner's decision of 05.11.26; no surface or button takes it.
+ * Colour: monochrome plus one blue (owner, 05.11.26), on thin lines and
+ * dots inside the night panel only; no surface or button takes it.
  */
 import { newDate } from "@/lib/date-utils";
 
@@ -73,6 +72,20 @@ export interface MapInput {
   threads: MapThreadInput[];
   /** Epoch ms; passed in so the builder stays pure. */
   now: number;
+}
+
+/**
+ * `GET /api/agent-hub/overview?graph=1` adds this: the Map's compact links
+ * and counts, without titles or message text.
+ */
+export interface MapGraph {
+  /** Start of the first day counted, UTC. */
+  since: string;
+  /** Agent id -> events per UTC day, oldest first, today last. */
+  activity: Record<string, number[]>;
+  /** Threads as links only: no subject, no text. */
+  threads: { id: string; itemId: string | null; lastMessageAt: string }[];
+  messagesThisWeek: number;
 }
 
 export type NodeKind = "agent" | "item" | "thread" | "deco";
@@ -174,29 +187,29 @@ export const PHONE_WIDTH = 700;
 
 export const WHITE: Rgb = [246, 245, 250];
 
+/**
+ * Monochrome with one blue (owner, 05.11.26: no orange, no yellow). Sources
+ * and agents are told apart by brightness; blue is kept for what is alive
+ * right now: the agents working, and the glow behind the core.
+ */
+export const BLUE: Rgb = [92, 140, 255];
+const GREYS: Rgb[] = [
+  [246, 245, 250],
+  [214, 214, 224],
+  [184, 186, 200],
+  [156, 160, 178],
+  [130, 134, 154],
+];
 const SOURCE_HUE: Record<SourceKind, Rgb> = {
-  calendar: [255, 107, 107],
-  tasks: [139, 140, 255],
-  mail: [245, 165, 36],
-  docs: [76, 195, 138],
-  habits: [53, 194, 193],
-  service: [199, 125, 255],
+  calendar: GREYS[0],
+  tasks: GREYS[1],
+  mail: GREYS[2],
+  docs: GREYS[3],
+  habits: GREYS[4],
+  service: GREYS[2],
 };
-const SERVICE_HUES: Rgb[] = [
-  [199, 125, 255],
-  [220, 220, 228],
-  [53, 194, 193],
-  [255, 138, 92],
-];
-const AGENT_HUES: Rgb[] = [
-  [255, 138, 92],
-  [139, 140, 255],
-  [230, 230, 236],
-  [76, 195, 138],
-  [245, 165, 36],
-  [199, 125, 255],
-  [53, 194, 193],
-];
+const SERVICE_HUES: Rgb[] = [GREYS[1], GREYS[3], GREYS[0], GREYS[4]];
+const AGENT_HUES: Rgb[] = GREYS;
 
 /** Needt's own places: every account has them, so the left edge is never bare. */
 const OWN_SOURCES: MapSourceInput[] = [
@@ -338,7 +351,8 @@ export function buildMapScene(
       id: agent.id,
       kind: "agent",
       r: 3.4,
-      hue: AGENT_HUES[k % AGENT_HUES.length],
+      // Working now: the one blue. Otherwise a grey of its own.
+      hue: agent.active ? BLUE : AGENT_HUES[k % AGENT_HUES.length],
       real: true,
       active: agent.active,
       seen: agent.seen,

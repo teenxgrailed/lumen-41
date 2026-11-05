@@ -204,4 +204,24 @@ describe("buildMapScene", () => {
     expect(scene.results.length).toBeLessThanOrEqual(2);
     expect(scene.exits).toHaveLength(0);
   });
+
+  it("is monochrome plus one blue: no warm hue anywhere", () => {
+    const scene = buildMapScene(input, 21, 1200, 800);
+    const hues = [
+      ...scene.nodes.map((n) => n.hue),
+      ...scene.sources.map((s) => s.hue),
+      ...scene.streams.map((s) => s.hue),
+      ...scene.results.map((r) => r.hue),
+    ];
+    for (const [r, g, b] of hues) {
+      const grey = Math.max(r, g, b) - Math.min(r, g, b) < 30;
+      const blue = b > r + 80 && b > g + 40;
+      expect(grey || blue).toBe(true);
+    }
+    // Blue marks only what is working now.
+    const blueAgents = scene.nodes.filter(
+      (n) => n.kind === "agent" && n.hue[2] > n.hue[0] + 80
+    );
+    expect(blueAgents.every((n) => n.active)).toBe(true);
+  });
 });

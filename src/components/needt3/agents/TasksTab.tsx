@@ -9,13 +9,7 @@ import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
 import { PLAN_LIMITS } from "@/lib/plan-limits";
 
 import { ProGate, ProLimit, useIsPro } from "../paywall/Pro";
-import {
-  AgBtn,
-  AgEmpty,
-  AgSection,
-  shortWhen,
-  useAgentHue,
-} from "./AgParts";
+import { AgBtn, AgEmpty, AgSection, shortWhen, useAgentHue } from "./AgParts";
 import { ItemFiles } from "./ItemFiles";
 import { hasUnconfirmedRisk } from "./unconfirmed-risk";
 
@@ -99,6 +93,7 @@ export interface HubItemRow {
   latestEvent: HubEvent | null;
   events?: HubEvent[];
   updatedAt: string;
+  createdAt?: string;
 }
 
 export const STATUS_ORDER = [
@@ -377,7 +372,8 @@ export function TasksTab({
   const recurrences = useRecurrences().data;
   const pro = useIsPro();
   const focused = focusId ? items.find((i) => i.id === focusId) : undefined;
-  const shown = filterItems(items, filters);
+  // The item opened from the map or an alert shows once, at the top.
+  const shown = filterItems(items, filters).filter((i) => i.id !== focusId);
   const waiting = shown.filter(waitsForYou);
   const progress = shown.filter(
     (i) => !waitsForYou(i) && PROGRESS.includes(i.status)

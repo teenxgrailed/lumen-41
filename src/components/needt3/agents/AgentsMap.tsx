@@ -104,12 +104,26 @@ export function startLoop(
   hooks: {
     onHover: (index: number, x: number, y: number) => void;
     onMood: (mood: number) => void;
+  },
+  /**
+   * Carried across rebuilds of the same layout (new data, full screen): the
+   * entry does not replay and the mood does not reset. Mutated in place.
+   */
+  clock: { born: number; mood: number; moodAt: number } = {
+    born: performance.now(),
+    mood: 0,
+    moodAt: performance.now(),
   }
 ) {
   const { nodes, edges, streams, exits, adj, core, results } = scene;
   const W = scene.width;
   const H = scene.height;
   const still = reducedMotion();
+  // A phone rasterises the canvas on a slow CPU: the perf run (iPhone 13,
+  // CPU at 4x) showed raster, not script, as the cost. So on a phone: fewer
+  // frames, no additive blending, glow only on real nodes.
+  const lite = scene.phone;
+  const frameMs = lite ? 1000 / 24 : FRAME_MS;
   const N = nodes.length;
   const bx = Float32Array.from(nodes, (n) => n.x);
   const by = Float32Array.from(nodes, (n) => n.y);
@@ -142,10 +156,10 @@ export function startLoop(
     return { hue: source.hue, list, alpha, width, dot: rgba(source.hue, 1) };
   });
 
-  const born = performance.now();
-  const w = [1, 0, 0, 0];
-  let mood = 0;
-  let moodAt = born;
+  const born = clock.born;
+  const w = [0, 1, 2, 3].map((k) => (k === clock.mood ? 1 : 0));
+  let mood = clock.mood;
+  let moodAt = clock.moodAt;
   const waves: number[] = [];
   const pulses: { path: number[]; t: number; color: Rgb }[] = [];
   const mouse = { px: 0, py: 0 };
@@ -165,6 +179,8 @@ export function startLoop(
     if (!still && now - moodAt > MOOD_MS) {
       mood = (mood + 1 + Math.floor(Math.random() * 3)) % 4;
       moodAt = now;
+      clock.mood = mood;
+      clock.moodAt = now;
       hooks.onMood(mood);
       if (mood === 3) waves.push(now);
     }
@@ -196,15 +212,12 @@ export function startLoop(
       core.y + dy,
       Math.max(core.rx, core.ry) * 2.2
     );
-    glow.addColorStop(
-      0,
-      `rgba(110,100,220,${0.1 + 0.05 * breath + 0.08 * wH})`
-    );
+    glow.addColorStop(0, `rgba(92,140,255,${0.1 + 0.05 * breath + 0.08 * wH})`);
     glow.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
     ctx.translate(dx, dy);
-    ctx.globalCompositeOperation = "lighter";
+    ctx.globalCompositeOperation = lite ? "source-over" : "lighter";
 
     // The cluster breathes in place; the heartbeat and the tide light it.
     const tideX = core.x - core.rx * 1.6 + ((t * 0.12) % 1) * core.rx * 3.2;
@@ -389,7 +402,7 @@ export function startLoop(
       const pulse =
         n.kind === "agent" && (n.active || n.seen) ? 1 + 0.3 * breath : 1;
       const r = n.r * pulse * (1 + 0.8 * lit[i] + 1.2 * fl);
-      if (n.real || tw > 0.8 || lit[i] > 0.2 || fl) {
+      if (n.real || (!lite && (tw > 0.8 || lit[i] > 0.2 || fl))) {
         const R = r * 7;
         ctx.globalAlpha = 0.35 * a;
         ctx.drawImage(glowSprite(n.hue), x[i] - R, y[i] - R, R * 2, R * 2);
@@ -506,7 +519,7 @@ export function startLoop(
   const loop = (now: number) => {
     raf = 0;
     if (!running) return;
-    if (now - last >= FRAME_MS - 2) {
+    if (now - last >= frameMs - 2) {
       last = now;
       frame(now);
     }
@@ -531,6 +544,25 @@ export function startLoop(
       if (still || !running) frame(performance.now());
     },
     drift: () => drift,
+    /**
+     * The real node under a point (panel px), against the last frame's
+     * positions and drift: a tap has no pointermove before its click.
+     */
+    hitAt(px: number, py: number) {
+      const mx = px - drift.dx;
+      const my = py - drift.dy;
+      let best = -1;
+      let bd = 400;
+      for (let i = 0; i < N; i++) {
+        if (!nodes[i].real) continue;
+        const d = (x[i] - mx) ** 2 + (y[i] - my) ** 2;
+        if (d < bd) {
+          bd = d;
+          best = i;
+        }
+      }
+      return best;
+    },
   };
 }
 
@@ -546,6 +578,7 @@ export function startLoop(
 export function AgentsMap({
   data,
   seed,
+  status,
   onNewLayout,
   onOpenAgent,
   onOpenItem,
@@ -553,6 +586,8 @@ export function AgentsMap({
 }: {
   data: MapInput;
   seed: number;
+  /** The hero pill's real counts, shown on the panel's bar. */
+  status?: string | null;
   onNewLayout: () => void;
   onOpenAgent: (id: string) => void;
   onOpenItem: (id: string) => void;
@@ -564,7 +599,8 @@ export function AgentsMap({
   const moodEl = useRef<HTMLSpanElement>(null);
   const portal = useV3PortalContainer();
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const [full, setFull] = useState(false);
+  /** "window": the panel fills the app window; "screen": the Fullscreen API. */
+  const [full, setFullMode] = useState<false | "window" | "screen">(false);
   const [presentation, setPresentation] = useState(false);
   const live = useRef<Live>({
     hover: -1,
@@ -591,20 +627,77 @@ export function AgentsMap({
     return () => ro.disconnect();
   }, [full]);
 
+  // On the web the panel goes truly full screen; inside the desktop app (or
+  // where the API is missing) it fills the app's window (owner, 05.11.26).
+  const setFull = (on: boolean) => {
+    toggled.current = true;
+    const el = panel.current;
+    if (!on) {
+      if (full === "screen" && document.fullscreenElement)
+        void document.exitFullscreen?.().catch(() => undefined);
+      setFullMode(false);
+      return;
+    }
+    const app =
+      document.documentElement.hasAttribute("data-desktop") ||
+      document.documentElement.hasAttribute("data-desktop-shell");
+    if (!app && el && typeof el.requestFullscreen === "function") {
+      el.requestFullscreen()
+        .then(() => setFullMode("screen"))
+        .catch(() => setFullMode("window"));
+      return;
+    }
+    setFullMode("window");
+  };
+  // Esc or the system leaving full screen ends the mode.
   useEffect(() => {
-    if (!full) return undefined;
+    if (full !== "screen") return undefined;
+    const left = () => {
+      if (!document.fullscreenElement) setFullMode(false);
+    };
+    document.addEventListener("fullscreenchange", left);
+    return () => document.removeEventListener("fullscreenchange", left);
+  }, [full]);
+  useEffect(() => {
+    if (full !== "window") return undefined;
     const esc = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        setFull(false);
+        setFullMode(false);
+        return;
       }
+      // Tab stays inside the panel while it covers the window.
+      if (e.key !== "Tab" || !panel.current) return;
+      const stops = Array.from(
+        panel.current.querySelectorAll<HTMLElement>("button:not([disabled])")
+      );
+      if (!stops.length) return;
+      const at = stops.indexOf(document.activeElement as HTMLElement);
+      const next = e.shiftKey
+        ? at <= 0
+          ? stops.length - 1
+          : at - 1
+        : at === stops.length - 1
+          ? 0
+          : at + 1;
+      e.preventDefault();
+      stops[next].focus();
     };
     document.addEventListener("keydown", esc, true);
     return () => document.removeEventListener("keydown", esc, true);
   }, [full]);
+  const toggled = useRef(false);
   useEffect(() => {
     if (!full) setPresentation(false);
+    // The panel moved (into the window, or back): focus stays on its button.
+    if (!toggled.current) return;
+    panel.current?.querySelector<HTMLElement>("[data-ag-map-full]")?.focus();
   }, [full]);
+  // Presentation on: a tooltip already showing an owner's title goes.
+  useEffect(() => {
+    if (tip.current) tip.current.style.opacity = "0";
+    live.current.moved = true;
+  }, [presentation]);
 
   const scene = useMemo(
     () => (size.w && size.h ? buildMapScene(data, seed, size.w, size.h) : null),
@@ -612,47 +705,67 @@ export function AgentsMap({
   );
   const sceneRef = useRef(scene);
   sceneRef.current = scene;
+  // One clock per layout: a new seed replays the entry, new data does not.
+  const clock = useRef<{
+    seed: number;
+    born: number;
+    mood: number;
+    moodAt: number;
+  } | null>(null);
 
   useEffect(() => {
     const el = canvas.current;
     if (!el || !scene) return undefined;
     const ctx = el.getContext?.("2d");
     if (!ctx) return undefined;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // Device pixels at most 2, and 1.5 on a phone (see `lite` in startLoop).
+    const dpr = Math.min(scene.phone ? 1.5 : 2, window.devicePixelRatio || 1);
     el.width = Math.round(scene.width * dpr);
     el.height = Math.round(scene.height * dpr);
-    if (moodEl.current) moodEl.current.textContent = MOODS[0];
+    if (!clock.current || clock.current.seed !== seed) {
+      const now = performance.now();
+      clock.current = { seed, born: now, mood: 0, moodAt: now };
+    }
+    if (moodEl.current) moodEl.current.textContent = MOODS[clock.current.mood];
     live.current.hover = -1;
-    const run = startLoop(ctx, scene, dpr, live.current, {
-      onHover: (index, px, py) => {
-        const box = tip.current;
-        if (!box) return;
-        const node = index >= 0 ? scene.nodes[index] : null;
-        const text = node ? nodeLabel(node, live.current.presentation) : null;
-        el.style.cursor = node && node.kind !== "deco" ? "pointer" : "";
-        if (!node || !text) {
-          box.style.opacity = "0";
-          return;
-        }
-        box.textContent = text;
-        if (node.kind === "agent") {
-          const more = document.createElement("small");
-          more.textContent = ` · ${scene.adj[index].length} links · open`;
-          box.appendChild(more);
-        }
-        box.style.transform = `translate(${px + 14}px, ${py - 30}px)`;
-        box.style.opacity = "1";
+    if (tip.current) tip.current.style.opacity = "0";
+    const run = startLoop(
+      ctx,
+      scene,
+      dpr,
+      live.current,
+      {
+        onHover: (index, px, py) => {
+          const box = tip.current;
+          if (!box) return;
+          const node = index >= 0 ? scene.nodes[index] : null;
+          const text = node ? nodeLabel(node, live.current.presentation) : null;
+          el.style.cursor = node && node.kind !== "deco" ? "pointer" : "";
+          if (!node || !text) {
+            box.style.opacity = "0";
+            return;
+          }
+          box.textContent = text;
+          if (node.kind === "agent") {
+            const more = document.createElement("small");
+            more.textContent = ` · ${scene.adj[index].length} links · open`;
+            box.appendChild(more);
+          }
+          box.style.transform = `translate(${px + 14}px, ${py - 30}px)`;
+          box.style.opacity = "1";
+        },
+        onMood: (mood) => {
+          const m = moodEl.current;
+          if (!m) return;
+          m.style.opacity = "0";
+          window.setTimeout(() => {
+            m.textContent = MOODS[mood];
+            m.style.opacity = "1";
+          }, 400);
+        },
       },
-      onMood: (mood) => {
-        const m = moodEl.current;
-        if (!m) return;
-        m.style.opacity = "0";
-        window.setTimeout(() => {
-          m.textContent = MOODS[mood];
-          m.style.opacity = "1";
-        }, 400);
-      },
-    });
+      clock.current
+    );
     loop.current = run;
     let onScreen = true;
     const sync = () => (onScreen && !document.hidden ? run.run() : run.pause());
@@ -672,7 +785,8 @@ export function AgentsMap({
       document.removeEventListener("visibilitychange", sync);
       loop.current = null;
     };
-  }, [scene]);
+    // The canvas element changes when the panel moves into the full window.
+  }, [scene, seed, full]);
 
   // The rect is cached and dropped on scroll and resize, never read inside
   // pointermove (PORT.md §8).
@@ -705,10 +819,17 @@ export function AgentsMap({
     live.current.moved = true;
     loop.current?.poke();
   };
-  const onClick = () => {
+  const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const s = sceneRef.current;
-    const i = live.current.hover;
-    if (!s || i < 0) return;
+    if (!s || !panel.current) return;
+    rect.current ??= panel.current.getBoundingClientRect();
+    // Hit-test the click itself: a tap on a phone sends no pointermove first.
+    const i =
+      loop.current?.hitAt(
+        e.clientX - rect.current.left,
+        e.clientY - rect.current.top
+      ) ?? live.current.hover;
+    if (i < 0) return;
     const node = s.nodes[i];
     if (node.kind === "agent") onOpenAgent(node.id);
     else if (node.kind === "item") onOpenItem(node.id);
@@ -719,7 +840,10 @@ export function AgentsMap({
   const body = (
     <div
       ref={panel}
-      className={"ag-map-panel" + (full ? " is-full" : "")}
+      className={
+        "ag-map-panel" +
+        (full === "window" ? " is-full" : full === "screen" ? " is-screen" : "")
+      }
       data-ag-map=""
       data-ag-map-seed={seed}
       data-ag-map-phone={scene?.phone ? "" : undefined}
@@ -736,6 +860,11 @@ export function AgentsMap({
         <span ref={moodEl} className="ag-map-mood" data-ag-map-mood="">
           {MOODS[0]}
         </span>
+        {status ? (
+          <span className="ag-map-status" data-ag-status="">
+            {status}
+          </span>
+        ) : null}
         <span className="ag-map-sp" />
         {full ? (
           <button
@@ -836,7 +965,7 @@ export function AgentsMap({
       ) : null}
     </div>
   );
-  if (!full || !portal) return body;
+  if (full !== "window" || !portal) return body;
   // The panel leaves its place in the page for the window; a placeholder of
   // the same height keeps the page from jumping under it.
   return (

@@ -17,6 +17,13 @@ export async function enableAgentHub(userId: string) {
   });
 }
 
+/** Remove this account's override again, so later specs see the default. */
+export async function disableAgentHub(userId: string) {
+  await prisma.featureFlagOverride.deleteMany({
+    where: { flagKey: AGENT_HUB, userId },
+  });
+}
+
 /**
  * A busy hub for the perf run: agents, items across every status, some of
  * them in progress (so agents count as working), some done (the Map's

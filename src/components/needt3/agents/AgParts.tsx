@@ -14,25 +14,31 @@ import { formatDateToLocal, formatShortDate, newDate } from "@/lib/date-utils";
 import { Art, type ArtName } from "../menu/Art";
 
 /**
- * Each agent's own hue, the same one the Map draws it in. A mark only: a dot,
- * a rail, a ring, a thin line. Never a surface or a button (owner, 05.11.26).
+ * Each agent's own grey, the same one the Map draws it in, and blue while it
+ * works (owner, 05.11.26: monochrome plus one blue). A mark only: a dot, a
+ * rail, a ring, a thin line. Never a surface or a button.
  */
 export const AGENT_HUES = [
-  "rgb(255,138,92)",
-  "rgb(139,140,255)",
-  "rgb(230,230,236)",
-  "rgb(76,195,138)",
-  "rgb(245,165,36)",
-  "rgb(199,125,255)",
-  "rgb(53,194,193)",
+  "rgb(246,245,250)",
+  "rgb(214,214,224)",
+  "rgb(184,186,200)",
+  "rgb(156,160,178)",
+  "rgb(130,134,154)",
 ] as const;
+/** The one colour on the night: an agent working right now. */
+export const LIVE_HUE = "rgb(92,140,255)";
 const NEUTRAL_HUE = "rgba(246,245,250,0.45)";
 
 /** id and name → hue, in the order the overview lists the agents. */
-export function agentHueMap(agents: { id: string; name: string }[]) {
+export function agentHueMap(
+  agents: { id: string; name: string }[],
+  working: Set<string> = new Set()
+) {
   const map = new Map<string, string>();
   agents.forEach((a, i) => {
-    const hue = AGENT_HUES[i % AGENT_HUES.length];
+    const hue = working.has(a.id)
+      ? LIVE_HUE
+      : AGENT_HUES[i % AGENT_HUES.length];
     map.set(a.id, hue);
     if (!map.has(a.name)) map.set(a.name, hue);
   });
@@ -102,11 +108,13 @@ export function listKeys(e: KeyboardEvent<HTMLElement>) {
   );
   if (!rows.length) return;
   const at = rows.indexOf(target);
+  // Arrows on an action inside an open row stay with that action.
+  if (at < 0) return;
   let next = at;
   if (e.key === "Home") next = 0;
   else if (e.key === "End") next = rows.length - 1;
   else if (e.key === "ArrowDown") next = Math.min(rows.length - 1, at + 1);
-  else next = at < 0 ? 0 : Math.max(0, at - 1);
+  else next = Math.max(0, at - 1);
   e.preventDefault();
   rows[next]?.focus();
 }

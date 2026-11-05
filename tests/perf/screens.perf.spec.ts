@@ -255,7 +255,7 @@ const screens: Screen[] = [
         for (const tab of [
           "agents",
           "tasks",
-          "messages",
+          "chat",
           "activity",
           "memory",
           "map",

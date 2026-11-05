@@ -73,9 +73,15 @@ function dayLabel(key: string, now: Date) {
 export function ActivityTab({
   agent,
   onOpenItem,
+  week,
 }: {
   agent: string;
   onOpenItem?: (id: string) => void;
+  /**
+   * The last seven days from the server (`?graph=1`), oldest first: the
+   * whole week, not only the events loaded on this page.
+   */
+  week?: { days: number[]; byAgent: { id: string; name: string; n: number }[] };
 }) {
   const feed = useInfiniteQuery({
     queryKey: [...ACTIVITY_KEY, agent],
@@ -136,8 +142,12 @@ export function ActivityTab({
     const name = who(event);
     perAgent.set(name, (perAgent.get(name) ?? 0) + 1);
   }
-  const peak = Math.max(1, ...perDay);
-  const week = perDay.reduce((a, b) => a + b, 0);
+  const bars = week?.days ?? perDay;
+  const legs: [string, string, number][] = week
+    ? week.byAgent.map((a) => [a.id, a.name, a.n])
+    : Array.from(perAgent.entries()).map(([name, n]) => [name, name, n]);
+  const peak = Math.max(1, ...bars);
+  const total = bars.reduce((a, b) => a + b, 0);
 
   return (
     <div className="ag-col" data-ag-activity="">
@@ -212,9 +222,9 @@ export function ActivityTab({
           <div
             className="ag-bars"
             role="img"
-            aria-label={`${week} events this week`}
+            aria-label={`${total} events in the last seven days`}
           >
-            {perDay.map((n, i) => (
+            {bars.map((n, i) => (
               <i
                 key={i}
                 style={{ height: `${n ? Math.max(6, (n / peak) * 100) : 2}%` }}
@@ -222,19 +232,19 @@ export function ActivityTab({
             ))}
           </div>
           <div className="ag-bars-axis">
-            <span>Mon</span>
-            <span>Sun</span>
+            <span>{week ? "7 days ago" : "Mon"}</span>
+            <span>{week ? "Today" : "Sun"}</span>
           </div>
           <h4>By agent</h4>
-          {perAgent.size ? (
+          {legs.length ? (
             <ul className="ag-legs">
-              {Array.from(perAgent.entries())
-                .sort((a, b) => b[1] - a[1])
-                .map(([name, n]) => (
-                  <li key={name} className="ag-leg-row">
+              {[...legs]
+                .sort((a, b) => b[2] - a[2])
+                .map(([id, name, n]) => (
+                  <li key={id} className="ag-leg-row">
                     <span
                       className="ag-dotc"
-                      style={{ background: hue(name) }}
+                      style={{ background: hue(id) }}
                       aria-hidden
                     />
                     {name}

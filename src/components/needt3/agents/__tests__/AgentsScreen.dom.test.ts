@@ -46,6 +46,16 @@ jest.mock("@/lib/needt3/hooks/core", () => ({
   fetchJson: jest.fn(),
   sendJson: jest.fn(() => Promise.resolve({})),
 }));
+const aiSend = jest.fn();
+jest.mock("../../corner/useAskNeedt", () => ({
+  useAskNeedt: () => ({
+    messages: [],
+    phase: "idle",
+    send: (...args: unknown[]) => aiSend(...args),
+    stop: jest.fn(),
+    reset: jest.fn(),
+  }),
+}));
 jest.mock("@/lib/needt3/hooks/connections", () => ({
   useConnections: () => ({
     isLoading: false,
@@ -92,6 +102,19 @@ const OVERVIEW = {
       heldItems: 0,
       lastSeenAt: null,
       token: null,
+    },
+    {
+      id: "a4",
+      name: "Old bot",
+      kind: "other",
+      skills: [],
+      connection: "MCP",
+      openItems: 0,
+      heldItems: 0,
+      lastSeenAt: null,
+      disabledAt: NOW,
+      disabled: true,
+      token: { preview: "nt_…old", revoked: false, lastUsedAt: null },
     },
   ],
   items: [
@@ -280,11 +303,21 @@ afterEach(() => {
 });
 
 describe("Agents screen", () => {
-  it("opens on the Map with the hero and the real counts", async () => {
+  it("opens on the Map, full window, with the real counts", async () => {
     await mount();
     expect(selected()).toBe("map");
     expect(host.querySelector(".ag-night")).not.toBeNull();
-    expect(host.querySelector("h1")?.textContent).toBe("Agents");
+    // No hero over the Map (owner, 05.11.26); the counts sit on its bar.
+    expect(host.querySelector(".ag-hero")).toBeNull();
+    expect(host.querySelector(".ag-map-stage [data-ag-map]")).not.toBeNull();
+    // The overview is asked for the graph in the same request.
+    expect(
+      (fetchJson as jest.Mock).mock.calls.some(([u]) =>
+        String(u).startsWith("/api/agent-hub/overview?graph=1")
+      )
+    ).toBe(true);
+    // Agents with something connected skip the first-visit onboarding.
+    expect(host.querySelector("[data-ag-onboarding]")).toBeNull();
     // Claude holds an item in progress: working now. Grok was never seen.
     expect(host.querySelector("[data-ag-status]")?.textContent).toBe(
       "2 agents · 3 tasks this week · 1 working now"
@@ -329,7 +362,12 @@ describe("Agents screen", () => {
 
     await click(tab("agents"));
     expect(selected()).toBe("agents");
-    expect(host.querySelectorAll("[data-ag-card]")).toHaveLength(2);
+    // The disabled agent stays here, offline, so it can still be revoked.
+    expect(host.querySelectorAll("[data-ag-card]")).toHaveLength(3);
+    expect(
+      host.querySelector('[data-ag-card="a4"]')?.getAttribute("data-ag-state")
+    ).toBe("offline");
+    expect(host.querySelector("h1")?.textContent).toBe("Agents");
     expect(host.querySelector("[data-ag-new-agent]")).not.toBeNull();
     expect(
       host.querySelector('[data-ag-card="a2"]')?.getAttribute("data-ag-state")
@@ -350,12 +388,17 @@ describe("Agents screen", () => {
       host.querySelector("[data-ag-item='i1'] .ag-crit")?.textContent
     ).toBe("1/2");
 
-    await click(tab("messages"));
-    expect(selected()).toBe("messages");
+    await click(tab("chat"));
+    expect(selected()).toBe("chat");
     expect(host.querySelector('[data-ag-thread="t1"]')?.textContent).toContain(
       "Cover image options"
     );
     expect(host.querySelector('[data-ag-thread="t1"] .ag-un')).not.toBeNull();
+    // What agents ask and write arrives in the conversation as cards.
+    expect(host.querySelector('[data-ag-ask="i2"]')?.textContent).toContain(
+      "Which of the three?"
+    );
+    expect(host.querySelector('[data-ag-unread="t1"]')).not.toBeNull();
 
     await click(tab("activity"));
     expect(selected()).toBe("activity");
@@ -378,7 +421,7 @@ describe("Agents screen", () => {
   it.each([
     ["agents", "[data-ag-agents]"],
     ["tasks", "[data-ag-tasks]"],
-    ["messages", "[data-ag-messages]"],
+    ["chat", "[data-ag-chat]"],
     ["activity", "[data-ag-activity]"],
     ["memory", "[data-ag-memory]"],
   ])("opens ?tab=%s directly", async (id, selector) => {
@@ -420,10 +463,97 @@ describe("Agents screen", () => {
     expect(host.querySelector("[data-ag-item='i2']")).toBeNull();
   });
 
-  it("deep-links a thread with ?thread=", async () => {
+  it("deep-links a thread with ?thread=, and old ?tab=messages lands in Chat", async () => {
     await mount("thread=t1");
-    expect(selected()).toBe("messages");
-    expect(host.querySelector('[data-ag-convo="t1"]')).not.toBeNull();
+    expect(selected()).toBe("chat");
+    expect(host.querySelector(".ag-chat-title")?.textContent).toBe(
+      "Cover image options"
+    );
     expect(host.querySelector('[data-ag-thread-item="i2"]')).not.toBeNull();
+    act(() => root.unmount());
+    root = createRoot(host);
+    await mount("tab=messages");
+    expect(selected()).toBe("chat");
+  });
+
+  it("sends the line to Needt AI, and to the thread when one is open", async () => {
+    await mount("tab=chat");
+    const input = () =>
+      host.querySelector<HTMLTextAreaElement>("[data-ag-chat-input]")!;
+    const type = async (text: string) => {
+      await act(async () => {
+        const set = Object.getOwnPropertyDescriptor(
+          HTMLTextAreaElement.prototype,
+          "value"
+        )!.set!;
+        set.call(input(), text);
+        input().dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    };
+    await type("What is Claude doing?");
+    await act(async () => {
+      input().dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+      );
+    });
+    expect(aiSend).toHaveBeenCalledWith("What is Claude doing?");
+
+    await click(host.querySelector('[data-ag-thread="t1"]'));
+    await type("The second one");
+    await click(host.querySelector("[data-ag-chat-send]"));
+    const { sendJson } = jest.requireMock("@/lib/needt3/hooks/core");
+    expect(sendJson).toHaveBeenCalledWith("/api/agent-hub/messages", "POST", {
+      threadId: "t1",
+      body: "The second one",
+    });
+    expect(aiSend).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a deep link when you leave its tab", async () => {
+    window.history.replaceState(null, "", "/agents?thread=t1");
+    await mount("thread=t1");
+    await click(tab("map"));
+    const url = new URL(window.location.href);
+    expect(url.searchParams.get("thread")).toBeNull();
+    expect(url.searchParams.get("tab")).toBeNull();
+  });
+
+  it("shows an item opened from the map once, at the top", async () => {
+    await mount("item=i1");
+    expect(selected()).toBe("tasks");
+    expect(host.querySelectorAll("[data-ag-item='i1']")).toHaveLength(1);
+    expect(
+      host.querySelector("[data-ag-focused] [data-ag-item='i1']")
+    ).not.toBeNull();
+  });
+
+  it("opens the onboarding on a first visit with nothing connected", async () => {
+    window.localStorage.clear();
+    (fetchJson as jest.Mock).mockImplementation((url: string) =>
+      Promise.resolve(
+        url.startsWith("/api/agent-hub/overview")
+          ? { ...OVERVIEW, agents: [], items: [], notes: [] }
+          : route(url)
+      )
+    );
+    await mount();
+    expect(host.querySelector("[data-ag-onboarding]")).not.toBeNull();
+    await click(host.querySelector("[data-ag-onboard-skip]"));
+    expect(host.querySelector("[data-ag-onboarding]")).toBeNull();
+    expect(window.localStorage.getItem("needt:agents-onboarded")).toBe("1");
+  });
+
+  it("asks the server for a tag's notes", async () => {
+    await mount("tab=memory");
+    await click(
+      Array.from(host.querySelectorAll(".ag-chip")).find((b) =>
+        b.textContent?.startsWith("accounts")
+      ) ?? null
+    );
+    expect(
+      (fetchJson as jest.Mock).mock.calls.some(([u]) =>
+        String(u).includes("&tag=accounts")
+      )
+    ).toBe(true);
   });
 });

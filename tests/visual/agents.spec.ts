@@ -2,7 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 import { prisma } from "@/lib/prisma";
 
-import { enableAgentHub } from "../helpers/agent-hub";
+import { disableAgentHub, enableAgentHub } from "../helpers/agent-hub";
 import { VISUAL_TEST_EMAIL, VISUAL_TEST_NOW } from "./fixtures";
 import { signInVisualUser } from "./helpers";
 
@@ -250,8 +250,9 @@ async function serveHub(page: Page) {
   await page.route("**/api/agent-hub/webhooks**", (r) =>
     r.fulfill(json({ webhooks: [] }))
   );
+  // The sidebar's Agents item reads { enabled, unread }.
   await page.route("**/api/agent-hub/badge**", (r) =>
-    r.fulfill(json({ count: 1 }))
+    r.fulfill(json({ enabled: true, unread: 1 }))
   );
   await page.route("**/api/accounts", (r) =>
     r.fulfill(
@@ -315,11 +316,21 @@ async function settle(page: Page) {
   await page.waitForTimeout(400);
 }
 
+// The override is for this spec only: the specs after it share the visual
+// user, and a live Agents item in their sidebar would move their baselines.
+test.afterAll(async () => {
+  const user = await prisma.user.findUnique({
+    where: { email: VISUAL_TEST_EMAIL },
+    select: { id: true },
+  });
+  if (user) await disableAgentHub(user.id);
+});
+
 const TABS = [
   ["map", "[data-ag-map] canvas"],
   ["agents", "[data-ag-card]"],
   ["tasks", "[data-ag-item]"],
-  ["messages", "[data-ag-convo]"],
+  ["chat", "[data-ag-chat]"],
 ] as const;
 
 for (const theme of ["dark", "light"] as const) {
@@ -330,11 +341,7 @@ for (const theme of ["dark", "light"] as const) {
       const phone = width < 768;
       await prepare(page, theme);
       const query =
-        tab === "map"
-          ? "seed=7"
-          : tab === "messages"
-            ? "thread=t1"
-            : `tab=${tab}`;
+        tab === "map" ? "seed=7" : tab === "chat" ? "thread=t1" : `tab=${tab}`;
       await page.goto(`/agents?${query}`, { waitUntil: "domcontentloaded" });
       await expect(page.locator(".ag-night")).toBeVisible({ timeout: 45_000 });
       await expect(page.locator(ready).first()).toBeVisible();

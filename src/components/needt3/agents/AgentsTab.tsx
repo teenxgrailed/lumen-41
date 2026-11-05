@@ -186,17 +186,45 @@ function CardMenu({
   );
 }
 
+/**
+ * The last seven days of an agent's work as one thin line in its hue.
+ * Nothing is drawn without data; a flat line is a real quiet week.
+ */
+function Sparkline({ days }: { days: number[] | null }) {
+  if (!days || days.length < 2) return null;
+  const peak = Math.max(1, ...days);
+  const points = days
+    .map((n, i) => `${(i / (days.length - 1)) * 100},${30 - (n / peak) * 26}`)
+    .join(" ");
+  const total = days.reduce((a, b) => a + b, 0);
+  return (
+    <svg
+      className="ag-spark"
+      viewBox="0 0 100 32"
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={`${total} ${total === 1 ? "event" : "events"} in the last seven days`}
+      data-ag-spark=""
+    >
+      <polyline points={points} fill="none" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
 function AgentCard({
   agent,
   i,
   state,
   now,
+  days,
   focused,
   run,
 }: {
   agent: HubAgentRow;
   i: number;
   state: AgentState;
+  /** Events per day, oldest first; null before the graph arrives. */
+  days: number[] | null;
   /** What it works on now, from the overview. */
   now: string | null;
   focused: boolean;
@@ -285,8 +313,7 @@ function AgentCard({
           )}`}
         </span>
       </p>
-      {/* //todo: the reference draws a sparkline of the agent's activity; the
-          overview has no per-agent series yet (needs ?graph=1 counts). */}
+      <Sparkline days={days} />
       {limitsOpen ? (
         <div className="ag-card-limits">
           <AgentLimits
@@ -340,6 +367,7 @@ export function AgentsTab({
   reservations,
   working,
   nowOf,
+  activity,
   view,
   q,
   counted,
@@ -352,6 +380,8 @@ export function AgentsTab({
   reservations: HubReservationRow[];
   working: Set<string>;
   nowOf: Map<string, string>;
+  /** Events per day over the last week, per agent id (`?graph=1`). */
+  activity?: Record<string, number[]>;
   view: AgentState | "all";
   q: string;
   counted: number;
@@ -417,6 +447,7 @@ export function AgentsTab({
             i={i}
             state={agentState(agent, working)}
             now={nowOf.get(agent.id) ?? null}
+            days={activity?.[agent.id] ?? null}
             focused={focusAgent === agent.id}
             run={run}
           />

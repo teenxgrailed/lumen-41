@@ -122,4 +122,46 @@ describe("Map drawing loop", () => {
     expect(scene.exits).toHaveLength(0);
     expect(calls.stroke ?? 0).toBeGreaterThan(0);
   });
+
+  it("finds the node under a tap, with no pointermove before it", () => {
+    const scene = buildMapScene(input, 11, 390, 640);
+    const { ctx } = fakeContext();
+    const live = {
+      hover: -1,
+      pointer: null,
+      moved: false,
+      presentation: false,
+    };
+    const loop = startLoop(ctx, scene, 1, live, {
+      onHover: () => undefined,
+      onMood: () => undefined,
+    });
+    loop.pause();
+    const i = scene.agents[1];
+    const { dx, dy } = loop.drift();
+    expect(loop.hitAt(scene.nodes[i].x + dx, scene.nodes[i].y + dy)).toBe(i);
+    expect(live.hover).toBe(-1);
+  });
+
+  it("keeps its clock across a rebuild of the same layout", () => {
+    const scene = buildMapScene(input, 5, 1200, 620);
+    const clock = {
+      born: performance.now() - 60_000,
+      mood: 2,
+      moodAt: performance.now(),
+    };
+    const moods: number[] = [];
+    const loop = startLoop(
+      fakeContext().ctx,
+      scene,
+      1,
+      { hover: -1, pointer: null, moved: false, presentation: false },
+      { onHover: () => undefined, onMood: (m) => moods.push(m) },
+      clock
+    );
+    loop.pause();
+    // A minute in, the entry is over and the mood is still the one it had.
+    expect(clock.mood).toBe(2);
+    expect(moods).toEqual([]);
+  });
 });

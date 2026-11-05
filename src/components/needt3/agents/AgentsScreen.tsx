@@ -28,6 +28,7 @@ import { StScreen } from "../states/StScreen";
 import { ActivityTab } from "./ActivityTab";
 import { AgentHueProvider, agentHueMap } from "./AgParts";
 import { AgentsMap } from "./AgentsMap";
+import { AgentsOnboarding, onboardingSeen } from "./AgentsOnboarding";
 import {
   type AgentState,
   AgentsTab,
@@ -36,8 +37,9 @@ import {
   agentSeen,
   agentState,
 } from "./AgentsTab";
+import { ChatTab } from "./ChatTab";
 import { MemoryTab, noteTags } from "./MemoryTab";
-import { MessagesTab, useHubThreads } from "./MessagesTab";
+import { useHubThreads } from "./MessagesTab";
 import {
   type HubItemRow,
   type HubNoteRow,
@@ -49,6 +51,7 @@ import {
   waitsForYou,
 } from "./TasksTab";
 import {
+  type MapGraph,
   type MapInput,
   type MapSourceInput,
   freshSeed,
@@ -61,19 +64,27 @@ interface Overview {
   items: HubItemRow[];
   notes: HubNoteRow[];
   reservations?: HubReservationRow[];
+  /** `?graph=1`: the Map's compact links and counts. */
+  graph?: MapGraph;
 }
 
-type Tab = "map" | "agents" | "tasks" | "messages" | "activity" | "memory";
+type Tab = "map" | "agents" | "tasks" | "chat" | "activity" | "memory";
 
 const TABS: readonly [Tab, string][] = [
   ["map", "Map"],
   ["agents", "Agents"],
   ["tasks", "Tasks"],
-  ["messages", "Messages"],
+  ["chat", "Chat"],
   ["activity", "Activity"],
   ["memory", "Memory"],
 ];
 const TAB_IDS = TABS.map(([id]) => id);
+
+/** Old links keep working: Messages became Chat (owner, 05.11.26). */
+function tabOf(param: string | null): Tab | null {
+  if (param === "messages") return "chat";
+  return TAB_IDS.includes(param as Tab) ? (param as Tab) : null;
+}
 
 const EMPTY: Overview = { agents: [], items: [], notes: [] };
 
@@ -112,6 +123,23 @@ export function mapSources(connections: V3Connection[]): MapSourceInput[] {
   // //todo: API tokens and MCP apps from Connections are sources too; their
   // hooks live in the Connections controller and are not read here yet.
   return out;
+}
+
+/** What the Map draws, without the clocks that move on every poll. */
+function mapShape(input: MapInput) {
+  return JSON.stringify([
+    input.sources.map((s) => s.id),
+    input.agents.map((a) => [a.id, a.name, a.active, a.seen]),
+    input.items.map((i) => [
+      i.id,
+      i.title,
+      i.status,
+      i.assigneeId,
+      i.related,
+      i.result,
+    ]),
+    input.threads.map((t) => [t.id, t.subject, t.itemId]),
+  ]);
 }
 
 /** Mirror the open tab and target into the URL without a navigation. */
@@ -230,16 +258,15 @@ export function AgentsScreen() {
   const threadParam = params.get("thread");
   const agentParam = params.get("agent");
   const seedParam = params.get("seed");
+  const fromParam = params.get("from");
   const [tab, setTabState] = useState<Tab>(
     threadParam
-      ? "messages"
+      ? "chat"
       : itemParam
         ? "tasks"
         : agentParam
           ? "agents"
-          : TAB_IDS.includes(tabParam as Tab)
-            ? (tabParam as Tab)
-            : "map"
+          : (tabOf(tabParam) ?? "map")
   );
   const [seed, setSeed] = useState(() =>
     seedParam && Number.isFinite(Number(seedParam))
@@ -258,17 +285,28 @@ export function AgentsScreen() {
   const [memTag, setMemTag] = useState("");
   const [memQ, setMemQ] = useState("");
 
+  // A deep link belongs to its tab; leaving the tab drops it, so a reload
+  // opens where you are and not where the link once pointed.
   const setTab = useCallback((next: Tab) => {
     setTabState(next);
-    syncUrl({ tab: next === "map" ? null : next });
+    syncUrl({
+      tab: next === "map" ? null : next,
+      ...(next === "tasks" ? {} : { item: null }),
+      ...(next === "chat" ? {} : { thread: null }),
+      ...(next === "agents" ? {} : { agent: null }),
+    });
   }, []);
 
   const overview = useQuery({
-    queryKey: ["agent-hub", archived],
+    queryKey: ["agent-hub", archived, memTag],
     queryFn: () =>
       fetchJson<Overview>(
-        `/api/agent-hub/overview?includeArchived=${archived}`
+        `/api/agent-hub/overview?graph=1&includeArchived=${archived}${
+          memTag ? `&tag=${encodeURIComponent(memTag)}` : ""
+        }`
       ),
+    // A new tag keeps the screen in place while its notes load.
+    placeholderData: (previous) => previous,
     refetchInterval: 15_000,
   });
   const threads = useHubThreads();
@@ -340,38 +378,54 @@ export function AgentsScreen() {
     }
     return { working: set, nowOf: now };
   }, [items, reservations]);
-  const hues = useMemo(() => agentHueMap(live), [live]);
-
-  const mapData = useMemo<MapInput>(
-    () => ({
-      now: newDate().getTime(),
-      sources: mapSources(connections.data ?? []),
-      agents: live.map((a) => ({
-        id: a.id,
-        name: a.name,
-        active: working.has(a.id),
-        seen: agentSeen(a),
-      })),
-      items: items.map((i) => ({
-        id: i.id,
-        title: i.title,
-        status: i.status,
-        assigneeId:
-          i.assignee && i.assignee !== "any" ? (i.assignee.id ?? null) : null,
-        related: (i.relations ?? []).map((r) => r.item.id),
-        updatedAt: i.updatedAt,
-        result: i.result?.summary ?? null,
-      })),
-      threads: threadRows.map((t) => ({
-        id: t.id,
-        subject: t.subject,
-        itemId: t.itemId,
-        lastMessageAt: t.lastMessageAt,
-      })),
-    }),
-    [connections.data, live, items, threadRows, working]
+  const hues = useMemo(() => agentHueMap(live, working), [live, working]);
+  const subjects = useMemo(
+    () => new Map(threadRows.map((t) => [t.id, t.subject])),
+    [threadRows]
   );
-  const stats = mapStats(mapData);
+  // First visit with nothing connected: the onboarding over the Map.
+  const [onboarded, setOnboarded] = useState(onboardingSeen);
+  const showOnboarding =
+    !onboarded && overview.data !== undefined && agents.length === 0;
+
+  const freshMap: MapInput = {
+    now: newDate().getTime(),
+    sources: mapSources(connections.data ?? []),
+    agents: live.map((a) => ({
+      id: a.id,
+      name: a.name,
+      active: working.has(a.id),
+      seen: agentSeen(a),
+    })),
+    items: items.map((i) => ({
+      id: i.id,
+      title: i.title,
+      status: i.status,
+      assigneeId:
+        i.assignee && i.assignee !== "any" ? (i.assignee.id ?? null) : null,
+      related: (i.relations ?? []).map((r) => r.item.id),
+      updatedAt: i.updatedAt,
+      createdAt: i.createdAt,
+      result: i.result?.summary ?? null,
+    })),
+    // The graph carries thread links without text; the subject, for the
+    // owner's own hover, comes from the threads list when it has it.
+    threads: (overview.data?.graph?.threads ?? threadRows).map((t) => ({
+      id: t.id,
+      subject: subjects.get(t.id) ?? "Thread",
+      itemId: t.itemId,
+      lastMessageAt: t.lastMessageAt,
+    })),
+  };
+  // The overview refetches every 15 s and an agent's lastSeenAt moves on
+  // every call; the Map rebuilds only when what it draws changes, so the
+  // threads do not draw themselves in again on each poll.
+  const shape = mapShape(freshMap);
+  const stableMap = useRef<{ key: string; data: MapInput } | null>(null);
+  if (!stableMap.current || stableMap.current.key !== shape)
+    stableMap.current = { key: shape, data: freshMap };
+  const mapData = stableMap.current.data;
+  const stats = mapStats(freshMap);
   const mapReady =
     !overview.isLoading && !threads.isLoading && !connections.isLoading;
 
@@ -383,6 +437,8 @@ export function AgentsScreen() {
   const sentinel = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [stuck, setStuck] = useState(false);
+  // The scroller exists only off the Map; the observer follows it.
+  const onMap = tab === "map";
   useEffect(() => {
     const root = scrollRef.current;
     const el = sentinel.current;
@@ -399,7 +455,7 @@ export function AgentsScreen() {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [onMap]);
 
   // "/" jumps to the tab's search, as the reference shows.
   useEffect(() => {
@@ -446,22 +502,50 @@ export function AgentsScreen() {
   };
   const openThread = (id: string) => {
     setThreadFocus(id);
-    setTab("messages");
-    syncUrl({ tab: "messages", thread: id });
+    setTab("chat");
+    syncUrl({ tab: "chat", thread: id });
   };
 
   const count: Partial<Record<Tab, number>> = {
     agents: live.length || undefined,
     tasks: needsYou || undefined,
-    messages: unreadThreads || undefined,
+    chat: unreadThreads + needsYou || undefined,
   };
+  // Disabled agents stay on the Agents tab (Offline), so they can still be
+  // edited and revoked; the Map and the counts show the live ones.
   const agentCounts = {
-    all: live.length,
-    working: live.filter((a) => agentState(a, working) === "working").length,
-    idle: live.filter((a) => agentState(a, working) === "idle").length,
-    offline: live.filter((a) => agentState(a, working) === "offline").length,
+    all: agents.length,
+    working: agents.filter((a) => agentState(a, working) === "working").length,
+    idle: agents.filter((a) => agentState(a, working) === "idle").length,
+    offline: agents.filter((a) => agentState(a, working) === "offline").length,
   };
-  const tags = noteTags(notes);
+  // With a tag picked the server sends only its notes; the chips keep the
+  // counts of the last unfiltered list.
+  const allTags = useRef<{ tags: [string, number][]; total: number }>({
+    tags: [],
+    total: 0,
+  });
+  if (!memTag) allTags.current = { tags: noteTags(notes), total: notes.length };
+  const tags = allTags.current.tags;
+  const graph = overview.data?.graph;
+  const week = graph
+    ? {
+        days: (activityAgent
+          ? [graph.activity[activityAgent] ?? []]
+          : Object.values(graph.activity)
+        ).reduce(
+          (sum, row) => sum.map((n, i) => n + (row[i] ?? 0)),
+          Array.from({ length: 7 }, () => 0)
+        ),
+        byAgent: agents
+          .map((a) => ({
+            id: a.id,
+            name: a.name,
+            n: (graph.activity[a.id] ?? []).reduce((x, y) => x + y, 0),
+          }))
+          .filter((a) => a.n > 0 && (!activityAgent || a.id === activityAgent)),
+      }
+    : undefined;
 
   const toolbar =
     tab === "agents" ? (
@@ -579,10 +663,11 @@ export function AgentsScreen() {
   if (tab === "agents")
     content = (
       <AgentsTab
-        agents={live}
+        agents={agents}
         reservations={reservations}
         working={working}
         nowOf={nowOf}
+        activity={graph?.activity}
         view={agentsView}
         q={agentsQ}
         counted={countedAgents}
@@ -610,19 +695,26 @@ export function AgentsScreen() {
         onReset={() => setFilters(NO_FILTERS)}
       />
     );
-  else if (tab === "messages")
+  else if (tab === "chat")
     content = (
-      <MessagesTab
-        key={threadFocus ?? "none"}
+      <ChatTab
         threads={threadRows}
-        focusId={threadFocus}
-        onOpen={(id) => syncUrl({ thread: id })}
+        waiting={items.filter(waitsForYou)}
+        focusThread={threadFocus}
+        onOpenThread={(id) => {
+          setThreadFocus(id);
+          syncUrl({ thread: id });
+        }}
         onOpenItem={openItem}
         itemTitle={(id) => items.find((i) => i.id === id)?.title ?? null}
+        from={fromParam}
+        run={run}
       />
     );
   else if (tab === "activity")
-    content = <ActivityTab agent={activityAgent} onOpenItem={openItem} />;
+    content = (
+      <ActivityTab agent={activityAgent} onOpenItem={openItem} week={week} />
+    );
   else if (tab === "memory")
     content = <MemoryTab notes={notes} tag={memTag} q={memQ} run={run} />;
 
@@ -633,108 +725,125 @@ export function AgentsScreen() {
         data-v3-screen="agents"
         data-ag-screen={tab}
       >
-        <div
-          ref={scrollRef}
-          className="scroll-inner nx-scroll cn-wrap cn-screen-abs ag-scroll"
-        >
-          <div className={"ag-page" + (tab === "map" ? " is-map" : "")}>
-            <header className="ag-hero nx-swap">
-              <span className="ag-eyebrow">Your team</span>
-              <h1 className="px-display ag-h1">Agents</h1>
-              <span className="ag-sub">
-                Everything you run, and the agents working on it, in one living
-                map.
-              </span>
-              <span className="ag-hero-row">
-                {overview.data ? (
-                  <span className="ag-pill" data-ag-status="">
-                    <i aria-hidden="true" />
-                    {statsLine(stats)}
-                  </span>
-                ) : overview.isError ? (
-                  <span className="ag-pill is-none" data-ag-status="error">
-                    Could not load your agents
-                  </span>
-                ) : null}
-                <button
-                  type="button"
-                  className="ag-btn"
-                  aria-pressed={tab === "agents" && showGuide}
-                  data-ag-connect=""
-                  onClick={() => {
-                    setManualGuide(true);
-                    setTab("agents");
-                  }}
-                >
-                  <FiPlus size={13} aria-hidden />
-                  Connect an agent
-                </button>
-              </span>
-            </header>
-
-            <div ref={sentinel} className="cn-sentinel" aria-hidden="true" />
-            <div
-              className={"ag-sticky" + (stuck ? " is-stuck" : "")}
-              data-ag-sticky={stuck ? "stuck" : "rest"}
-            >
-              <div
-                role="tablist"
-                aria-label="Agents sections"
-                className="ag-tabs"
-                onKeyDown={onTabKey}
-              >
-                {TABS.map(([id, label]) => (
+        {tab === "map" ? (
+          // The Map takes the whole window: no hero (owner, 05.11.26).
+          <div
+            id="ag-panel"
+            role="tabpanel"
+            aria-labelledby="ag-tab-map"
+            className="ag-map-stage"
+          >
+            {mapReady ? (
+              <AgentsMap
+                data={mapData}
+                seed={seed}
+                status={overview.data ? statsLine(stats) : null}
+                onNewLayout={() => setSeed(freshSeed())}
+                onOpenAgent={openAgent}
+                onOpenItem={openItem}
+                onOpenThread={openThread}
+              />
+            ) : (
+              <div className="ag-map-panel is-loading" aria-busy="true" />
+            )}
+            {showOnboarding ? (
+              <AgentsOnboarding
+                onDone={() => setOnboarded(true)}
+                onConnect={() => {
+                  setOnboarded(true);
+                  setManualGuide(true);
+                  setTab("agents");
+                }}
+              />
+            ) : null}
+          </div>
+        ) : (
+          <div
+            ref={scrollRef}
+            className="scroll-inner nx-scroll cn-wrap cn-screen-abs ag-scroll"
+          >
+            <div className="ag-page">
+              <header className="ag-hero nx-swap">
+                <span className="ag-eyebrow">Your team</span>
+                <h1 className="px-display ag-h1">Agents</h1>
+                <span className="ag-hero-row">
+                  {overview.data ? (
+                    <span className="ag-pill" data-ag-status="">
+                      <i aria-hidden="true" />
+                      {statsLine(stats)}
+                    </span>
+                  ) : overview.isError ? (
+                    <span className="ag-pill is-none" data-ag-status="error">
+                      Could not load your agents
+                    </span>
+                  ) : null}
                   <button
-                    key={id}
                     type="button"
-                    role="tab"
-                    id={"ag-tab-" + id}
-                    aria-controls="ag-panel"
-                    aria-selected={tab === id}
-                    tabIndex={tab === id ? 0 : -1}
-                    className="ag-tab"
-                    data-ag-tab={id}
-                    onClick={() => setTab(id)}
+                    className="ag-btn"
+                    aria-pressed={tab === "agents" && showGuide}
+                    data-ag-connect=""
+                    onClick={() => {
+                      setManualGuide(true);
+                      setTab("agents");
+                    }}
                   >
-                    {label}
-                    {count[id] ? <small>{count[id]}</small> : null}
+                    <FiPlus size={13} aria-hidden />
+                    Connect an agent
                   </button>
-                ))}
-              </div>
-              {toolbar}
-            </div>
+                </span>
+              </header>
 
-            <div
-              id="ag-panel"
-              role="tabpanel"
-              aria-labelledby={"ag-tab-" + tab}
-              className="ag-tabpanel"
-              key={tab}
-            >
-              {tab === "map" ? (
-                mapReady ? (
-                  <AgentsMap
-                    data={mapData}
-                    seed={seed}
-                    onNewLayout={() => setSeed(freshSeed())}
-                    onOpenAgent={openAgent}
-                    onOpenItem={openItem}
-                    onOpenThread={openThread}
-                  />
-                ) : (
-                  <div className="ag-map-panel is-loading" aria-busy="true" />
-                )
-              ) : (
+              <div ref={sentinel} className="cn-sentinel" aria-hidden="true" />
+              {toolbar ? (
+                <div
+                  className={"ag-sticky" + (stuck ? " is-stuck" : "")}
+                  data-ag-sticky={stuck ? "stuck" : "rest"}
+                >
+                  {toolbar}
+                </div>
+              ) : null}
+
+              <div
+                id="ag-panel"
+                role="tabpanel"
+                aria-labelledby={"ag-tab-" + tab}
+                className="ag-tabpanel"
+                key={tab}
+              >
                 <StScreen
-                  query={tab === "messages" ? threads : overview}
+                  query={tab === "chat" ? threads : overview}
                   kind="list"
                   screen="agents"
                 >
                   {content}
                 </StScreen>
-              )}
+              </div>
             </div>
           </div>
+        )}
+        <div
+          role="tablist"
+          aria-label="Agents sections"
+          className="ag-tabs ag-dock"
+          onKeyDown={onTabKey}
+        >
+          {TABS.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={"ag-tab-" + id}
+              aria-controls="ag-panel"
+              aria-selected={tab === id}
+              tabIndex={tab === id ? 0 : -1}
+              className="ag-tab"
+              data-ag-tab={id}
+              onClick={() => setTab(id)}
+            >
+              {label}
+              {count[id] ? <small>{count[id]}</small> : null}
+            </button>
+          ))}
         </div>
       </div>
     </AgentHueProvider>
