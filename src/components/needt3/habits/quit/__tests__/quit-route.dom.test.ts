@@ -579,6 +579,17 @@ describe("editing and archiving a Quit habit", () => {
 });
 
 describe("a new habit", () => {
+  it("starts Since at now, not the browser's placeholder", () => {
+    render("desktop");
+    click(q("[data-page-add]"));
+    click(q("[data-hq-kind-quit]"));
+    // The test clock is 23:40 UTC and the zone is UTC.
+    expect(q<HTMLInputElement>('input[name="habit-since"]')?.value).toBe(
+      "2026-11-04T23:40"
+    );
+    expect(document.body.textContent).not.toContain("Empty starts it now");
+  });
+
   it("offers Do or Quit, and a Quit on Free has no Create", () => {
     mockGate = "upgrade";
     mockPlanKind = "free";

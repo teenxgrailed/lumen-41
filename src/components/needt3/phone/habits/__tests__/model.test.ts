@@ -15,6 +15,7 @@ import {
   habitQuota,
   historyDots,
   keptToday,
+  newHabitForm,
   phoneHabitRow,
   searchHabits,
   shortDay,
@@ -373,5 +374,30 @@ describe("saving an edited Quit habit", () => {
       reason: "Run the 10k in spring",
     });
     expect("kind" in fields).toBe(false);
+  });
+});
+
+describe("a new habit's Since", () => {
+  it("starts at now in the person's zone, to the minute", () => {
+    // 17:40:30 UTC is 18:40 in Zurich (winter time).
+    const form = newHabitForm(
+      "Europe/Zurich",
+      new Date("2026-11-05T17:40:30Z")
+    );
+    expect(form.quitSince).toBe("2026-11-05T18:40");
+    expect(form.timeZone).toBe("Europe/Zurich");
+  });
+
+  it("is not the future a moment later", () => {
+    const now = new Date("2026-11-05T17:40:59Z");
+    const form = {
+      ...newHabitForm("Europe/Zurich", now),
+      title: "Smoking",
+      kind: "QUIT" as const,
+    };
+    expect(checkHabitForm(form, now).ok).toBe(true);
+    expect(formFields(form)).toMatchObject({
+      quitStartedAt: "2026-11-05T17:40:00.000Z",
+    });
   });
 });

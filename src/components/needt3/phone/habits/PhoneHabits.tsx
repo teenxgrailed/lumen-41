@@ -429,8 +429,7 @@ function HabitSheet({
                   >
                     {quitKept
                       ? "Changing it needs Pro."
-                      : (check?.timeError ??
-                        "Can be in the past. Empty starts it now.")}
+                      : (check?.timeError ?? "Can be in the past.")}
                   </p>
                   <PkField
                     label="Why"
