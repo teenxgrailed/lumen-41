@@ -45,6 +45,13 @@ const mockCreate = jest.fn();
 const mockArchive = jest.fn();
 const mockUpdate = jest.fn();
 
+let mockSearch = "";
+const mockReplace = jest.fn();
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: mockReplace, push: jest.fn() }),
+  usePathname: () => "/habits",
+  useSearchParams: () => new URLSearchParams(mockSearch),
+}));
 jest.mock("@/lib/needt3/hooks/habits", () => ({
   useHabits: () => query(mockHabits),
   useCheckins: () => query([]),
@@ -168,6 +175,7 @@ beforeEach(() => {
   mockLog.mockReset();
   mockPatch.mockReset();
   mockCreate.mockReset();
+  mockReplace.mockReset();
   mockArchive.mockReset().mockResolvedValue({});
   mockUpdate.mockReset().mockResolvedValue({ undo: jest.fn() });
   mockLogAsync
@@ -511,6 +519,22 @@ describe("the Quit habit", () => {
     expect(q(".hq-confirm")?.textContent).toContain("31 d, kept");
     expect(q(".hq-confirm")?.textContent).toContain("74 d, kept");
   });
+});
+
+describe("a milestone's Open", () => {
+  afterEach(() => {
+    mockSearch = "";
+  });
+
+  it.each(["desktop", "phone"] as const)(
+    "opens the Quit habit from ?quit= and takes it off the URL (%s)",
+    (ui) => {
+      mockSearch = "quit=q";
+      render(ui);
+      expect(q('[data-hq-detail="q"]')).not.toBeNull();
+      expect(mockReplace).toHaveBeenCalledWith("/habits", { scroll: false });
+    }
+  );
 });
 
 describe("editing and archiving a Quit habit", () => {

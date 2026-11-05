@@ -148,8 +148,9 @@ self.addEventListener("push", (event) => {
     body: data.body || "Your planner has an update.",
     icon: "/icons/icon-192.png",
     badge: "/icons/favicon-32.png",
-    // One notification per URL: a repeat replaces instead of stacking.
-    tag: url,
+    // One notification per moment (the server's tag) or per URL: a repeat
+    // replaces instead of stacking, and the open app can close it by tag.
+    tag: typeof data.tag === "string" && data.tag ? data.tag : url,
     data: { url, taskId },
   };
   if (taskId)

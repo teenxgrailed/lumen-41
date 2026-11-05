@@ -206,6 +206,8 @@ describe("runHabitPresenceSweep", () => {
     expect(deliverPush).toHaveBeenCalledTimes(1);
     expect(jest.mocked(deliverPush).mock.calls[0][1]).toMatchObject({
       title: "Read",
+      // The open app's island closes the push by this tag.
+      tag: "rem:h1:2026-11-04",
     });
     expect(db.habitPush.create.mock.calls[0][0].data).toMatchObject({
       userId: "u1",

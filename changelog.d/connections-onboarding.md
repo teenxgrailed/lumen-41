@@ -1,0 +1,1 @@
+- Connections opens with a short setup the first time, while nothing is connected: pick your calendars, mail and apps on a field of tiles, connect them one at a time (Google and Microsoft sign-in, the iCloud form, app authorisation), and finish on a summary. "Skip for now" is remembered; "Set up" under the Connections title opens it again.
