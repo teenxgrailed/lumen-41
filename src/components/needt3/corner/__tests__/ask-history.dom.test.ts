@@ -141,4 +141,45 @@ describe("Ask Needt history", () => {
       ])
     ).toEqual([{ id: "saved-c", from: "needt", text: "Done.", at: 0 }]);
   });
+
+  it("marks a saved question that waited for confirmation as not confirmed", () => {
+    expect(
+      restoredMessages([
+        {
+          id: "q",
+          role: "assistant",
+          content: "Delete 3 tasks?",
+          createdAt: "2026-11-05T10:00:00Z",
+          requiresConfirm: true,
+        },
+      ])[0].text
+    ).toBe("Delete 3 tasks? (not confirmed)");
+  });
+
+  it("does not restore over a thread that already sent something", async () => {
+    let release: () => void = () => undefined;
+    fetchMock.mockImplementation((url: string) =>
+      url.startsWith("/api/ai/conversations")
+        ? new Promise((r) => {
+            release = () => r(json(200, SAVED));
+          })
+        : json(500, {})
+    );
+    await mount();
+    // A message goes out before the saved thread arrives.
+    await act(async () => {
+      await ask!.send("Quick one");
+    });
+    await act(async () => {
+      release();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    for (let i = 0; i < 3; i++)
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+    expect(ask!.messages.some((m) => m.text === "Plan my week")).toBe(false);
+    const chat = fetchMock.mock.calls.find(([u]) => u === "/api/ai/chat");
+    expect(JSON.parse(chat![1].body).conversationId).toBeUndefined();
+  });
 });
