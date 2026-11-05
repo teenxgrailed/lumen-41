@@ -538,6 +538,11 @@ for (const engine of ENGINES) {
         await page.waitForTimeout(500);
 
         // Connections: the sky fills its box; title and subtitle are apart.
+        // This account has nothing connected, so the first-visit setup would
+        // open over the hero; it is marked seen, the hero is what is checked.
+        await page.evaluate(() =>
+          localStorage.setItem("needt.cnSetup", JSON.stringify("skipped"))
+        );
         await page.goto("/connections").catch(() => undefined);
         await page.locator("[data-cn-screen]").waitFor({ timeout: 60_000 });
         await page.waitForTimeout(3500);
