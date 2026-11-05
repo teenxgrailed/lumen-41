@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 import { configureE2eEnvironment } from "./tests/e2e/environment";
+import { declinedConsentStorageState } from "./tests/helpers/consent";
 
 configureE2eEnvironment();
 
@@ -42,6 +43,9 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: testBaseUrl,
+
+    /* A saved cookie choice keeps the banner out of every screenshot. */
+    storageState: declinedConsentStorageState(testBaseUrl),
 
     /* E2E route stubs must see requests before the production PWA worker. */
     serviceWorkers: "block",

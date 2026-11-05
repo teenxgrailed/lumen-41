@@ -4,6 +4,7 @@ import { expect } from "@playwright/test";
 
 import { prisma } from "@/lib/prisma";
 
+import { consentCookieFor } from "../helpers/consent";
 import {
   VISUAL_TEST_EMAIL,
   VISUAL_TEST_NOW,
@@ -95,5 +96,6 @@ export async function signInVisualUser(page: import("@playwright/test").Page) {
       httpOnly: true,
       sameSite: "Lax",
     },
+    consentCookieFor(process.env.TEST_BASE_URL ?? "http://127.0.0.1:3000"),
   ]);
 }
