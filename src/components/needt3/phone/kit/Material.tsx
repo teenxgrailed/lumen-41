@@ -476,8 +476,12 @@ export function PkField({
           value={value}
           placeholder={placeholder}
           className={cls}
-          readOnly={readOnly}
+          readOnly={readOnly || inputProps?.readOnly}
           dir={dir}
+          // The few input attributes a text area shares.
+          name={inputProps?.name}
+          maxLength={inputProps?.maxLength}
+          aria-describedby={inputProps?.["aria-describedby"]}
           onChange={(e) => onChange(e.target.value)}
         />
       ) : (
