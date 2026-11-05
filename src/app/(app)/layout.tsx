@@ -17,6 +17,7 @@ import {
   phoneUiFrom,
 } from "@/lib/needt3/phone-ui";
 import { requestLook, requestLookCookie } from "@/lib/needt3/request-look";
+import { requestPhoneUi } from "@/lib/needt3/request-phone-ui";
 import { getSandboxKind } from "@/lib/sandbox/guard";
 
 import { viewport as baseViewport } from "../metadata";
@@ -46,7 +47,12 @@ export default async function AppLayout({
     : null;
 
   if (verification?.required && !verification.verified) {
-    return <EmailVerificationGate initialStatus={verification} />;
+    return (
+      <EmailVerificationGate
+        initialStatus={verification}
+        ui={await requestPhoneUi()}
+      />
+    );
   }
 
   // A signed-in person always gets the frame; a stranger only reaches the
