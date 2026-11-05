@@ -44,6 +44,8 @@ type Screen = {
   only?: "phone" | "desktop";
   /** Extra data or flags for this screen, after the shared seed. */
   setup?: (user: V3User) => Promise<void>;
+  /** Show the Agents first-visit setup instead of skipping it. */
+  withAgentsSetup?: boolean;
 };
 
 const hubSetup = async (user: V3User) => {
@@ -240,6 +242,26 @@ const screens: Screen[] = [
           box.y + box.height * (0.3 + 0.4 * Math.sin(i / 6))
         );
         await sleep(p, 16);
+      }
+    },
+  },
+  {
+    // The first-visit setup: the arc, then picking two agents.
+    id: "agents-setup",
+    path: "/agents",
+    signedIn: true,
+    setup: hubSetup,
+    withAgentsSetup: true,
+    ready: async (p) => {
+      await shellReady(p);
+      await p.locator("[data-ag-onboarding]").waitFor({ timeout: 45_000 });
+    },
+    interact: async (p) => {
+      for (const id of ["cursor", "gemini", "cursor", "gemini"]) {
+        await p
+          .locator(`[data-ag-setup-agent="${id}"]`)
+          .click({ timeout: 10_000 });
+        await sleep(p, 400);
       }
     },
   },
@@ -489,6 +511,16 @@ for (const screen of screens) {
 
     try {
       await context.addInitScript(RECORDER);
+      // The Agents setup opens once per device; perf measures the screens
+      // behind it (the setup would cover the tab bar).
+      if (!screen.withAgentsSetup)
+        await context.addInitScript(() => {
+          try {
+            localStorage.setItem("needt:agents-onboarded", "1");
+          } catch {
+            // storage off: nothing to skip
+          }
+        });
       if (screen.signedIn) {
         const user = await createV3User(`perf-${screen.id}`);
         await seedData(user);

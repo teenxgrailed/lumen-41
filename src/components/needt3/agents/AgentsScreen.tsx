@@ -799,6 +799,7 @@ export function AgentsScreen() {
                 onNewLayout={() => setSeed(freshSeed())}
                 onReplaySetup={() => setOnboarded(false)}
                 onOpenChat={() => setTab("chat")}
+                paused={showOnboarding}
                 onOpenAgent={openAgent}
                 onOpenItem={openItem}
                 onOpenThread={openThread}

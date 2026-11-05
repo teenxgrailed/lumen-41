@@ -1124,6 +1124,7 @@ export function AgentsMap({
   onOpenItem,
   onOpenThread,
   onOpenChat,
+  paused = false,
 }: {
   data: MapInput;
   seed: number;
@@ -1137,7 +1138,11 @@ export function AgentsMap({
   onOpenThread: (id: string) => void;
   /** An agent waiting on your answer: its question is in Chat. */
   onOpenChat?: () => void;
+  /** Something covers the Map (the setup): it stops drawing. */
+  paused?: boolean;
 }) {
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   const panel = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const tip = useRef<HTMLDivElement>(null);
@@ -1156,6 +1161,7 @@ export function AgentsMap({
   });
   live.current.presentation = presentation;
   const loop = useRef<ReturnType<typeof startLoop> | null>(null);
+  const resync = useRef<() => void>(() => undefined);
 
   // The legend says what the colours mean, then fades after 8 s.
   useEffect(() => {
@@ -1344,7 +1350,11 @@ export function AgentsMap({
     );
     loop.current = run;
     let onScreen = true;
-    const sync = () => (onScreen && !document.hidden ? run.run() : run.pause());
+    const sync = () =>
+      onScreen && !document.hidden && !pausedRef.current
+        ? run.run()
+        : run.pause();
+    resync.current = sync;
     sync();
     document.addEventListener("visibilitychange", sync);
     let io: IntersectionObserver | null = null;
@@ -1363,6 +1373,11 @@ export function AgentsMap({
     };
     // The canvas element changes when the panel moves into the full window.
   }, [scene, seed, full]);
+
+  // The setup opening or closing over the Map stops or restarts the loop.
+  useEffect(() => {
+    resync.current();
+  }, [paused]);
 
   // The rect is cached and dropped on scroll and resize, never read inside
   // pointermove (PORT.md §8).
