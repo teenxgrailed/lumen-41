@@ -866,3 +866,7 @@
   :is(.pw-kicker, .pw-kick, .pw-freeline-tag, .pw-seg-save, .pw-limited) {
   font-size: 12px;
 }
+/* Close clears the notch and the Dynamic Island. */
+.needt-v3 .pov-paywall-in .pw-x {
+  top: max(20px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+}
