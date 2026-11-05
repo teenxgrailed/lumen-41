@@ -20,6 +20,10 @@ export function getPasswordResetTemplate(
     day: "numeric",
     hour: "numeric",
     minute: "numeric",
+    // Fixed zone, labelled: the server's own zone is unknown to the reader and
+    // made the snapshot depend on the machine that ran it.
+    timeZone: "UTC",
+    timeZoneName: "short",
   });
 
   return renderEmail({
