@@ -113,7 +113,7 @@ describe("Agents setup", () => {
 
   it("says Connected at once when the picked agent is already connected", () => {
     // Claude's MCP is connected already (an OAuth app named "Claude").
-    render(4, ["Codex", "other", "Claude"]);
+    render(4, ["Codex other", "Claude"]);
     click($("[data-ag-setup-continue]"));
     expect($(".ag-card2-hd h2")?.textContent).toBe("Connect Claude");
     expect(
@@ -142,5 +142,11 @@ describe("Agents setup", () => {
     expect(alreadyConnected("gemini", "Gemini", ["Claude"])).toBe(false);
     expect(alreadyConnected("mcp", "Other MCP", [])).toBe(false);
     expect(alreadyConnected("mcp", "Other MCP", ["n8n"])).toBe(true);
+    // Whole words, not substrings.
+    expect(alreadyConnected("claude", "Claude", ["Claudette"])).toBe(false);
+    // Other MCP is not lit by a named agent.
+    expect(
+      alreadyConnected("mcp", "Other MCP", ["Claude other", "codex"])
+    ).toBe(false);
   });
 });

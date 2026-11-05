@@ -62,10 +62,30 @@ function Tile({ id, name, size }: { id: string; name: string; size: number }) {
  * MCP" counts any connection at all.
  */
 export function alreadyConnected(id: string, name: string, known: string[]) {
-  const hay = known.map((k) => k.toLowerCase());
-  if (id === "mcp") return hay.length > 0;
-  const needles = [id.toLowerCase(), name.toLowerCase()];
-  return hay.some((k) => needles.some((n) => k.includes(n)));
+  // Whole words only: "Claude Desktop" is Claude, "Claudette" is not.
+  const words = (s: string) =>
+    s
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean);
+  const named = (k: string, tid: string, tname: string) => {
+    const w = words(k);
+    const target = words(tname);
+    return (
+      w.includes(tid) ||
+      (target.length > 0 && target.every((t) => w.includes(t)))
+    );
+  };
+  if (id === "mcp") {
+    // Other MCP: something connected that is none of the named agents.
+    return known.some(
+      (k) =>
+        !SETUP_AGENTS.some(
+          ([tid, tname]) => tid !== "mcp" && named(k, tid, tname)
+        )
+    );
+  }
+  return known.some((k) => named(k, id, name));
 }
 
 /** How long step 2 waits before offering to go on by hand. */
@@ -100,9 +120,12 @@ function Check() {
 export function AgentsSetup({
   agentCount,
   known = [],
+  onStep,
   onDone,
   onFinish,
 }: {
+  /** The current step, for the screen (it polls connections on step 2). */
+  onStep?: (step: 1 | 2 | 3) => void;
   /** Connected agents right now; a rise during step 2 means "Connected". */
   agentCount: number;
   /** Names of what is already connected: hub agents, OAuth apps. */
@@ -113,6 +136,9 @@ export function AgentsSetup({
   onFinish: () => void;
 }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const stepHook = useRef(onStep);
+  stepHook.current = onStep;
+  useEffect(() => stepHook.current?.(step), [step]);
   const [sel, setSel] = useState<Set<string>>(
     () => new Set(["claude", "chatgpt"])
   );

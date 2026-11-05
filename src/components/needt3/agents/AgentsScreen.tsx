@@ -435,7 +435,9 @@ export function AgentsScreen() {
   const showOnboarding =
     overview.data !== undefined &&
     (replay || (!onboarded && agents.length === 0));
-  // What is already connected, so step 2 can say "Connected" at once.
+  // What is already connected, so step 2 can say "Connected" at once: read
+  // when the setup opens, polled only while step 2 waits.
+  const [setupStep, setSetupStep] = useState<1 | 2 | 3>(1);
   const connectedApps = useQuery({
     queryKey: ["oauth", "connected-apps"],
     queryFn: () =>
@@ -443,10 +445,12 @@ export function AgentsScreen() {
         "/api/oauth/connected-apps"
       ),
     enabled: showOnboarding,
-    refetchInterval: showOnboarding ? 5_000 : false,
+    refetchInterval: showOnboarding && setupStep === 2 ? 5_000 : false,
   });
   const known = [
-    ...agents.filter((a) => !a.disabledAt).flatMap((a) => [a.name, a.kind]),
+    // One entry per agent (name and kind together), so a kind alone
+    // ("other") never reads as a connection of its own.
+    ...agents.filter((a) => !a.disabledAt).map((a) => `${a.name} ${a.kind}`),
     ...(connectedApps.data?.apps ?? []).map((a) => a.clientName),
   ];
 
@@ -836,6 +840,7 @@ export function AgentsScreen() {
               <AgentsSetup
                 agentCount={live.length}
                 known={known}
+                onStep={setSetupStep}
                 onDone={() => {
                   setOnboarded(true);
                   setReplay(false);
