@@ -4,18 +4,19 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
   FiArrowUp,
-  FiCheck,
   FiChevronDown,
   FiList,
   FiMic,
   FiSquare,
 } from "react-icons/fi";
 
+import { newDate } from "@/lib/date-utils";
 import { sendJson } from "@/lib/needt3/hooks/core";
 
 import { useAskNeedt } from "../corner/useAskNeedt";
 import { listKeys, shortWhen } from "./AgParts";
 import { AgentIcon } from "./AgentIcon";
+import { ApprovalCard } from "./ApprovalCard";
 import { ChatWave, type WaveHandle, type WaveMode } from "./ChatWave";
 import { type HubThreadRow, ThreadDetail } from "./MessagesTab";
 import type { HubItemRow } from "./TasksTab";
@@ -403,68 +404,21 @@ export function ChatTab({
           />
         ) : (
           <>
-            {waiting.map((item) => {
-              const done = answered[item.id];
-              const risky = item.risks.some((r) => !item.approvals[r]);
-              return (
-                <div
-                  key={item.id}
-                  className={
-                    "ag-acard ag-glass2" +
-                    (done ? " is-ok" : "") +
-                    (risky ? " is-alert" : "")
-                  }
-                  data-ag-ask={item.id}
-                >
-                  <div className="ag-acard-h">
-                    <AgentIcon name={who(item)} size={32} />
-                    <div>
-                      <b>
-                        {who(item)}
-                        <i aria-hidden="true" />
-                      </b>
-                      <small>{risky ? "asks for approval" : "asks you"}</small>
-                    </div>
-                  </div>
-                  <p>{item.question ?? item.title}</p>
-                  {done ? (
-                    <div className="ag-acard-done">
-                      <FiCheck size={14} aria-hidden />
-                      {done === "approved" ? "Approved." : "Answered."}
-                    </div>
-                  ) : (
-                    <div className="ag-acard-bt">
-                      {risky ? (
-                        <button
-                          type="button"
-                          className="ag-btn2 is-pri"
-                          onClick={() => void approve(item)}
-                        >
-                          Approve
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className={"ag-btn2" + (risky ? "" : " is-pri")}
-                        onClick={() => {
-                          setReplyTo(item);
-                          input.current?.focus();
-                        }}
-                      >
-                        Answer
-                      </button>
-                      <button
-                        type="button"
-                        className="ag-btn2 is-quiet"
-                        onClick={() => onOpenItem(item.id)}
-                      >
-                        Open the task
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {waiting.map((item) => (
+              <ApprovalCard
+                key={item.id}
+                item={item}
+                agent={who(item)}
+                now={newDate().getTime()}
+                done={answered[item.id] ?? null}
+                onApprove={() => approve(item)}
+                onAnswer={() => {
+                  setReplyTo(item);
+                  input.current?.focus();
+                }}
+                onOpen={() => onOpenItem(item.id)}
+              />
+            ))}
             {unread.map((t) => (
               <div
                 key={t.id}

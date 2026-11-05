@@ -3167,3 +3167,285 @@
     animation: none;
   }
 }
+
+/* ===== Chat: the approval card v3 (final reference, 05.11.26) =====
+   A dark card on a tray in the agent's status colour; the colour is the
+   tray's edge and its foot, a mark around the card, not a surface you act
+   on. */
+.needt-v3 .ag-tray {
+  --c: 255, 159, 67;
+  position: relative;
+  align-self: flex-start;
+  width: min(460px, 100%);
+  padding-bottom: 46px;
+  border-radius: 30px;
+  background: rgb(var(--c));
+  box-shadow: 0 18px 50px -24px rgba(var(--c), 0.7);
+  animation: ag-win 0.8s var(--ag-ease) both;
+  transition:
+    background 0.5s,
+    box-shadow 0.5s;
+}
+.needt-v3 .ag-tray.is-ask {
+  --c: 150, 195, 255;
+}
+.needt-v3 .ag-tray.is-ok {
+  --c: 72, 214, 138;
+}
+.needt-v3 .ag-acard3 {
+  position: relative;
+  padding: 20px 22px 22px;
+  border-radius: 30px;
+  background: linear-gradient(160deg, #1b1b1f 0%, #0d0d10 60%);
+  box-shadow:
+    rgba(255, 255, 255, 0.07) 0 0 0 1px inset,
+    rgba(0, 0, 0, 0.6) 0 10px 26px -8px;
+}
+.needt-v3 .ag-acard3-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font: 400 13px/18px var(--font-sans);
+  color: rgba(236, 242, 255, 0.45);
+}
+.needt-v3 .ag-acard3-top span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .ag-acard3-what {
+  margin-right: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .ag-acard3-who {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0;
+}
+.needt-v3 .ag-acard3-av {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: rgba(255, 255, 255, 0.1) 0 0 0 1px inset;
+}
+.needt-v3 .ag-acard3-q {
+  min-width: 0;
+}
+.needt-v3 .ag-acard3-q b {
+  display: block;
+  font: 500 19px/1.2 var(--font-sans);
+  letter-spacing: -0.01em;
+}
+.needt-v3 .ag-acard3-q small {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 3px;
+  font: 400 14px/1.4 var(--font-sans);
+  color: rgba(236, 242, 255, 0.7);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .ag-acard3-q small i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background: rgb(var(--c));
+  box-shadow: 0 0 8px rgba(var(--c), 0.9);
+  transform: translateY(-1px);
+}
+.needt-v3 .ag-acard3-ctx {
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 400 12px/16px var(--font-sans);
+  color: rgba(236, 242, 255, 0.45);
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: rgba(236, 242, 255, 0.2);
+  text-underline-offset: 2px;
+}
+.needt-v3 .ag-acard3-ctx:hover {
+  color: rgba(236, 242, 255, 0.8);
+}
+.needt-v3 .ag-acard3-thumbs {
+  flex: none;
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.needt-v3 .ag-th {
+  position: relative;
+  width: 38px;
+  height: 66px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 9px;
+  background: #111;
+  box-shadow: rgba(255, 255, 255, 0.12) 0 0 0 1px inset;
+  cursor: default;
+}
+.needt-v3 .ag-th video,
+.needt-v3 .ag-th img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.needt-v3 .ag-th em {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 5px;
+  overflow: hidden;
+  font: 600 9px/1 var(--font-sans);
+  font-style: normal;
+  color: #fff;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.needt-v3 .ag-th.is-video::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  margin: -5px 0 0 -3px;
+  border-left: 8px solid rgba(255, 255, 255, 0.85);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.needt-v3 .ag-th.is-playing::after {
+  display: none;
+}
+.needt-v3 .ag-th-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: #fff;
+  transform-origin: left;
+}
+.needt-v3 .ag-th:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.needt-v3 .ag-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: -4px 0 16px;
+  padding: 0;
+  list-style: none;
+  font: 400 12px/16px var(--font-sans);
+  color: rgba(236, 242, 255, 0.6);
+}
+.needt-v3 .ag-checks li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.needt-v3 .ag-checks i {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(255, 159, 67);
+}
+.needt-v3 .ag-checks .is-met i {
+  background: rgb(72, 214, 138);
+}
+.needt-v3 .ag-acard3-btns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 12px;
+}
+.needt-v3 .ag-acard3-btns button {
+  height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.09));
+  box-shadow:
+    rgba(255, 255, 255, 0.12) 0 1px 0 inset,
+    rgba(255, 255, 255, 0.06) 0 0 0 1px inset;
+  font: 500 15px/1 var(--font-sans);
+  color: #f6f5fa;
+  cursor: default;
+  transition:
+    background 0.15s,
+    transform 0.09s;
+}
+.needt-v3 .ag-acard3-btns button + button {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.05));
+}
+.needt-v3 .ag-acard3-btns button:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.12));
+}
+.needt-v3 .ag-acard3-btns button:active {
+  transform: scale(0.97);
+}
+.needt-v3 .ag-acard3-btns button:focus-visible,
+.needt-v3 .ag-tray-foot button:focus-visible,
+.needt-v3 .ag-acard3-ctx:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.needt-v3 .ag-tray-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: 500 14px/1 var(--font-sans);
+  color: #121214;
+}
+.needt-v3 .ag-tray-foot button {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 600 13px/1 var(--font-sans);
+  color: #121214;
+  text-decoration: underline;
+}
+@media (max-width: 760px) {
+  .needt-v3 .ag-acard3-q b {
+    font-size: 17px;
+  }
+  .needt-v3 .ag-acard3-btns button {
+    height: 48px;
+    font-size: 14px;
+  }
+  .needt-v3 .ag-acard3-who {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ag-tray {
+    animation: none;
+  }
+}

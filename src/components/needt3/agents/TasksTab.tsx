@@ -94,6 +94,8 @@ export interface HubItemRow {
   events?: HubEvent[];
   updatedAt: string;
   createdAt?: string;
+  /** When it is due (a post time, a deadline), when the brief set one. */
+  due?: string | null;
 }
 
 export const STATUS_ORDER = [
