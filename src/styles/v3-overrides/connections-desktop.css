@@ -17,6 +17,10 @@
 .needt-v3 .cn-wrap {
   container-type: inline-size;
   container-name: cn;
+  /* Keyboard focus and scrollIntoView stop above the Ask Needt dock, as the
+     page's bottom padding does for the pointer (both widths: this is the
+     scroller, the container query below only moves the padding). */
+  scroll-padding-bottom: 140px;
 }
 .needt-v3 .cn-page {
   max-width: 1080px;

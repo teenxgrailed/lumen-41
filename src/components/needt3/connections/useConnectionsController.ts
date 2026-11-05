@@ -200,8 +200,9 @@ export function useConnectionsController() {
       setBusy(null);
     }
   };
-  const disconnect = async (item: CnItem) => {
-    if (!item.accountId) return;
+  /** Answers whether it went (a failure keeps the confirm open). */
+  const disconnect = async (item: CnItem): Promise<boolean> => {
+    if (!item.accountId) return false;
     setBusy(item.key);
     const kind = disconnectKind(item);
     const r =
@@ -216,7 +217,10 @@ export function useConnectionsController() {
               : await disconnectToolkit(item.accountId);
     setBusy(null);
     // A failure keeps the confirm open with its button live, to try again.
-    if (!r.ok) return void notify.error(r.error);
+    if (!r.ok) {
+      notify.error(r.error);
+      return false;
+    }
     setConfirm(null);
     notify.success(
       item.account && item.account !== item.name
@@ -224,6 +228,7 @@ export function useConnectionsController() {
         : `${item.name} disconnected`
     );
     await refresh();
+    return true;
   };
 
   /**

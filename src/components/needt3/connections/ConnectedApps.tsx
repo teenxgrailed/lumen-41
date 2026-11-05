@@ -9,7 +9,7 @@ import { formatDayAgo } from "@/lib/date-utils";
 import { BrandIcon, brandIdFor } from "../brand";
 import { Sheet } from "../ctx/Sheet";
 import { GlassCard } from "../scenes";
-import { MoreMenu } from "./MoreMenu";
+import { MoreMenu, refocus } from "./MoreMenu";
 import type { ConnectedApp, McpConnect } from "./useMcpConnect";
 
 /** What each scope lets an app do, as a chip. Unknown scopes show as sent. */
@@ -126,6 +126,11 @@ export function ConnectedApps({
 }) {
   const [bye, setBye] = useState<ConnectedApp | null>(null);
   const [going, setGoing] = useState(false);
+  /** Cancel (button, Escape, scrim): back to the "…" that opened it. */
+  const dismiss = () => {
+    if (bye) refocus(`[data-cn-more="app-${bye.id}"]`);
+    setBye(null);
+  };
   const needle = query.trim().toLowerCase();
   const all = mcp.apps;
   const apps = (all ?? []).filter(
@@ -192,7 +197,7 @@ export function ConnectedApps({
         data-cn-apps=""
       >
         <div className="cn-apps-head">
-          <h2 id="cn-apps-title" className="cn-apps-title">
+          <h2 id="cn-apps-title" className="cn-apps-title" tabIndex={-1}>
             Connected apps
           </h2>
           <span className="cn-c-kind">
@@ -203,7 +208,7 @@ export function ConnectedApps({
       </GlassCard>
       <Sheet
         open={!!bye}
-        onClose={() => setBye(null)}
+        onClose={dismiss}
         title={bye ? `Disconnect ${bye.clientName}?` : "Disconnect"}
         scrimClassName="nx-scrim cn-sheet-grid"
         className="nx-sheet cn-sheet-col"
@@ -225,7 +230,7 @@ export function ConnectedApps({
                 type="button"
                 className="nx-btn nx-btn-text"
                 autoFocus
-                onClick={() => setBye(null)}
+                onClick={dismiss}
               >
                 Cancel
               </button>
@@ -239,7 +244,10 @@ export function ConnectedApps({
                   const ok = await mcp.disconnectApp(bye);
                   setGoing(false);
                   // A failure keeps the confirm open, the button live again.
-                  if (ok) setBye(null);
+                  if (!ok) return;
+                  setBye(null);
+                  // The row is gone: the next app's "…", else the heading.
+                  refocus('[data-cn-more^="app-"]', "#cn-apps-title");
                 }}
               >
                 Disconnect

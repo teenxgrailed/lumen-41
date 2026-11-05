@@ -38,7 +38,7 @@ import { AiToolsPanel } from "./AiToolsPanel";
 import { ApiAccess } from "./ApiAccess";
 import { CalDavForm } from "./CalDavForm";
 import { GoogleTasksLists } from "./GoogleTasksLists";
-import { MoreMenu, type MoreMenuItem } from "./MoreMenu";
+import { MoreMenu, type MoreMenuItem, refocus } from "./MoreMenu";
 import {
   CATEGORY_LABEL,
   CHIP_LABEL,
@@ -446,6 +446,11 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
   } = ctl;
 
   const apps = tab === "apps";
+  /** Cancel (button, Escape, scrim): back to the "…" that opened it. */
+  const dismissConfirm = () => {
+    if (confirm) refocus(`[data-cn-more="${confirm.slug}"]`);
+    setConfirm(null);
+  };
   const query = apps ? mergeQueries([catalog, accounts]) : NO_QUERY;
   // The sky window is mounted only while the screen has content to show.
   const live = screenState(query) === "content";
@@ -773,7 +778,7 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
       </StScreen>
       <Sheet
         open={!!confirm}
-        onClose={() => setConfirm(null)}
+        onClose={dismissConfirm}
         title={confirm ? disconnectTitle(confirm) : "Disconnect"}
         scrimClassName="nx-scrim cn-sheet-grid"
         className="nx-sheet cn-sheet-col"
@@ -797,7 +802,7 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                 type="button"
                 className="nx-btn nx-btn-text"
                 autoFocus
-                onClick={() => setConfirm(null)}
+                onClick={dismissConfirm}
               >
                 Cancel
               </button>
@@ -806,7 +811,15 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                 className="nx-btn nx-btn-danger"
                 data-cn-confirm={confirm.slug}
                 disabled={busy === confirm.key}
-                onClick={() => void disconnect(confirm)}
+                onClick={async () => {
+                  const slug = confirm.slug;
+                  if (await disconnect(confirm))
+                    // The card stays, now offering Connect.
+                    refocus(
+                      `[data-cn-more="${slug}"]`,
+                      `[data-cn-connect="${slug}"]`
+                    );
+                }}
               >
                 Disconnect
               </button>

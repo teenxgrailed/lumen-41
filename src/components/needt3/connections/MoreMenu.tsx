@@ -15,6 +15,31 @@ import { FiMoreHorizontal } from "react-icons/fi";
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
 
+/**
+ * Puts the focus back on the first of `selectors` still on the page, after
+ * the frame in which a sheet closed or a row went away: the "…" that opened
+ * a confirm, or the nearest thing left when that row is gone.
+ */
+export function refocus(...selectors: string[]) {
+  const go = () => {
+    for (const sel of selectors) {
+      const el = document.querySelector<HTMLElement>(sel);
+      if (el) return void el.focus();
+    }
+  };
+  if (typeof window.requestAnimationFrame === "function")
+    window.requestAnimationFrame(go);
+  else go();
+}
+
+/** The floating Ask Needt pill's top edge, when it is on screen. */
+function dockTop(): number | null {
+  const r = document
+    .querySelector<HTMLElement>("[data-chat-pill]")
+    ?.getBoundingClientRect();
+  return r && r.height > 0 ? r.top : null;
+}
+
 export interface MoreMenuItem {
   key: string;
   label: string;
@@ -44,6 +69,8 @@ export function MoreMenu({
   items: readonly MoreMenuItem[];
 }) {
   const [open, setOpen] = useState(false);
+  /** Which row takes the focus on open: ArrowUp opens at the last. */
+  const [from, setFrom] = useState<"first" | "last">("first");
   const [at, setAt] = useState<{
     right: number;
     top: number;
@@ -58,8 +85,15 @@ export function MoreMenu({
     if (!open || !btn.current) return;
     const r = btn.current.getBoundingClientRect();
     const h = 12 + 34 * rows;
+    // The floor is the window's edge or the Ask Needt pill above it, so a
+    // menu opened just over the dock flips up instead of going under it.
+    const pill = dockTop();
+    const floor = Math.min(
+      window.innerHeight - 8,
+      pill === null ? Infinity : pill - 8
+    );
     setAt(
-      r.bottom + 6 + h > window.innerHeight - 8
+      r.bottom + 6 + h > floor
         ? { right: window.innerWidth - r.right, top: r.top - 6 - h, flip: true }
         : { right: window.innerWidth - r.right, top: r.bottom + 6, flip: false }
     );
@@ -74,11 +108,13 @@ export function MoreMenu({
     document.addEventListener("mousedown", away);
     return () => document.removeEventListener("mousedown", away);
   }, [open]);
-  // Focus the first row once the menu is placed.
+  // Focus the first row (or the last, opened with ArrowUp) once placed.
   useEffect(() => {
-    if (open && at)
-      pop.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
-  }, [open, at]);
+    if (!open || !at) return;
+    const rowsEls =
+      pop.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [];
+    rowsEls[from === "last" ? rowsEls.length - 1 : 0]?.focus();
+  }, [open, at, from]);
 
   const close = (refocus: boolean) => {
     setOpen(false);
@@ -116,10 +152,14 @@ export function MoreMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         data-cn-more={id}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          setFrom("first");
+          setOpen(!open);
+        }}
         onKeyDown={(e) => {
-          if (e.key === "ArrowDown" && !open) {
+          if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !open) {
             e.preventDefault();
+            setFrom(e.key === "ArrowUp" ? "last" : "first");
             setOpen(true);
           }
         }}
@@ -152,7 +192,9 @@ export function MoreMenu({
                   className={"cn-mi" + (it.danger ? " is-danger" : "")}
                   {...it.attrs}
                   onClick={() => {
-                    close(false);
+                    // The trigger holds the focus while what the row opens
+                    // (a confirm) takes it; the confirm gives it back.
+                    close(true);
                     it.run();
                   }}
                 >

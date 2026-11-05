@@ -155,6 +155,9 @@ let appsData: unknown[] = [];
 let tokensData: unknown[] = [];
 const fetchMock = jest.fn();
 const flush = () => act(async () => void (await Promise.resolve()));
+/** A frame and a little: `refocus` waits for the next animation frame. */
+const frame = () =>
+  act(async () => void (await new Promise((r) => setTimeout(r, 40))));
 beforeEach(() => {
   appsData = [];
   tokensData = [];
@@ -527,6 +530,53 @@ describe("the cards", () => {
     expect(document.activeElement).toBe(more);
     expect(more.getAttribute("aria-expanded")).toBe("false");
   });
+  it("ArrowUp on the trigger opens the menu at its last row", () => {
+    accountsData = [acct({})];
+    render();
+    const more = $("[data-cn-more='google-calendar']");
+    act(() => {
+      more.focus();
+      more.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })
+      );
+    });
+    const rows = [
+      ...document.querySelectorAll<HTMLElement>(
+        "[data-cn-menu] [role=menuitem]"
+      ),
+    ];
+    expect(rows).toHaveLength(2);
+    expect(document.activeElement).toBe(rows[1]);
+  });
+  it("the disconnect confirm gives the focus back to the card's …: on Cancel, and to Connect once it went", async () => {
+    accountsData = [acct({})];
+    render();
+    const more = () =>
+      document.querySelector<HTMLElement>("[data-cn-more='google-calendar']");
+    click(more());
+    click(document.querySelector("[data-cn-disconnect]"));
+    const cancel = [
+      ...document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((b) => b.textContent === "Cancel");
+    click(cancel!);
+    await frame();
+    expect(document.activeElement).toBe(more());
+    // Confirmed: the card stays without its menu, so Connect takes the focus.
+    const { disconnectCalendar } = jest.requireMock(
+      "@/lib/needt3/hooks/catalog"
+    ) as { disconnectCalendar: jest.Mock };
+    disconnectCalendar.mockResolvedValue({ ok: true });
+    click(more());
+    click(document.querySelector("[data-cn-disconnect]"));
+    accountsData = [];
+    click(document.body.querySelector("[data-cn-confirm='google-calendar']"));
+    await flush();
+    act(() => root.render(h(Screen)));
+    await frame();
+    expect(document.activeElement).toBe(
+      $("[data-cn-connect='google-calendar']")
+    );
+  });
   it("a sync that cannot start shows the reason", async () => {
     syncAccountNow.mockResolvedValue({ ok: false, error: "Not configured" });
     accountsData = [acct({})];
@@ -727,6 +777,33 @@ describe("the AI tools tab", () => {
     expect(confirm()).toBeNull();
     expect(reads()).toBeGreaterThan(before);
     expect($("[data-cn-apps-empty]")).not.toBeNull();
+    // Its row went: the focus lands on the panel's heading.
+    await frame();
+    expect(document.activeElement).toBe($("#cn-apps-title"));
+  });
+  it("Cancel on an app's confirm gives the focus back to its …", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    appsData = [
+      {
+        id: "g1",
+        clientName: "Claude",
+        scopes: ["needt.read"],
+        connectedAt: "2026-10-01T00:00:00Z",
+        lastUsedAt: null,
+      },
+    ];
+    render();
+    await flush();
+    const more = $("[data-cn-more=app-g1]");
+    click(more);
+    click(document.body.querySelector("[data-cn-app-bye=g1]"));
+    const cancel = [
+      ...document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((b) => b.textContent === "Cancel");
+    click(cancel!);
+    await frame();
+    expect(document.activeElement).toBe(more);
   });
   it("Connected apps: an empty state, and a failed load offers Try again", async () => {
     planKind = "monthly";

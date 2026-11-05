@@ -15,6 +15,7 @@ import { ApiAccess } from "../../connections/ApiAccess";
 import { CalDavForm } from "../../connections/CalDavForm";
 import { appBrand, appUsed, scopeChips } from "../../connections/ConnectedApps";
 import { GoogleTasksLists } from "../../connections/GoogleTasksLists";
+import { refocus } from "../../connections/MoreMenu";
 import {
   CATEGORY_LABEL,
   type CnItem,
@@ -290,7 +291,7 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
       )}
     </PkGlass>
   ) : (
-    <div className="ppl-list" data-ppl-ai-list="">
+    <div className="ppl-list" data-ppl-ai-list="" tabIndex={-1}>
       <span className="ppl-row-meta">
         Needt MCP — use your tasks, calendar and notes in your favourite AI.
       </span>
@@ -519,7 +520,9 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
               onClick={() => {
                 if (!C) return;
                 // the account sheet behind it closes once the write is done
-                void c.disconnect(C).then(closeAcct);
+                void c.disconnect(C).then((ok) => {
+                  if (ok) closeAcct();
+                });
               }}
               data-ppl-bye=""
             >
@@ -552,7 +555,10 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
                 const ok = await c.mcp.disconnectApp(B);
                 setAppGoing(false);
                 // A failure keeps the confirm open, the button live again.
-                if (ok) setAppBye(null);
+                if (!ok) return;
+                setAppBye(null);
+                // Its row is gone: the next app's Disconnect, else the list.
+                refocus("[data-ppl-app-bye]", "[data-ppl-ai-list]");
               }}
               data-ppl-app-confirm=""
             >
