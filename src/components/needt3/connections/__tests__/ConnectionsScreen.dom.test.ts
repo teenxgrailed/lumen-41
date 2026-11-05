@@ -200,6 +200,7 @@ beforeEach(() => {
   catalogRows = null;
   planKind = "monthly";
   window.localStorage.clear();
+  window.sessionStorage.clear();
   window.history.replaceState(null, "", "/");
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -325,6 +326,21 @@ describe("the tabs", () => {
     });
     expect($("[data-cn-tab='ai']").getAttribute("aria-selected")).toBe("true");
     expect(window.localStorage.getItem("needt.connections.tab")).toBe("ai");
+  });
+});
+
+describe("screen memory", () => {
+  it("the search and Connected / All come back after leaving the screen", () => {
+    render();
+    type($(".cn-search input") as HTMLInputElement, "notion");
+    click($("[data-cn-show=connected]"));
+    act(() => root.unmount());
+    root = createRoot(host);
+    render();
+    expect(($(".cn-search input") as HTMLInputElement).value).toBe("notion");
+    expect($("[data-cn-show=connected]").getAttribute("aria-pressed")).toBe(
+      "true"
+    );
   });
 });
 
@@ -473,6 +489,43 @@ describe("the cards", () => {
     await flush();
     expect(syncAccountNow).toHaveBeenCalledWith("calendar", "a1");
     expect(notify.success).toHaveBeenCalledWith("Syncing Google Calendar…");
+    // The card says so while the job runs.
+    expect(
+      $("[data-cn-card='google-calendar'] [data-cn-sync-line]").textContent
+    ).toBe("Syncing…");
+  });
+  it("a connected calendar says when it last synced", () => {
+    accountsData = [acct({ lastSync: new Date().toISOString() })];
+    render();
+    expect(
+      $("[data-cn-card='google-calendar'] [data-cn-sync-line]").textContent
+    ).toBe("Synced just now");
+  });
+  it("the menu works from the keyboard: first row focused, arrows move, Escape returns", () => {
+    accountsData = [acct({})];
+    render();
+    const more = $("[data-cn-more='google-calendar']");
+    click(more);
+    const rows = [
+      ...document.querySelectorAll<HTMLElement>(
+        "[data-cn-menu] [role=menuitem]"
+      ),
+    ];
+    expect(rows.map((r) => r.textContent)).toEqual(["Sync now", "Disconnect…"]);
+    expect(document.activeElement).toBe(rows[0]);
+    act(() => {
+      rows[0].dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
+      );
+    });
+    expect(document.activeElement).toBe(rows[1]);
+    act(() => {
+      rows[1].dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(document.activeElement).toBe(more);
+    expect(more.getAttribute("aria-expanded")).toBe("false");
   });
   it("a sync that cannot start shows the reason", async () => {
     syncAccountNow.mockResolvedValue({ ok: false, error: "Not configured" });
@@ -495,6 +548,13 @@ describe("the AI tools tab", () => {
     expect(promo.querySelector(".cn-promo-title")?.textContent).toBe(
       "Bring Needt into your AI tools"
     );
+    expect(
+      [...promo.querySelectorAll(".cn-promo-li")].map((n) => n.textContent)
+    ).toEqual([
+      "Plan with your real tasks in Claude and ChatGPT",
+      "Your own MCP and API links",
+      "Works with Cursor, Gemini and any MCP client",
+    ]);
     // No filter bar, no cards on Free.
     expect($(".cn-bar")).toBeNull();
     expect($("[data-cn-card]")).toBeNull();
@@ -620,6 +680,28 @@ describe("the AI tools tab", () => {
     });
     expect(rows()).toEqual(["default"]);
   });
+  it("Connected apps: an empty state, and a failed load offers Try again", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    render();
+    await flush();
+    expect($("[data-cn-apps-empty]")).not.toBeNull();
+    // No Beta mark left on the AI tab: Needt MCP is live.
+    expect($(".cn-badge")).toBeNull();
+    act(() => root.unmount());
+    host.remove();
+    fetchMock.mockImplementation(async () => ({
+      ok: false,
+      json: async () => ({}),
+    }));
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    render();
+    await flush();
+    expect($("[data-cn-apps-failed]")).not.toBeNull();
+    expect($("[data-cn-apps-retry]").textContent).toBe("Try again");
+  });
   it("lists connected apps, Connected hides tools without one, Disconnect deletes", async () => {
     planKind = "monthly";
     window.localStorage.setItem("needt.connections.tab", "ai");
@@ -638,12 +720,28 @@ describe("the AI tools tab", () => {
     click($("[data-cn-show=connected]"));
     expect(cards()).toEqual(["claude"]);
     expect($("[data-cn-card=claude]").dataset.state).toBe("connected");
-    click($("[data-cn-app-bye=g1]"));
+    // Permissions are chips, dates are words; Disconnect is in "…" and asks.
+    const row = $("[data-cn-app=g1]");
+    expect(
+      [...row.querySelectorAll("[data-cn-scope]")].map((n) => n.textContent)
+    ).toEqual(["Read"]);
+    expect(row.querySelector("[data-cn-app-dates]")?.textContent).toMatch(
+      /^Connected .+ · Not used yet$/
+    );
+    expect(row.querySelector("button.nx-btn")).toBeNull();
+    click($("[data-cn-more=app-g1]"));
+    click(document.body.querySelector("[data-cn-app-bye=g1]"));
+    await flush();
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/oauth/connected-apps/g1", {
+      method: "DELETE",
+    });
+    click(document.body.querySelector("[data-cn-app-confirm=g1]"));
     await flush();
     expect(fetchMock).toHaveBeenCalledWith("/api/oauth/connected-apps/g1", {
       method: "DELETE",
     });
     expect($$("[data-cn-app]").length).toBe(0);
+    expect($("[data-cn-apps-empty]")).not.toBeNull();
     expect($("[data-cn-ai-soon]")).not.toBeNull();
   });
 });

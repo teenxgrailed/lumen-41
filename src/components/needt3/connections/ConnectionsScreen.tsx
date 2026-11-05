@@ -4,19 +4,17 @@ import {
   type KeyboardEvent,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 
-import { createPortal } from "react-dom";
 import {
   FiAlertTriangle,
+  FiCheck,
   FiCheckCircle,
   FiLink2,
   FiList,
   FiLock,
-  FiMoreHorizontal,
   FiPlus,
   FiRefreshCw,
   FiSearch,
@@ -30,9 +28,7 @@ import { priceStrings } from "@/lib/needt3/pricing";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { BrandIcon, brandIdFor } from "../brand";
-import { useV3PortalContainer } from "../ctx/PortalScope";
 import { Sheet } from "../ctx/Sheet";
-import { useExit } from "../ctx/useExit";
 import { ProBadge, openPaywall } from "../paywall";
 import { GlassCard, PxSky } from "../scenes";
 import { StScreen } from "../states/StScreen";
@@ -42,6 +38,7 @@ import { AiToolsPanel } from "./AiToolsPanel";
 import { ApiAccess } from "./ApiAccess";
 import { CalDavForm } from "./CalDavForm";
 import { GoogleTasksLists } from "./GoogleTasksLists";
+import { MoreMenu, type MoreMenuItem } from "./MoreMenu";
 import {
   CATEGORY_LABEL,
   CHIP_LABEL,
@@ -52,6 +49,7 @@ import {
   disconnectTitle,
   heroStatus,
   pillOf,
+  syncLine,
 } from "./derive";
 import { mergeQueries } from "./query";
 import { strings } from "./strings";
@@ -63,6 +61,13 @@ const P = priceStrings();
 const TABS = [
   ["apps", "Apps & services"],
   ["ai", "AI tools"],
+] as const;
+
+/** What Pro adds to the AI tab (connections-data.js `CN_PROMO_LINES`). */
+export const PROMO_LINES = [
+  "Plan with your real tasks in Claude and ChatGPT",
+  "Your own MCP and API links",
+  "Works with Cursor, Gemini and any MCP client",
 ] as const;
 
 /** The six AI tools the Free promo shows hazy behind its lock (`CN_AI`). */
@@ -112,132 +117,45 @@ function Pill({ state, busy }: { state: CnItem["state"]; busy: boolean }) {
 }
 
 /**
- * "…" on a connected card: Disconnect (after a confirm). The menu is portalled
- * under its trigger (a glass card is its own stacking context, so a menu inside
- * it would sit under the cards below) and flips up near the bottom edge.
+ * The "…" on a connected card: Sync now (calendars, mailboxes, task lists)
+ * and Disconnect, which asks first.
+ *
+ * //todo: Sync settings (declined / all-day / write back) need per-provider
+ * settings routes in the new design.
  */
-function CardMenu({
-  item,
-  onDisconnect,
-  onSync,
-}: {
-  item: CnItem;
-  onDisconnect: () => void;
-  onSync: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [at, setAt] = useState<{
-    right: number;
-    top: number;
-    flip: boolean;
-  } | null>(null);
-  const btn = useRef<HTMLButtonElement>(null);
-  const pop = useRef<HTMLDivElement>(null);
-  const container = useV3PortalContainer();
-  const [shown, leaving] = useExit(open, 130);
-  const rows = canSyncNow(item) ? 2 : 1;
-  useLayoutEffect(() => {
-    if (!open || !btn.current) return;
-    const r = btn.current.getBoundingClientRect();
-    const h = 12 + 34 * rows;
-    setAt(
-      r.bottom + 6 + h > window.innerHeight - 8
-        ? { right: window.innerWidth - r.right, top: r.top - 6 - h, flip: true }
-        : { right: window.innerWidth - r.right, top: r.bottom + 6, flip: false }
-    );
-  }, [open, rows]);
-  useEffect(() => {
-    if (!open) return undefined;
-    const away = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (!btn.current?.contains(t) && !pop.current?.contains(t))
-        setOpen(false);
-    };
-    const esc = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      document.removeEventListener("keydown", esc);
-    };
-  }, [open]);
-  return (
-    <span className="cn-card-text">
-      <button
-        ref={btn}
-        type="button"
-        className="cn-iconbtn"
-        aria-label={`Options for ${item.name}`}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        data-cn-more={item.slug}
-        onClick={() => setOpen(!open)}
-      >
-        <FiMoreHorizontal size={16} aria-hidden />
-      </button>
-      {shown && at && container
-        ? createPortal(
-            <div
-              ref={pop}
-              role="menu"
-              className={
-                "nx-pop is-right cn-menu-box" + (leaving ? " is-leaving" : "")
-              }
-              data-cn-menu={item.slug}
-              style={{
-                transformOrigin: at.flip ? "bottom right" : "top right",
-                right: at.right,
-                top: at.top,
-              }}
-            >
-              {/* //todo: Sync settings (declined / all-day / write back) need
-                  per-provider settings routes in the new design. */}
-              {canSyncNow(item) ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="cn-mi"
-                  data-cn-sync={item.slug}
-                  onClick={() => {
-                    setOpen(false);
-                    onSync();
-                  }}
-                >
-                  <span className="cn-menu-row">
-                    <FiRefreshCw size={15} aria-hidden />
-                  </span>
-                  Sync now
-                </button>
-              ) : null}
-              <button
-                type="button"
-                role="menuitem"
-                className="cn-mi is-danger"
-                data-cn-disconnect={item.slug}
-                onClick={() => {
-                  setOpen(false);
-                  onDisconnect();
-                }}
-              >
-                <span className="cn-menu-row">
-                  <FiSlash size={15} aria-hidden />
-                </span>
-                Disconnect…
-              </button>
-            </div>,
-            container
-          )
-        : null}
-    </span>
-  );
+function cardMenuItems(
+  item: CnItem,
+  onSync: () => void,
+  onDisconnect: () => void
+): MoreMenuItem[] {
+  return [
+    ...(canSyncNow(item)
+      ? [
+          {
+            key: "sync",
+            label: "Sync now",
+            icon: <FiRefreshCw size={15} aria-hidden />,
+            attrs: { "data-cn-sync": item.slug },
+            run: onSync,
+          },
+        ]
+      : []),
+    {
+      key: "bye",
+      label: "Disconnect…",
+      icon: <FiSlash size={15} aria-hidden />,
+      danger: true,
+      attrs: { "data-cn-disconnect": item.slug },
+      run: onDisconnect,
+    },
+  ];
 }
 
 function Card({
   item,
   i,
   busy,
+  syncing,
   onConnect,
   onDisconnect,
   onSync,
@@ -246,6 +164,7 @@ function Card({
   item: CnItem;
   i: number;
   busy: boolean;
+  syncing: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
   onSync: () => void;
@@ -253,6 +172,7 @@ function Card({
 }) {
   const on = item.state === "connected";
   const down = item.state === "disconnected";
+  const sync = on ? syncLine(item, syncing) : null;
   return (
     <GlassCard
       className={"cn-c nx-swap" + (down ? " is-down" : "")}
@@ -279,7 +199,11 @@ function Card({
           </span>
         </span>
         {on && !busy ? (
-          <CardMenu item={item} onDisconnect={onDisconnect} onSync={onSync} />
+          <MoreMenu
+            label={`Options for ${item.name}`}
+            id={item.slug}
+            items={cardMenuItems(item, onSync, onDisconnect)}
+          />
         ) : null}
       </div>
       <p className="cn-c-gives">{item.description}</p>
@@ -289,6 +213,14 @@ function Card({
             <span className="cn-card-text-2" data-cn-account="">
               {item.account}
             </span>
+            {sync ? (
+              <span
+                className="cn-card-text-3"
+                data-cn-sync-line={syncing ? "syncing" : "idle"}
+              >
+                {sync}
+              </span>
+            ) : null}
             {down ? (
               <span
                 className="cn-card-text-3 cn-card-lost"
@@ -343,10 +275,9 @@ function Card({
 /**
  * AI tools are not on Free (owner, 08.10.26): the tab opens on one glass panel
  * on the sky, the six tool tiles hazy behind a lock (connections.jsx
- * `CnAiPromo`). Both buttons go to the paywall.
- *
- * //todo: the prototype's three benefit lines ("Your own MCP and API links",
- * …) are not drawn yet.
+ * `CnAiPromo`), three lines on what Pro adds, and both buttons go to the
+ * paywall. The prototype's third line names Raycast and Zapier; Needt has no
+ * setup steps for them, so it names the tools it does have.
  */
 function AiPromo() {
   const plan = usePlan();
@@ -376,6 +307,16 @@ function AiPromo() {
             questions.
           </p>
         </div>
+        <ul className="cn-promo-list" data-cn-promo-lines="">
+          {PROMO_LINES.map((t) => (
+            <li key={t} className="cn-promo-li">
+              <span className="cn-promo-check">
+                <FiCheck size={13} aria-hidden />
+              </span>
+              {t}
+            </li>
+          ))}
+        </ul>
         {/* No buttons to buy or try Pro in a store build. */}
         {store ? null : (
           <div className="cn-promo-cta">
@@ -463,8 +404,12 @@ function GlassNote({
  * Category chips are the prototype's six, our categories mapped onto them
  * (`chipOf` in derive.ts).
  *
- * //todo: the consent sheet's scope list, Sync settings, Beta and Pro marks
- * on single cards, screen memory (`needt.cnState`).
+ * The search, chip and Connected / All are remembered for the session
+ * (`needt.cnState`, in the controller).
+ *
+ * //todo: the prototype's consent sheet with a scope list before a connect:
+ * Connect goes straight to the provider, whose own consent screen lists the
+ * scopes. Pro marks on single cards wait on a plan gate per connector.
  * //todo: the prototype's Free mail cap ("Free: 1 mail account", Upgrade on the
  * other mail cards) is not drawn: the product's Free plan has no mailboxes at
  * all (PLAN_LIMITS), so the pill would state a rule that does not exist.
@@ -785,6 +730,7 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
                           item={item}
                           i={i}
                           busy={busy === item.key}
+                          syncing={ctl.syncing === item.key}
                           onConnect={() => void connect(item)}
                           onDisconnect={() => setConfirm(item)}
                           onSync={() => void syncNow(item)}
