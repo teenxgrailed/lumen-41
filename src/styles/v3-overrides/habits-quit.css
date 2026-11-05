@@ -1032,3 +1032,8 @@
     animation: none;
   }
 }
+/* The pull log's separators are straight lines: a row's own radius curved
+   them, so the rows read as cards stacked in a card (seen at 390). */
+.hq-log-row {
+  border-radius: 0;
+}
