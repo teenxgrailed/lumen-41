@@ -30,6 +30,8 @@ export const habitInputSchema = z.object({
   projectId: z.string().min(1).nullable().optional(),
   color: z.string().trim().max(64).nullable().optional(),
   icon: z.string().trim().max(64).nullable().optional(),
+  // Push reminders for this habit (the habit's `at` time); on by default.
+  remindersEnabled: z.boolean().default(true),
   // QUIT habits (Pro, behind `habits_quit`): see `quitFieldsError` and
   // src/lib/habits-quit.ts. A BUILD habit carries neither of the two below.
   kind: z.nativeEnum(HabitKind).default(HabitKind.BUILD),

@@ -127,6 +127,15 @@ export const notificationSettingsV3FieldsSchema = z.object({
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
     .optional(),
+  // Habit presence (behind habits_quit).
+  habitReminders: z.boolean().optional(),
+  habitCheckin: z.boolean().optional(),
+  habitCheckinTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
+  habitMilestones: z.boolean().optional(),
+  habitReengage: z.boolean().optional(),
 });
 
 type Parsed<S extends z.ZodTypeAny> =
