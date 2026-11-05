@@ -18,6 +18,7 @@
 <link rel="preload" href="assets/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/sky-tokens.css?v=27">
+<link rel="stylesheet" href="map-sec.css?v=2">
 <link rel="stylesheet" href="styles.css?v=63">
 <link rel="stylesheet" href="hero-b.css?v=5">
 <link rel="canonical" href="https://needt.app/">
@@ -189,6 +190,25 @@
       <div class="cmp-foot"><button class="btn btn-primary btn-sm" id="cmp-add" disabled>Add task ↵</button></div>
     </div>
     <p class="landed" id="landed">One line. Needt reads the day and the project from the words.</p>
+  </div>
+</section>
+
+
+
+<section class="sec night map-sec" id="agents-map" aria-labelledby="am-h">
+  <div class="wrap">
+    <div class="am-head">
+      <p class="eyebrow">Needt Agents</p>
+      <h2 id="am-h" class="h2 split" data-split>Every agent you use. <i>On one map.</i></h2>
+      <p class="lead">Claude, ChatGPT, Cursor and your own: what they are working on, what they finished, and what waits for you.</p>
+    </div>
+    <figure class="am-frame rv">
+      <video class="am-vid" muted loop playsinline preload="none" width="1920" height="1080"
+        data-poster="assets/agents-map/map-poster.webp?v=2" data-mp4="assets/agents-map/map.mp4?v=2" data-webm="assets/agents-map/map.webm?v=2"
+        aria-label="The Agents map in Needt: work flows in from calendars, tasks and mail, agents light up as they work, and finished results line up on the right"></video>
+      <img class="am-poster" src="assets/agents-map/map-poster.webp?v=2" alt="" width="1920" height="1080" loading="lazy">
+    </figure>
+    <p class="am-cta"><a class="btn btn-raised am-btn" href="agents/">See Needt Agents <span aria-hidden="true">→</span></a></p>
   </div>
 </section>
 
@@ -520,6 +540,7 @@
 
 <a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro</span></a>
 <script src="vendor/sky.js?v=29" defer></script>
+<script src="map-sec.js?v=2" defer></script>
 <script src="app.js?v=51" defer></script>
 <script>/* A/B test (v46): report the variant once Umami has loaded, and on every "Try it free" click */
 (function(){var v=document.documentElement.dataset.home||"a";
