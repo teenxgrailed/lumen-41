@@ -9,3 +9,10 @@ export const SETUP_PREF = "connectionsSetup";
 export const SETUP_RUN_KEY = "needt.cnSetupRun";
 export const setupRunKey = (userId: string | undefined) =>
   `${SETUP_RUN_KEY}:${userId ?? "anon"}`;
+/**
+ * This session's own note that the setup was dismissed (+ ":" + user id), in
+ * case saving the setting failed: the setup still does not reopen.
+ */
+export const SETUP_SEEN_SESSION_KEY = "needt.cnSetupSeen";
+export const setupSeenKey = (userId: string | undefined) =>
+  `${SETUP_SEEN_SESSION_KEY}:${userId ?? "anon"}`;

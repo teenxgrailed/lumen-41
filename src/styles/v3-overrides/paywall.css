@@ -836,3 +836,39 @@
 .needt-v3 .pw-store-x:disabled {
   opacity: 0.4;
 }
+
+/* ── the 390-px phone (audit 05.11) ────────────────────────────────────── */
+/* The picture at the top gives way on a shorter phone, so the plans start
+   higher: 300 px on a tall screen, 253 px at 844, 228 px on an SE. Not less:
+   the top is bottom-anchored, and below 228 px its "Unlock … with Pro" line
+   rises under the close button (seen at 375x667). */
+.needt-v3 .pov-paywall-in .pw-phone .pw-top {
+  height: clamp(228px, 30vh, 300px);
+}
+/* 44-px touch targets for Monthly / Yearly, close and Retry; drawn size
+   unchanged. */
+.needt-v3 :is(.pw-seg-b, .pw-state-btn) {
+  position: relative;
+}
+.needt-v3 :is(.pw-seg-b, .pw-state-btn)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 22px);
+  height: 44px;
+}
+.needt-v3 .pw-x::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+}
+/* Nothing under 12 px: the small tags and kickers come up to the floor. */
+.needt-v3
+  :is(.pw-kicker, .pw-kick, .pw-freeline-tag, .pw-seg-save, .pw-limited) {
+  font-size: 12px;
+}
+/* Close clears the notch and the Dynamic Island. */
+.needt-v3 .pov-paywall-in .pw-x {
+  top: max(20px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+}

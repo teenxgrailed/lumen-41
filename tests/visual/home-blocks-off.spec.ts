@@ -15,14 +15,13 @@ test.use({ serviceWorkers: "block" });
 const NOW = "2026-07-16T14:00:00+02:00";
 
 async function setBlocks(page: Page, homeBlocks: Record<string, unknown>) {
-  const cur = await page.request.get("/api/user-settings");
-  const prefs = ((await cur.json()) as { prefs?: Record<string, unknown> })
-    .prefs;
-  const next = { ...(prefs ?? {}) };
-  if (Object.keys(homeBlocks).length) next.homeBlocks = homeBlocks;
-  else delete next.homeBlocks;
+  // `prefs` is a patch the server merges; null removes the key.
   const res = await page.request.patch("/api/user-settings", {
-    data: { prefs: next },
+    data: {
+      prefs: {
+        homeBlocks: Object.keys(homeBlocks).length ? homeBlocks : null,
+      },
+    },
   });
   expect(res.ok()).toBe(true);
 }

@@ -3,12 +3,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
-import { readQuitGate } from "@/lib/needt3/habits-quit";
 import {
   type Checkin,
   checkinsFromStrip,
   setCheckin,
 } from "@/lib/needt3/derive";
+import { readQuitGate } from "@/lib/needt3/habits-quit";
 import {
   type ApiHabit,
   type V3Habit,

@@ -76,8 +76,9 @@ export function useTimeZone() {
 }
 
 /**
- * Patch settings. `prefs` replaces the whole stored map, as the server does;
- * use `useSetPref` to change one key.
+ * Patch settings. `prefs` is a patch, as the server applies it: a shallow
+ * merge of top-level keys, each key's value replaced whole (taskView,
+ * homeBlocks), `null` removing a key. Use `useSetPref` to change one key.
  */
 export function useUpdateSettings() {
   return useUndoableMutation<SettingsPatch, V3Settings>({
@@ -88,14 +89,29 @@ export function useUpdateSettings() {
       if (!cur) return null;
       const back: SettingsPatch = {};
       for (const k of Object.keys(patch) as (keyof SettingsPatch)[]) {
-        if (k === "prefs") back.prefs = cur.prefs;
+        // prefs is a patch: undo puts back each touched key (null: was absent)
+        if (k === "prefs")
+          back.prefs = Object.fromEntries(
+            Object.keys(patch.prefs ?? {}).map((key) => [
+              key,
+              key in cur.prefs ? cur.prefs[key] : null,
+            ])
+          );
         else (back as Record<string, unknown>)[k] = cur[k];
       }
       return back;
     },
     optimistic: (qc, patch) =>
       qc.setQueryData<V3Settings>(qk.settings(), (cur) =>
-        cur ? { ...cur, ...patch, prefs: patch.prefs ?? cur.prefs } : cur
+        cur
+          ? {
+              ...cur,
+              ...patch,
+              prefs: patch.prefs
+                ? applyPrefsPatch(cur.prefs, patch.prefs)
+                : cur.prefs,
+            }
+          : cur
       ),
     request: (patch) =>
       sendJson<V3Settings>("/api/user-settings", "PATCH", patch),
@@ -103,11 +119,25 @@ export function useUpdateSettings() {
 }
 
 /**
- * Set one UI preference: `setPref("docsSort", "viewed")`. The server replaces
- * the whole `prefs` map, so the write needs the stored map to merge into.
- * Before settings have loaded there is nothing to merge with, and writing
- * `{ [key]: value }` alone would wipe every other preference; the write is
- * refused instead and resolves to `null`.
+ * `prefs` in a PATCH is a patch: the server merges it into the stored map
+ * (`prefs || patch`) and removes keys sent as null. The cache does the same.
+ */
+export function applyPrefsPatch(
+  cur: Record<string, unknown>,
+  patch: Record<string, unknown>
+): Record<string, unknown> {
+  const next = { ...cur };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) delete next[key];
+    else next[key] = value;
+  }
+  return next;
+}
+
+/**
+ * Set one UI preference: `setPref("docsSort", "viewed")`. Only that key is
+ * sent; the server merges it, so another tab's or device's keys are never
+ * overwritten from a stale cache. `null` removes the key.
  */
 export function useSetPref() {
   const setPrefs = useSetPrefs();
@@ -115,19 +145,15 @@ export function useSetPref() {
 }
 
 /**
- * Several preferences in one write (`city` and `cityPlace` must land together).
- * The server replaces the whole map, so each write reads the cache only after
- * the previous one has settled: two writes started together would both merge
- * into the same stale map and the later one would wipe the earlier key (a
- * dismissed popup coming back).
+ * Several preferences in one write (`city` and `cityPlace` must land
+ * together). Only the patch is sent and the server merges it, so writes from
+ * two tabs or devices keep each other's keys. Writes from this tab still go
+ * one after another, so the answers land in order.
  */
 export function useSetPrefs() {
-  const qc = useQueryClient();
   const update = useUpdateSettings();
   return (patch: Record<string, unknown>) =>
-    serialByKey("user-settings-prefs", async () => {
-      const cur = qc.getQueryData<V3Settings>(qk.settings());
-      if (!cur) return null;
-      return update.mutateAsync({ prefs: { ...cur.prefs, ...patch } });
-    });
+    serialByKey("user-settings-prefs", () =>
+      update.mutateAsync({ prefs: patch })
+    );
 }
