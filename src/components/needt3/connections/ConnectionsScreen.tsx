@@ -41,6 +41,7 @@ import { AiSetup } from "./AiSetup";
 import { AiToolsPanel } from "./AiToolsPanel";
 import { ApiAccess } from "./ApiAccess";
 import { CalDavForm } from "./CalDavForm";
+import { ConnectionsSetup } from "./ConnectionsSetup";
 import { GoogleTasksLists } from "./GoogleTasksLists";
 import {
   CATEGORY_LABEL,
@@ -500,6 +501,7 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
   } = ctl;
 
   const apps = tab === "apps";
+  const setupOpen = !!ctl.onboarding.run;
   const query = apps ? mergeQueries([catalog, accounts]) : NO_QUERY;
   // The sky window is mounted only while the screen has content to show.
   const live = screenState(query) === "content";
@@ -530,7 +532,7 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [live]);
+  }, [live, setupOpen]);
   /* Changing tab / filter while stuck: bring the first card up under the bar
      instead of leaving you in an empty stretch. */
   const toTop = useCallback(() => {
@@ -578,242 +580,260 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
               className="scroll-inner nx-scroll cn-wrap cn-screen-abs"
               data-cn-scroll=""
             >
-              <div className="cn-page">
-                <header className="nx-swap cn-screen-col" data-px-calm>
-                  <span className="px-kicker">Sources</span>
-                  <h1 className="px-display px-on-sky cn-h1 cn-screen-text-4">
-                    Connections
-                  </h1>
-                  <span className="px-on-sky cn-screen-text-5">
-                    Where Needt reads your mail, calendars and files — and how
-                    your AI tools read Needt.
-                  </span>
-                  {showStatus ? (
-                    <span
-                      data-cn-status={status.tone}
-                      className={"cn-screen-row-2 cn-status is-" + status.tone}
-                      title={
-                        status.names.length
-                          ? `${status.names.join(", ")} lost access — reconnect to keep syncing`
-                          : undefined
-                      }
-                    >
-                      <span className="cn-screen-el" />
-                      {status.text}
+              {ctl.onboarding.run ? (
+                <ConnectionsSetup s={ctl.onboarding} c={ctl} />
+              ) : (
+                <div className="cn-page">
+                  <header className="nx-swap cn-screen-col" data-px-calm>
+                    <span className="px-kicker">Sources</span>
+                    <h1 className="px-display px-on-sky cn-h1 cn-screen-text-4">
+                      Connections
+                    </h1>
+                    <span className="px-on-sky cn-screen-text-5">
+                      Where Needt reads your mail, calendars and files — and how
+                      your AI tools read Needt.
                     </span>
-                  ) : null}
-                </header>
-
-                <div
-                  ref={sentinel}
-                  className="cn-sentinel"
-                  aria-hidden="true"
-                />
-                <div
-                  className={"cn-sticky" + (stuck ? " is-stuck" : "")}
-                  data-px-calm
-                  data-cn-sticky={stuck ? "stuck" : "rest"}
-                >
-                  <div
-                    role="tablist"
-                    aria-label="Connection type"
-                    className="cn-tabs px-track nx-swap"
-                    style={{ animationDelay: "40ms" }}
-                    onKeyDown={onTabKey}
-                  >
-                    {TABS.map(([k, label]) => {
-                      const n =
-                        k === "apps"
-                          ? c.connected
-                          : (ctl.mcp.apps?.length ?? 0);
-                      const bad = k === "apps" ? status.names : [];
-                      const badText = `${bad.join(", ")} ${bad.length === 1 ? "needs" : "need"} attention`;
-                      return (
-                        <button
-                          key={k}
-                          type="button"
-                          role="tab"
-                          id={"cn-tab-" + k}
-                          aria-controls="cn-panel"
-                          aria-selected={tab === k}
-                          tabIndex={tab === k ? 0 : -1}
-                          className="cn-tab"
-                          data-cn-tab={k}
-                          onClick={() => {
-                            pickTab(k);
-                            toTop();
-                          }}
-                        >
-                          {label}
-                          {k === "ai" ? (
-                            <ProBadge
-                              size="sm"
-                              locked={locked}
-                              feature="AI tools"
-                            />
-                          ) : null}
-                          {n ? (
-                            <span className="cn-count" data-cn-count={k}>
-                              {n} connected
-                            </span>
-                          ) : null}
-                          {bad.length ? (
-                            <span
-                              className="cn-dot"
-                              role="img"
-                              aria-label={badText}
-                              title={badText}
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {tab === "ai" && locked ? null : (
-                    <div className="cn-bar">
-                      <div
-                        className="cn-seg px-track"
-                        role="group"
-                        aria-label="Show"
+                    {showStatus ? (
+                      <span
+                        data-cn-status={status.tone}
+                        className={
+                          "cn-screen-row-2 cn-status is-" + status.tone
+                        }
+                        title={
+                          status.names.length
+                            ? `${status.names.join(", ")} lost access — reconnect to keep syncing`
+                            : undefined
+                        }
                       >
-                        {(
-                          [
-                            ["connected", "Connected"],
-                            ["all", "All apps"],
-                          ] as const
-                        ).map(([id, label]) => (
+                        <span className="cn-screen-el" />
+                        {status.text}
+                      </span>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="cn-setup-link"
+                      data-cn-setup-open=""
+                      onClick={ctl.onboarding.open}
+                    >
+                      Set up
+                    </button>
+                  </header>
+
+                  <div
+                    ref={sentinel}
+                    className="cn-sentinel"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className={"cn-sticky" + (stuck ? " is-stuck" : "")}
+                    data-px-calm
+                    data-cn-sticky={stuck ? "stuck" : "rest"}
+                  >
+                    <div
+                      role="tablist"
+                      aria-label="Connection type"
+                      className="cn-tabs px-track nx-swap"
+                      style={{ animationDelay: "40ms" }}
+                      onKeyDown={onTabKey}
+                    >
+                      {TABS.map(([k, label]) => {
+                        const n =
+                          k === "apps"
+                            ? c.connected
+                            : (ctl.mcp.apps?.length ?? 0);
+                        const bad = k === "apps" ? status.names : [];
+                        const badText = `${bad.join(", ")} ${bad.length === 1 ? "needs" : "need"} attention`;
+                        return (
                           <button
-                            key={id}
+                            key={k}
                             type="button"
-                            aria-pressed={show === id}
-                            data-cn-show={id}
+                            role="tab"
+                            id={"cn-tab-" + k}
+                            aria-controls="cn-panel"
+                            aria-selected={tab === k}
+                            tabIndex={tab === k ? 0 : -1}
+                            className="cn-tab"
+                            data-cn-tab={k}
                             onClick={() => {
-                              setShow(id);
+                              pickTab(k);
                               toTop();
                             }}
                           >
                             {label}
+                            {k === "ai" ? (
+                              <ProBadge
+                                size="sm"
+                                locked={locked}
+                                feature="AI tools"
+                              />
+                            ) : null}
+                            {n ? (
+                              <span className="cn-count" data-cn-count={k}>
+                                {n} connected
+                              </span>
+                            ) : null}
+                            {bad.length ? (
+                              <span
+                                className="cn-dot"
+                                role="img"
+                                aria-label={badText}
+                                title={badText}
+                              />
+                            ) : null}
                           </button>
-                        ))}
-                      </div>
-                      {apps ? (
-                        <span aria-hidden="true" className="cn-screen-el-3" />
-                      ) : null}
-                      {apps
-                        ? (["all", ...chips] as const).map((id) => (
+                        );
+                      })}
+                    </div>
+
+                    {tab === "ai" && locked ? null : (
+                      <div className="cn-bar">
+                        <div
+                          className="cn-seg px-track"
+                          role="group"
+                          aria-label="Show"
+                        >
+                          {(
+                            [
+                              ["connected", "Connected"],
+                              ["all", "All apps"],
+                            ] as const
+                          ).map(([id, label]) => (
                             <button
                               key={id}
                               type="button"
-                              className="px-chip-btn cn-chip"
-                              aria-pressed={chip === id}
-                              data-cn-chip={id}
+                              aria-pressed={show === id}
+                              data-cn-show={id}
                               onClick={() => {
-                                setChip(id);
+                                setShow(id);
                                 toTop();
                               }}
                             >
-                              {id === "all" ? "All categories" : CHIP_LABEL[id]}
+                              {label}
                             </button>
-                          ))
-                        : null}
-                      <label className="cn-search px-track">
-                        <span className="cn-sicon">
-                          <FiSearch size={14} aria-hidden />
-                        </span>
-                        <input
-                          ref={searchRef}
-                          type="search"
-                          value={q}
-                          data-cn-search=""
-                          aria-label={
-                            apps
-                              ? "Search apps and services"
-                              : "Search AI tools"
-                          }
-                          placeholder={apps ? "Search apps" : "Search AI tools"}
-                          onChange={(e) => {
-                            setQ(e.target.value);
-                            toTop();
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Escape" && q) {
-                              e.stopPropagation();
-                              setQ("");
-                            }
-                          }}
-                        />
-                        {q ? (
-                          <button
-                            type="button"
-                            className="cn-iconbtn cn-sx"
-                            aria-label="Clear search"
-                            onClick={() => {
-                              setQ("");
-                              searchRef.current?.focus();
-                            }}
-                          >
-                            <FiX size={13} aria-hidden />
-                          </button>
+                          ))}
+                        </div>
+                        {apps ? (
+                          <span aria-hidden="true" className="cn-screen-el-3" />
                         ) : null}
-                      </label>
-                    </div>
-                  )}
-                </div>
+                        {apps
+                          ? (["all", ...chips] as const).map((id) => (
+                              <button
+                                key={id}
+                                type="button"
+                                className="px-chip-btn cn-chip"
+                                aria-pressed={chip === id}
+                                data-cn-chip={id}
+                                onClick={() => {
+                                  setChip(id);
+                                  toTop();
+                                }}
+                              >
+                                {id === "all"
+                                  ? "All categories"
+                                  : CHIP_LABEL[id]}
+                              </button>
+                            ))
+                          : null}
+                        <label className="cn-search px-track">
+                          <span className="cn-sicon">
+                            <FiSearch size={14} aria-hidden />
+                          </span>
+                          <input
+                            ref={searchRef}
+                            type="search"
+                            value={q}
+                            data-cn-search=""
+                            aria-label={
+                              apps
+                                ? "Search apps and services"
+                                : "Search AI tools"
+                            }
+                            placeholder={
+                              apps ? "Search apps" : "Search AI tools"
+                            }
+                            onChange={(e) => {
+                              setQ(e.target.value);
+                              toTop();
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape" && q) {
+                                e.stopPropagation();
+                                setQ("");
+                              }
+                            }}
+                          />
+                          {q ? (
+                            <button
+                              type="button"
+                              className="cn-iconbtn cn-sx"
+                              aria-label="Clear search"
+                              onClick={() => {
+                                setQ("");
+                                searchRef.current?.focus();
+                              }}
+                            >
+                              <FiX size={13} aria-hidden />
+                            </button>
+                          ) : null}
+                        </label>
+                      </div>
+                    )}
+                  </div>
 
-                <div
-                  id="cn-panel"
-                  role="tabpanel"
-                  aria-labelledby={"cn-tab-" + tab}
-                  className="cn-screen-col-2"
-                >
-                  {tab === "ai" ? (
-                    locked ? (
-                      <AiPromo />
+                  <div
+                    id="cn-panel"
+                    role="tabpanel"
+                    aria-labelledby={"cn-tab-" + tab}
+                    className="cn-screen-col-2"
+                  >
+                    {tab === "ai" ? (
+                      locked ? (
+                        <AiPromo />
+                      ) : (
+                        <AiToolsPanel c={ctl} />
+                      )
+                    ) : shown.length ? (
+                      <div
+                        className="cn-grid"
+                        key={tab + show + chip}
+                        data-cn-grid={tab}
+                      >
+                        {shown.map((item, i) => (
+                          <Card
+                            key={item.key}
+                            item={item}
+                            i={i}
+                            busy={busy === item.key}
+                            onConnect={() => void connect(item)}
+                            onDisconnect={() => setConfirm(item)}
+                            onSync={() => void syncNow(item)}
+                            onLists={() => openTasksLists(item)}
+                          />
+                        ))}
+                      </div>
                     ) : (
-                      <AiToolsPanel c={ctl} />
-                    )
-                  ) : shown.length ? (
-                    <div
-                      className="cn-grid"
-                      key={tab + show + chip}
-                      data-cn-grid={tab}
-                    >
-                      {shown.map((item, i) => (
-                        <Card
-                          key={item.key}
-                          item={item}
-                          i={i}
-                          busy={busy === item.key}
-                          onConnect={() => void connect(item)}
-                          onDisconnect={() => setConfirm(item)}
-                          onSync={() => void syncNow(item)}
-                          onLists={() => openTasksLists(item)}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <GlassNote
-                      attr="data-cn-empty"
-                      icon={needle ? "search" : "link"}
-                      title={
-                        needle
-                          ? `Nothing matches “${needle}”`
-                          : "Nothing connected here yet"
-                      }
-                      line={
-                        needle
-                          ? "Check the spelling — or look in AI tools."
-                          : "Switch to All apps to see what you can connect."
-                      }
-                      action={{
-                        label: needle ? "Clear search" : "Show all",
-                        run: reset,
-                      }}
-                    />
-                  )}
+                      <GlassNote
+                        attr="data-cn-empty"
+                        icon={needle ? "search" : "link"}
+                        title={
+                          needle
+                            ? `Nothing matches “${needle}”`
+                            : "Nothing connected here yet"
+                        }
+                        line={
+                          needle
+                            ? "Check the spelling — or look in AI tools."
+                            : "Switch to All apps to see what you can connect."
+                        }
+                        action={{
+                          label: needle ? "Clear search" : "Show all",
+                          run: reset,
+                        }}
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </PxSky>
         </div>

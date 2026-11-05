@@ -13,6 +13,7 @@ import { AiSetup } from "../../connections/AiSetup";
 import { visibleTools } from "../../connections/AiToolsPanel";
 import { ApiAccess } from "../../connections/ApiAccess";
 import { CalDavForm } from "../../connections/CalDavForm";
+import { ConnectionsSetup } from "../../connections/ConnectionsSetup";
 import { GoogleTasksLists } from "../../connections/GoogleTasksLists";
 import {
   CATEGORY_LABEL,
@@ -25,6 +26,7 @@ import { AI_META, appsFor, toolAvailable } from "../../connections/mcp";
 import { mergeQueries } from "../../connections/query";
 import { strings } from "../../connections/strings";
 import type { ConnectionsController } from "../../connections/useConnectionsController";
+import { PxSky } from "../../scenes";
 import {
   PkButton,
   PkChips,
@@ -162,6 +164,14 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
   const chips = connectionChips(c.items);
   const appsTab = (
     <PhoneState query={query} screen="connections">
+      <PkButton
+        kind="chip"
+        className="ppl-setup-open"
+        onClick={c.onboarding.open}
+        data-ppl-setup-open=""
+      >
+        Set up
+      </PkButton>
       <label className="ppl-search pk-glass is-round">
         <LuSearch size={16} aria-hidden />
         <input
@@ -352,6 +362,17 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         ? (A.detail ?? "Lost access")
         : (CATEGORY_LABEL[A.category] ?? A.category)
     : null;
+
+  // The first-visit setup takes the whole screen, on the sky.
+  if (c.onboarding.run)
+    return (
+      <div className="cs-phone" data-px-scope="">
+        <PxSky variant="a" horizon="cloudsea" fps={15} />
+        <div className="cs-phone-scroll">
+          <ConnectionsSetup s={c.onboarding} c={c} />
+        </div>
+      </div>
+    );
 
   return (
     <>

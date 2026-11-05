@@ -1,0 +1,619 @@
+/* Connections — the first-visit setup ("Connect your day", owner 05.11.26).
+ * Reference: Needt - Design/needt-app/additions-4/agents-variants/
+ * connections-setup.html. Drawn on the screen's own PxSky (desktop window,
+ * phone layer), never a second sky. Text on the sky uses the sky inks
+ * (--px-ink / -2 / -3); chrome type is 13 / 12 px; the accent is only a mark
+ * (step bars, the done check, the focus ring); motion is the changed element
+ * at 0.42 s, plus the field's slow drift, which reduced motion stills. */
+
+.needt-v3 .cs-root {
+  position: relative;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 16px 48px;
+  box-sizing: border-box;
+  color: var(--px-ink);
+  --cs-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.needt-v3 .cs-stage {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 52px;
+}
+.needt-v3 .cs-stage.is-two {
+  margin-top: 56px;
+}
+.needt-v3 .cs-stage.is-three {
+  margin-top: clamp(56px, 14vh, 130px);
+}
+
+/* A soft light behind the field. */
+.needt-v3 .cs-glow {
+  position: absolute;
+  left: 50%;
+  top: 150px;
+  width: min(760px, 96%);
+  height: 380px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--color-white) 55%, transparent),
+    transparent
+  );
+  pointer-events: none;
+  animation: cs-breathe 5.2s ease-in-out infinite;
+}
+.needt-v3[data-theme="dark"] .cs-glow,
+.needt-v3 [data-px-night="1"] .cs-glow {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklch, var(--accent) 26%, transparent),
+    transparent
+  );
+}
+.needt-v3 .is-two > .cs-glow {
+  top: 120px;
+  height: 300px;
+}
+.needt-v3 .is-three > .cs-glow {
+  top: 90px;
+  height: 320px;
+}
+@keyframes cs-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+}
+
+/* Step marks: three bars, the current one long. */
+.needt-v3 .cs-steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--px-ink-2);
+}
+.needt-v3 .cs-bars {
+  display: flex;
+  gap: 5px;
+}
+.needt-v3 .cs-bars i {
+  display: block;
+  width: 16px;
+  height: 5px;
+  border-radius: 5px;
+  background: color-mix(in oklch, var(--px-ink) 14%, transparent);
+  transition:
+    width 0.42s var(--cs-ease),
+    background-color 0.3s;
+}
+.needt-v3 .cs-bars i.is-done {
+  background: color-mix(in oklch, var(--accent) 55%, transparent);
+}
+.needt-v3 .cs-bars i.is-on {
+  width: 34px;
+  background: var(--accent);
+}
+
+/* The field of tiles. */
+.needt-v3 .cs-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.needt-v3 .cs-row {
+  display: flex;
+  gap: 12px;
+  animation: cs-drift 14s ease-in-out infinite alternate;
+}
+.needt-v3 .cs-row:nth-child(2) {
+  animation-duration: 17s;
+  animation-direction: alternate-reverse;
+}
+.needt-v3 .cs-row:nth-child(3) {
+  animation-duration: 15s;
+}
+@keyframes cs-drift {
+  from {
+    transform: translateX(-7px);
+  }
+  to {
+    transform: translateX(7px);
+  }
+}
+.needt-v3 .cs-tile {
+  --d: 0;
+  --o: calc(1 - var(--d) * 0.5);
+  position: relative;
+  width: 92px;
+  height: 92px;
+  padding: 0;
+  border: 0;
+  border-radius: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: default;
+  color: var(--px-ink);
+  opacity: var(--o);
+  filter: blur(calc(var(--d) * var(--d) * 2.4px));
+  transition:
+    opacity 0.42s var(--cs-ease),
+    filter 0.42s var(--cs-ease),
+    transform 0.42s var(--cs-ease),
+    box-shadow 0.3s;
+  animation: cs-rise 0.42s var(--cs-ease) backwards;
+  animation-delay: calc(var(--i) * 28ms);
+}
+.needt-v3 .cs-tile:hover,
+.needt-v3 .cs-tile:focus-visible,
+.needt-v3 .cs-tile[aria-pressed="true"] {
+  opacity: 1;
+  filter: none;
+  transform: translateY(-2px);
+}
+.needt-v3 .cs-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.needt-v3 .cs-tile[aria-pressed="true"] {
+  box-shadow:
+    0 0 0 2px var(--px-ink),
+    0 14px 28px -14px var(--black-a30);
+}
+.needt-v3 .cs-tile.is-miss {
+  opacity: 0.18;
+  filter: blur(1.5px);
+}
+.needt-v3 .cs-tile-name {
+  font: 400 12px/1 var(--font-sans);
+  color: var(--px-ink-2);
+  white-space: nowrap;
+}
+.needt-v3 .cs-check {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--px-ink);
+  color: var(--surface-raised);
+  transform: scale(0);
+  transition: transform 0.42s var(--cs-ease);
+}
+.needt-v3 .cs-tile[aria-pressed="true"] .cs-check,
+.needt-v3 .cs-tile.is-done .cs-check {
+  transform: scale(1);
+}
+@keyframes cs-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: var(--o, 1);
+    transform: none;
+  }
+}
+
+/* Headline, search, buttons. */
+.needt-v3 .cs-head {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0;
+  margin-top: 30px;
+  max-width: 860px;
+}
+.needt-v3 .is-two > .cs-head {
+  margin-top: 0;
+}
+.needt-v3 .cs-head .px-kicker {
+  margin-top: 16px;
+}
+.needt-v3 .cs-title {
+  margin: 10px 0 0;
+  font-size: clamp(44px, 6.4vw, 78px);
+  line-height: 1.04;
+  text-wrap: balance;
+}
+.needt-v3 .is-two .cs-title {
+  font-size: clamp(40px, 5.4vw, 60px);
+}
+.needt-v3 .cs-line {
+  margin: 14px 0 0;
+  max-width: 500px;
+  font: 400 16px/23px var(--font-sans);
+  color: var(--px-ink-2);
+  text-wrap: balance;
+}
+.needt-v3 .cs-search {
+  margin-top: 22px;
+  width: min(420px, 100%);
+  height: 44px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 0 16px;
+  box-sizing: border-box;
+  color: var(--px-ink-3);
+}
+.needt-v3 .cs-search:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.needt-v3 .cs-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  font: 400 13px/1 var(--font-sans);
+  color: var(--px-ink);
+}
+.needt-v3 .cs-search input::placeholder {
+  color: var(--px-ink-3);
+}
+.needt-v3 .cs-search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.needt-v3 .cs-kbd {
+  font: 500 12px/1 var(--font-sans);
+  color: var(--px-ink-2);
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--px-ink) 6%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in oklch, var(--px-ink) 12%, transparent);
+}
+.needt-v3 .cs-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+.needt-v3 .cs-btn {
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 999px;
+  gap: 8px;
+}
+.needt-v3 .cs-link {
+  color: var(--px-ink-2);
+}
+.needt-v3 .cs-link:hover {
+  color: var(--px-ink);
+}
+
+/* Step 2. */
+.needt-v3 .cs-wrap {
+  width: 100%;
+  max-width: 560px;
+  margin-top: 22px;
+}
+.needt-v3 .cs-prog {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+}
+.needt-v3 .cs-prog-t {
+  font: 400 13px/18px var(--font-sans);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.needt-v3 .cs-prog-t b {
+  font-weight: 600;
+}
+.needt-v3 .cs-prog-bars {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+.needt-v3 .cs-prog-bars i {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--fill-3);
+}
+.needt-v3 .cs-prog-bars i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.42s var(--cs-ease);
+}
+.needt-v3 .cs-prog-bars i.is-on::after {
+  transform: scaleX(1);
+}
+.needt-v3 .cs-prog-bars i.is-cur::after {
+  transform: scaleX(0.3);
+  opacity: 0.6;
+}
+.needt-v3 .cs-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.needt-v3 .cs-card {
+  padding: 12px 14px;
+  transition: opacity 0.42s var(--cs-ease);
+}
+.needt-v3 .cs-card.is-queued {
+  opacity: 0.62;
+}
+.needt-v3 .cs-card-h {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+.needt-v3 .cs-card-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.needt-v3 .cs-card-name {
+  font: 600 13px/18px var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3 .cs-card-sub {
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.needt-v3 .cs-card-body {
+  padding: 10px 0 4px;
+}
+.needt-v3 .cs-card-p {
+  margin: 0;
+  font: 400 13px/19px var(--font-sans);
+  color: var(--text-secondary);
+}
+.needt-v3 .cs-stat {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font: 500 12px/14px var(--font-sans);
+  white-space: nowrap;
+  color: var(--success);
+  background: color-mix(in oklch, var(--success) 12%, transparent);
+}
+.needt-v3 .cs-stat.is-mute {
+  color: var(--text-tertiary);
+  background: var(--fill-3);
+}
+.needt-v3 .cs-ring {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  animation: cs-spin 1.1s linear infinite;
+}
+.needt-v3 .cs-ring circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.needt-v3 .cs-ring-tr {
+  opacity: 0.22;
+}
+.needt-v3 .cs-ring-fg {
+  stroke-dasharray: 14 40;
+}
+@keyframes cs-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Step 3: the tiles settle into a row; soft light dots. */
+.needt-v3 .cs-done-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  max-width: 560px;
+}
+.needt-v3 .cs-done-row .cs-tile {
+  --d: 0;
+  --o: 1;
+  animation: cs-settle 0.42s var(--cs-ease) both;
+  animation-delay: calc(var(--i) * 110ms + 120ms);
+}
+.needt-v3 .cs-done-row .cs-check {
+  background: var(--accent);
+  color: var(--color-white);
+}
+@keyframes cs-settle {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.92);
+    filter: blur(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+.needt-v3 .cs-dots {
+  position: absolute;
+  left: 50%;
+  top: 50px;
+  width: 0;
+  height: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.needt-v3 .cs-dots i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  opacity: 0;
+  background: color-mix(in oklch, var(--color-white) 90%, transparent);
+  animation: cs-dot 2.6s var(--cs-ease) forwards;
+}
+.needt-v3 .cs-dots i.is-t1 {
+  background: color-mix(in oklch, var(--accent) 45%, var(--color-white));
+}
+.needt-v3 .cs-dots i.is-t2 {
+  background: color-mix(in oklch, var(--accent) 25%, var(--color-white));
+  filter: blur(1.2px);
+}
+@keyframes cs-dot {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x), var(--y)) scale(1);
+  }
+}
+
+/* The hero's way back in. */
+.needt-v3 .cn-setup-link {
+  border: 0;
+  background: none;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font: 500 12px/16px var(--font-sans);
+  color: var(--px-ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: default;
+}
+.needt-v3 .cn-setup-link:hover {
+  color: var(--px-ink);
+}
+.needt-v3 .cn-setup-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* The phone: the setup over the whole screen, on its own sky layer. */
+.needt-v3 .cs-phone {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+}
+.needt-v3 .cs-phone > .px-sky,
+.needt-v3 .cs-phone > :first-child {
+  position: absolute;
+  inset: 0;
+}
+.needt-v3 .cs-phone-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 24px);
+}
+
+@media (max-width: 640px) {
+  .needt-v3 .cs-stage {
+    margin-top: 40px;
+  }
+  .needt-v3 .cs-glow {
+    top: 110px;
+    height: 280px;
+  }
+  .needt-v3 .cs-row,
+  .needt-v3 .cs-field {
+    gap: 8px;
+  }
+  .needt-v3 .cs-tile {
+    width: 62px;
+    height: 66px;
+    border-radius: 19px;
+    gap: 5px;
+  }
+  .needt-v3 .cs-tile-name {
+    display: none;
+  }
+  .needt-v3 .cs-check {
+    width: 18px;
+    height: 18px;
+    top: -5px;
+    right: -5px;
+  }
+  .needt-v3 .cs-head {
+    margin-top: 22px;
+  }
+  .needt-v3 .cs-done-row {
+    gap: 10px;
+  }
+  .needt-v3 .cs-prog {
+    flex-wrap: wrap;
+  }
+  .needt-v3 .cs-prog-bars {
+    flex-basis: 100%;
+    order: 3;
+  }
+  .needt-v3 .cs-kbd {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .cs-row,
+  .needt-v3 .cs-glow,
+  .needt-v3 .cs-tile,
+  .needt-v3 .cs-done-row .cs-tile,
+  .needt-v3 .cs-ring {
+    animation: none;
+  }
+  .needt-v3 .cs-glow {
+    opacity: 0.8;
+  }
+  .needt-v3 .cs-dots {
+    display: none;
+  }
+}

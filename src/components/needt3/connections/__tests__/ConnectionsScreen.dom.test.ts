@@ -200,6 +200,9 @@ beforeEach(() => {
   catalogRows = null;
   planKind = "monthly";
   window.localStorage.clear();
+  window.sessionStorage.clear();
+  // The first-visit setup has its own suite (ConnectionsSetup.dom.test.ts).
+  window.localStorage.setItem("needt.cnSetup", JSON.stringify("skipped"));
   window.history.replaceState(null, "", "/");
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -716,5 +719,103 @@ describe("connectors this server cannot start", () => {
     viewerIsAdmin = true;
     render();
     expect(cards()).toContain("todoist");
+  });
+});
+
+describe("the first-visit setup", () => {
+  const { startOAuth } = jest.requireMock("@/lib/needt3/hooks/catalog") as {
+    startOAuth: jest.Mock;
+  };
+  beforeEach(() => {
+    window.localStorage.removeItem("needt.cnSetup");
+    startOAuth.mockReset();
+    startOAuth.mockResolvedValue({ ok: true });
+  });
+  const step = () => $("[data-cs-setup]")?.dataset.csSetup ?? null;
+  const pressed = () =>
+    $$("[data-cs-tile][aria-pressed=true]").map((t) => t.dataset.csTile);
+
+  it("opens on step 1 for an account with nothing connected", () => {
+    render();
+    expect(step()).toBe("1");
+    expect(text(".cs-title")).toBe("Connect your day");
+    expect($("[data-cs-steps]").textContent).toContain("Step 1 of 3");
+    // The screen's own sky, no second one.
+    expect($$("[data-px-sky]")).toHaveLength(1);
+    expect($("[data-cn-card]")).toBeNull();
+    expect(pressed()).toEqual(["google-calendar", "gmail", "icloud-calendar"]);
+    expect(text("[data-cs-continue]")).toBe("Continue (3)");
+    click($("[data-cs-tile=notion]"));
+    expect(text("[data-cs-continue]")).toBe("Continue (4)");
+  });
+  it("Skip for now is remembered and ends on Set up later", () => {
+    render();
+    click($("[data-cs-skip]"));
+    expect(step()).toBe("3");
+    expect(text(".cs-title")).toBe("Set up later");
+    expect(window.localStorage.getItem("needt.cnSetup")).toBe(
+      JSON.stringify("skipped")
+    );
+    click($("[data-cs-go]"));
+    expect(step()).toBeNull();
+    expect($("[data-cn-card]")).not.toBeNull();
+    // Coming back does not open it again.
+    act(() => root.unmount());
+    root = createRoot(host);
+    render();
+    expect(step()).toBeNull();
+  });
+  it("step 2 connects through the card's own flow and remembers the run", async () => {
+    render();
+    click($("[data-cs-continue]"));
+    expect(step()).toBe("2");
+    expect($$("[data-cs-card]").map((c) => c.dataset.state)).toEqual([
+      "active",
+      "queued",
+      "queued",
+    ]);
+    expect(text("[data-cs-connect]")).toBe("Sign in with Google");
+    click($("[data-cs-connect]"));
+    await flush();
+    expect(startOAuth).toHaveBeenCalledWith("/api/calendar/google/auth");
+    expect(
+      JSON.parse(window.sessionStorage.getItem("needt.cnSetupRun") ?? "{}").step
+    ).toBe(2);
+  });
+  it("back from the provider it resumes step 2 with that source connected", () => {
+    window.sessionStorage.setItem(
+      "needt.cnSetupRun",
+      JSON.stringify({
+        step: 2,
+        picked: ["google-calendar", "notion"],
+        skipped: [],
+      })
+    );
+    accountsData = [acct({})];
+    render();
+    expect(step()).toBe("2");
+    expect($("[data-cs-card=google-calendar]").dataset.state).toBe("done");
+    expect($("[data-cs-stat=done]").textContent).toContain(
+      "Connected · syncing"
+    );
+    expect(text("[data-cs-connect]")).toBe("Authorize Notion");
+    click($("[data-cs-skip-one=notion]"));
+    click($("[data-cs-finish]"));
+    expect(step()).toBe("3");
+    expect(text(".cs-title")).toBe("You’re all set");
+    expect($$("[data-cs-done]").map((t) => t.dataset.csDone)).toEqual([
+      "google-calendar",
+    ]);
+    click($("[data-cs-go]"));
+    expect(window.localStorage.getItem("needt.cnSetup")).toBe(
+      JSON.stringify("done")
+    );
+  });
+  it("does not open when something is connected; Set up opens it", () => {
+    accountsData = [acct({})];
+    render();
+    expect(step()).toBeNull();
+    click($("[data-cn-setup-open]"));
+    expect(step()).toBe("1");
   });
 });

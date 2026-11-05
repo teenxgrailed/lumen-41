@@ -131,6 +131,7 @@ const connectionsCtl = {
   syncNow: noop,
   openTasksLists: noop,
   closeTasksLists: noop,
+  onboarding: { run: null, open: noop },
 } as never;
 
 interface Surface {
@@ -238,6 +239,8 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  // Connections' first-visit setup is not what these surfaces test.
+  window.localStorage.setItem("needt.cnSetup", JSON.stringify("skipped"));
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: (q: string) => ({
