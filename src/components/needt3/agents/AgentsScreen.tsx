@@ -635,19 +635,22 @@ export function AgentsScreen() {
           </Chip>
         ))}
         {live.length > 1 ? (
-          <select
-            className="ag-select"
-            aria-label="Agent"
-            value={filters.agent}
-            onChange={(e) => setFilters({ ...filters, agent: e.target.value })}
-          >
-            <option value="">All agents</option>
+          <span className="ag-bar-agents" role="group" aria-label="Agent">
             {live.map((a) => (
-              <option key={a.id} value={a.id}>
+              <Chip
+                key={a.id}
+                pressed={filters.agent === a.id}
+                onClick={() =>
+                  setFilters({
+                    ...filters,
+                    agent: filters.agent === a.id ? "" : a.id,
+                  })
+                }
+              >
                 {a.name}
-              </option>
+              </Chip>
             ))}
-          </select>
+          </span>
         ) : null}
         <Search
           value={filters.q}
