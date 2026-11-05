@@ -54,17 +54,16 @@ Needt keeps tasks, calendars, docs and habits in one place and plans your day ar
 
 ## 4. Gallery (1270x760)
 
-Existing files in `marketing/product-hunt/` (from #600). All five are **2880x1800 (16:10)**, measured with `sips`. PH wants 1270x760 (about 5:3), so each needs a re-crop or resize; do not upload as is. They are landing screens: check each for personal data before upload.
+Ready to upload: `marketing/product-hunt/1270x760/` holds all five screens from #600 centre-cropped to 5:3 and resized to **1270x760** (done 06.11.26 with `sips`, checked by eye; demo account "Alex", no personal data). The 2880x1800 originals stay in `marketing/product-hunt/`.
 
 | # | Path | Size | Shows | Status |
 | --- | --- | --- | --- | --- |
-| 1 | `marketing/product-hunt/02-cal-after.jpg` | 2880x1800 | Calendar after one meeting moved, rest re-slotted, Keep | Content OK; re-crop to 1270x760 |
-| 2 | `marketing/product-hunt/01-today-light.jpg` | 2880x1800 | Today: what is next and why | Content OK; re-crop |
-| 3 | `marketing/product-hunt/03-composer-light.jpg` | 2880x1800 | Quick-add parsing day and time | Content OK; re-crop |
-| 4 | `marketing/product-hunt/04-ask-light.jpg` | 2880x1800 | Ask Needt AI (Pro only) | Optional; drop if the Agents Map takes its slot |
-| 5 | `marketing/product-hunt/05-docs-light.jpg` | 2880x1800 | Docs next to the work | Content OK; re-crop |
+| 1 | `marketing/product-hunt/1270x760/02-cal-after.jpg` | 1270x760 | Calendar after one meeting moved, rest re-slotted, Keep | Ready |
+| 2 | `marketing/product-hunt/1270x760/01-today-light.jpg` | 1270x760 | Today: what is next and why | Ready |
+| 3 | `marketing/product-hunt/1270x760/03-composer-light.jpg` | 1270x760 | Quick-add parsing day and time | Ready |
+| 4 | `marketing/product-hunt/1270x760/04-ask-light.jpg` | 1270x760 | Ask Needt AI (Pro only) | Optional; drop if the Agents Map takes its slot |
+| 5 | `marketing/product-hunt/1270x760/05-docs-light.jpg` | 1270x760 | Docs next to the work | Ready |
 
-How to re-crop: in Preview, Tools > Rectangular Selection at 5:3, copy to a new image, Tools > Adjust Size to 1270x760, export as PNG or JPG. Check that the caption text on the image is not cut.
 
 **Missing, capture this:** the Agents Map (the headline feature; nothing in the gallery shows it). In prod: Agents > Map > fullscreen > **Presentation mode**, which hides real task titles. Capture at 5:3 and resize to 1270x760. No real agent names that identify clients, no mail addresses on screen. Agents is a dark screen; that is fine, but keep one dark image only.
 
@@ -97,9 +96,9 @@ Pricing: a Free plan, 14 days of Pro with no card, then $7/month or $59/year. Li
 Needt is made by one person, so I read and answer every comment. What breaks your plan most often, and what would you want your agents to ask you before they act?
 ```
 
-`[OWNER: confirm Lifetime $149 and the 14-day trial are live at checkout on 17.11. If Creem is not live, delete the Pricing paragraph.]`
+Checkout is live (`billing_checkout` on for everyone since 05.11; first real sale through Creem on 05.11). Keep the Pricing paragraph.
 
-Not advertised on purpose, because off or not live as of 06.11.26: Quit habits (`habits_quit` flag, gradual rollout), Needt AI on a ChatGPT plan (`ai_chatgpt_plan`, off), Mac and iPhone apps, Chrome extension. "Ten skills" in the Plugin could not be verified in the repo, so no count is stated.
+Not advertised on purpose: Needt AI on a ChatGPT plan (`ai_chatgpt_plan`, off), Mac and iPhone apps (no Apple Developer account yet), Chrome extension. Quit habits are on for everyone since 05.11 and may be mentioned. The Needt Plugin has ten skills (v0.15.0, needt.app/plugin).
 
 ## 7. Topics (up to 3)
 
