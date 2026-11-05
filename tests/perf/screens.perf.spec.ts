@@ -4,7 +4,8 @@ import path from "node:path";
 
 import { prisma } from "@/lib/prisma";
 
-import { createV3User, signInAs, type V3User } from "../helpers/v3-user";
+import { enableAgentHub, seedAgentHub } from "../helpers/agent-hub";
+import { type V3User, createV3User, signInAs } from "../helpers/v3-user";
 
 /*
  * Per screen and project: a screenshot at rest, 3 s idle, and one scripted
@@ -41,6 +42,18 @@ type Screen = {
   /** Scripted interaction; throws when the screen cannot be driven. */
   interact: (page: Page, ctx: { phone: boolean }) => Promise<void>;
   only?: "phone" | "desktop";
+  /** Extra data or flags for this screen, after the shared seed. */
+  setup?: (user: V3User) => Promise<void>;
+};
+
+const hubSetup = async (user: V3User) => {
+  await enableAgentHub(user.id);
+  await seedAgentHub(user.id, user.workspaceId);
+};
+
+const agentsReady = async (p: Page) => {
+  await shellReady(p);
+  await p.locator("[data-ag-map] canvas").waitFor({ timeout: 45_000 });
 };
 
 const sleep = (page: Page, ms: number) => page.waitForTimeout(ms);
@@ -205,6 +218,51 @@ const screens: Screen[] = [
           await p.keyboard.press("Control+KeyJ");
         }
         await sleep(p, 900);
+      }
+    },
+  },
+  {
+    // The Agents Map at rest is the idle number; the interaction sweeps the
+    // pointer across it (hover, parallax) on the desktop and scrolls the
+    // page on a phone.
+    id: "agents-map",
+    path: "/agents?seed=7",
+    signedIn: true,
+    setup: hubSetup,
+    ready: agentsReady,
+    interact: async (p, { phone }) => {
+      if (phone) return scrollMain(p);
+      const box = await p.locator("[data-ag-map]").boundingBox();
+      if (!box) throw new Error("no map panel");
+      for (let i = 0; i <= 60; i++) {
+        await p.mouse.move(
+          box.x + (box.width * i) / 60,
+          box.y + box.height * (0.3 + 0.4 * Math.sin(i / 6))
+        );
+        await sleep(p, 16);
+      }
+    },
+  },
+  {
+    // Every tab of Agents, twice round.
+    id: "agents-tabs",
+    path: "/agents?seed=7",
+    signedIn: true,
+    setup: hubSetup,
+    ready: agentsReady,
+    interact: async (p) => {
+      for (let round = 0; round < 2; round++) {
+        for (const tab of [
+          "agents",
+          "tasks",
+          "messages",
+          "activity",
+          "memory",
+          "map",
+        ]) {
+          await p.locator(`[data-ag-tab="${tab}"]`).click({ timeout: 10_000 });
+          await sleep(p, 400);
+        }
       }
     },
   },
@@ -434,6 +492,7 @@ for (const screen of screens) {
       if (screen.signedIn) {
         const user = await createV3User(`perf-${screen.id}`);
         await seedData(user);
+        await screen.setup?.(user);
         await signInAs(page, user);
       }
       await context.addCookies([
