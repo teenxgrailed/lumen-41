@@ -126,6 +126,44 @@ export function formatShortDate(date: Date, withYear = false): string {
 }
 
 /**
+ * A past moment as a day a person reads at a glance: "today", "yesterday", or
+ * the date in the viewer's own locale ("17 Oct" / "Oct 17"), with the year
+ * only when it is not this year. Used by "Connected 17 Oct · Used today".
+ * `locale` is for tests; the app passes nothing and gets the browser's.
+ */
+export function formatDayAgo(
+  date: Date,
+  now: Date = newDate(),
+  locale?: string
+): string {
+  const days = differenceInCalendarDays(now, date);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  return date.toLocaleDateString(locale, {
+    day: "numeric",
+    month: "short",
+    ...(date.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  });
+}
+
+/**
+ * How long ago something ran, to the minute while it is recent: "just now",
+ * "5 min ago", "3 h ago", then `formatDayAgo` ("yesterday", "17 Oct").
+ */
+export function formatTimeAgo(
+  date: Date,
+  now: Date = newDate(),
+  locale?: string
+): string {
+  const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  if (differenceInCalendarDays(now, date) === 0)
+    return `${Math.floor(minutes / 60)} h ago`;
+  return formatDayAgo(date, now, locale);
+}
+
+/**
  * A date-only value (`YYYY-MM-DD`, as the API sends due dates) as "Sun 1 Nov".
  * Read in UTC so the day never slips in a zone behind it.
  */

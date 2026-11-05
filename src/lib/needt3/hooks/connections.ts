@@ -17,6 +17,8 @@ export interface V3Connection {
   /** "Token expired · last sync 06:12" style detail, when there is one. */
   detail: string | null;
   accountId: string | null;
+  /** When Needt last read this account (ISO), or null: never, or not tracked. */
+  lastSync: string | null;
 }
 
 interface ApiCalendarAccount {
@@ -26,6 +28,7 @@ interface ApiCalendarAccount {
   calendars: { id: string; name: string }[];
   needsReconnect?: boolean;
   syncFailing?: boolean;
+  lastSync?: string | null;
 }
 interface ApiMailAccount {
   id: string;
@@ -40,6 +43,7 @@ interface ApiIntegration {
   provider: string;
   toolkit: string;
   status: string;
+  lastSyncedAt?: string | null;
 }
 
 function list<T>(v: unknown, key: string): T[] {
@@ -83,6 +87,7 @@ export function useConnections() {
                 ? "Calendar sync failing"
                 : null,
             accountId: a.id,
+            lastSync: a.lastSync ?? null,
           });
         }
       }
@@ -100,6 +105,7 @@ export function useConnections() {
             label: a.email ?? a.address ?? a.provider,
             detail: failed ? "Needs reconnecting" : null,
             accountId: a.id,
+            lastSync: a.lastSyncAt ?? null,
           });
         }
       }
@@ -117,6 +123,7 @@ export function useConnections() {
             label: c.toolkit || c.provider,
             detail: null,
             accountId: c.id,
+            lastSync: c.lastSyncedAt ?? null,
           });
         }
       }
