@@ -343,8 +343,9 @@ function HabitSheet({
   const editing = !!f?.editId;
   const title = editing ? t.PhbNewSheet.edit_habit : t.PhbNewSheet.new_habit;
   const quit = f?.kind === "QUIT";
-  // Quit on Free: the form becomes the Pro card, and there is no Create.
-  const quitLocked = quit && quitGate !== "on";
+  // A new Quit habit on Free: the form becomes the Pro card, and there is no
+  // Create. A Quit habit kept from before a downgrade stays editable.
+  const quitLocked = quit && quitGate !== "on" && !editing;
   return (
     <PkSheet
       open={!!form}
@@ -678,7 +679,8 @@ export function PhoneHabits({
               <QuitLayer
                 habits={ctl.quitList}
                 gate={ctl.quitGate}
-                ctl={{ ...quit, pullId: null }}
+                ctl={quit}
+                detailOnly
                 phone
                 onUpgrade={seePro}
               />

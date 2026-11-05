@@ -23,6 +23,11 @@ let history: Checkin[] | undefined;
 jest.mock("@/lib/needt3/hooks/habits", () => ({
   useCheckinHistory: () => ({ data: history }),
 }));
+// The Quit part's controller: no Quit habits drawn here.
+jest.mock("@/lib/needt3/hooks/habits-quit", () => ({
+  useQuitGate: () => "off",
+  useLogHabitEvent: () => ({ mutateAsync: jest.fn() }),
+}));
 
 const TODAY = "2026-09-01";
 const habit = (id: string, title: string): V3Habit => ({

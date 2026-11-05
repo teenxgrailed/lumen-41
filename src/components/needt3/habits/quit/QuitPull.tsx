@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { newDate } from "@/lib/date-utils";
 import {
   BREATH_HALF_MS,
   BREATH_MS,
@@ -17,6 +18,11 @@ import { QuitHeld, QuitSlipConfirm, QuitX } from "./QuitParts";
  * → held + one-tap trigger, or the assistant with the context already in it
  * (Pro). The pull is logged on the press, before any of this, so closing at
  * any step still counts it.
+ *
+ * The step and the breath's start belong to the route (`useQuitController`),
+ * so crossing 700 px keeps the flow where it was. One dialog for every step:
+ * modal, its own label per step, focus on the step's heading, Tab kept
+ * inside, the rest of the page inert, focus back on Pulling when it closes.
  */
 
 export type PullStep = "breathe" | "reason" | "ask" | "held" | "slip";
@@ -34,7 +40,7 @@ function Breath({ elapsed }: { elapsed: number }) {
   const inhale = Math.floor(elapsed / BREATH_HALF_MS) % 2 === 0;
   const left = Math.max(0, Math.ceil((BREATH_MS - elapsed) / 1000));
   return (
-    <div className="hq-breath" aria-label={`${left} seconds left`}>
+    <div className="hq-breath" role="timer" aria-label={`${left} seconds left`}>
       <div className="disc" />
       <svg viewBox="0 0 200 200" aria-hidden>
         <circle className="bg" cx="100" cy="100" r={r} />
@@ -47,7 +53,8 @@ function Breath({ elapsed }: { elapsed: number }) {
           strokeDashoffset={c * (1 - done)}
         />
       </svg>
-      <em className="hq-num" aria-live="polite">
+      {/* Not live: a change every 5.2 s for a minute is noise to a reader. */}
+      <em className="hq-num" aria-hidden>
         {inhale ? "Breathe in" : "Breathe out"}
       </em>
     </div>
@@ -73,6 +80,9 @@ export function QuitTrigger({
   const [text, setText] = useState("");
   const known = URGE_TAGS.some(([k]) => k === value?.tag);
   const strength = value?.strength ?? null;
+  const commit = () => {
+    if (text.trim()) onChange({ tag: text.trim(), strength });
+  };
   return (
     <div className="hq-trig">
       {compact ? null : <span className="hq-eyebrow">What set it off</span>}
@@ -110,13 +120,15 @@ export function QuitTrigger({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && text.trim()) {
-              onChange({ tag: text.trim(), strength });
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") {
+              // Esc here keeps what was typed and leaves the field, not the flow.
+              e.stopPropagation();
+              commit();
+              e.currentTarget.blur();
             }
           }}
-          onBlur={() => {
-            if (text.trim()) onChange({ tag: text.trim(), strength });
-          }}
+          onBlur={commit}
         />
       ) : null}
       <div className="hq-scale" role="group" aria-label="How strong">
@@ -140,11 +152,59 @@ export function QuitTrigger({
   );
 }
 
+const FOCUSABLE =
+  'button:not([disabled]), input:not([disabled]), textarea, [href], [tabindex]:not([tabindex="-1"])';
+
+/**
+ * The modal part of the flow: everything outside `root` is inert while it is
+ * open (each sibling along the way up to <body>), and on close focus goes
+ * back to where it came from, or to `restore` when that is gone.
+ */
+function useModal(
+  root: React.RefObject<HTMLElement | null>,
+  restore: string | undefined
+) {
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const before = document.activeElement as HTMLElement | null;
+    const made: HTMLElement[] = [];
+    for (let node: HTMLElement | null = el; node && node !== document.body; ) {
+      const parent: HTMLElement | null = node.parentElement;
+      if (!parent) break;
+      for (const sib of Array.from(parent.children)) {
+        if (sib !== node && sib instanceof HTMLElement && !sib.inert) {
+          sib.inert = true;
+          made.push(sib);
+        }
+      }
+      node = parent;
+    }
+    return () => {
+      made.forEach((m) => (m.inert = false));
+      // After the list has drawn again, so the Pulling button exists.
+      window.setTimeout(() => {
+        const back =
+          before && before.isConnected && before !== document.body
+            ? before
+            : restore
+              ? document.querySelector<HTMLElement>(restore)
+              : null;
+        back?.focus();
+      }, 0);
+    };
+    // Once per flow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
 export interface QuitPullProps {
   title: string;
   reason: string | null;
   /** The run before this pull; the reason step says how long it has been. */
   run: RunParts;
+  /** Days of the run as the server counts them. */
+  days: number;
   since: string | null;
   best: number;
   clean: number;
@@ -153,45 +213,79 @@ export interface QuitPullProps {
   pro: boolean;
   desk?: boolean;
   online: boolean;
+  step: PullStep;
+  /** When the breath began (epoch ms); the flow survives a remount. */
+  startedAt: number;
+  trigger: PullTrigger | null;
+  /** Where focus goes when the flow closes and its opener is gone. */
+  restore?: string;
+  onStep: (step: PullStep) => void;
   /** "No, it passed". */
   onHeld: () => void;
   /** "Yes, still": Pro opens the assistant, Free the upgrade. */
   onStill: () => void;
-  /** "Start again" after "I slipped". */
-  onSlip: () => void;
+  /** "Start again" after "I slipped": resolves true once the slip is saved. */
+  onSlip: () => Promise<boolean>;
   onTrigger: (t: PullTrigger) => void;
   onClose: () => void;
 }
 
-/** The pull flow. The step is local: it starts over with every press. */
+/** The pull flow. */
 export function QuitPull(p: QuitPullProps) {
-  const [step, setStep] = useState<PullStep>("breathe");
-  const [elapsed, setElapsed] = useState(0);
-  const [trigger, setTrigger] = useState<PullTrigger | null>(null);
-  const started = useRef(0);
+  const { step, onStep } = p;
+  const [elapsed, setElapsed] = useState(() =>
+    Math.max(0, newDate().getTime() - p.startedAt)
+  );
+  const [slipping, setSlipping] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const live = useRef(p);
+  live.current = p;
+  useModal(root, p.restore);
 
   useEffect(() => {
     if (step !== "breathe") return;
-    started.current = performance.now();
-    const t = window.setInterval(() => {
-      const e = performance.now() - started.current;
+    const tick = () => {
+      const e = Math.max(0, newDate().getTime() - live.current.startedAt);
       setElapsed(e);
-      if (e >= BREATH_MS) setStep(p.reason ? "reason" : "ask");
-    }, 250);
+      if (e >= BREATH_MS)
+        live.current.onStep(live.current.reason ? "reason" : "ask");
+    };
+    tick();
+    const t = window.setInterval(tick, 250);
     return () => window.clearInterval(t);
-    // The breath runs once per flow; a reason edited mid-breath changes nothing.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
+  // Each step's heading takes focus, so a reader hears where they are.
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") p.onClose();
-    };
-    document.addEventListener("keydown", esc);
-    return () => document.removeEventListener("keydown", esc);
-  }, [p]);
+    root.current?.querySelector<HTMLElement>("[data-hq-focus]")?.focus();
+  }, [step]);
 
-  const cls = `hq-pull${p.desk ? " is-desk" : ""}`;
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      // From the slip question Esc goes back a step, not out of the flow.
+      if (live.current.step === "slip") live.current.onStep("ask");
+      else live.current.onClose();
+      return;
+    }
+    if (e.key !== "Tab" || !root.current) return;
+    const items = Array.from(
+      root.current.querySelectorAll<HTMLElement>(FOCUSABLE)
+    );
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    const at = document.activeElement;
+    if (e.shiftKey && (at === first || !root.current.contains(at))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (at === last || !root.current.contains(at))) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
+  const labelId = `hq-pull-${step}`;
   const close = (
     <button
       type="button"
@@ -202,20 +296,18 @@ export function QuitPull(p: QuitPullProps) {
       <QuitX />
     </button>
   );
-  const afterBreath = () => setStep(p.reason ? "reason" : "ask");
+  const afterBreath = () => onStep(p.reason ? "reason" : "ask");
 
+  let content: React.ReactNode;
   if (step === "breathe")
-    return (
-      <div
-        className={cls}
-        role="dialog"
-        aria-label="Pulling"
-        data-hq-step="breathe"
-      >
+    content = (
+      <>
         <span className="step">Breathe · {clock(BREATH_MS - elapsed)}</span>
         {close}
         <Breath elapsed={elapsed} />
-        <h3>Stay with the breath for a minute.</h3>
+        <h3 id={labelId} tabIndex={-1} data-hq-focus="">
+          Stay with the breath for a minute.
+        </h3>
         <p>
           In as the circle grows, out as it falls. The pull usually passes in a
           few minutes.
@@ -229,23 +321,19 @@ export function QuitPull(p: QuitPullProps) {
             {p.reason ? "Skip to my reason" : "Skip"}
           </button>
         </div>
-      </div>
+      </>
     );
-
-  if (step === "reason")
-    return (
-      <div
-        className={cls}
-        role="dialog"
-        aria-label="Pulling"
-        data-hq-step="reason"
-      >
-        <span className="step">Your reason</span>
+  else if (step === "reason")
+    content = (
+      <>
+        <span className="step" id={labelId} tabIndex={-1} data-hq-focus="">
+          Your reason
+        </span>
         {close}
         <div className="hq-quote">
           “{p.reason}”
           <small>
-            {p.since ? `You wrote this on ${p.since}. ` : ""}
+            {p.since ? `Since ${p.since}: ` : ""}
             {p.run.days} {p.run.days === 1 ? "day" : "days"} without so far.
           </small>
         </div>
@@ -253,25 +341,21 @@ export function QuitPull(p: QuitPullProps) {
           <button
             type="button"
             className="hq-btn is-primary is-wide"
-            onClick={() => setStep("ask")}
+            onClick={() => onStep("ask")}
           >
             Next
           </button>
         </div>
-      </div>
+      </>
     );
-
-  if (step === "ask")
-    return (
-      <div
-        className={cls}
-        role="dialog"
-        aria-label="Pulling"
-        data-hq-step="ask"
-      >
+  else if (step === "ask")
+    content = (
+      <>
         <span className="step">One question</span>
         {close}
-        <h3>Still pulling?</h3>
+        <h3 id={labelId} tabIndex={-1} data-hq-focus="">
+          Still pulling?
+        </h3>
         <div className="acts">
           <button
             type="button"
@@ -279,7 +363,7 @@ export function QuitPull(p: QuitPullProps) {
             data-hq-passed=""
             onClick={() => {
               p.onHeld();
-              setStep("held");
+              onStep("held");
             }}
           >
             No, it passed
@@ -299,62 +383,74 @@ export function QuitPull(p: QuitPullProps) {
           <button
             type="button"
             className="hq-btn is-text"
-            onClick={() => setStep("slip")}
+            onClick={() => onStep("slip")}
           >
             I slipped
           </button>
         </div>
-      </div>
+      </>
     );
-
-  if (step === "slip")
-    return (
-      <div
-        className={cls}
-        role="dialog"
-        aria-label="Pulling"
-        data-hq-step="slip"
-      >
+  else if (step === "slip")
+    content = (
+      <>
         {close}
         <QuitSlipConfirm
           run={p.run}
+          days={p.days}
           best={p.best}
           clean={p.clean}
-          onCancel={() => setStep("ask")}
+          busy={slipping}
+          onCancel={() => onStep("ask")}
           onConfirm={() => {
-            p.onSlip();
-            p.onClose();
+            if (slipping) return;
+            setSlipping(true);
+            // Closes only once the slip is saved; on a failure the flow stays
+            // open and the hook has said why.
+            void p.onSlip().then((ok) => {
+              setSlipping(false);
+              if (ok) live.current.onClose();
+            });
           }}
         />
-      </div>
+      </>
+    );
+  else
+    content = (
+      <>
+        <span className="step">Held</span>
+        {close}
+        <QuitHeld />
+        <h3 id={labelId} tabIndex={-1} data-hq-focus="">
+          You held it.
+        </h3>
+        <p>
+          {p.held + 1} {p.held + 1 === 1 ? "pull" : "pulls"} held. Note what set
+          it off — one tap, so the pattern shows later.
+        </p>
+        <QuitTrigger value={p.trigger} onChange={p.onTrigger} />
+        <div className="acts">
+          <button
+            type="button"
+            className="hq-btn is-primary is-wide"
+            onClick={p.onClose}
+          >
+            Done
+          </button>
+        </div>
+      </>
     );
 
   return (
-    <div className={cls} role="dialog" aria-label="Pulling" data-hq-step="held">
-      <span className="step">Held</span>
-      {close}
-      <QuitHeld />
-      <h3>You held it.</h3>
-      <p>
-        {p.held + 1} {p.held + 1 === 1 ? "pull" : "pulls"} held. Note what set
-        it off — one tap, so the pattern shows later.
-      </p>
-      <QuitTrigger
-        value={trigger}
-        onChange={(t) => {
-          setTrigger(t);
-          p.onTrigger(t);
-        }}
-      />
-      <div className="acts">
-        <button
-          type="button"
-          className="hq-btn is-primary is-wide"
-          onClick={p.onClose}
-        >
-          Done
-        </button>
-      </div>
+    <div
+      ref={root}
+      className={`hq-pull${p.desk ? " is-desk" : ""}`}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={step === "slip" ? "hq-slip-q" : labelId}
+      data-hq-step={step}
+      onKeyDown={onKeyDown}
+    >
+      {content}
     </div>
   );
 }

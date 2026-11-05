@@ -3,9 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { askNeedt } from "@/components/needt3/corner/ask-bridge";
-import { useIsPro } from "@/components/needt3/paywall/Pro";
 
-import { formatInTimeZone } from "@/lib/date-utils";
+import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import {
   type QuitGate,
   type QuitSummary,
@@ -15,17 +14,18 @@ import {
   pullLog,
   pullsToday,
   runParts,
+  summaryMilestone,
   urgeMap,
 } from "@/lib/needt3/habits-quit";
 import {
   useHabitEvents,
   useLogHabitEvent,
   usePatchHabitEvent,
+  useQuitGate,
   useQuitSummary,
 } from "@/lib/needt3/hooks/habits-quit";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import type { V3Habit } from "@/lib/needt3/map";
-import { notify } from "@/lib/notifications";
 
 import {
   QuitCard,
@@ -39,17 +39,78 @@ import {
   quitMeta,
   useMinuteClock,
 } from "./QuitParts";
-import { type PullTrigger, QuitPull } from "./QuitPull";
+import { type PullStep, type PullTrigger, QuitPull } from "./QuitPull";
+
+/** A running pull: where the flow is, and what it has written. */
+export interface PullSession {
+  habitId: string;
+  step: PullStep;
+  /** When the breath began (epoch ms). */
+  startedAt: number;
+  trigger: PullTrigger | null;
+}
 
 /**
  * What the Quit part of the Habits route holds, called once by the route
  * above the phone / desktop switch and handed to both faces (two faces, one
- * state): which Quit habit is open, and which one is in a pull.
+ * state): which Quit habit is open, and the pull in progress with its step,
+ * its breath and its writes, so crossing 700 px neither restarts the breath
+ * nor logs the pull twice.
+ *
+ * The pull is logged here, on the press (not while rendering): one URGE per
+ * press, also under a doubled development effect. "No, it passed" writes
+ * the held pull at once and the trigger is added to it later, so leaving
+ * without Done loses nothing.
  */
 export function useQuitController() {
+  const gate = useQuitGate();
+  const log = useLogHabitEvent();
   const [openId, setOpenId] = useState<string | null>(null);
-  const [pullId, setPullId] = useState<string | null>(null);
-  return { openId, pullId, open: setOpenId, pull: setPullId };
+  const [session, setSession] = useState<PullSession | null>(null);
+  const writes = useRef<{
+    urge: Promise<string | null> | null;
+    held: Promise<string | null> | null;
+  }>({ urge: null, held: null });
+  const canWrite = gate === "on";
+
+  const record = (habitId: string, type: "URGE" | "RESISTED") =>
+    canWrite
+      ? log
+          .mutateAsync({ habitId, type })
+          .then((e) => e.id)
+          .catch(() => null)
+      : Promise.resolve(null);
+
+  return {
+    openId,
+    pullId: session?.habitId ?? null,
+    session,
+    writes,
+    open: setOpenId,
+    pull: (habitId: string | null) => {
+      if (!habitId) {
+        setSession(null);
+        writes.current = { urge: null, held: null };
+        return;
+      }
+      if (session?.habitId === habitId) return;
+      writes.current = { urge: record(habitId, "URGE"), held: null };
+      setSession({
+        habitId,
+        step: "breathe",
+        startedAt: newDate().getTime(),
+        trigger: null,
+      });
+    },
+    step: (step: PullStep) => setSession((s) => (s ? { ...s, step } : s)),
+    trigger: (trigger: PullTrigger) =>
+      setSession((s) => (s ? { ...s, trigger } : s)),
+    /** "No, it passed": the held pull is written now. */
+    held: (habitId: string) => {
+      if (!writes.current.held)
+        writes.current.held = record(habitId, "RESISTED");
+    },
+  };
 }
 export type QuitController = ReturnType<typeof useQuitController>;
 
@@ -61,6 +122,20 @@ const runStart = (h: V3Habit, s: QuitSummary | undefined) =>
 
 const restarted = (s: QuitSummary | undefined) =>
   Boolean(s && s.counts.RELAPSE > 0 && s.currentStreak === 0);
+
+/**
+ * Days and milestones as the server counts them (calendar days in the
+ * person's zone) once the summary is here; elapsed time until then. Hours
+ * and minutes stay elapsed: they are the live counter only.
+ */
+function quitDays(s: QuitSummary | undefined, start: string | null, now: Date) {
+  const run = runParts(start, now);
+  return {
+    run,
+    days: s ? s.currentStreak : run.days,
+    ms: s ? summaryMilestone(s) : milestoneView(start, now),
+  };
+}
 
 function useOnline() {
   const [online, setOnline] = useState(true);
@@ -89,13 +164,8 @@ function QuitItem({
 }) {
   const summary = useQuitSummary(habit.id).data;
   const now = useMinuteClock();
-  const start = runStart(habit, summary);
-  const run = runParts(start, now);
-  const meta = quitMeta(
-    milestoneView(start, now),
-    restarted(summary),
-    summary?.bestStreak ?? 0
-  );
+  const { run, ms } = quitDays(summary, runStart(habit, summary), now);
+  const meta = quitMeta(ms, restarted(summary), summary?.bestStreak ?? 0);
   const props = {
     habit,
     run,
@@ -140,85 +210,61 @@ export function QuitList({
 }
 
 /**
- * 3 · a pull. The press is logged at once as a pull, so closing at any step
- * still counts it; "No, it passed" adds a held pull with the trigger, "I
- * slipped" a slip, "Yes, still" opens the assistant with the context in it.
+ * 3 · a pull. The press already logged it (`useQuitController.pull`), so
+ * closing at any step still counts it; "No, it passed" writes a held pull and
+ * the trigger is added to both, "I slipped" writes a slip and closes once it
+ * is saved, "Yes, still" opens the assistant with the context in it.
  */
 export function QuitPullHost({
   habit,
+  ctl,
+  session,
   desk,
   readOnly,
   onUpgrade,
-  onClose,
 }: {
   habit: V3Habit;
+  ctl: QuitController;
+  session: PullSession;
   desk: boolean;
   /**
-   * After a downgrade to Free a Quit habit stays readable but takes no new
-   * events: breathing and the reason still run, nothing is written, and the
-   * steps that would write lead to Pro.
+   * The gate is not "on" (Free, or a downgrade): the habit stays readable but
+   * takes no new events. Breathing and the reason still run, nothing is
+   * written, and the steps that would write lead to Pro.
    */
   readOnly: boolean;
   onUpgrade: () => void;
-  onClose: () => void;
 }) {
   const tz = useTimeZone();
-  const pro = useIsPro();
   const online = useOnline();
   const summary = useQuitSummary(habit.id).data;
   const events = useHabitEvents(habit.id).data ?? [];
   const log = useLogHabitEvent();
   const patch = usePatchHabitEvent();
   const now = useMinuteClock();
-  const urge = useRef<Promise<string | null> | null>(null);
-  const held = useRef<{ trigger: PullTrigger | null } | null>(null);
 
-  // Logged once per press (a ref, so a development double effect does not
-  // write it twice).
-  if (!urge.current) {
-    urge.current = readOnly
-      ? Promise.resolve(null)
-      : log
-          .mutateAsync({ habitId: habit.id, type: "URGE" })
-          .then((e) => e.id)
-          .catch(() => null);
-  }
-
-  const patchUrge = (fields: {
-    tag?: string | null;
-    intensity?: number | null;
-    note?: string | null;
-  }) =>
-    void urge.current?.then((eventId) =>
+  const patchOn = (
+    write: Promise<string | null> | null,
+    fields: {
+      tag?: string | null;
+      intensity?: number | null;
+      note?: string | null;
+    }
+  ) =>
+    void write?.then((eventId) =>
       eventId
         ? patch.mutate({ habitId: habit.id, eventId, ...fields })
         : undefined
     );
 
-  const close = () => {
-    // A held pull is written when the flow closes, with the trigger tapped
-    // on the way, so the tag lands even where the pull itself cannot be
-    // edited.
-    if (held.current && !readOnly) {
-      const t = held.current.trigger;
-      held.current = null;
-      log.mutate({
-        habitId: habit.id,
-        type: "RESISTED",
-        tag: t?.tag ?? null,
-        intensity: t?.strength ?? null,
-      });
-    }
-    onClose();
-  };
-
   const start = runStart(habit, summary);
-  const run = runParts(start, now);
+  const { run, days } = quitDays(summary, start, now);
   return (
     <QuitPull
       title={habit.title}
       reason={habit.reason ?? null}
       run={run}
+      days={days}
       since={
         habit.quitStartedAt
           ? formatInTimeZone(habit.quitStartedAt, tz, "d MMM")
@@ -227,47 +273,56 @@ export function QuitPullHost({
       best={summary?.bestStreak ?? 0}
       clean={summary?.totalCleanDays ?? 0}
       held={summary?.counts.RESISTED ?? 0}
-      pro={pro && !readOnly}
+      // The server's gate, not the plan read: that one says Pro while loading.
+      pro={!readOnly}
       desk={desk}
       online={online}
-      onHeld={() => {
-        held.current = { trigger: null };
-      }}
+      step={session.step}
+      startedAt={session.startedAt}
+      trigger={session.trigger}
+      restore={`[data-hq-pull="${habit.id}"]`}
+      onStep={ctl.step}
+      onHeld={() => ctl.held(habit.id)}
       onTrigger={(t) => {
-        if (held.current) held.current.trigger = t;
-        patchUrge({ tag: t.tag, intensity: t.strength });
+        ctl.trigger(t);
+        const fields = { tag: t.tag, intensity: t.strength };
+        // On the pull (where the pattern map and the tag counts read it) and
+        // on the held pull.
+        patchOn(ctl.writes.current.urge, fields);
+        patchOn(ctl.writes.current.held, fields);
       }}
-      onSlip={() =>
-        readOnly
-          ? onUpgrade()
-          : log.mutate(
-              { habitId: habit.id, type: "RELAPSE" },
-              {
-                onError: () =>
-                  notify.error("Could not start again. Try once more."),
-              }
-            )
-      }
+      onSlip={async () => {
+        if (readOnly) {
+          onUpgrade();
+          return false;
+        }
+        try {
+          await log.mutateAsync({ habitId: habit.id, type: "RELAPSE" });
+          return true;
+        } catch {
+          return false; // the hook said why
+        }
+      }}
       onStill={() => {
-        if (!pro || readOnly) {
+        if (readOnly) {
           onUpgrade();
           return;
         }
-        patchUrge({ note: TALKED_NOTE });
+        patchOn(ctl.writes.current.urge, { note: TALKED_NOTE });
         askNeedt(
           assistantContext({
             title: habit.title,
             run,
-            tag: null,
-            strength: null,
-            pullsToday: pullsToday(events, now, tz) + 1,
+            tag: session.trigger?.tag ?? null,
+            strength: session.trigger?.strength ?? null,
+            pullsToday: pullsToday(events, now, tz),
             reason: habit.reason ?? null,
             time: formatInTimeZone(now, tz, "HH:mm"),
           })
         );
-        onClose();
+        ctl.pull(null);
       }}
-      onClose={close}
+      onClose={() => ctl.pull(null)}
     />
   );
 }
@@ -292,13 +347,13 @@ export function QuitDetail({
   const tz = useTimeZone();
   const summaryQ = useQuitSummary(habit.id);
   const summary = summaryQ.data;
-  const events = useHabitEvents(habit.id).data ?? [];
+  const eventsQ = useHabitEvents(habit.id);
+  const events = eventsQ.data ?? [];
   const log = useLogHabitEvent();
   const now = useMinuteClock();
   const [confirm, setConfirm] = useState(false);
   const start = runStart(habit, summary);
-  const run = runParts(start, now);
-  const ms = milestoneView(start, now);
+  const { run, days, ms } = quitDays(summary, start, now);
   const map = urgeMap(events, now, tz);
   const since = start ? formatInTimeZone(start, tz, "d MMM, HH:mm") : null;
   return (
@@ -324,7 +379,7 @@ export function QuitDetail({
         )}
         {habit.reason ? <span className="hq-why">“{habit.reason}”</span> : null}
       </div>
-      <QuitMilestone ms={ms} run={run} />
+      <QuitMilestone ms={ms} days={days} />
       <div className="hq-stats">
         <div className="hq-stat">
           <b className="hq-num">{summary?.bestStreak ?? 0} d</b>
@@ -343,7 +398,13 @@ export function QuitDetail({
         <span>Pulls</span>
         <span>Last 7 days</span>
       </div>
-      <QuitPullLog rows={pullLog(events, now, tz)} />
+      {eventsQ.isError ? (
+        <p className="hq-meta hq-empty" role="alert">
+          Could not load the pulls. They are still saved.
+        </p>
+      ) : (
+        <QuitPullLog rows={pullLog(events, now, tz)} />
+      )}
       {map.note ? (
         <>
           <div className="hq-h">
@@ -355,19 +416,17 @@ export function QuitDetail({
       {confirm ? (
         <QuitSlipConfirm
           run={run}
+          days={days}
           best={summary?.bestStreak ?? 0}
           clean={summary?.totalCleanDays ?? 0}
           busy={log.isPending}
           onCancel={() => setConfirm(false)}
           onConfirm={() =>
-            log.mutate(
-              { habitId: habit.id, type: "RELAPSE" },
-              {
-                onSuccess: () => setConfirm(false),
-                onError: () =>
-                  notify.error("Could not start again. Try once more."),
-              }
-            )
+            // The hook tells a failure; the card stays so it can be tried again.
+            void log
+              .mutateAsync({ habitId: habit.id, type: "RELAPSE" })
+              .then(() => setConfirm(false))
+              .catch(() => undefined)
           }
         />
       ) : (
@@ -404,26 +463,29 @@ export function QuitLayer({
   ctl,
   gate,
   phone,
+  detailOnly,
   onUpgrade,
 }: {
   habits: readonly V3Habit[];
   ctl: QuitController;
   gate: QuitGate;
   phone: boolean;
+  /** Draw only the open habit, never the pull (the phone draws that above). */
+  detailOnly?: boolean;
   onUpgrade: () => void;
 }) {
   const readOnly = gate !== "on";
   const pulling = habits.find((h) => h.id === ctl.pullId) ?? null;
   const open = habits.find((h) => h.id === ctl.openId) ?? null;
-  if (pulling)
+  if (pulling && ctl.session && !detailOnly)
     return (
       <QuitPullHost
-        key={pulling.id}
         habit={pulling}
+        ctl={ctl}
+        session={ctl.session}
         desk={!phone}
         readOnly={readOnly}
         onUpgrade={onUpgrade}
-        onClose={() => ctl.pull(null)}
       />
     );
   if (open)

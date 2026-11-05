@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import { newDate } from "@/lib/date-utils";
 import {
@@ -13,6 +13,8 @@ import {
   stepLabel,
 } from "@/lib/needt3/habits-quit";
 import type { V3Habit } from "@/lib/needt3/map";
+
+import { FREE_HABITS } from "../derive";
 
 /*
  * Habits: Quit (additions-4/habits-quit, hq.jsx). The pieces here are pure:
@@ -56,8 +58,24 @@ export function useMinuteClock(live = true): Date {
   const [now, setNow] = useState(() => newDate());
   useEffect(() => {
     if (!live) return;
-    const t = window.setInterval(() => setNow(newDate()), 30_000);
-    return () => window.clearInterval(t);
+    // On the minute boundary, and again when the tab comes back (a hidden
+    // tab's timers are throttled).
+    let t = 0;
+    const arm = () => {
+      window.clearTimeout(t);
+      const at = newDate();
+      setNow(at);
+      t = window.setTimeout(arm, 60_000 - (at.getTime() % 60_000) + 50);
+    };
+    const back = () => {
+      if (document.visibilityState === "visible") arm();
+    };
+    t = window.setTimeout(arm, 60_000 - (newDate().getTime() % 60_000) + 50);
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("visibilitychange", back);
+    };
   }, [live]);
   return now;
 }
@@ -97,10 +115,14 @@ const runWords = (r: RunParts) =>
 export function quitMeta(ms: MilestoneView, restarted: boolean, best: number) {
   if (restarted) return `Started again · best ${best} d`;
   if (ms.next === null) return "A year without";
-  return `Next: ${ms.next} ${ms.next === 1 ? "day" : "days"}, in ${ms.left}`;
+  return `Next: ${ms.next} ${ms.next === 1 ? "day" : "days"}, ${ms.left}`;
 }
 
-/** 1 · the desktop card: a live count instead of the fourteen cells, one button. */
+/**
+ * 1 · the desktop card: a live count instead of the fourteen cells, one
+ * button. The card opens through its title, a real button stretched over the
+ * card, so Pulling stays its own control beside it (no button in a button).
+ */
 export function QuitCard({
   habit,
   run,
@@ -115,24 +137,17 @@ export function QuitCard({
   onOpen: () => void;
 }) {
   return (
-    <div
-      className="hq-card nx-press"
-      role="button"
-      tabIndex={0}
-      data-hq-quit={habit.id}
-      aria-label={`${habit.title} — ${runWords(run)} without`}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return;
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-    >
+    <div className="hq-card nx-press" data-hq-quit={habit.id}>
       <div className="hq-card-top">
         <span className="hq-dot" style={{ background: "var(--hq-ink-3)" }} />
-        <span className="t">{habit.title}</span>
+        <button
+          type="button"
+          className="t hq-card-open"
+          aria-label={`${habit.title} — ${runWords(run)} without`}
+          onClick={onOpen}
+        >
+          {habit.title}
+        </button>
         <span className="at">Quit</span>
       </div>
       <span className="hq-meta">{meta}</span>
@@ -143,12 +158,9 @@ export function QuitCard({
         </span>
         <button
           type="button"
-          className="hq-btn is-sm"
+          className="hq-btn is-sm hq-card-act"
           data-hq-pull={habit.id}
-          onClick={(e) => {
-            e.stopPropagation();
-            onPull();
-          }}
+          onClick={onPull}
         >
           Pulling
         </button>
@@ -237,7 +249,9 @@ export function QuitLock({
             See Pro
           </button>
         )}
-        <span className="hq-meta">Do habits stay free, up to 3.</span>
+        <span className="hq-meta">
+          Do habits stay free, up to {FREE_HABITS}.
+        </span>
       </div>
     </div>
   );
@@ -246,10 +260,11 @@ export function QuitLock({
 /** 2 · the next milestone; the accent is only the progress fill. */
 export function QuitMilestone({
   ms,
-  run,
+  days,
 }: {
   ms: MilestoneView;
-  run: RunParts;
+  /** Days of the run as the server counts them. */
+  days: number;
 }) {
   if (ms.next === null) return null;
   return (
@@ -259,7 +274,7 @@ export function QuitMilestone({
           <b>
             {ms.next} {ms.next === 1 ? "day" : "days"}
           </b>{" "}
-          in {ms.left}
+          {ms.left}
         </span>
         <span>{ms.pct}%</span>
       </div>
@@ -277,7 +292,7 @@ export function QuitMilestone({
         {QUIT_STEPS.map((s) => (
           <span
             key={s}
-            className={s <= run.days ? "past" : s === ms.next ? "next" : ""}
+            className={s <= days ? "past" : s === ms.next ? "next" : ""}
           >
             {stepLabel(s)}
           </span>
@@ -349,9 +364,14 @@ export function QuitMap({ map }: { map: UrgeMap }) {
   );
 }
 
-/** "I slipped": what resets and what stays. */
+/**
+ * "I slipped": what resets and what stays. An inline card, not a dialog of
+ * its own (in the pull flow it sits inside one); its question takes focus
+ * when it appears.
+ */
 export function QuitSlipConfirm({
   run,
+  days,
   best,
   clean,
   busy,
@@ -359,15 +379,21 @@ export function QuitSlipConfirm({
   onConfirm,
 }: {
   run: RunParts;
+  /** Days of the run as the server counts them. */
+  days: number;
   best: number;
   clean: number;
   busy?: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const head = useRef<HTMLElement>(null);
+  useEffect(() => head.current?.focus(), []);
   return (
-    <div className="hq-confirm" role="dialog" aria-label="Start again">
-      <b>Start again from now?</b>
+    <div className="hq-confirm" role="group" aria-labelledby="hq-slip-q">
+      <b id="hq-slip-q" ref={head} tabIndex={-1} data-hq-focus="">
+        Start again from now?
+      </b>
       <p>
         The current run ends at {run.days} d {run.hours} h. Nothing else is
         lost.
@@ -377,7 +403,7 @@ export function QuitSlipConfirm({
           Current run<b>0 d, from now</b>
         </li>
         <li>
-          Best run<b>{Math.max(best, run.days)} d, kept</b>
+          Best run<b>{Math.max(best, days)} d, kept</b>
         </li>
         <li>
           Clean in all<b>{clean} d, kept</b>

@@ -354,7 +354,7 @@
   display: flex;
   justify-content: space-between;
   margin-top: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--hq-ink-4);
   font-variant-numeric: tabular-nums;
 }
@@ -450,7 +450,7 @@
   border-radius: 14px;
   background: var(--hq-card);
   box-shadow: var(--shadow-ring);
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--hq-ink-4);
   font-variant-numeric: tabular-nums;
 }
@@ -869,13 +869,36 @@
 .hq-btn:focus-visible,
 .hq-chip:focus-visible,
 .hq-kind:focus-visible,
-.hq-card:focus-visible,
+.hq-card:has(.hq-card-open:focus-visible),
 .hq-scale button:focus-visible {
   outline: 2px solid var(--hq-mark);
   outline-offset: 2px;
 }
 .hq-card {
   cursor: pointer;
+}
+/* The title is the card's way in, stretched over the whole card; Pulling
+   sits above it as its own control. */
+.hq-card-open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.hq-card-open:focus-visible {
+  outline: none;
+}
+.hq-card-open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.hq-card-act {
+  position: relative;
+  z-index: 1;
 }
 .hq-row-open {
   flex: 1;
@@ -916,6 +939,9 @@
   margin-bottom: 16px;
 }
 /* the phone's pull covers the whole screen, on the canvas itself */
+.hq-pull :focus:not(:focus-visible) {
+  outline: none;
+}
 .hq-pull-layer {
   position: fixed;
   inset: 0;

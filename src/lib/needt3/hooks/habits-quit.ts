@@ -9,8 +9,9 @@ import type {
   QuitSummary,
 } from "@/lib/needt3/habits-quit";
 import { qk } from "@/lib/needt3/query-keys";
+import { notify } from "@/lib/notifications";
 
-import { ApiError, fetchJson, sendJson } from "./core";
+import { ApiError, fetchJson, isUpgradeRequired, sendJson } from "./core";
 import { useHabits } from "./habits";
 
 /**
@@ -65,14 +66,35 @@ export interface LogEventVars {
   note?: string | null;
 }
 
+const WRITE_FAILED: Partial<Record<HabitEventType, string>> = {
+  URGE: "Could not log the pull. It is not counted.",
+  RESISTED: "Could not save the held pull. Try once more.",
+  RELAPSE: "Could not start again. Try once more.",
+};
+
 /**
  * Log a pull, a held pull or a slip (POST /api/habits/:id/events). The list
  * gets the row at once; the summary is read again after the write, since a
  * slip moves the run.
+ *
+ * Failures are told here, on the mutation itself, not in a per-call
+ * callback: the pull flow often closes before the write lands, and a
+ * callback passed to `mutate` is dropped once its component unmounts. A 403
+ * means the plan changed under a stale gate: the habits read is refreshed
+ * (it carries the gate) and the person is told what changed.
  */
 export function useLogHabitEvent() {
   const qc = useQueryClient();
   return useMutation({
+    onError: (error, vars) => {
+      if (isUpgradeRequired(error)) {
+        void qc.invalidateQueries({ queryKey: qk.habits() });
+        notify.info("New pulls need Pro. What you logged stays readable.");
+        return;
+      }
+      const line = WRITE_FAILED[vars.type];
+      if (line) notify.error(line);
+    },
     mutationFn: async ({ habitId, ...event }: LogEventVars) =>
       (
         await sendJson<{ event: HabitEvent }>(

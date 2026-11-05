@@ -395,8 +395,9 @@ function HabitSheet({
   }, []);
   const { ok, timeOk: atOk, timeError } = checkHabitForm(f);
   const quit = f.kind === "QUIT";
-  // Quit on Free: the form becomes the Pro card, and there is no Create.
-  const quitLocked = quit && quitGate !== "on";
+  // A new Quit habit on Free: the form becomes the Pro card, and there is no
+  // Create. A Quit habit kept from before a downgrade stays editable.
+  const quitLocked = quit && quitGate !== "on" && !habit;
   const save = () => {
     if (!ok || saving || quitLocked) return;
     onSave();
@@ -450,17 +451,19 @@ function HabitSheet({
             />
           ) : null}
         </div>
-        <label className="pl-stack-6" hidden={quitLocked}>
-          <span className="pl-label">{pl.PlHabitSheet.name}</span>
-          <input
-            ref={nameRef}
-            name="habit-name"
-            value={f.title}
-            placeholder={pl.PlHabitSheet.new_habit}
-            onChange={(e) => setF({ ...f, title: e.target.value })}
-            className="pl-field"
-          />
-        </label>
+        {quitLocked ? null : (
+          <label className="pl-stack-6">
+            <span className="pl-label">{pl.PlHabitSheet.name}</span>
+            <input
+              ref={nameRef}
+              name="habit-name"
+              value={f.title}
+              placeholder={pl.PlHabitSheet.new_habit}
+              onChange={(e) => setF({ ...f, title: e.target.value })}
+              className="pl-field"
+            />
+          </label>
+        )}
         {quit && !quitLocked ? (
           <>
             <label className="pl-stack-6">
@@ -494,73 +497,79 @@ function HabitSheet({
             </label>
           </>
         ) : null}
-        <label className="pl-stack-6" hidden={quit}>
-          <span className="pl-label">
-            {pl.PlHabitSheet.time}{" "}
-            <span className="pl-habit-sheet-text-3">
-              {pl.PlHabitSheet.optional}
-            </span>
-          </span>
-          <input
-            name="habit-time"
-            value={f.time}
-            placeholder="HH:MM"
-            inputMode="numeric"
-            aria-invalid={!atOk}
-            onChange={(e) => setF({ ...f, time: e.target.value })}
-            className={`pl-field is-time is-num${atOk ? "" : " is-invalid"}`}
-          />
-        </label>
-        <div className="pl-stack-6" hidden={quit}>
-          <span className="pl-label">{pl.PlHabitSheet.days_per_week}</span>
-          <span className="pl-habit-sheet-row-2">
-            {PER_WEEK_CHOICES.map(([q, n]) => (
-              <button
-                key={n}
-                type="button"
-                className="pl-seg pl-seg-btn"
-                aria-pressed={f.perWeek === q}
-                onClick={() => setF({ ...f, perWeek: q })}
-              >
-                {n}
-              </button>
-            ))}
-          </span>
-        </div>
-        <div className="pl-stack-6" hidden={quitLocked}>
-          <span className="pl-label">
-            {pl.PlHabitSheet.project}{" "}
-            <span className="pl-habit-sheet-text-3">
-              {pl.PlHabitSheet.optional}
-            </span>
-          </span>
-          <span className="pl-habit-sheet-row-3">
-            {[null, ...projects.filter((p) => !p.archived)].map((p) => {
-              const on = f.projectId === (p?.id ?? null);
-              return (
-                <button
-                  key={p?.id ?? "none"}
-                  type="button"
-                  className={`pl-chip pl-habit-sheet-row-4${on ? " is-on" : ""}`}
-                  aria-pressed={on}
-                  onClick={() => setF({ ...f, projectId: p?.id ?? null })}
-                >
-                  <span
-                    className="pl-habit-sheet-row-5"
-                    style={
-                      p?.color
-                        ? ({ "--pl-project": p.color } as CSSProperties)
-                        : undefined
-                    }
+        {quit ? null : (
+          <>
+            <label className="pl-stack-6">
+              <span className="pl-label">
+                {pl.PlHabitSheet.time}{" "}
+                <span className="pl-habit-sheet-text-3">
+                  {pl.PlHabitSheet.optional}
+                </span>
+              </span>
+              <input
+                name="habit-time"
+                value={f.time}
+                placeholder="HH:MM"
+                inputMode="numeric"
+                aria-invalid={!atOk}
+                onChange={(e) => setF({ ...f, time: e.target.value })}
+                className={`pl-field is-time is-num${atOk ? "" : " is-invalid"}`}
+              />
+            </label>
+            <div className="pl-stack-6">
+              <span className="pl-label">{pl.PlHabitSheet.days_per_week}</span>
+              <span className="pl-habit-sheet-row-2">
+                {PER_WEEK_CHOICES.map(([q, n]) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className="pl-seg pl-seg-btn"
+                    aria-pressed={f.perWeek === q}
+                    onClick={() => setF({ ...f, perWeek: q })}
                   >
-                    <FiFolder size={12} aria-hidden />
-                  </span>
-                  {p ? p.name : pl.PlHabitSheet.no_project}
-                </button>
-              );
-            })}
-          </span>
-        </div>
+                    {n}
+                  </button>
+                ))}
+              </span>
+            </div>
+          </>
+        )}
+        {quitLocked ? null : (
+          <div className="pl-stack-6">
+            <span className="pl-label">
+              {pl.PlHabitSheet.project}{" "}
+              <span className="pl-habit-sheet-text-3">
+                {pl.PlHabitSheet.optional}
+              </span>
+            </span>
+            <span className="pl-habit-sheet-row-3">
+              {[null, ...projects.filter((p) => !p.archived)].map((p) => {
+                const on = f.projectId === (p?.id ?? null);
+                return (
+                  <button
+                    key={p?.id ?? "none"}
+                    type="button"
+                    className={`pl-chip pl-habit-sheet-row-4${on ? " is-on" : ""}`}
+                    aria-pressed={on}
+                    onClick={() => setF({ ...f, projectId: p?.id ?? null })}
+                  >
+                    <span
+                      className="pl-habit-sheet-row-5"
+                      style={
+                        p?.color
+                          ? ({ "--pl-project": p.color } as CSSProperties)
+                          : undefined
+                      }
+                    >
+                      <FiFolder size={12} aria-hidden />
+                    </span>
+                    {p ? p.name : pl.PlHabitSheet.no_project}
+                  </button>
+                );
+              })}
+            </span>
+          </div>
+        )}
         <div className="pl-habit-sheet-row-6">
           <button
             type="button"

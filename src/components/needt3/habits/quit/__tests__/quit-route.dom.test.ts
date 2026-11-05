@@ -9,7 +9,7 @@
  * slip; Free sees the Pro card and no Create; with the flag off nothing of
  * Quit is drawn.
  */
-import { act, createElement as h } from "react";
+import { StrictMode, act, createElement as h } from "react";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
@@ -166,7 +166,11 @@ beforeEach(() => {
   mockLog.mockReset();
   mockPatch.mockReset();
   mockCreate.mockReset();
-  mockLogAsync.mockReset().mockResolvedValue({ id: "urge-1" });
+  mockLogAsync
+    .mockReset()
+    .mockImplementation(async ({ type }: { type: string }) => ({
+      id: type === "URGE" ? "urge-1" : `${type.toLowerCase()}-1`,
+    }));
   usePhoneOverlays.setState({ paywall: false });
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -186,9 +190,11 @@ describe("the list", () => {
     render("desktop");
     const card = q('[data-hq-quit="q"]');
     expect(card?.textContent).toContain("Smoking");
-    expect(card?.getAttribute("aria-label")).toBe(
-      "Smoking — 12 days 14 hours without"
-    );
+    // The title is the card's way in; Pulling is its own button beside it.
+    expect(card?.getAttribute("role")).toBeNull();
+    expect(
+      card?.querySelector(".hq-card-open")?.getAttribute("aria-label")
+    ).toBe("Smoking — 12 days 14 hours without");
     expect(card?.textContent).toContain("Next: 14 days");
     // The Do habit keeps its own card and count; Quit is not in "n of m kept".
     expect(q('[data-hb-today="d"]')).not.toBeNull();
@@ -215,40 +221,91 @@ describe("the list", () => {
 });
 
 describe("Pulling", () => {
-  it("logs the pull once, then a held pull with its trigger when it closes", async () => {
+  it("logs the pull once on the press, the held pull on the tap, and the trigger on both", async () => {
     render("desktop");
     click(q('[data-hq-pull="q"]'));
     await flush();
     expect(mockLogAsync).toHaveBeenCalledTimes(1);
     expect(mockLogAsync).toHaveBeenCalledWith({ habitId: "q", type: "URGE" });
     expect(q('[data-hq-step="breathe"]')).not.toBeNull();
+    expect(q('[role="dialog"]')?.getAttribute("aria-modal")).toBe("true");
 
     click(byText("Skip to my reason"));
     expect(q(".hq-quote")?.textContent).toContain("run the 10k");
     click(byText("Next"));
     click(q("[data-hq-passed]"));
+    await flush();
+    // Written at the tap, so leaving without Done loses nothing.
+    expect(mockLogAsync).toHaveBeenLastCalledWith({
+      habitId: "q",
+      type: "RESISTED",
+    });
     expect(q('[data-hq-step="held"]')?.textContent).toContain("19 pulls held");
 
     click(byText("Stress"));
     click(byText("4"));
     await flush();
-    expect(mockPatch).toHaveBeenLastCalledWith({
+    expect(mockPatch).toHaveBeenCalledWith({
       habitId: "q",
       eventId: "urge-1",
       tag: "stress",
       intensity: 4,
     });
-    expect(mockLog).not.toHaveBeenCalled();
-
-    click(byText("Done"));
-    expect(mockLog).toHaveBeenCalledWith({
+    expect(mockPatch).toHaveBeenCalledWith({
       habitId: "q",
-      type: "RESISTED",
+      eventId: "resisted-1",
       tag: "stress",
       intensity: 4,
     });
-    expect(mockLogAsync).toHaveBeenCalledTimes(1);
+
+    click(byText("Done"));
+    expect(mockLogAsync).toHaveBeenCalledTimes(2);
+    expect(mockLog).not.toHaveBeenCalled();
     expect(q("[data-hq-step]")).toBeNull();
+  });
+
+  it("keeps the held pull when the page goes away before Done", async () => {
+    render("phone");
+    click(q('[data-hq-pull="q"]'));
+    click(byText("Skip to my reason"));
+    click(byText("Next"));
+    click(q("[data-hq-passed]"));
+    await flush();
+    act(() => root.unmount());
+    root = createRoot(host);
+    expect(mockLogAsync.mock.calls.map((c) => c[0].type)).toEqual([
+      "URGE",
+      "RESISTED",
+    ]);
+  });
+
+  it("keeps the step and logs one pull when the window crosses 700 px", async () => {
+    render("desktop");
+    click(q('[data-hq-pull="q"]'));
+    click(byText("Skip to my reason"));
+    render("phone");
+    await flush();
+    expect(q('[data-hq-step="reason"]')).not.toBeNull();
+    expect(mockLogAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs one pull under a doubled development render", async () => {
+    act(() =>
+      root.render(
+        h(
+          StrictMode,
+          null,
+          h(
+            QueryClientProvider,
+            { client },
+            h(PhoneUiProvider, { value: "desktop" }, h(HabitsRoute))
+          )
+        )
+      )
+    );
+    click(q('[data-hq-pull="q"]'));
+    await flush();
+    expect(mockLogAsync).toHaveBeenCalledTimes(1);
   });
 
   it("moves on to the reason by itself after a minute of breathing", () => {
@@ -282,7 +339,8 @@ describe("Pulling", () => {
     expect(q("[data-hq-step]")).toBeNull();
   });
 
-  it("marks Yes, still as Pro on Free and opens the upgrade instead", () => {
+  it("marks Yes, still as Pro when the gate is not on and opens the upgrade", () => {
+    mockGate = "upgrade";
     mockPlanKind = "free";
     render("phone");
     click(q('[data-hq-pull="q"]'));
@@ -295,19 +353,54 @@ describe("Pulling", () => {
     expect(q('[data-hq-step="ask"]')).not.toBeNull();
   });
 
-  it("asks before a slip and then writes it", () => {
+  it("asks before a slip, writes it, and closes once it is saved", async () => {
     render("phone");
     click(q('[data-hq-pull="q"]'));
     click(byText("Skip to my reason"));
     click(byText("Next"));
     click(byText("I slipped"));
     expect(q(".hq-confirm")?.textContent).toContain("Nothing else is lost.");
-    expect(mockLog).not.toHaveBeenCalled();
+    expect(q(".hq-confirm")?.getAttribute("role")).toBe("group");
     click(q("[data-hq-slip-confirm]"));
-    expect(mockLog).toHaveBeenCalledWith(
-      { habitId: "q", type: "RELAPSE" },
-      expect.anything()
-    );
+    expect(mockLogAsync).toHaveBeenLastCalledWith({
+      habitId: "q",
+      type: "RELAPSE",
+    });
+    await flush();
+    await flush();
+    expect(q("[data-hq-step]")).toBeNull();
+  });
+
+  it("stays open when the slip could not be saved", async () => {
+    render("phone");
+    click(q('[data-hq-pull="q"]'));
+    await flush();
+    mockLogAsync.mockRejectedValueOnce(new Error("offline"));
+    click(byText("Skip to my reason"));
+    click(byText("Next"));
+    click(byText("I slipped"));
+    click(q("[data-hq-slip-confirm]"));
+    await flush();
+    await flush();
+    expect(q('[data-hq-step="slip"]')).not.toBeNull();
+  });
+
+  it("goes back a step on Esc from the slip question, and closes from the others", () => {
+    render("desktop");
+    click(q('[data-hq-pull="q"]'));
+    click(byText("Skip to my reason"));
+    click(byText("Next"));
+    click(byText("I slipped"));
+    const esc = () =>
+      act(() => {
+        q('[role="dialog"]')?.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+        );
+      });
+    esc();
+    expect(q('[data-hq-step="ask"]')).not.toBeNull();
+    esc();
+    expect(q("[data-hq-step]")).toBeNull();
   });
 });
 
@@ -344,7 +437,7 @@ describe("after a downgrade to Free", () => {
 describe("the Quit habit", () => {
   it("opens the detail with the run, the reason and what stays after a slip", () => {
     render("desktop");
-    click(q('[data-hq-quit="q"]'));
+    click(q('[data-hq-quit="q"] .hq-card-open'));
     const detail = q('[data-hq-detail="q"]');
     expect(detail?.textContent).toContain("Best run");
     expect(detail?.textContent).toContain("31 d");

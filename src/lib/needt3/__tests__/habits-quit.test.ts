@@ -8,6 +8,7 @@ import {
   pullsToday,
   readQuitGate,
   runParts,
+  summaryMilestone,
   urgeMap,
 } from "@/lib/needt3/habits-quit";
 
@@ -54,7 +55,7 @@ describe("milestones", () => {
     const ms = milestoneView("2026-10-23T23:50:00Z", now);
     expect(ms).toMatchObject({ prev: 7, next: 14 });
     expect(ms.pct).toBe(71);
-    expect(ms.left).toBe("2 d 0 h");
+    expect(ms.left).toBe("in 2 d 0 h");
   });
 
   it("aims at the first day before it", () => {
@@ -181,5 +182,43 @@ describe("the assistant's opening line", () => {
     );
     expect(line).not.toMatch(/relapse|fail|lost|streak/i);
     expect(line).not.toContain("!");
+  });
+});
+
+describe("one outcome per pull", () => {
+  it("gives a held pull to the latest open pull, not to both", () => {
+    const rows = pullLog(
+      [
+        ev("a", "URGE", "2026-11-04T20:00:00Z"),
+        ev("b", "URGE", "2026-11-04T21:00:00Z"),
+        ev("r", "RESISTED", "2026-11-04T21:05:00Z"),
+      ],
+      now,
+      "UTC"
+    );
+    expect(rows.map((r) => [r.id, r.outcome])).toEqual([
+      ["b", "Held"],
+      ["a", null],
+    ]);
+  });
+});
+
+describe("milestones from the summary", () => {
+  it("counts calendar days as the server does", () => {
+    expect(
+      summaryMilestone({
+        currentStreak: 5,
+        nextMilestone: { days: 7, daysLeft: 2 },
+      })
+    ).toEqual({ next: 7, prev: 3, pct: 50, left: "in 2 days" });
+    expect(
+      summaryMilestone({
+        currentStreak: 6,
+        nextMilestone: { days: 7, daysLeft: 1 },
+      }).left
+    ).toBe("in 1 day");
+    expect(
+      summaryMilestone({ currentStreak: 400, nextMilestone: null })
+    ).toMatchObject({ next: null, pct: 100 });
   });
 });

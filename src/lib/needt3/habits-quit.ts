@@ -103,7 +103,7 @@ export interface MilestoneView {
   prev: number;
   /** Progress from `prev` to `next`, 0 to 100. */
   pct: number;
-  /** Time until `next`, as `formatSpan` words. */
+  /** When `next` comes: "in 1 d 20 h", "in 2 days", "today". */
   left: string | null;
 }
 
@@ -123,7 +123,29 @@ export function milestoneView(
     100,
     Math.max(0, Math.round(((days - prev) / (next - prev)) * 100))
   );
-  return { next, prev, pct, left: formatSpan(next * DAY - elapsed) };
+  return { next, prev, pct, left: `in ${formatSpan(next * DAY - elapsed)}` };
+}
+
+/**
+ * The milestone as the server counts it: calendar days in the person's
+ * zone (`summarizeQuit`), the same days the milestone push fires on. The
+ * screens take days and milestones from here once the summary has landed,
+ * and keep elapsed hours and minutes for the live counter only.
+ */
+export function summaryMilestone(
+  s: Pick<QuitSummary, "currentStreak" | "nextMilestone">
+): MilestoneView {
+  const days = s.currentStreak;
+  const prev = [...QUIT_STEPS].reverse().find((x) => x <= days) ?? 0;
+  if (!s.nextMilestone) return { next: null, prev, pct: 100, left: null };
+  const next = s.nextMilestone.days;
+  const pct = Math.min(
+    100,
+    Math.max(0, Math.round(((days - prev) / (next - prev)) * 100))
+  );
+  const n = s.nextMilestone.daysLeft;
+  const left = n <= 0 ? "today" : `in ${n} ${n === 1 ? "day" : "days"}`;
+  return { next, prev, pct, left };
 }
 
 /** The label under a milestone step: "14d", or "1y" for a year. */
@@ -230,15 +252,31 @@ export function pullLog(
   const later = [...events]
     .filter((e) => e.type === "RESISTED" || e.type === "RELAPSE")
     .sort((a, b) => a.at.localeCompare(b.at));
-  return events
-    .filter((e) => e.type === "URGE" && new Date(e.at).getTime() >= from)
+  const urges = events
+    .filter((e) => e.type === "URGE")
+    .sort((a, b) => a.at.localeCompare(b.at));
+  // Each held pull or slip ends one pull only: the latest open pull before
+  // it, within the window. Two pulls in two hours with one held show one
+  // Held, and an abandoned pull does not borrow the next one's outcome.
+  const ends = new Map<string, HabitEvent>();
+  for (const e of later) {
+    const t = new Date(e.at).getTime();
+    for (let i = urges.length - 1; i >= 0; i--) {
+      const u = urges[i];
+      const d = t - new Date(u.at).getTime();
+      if (d < 0) continue;
+      if (d > OUTCOME_WINDOW_MS) break;
+      if (!ends.has(u.id)) {
+        ends.set(u.id, e);
+        break;
+      }
+    }
+  }
+  return urges
+    .filter((e) => new Date(e.at).getTime() >= from)
     .sort((a, b) => b.at.localeCompare(a.at))
     .map((u) => {
-      const t = new Date(u.at).getTime();
-      const end = later.find((e) => {
-        const d = new Date(e.at).getTime() - t;
-        return d >= 0 && d <= OUTCOME_WINDOW_MS;
-      });
+      const end = ends.get(u.id);
       const outcome: PullOutcome =
         end?.type === "RELAPSE"
           ? "Slipped"
