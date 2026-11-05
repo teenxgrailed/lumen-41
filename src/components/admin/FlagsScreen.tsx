@@ -6,6 +6,7 @@ import type { AdminFeatureFlagRow } from "@/services/admin/feature-flags";
 
 import { notify } from "@/lib/notifications";
 
+import { SSelect } from "../needt3/settings/kit";
 import { minuteOf } from "./format";
 import { AdminNote, AdminPage, ConfirmSheet } from "./kit";
 import { sendAdminJson, useAdminJson } from "./useAdminJson";
@@ -122,15 +123,16 @@ function FlagDetailPanel({
           spellCheck={false}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <select
-          className="nt-input"
-          aria-label="Override state"
+        <SSelect
+          label="Override state"
           value={userEnabled ? "on" : "off"}
-          onChange={(e) => setUserEnabled(e.target.value === "on")}
-        >
-          <option value="on">On</option>
-          <option value="off">Off</option>
-        </select>
+          width={88}
+          options={[
+            ["on", "On"],
+            ["off", "Off"],
+          ]}
+          onChange={(value) => setUserEnabled(value === "on")}
+        />
         <button
           type="submit"
           className="nx-btn nx-btn-secondary"
