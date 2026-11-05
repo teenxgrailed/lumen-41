@@ -258,3 +258,36 @@ html[data-display-mode="browser"][data-safari-bar="bottom"]
   /* the sheet layer stands in from the edge; the sheet still sits on it */
   bottom: calc(-1 * var(--v3-edge));
 }
+
+/* Every text field on the phone is 16 px (decided 05.11): iOS Safari zooms
+   the page into a field under 16 px when it takes focus, and the zoom stays.
+   The UI-sized field classes the phone can show; titles and the larger
+   fields (pov-ask-input, pd-url-input, pov-part-input) keep their size. */
+.needt-v3[data-ui="phone"]
+  :is(
+    .pl-field,
+    .nt-input,
+    .city-field,
+    .hq-field,
+    .ha-field,
+    .ha-note,
+    .fc-field,
+    .fc-field-num,
+    .fc-notes,
+    .pb-edit-input,
+    .pov-step-input,
+    .tdc-sub-title,
+    .tdc-time,
+    .tdc-step-input,
+    .tdc-num,
+    .tdc-notes,
+    .rmd-custom-input,
+    .ptk-add-input,
+    .sb-pinpop-q,
+    .gl-why-field,
+    .gl-task-input,
+    .gl-checkin-amount,
+    .mau-input
+  ) {
+  font-size: 16px;
+}

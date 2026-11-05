@@ -238,7 +238,13 @@ export function PsRow({
   const tail = (
     <>
       {value != null && value !== false ? (
-        <span className="ps-row-value">{value}</span>
+        <span className="ps-row-value">
+          {typeof value === "string" || typeof value === "number" ? (
+            <span className="ps-row-value-text">{value}</span>
+          ) : (
+            value
+          )}
+        </span>
       ) : null}
       {onOpen && chevron !== false ? (
         <span className="ps-row-chev" aria-hidden="true">

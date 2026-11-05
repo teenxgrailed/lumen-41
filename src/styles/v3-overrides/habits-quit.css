@@ -114,7 +114,7 @@
   border-radius: 6px;
   background: var(--hq-well);
   color: var(--hq-ink-3);
-  font: 600 11px/1 var(--font-sans);
+  font: 600 12px/1 var(--font-sans);
   letter-spacing: 0.02em;
 }
 .hq-chip {
@@ -926,10 +926,82 @@
   box-shadow: none;
   background: var(--hq-well);
 }
+/* A text field of the flow ("Other…"): the well, like the chips around it.
+   On the phone 16 px, so iOS does not zoom the page when it takes focus. */
+.hq-field {
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--hq-well);
+  color: var(--hq-ink);
+  font: 400 var(--hq-fs) / 1 var(--font-sans);
+  outline: none;
+}
+.hq-field:focus-visible {
+  box-shadow: var(--hq-mark) 0 0 0 2px;
+}
+.hq-phone .hq-field {
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 24px;
+  font-size: 16px;
+}
 .hq-other {
   width: 100%;
-  border: 0;
-  outline: none;
+}
+
+/* ── the 390-px phone ─────────────────────────────────────────────────── */
+/* The pull flow scrolls when it is taller than the screen (a short phone,
+   the keyboard open for "Other…") and clears the notch and the home
+   indicator. */
+.hq-pull:not(.is-desk) {
+  overflow-y: auto;
+  justify-content: center;
+  justify-content: safe center;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 72px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+}
+.hq-pull:not(.is-desk) .step {
+  top: max(64px, calc(env(safe-area-inset-top, 0px) + 20px));
+}
+/* Close stays put while the flow scrolls or the keyboard is up: fixed to
+   the screen (the pull layer fills it), above the content. */
+.hq-pull:not(.is-desk) .x {
+  position: fixed;
+  z-index: 2;
+  top: max(56px, calc(env(safe-area-inset-top, 0px) + 12px));
+}
+/* 44-px touch targets for the 36-px controls, without changing how they
+   look: the hit area reaches past the drawn shape. */
+.hq-phone .hq-btn.is-sm:not(.x),
+.hq-phone .hq-chip {
+  position: relative;
+}
+.hq-phone .hq-btn.is-sm::after,
+.hq-phone .hq-chip::after {
+  content: "";
+  position: absolute;
+  inset: -4px -2px;
+}
+/* Chips sit 6 px apart in wrapped rows: their hit areas must not meet. */
+.hq-phone .hq-chip::after {
+  inset: -3px -2px;
+}
+/* A long word (a name, a tag typed in "Other…") wraps instead of pushing
+   past the screen. */
+.hq-row .body b,
+.hq-eyebrow,
+.hq-quote,
+.hq-log-row > span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.hq-log-row {
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+}
+.hq-log-row .w {
+  white-space: nowrap;
 }
 .hq-reason {
   min-height: 64px;
