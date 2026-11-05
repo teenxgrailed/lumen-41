@@ -1,0 +1,1 @@
+- Emails: every email now renders correctly in Gmail (iOS, Android, web), Apple Mail and Outlook web, in light and dark mode. Logo tile, dark-mode hints, preheader padding, bulletproof button. The password reset email says the link works once and expires in 1 hour, and the booking confirmation prints a readable date.

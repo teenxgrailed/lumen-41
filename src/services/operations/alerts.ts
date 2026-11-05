@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/node";
 
 import { APP_NAME } from "@/lib/app-config";
 import { EmailService } from "@/lib/email/email-service";
+import { renderEmail } from "@/lib/email/templates/layout";
 import { logger } from "@/lib/logger";
 import { getRedisConnection } from "@/lib/queue/connection";
 
@@ -11,18 +12,6 @@ export type AlertLevel = "warning" | "critical";
 
 /** One alert per key and level per five minutes, across web and worker. */
 const DEDUPE_SECONDS = 300;
-
-const HTML_ENTITIES: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#039;",
-};
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => HTML_ENTITIES[char] ?? char);
-}
 
 export function alertRecipient(): string | null {
   return process.env.NEEDT_ALERT_EMAIL?.trim() || null;
@@ -55,11 +44,21 @@ async function emailOwner(level: AlertLevel, message: string) {
   if (!to) return;
   const subject = `${APP_NAME} ${level === "critical" ? "critical" : "warning"}: ${message.slice(0, 80)}`;
   try {
+    // Owner-only mail, but it wears the same layout so it renders the same
+    // in every client; renderEmail escapes the message.
+    const mail = renderEmail({
+      subject,
+      preheader: message.slice(0, 120),
+      heading: level === "critical" ? "Critical alert" : "Warning",
+      paragraphs: [message],
+      kind: "security",
+      footerNote: "Needt operations alert.",
+    });
     await EmailService.sendEmail({
       to,
       subject,
-      text: message,
-      html: `<p>${escapeHtml(message)}</p>`,
+      text: mail.text,
+      html: mail.html,
     });
   } catch (error) {
     void logger.error(
