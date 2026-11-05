@@ -20,14 +20,18 @@ import { CONNECTOR_URL, connectorSteps, guideSnippets } from "../connect-guide";
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 jest.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams(),
+  // The guide lives on the Agents tab; the screen opens on the Map otherwise.
+  useSearchParams: () => new URLSearchParams("tab=agents"),
 }));
 jest.mock("@/lib/notifications", () => ({
   notify: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
 jest.mock("../MessagesTab", () => ({
   MessagesTab: () => null,
-  useHubThreads: () => ({ data: { threads: [] } }),
+  useHubThreads: () => ({ data: { threads: [] }, isLoading: false }),
+}));
+jest.mock("@/lib/needt3/hooks/connections", () => ({
+  useConnections: () => ({ data: [], isLoading: false }),
 }));
 jest.mock("../../settings/MemoriesGroup", () => ({
   MemoriesGroup: () => null,

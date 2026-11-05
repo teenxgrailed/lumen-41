@@ -312,6 +312,7 @@ function Corner() {
   const panel = (
     <ChatPanel
       messages={ask.messages}
+      restoring={ask.restoring}
       phase={ask.phase}
       scope={asking.scope}
       scopes={asking.list}

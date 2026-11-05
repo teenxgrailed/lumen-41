@@ -482,7 +482,7 @@ function HabitSheet({
               <span className="pl-habit-sheet-text-3">
                 {quitKept
                   ? "Changing it needs Pro."
-                  : (timeError ?? "Can be in the past. Empty starts it now.")}
+                  : (timeError ?? "Can be in the past.")}
               </span>
             </label>
             <label className="pl-stack-6">

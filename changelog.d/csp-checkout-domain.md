@@ -1,0 +1,1 @@
+- Checkout on our own domain: the app allows checkout.needt.app (Creem custom domain) as a payment form target.

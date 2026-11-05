@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getAdminGrowth } from "@/services/admin/growth";
+
 import { requireAdmin } from "@/lib/auth/api-auth";
+import { logger } from "@/lib/logger";
 
 import { GET } from "../route";
 
@@ -13,6 +16,9 @@ jest.mock("@/services/admin/overview", () => ({
     waitlist: 0,
     generatedAt: "2026-10-16T12:00:00.000Z",
   }),
+}));
+jest.mock("@/services/admin/growth", () => ({
+  getAdminGrowth: jest.fn().mockResolvedValue({ weeklyActives: 5 }),
 }));
 jest.mock("@/lib/health/build-info", () => ({
   readBuildInfo: jest
@@ -42,5 +48,21 @@ describe("GET /api/admin/overview", () => {
     expect(body.overview.users.total).toBe(1);
     expect(body.build.buildSha).toBe("a".repeat(40));
     expect(body.build.workerBuildSha).toBeNull();
+    expect(body.growth.weeklyActives).toBe(5);
+  });
+
+  it("still answers, with growth null, when growth fails", async () => {
+    (requireAdmin as jest.Mock).mockResolvedValue(null);
+    (getAdminGrowth as jest.Mock).mockRejectedValueOnce(new Error("db down"));
+    const response = await GET(request());
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.growth).toBeNull();
+    expect(body.overview.users.total).toBe(1);
+    expect(logger.error).toHaveBeenCalledWith(
+      "Admin growth failed",
+      expect.anything(),
+      "AdminOverviewAPI"
+    );
   });
 });

@@ -273,6 +273,8 @@ model User {
   importRuns                   ImportRun[]
   importItemMaps               ImportItemMap[]
   HabitPush                    HabitPush[]
+
+  @@index([lastActiveAt])
 }
 
 model Workspace {
@@ -1769,6 +1771,20 @@ model FeatureFlagOverride {
 
   @@unique([flagKey, userId])
   @@index([userId])
+}
+
+/// One admin change to a feature flag (the flag itself or one person's
+/// override), written with the change. `before`/`after` are small JSON
+/// snapshots; no FK so the history outlives a deleted flag or account.
+model FeatureFlagChange {
+  id          String   @id @default(cuid())
+  flagKey     String
+  actorUserId String?
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now())
+
+  @@index([flagKey, createdAt])
 }
 
 model BookingPage {

@@ -1,14 +1,17 @@
 "use client";
 
 import type { AdminAgentsHub } from "@/services/admin/agents-hub";
+import type { AdminGrowth } from "@/services/admin/growth";
 import type { AdminOverview } from "@/services/admin/overview";
 
+import { GrowthBlock } from "./GrowthBlock";
 import { AdminNote, AdminPage } from "./kit";
 import { useAdminJson } from "./useAdminJson";
 
 interface OverviewResponse {
   overview: AdminOverview;
   build: { buildSha: string; workerBuildSha: string | null };
+  growth?: AdminGrowth;
 }
 
 function shortSha(sha: string | null): string {
@@ -62,6 +65,7 @@ export function OverviewScreen() {
           </p>
         </>
       ) : null}
+      {data?.growth ? <GrowthBlock growth={data.growth} /> : null}
       {hub.error ? <AdminNote tone="danger">{hub.error}</AdminNote> : null}
       {h ? (
         <section className="admin-card" data-admin-agents-hub="">
