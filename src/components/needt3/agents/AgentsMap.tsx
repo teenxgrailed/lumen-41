@@ -53,6 +53,21 @@ const RATE: Record<AgentStatus, number> = {
 const FRAME_MS = 1000 / 30;
 /** The scene draws itself in over this long on arrival. */
 const ENTRY_MS = 1800;
+/** The cached layers repaint in turn on this beat (each every 2 beats). */
+const LAYER_MS = 250;
+/** Thread sway in px: small, so a layer 0.5 s old does not show it. */
+const SWAY = 6;
+/** The mean parallax depth: a cached layer moves by it between repaints. */
+const Z_MEAN = 0.75;
+/** Mesh line alpha and width: rest (edge, centre), lit, bright. */
+const BA: [number, number][] = [
+  [0.17, 0.5],
+  [0.32, 0.7],
+  [0.42, 0.5],
+  [0.58, 0.75],
+  [0.82, 0.95],
+  [0.96, 1.15],
+];
 /** A new mood every 13 s, crossfading over about 2.5 s. */
 const MOOD_MS = 13_000;
 const MOOD_TAU_S = 0.9;
@@ -365,6 +380,7 @@ export function startLoop(
       dpr = to;
       ctx.canvas.width = Math.round(W * dpr);
       ctx.canvas.height = Math.round(H * dpr);
+      fitLayers();
     };
     if (dpr > 1) {
       resize(Math.max(1, Math.round((dpr - 0.25) * 4) / 4));
@@ -417,6 +433,240 @@ export function startLoop(
   let running = false;
   let drift = { dx: 0, dy: 0 };
 
+  // The cached layers (see the frame): null where a canvas cannot make
+  // another context (tests), and then both are painted into the frame.
+  const layerOf = () => {
+    try {
+      const { g } = canvasOf(ctx.canvas.width, ctx.canvas.height);
+      return g;
+    } catch {
+      return null;
+    }
+  };
+  const lb = layerOf();
+  const lt = lb ? layerOf() : null;
+  const layers = lb && lt ? { base: lb, threads: lt } : null;
+  const fitLayers = () => {
+    if (!layers) return;
+    for (const g of [layers.base, layers.threads]) {
+      g.canvas.width = ctx.canvas.width;
+      g.canvas.height = ctx.canvas.height;
+    }
+  };
+  const base = {
+    slot: -1,
+    hover: -2,
+    dpr: 0,
+    rows: null as HTMLCanvasElement | null,
+    ox: 0,
+    oy: 0,
+  };
+  const threadAt = { t: 0, ox: 0, oy: 0 };
+  const tpx = new Float32Array(N);
+  const tpy = new Float32Array(N);
+  const curve = (
+    th: (typeof threads)[number],
+    sw: number,
+    X: Float32Array,
+    Y: Float32Array
+  ) => {
+    const O = th.kind === "O";
+    return [
+      O ? X[th.node] : th.x0,
+      O ? Y[th.node] : th.y0,
+      th.c1x,
+      th.c1y + sw,
+      th.c2x + sw * 0.5,
+      th.c2y - sw,
+      O ? th.x3 : X[th.node],
+      O ? th.y3 : Y[th.node],
+    ] as const;
+  };
+
+  /** Background, data rows, the mesh at rest and the nodes. */
+  const paintBase = (
+    c: CanvasRenderingContext2D,
+    t: number,
+    age: number,
+    ease: number,
+    breath: number,
+    mG: number,
+    hset: Set<number> | null
+  ) => {
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.globalCompositeOperation = "source-over";
+    c.globalAlpha = 1;
+    c.setLineDash([]);
+    c.fillStyle = NIGHT;
+    c.fillRect(0, 0, W, H);
+    // White base and the soft blue glow, brightest at the core.
+    c.save();
+    c.translate(core.x + drift.dx * 0.4, core.y + drift.dy * 0.4);
+    c.scale(0.5, 1);
+    let g = c.createRadialGradient(0, 0, 0, 0, 0, core.ry * 1.25);
+    g.addColorStop(0, rgba(BLUE_WHITE, (0.22 + 0.07 * breath) * mG * ease));
+    g.addColorStop(0.4, rgba(BLUE, 0.07 * mG * ease));
+    g.addColorStop(1, "rgba(90,169,255,0)");
+    c.fillStyle = g;
+    c.fillRect(-core.rx * 8, -core.ry * 1.4, core.rx * 16, core.ry * 2.8);
+    c.restore();
+    g = c.createRadialGradient(
+      core.x * 0.5,
+      H * 0.5,
+      0,
+      core.x * 0.5,
+      H * 0.5,
+      Math.max(W, H) * 0.8
+    );
+    g.addColorStop(0, "rgba(90,169,255,.035)");
+    g.addColorStop(1, "rgba(90,169,255,0)");
+    c.fillStyle = g;
+    c.fillRect(0, 0, W, H);
+
+    // Incoming data: faint neutral rows, far left.
+    c.globalAlpha =
+      (0.7 + 0.12 * Math.sin(t * 0.6)) * clamp(age * 2) * (lite ? 0.4 : 1);
+    c.drawImage(rows, 0, 0, rows.width, rows.height);
+    c.globalAlpha = 1;
+    c.globalCompositeOperation = lite ? "source-over" : "lighter";
+
+    // Mesh lines at rest: two brightness paths (centre, edge); those near
+    // an agent in status paths (its colour, fading with distance). Red,
+    // lit and hovered lines are drawn live on top.
+    const plain = [new Path2D(), new Path2D()];
+    const tinted = new Map<string, Path2D>();
+    for (let e = 0; e < edges.length; e++) {
+      const E = edges[e];
+      const rv = Math.min(reveal[E.a], reveal[E.b]);
+      if (rv <= 0 || (hset && hset.has(e))) continue;
+      if (E.sw > 0.03) {
+        const st = stOf(E.sa);
+        if (st === "alert") continue;
+        const level = E.sw > 0.66 ? 2 : E.sw > 0.33 ? 1 : 0;
+        const key = `${st}:${level}:${rv < 1 ? 0 : 1}`;
+        let path = tinted.get(key);
+        if (!path) {
+          path = new Path2D();
+          tinted.set(key, path);
+        }
+        path.moveTo(px[E.a], py[E.a]);
+        path.lineTo(px[E.b], py[E.b]);
+        continue;
+      }
+      const bi = E.d < 0.5 ? 1 : 0;
+      plain[bi].moveTo(px[E.a], py[E.a]);
+      plain[bi].lineTo(px[E.b], py[E.b]);
+    }
+    const shim = 1 + 0.18 * Math.sin(t * 0.9);
+    for (let bi = 0; bi < 2; bi++) {
+      c.strokeStyle = rgba([170, 205, 255], 1);
+      c.globalAlpha = clamp(BA[bi][0] * shim * (1 + 0.12 * breath) * ease);
+      c.lineWidth = BA[bi][1];
+      c.stroke(plain[bi]);
+    }
+    for (const [key, path] of tinted) {
+      const [st, lv, full] = key.split(":") as [AgentStatus, string, string];
+      const sw = (Number(lv) + 0.5) / 3;
+      c.strokeStyle = rgba(mix(WHITE, STATUS_HUE[st], sw * 0.75), 1);
+      c.globalAlpha = clamp((0.14 + sw * 0.38) * (full === "1" ? 1 : 0.5));
+      c.lineWidth = 0.5 + sw * 0.5;
+      c.stroke(path);
+    }
+
+    // Nodes: very bright whites in the middle, glow on the big ones, tinted
+    // toward the nearest agent's status.
+    for (let i = 0; i < N; i++) {
+      const n = nodes[i];
+      if (reveal[i] <= 0 || n.kind === "agent" || n.kind === "anchor") continue;
+      const cen = 1 - Math.min(1, n.d);
+      const tw = still ? 0 : 0.12 * Math.sin(t * 1.3 + n.phase);
+      const a = clamp((0.5 + 0.5 * cen + tw) * reveal[i] * (n.real ? 1 : 0.85));
+      const r = n.r * (0.5 + 0.5 * reveal[i]);
+      const col =
+        n.sw > 0.02 ? mix(WHITE, STATUS_HUE[stOf(n.sa)], n.sw * 0.45) : WHITE;
+      c.fillStyle = rgba(col, 1);
+      c.globalAlpha = a;
+      c.beginPath();
+      c.arc(px[i], py[i], r, 0, Math.PI * 2);
+      c.fill();
+      if (!lite && r > 1.7) {
+        const s = r * 5 * reveal[i];
+        c.globalAlpha = (0.3 + 0.4 * cen) * reveal[i];
+        c.drawImage(
+          n.sw > 0.45 ? glowOf(STATUS_HUE[stOf(n.sa)]) : glowOf(GLOW_WHITE),
+          px[i] - s,
+          py[i] - s,
+          s * 2,
+          s * 2
+        );
+      }
+    }
+    c.globalAlpha = 1;
+  };
+
+  /** The thread bodies: a soft glow and a bright core per kind. */
+  const paintThreads = (
+    c: CanvasRenderingContext2D,
+    t: number,
+    tr: number,
+    mP: number,
+    clear: boolean
+  ) => {
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (clear) {
+      c.globalCompositeOperation = "source-over";
+      c.clearRect(0, 0, W, H);
+    }
+    c.globalCompositeOperation = lite ? "source-over" : "lighter";
+    tpx.set(px);
+    tpy.set(py);
+    c.lineCap = "round";
+    const inGrad = c.createLinearGradient(0, 0, core.x, 0);
+    inGrad.addColorStop(0, rgba(BLUE_WHITE, 0.03));
+    inGrad.addColorStop(0.55, rgba(BLUE_WHITE, 0.22));
+    inGrad.addColorStop(1, rgba(WHITE, 0.7));
+    const outGrad = c.createLinearGradient(core.x, 0, W, 0);
+    outGrad.addColorStop(0, rgba(BLUE_WHITE, 0.4));
+    outGrad.addColorStop(1, rgba(BLUE_WHITE, 0.03));
+    const pathIn = new Path2D();
+    const pathOut = new Path2D();
+    for (const th of threads) {
+      const rev = still ? 1 : clamp((tr - th.delay) / (1 - th.delay));
+      if (rev <= 0) continue;
+      const sw = still ? 0 : Math.sin(t * 0.5 + th.sway) * SWAY;
+      const cv = curve(th, sw, tpx, tpy);
+      if (rev < 1) {
+        // Drawing itself in: this one strokes alone with a growing dash.
+        c.setLineDash([th.len * rev, th.len * 3]);
+        c.strokeStyle = th.kind === "O" ? outGrad : inGrad;
+        c.globalAlpha = th.alpha * 1.6;
+        c.lineWidth = th.width;
+        c.beginPath();
+        c.moveTo(cv[0], cv[1]);
+        c.bezierCurveTo(cv[2], cv[3], cv[4], cv[5], cv[6], cv[7]);
+        c.stroke();
+        c.setLineDash([]);
+        continue;
+      }
+      const path = th.kind === "O" ? pathOut : pathIn;
+      path.moveTo(cv[0], cv[1]);
+      path.bezierCurveTo(cv[2], cv[3], cv[4], cv[5], cv[6], cv[7]);
+    }
+    for (const [path, grad] of [
+      [pathIn, inGrad],
+      [pathOut, outGrad],
+    ] as const) {
+      c.strokeStyle = grad;
+      c.lineWidth = 2.4;
+      c.globalAlpha = 0.22 * (0.9 + 0.1 * mP);
+      c.stroke(path);
+      c.lineWidth = 0.75;
+      c.globalAlpha = 0.9 * (0.9 + 0.1 * mP);
+      c.stroke(path);
+    }
+    c.globalAlpha = 1;
+  };
+
   const frame = (now: number) => {
     const t = still ? 3.2 : (now - clock.born) / 1000;
     const dt = Math.min(0.05, Math.max(0, t - lastT)) || 0.016;
@@ -447,43 +697,6 @@ export function startLoop(
     const OX = still ? 0 : Math.sin(t * 0.045) * 8 - mouse.px * 20;
     const OY = still ? 0 : Math.cos(t * 0.038) * 6 - mouse.py * 14;
     drift = { dx: OX, dy: OY };
-
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.globalCompositeOperation = "source-over";
-    ctx.globalAlpha = 1;
-    ctx.setLineDash([]);
-    ctx.fillStyle = NIGHT;
-    ctx.fillRect(0, 0, W, H);
-    // White base and the soft blue glow, brightest at the core.
-    ctx.save();
-    ctx.translate(core.x + OX * 0.4, core.y + OY * 0.4);
-    ctx.scale(0.5, 1);
-    let g = ctx.createRadialGradient(0, 0, 0, 0, 0, core.ry * 1.25);
-    g.addColorStop(0, rgba(BLUE_WHITE, (0.22 + 0.07 * breath) * mG * ease));
-    g.addColorStop(0.4, rgba(BLUE, 0.07 * mG * ease));
-    g.addColorStop(1, "rgba(90,169,255,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(-core.rx * 8, -core.ry * 1.4, core.rx * 16, core.ry * 2.8);
-    ctx.restore();
-    g = ctx.createRadialGradient(
-      core.x * 0.5,
-      H * 0.5,
-      0,
-      core.x * 0.5,
-      H * 0.5,
-      Math.max(W, H) * 0.8
-    );
-    g.addColorStop(0, "rgba(90,169,255,.035)");
-    g.addColorStop(1, "rgba(90,169,255,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-
-    // Incoming data: faint neutral rows, far left.
-    ctx.globalAlpha =
-      (0.7 + 0.12 * Math.sin(t * 0.6)) * clamp(age * 2) * (lite ? 0.4 : 1);
-    ctx.drawImage(rows, 0, 0, rows.width, rows.height);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = lite ? "source-over" : "lighter";
 
     // Positions, the light wave, rings from the agents.
     const front = -1.7 + ((t * 0.08 * mW) % 1) * 3.6;
@@ -523,6 +736,63 @@ export function startLoop(
             : clamp(clamp(age * 1.6 - n.d * 0.55) * 2.5);
     }
 
+    // What barely changes is painted into two cached layers: the base
+    // (background, data rows, the mesh at rest, the nodes) and the thread
+    // bodies. Each is repainted every 500 ms, a quarter second apart, so a
+    // repaint stays short; on every frame both are laid down with the
+    // parallax moved since. During the entry, on a hover change or a new
+    // resolution both are repainted at once.
+    const tr = clamp(age * 1.25);
+    const hset = live.hover >= 0 ? new Set(adj[live.hover]) : null;
+    const fresh =
+      still ||
+      age < 1 ||
+      base.hover !== live.hover ||
+      base.dpr !== dpr ||
+      base.rows !== rows;
+    const slot = Math.floor(now / LAYER_MS);
+    if (!layers || fresh || slot !== base.slot) {
+      const both = !layers || fresh;
+      if (both || slot % 2 === 0) {
+        paintBase(layers ? layers.base : ctx, t, age, ease, breath, mG, hset);
+        base.ox = OX;
+        base.oy = OY;
+      }
+      if (both || slot % 2 === 1) {
+        paintThreads(layers ? layers.threads : ctx, t, tr, mP, !!layers);
+        threadAt.t = t;
+        threadAt.ox = OX;
+        threadAt.oy = OY;
+      }
+      base.slot = slot;
+      base.hover = live.hover;
+      base.dpr = dpr;
+      base.rows = rows;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setLineDash([]);
+    if (layers) {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+      ctx.drawImage(
+        layers.base.canvas,
+        (OX - base.ox) * Z_MEAN,
+        (OY - base.oy) * Z_MEAN,
+        W,
+        H
+      );
+      ctx.globalCompositeOperation = lite ? "source-over" : "lighter";
+      ctx.drawImage(
+        layers.threads.canvas,
+        (OX - threadAt.ox) * Z_MEAN,
+        (OY - threadAt.oy) * Z_MEAN,
+        W,
+        H
+      );
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = lite ? "source-over" : "lighter";
+
     // Thumbnails and the voice wave: they shrink and fade into the core.
     if (age > 0.35) {
       const fin = clamp((age - 0.35) * 2.2);
@@ -561,74 +831,17 @@ export function startLoop(
       ctx.globalAlpha = 1;
     }
 
-    // Threads: a soft glow and a bright core, converging into the mesh; a
-    // few carry on out to the right. One path per kind once drawn in.
-    const tr = clamp(age * 1.25);
-    ctx.lineCap = "round";
-    const inGrad = ctx.createLinearGradient(0, 0, core.x, 0);
-    inGrad.addColorStop(0, rgba(BLUE_WHITE, 0.03));
-    inGrad.addColorStop(0.55, rgba(BLUE_WHITE, 0.22));
-    inGrad.addColorStop(1, rgba(WHITE, 0.7));
-    const outGrad = ctx.createLinearGradient(core.x, 0, W, 0);
-    outGrad.addColorStop(0, rgba(BLUE_WHITE, 0.4));
-    outGrad.addColorStop(1, rgba(BLUE_WHITE, 0.03));
-    const pathIn = new Path2D();
-    const pathOut = new Path2D();
-    const curve = (th: (typeof threads)[number], sw: number) => {
-      const O = th.kind === "O";
-      return [
-        O ? px[th.node] : th.x0,
-        O ? py[th.node] : th.y0,
-        th.c1x,
-        th.c1y + sw,
-        th.c2x + sw * 0.5,
-        th.c2y - sw,
-        O ? th.x3 : px[th.node],
-        O ? th.y3 : py[th.node],
-      ] as const;
-    };
-    for (const th of threads) {
-      const rev = still ? 1 : clamp((tr - th.delay) / (1 - th.delay));
-      if (rev <= 0) continue;
-      const sw = still ? 0 : Math.sin(t * 0.5 + th.sway) * 10;
-      const c = curve(th, sw);
-      if (rev < 1) {
-        // Drawing itself in: this one strokes alone with a growing dash.
-        ctx.setLineDash([th.len * rev, th.len * 3]);
-        ctx.strokeStyle = th.kind === "O" ? outGrad : inGrad;
-        ctx.globalAlpha = th.alpha * 1.6;
-        ctx.lineWidth = th.width;
-        ctx.beginPath();
-        ctx.moveTo(c[0], c[1]);
-        ctx.bezierCurveTo(c[2], c[3], c[4], c[5], c[6], c[7]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        continue;
-      }
-      const path = th.kind === "O" ? pathOut : pathIn;
-      path.moveTo(c[0], c[1]);
-      path.bezierCurveTo(c[2], c[3], c[4], c[5], c[6], c[7]);
-    }
-    for (const [path, grad] of [
-      [pathIn, inGrad],
-      [pathOut, outGrad],
-    ] as const) {
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = 2.4;
-      ctx.globalAlpha = 0.22 * (0.9 + 0.1 * mP);
-      ctx.stroke(path);
-      ctx.lineWidth = 0.75;
-      ctx.globalAlpha = 0.9 * (0.9 + 0.1 * mP);
-      ctx.stroke(path);
-    }
-    ctx.globalAlpha = 1;
+    // Particles ride the thread bodies as they were painted.
     if (!still) {
       const spr = glowOf(GLOW_WHITE);
+      const dx = (OX - threadAt.ox) * Z_MEAN;
+      const dy = (OY - threadAt.oy) * Z_MEAN;
+      const sw = (th: (typeof threads)[number]) =>
+        Math.sin(threadAt.t * 0.5 + th.sway) * SWAY;
       for (let i = 0; i < threads.length; i += lite ? 2 : 1) {
         const th = threads[i];
         if (clamp((tr - th.delay) / (1 - th.delay)) < 1) continue;
-        const sw = Math.sin(t * 0.5 + th.sway) * 10;
-        const c = curve(th, sw);
+        const c = curve(th, sw(th), tpx, tpy);
         const ph = (t * th.speed * mP + th.offset) % 1;
         const [bx, by] = bez(
           c[0],
@@ -642,17 +855,18 @@ export function startLoop(
           ph
         );
         ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.7 + 0.1;
-        ctx.drawImage(spr, bx - 5, by - 5, 10, 10);
+        ctx.drawImage(spr, bx + dx - 5, by + dy - 5, 10, 10);
       }
       ctx.globalAlpha = 1;
     }
 
-    // Mesh lines: six brightness paths; those near an agent in twelve
-    // status paths (its colour, fading with distance); hovered lines alone.
-    const hset = live.hover >= 0 ? new Set(adj[live.hover]) : null;
-    const plain = Array.from({ length: 6 }, () => new Path2D());
-    const used = new Uint8Array(6);
-    const tinted = new Map<string, Path2D>();
+    // Live lines: what the wave and the rings light (on top of the base),
+    // the red ones (they pulse), the hovered ones.
+    const shim = 1 + 0.18 * Math.sin(t * 0.9);
+    const glowPaths = [new Path2D(), new Path2D(), new Path2D(), new Path2D()];
+    const glowUsed = new Uint8Array(4);
+    const red: Path2D[] = [new Path2D(), new Path2D(), new Path2D()];
+    const redUsed = new Uint8Array(3);
     const hot: number[] = [];
     for (let e = 0; e < edges.length; e++) {
       const E = edges[e];
@@ -662,55 +876,40 @@ export function startLoop(
         hot.push(e);
         continue;
       }
-      const l = Math.max(lit[E.a], lit[E.b]);
-      const centre = E.d < 0.5 ? 1 : 0;
       if (E.sw > 0.03) {
+        if (stOf(E.sa) !== "alert") continue;
         const level = E.sw > 0.66 ? 2 : E.sw > 0.33 ? 1 : 0;
-        const key = `${stOf(E.sa)}:${level}:${rv < 1 ? 0 : 1}`;
-        let path = tinted.get(key);
-        if (!path) {
-          path = new Path2D();
-          tinted.set(key, path);
-        }
-        path.moveTo(px[E.a], py[E.a]);
-        path.lineTo(px[E.b], py[E.b]);
+        red[level].moveTo(px[E.a], py[E.a]);
+        red[level].lineTo(px[E.b], py[E.b]);
+        redUsed[level] = 1;
         continue;
       }
-      const bi = (l > 0.4 ? 2 : l > 0.12 ? 1 : 0) * 2 + centre;
-      plain[bi].moveTo(px[E.a], py[E.a]);
-      plain[bi].lineTo(px[E.b], py[E.b]);
-      used[bi] = 1;
+      const l = Math.max(lit[E.a], lit[E.b]);
+      if (l <= 0.12) continue;
+      const bi = (l > 0.4 ? 1 : 0) * 2 + (E.d < 0.5 ? 1 : 0);
+      glowPaths[bi].moveTo(px[E.a], py[E.a]);
+      glowPaths[bi].lineTo(px[E.b], py[E.b]);
+      glowUsed[bi] = 1;
     }
-    const BA: [number, number][] = [
-      [0.17, 0.5],
-      [0.32, 0.7],
-      [0.42, 0.5],
-      [0.58, 0.75],
-      [0.82, 0.95],
-      [0.96, 1.15],
-    ];
-    const shim = 1 + 0.18 * Math.sin(t * 0.9);
-    for (let bi = 0; bi < 6; bi++) {
-      if (!used[bi]) continue;
-      ctx.strokeStyle = rgba(
-        bi >= 4 ? [200, 225, 255] : bi >= 2 ? [185, 215, 255] : [170, 205, 255],
-        1
+    for (let k = 0; k < 4; k++) {
+      if (!glowUsed[k]) continue;
+      const bi = k + 2;
+      const rest = BA[bi % 2];
+      ctx.strokeStyle = rgba(bi >= 4 ? [200, 225, 255] : [185, 215, 255], 1);
+      ctx.globalAlpha = clamp(
+        (BA[bi][0] - rest[0]) * shim * (1 + 0.12 * breath) * ease
       );
-      ctx.globalAlpha = clamp(BA[bi][0] * shim * (1 + 0.12 * breath) * ease);
       ctx.lineWidth = BA[bi][1];
-      ctx.stroke(plain[bi]);
+      ctx.stroke(glowPaths[k]);
     }
-    for (const [key, path] of tinted) {
-      const [st, lv, full] = key.split(":") as [AgentStatus, string, string];
-      const sw = (Number(lv) + 0.5) / 3;
-      const red =
-        st === "alert"
-          ? 0.55 + 0.25 * Math.sin((t * Math.PI * 2) / PERIOD.alert)
-          : 0.38;
-      ctx.strokeStyle = rgba(mix(WHITE, STATUS_HUE[st], sw * 0.75), 1);
-      ctx.globalAlpha = clamp((0.14 + sw * red) * (full === "1" ? 1 : 0.5));
+    for (let lv = 0; lv < 3; lv++) {
+      if (!redUsed[lv]) continue;
+      const sw = (lv + 0.5) / 3;
+      const pulse = 0.55 + 0.25 * Math.sin((t * Math.PI * 2) / PERIOD.alert);
+      ctx.strokeStyle = rgba(mix(WHITE, STATUS_HUE.alert, sw * 0.75), 1);
+      ctx.globalAlpha = clamp(0.14 + sw * pulse);
       ctx.lineWidth = 0.5 + sw * 0.5;
-      ctx.stroke(path);
+      ctx.stroke(red[lv]);
     }
     for (const e of hot) {
       const E = edges[e];
@@ -846,35 +1045,22 @@ export function startLoop(
       }
     }
 
-    // Nodes: very bright whites in the middle, glow on the big ones, tinted
-    // toward the nearest agent's status.
+    // Lit nodes: the wave, rings and pulses brighten them over the base.
     for (let i = 0; i < N; i++) {
+      const L = lit[i];
+      if (L <= 0.05 || reveal[i] <= 0) continue;
       const n = nodes[i];
-      if (reveal[i] <= 0 || n.kind === "agent" || n.kind === "anchor") continue;
-      const cen = 1 - Math.min(1, n.d);
-      const tw = still ? 0 : 0.12 * Math.sin(t * 1.3 + n.phase);
-      const a = clamp(
-        (0.5 + 0.5 * cen + tw + 0.6 * lit[i]) * reveal[i] * (n.real ? 1 : 0.85)
-      );
-      const r = n.r * (1 + 0.55 * lit[i]) * (0.5 + 0.5 * reveal[i]);
-      const base = mix(WHITE, BLUE_WHITE, lit[i] * 0.7);
-      const col =
-        n.sw > 0.02 ? mix(base, STATUS_HUE[stOf(n.sa)], n.sw * 0.45) : base;
-      ctx.fillStyle = rgba(col, 1);
-      ctx.globalAlpha = a;
+      if (n.kind === "agent" || n.kind === "anchor") continue;
+      const r = n.r * (1 + 0.55 * L) * (0.5 + 0.5 * reveal[i]);
+      ctx.fillStyle = rgba(mix(WHITE, BLUE_WHITE, L * 0.7), 1);
+      ctx.globalAlpha = clamp(0.6 * L * reveal[i]);
       ctx.beginPath();
       ctx.arc(px[i], py[i], r, 0, Math.PI * 2);
       ctx.fill();
-      if (!lite && (r > 1.7 || lit[i] > 0.35)) {
-        const s = (r * 5 + 14 * lit[i]) * reveal[i];
-        ctx.globalAlpha = (0.3 + 0.4 * cen) * reveal[i] + lit[i] * 0.4;
-        ctx.drawImage(
-          n.sw > 0.45 ? glowOf(STATUS_HUE[stOf(n.sa)]) : glowOf(GLOW_WHITE),
-          px[i] - s,
-          py[i] - s,
-          s * 2,
-          s * 2
-        );
+      if (!lite && L > 0.35) {
+        const s = (r * 5 + 14 * L) * reveal[i];
+        ctx.globalAlpha = L * 0.4 * reveal[i];
+        ctx.drawImage(glowOf(GLOW_WHITE), px[i] - s, py[i] - s, s * 2, s * 2);
       }
     }
 

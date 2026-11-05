@@ -123,12 +123,14 @@ describe("Map drawing loop", () => {
   it("draws the phone scene", () => {
     const scene = buildMapScene(input, 3, 390, 640);
     const { ctx, calls } = fakeContext();
+    // After the entry: the live layer (agents' rings) strokes on the canvas.
     const loop = startLoop(
       ctx,
       scene,
       2,
       { hover: -1, pointer: null, moved: false, presentation: false },
-      { onHover: () => undefined }
+      { onHover: () => undefined },
+      { born: performance.now() - 60_000, mood: 0, moodAt: performance.now() }
     );
     loop.pause();
     expect(calls.stroke ?? 0).toBeGreaterThan(0);
@@ -250,5 +252,53 @@ describe("Map drawing loop", () => {
     expect(loop.quality().lite).toBe(true);
     expect(loop.quality().dpr).toBeLessThan(1);
     expect(canvas.width).toBe(Math.round(1200 * loop.quality().dpr));
+  });
+
+  it("repaints the cached layers on their beat, not every frame", () => {
+    const layerCalls: Record<string, number>[] = [];
+    const prev = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = (() => {
+      const f = fakeContext();
+      layerCalls.push(f.calls);
+      return f.ctx;
+    }) as unknown as HTMLCanvasElement["getContext"];
+    const scene = buildMapScene(input, 5, 1200, 620);
+    const { ctx } = fakeContext();
+    Object.defineProperty(ctx, "canvas", {
+      value: { width: 1200, height: 620 },
+    });
+    let queued: ((t: number) => void) | null = null;
+    const raf = jest
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb) => {
+        queued = cb;
+        return 1;
+      });
+    const t0 = performance.now();
+    const loop = startLoop(
+      ctx,
+      scene,
+      1,
+      { hover: -1, pointer: null, moved: false, presentation: false },
+      { onHover: () => undefined },
+      { born: t0 - 60_000, mood: 0, moodAt: t0 }
+    );
+    const painted = () =>
+      layerCalls.reduce((sum, c) => sum + (c.fillRect ?? 0), 0);
+    const before = painted();
+    loop.run();
+    // 30 frames over one second.
+    for (let f = 1; f <= 30 && queued; f++) {
+      const cb: (t: number) => void = queued;
+      queued = null;
+      cb(t0 + f * 34);
+    }
+    loop.pause();
+    raf.mockRestore();
+    HTMLCanvasElement.prototype.getContext = prev;
+    // A base repaint makes three fills (night, core glow, wash): two or
+    // three repaints in a second, not thirty.
+    expect(painted() - before).toBeGreaterThan(0);
+    expect(painted() - before).toBeLessThanOrEqual(9);
   });
 });
