@@ -126,7 +126,9 @@ test("Connections: apps and services", async ({ page }) => {
   await expect(page.getByText("maks@example.com").first()).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.getByText("maks@outlook.com").first()).toBeVisible();
+  // The phone row of a mailbox that lost access shows the reason, not the
+  // address, so wait for its name.
+  await expect(page.getByText("Outlook Mail").first()).toBeVisible();
   await settle(page);
   await expect(page).toHaveScreenshot("connections-apps.png");
 });
