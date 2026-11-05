@@ -1,132 +1,60 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { useSearchParams } from "next/navigation";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { FiPlus, FiSearch, FiX } from "react-icons/fi";
 
-import { formatDateToLocal, newDate } from "@/lib/date-utils";
+import { newDate } from "@/lib/date-utils";
+import {
+  type V3Connection,
+  useConnections,
+} from "@/lib/needt3/hooks/connections";
 import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
-import { PLAN_LIMITS } from "@/lib/plan-limits";
 
-import { ProGate, ProLimit, useIsPro } from "../paywall/Pro";
-import { PlaceHeader } from "../places/PlaceHeader";
-import { MemoriesGroup } from "../settings/MemoriesGroup";
-import { Segmented } from "../shell/Segmented";
 import { StScreen } from "../states/StScreen";
 import { ActivityTab } from "./ActivityTab";
-import { AgBtn, AgEmpty, AgRow, AgSection, type AgTone } from "./AgParts";
-import { AgentLimits, type AgentLimitsValue, limitsLine } from "./AgentLimits";
-import { ConnectGuide } from "./ConnectGuide";
-import { ItemFiles } from "./ItemFiles";
+import { AgentHueProvider, agentHueMap } from "./AgParts";
+import { AgentsMap } from "./AgentsMap";
+import {
+  type AgentState,
+  AgentsTab,
+  type HubAgentRow,
+  type HubReservationRow,
+  agentSeen,
+  agentState,
+} from "./AgentsTab";
+import { MemoryTab, noteTags } from "./MemoryTab";
 import { MessagesTab, useHubThreads } from "./MessagesTab";
-import { WebhooksSection } from "./WebhooksSection";
-import { hasUnconfirmedRisk } from "./unconfirmed-risk";
-
-type Named = { id?: string; name?: string; kind?: string } | "any" | null;
-
-interface HubEvent {
-  at: string;
-  type: string;
-  message: string | null;
-  actor: { kind: string; name?: string } | null;
-}
-
-interface HubRelation {
-  kind: string;
-  /** out: this item is the source (it blocks, is the parent of, ...). */
-  direction: "out" | "in";
-  item: { id: string; title: string; status: string };
-}
-
-interface HubRecurrenceRow {
-  id: string;
-  state: "active" | "paused" | "ended";
-  /** Plain-language schedule, for example "every week on Monday at 09:00". */
-  repeats: string;
-  timezone: string;
-  nextRunAt: string | null;
-  allowOverlap: boolean;
-  lastSkip: { reason: string; message: string; at: string } | null;
-}
-
-interface HubItemRow {
-  id: string;
-  title: string;
-  status: string;
-  /** Set when the item was opened by a recurrence (or is its first occurrence). */
-  recurrenceId?: string | null;
-  goal: string;
-  doneCriteria: string;
-  /** The done-criteria as a checklist; `met` is null until the item is done. */
-  criteria?: { text: string; met: boolean | null }[];
-  relations?: HubRelation[];
-  blockedBy?: string[];
-  /** Held for over four hours with no update. */
-  stale?: boolean;
-  usage?: {
-    tokens: number | null;
-    costUsd: number | null;
-    minutes: number | null;
-  } | null;
-  risks: string[];
-  approvals: Record<string, unknown>;
-  /** Flagged as a big job; agents limited to smaller work wait for approval. */
-  large?: boolean;
-  largeApproved?: boolean;
-  assignee: Named;
-  heldBy: { name: string } | null;
-  leaseExpiresAt: string | null;
-  leaseExpired: boolean;
-  question: string | null;
-  noCapableAgent: boolean;
-  /** An alert on this item the owner has not opened yet. */
-  ownerUnread: boolean;
-  result: { summary?: string } | null;
-  latestEvent: HubEvent | null;
-  events?: HubEvent[];
-  updatedAt: string;
-}
-
-interface HubAgentRow {
-  id: string;
-  name: string;
-  kind: string;
-  skills: string[];
-  connection: string;
-  openItems: number;
-  heldItems: number;
-  lastSeenAt: string | null;
-  disabledAt?: string | null;
-  disabled?: boolean;
-  limits?: AgentLimitsValue | null;
-  token: {
-    preview: string;
-    revoked: boolean;
-    lastUsedAt: string | null;
-  } | null;
-}
-
-interface HubNoteRow {
-  id: string;
-  text: string;
-  tags: string[];
-  author: { kind: string; name?: string };
-  ownerEdited: boolean;
-  updatedAt: string;
-}
-
-interface HubReservationRow {
-  id: string;
-  resource: string;
-  holder: { id: string; name: string };
-  reason: string;
-  exclusive: boolean;
-  expiresAt: string;
-}
+import {
+  type HubItemRow,
+  type HubNoteRow,
+  NO_FILTERS,
+  TASK_VIEWS,
+  type TaskFilters,
+  TasksTab,
+  inView,
+  waitsForYou,
+} from "./TasksTab";
+import {
+  type MapInput,
+  type MapSourceInput,
+  freshSeed,
+  mapStats,
+  statsLine,
+} from "./map-scene";
 
 interface Overview {
   agents: HubAgentRow[];
@@ -135,118 +63,164 @@ interface Overview {
   reservations?: HubReservationRow[];
 }
 
-const STATUS_ORDER = [
-  "needs_owner",
-  "in_progress",
-  "claimed",
-  "blocked",
-  "open",
-  "failed",
-  "done",
-  "cancelled",
-] as const;
+type Tab = "map" | "agents" | "tasks" | "messages" | "activity" | "memory";
 
-const STATUS_LABEL: Record<string, string> = {
-  needs_owner: "Needs you",
-  in_progress: "In progress",
-  claimed: "Claimed",
-  blocked: "Blocked",
-  open: "Open",
-  failed: "Failed",
-  done: "Done",
-  cancelled: "Cancelled",
-};
-
-function when(iso: string | null | undefined) {
-  if (!iso) return "never";
-  return formatDateToLocal(newDate(iso));
-}
-
-const RELATION_OUT: Record<string, string> = {
-  blocks: "Blocks",
-  parent: "Parent of",
-  relates: "Relates to",
-  duplicates: "Duplicates",
-  supersedes: "Supersedes",
-};
-
-const RELATION_IN: Record<string, string> = {
-  blocks: "Blocked by",
-  parent: "Part of",
-  relates: "Relates to",
-  duplicates: "Duplicated by",
-  supersedes: "Superseded by",
-};
-
-function relationLine(relation: HubRelation) {
-  const label = (relation.direction === "out" ? RELATION_OUT : RELATION_IN)[
-    relation.kind
-  ];
-  const status = STATUS_LABEL[relation.item.status] ?? relation.item.status;
-  return `${label ?? relation.kind}: ${relation.item.title} (${status})`;
-}
-
-function usageLine(usage: NonNullable<HubItemRow["usage"]>) {
-  const parts = [
-    usage.tokens != null ? `${usage.tokens.toLocaleString("en")} tokens` : "",
-    usage.costUsd != null ? `$${usage.costUsd.toFixed(2)}` : "",
-    usage.minutes != null ? `${usage.minutes} min` : "",
-  ].filter(Boolean);
-  return parts.length ? `Usage: ${parts.join(", ")}` : "";
-}
-
-/** The recurrences of the workspace, shared by the rows and the detail line. */
-function useRecurrences() {
-  return useQuery({
-    queryKey: ["agent-hub", "recurrences"],
-    queryFn: () =>
-      fetchJson<{ recurrences: HubRecurrenceRow[] }>(
-        "/api/agent-hub/recurrences"
-      ),
-    select: (data) => new Map(data.recurrences.map((r) => [r.id, r])),
-  });
-}
-
-function repeatsLine(recurrence: HubRecurrenceRow) {
-  const parts = [`Repeats ${recurrence.repeats} (${recurrence.timezone})`];
-  if (recurrence.state === "paused") parts.push("paused");
-  else if (recurrence.state === "ended") parts.push("ended");
-  else if (recurrence.nextRunAt) {
-    parts.push(`next run ${when(recurrence.nextRunAt)}`);
-  }
-  return parts.join(", ");
-}
-
-function latest(item: HubItemRow) {
-  const event = item.latestEvent;
-  if (!event) return "No updates yet";
-  const who = event.actor?.name ?? event.actor?.kind ?? "system";
-  return `${who}: ${event.message ?? event.type.replace(/_/g, " ")}`;
-}
-
-type Tab = "agents" | "tasks" | "messages" | "activity" | "memory";
-
-const TAB_IDS: readonly Tab[] = [
-  "agents",
-  "tasks",
-  "messages",
-  "activity",
-  "memory",
+const TABS: readonly [Tab, string][] = [
+  ["map", "Map"],
+  ["agents", "Agents"],
+  ["tasks", "Tasks"],
+  ["messages", "Messages"],
+  ["activity", "Activity"],
+  ["memory", "Memory"],
 ];
+const TAB_IDS = TABS.map(([id]) => id);
 
-const ACTIVE = ["open", "claimed", "in_progress", "blocked", "needs_owner"];
+const EMPTY: Overview = { agents: [], items: [], notes: [] };
+
+const PROVIDER_LABEL: Record<string, string> = {
+  google: "Google Calendar",
+  outlook: "Outlook",
+  caldav: "iCloud Calendar",
+  gmail: "Gmail",
+};
+
+function titleCase(text: string) {
+  return text.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** What the person connected, one source per provider, for the Map's left edge. */
+export function mapSources(connections: V3Connection[]): MapSourceInput[] {
+  const out: MapSourceInput[] = [];
+  const seen = new Set<string>();
+  for (const c of connections) {
+    if (c.state !== "connected") continue;
+    const key = `${c.kind}:${c.provider}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const kind =
+      c.kind === "calendar"
+        ? "calendar"
+        : c.kind === "mail"
+          ? "mail"
+          : "service";
+    const label =
+      kind === "mail" && c.provider !== "gmail"
+        ? "Mail"
+        : (PROVIDER_LABEL[c.provider] ?? titleCase(c.provider));
+    out.push({ id: key, label, kind });
+  }
+  // //todo: API tokens and MCP apps from Connections are sources too; their
+  // hooks live in the Connections controller and are not read here yet.
+  return out;
+}
+
+/** Mirror the open tab and target into the URL without a navigation. */
+function syncUrl(patch: Record<string, string | null>) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) url.searchParams.delete(k);
+    else url.searchParams.set(k, v);
+  }
+  window.history.replaceState(window.history.state, "", url);
+}
+
+function Search({
+  value,
+  onChange,
+  label,
+  inputRef,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  return (
+    <label className="cn-search ag-search">
+      <span className="cn-sicon">
+        <FiSearch size={14} aria-hidden />
+      </span>
+      <input
+        ref={inputRef}
+        type="search"
+        value={value}
+        aria-label={label}
+        placeholder={label}
+        data-ag-search=""
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && value) {
+            e.stopPropagation();
+            onChange("");
+          }
+        }}
+      />
+      {value ? (
+        <button
+          type="button"
+          className="cn-iconbtn cn-sx"
+          aria-label="Clear search"
+          onClick={() => {
+            onChange("");
+            inputRef.current?.focus();
+          }}
+        >
+          <FiX size={13} aria-hidden />
+        </button>
+      ) : (
+        <kbd className="ag-kbd" aria-hidden="true">
+          /
+        </kbd>
+      )}
+    </label>
+  );
+}
+
+function Chip({
+  pressed,
+  onClick,
+  children,
+  count,
+  attr,
+}: {
+  pressed: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  count?: number;
+  attr?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="ag-chip"
+      aria-pressed={pressed}
+      onClick={onClick}
+      {...(attr ? { [attr]: "" } : {})}
+    >
+      {children}
+      {count !== undefined ? <small>{count}</small> : null}
+    </button>
+  );
+}
 
 /**
- * The Agents screen: the agent hub, kept apart from the person's own tasks.
- * Five tabs. Agents (who is connected, their tokens, what they have reserved),
- * Agent tasks (work the agents hand each other, and what waits for you),
- * Messages (threads between agents and to you), Activity (what happened
- * across all items, newest first), Memory (two layers on one
- * screen: "About you", what the assistant learned about you, and "Agent
- * notes", what agents wrote for each other).
+ * The Agents screen: the agent hub, kept apart from the person's own tasks,
+ * on one night ground in both themes (owner, 05.11.26). A centred hero
+ * (eyebrow, display title, one line, a status pill with real counts), the
+ * tabs on a pill that sticks with each tab's filters, and six tabs:
  *
- * `?item=<id>` opens one item: a push or the nav badge deep-links here, and
- * opening it marks its alert as read. `?thread=<id>` does the same for a message.
+ *  - Map (the default): the live constellation of sources, agents and their
+ *    work, redrawn from a new seed on every visit (`?seed=` pins one);
+ *  - Agents: one card per agent, a card to connect a new one, webhooks and
+ *    what agents hold right now;
+ *  - Tasks: hub items in three groups, filters, search, one row geometry;
+ *  - Messages: threads and the open conversation;
+ *  - Activity: the feed by day with this week's counts;
+ *  - Memory: what the assistant learned about you, and agents' notes.
+ *
+ * Deep links: `?tab=`, `?item=<id>` (opens one item and reads its alert),
+ * `?thread=<id>`, `?agent=<id>`.
  */
 export function AgentsScreen() {
   const qc = useQueryClient();
@@ -254,51 +228,57 @@ export function AgentsScreen() {
   const itemParam = params.get("item");
   const tabParam = params.get("tab");
   const threadParam = params.get("thread");
-  const [tab, setTab] = useState<Tab>(
+  const agentParam = params.get("agent");
+  const seedParam = params.get("seed");
+  const [tab, setTabState] = useState<Tab>(
     threadParam
       ? "messages"
       : itemParam
         ? "tasks"
-        : TAB_IDS.includes(tabParam as Tab)
-          ? (tabParam as Tab)
-          : "agents"
+        : agentParam
+          ? "agents"
+          : TAB_IDS.includes(tabParam as Tab)
+            ? (tabParam as Tab)
+            : "map"
+  );
+  const [seed, setSeed] = useState(() =>
+    seedParam && Number.isFinite(Number(seedParam))
+      ? Number(seedParam)
+      : freshSeed()
   );
   const [focusId, setFocusId] = useState<string | null>(itemParam);
+  const [focusAgent, setFocusAgent] = useState<string | null>(agentParam);
+  const [threadFocus, setThreadFocus] = useState<string | null>(threadParam);
   const [archived, setArchived] = useState(false);
-  const [tag, setTag] = useState("");
-  const [name, setName] = useState("");
-  const [fresh, setFresh] = useState<{ name: string; token: string } | null>(
-    null
-  );
-  const [open, setOpen] = useState<string | null>(null);
-  // Only a manual choice lives in state; otherwise the guide follows the data.
-  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [editing, setEditing] = useState<{ id: string; text: string } | null>(
-    null
-  );
+  const [manualGuide, setManualGuide] = useState<boolean | null>(null);
+  const [filters, setFilters] = useState<TaskFilters>(NO_FILTERS);
+  const [agentsView, setAgentsView] = useState<AgentState | "all">("all");
+  const [agentsQ, setAgentsQ] = useState("");
+  const [activityAgent, setActivityAgent] = useState("");
+  const [memTag, setMemTag] = useState("");
+  const [memQ, setMemQ] = useState("");
 
-  const key = ["agent-hub", archived, tag] as const;
+  const setTab = useCallback((next: Tab) => {
+    setTabState(next);
+    syncUrl({ tab: next === "map" ? null : next });
+  }, []);
+
   const overview = useQuery({
-    queryKey: key,
+    queryKey: ["agent-hub", archived],
     queryFn: () =>
       fetchJson<Overview>(
-        `/api/agent-hub/overview?includeArchived=${archived}${
-          tag ? `&tag=${encodeURIComponent(tag)}` : ""
-        }`
+        `/api/agent-hub/overview?includeArchived=${archived}`
       ),
     refetchInterval: 15_000,
   });
-
   const threads = useHubThreads();
+  const connections = useConnections();
 
   const refresh = () =>
     Promise.all([
       qc.invalidateQueries({ queryKey: ["agent-hub"] }),
       qc.invalidateQueries({ queryKey: qk.agentHubNav() }),
     ]);
-  const [limitsFor, setLimitsFor] = useState<string | null>(null);
-
   const run = async (task: () => Promise<unknown>, done?: string) => {
     try {
       await task();
@@ -326,660 +306,437 @@ export function AgentsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemParam, target]);
 
-  const createToken = () =>
-    run(async () => {
-      const made = await sendJson<{ token: string; agent: { name: string } }>(
-        "/api/agent-hub/agents",
-        "POST",
-        { name: name.trim() }
-      );
-      setFresh({ name: made.agent.name, token: made.token });
-      setName("");
-    });
-
   const { agents, items, notes } = overview.data ?? EMPTY;
-  const showGuide =
-    manualOpen ?? (overview.data !== undefined && agents.length === 0);
-  const reservations = overview.data?.reservations ?? [];
-  const threadRows = threads.data?.threads ?? [];
+  const reservations = useMemo(
+    () => overview.data?.reservations ?? [],
+    [overview.data]
+  );
+  const threadRows = useMemo(() => threads.data?.threads ?? [], [threads.data]);
   const unreadThreads = threadRows.filter((t) => t.ownerUnread).length;
-  // Waiting for you: an agent asked, or an alert is still unread.
-  const needsYou = items.filter(
-    (i) => i.status === "needs_owner" || (i.ownerUnread && isActive(i))
+  const live = useMemo(
+    () => agents.filter((a) => !a.disabled && !a.disabledAt),
+    [agents]
   );
-  const focused = focusId ? items.find((i) => i.id === focusId) : undefined;
   // Free counts agents that are not disabled; Needt's own assistant is free.
-  const countedAgents = agents.filter(
-    (a) => !a.disabled && a.connection !== "Needt assistant"
+  const countedAgents = live.filter(
+    (a) => a.connection !== "Needt assistant"
   ).length;
-  const openItems = items.filter(isActive).length;
-  const tags = Array.from(new Set(notes.flatMap((n) => n.tags))).sort();
+  const needsYou = items.filter(waitsForYou).length;
 
-  const recurrences = useRecurrences().data;
-  const pro = useIsPro();
-  const repeatToggle = (item: HubItemRow) => {
-    const recurrence = item.recurrenceId
-      ? recurrences?.get(item.recurrenceId)
-      : undefined;
-    if (!recurrence || recurrence.state === "ended") return null;
-    const action = recurrence.state === "active" ? "pause" : "resume";
-    // Resuming a repeat is Pro (the server answers PLAN_LIMIT); pausing stays free.
-    if (action === "resume" && !pro)
-      return (
-        <ProGate feature="recurring hub items">
-          <AgBtn>Resume repeat</AgBtn>
-        </ProGate>
-      );
-    return (
-      <AgBtn
-        onClick={() =>
-          run(
-            () =>
-              sendJson(
-                `/api/agent-hub/recurrences/${recurrence.id}/${action}`,
-                "POST",
-                {}
-              ),
-            action === "pause" ? "Repeat paused" : "Repeat resumed"
-          )
-        }
-      >
-        {action === "pause" ? "Pause repeat" : "Resume repeat"}
-      </AgBtn>
+  // Working now (integrator, 05.11.26): the assignee of an item in progress,
+  // or the holder of a reservation.
+  const { working, nowOf } = useMemo(() => {
+    const set = new Set<string>();
+    const now = new Map<string, string>();
+    for (const item of items) {
+      const a = item.assignee;
+      if (item.status !== "in_progress" || !a || a === "any" || !a.id) continue;
+      set.add(a.id);
+      if (!now.has(a.id)) now.set(a.id, item.title);
+    }
+    for (const r of reservations) {
+      set.add(r.holder.id);
+      if (!now.has(r.holder.id)) now.set(r.holder.id, `Holding ${r.resource}`);
+    }
+    return { working: set, nowOf: now };
+  }, [items, reservations]);
+  const hues = useMemo(() => agentHueMap(live), [live]);
+
+  const mapData = useMemo<MapInput>(
+    () => ({
+      now: newDate().getTime(),
+      sources: mapSources(connections.data ?? []),
+      agents: live.map((a) => ({
+        id: a.id,
+        name: a.name,
+        active: working.has(a.id),
+        seen: agentSeen(a),
+      })),
+      items: items.map((i) => ({
+        id: i.id,
+        title: i.title,
+        status: i.status,
+        assigneeId:
+          i.assignee && i.assignee !== "any" ? (i.assignee.id ?? null) : null,
+        related: (i.relations ?? []).map((r) => r.item.id),
+        updatedAt: i.updatedAt,
+        result: i.result?.summary ?? null,
+      })),
+      threads: threadRows.map((t) => ({
+        id: t.id,
+        subject: t.subject,
+        itemId: t.itemId,
+        lastMessageAt: t.lastMessageAt,
+      })),
+    }),
+    [connections.data, live, items, threadRows, working]
+  );
+  const stats = mapStats(mapData);
+  const mapReady =
+    !overview.isLoading && !threads.isLoading && !connections.isLoading;
+
+  const showGuide =
+    manualGuide ?? (overview.data !== undefined && agents.length === 0);
+
+  // Sticky bar: a 1px sentinel above it says when it is stuck (Connections).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sentinel = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const root = scrollRef.current;
+    const el = sentinel.current;
+    if (!root || !el || typeof IntersectionObserver !== "function")
+      return undefined;
+    const io = new IntersectionObserver(
+      ([e]) =>
+        setStuck(
+          !e.isIntersecting &&
+            e.boundingClientRect.top <
+              (e.rootBounds ? e.rootBounds.top : 0) + 20
+        ),
+      { root, rootMargin: "-9px 0px 0px 0px", threshold: 0 }
     );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  // "/" jumps to the tab's search, as the reference shows.
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest("input, textarea, select, [contenteditable]")) return;
+      if (!searchRef.current) return;
+      e.preventDefault();
+      searchRef.current.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const at = TAB_IDS.indexOf(tab);
+    let next = -1;
+    if (e.key === "ArrowRight") next = (at + 1) % TAB_IDS.length;
+    else if (e.key === "ArrowLeft")
+      next = (at - 1 + TAB_IDS.length) % TAB_IDS.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = TAB_IDS.length - 1;
+    if (next < 0) return;
+    e.preventDefault();
+    setTab(TAB_IDS[next]);
+    document
+      .querySelector<HTMLElement>(`[data-ag-tab="${TAB_IDS[next]}"]`)
+      ?.focus();
   };
-  const itemRow = (item: HubItemRow) => (
-    <AgRow
-      key={item.id}
-      title={item.title}
-      tone={statusTone(item)}
-      meta={itemMeta(item)}
-      expanded={open === item.id}
-      onToggle={() => {
-        const next = open === item.id ? null : item.id;
-        setOpen(next);
-        if (next && item.ownerUnread) void markSeen(item.id);
-      }}
-      detail={<ItemDetail id={item.id} fallback={item} />}
-      actions={
-        isActive(item) || repeatToggle(item) ? (
-          <>
-            {repeatToggle(item)}
-            {item.large && !item.largeApproved && isActive(item) ? (
-              <AgBtn
-                onClick={() =>
-                  run(
-                    () =>
-                      sendJson(
-                        `/api/agent-hub/items/${item.id}/approve-large`,
-                        "POST",
-                        {}
-                      ),
-                    "Large item approved"
-                  )
-                }
-              >
-                Approve large
-              </AgBtn>
-            ) : null}
-            {isActive(item) ? (
-              <AgBtn
-                tone="danger"
-                onClick={() =>
-                  run(
-                    () =>
-                      sendJson(
-                        `/api/agent-hub/items/${item.id}/cancel`,
-                        "POST",
-                        {}
-                      ),
-                    "Cancelled"
-                  )
-                }
-              >
-                Cancel
-              </AgBtn>
-            ) : null}
-          </>
-        ) : null
-      }
-    />
-  );
 
-  const attentionRow = (item: HubItemRow) => (
-    <AgRow
-      key={item.id}
-      title={item.title}
-      tone="accent"
-      meta={
-        item.question ??
-        (item.noCapableAgent
-          ? "No connected agent can do this yet. Connect one with the skills it needs, or cancel it."
-          : "Waiting for your decision")
-      }
-      actions={
-        <>
-          {item.status === "needs_owner" ? (
-            <span className="ag-answer">
-              <input
-                className="nt-input"
-                aria-label="Your answer"
-                value={answers[item.id] ?? ""}
-                placeholder="Answer"
-                onChange={(e) =>
-                  setAnswers({ ...answers, [item.id]: e.target.value })
-                }
-              />
-              <AgBtn
-                disabled={!(answers[item.id] ?? "").trim()}
-                onClick={() =>
-                  run(
-                    () =>
-                      sendJson(
-                        `/api/agent-hub/items/${item.id}/answer`,
-                        "POST",
-                        {
-                          answer: answers[item.id],
-                        }
-                      ),
-                    "Answered"
-                  )
-                }
-              >
-                Answer
-              </AgBtn>
-            </span>
-          ) : null}
-          {item.risks
-            .filter((risk) => !item.approvals[risk])
-            .map((risk) => (
-              <AgBtn
-                key={risk}
-                onClick={() =>
-                  run(
-                    () =>
-                      sendJson(
-                        `/api/agent-hub/items/${item.id}/approve`,
-                        "POST",
-                        {
-                          risks: [risk],
-                        }
-                      ),
-                    `Approved ${risk}`
-                  )
-                }
-              >
-                {`Approve ${risk}`}
-              </AgBtn>
-            ))}
-          {item.ownerUnread ? (
-            <AgBtn tone="text" onClick={() => void markSeen(item.id)}>
-              Mark as read
-            </AgBtn>
-          ) : null}
-        </>
-      }
-    />
-  );
+  const openItem = (id: string) => {
+    setFocusId(id);
+    setFilters(NO_FILTERS);
+    setTab("tasks");
+    syncUrl({ tab: "tasks", item: id });
+  };
+  const openAgent = (id: string) => {
+    setFocusAgent(id);
+    setAgentsView("all");
+    setAgentsQ("");
+    setTab("agents");
+    syncUrl({ tab: "agents", agent: id });
+  };
+  const openThread = (id: string) => {
+    setThreadFocus(id);
+    setTab("messages");
+    syncUrl({ tab: "messages", thread: id });
+  };
 
-  return (
-    <div className="scroll-inner pl-page ag-page" data-v3-screen="agents">
-      <PlaceHeader
-        art="stack"
-        title="Agents"
-        meta="Agents and their work stay out of Today, Tasks and the Calendar"
-        actions={
-          <AgBtn
-            pressed={showGuide}
-            onClick={() => {
-              setManualOpen(!showGuide);
-              setTab("agents");
-            }}
+  const count: Partial<Record<Tab, number>> = {
+    agents: live.length || undefined,
+    tasks: needsYou || undefined,
+    messages: unreadThreads || undefined,
+  };
+  const agentCounts = {
+    all: live.length,
+    working: live.filter((a) => agentState(a, working) === "working").length,
+    idle: live.filter((a) => agentState(a, working) === "idle").length,
+    offline: live.filter((a) => agentState(a, working) === "offline").length,
+  };
+  const tags = noteTags(notes);
+
+  const toolbar =
+    tab === "agents" ? (
+      <div className="ag-bar" data-ag-bar="agents">
+        {(
+          [
+            ["all", "All"],
+            ["working", "Working"],
+            ["idle", "Idle"],
+            ["offline", "Offline"],
+          ] as const
+        ).map(([id, label]) => (
+          <Chip
+            key={id}
+            pressed={agentsView === id}
+            count={agentCounts[id]}
+            onClick={() => setAgentsView(id)}
           >
-            Connect an agent
-          </AgBtn>
-        }
-      />
-      <div className="ag-tabs">
-        <Segmented
-          label="Agents sections"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { id: "agents", label: "Agents" },
-            { id: "tasks", label: "Agent tasks", count: needsYou.length },
-            { id: "messages", label: "Messages", count: unreadThreads },
-            { id: "activity", label: "Activity" },
-            { id: "memory", label: "Memory" },
-          ]}
+            {label}
+          </Chip>
+        ))}
+        <Search
+          value={agentsQ}
+          onChange={setAgentsQ}
+          label="Search agents"
+          inputRef={searchRef}
         />
       </div>
+    ) : tab === "tasks" ? (
+      <div className="ag-bar" data-ag-bar="tasks">
+        {TASK_VIEWS.map(([id, label]) => (
+          <Chip
+            key={id}
+            pressed={filters.view === id}
+            count={items.filter((i) => inView(i, id)).length}
+            attr={`data-ag-view-${id}`}
+            onClick={() => setFilters({ ...filters, view: id })}
+          >
+            {label}
+          </Chip>
+        ))}
+        {live.length > 1 ? (
+          <select
+            className="ag-select"
+            aria-label="Agent"
+            value={filters.agent}
+            onChange={(e) => setFilters({ ...filters, agent: e.target.value })}
+          >
+            <option value="">All agents</option>
+            {live.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        <Search
+          value={filters.q}
+          onChange={(q) => setFilters({ ...filters, q })}
+          label="Search tasks"
+          inputRef={searchRef}
+        />
+        {/* //todo: "New task" from the reference; owners create hub items
+            through agents today, there is no owner create route. */}
+      </div>
+    ) : tab === "activity" ? (
+      <div className="ag-bar" data-ag-bar="activity">
+        <Chip pressed={!activityAgent} onClick={() => setActivityAgent("")}>
+          All agents
+        </Chip>
+        {live.map((a) => (
+          <Chip
+            key={a.id}
+            pressed={activityAgent === a.id}
+            onClick={() => setActivityAgent(a.id)}
+          >
+            <span
+              className="ag-dotc"
+              aria-hidden="true"
+              style={{ background: hues.get(a.id) }}
+            />
+            {a.name}
+          </Chip>
+        ))}
+      </div>
+    ) : tab === "memory" ? (
+      <div className="ag-bar" data-ag-bar="memory">
+        <Chip
+          pressed={!memTag}
+          count={notes.length}
+          onClick={() => setMemTag("")}
+        >
+          All
+        </Chip>
+        {tags.map(([t, n]) => (
+          <Chip
+            key={t}
+            pressed={memTag === t}
+            count={n}
+            onClick={() => setMemTag(t)}
+          >
+            {t}
+          </Chip>
+        ))}
+        <Search
+          value={memQ}
+          onChange={setMemQ}
+          label="Search memory"
+          inputRef={searchRef}
+        />
+      </div>
+    ) : null;
 
-      <StScreen
-        query={tab === "messages" ? threads : overview}
-        kind="list"
-        screen="agents"
+  let content: ReactNode = null;
+  if (tab === "agents")
+    content = (
+      <AgentsTab
+        agents={live}
+        reservations={reservations}
+        working={working}
+        nowOf={nowOf}
+        view={agentsView}
+        q={agentsQ}
+        counted={countedAgents}
+        focusAgent={focusAgent}
+        showGuide={showGuide}
+        onGuide={setManualGuide}
+        run={run}
+      />
+    );
+  else if (tab === "tasks")
+    content = (
+      <TasksTab
+        key={focusId ?? "all"}
+        items={items}
+        filters={filters}
+        focusId={focusId}
+        onClearFocus={() => {
+          setFocusId(null);
+          syncUrl({ item: null });
+        }}
+        archived={archived}
+        onArchived={setArchived}
+        run={run}
+        markSeen={markSeen}
+        onReset={() => setFilters(NO_FILTERS)}
+      />
+    );
+  else if (tab === "messages")
+    content = (
+      <MessagesTab
+        key={threadFocus ?? "none"}
+        threads={threadRows}
+        focusId={threadFocus}
+        onOpen={(id) => syncUrl({ thread: id })}
+        onOpenItem={openItem}
+        itemTitle={(id) => items.find((i) => i.id === id)?.title ?? null}
+      />
+    );
+  else if (tab === "activity")
+    content = <ActivityTab agent={activityAgent} onOpenItem={openItem} />;
+  else if (tab === "memory")
+    content = <MemoryTab notes={notes} tag={memTag} q={memQ} run={run} />;
+
+  return (
+    <AgentHueProvider value={hues}>
+      <div
+        className="nx-window cn-screen-box ag-night"
+        data-v3-screen="agents"
+        data-ag-screen={tab}
       >
-        {tab === "agents" ? (
-          <>
-            <AgSection
-              title="Agents"
-              hint={
-                <>
-                  Each agent gets its own token. It is shown once and can be
-                  revoked.{" "}
-                  <ProLimit
-                    used={countedAgents}
-                    max={PLAN_LIMITS.FREE.hubAgents}
-                    noun="agents"
-                    feature="unlimited agents"
-                  />
-                </>
-              }
-            >
-              {fresh ? (
-                <div className="ag-token" data-ag-token="">
-                  <span className="ag-title">{`Token for ${fresh.name}`}</span>
-                  <code>{fresh.token}</code>
-                  <span className="ag-token-row">
-                    <span className="ag-meta">
-                      Copy it now. It is not shown again.
-                    </span>
-                    <AgBtn onClick={() => setFresh(null)}>Done</AgBtn>
+        <div
+          ref={scrollRef}
+          className="scroll-inner nx-scroll cn-wrap cn-screen-abs ag-scroll"
+        >
+          <div className={"ag-page" + (tab === "map" ? " is-map" : "")}>
+            <header className="ag-hero nx-swap">
+              <span className="ag-eyebrow">Your team</span>
+              <h1 className="px-display ag-h1">Agents</h1>
+              <span className="ag-sub">
+                Everything you run, and the agents working on it, in one living
+                map.
+              </span>
+              <span className="ag-hero-row">
+                {overview.data ? (
+                  <span className="ag-pill" data-ag-status="">
+                    <i aria-hidden="true" />
+                    {statsLine(stats)}
                   </span>
-                </div>
-              ) : null}
-              {agents.map((agent) => (
-                <AgRow
-                  key={agent.id}
-                  title={agent.name}
-                  tone={agentTone(agent)}
-                  expanded={limitsFor === agent.id}
-                  onToggle={() =>
-                    setLimitsFor(limitsFor === agent.id ? null : agent.id)
-                  }
-                  detail={
-                    <AgentLimits
-                      limits={agent.limits ?? null}
-                      onSave={(body) =>
-                        run(
-                          () =>
-                            sendJson(
-                              `/api/agent-hub/agents/${agent.id}`,
-                              "PATCH",
-                              { limits: body }
-                            ),
-                          body ? "Limits saved" : "Limits removed"
-                        )
-                      }
-                    />
-                  }
-                  meta={`${agent.kind}, ${agent.connection}, skills: ${
-                    agent.skills.join(", ") || "none"
-                  }. ${agent.openItems} open, ${agent.heldItems} held. Last seen ${when(
-                    agent.lastSeenAt
-                  )}.${limitsLine(agent.limits ?? null)}${
-                    agent.token
-                      ? ` Token ${agent.token.preview}${
-                          agent.token.revoked ? " (revoked)" : ""
-                        }.`
-                      : ""
-                  }`}
-                  actions={
-                    agent.token && !agent.token.revoked ? (
-                      <AgBtn
-                        tone="danger"
-                        onClick={() =>
-                          run(
-                            () =>
-                              sendJson(
-                                `/api/agent-hub/agents/${agent.id}`,
-                                "DELETE"
-                              ),
-                            "Token revoked"
-                          )
-                        }
-                      >
-                        Revoke
-                      </AgBtn>
-                    ) : null
-                  }
-                />
-              ))}
-              <div className="ag-form">
-                <input
-                  className="nt-input"
-                  aria-label="Agent name"
-                  value={name}
-                  maxLength={60}
-                  placeholder="New agent name"
-                  onChange={(e) => setName(e.target.value)}
-                />
-                <AgBtn disabled={!name.trim()} onClick={createToken}>
-                  Create token
-                </AgBtn>
-              </div>
-            </AgSection>
-            {showGuide ? (
-              <ConnectGuide
-                onClose={manualOpen ? () => setManualOpen(false) : undefined}
-              />
-            ) : null}
-            <WebhooksSection />
-            {reservations.length > 0 ? (
-              <AgSection
-                title="Reserved now"
-                hint="Resources agents hold so they stay out of each other's way. They expire on their own."
-              >
-                {reservations.map((r) => (
-                  <AgRow
-                    key={r.id}
-                    title={r.resource}
-                    meta={`${r.holder.name}${r.exclusive ? "" : ", shared"}, until ${when(
-                      r.expiresAt
-                    )}. ${r.reason}`}
-                  />
-                ))}
-              </AgSection>
-            ) : null}
-          </>
-        ) : null}
+                ) : overview.isError ? (
+                  <span className="ag-pill is-none" data-ag-status="error">
+                    Could not load your agents
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  className="ag-btn"
+                  aria-pressed={tab === "agents" && showGuide}
+                  data-ag-connect=""
+                  onClick={() => {
+                    setManualGuide(true);
+                    setTab("agents");
+                  }}
+                >
+                  <FiPlus size={13} aria-hidden />
+                  Connect an agent
+                </button>
+              </span>
+            </header>
 
-        {tab === "tasks" ? (
-          <>
-            {focused ? (
-              <AgSection title="Opened from your alert">
-                {itemRow(focused)}
-                <div className="ag-footer">
-                  <AgBtn tone="text" onClick={() => setFocusId(null)}>
-                    Show everything
-                  </AgBtn>
-                </div>
-              </AgSection>
-            ) : null}
-
-            {needsYou.length > 0 ? (
-              <AgSection title="Needs you">
-                {needsYou.map(attentionRow)}
-              </AgSection>
-            ) : null}
-
-            {items.length > 0 ? (
-              <p className="ag-hint">
-                <ProLimit
-                  used={openItems}
-                  max={PLAN_LIMITS.FREE.hubOpenItems}
-                  noun="open items"
-                  feature="unlimited agent tasks"
-                />
-              </p>
-            ) : null}
-
-            {items.length === 0 ? (
-              <AgEmpty
-                art="task"
-                title="Nothing here yet"
-                line="Items agents create or receive show up here."
-              />
-            ) : (
-              STATUS_ORDER.map((status) => {
-                const rows = items.filter((i) => i.status === status);
-                return rows.length ? (
-                  <AgSection key={status} title={STATUS_LABEL[status]}>
-                    {rows.map(itemRow)}
-                  </AgSection>
-                ) : null;
-              })
-            )}
-            <div className="ag-footer">
-              <AgBtn tone="text" onClick={() => setArchived(!archived)}>
-                {archived ? "Hide items older than 14 days" : "Show older"}
-              </AgBtn>
-            </div>
-          </>
-        ) : null}
-
-        {tab === "messages" ? (
-          <MessagesTab threads={threadRows} focusId={threadParam} />
-        ) : null}
-
-        {tab === "activity" ? (
-          <ActivityTab
-            agents={agents}
-            onOpenItem={(id) => {
-              setFocusId(id);
-              setTab("tasks");
-            }}
-          />
-        ) : null}
-
-        {tab === "memory" ? (
-          <>
-            <div className="ag-memory">
-              <MemoriesGroup
-                title="About you"
-                hint="What Needt's assistant knows about you, so Ask and the planner fit you better. The same list as Settings, Memories."
-              />
-            </div>
-
-            <AgSection
-              title="Agent notes"
-              hint="What agents leave for each other: decisions, facts about tools and accounts. Needt's assistant reads and writes them too. They are not about you."
+            <div ref={sentinel} className="cn-sentinel" aria-hidden="true" />
+            <div
+              className={"ag-sticky" + (stuck ? " is-stuck" : "")}
+              data-ag-sticky={stuck ? "stuck" : "rest"}
             >
-              {tags.length > 0 ? (
-                <div className="ag-tags" role="group" aria-label="Tag">
-                  <AgBtn
-                    tone={tag ? "text" : "secondary"}
-                    pressed={!tag}
-                    onClick={() => setTag("")}
+              <div
+                role="tablist"
+                aria-label="Agents sections"
+                className="ag-tabs"
+                onKeyDown={onTabKey}
+              >
+                {TABS.map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    id={"ag-tab-" + id}
+                    aria-controls="ag-panel"
+                    aria-selected={tab === id}
+                    tabIndex={tab === id ? 0 : -1}
+                    className="ag-tab"
+                    data-ag-tab={id}
+                    onClick={() => setTab(id)}
                   >
-                    All
-                  </AgBtn>
-                  {tags.map((t) => (
-                    <AgBtn
-                      key={t}
-                      tone={t === tag ? "secondary" : "text"}
-                      pressed={t === tag}
-                      onClick={() => setTag(t)}
-                    >
-                      {t}
-                    </AgBtn>
-                  ))}
-                </div>
-              ) : null}
-              {notes.map((note) => (
-                <AgRow
-                  key={note.id}
-                  title={
-                    editing?.id === note.id ? (
-                      <textarea
-                        className="nt-input ag-textarea"
-                        aria-label="Note text"
-                        value={editing.text}
-                        onChange={(e) =>
-                          setEditing({ id: note.id, text: e.target.value })
-                        }
-                      />
-                    ) : (
-                      note.text
-                    )
-                  }
-                  meta={`${note.author.name ?? "owner"}${
-                    note.tags.length ? `, ${note.tags.join(", ")}` : ""
-                  }${note.ownerEdited ? ", edited by you" : ""}`}
-                  actions={
-                    <>
-                      {editing?.id === note.id ? (
-                        <AgBtn
-                          onClick={() =>
-                            run(async () => {
-                              await sendJson(
-                                `/api/agent-hub/notes/${note.id}`,
-                                "PATCH",
-                                { text: editing.text }
-                              );
-                              setEditing(null);
-                            }, "Note saved")
-                          }
-                        >
-                          Save
-                        </AgBtn>
-                      ) : (
-                        <AgBtn
-                          onClick={() =>
-                            setEditing({ id: note.id, text: note.text })
-                          }
-                        >
-                          Edit
-                        </AgBtn>
-                      )}
-                      <AgBtn
-                        tone="danger"
-                        onClick={() =>
-                          run(
-                            () =>
-                              sendJson(
-                                `/api/agent-hub/notes/${note.id}`,
-                                "DELETE"
-                              ),
-                            "Note deleted"
-                          )
-                        }
-                      >
-                        Delete
-                      </AgBtn>
-                    </>
-                  }
-                />
-              ))}
-              {notes.length === 0 ? (
-                <AgEmpty
-                  art="page"
-                  title="No notes yet"
-                  line="Agents write what they learn here."
-                />
-              ) : null}
-            </AgSection>
-          </>
-        ) : null}
-      </StScreen>
-    </div>
-  );
-}
+                    {label}
+                    {count[id] ? <small>{count[id]}</small> : null}
+                  </button>
+                ))}
+              </div>
+              {toolbar}
+            </div>
 
-const EMPTY: Overview = { agents: [], items: [], notes: [] };
-
-function statusTone(item: HubItemRow): AgTone {
-  if (item.status === "needs_owner" || item.ownerUnread) return "accent";
-  if (item.status === "failed" || item.status === "blocked") return "danger";
-  if (item.status === "in_progress" || item.status === "claimed") return "info";
-  if (item.status === "done") return "success";
-  return "muted";
-}
-
-/** Seen in the last 15 minutes with a live token: a success mark. */
-function agentTone(agent: HubAgentRow): AgTone {
-  if (agent.disabledAt || agent.token?.revoked || !agent.lastSeenAt)
-    return "muted";
-  const age = newDate().getTime() - newDate(agent.lastSeenAt).getTime();
-  return age < 15 * 60_000 ? "success" : "muted";
-}
-
-function itemMeta(item: HubItemRow) {
-  return (
-    <>
-      {item.ownerUnread ? <span className="ag-new">New </span> : null}
-      {hasUnconfirmedRisk(item) ? (
-        <span className="ag-flag" data-ag-no-confirmation="">
-          no confirmation{" "}
-        </span>
-      ) : null}
-      {`${latest(item)}${
-        item.heldBy
-          ? `. Held by ${item.heldBy.name} until ${when(item.leaseExpiresAt)}${
-              item.leaseExpired ? " (expired)" : ""
-            }`
-          : ""
-      }${item.noCapableAgent ? ". No capable agent" : ""}${
-        item.blockedBy?.length ? `. Waiting on ${item.blockedBy.length}` : ""
-      }${item.stale ? ". No update for over 4 hours" : ""}`}
-    </>
-  );
-}
-
-function isActive(item: HubItemRow) {
-  return ACTIVE.includes(item.status);
-}
-
-/** The full event log of one item, fetched when its row opens. */
-function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
-  const detail = useQuery({
-    queryKey: ["agent-hub", "item", id],
-    queryFn: () =>
-      sendJson<{ item: HubItemRow }>(
-        `/api/agent-hub/items/${id}/detail`,
-        "POST"
-      ),
-  });
-  const item = detail.data?.item ?? fallback;
-  const recurrence = useRecurrences().data?.get(item.recurrenceId ?? "");
-  return (
-    <>
-      {recurrence ? (
-        <span>
-          <span className="ag-detail-k">{repeatsLine(recurrence)}</span>
-          {recurrence.lastSkip
-            ? ` Last skipped ${when(recurrence.lastSkip.at)}: ${recurrence.lastSkip.message}`
-            : null}
-        </span>
-      ) : null}
-      <span>
-        <span className="ag-detail-k">Goal: </span>
-        {item.goal}
-      </span>
-      {item.criteria?.length ? (
-        <>
-          <span className="ag-detail-k">Done when:</span>
-          {item.criteria.map((entry, index) => (
-            <span key={index}>
-              {`${entry.met === null ? "Open" : entry.met ? "Met" : "Not met"}: ${entry.text}`}
-            </span>
-          ))}
-        </>
-      ) : (
-        <span>
-          <span className="ag-detail-k">Done when: </span>
-          {item.doneCriteria}
-        </span>
-      )}
-      {(item.relations ?? []).map((relation, index) => (
-        <span key={index}>{relationLine(relation)}</span>
-      ))}
-      {hasUnconfirmedRisk(item) ? (
-        <span>
-          <span className="ag-detail-k">No confirmation: </span>
-          no risk was declared, yet this item mentions sending, publishing,
-          posting, deleting or paying. It could run without asking you.
-        </span>
-      ) : null}
-      {item.usage && usageLine(item.usage) ? (
-        <span>{usageLine(item.usage)}</span>
-      ) : null}
-      {item.result?.summary ? (
-        <span>
-          <span className="ag-detail-k">Result: </span>
-          {item.result.summary}
-        </span>
-      ) : null}
-      <ItemFiles id={id} />
-      {(item.events ?? []).map((event, index) => (
-        <span key={index} className="ag-detail-ev">
-          <span>{when(event.at)}</span>
-          <span>{`${event.actor?.name ?? event.actor?.kind ?? "system"}: ${
-            event.message ?? event.type.replace(/_/g, " ")
-          }`}</span>
-        </span>
-      ))}
-    </>
+            <div
+              id="ag-panel"
+              role="tabpanel"
+              aria-labelledby={"ag-tab-" + tab}
+              className="ag-tabpanel"
+              key={tab}
+            >
+              {tab === "map" ? (
+                mapReady ? (
+                  <AgentsMap
+                    data={mapData}
+                    seed={seed}
+                    onNewLayout={() => setSeed(freshSeed())}
+                    onOpenAgent={openAgent}
+                    onOpenItem={openItem}
+                    onOpenThread={openThread}
+                  />
+                ) : (
+                  <div className="ag-map-panel is-loading" aria-busy="true" />
+                )
+              ) : (
+                <StScreen
+                  query={tab === "messages" ? threads : overview}
+                  kind="list"
+                  screen="agents"
+                >
+                  {content}
+                </StScreen>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </AgentHueProvider>
   );
 }
