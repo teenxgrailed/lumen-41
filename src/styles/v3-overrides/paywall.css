@@ -836,3 +836,28 @@
 .needt-v3 .pw-store-x:disabled {
   opacity: 0.4;
 }
+
+/* ── the 390-px phone (audit 05.11) ────────────────────────────────────── */
+/* The picture at the top gives way on a shorter phone, so the plans start
+   above the fold: 300 px on a tall screen, down to 180 px on an SE. */
+.needt-v3 .pov-paywall-in .pw-phone .pw-top {
+  height: clamp(180px, 30vh, 300px);
+}
+/* 44-px touch targets for Monthly / Yearly, close and Retry; drawn size
+   unchanged. */
+.needt-v3 :is(.pw-seg-b, .pw-state-btn) {
+  position: relative;
+}
+.needt-v3 :is(.pw-seg-b, .pw-state-btn)::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 22px);
+  height: 44px;
+}
+.needt-v3 .pw-x::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+}
