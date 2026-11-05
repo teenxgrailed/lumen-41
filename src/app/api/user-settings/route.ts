@@ -111,13 +111,17 @@ export async function PATCH(request: NextRequest) {
       if (patch) {
         // The merged value is spelled out in the WHERE too, so the caps are
         // checked on the row version the UPDATE writes (Postgres re-checks
-        // the WHERE on the newest version when a concurrent writer won).
+        // the WHERE on the newest version when a concurrent writer won). A
+        // map already past a cap (stored before the caps) may still shrink
+        // or stay the same size; only growing it further is refused.
         const written = await tx.$executeRaw`
           UPDATE "UserSettings"
           SET "prefs" = (COALESCE("prefs", '{}'::jsonb) || ${putJson}::jsonb) - ${drop}::text[]
           WHERE "userId" = ${userId}
-            AND octet_length(((COALESCE("prefs", '{}'::jsonb) || ${putJson}::jsonb) - ${drop}::text[])::text) <= ${PREFS_MAX_BYTES}
-            AND (SELECT count(*) FROM jsonb_object_keys((COALESCE("prefs", '{}'::jsonb) || ${putJson}::jsonb) - ${drop}::text[])) <= ${PREFS_MAX_KEYS}`;
+            AND octet_length(((COALESCE("prefs", '{}'::jsonb) || ${putJson}::jsonb) - ${drop}::text[])::text)
+                <= GREATEST(${PREFS_MAX_BYTES}, octet_length(COALESCE("prefs", '{}'::jsonb)::text))
+            AND (SELECT count(*) FROM jsonb_object_keys((COALESCE("prefs", '{}'::jsonb) || ${putJson}::jsonb) - ${drop}::text[]))
+                <= GREATEST(${PREFS_MAX_KEYS}, (SELECT count(*) FROM jsonb_object_keys(COALESCE("prefs", '{}'::jsonb))))`;
         if (written === 0) throw new PrefsTooLarge();
       }
       return tx.userSettings.findUnique({ where: { userId } });

@@ -1942,7 +1942,9 @@ key's value whole (nested maps such as `taskView` and `homeBlocks` are not
 merged inside); a key sent as `null` is removed; keys you do not send are left
 as they are, so two clients writing different keys never undo each other. The
 stored map holds at most 200 keys and 32,000 bytes; a write that would pass
-either is refused with `413` and nothing is saved. `__proto__`, `constructor`
+either is refused with `413` and nothing is saved. A map already past a cap
+(saved before the caps) can always shrink or change in place; only growing it
+further is refused. `__proto__`, `constructor`
 and `prototype` are not allowed as keys (`400`).
 
 | Key            | Values                        | Default | Meaning                                                                                                                                                                                            |

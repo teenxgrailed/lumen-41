@@ -60,6 +60,14 @@ describe("PATCH /api/user-settings prefs", () => {
     // The caps are checked on the merged value, in the same statement.
     expect(sql).toContain("octet_length(");
     expect(sql).toContain("jsonb_object_keys(");
+    // A map stored past a cap is never locked: the bound is the larger of
+    // the cap and what is stored now.
+    expect(sql).toContain(
+      "<= GREATEST(?, octet_length(COALESCE(\"prefs\", '{}'::jsonb)::text))"
+    );
+    expect(sql).toContain(
+      "<= GREATEST(?, (SELECT count(*) FROM jsonb_object_keys(COALESCE(\"prefs\", '{}'::jsonb))))"
+    );
     const patchJson = JSON.stringify({ b: 2 });
     expect(values).toEqual([
       patchJson,
