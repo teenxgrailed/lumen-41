@@ -35,6 +35,8 @@ export interface PresenceSettings {
   /** The general switches every notice obeys (preferences.ts). */
   reminders: boolean;
   channelInApp: boolean;
+  /** System notifications from the desktop app (Settings: Mac notifications). */
+  channelMac?: boolean;
   digest: boolean;
 }
 
@@ -153,7 +155,10 @@ export function nextIsland(i: PresenceInput): PresenceIsland | null {
   if (i.busy) return null;
   // The switches every in-app notice obeys: nothing interrupts with
   // Reminders off, In the app off, or a daily digest instead of a stream.
-  if (!s.reminders || !s.channelInApp || s.digest) return null;
+  // Which channel says it (the island for In the app, a system notification
+  // for Mac notifications) is the host's choice; with neither, nothing.
+  if (!s.reminders || s.digest) return null;
+  if (!s.channelInApp && !s.channelMac) return null;
   const nowMs = i.now.getTime();
   if (i.memory.lastShownAt && nowMs - i.memory.lastShownAt < ISLAND_GAP_MS)
     return null;

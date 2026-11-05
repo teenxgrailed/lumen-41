@@ -48,7 +48,12 @@ export async function pollMacAlerts(): Promise<number> {
   writeSince(page.now);
   let shown = 0;
   for (const item of page.items) {
-    if (await sendDesktopNotification(item.title, item.body ?? "", item.link)) {
+    // A background poll never raises the system's permission prompt.
+    if (
+      await sendDesktopNotification(item.title, item.body ?? "", item.link, {
+        ask: false,
+      })
+    ) {
       shown += 1;
     }
   }

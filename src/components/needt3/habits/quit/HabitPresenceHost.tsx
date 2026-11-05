@@ -16,6 +16,7 @@ import {
   ISLAND_GAP_MS,
   type PresenceIsland,
   type PresenceMemory,
+  type PresenceSettings,
   nextIsland,
   readMemory,
   rememberShown,
@@ -148,15 +149,22 @@ function Presence({ quitOn }: { quitOn: boolean }) {
   };
 
   useEffect(() => {
-    const show = async (island: PresenceIsland) => {
-      // Read again right before showing: another tab may have shown it.
-      const fresh = loadMemory();
+    const show = async (island: PresenceIsland, settings: PresenceSettings) => {
       const now = newDate().getTime();
-      if (fresh.seen.includes(island.key)) return;
-      if (fresh.lastShownAt && now - fresh.lastShownAt < ISLAND_GAP_MS) return;
-      // In the desktop app with its window not in front, the island would go
-      // unseen: a system notification says it instead, with the push's tag.
-      if (isDesktopApp() && !document.hasFocus()) {
+      const due = (m: PresenceMemory) =>
+        !m.seen.includes(island.key) &&
+        !(m.lastShownAt && now - m.lastShownAt < ISLAND_GAP_MS);
+      // In the desktop app with its window not in front (hidden, or another
+      // window focused), the island would go unseen: a system notification
+      // says it instead, with the push's tag, if Mac notifications are on.
+      const front =
+        document.visibilityState === "visible" && document.hasFocus();
+      if (isDesktopApp() && !front && settings.channelMac !== false) {
+        // Claimed before the send, so a second window of the app does not
+        // send it too while this one waits; given back if the send fails.
+        const before = loadMemory();
+        if (!due(before)) return;
+        saveMemory(rememberShown(before, island.key, now));
         const sent = await sendDesktopNotification(
           island.title,
           island.body,
@@ -165,12 +173,18 @@ function Presence({ quitOn }: { quitOn: boolean }) {
             : "/habits",
           { ask: false, tag: island.tag }
         );
-        if (sent) {
-          saveMemory(rememberShown(loadMemory(), island.key, now));
-          return;
-        }
+        if (sent) return;
+        const after = loadMemory();
+        saveMemory({
+          ...after,
+          seen: after.seen.filter((k) => k !== island.key),
+          lastShownAt: before.lastShownAt,
+        });
       }
-      if (!hasNoticeSink("island")) return;
+      if (!settings.channelInApp || !hasNoticeSink("island")) return;
+      // Read again right before showing: another tab may have shown it.
+      const fresh = loadMemory();
+      if (!due(fresh)) return;
       saveMemory(rememberShown(fresh, island.key, now));
       closePush(island.tag);
       if (island.kind === "reminder") {
@@ -255,7 +269,7 @@ function Presence({ quitOn }: { quitOn: boolean }) {
           }),
         quits,
       });
-      if (island) void show(island);
+      if (island) void show(island, l.alerts);
     };
 
     const t = window.setInterval(tick, TICK_MS);

@@ -47,6 +47,7 @@ const alerts = {
   quietEnd: "08:00",
   reminders: true,
   channelInApp: true,
+  channelMac: true,
   digest: false,
 };
 
@@ -344,6 +345,45 @@ describe("in the desktop app", () => {
     // Said once: not on the island too, not again next minute.
     expect(rows()).toHaveLength(0);
     for (let n = 0; n < 5; n++) minute();
+    expect(api.sendNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("says nothing by system notification with Mac notifications off", async () => {
+    jest.spyOn(document, "hasFocus").mockReturnValue(false);
+    alerts.channelMac = false;
+    try {
+      mount();
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(api.sendNotification).not.toHaveBeenCalled();
+    } finally {
+      alerts.channelMac = true;
+    }
+  });
+
+  it("falls back to the island when the system notification cannot go", async () => {
+    jest.spyOn(document, "hasFocus").mockReturnValue(false);
+    api.isPermissionGranted.mockResolvedValue(false);
+    mount();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    // The claim was given back, and the island said it.
+    expect(api.sendNotification).not.toHaveBeenCalled();
+    expect(rows()).toHaveLength(1);
+  });
+
+  it("treats a hidden window as not in front, even when it has focus", async () => {
+    jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    jest.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    mount();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
     expect(api.sendNotification).toHaveBeenCalledTimes(1);
   });
 

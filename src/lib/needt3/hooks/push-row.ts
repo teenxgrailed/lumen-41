@@ -1,5 +1,6 @@
 "use client";
 
+import { desktopPlatform } from "@/lib/desktop";
 import { notify } from "@/lib/notifications";
 
 import {
@@ -22,9 +23,19 @@ export type PushAction = {
  */
 export function usePushRow() {
   const push = usePushNotifications();
+  const appCopy = push.app ? APP_PUSH_COPY[push.state] : undefined;
   const { title, desc } =
     (push.native ? NATIVE_PUSH_COPY[push.state] : undefined) ??
-    (push.app ? APP_PUSH_COPY[push.state] : undefined) ??
+    (appCopy && desktopPlatform() === "windows"
+      ? {
+          // Windows says Settings, not macOS's System Settings.
+          title: appCopy.title.replace("System Settings", "Settings"),
+          desc: appCopy.desc.replace(
+            "System Settings, Notifications, Needt",
+            "Settings, System, Notifications, Needt"
+          ),
+        }
+      : appCopy) ??
     PUSH_COPY[push.state];
 
   const enable = () =>

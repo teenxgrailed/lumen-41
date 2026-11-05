@@ -243,6 +243,8 @@ describe("PushGroup", () => {
       env({ push: false });
       const api = desktopApp(false);
       await render();
+      // Nothing asks the system until the person taps Allow.
+      expect(api.requestPermission).not.toHaveBeenCalled();
       expect(host.textContent).toContain(
         "Notifications come through the Needt app"
       );
@@ -264,6 +266,24 @@ describe("PushGroup", () => {
       });
       expect(host.textContent).toContain("Turned off in System Settings");
       expect(buttons()).toEqual([]);
+    });
+
+    it("says Settings, not System Settings, on Windows", async () => {
+      env({ push: false });
+      desktopApp(false, "denied");
+      (window as unknown as Record<string, unknown>).__needtDesktop = {
+        platform: "windows",
+      };
+      try {
+        await render();
+        await act(async () => {
+          host.querySelector("button")?.click();
+        });
+        expect(host.textContent).toContain("Turned off in Settings");
+        expect(host.textContent).not.toContain("System Settings");
+      } finally {
+        delete (window as unknown as Record<string, unknown>).__needtDesktop;
+      }
     });
 
     it("tests through the app, with no Turn off to offer", async () => {
