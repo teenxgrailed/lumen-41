@@ -114,7 +114,7 @@
   border-radius: 6px;
   background: var(--hq-well);
   color: var(--hq-ink-3);
-  font: 600 11px/1 var(--font-sans);
+  font: 600 12px/1 var(--font-sans);
   letter-spacing: 0.02em;
 }
 .hq-chip {
