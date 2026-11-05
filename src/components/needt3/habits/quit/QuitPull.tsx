@@ -242,6 +242,8 @@ export function QuitPull(p: QuitPullProps) {
     Math.max(0, newDate().getTime() - p.startedAt)
   );
   const [slipping, setSlipping] = useState(false);
+  const slippingRef = useRef(false);
+  slippingRef.current = slipping;
   // Said in the flow itself: the notice stack is inert while it is open.
   const [slipFailed, setSlipFailed] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -279,9 +281,11 @@ export function QuitPull(p: QuitPullProps) {
   function onKeyDown(e: KeyboardEvent) {
     if (e.key === "Escape") {
       e.preventDefault();
-      // From the slip question Esc goes back a step, not out of the flow.
-      if (live.current.step === "slip") live.current.onStep("ask");
-      else live.current.onClose();
+      // From the slip question Esc goes back a step, not out of the flow;
+      // while the slip is being saved it waits.
+      if (live.current.step === "slip") {
+        if (!slippingRef.current) live.current.onStep("ask");
+      } else live.current.onClose();
       return;
     }
     if (e.key !== "Tab" || !root.current) return;
@@ -416,7 +420,9 @@ export function QuitPull(p: QuitPullProps) {
           best={p.best}
           clean={p.clean}
           busy={slipping}
-          onCancel={() => onStep("ask")}
+          onCancel={() => {
+            if (!slipping) onStep("ask");
+          }}
           onConfirm={() => {
             if (slipping) return;
             setSlipping(true);

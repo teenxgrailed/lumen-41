@@ -942,6 +942,11 @@
 .hq-pull :focus:not(:focus-visible) {
   outline: none;
 }
+.hq-detail-more {
+  display: flex;
+  gap: 4px;
+  margin-left: -10px;
+}
 .hq-pull-layer {
   position: fixed;
   inset: 0;

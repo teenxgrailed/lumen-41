@@ -42,6 +42,7 @@ const mockLog = jest.fn();
 const mockLogAsync = jest.fn();
 const mockPatch = jest.fn();
 const mockCreate = jest.fn();
+const mockArchive = jest.fn();
 
 jest.mock("@/lib/needt3/hooks/habits", () => ({
   useHabits: () => query(mockHabits),
@@ -51,7 +52,7 @@ jest.mock("@/lib/needt3/hooks/habits", () => ({
   useToggleHabitDay: () => ({ mutate: jest.fn() }),
   useCreateHabit: () => ({ mutateAsync: mockCreate }),
   useUpdateHabit: () => ({ mutateAsync: jest.fn() }),
-  useArchiveHabit: () => ({ mutateAsync: jest.fn() }),
+  useArchiveHabit: () => ({ mutateAsync: mockArchive }),
 }));
 jest.mock("@/lib/needt3/hooks/habits-quit", () => ({
   useQuitGate: () => mockGate,
@@ -166,6 +167,7 @@ beforeEach(() => {
   mockLog.mockReset();
   mockPatch.mockReset();
   mockCreate.mockReset();
+  mockArchive.mockReset().mockResolvedValue({});
   mockLogAsync
     .mockReset()
     .mockImplementation(async ({ type }: { type: string }) => ({
@@ -387,6 +389,31 @@ describe("Pulling", () => {
     expect(q("[data-hq-slip-failed]")?.getAttribute("role")).toBe("alert");
   });
 
+  it("holds Cancel and Esc while the slip is being saved", async () => {
+    let finish: (v: unknown) => void = () => undefined;
+    render("phone");
+    click(q('[data-hq-pull="q"]'));
+    await flush();
+    mockLogAsync.mockImplementationOnce(() => new Promise((r) => (finish = r)));
+    click(byText("Skip to my reason"));
+    click(byText("Next"));
+    click(byText("I slipped"));
+    click(q("[data-hq-slip-confirm]"));
+    expect(byText("Cancel")?.hasAttribute("disabled")).toBe(true);
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(q('[data-hq-step="slip"]')).not.toBeNull();
+    await act(async () => {
+      finish({ id: "relapse-1" });
+      await Promise.resolve();
+    });
+    await flush();
+    expect(q("[data-hq-step]")).toBeNull();
+  });
+
   it("makes the page inert while open and gives focus back to Pulling", () => {
     const outside = document.createElement("button");
     document.body.appendChild(outside);
@@ -481,6 +508,42 @@ describe("the Quit habit", () => {
     click(q("[data-hq-slip]"));
     expect(q(".hq-confirm")?.textContent).toContain("31 d, kept");
     expect(q(".hq-confirm")?.textContent).toContain("74 d, kept");
+  });
+});
+
+describe("editing and archiving a Quit habit", () => {
+  for (const [plan, gate] of [
+    ["Pro", "on"],
+    ["a downgrade", "upgrade"],
+  ] as const) {
+    it(`renames through the sheet and archives, on ${plan}`, async () => {
+      mockGate = gate;
+      mockPlanKind = gate === "on" ? "monthly" : "free";
+      render("desktop");
+      click(q('[data-hq-quit="q"] .hq-card-open'));
+      click(q('[data-hq-edit="q"]'));
+      // The sheet edits it: name, Since and Why, and Save, not the Pro card.
+      expect(q<HTMLInputElement>('input[name="habit-name"]')?.value).toBe(
+        "Smoking"
+      );
+      expect(q('textarea[name="habit-reason"]')).not.toBeNull();
+      expect(q(".pl-habit-sheet [data-hq-lock]")).toBeNull();
+      expect(q(".pl-habit-save")).not.toBeNull();
+
+      click(byText("Cancel"));
+      click(q('[data-hq-archive="q"]'));
+      await flush();
+      expect(mockArchive).toHaveBeenCalledWith({ id: "q" });
+      expect(q('[data-hq-detail="q"]')).toBeNull();
+    });
+  }
+
+  it("on the phone too", async () => {
+    render("phone");
+    click(q('[data-hq-quit="q"] .hq-row-open'));
+    click(q('[data-hq-archive="q"]'));
+    await flush();
+    expect(mockArchive).toHaveBeenCalledWith({ id: "q" });
   });
 });
 

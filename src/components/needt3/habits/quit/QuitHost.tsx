@@ -338,6 +338,8 @@ export function QuitDetail({
   onBack,
   onPull,
   onUpgrade,
+  onEdit,
+  onArchive,
 }: {
   habit: V3Habit;
   phone: boolean;
@@ -346,6 +348,10 @@ export function QuitDetail({
   onBack: () => void;
   onPull: () => void;
   onUpgrade: () => void;
+  /** Rename, the reason, the date: the habit sheet. Open on any plan. */
+  onEdit: () => void;
+  /** Archive; stays open on any plan, a downgrade included. */
+  onArchive: () => void;
 }) {
   const tz = useTimeZone();
   const summaryQ = useQuitSummary(habit.id);
@@ -452,6 +458,24 @@ export function QuitDetail({
           </button>
         </div>
       )}
+      <div className="hq-detail-more">
+        <button
+          type="button"
+          className="hq-btn is-text is-sm"
+          data-hq-edit={habit.id}
+          onClick={onEdit}
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          className="hq-btn is-text is-sm"
+          data-hq-archive={habit.id}
+          onClick={onArchive}
+        >
+          Archive
+        </button>
+      </div>
     </div>
   );
 }
@@ -468,6 +492,8 @@ export function QuitLayer({
   phone,
   detailOnly,
   onUpgrade,
+  onEdit,
+  onArchive,
 }: {
   habits: readonly V3Habit[];
   ctl: QuitController;
@@ -476,6 +502,8 @@ export function QuitLayer({
   /** Draw only the open habit, never the pull (the phone draws that above). */
   detailOnly?: boolean;
   onUpgrade: () => void;
+  onEdit: (habit: V3Habit) => void;
+  onArchive: (habit: V3Habit) => Promise<unknown> | void;
 }) {
   const readOnly = gate !== "on";
   const pulling = habits.find((h) => h.id === ctl.pullId) ?? null;
@@ -500,6 +528,12 @@ export function QuitLayer({
         onBack={() => ctl.open(null)}
         onPull={() => ctl.pull(open.id)}
         onUpgrade={onUpgrade}
+        onEdit={() => onEdit(open)}
+        onArchive={() => {
+          // Back to the list: an archived habit has nothing left to show.
+          ctl.open(null);
+          void onArchive(open);
+        }}
       />
     );
   return null;

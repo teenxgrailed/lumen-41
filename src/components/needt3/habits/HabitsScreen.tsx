@@ -677,6 +677,8 @@ export function HabitsScreen({
               ctl={quit}
               phone={false}
               onUpgrade={onSeePro}
+              onEdit={ctl.openEdit}
+              onArchive={ctl.archive}
             />
           </div>
         ) : !list.length &&

@@ -410,7 +410,12 @@ export function QuitSlipConfirm({
         </li>
       </ul>
       <div className="acts">
-        <button type="button" className="hq-btn is-text" onClick={onCancel}>
+        <button
+          type="button"
+          className="hq-btn is-text"
+          disabled={busy}
+          onClick={onCancel}
+        >
           Cancel
         </button>
         <button

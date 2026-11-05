@@ -683,6 +683,8 @@ export function PhoneHabits({
                 detailOnly
                 phone
                 onUpgrade={seePro}
+                onEdit={ctl.openEdit}
+                onArchive={ctl.archive}
               />
             </div>
           ) : !list.length &&
@@ -792,6 +794,8 @@ export function PhoneHabits({
             ctl={quit}
             phone
             onUpgrade={seePro}
+            onEdit={ctl.openEdit}
+            onArchive={ctl.archive}
           />
         </div>
       ) : null}
