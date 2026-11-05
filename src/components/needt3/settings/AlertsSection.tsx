@@ -4,7 +4,7 @@ import { isMacApp } from "@/lib/desktop";
 import { checkinTimeOptions } from "@/lib/needt3/habit-presence";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 import { useHabits, useUpdateHabit } from "@/lib/needt3/hooks/habits";
-import { useQuitGate } from "@/lib/needt3/hooks/habits-quit";
+import { useFreshQuitGate } from "@/lib/needt3/hooks/habits-quit";
 
 import { EmailGroup } from "./EmailGroup";
 import { PushGroup } from "./PushGroup";
@@ -150,7 +150,7 @@ export function AlertsSection() {
  */
 function HabitsGroup() {
   const mark = useMark();
-  const gate = useQuitGate();
+  const gate = useFreshQuitGate();
   const alerts = useAlerts();
   const update = useUpdateAlerts();
   const habits = useHabits().data ?? [];

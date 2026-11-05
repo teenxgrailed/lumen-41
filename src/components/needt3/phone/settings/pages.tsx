@@ -10,7 +10,7 @@ import { checkinTimeOptions } from "@/lib/needt3/habit-presence";
 import { openHelp } from "@/lib/needt3/help";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 import { sendJson } from "@/lib/needt3/hooks/core";
-import { useQuitGate } from "@/lib/needt3/hooks/habits-quit";
+import { useFreshQuitGate } from "@/lib/needt3/hooks/habits-quit";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
   useSetPref,
@@ -248,7 +248,7 @@ export function FocusPage() {
  */
 export function AlertsPage() {
   const mark = useMark();
-  const quitGate = useQuitGate();
+  const quitGate = useFreshQuitGate();
   const alerts = useAlerts();
   const update = useUpdateAlerts();
   const a = alerts.data;

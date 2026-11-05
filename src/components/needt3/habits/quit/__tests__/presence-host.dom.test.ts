@@ -312,3 +312,55 @@ it("stops ticking when it unmounts", () => {
   act(() => root.render(h(NeedtNoticeProvider, null)));
   expect(clear).toHaveBeenCalled();
 });
+
+describe("in the desktop app", () => {
+  let api: { isPermissionGranted: jest.Mock; sendNotification: jest.Mock };
+  beforeEach(() => {
+    api = {
+      isPermissionGranted: jest.fn(async () => true),
+      sendNotification: jest.fn(),
+    };
+    (window as unknown as Record<string, unknown>).__TAURI__ = {
+      notification: api,
+    };
+  });
+  afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).__TAURI__;
+  });
+
+  it("says it as a system notification, with the push's tag, when the window is not in front", async () => {
+    jest.spyOn(document, "hasFocus").mockReturnValue(false);
+    mount();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(api.sendNotification).toHaveBeenCalledWith({
+      title: "German, 18:00",
+      body: "Your slot starts now · 0 of 14",
+      url: "/habits",
+      tag: "rem:de:2026-11-04",
+    });
+    // Said once: not on the island too, not again next minute.
+    expect(rows()).toHaveLength(0);
+    for (let n = 0; n < 5; n++) minute();
+    expect(api.sendNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the island while the window is in front", () => {
+    jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    mount();
+    expect(rows()).toHaveLength(1);
+    expect(api.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("speaks with no island mounted when the window is not in front", async () => {
+    jest.spyOn(document, "hasFocus").mockReturnValue(false);
+    mount(false);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(api.sendNotification).toHaveBeenCalledTimes(1);
+  });
+});

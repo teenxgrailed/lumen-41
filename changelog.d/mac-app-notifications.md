@@ -1,0 +1,1 @@
+- In the Mac app, Settings → Notifications now says notifications come through the app and asks the system for permission, instead of telling you to try another browser. Habit reminders, the evening check-in and milestones arrive as Mac notifications while Needt is open but not in front.

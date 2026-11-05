@@ -16,6 +16,11 @@ interface TauriNotificationApi {
     body?: string;
     /** A same-origin path the Mac app opens when the notification is clicked. */
     url?: string;
+    /**
+     * Names the moment (presenceTag): a shell that reads it replaces an
+     * earlier notification with the same tag. Older shells ignore it.
+     */
+    tag?: string;
   }) => void;
 }
 
@@ -56,22 +61,55 @@ export function isMacApp(): boolean {
 export async function sendDesktopNotification(
   title: string,
   body?: string,
-  url?: string
+  url?: string,
+  options: {
+    /** Ask for permission when it is not granted yet (default). False for
+     * anything not started by the person: no prompt out of nowhere. */
+    ask?: boolean;
+    tag?: string;
+  } = {}
 ): Promise<boolean> {
   const api = tauriGlobal()?.notification;
   if (!api?.sendNotification) return false;
   try {
     let granted = (await api.isPermissionGranted?.()) ?? false;
-    if (!granted) {
+    if (!granted && options.ask !== false) {
       granted = (await api.requestPermission?.()) === "granted";
     }
     if (!granted) return false;
-    api.sendNotification(
-      url && /^\/(?!\/)/.test(url) ? { title, body, url } : { title, body }
-    );
+    api.sendNotification({
+      title,
+      body,
+      ...(url && /^\/(?!\/)/.test(url) ? { url } : {}),
+      ...(options.tag ? { tag: options.tag } : {}),
+    });
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Whether the desktop app may show notifications (no prompt). */
+export async function desktopNotificationsAllowed(): Promise<boolean> {
+  try {
+    return (
+      (await tauriGlobal()?.notification?.isPermissionGranted?.()) === true
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Ask the desktop app's system prompt. "default" when there is none to ask. */
+export async function requestDesktopNotifications(): Promise<
+  "granted" | "denied" | "default"
+> {
+  try {
+    return (
+      (await tauriGlobal()?.notification?.requestPermission?.()) ?? "default"
+    );
+  } catch {
+    return "default";
   }
 }
 
