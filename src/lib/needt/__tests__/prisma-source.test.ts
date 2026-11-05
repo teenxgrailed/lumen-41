@@ -135,6 +135,7 @@ describe("prismaDataSource workspace scope", () => {
           userId: "user-1",
           archivedAt: null,
           isActive: true,
+          kind: "BUILD",
         },
       })
     );
