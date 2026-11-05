@@ -4,7 +4,7 @@
  * checkins, streaks, the Free count and the time-left dots come from
  * `@/lib/needt3/derive` and `components/needt3/habits/derive`, never copied.
  */
-import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { formatInTimeZone, newDate, zonedWallToDate } from "@/lib/date-utils";
 import {
   type Checkin,
   addDays,
@@ -235,6 +235,12 @@ export interface HabitForm {
   quitSince: string;
   /** Quit: the person's reason, shown when they press Pulling. */
   reason: string;
+  /**
+   * The zone `quitSince` is read and written in: the person's setting
+   * (`useTimeZone`), not the browser's, so a trip or a laptop on another
+   * zone does not move the start of the run.
+   */
+  timeZone: string;
 }
 
 export const BLANK_HABIT_FORM: HabitForm = {
@@ -246,17 +252,21 @@ export const BLANK_HABIT_FORM: HabitForm = {
   kind: "BUILD",
   quitSince: "",
   reason: "",
+  timeZone: "UTC",
 };
 
-export function formFromHabit(h: {
-  id: string;
-  title: string;
-  projectId: string | null;
-  schedule: { time: string | null; perWeek: number | null };
-  kind?: "BUILD" | "QUIT";
-  quitStartedAt?: string | null;
-  reason?: string | null;
-}): HabitForm {
+export function formFromHabit(
+  h: {
+    id: string;
+    title: string;
+    projectId: string | null;
+    schedule: { time: string | null; perWeek: number | null };
+    kind?: "BUILD" | "QUIT";
+    quitStartedAt?: string | null;
+    reason?: string | null;
+  },
+  timeZone: string
+): HabitForm {
   return {
     editId: h.id,
     title: h.title,
@@ -264,25 +274,32 @@ export function formFromHabit(h: {
     perWeek: h.schedule.perWeek,
     projectId: h.projectId,
     kind: h.kind === "QUIT" ? "QUIT" : "BUILD",
-    quitSince: h.quitStartedAt ? localInput(h.quitStartedAt) : "",
+    quitSince: h.quitStartedAt
+      ? formatInTimeZone(h.quitStartedAt, timeZone, "yyyy-MM-dd'T'HH:mm")
+      : "",
     reason: h.reason ?? "",
+    timeZone,
   };
 }
 
-/** An instant as the browser's `datetime-local` value. */
-function localInput(iso: string): string {
-  const d = newDate(iso);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+/**
+ * A `datetime-local` value ("YYYY-MM-DDTHH:mm") read as a wall clock in
+ * `timeZone`; null when it is not a time.
+ */
+export function sinceInstant(since: string, timeZone: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(since.trim())) return null;
+  const floating = newDate(`${since.trim()}:00.000Z`);
+  if (!Number.isFinite(floating.getTime())) return null;
+  return zonedWallToDate(floating, timeZone);
 }
 
 export const SINCE_ERROR = "Since cannot be in the future.";
 
 /** A Quit date may be in the past, never in the future; empty means now. */
-export function sinceOk(since: string, now: Date): boolean {
+export function sinceOk(since: string, now: Date, timeZone: string): boolean {
   if (!since.trim()) return true;
-  const t = newDate(since).getTime();
-  return Number.isFinite(t) && t <= now.getTime() + 60_000;
+  const at = sinceInstant(since, timeZone);
+  return !!at && at.getTime() <= now.getTime() + 60_000;
 }
 
 export interface HabitFormCheck {
@@ -296,7 +313,7 @@ export const TIME_ERROR = "Use 24-hour time, like 08:30.";
 
 export function checkHabitForm(f: HabitForm, now = newDate()): HabitFormCheck {
   if (f.kind === "QUIT") {
-    const ok = sinceOk(f.quitSince, now);
+    const ok = sinceOk(f.quitSince, now, f.timeZone);
     return {
       ok: !!f.title.trim() && ok,
       timeOk: true,
@@ -320,7 +337,9 @@ export function formFields(f: HabitForm) {
       kind: "QUIT" as const,
       // Empty: the server starts the run now.
       ...(f.quitSince.trim()
-        ? { quitStartedAt: newDate(f.quitSince).toISOString() }
+        ? {
+            quitStartedAt: sinceInstant(f.quitSince, f.timeZone)?.toISOString(),
+          }
         : {}),
       reason: f.reason.trim() || null,
     };

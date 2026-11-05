@@ -18,6 +18,7 @@ import {
   phoneHabitRow,
   searchHabits,
   shortDay,
+  sinceInstant,
   streakFigure,
   streakLabel,
 } from "../model";
@@ -163,12 +164,15 @@ describe("the habit form", () => {
   });
   it("an edit form speaks the database", () => {
     expect(
-      formFromHabit({
-        id: "h",
-        title: "Read",
-        projectId: null,
-        schedule: { time: "07:30", perWeek: 5 },
-      })
+      formFromHabit(
+        {
+          id: "h",
+          title: "Read",
+          projectId: null,
+          schedule: { time: "07:30", perWeek: 5 },
+        },
+        "UTC"
+      )
     ).toEqual({
       editId: "h",
       title: "Read",
@@ -178,6 +182,7 @@ describe("the habit form", () => {
       kind: "BUILD",
       quitSince: "",
       reason: "",
+      timeZone: "UTC",
     });
   });
 });
@@ -256,5 +261,77 @@ describe("a Quit habit in the form", () => {
 
   it("leaves the date to the server when it is empty", () => {
     expect("quitStartedAt" in formFields(quit({ quitSince: "" }))).toBe(false);
+  });
+});
+
+describe("Since in the person's zone, not the browser's", () => {
+  const zurich = "Europe/Zurich";
+  const tokyo = "Asia/Tokyo";
+
+  it("writes the wall time of the setting's zone", () => {
+    const fields = formFields({
+      ...BLANK_HABIT_FORM,
+      title: "Smoking",
+      kind: "QUIT",
+      quitSince: "2026-11-04T00:30",
+      timeZone: tokyo,
+    });
+    // 00:30 in Tokyo is 15:30 UTC the day before: the run starts on the 4th
+    // for the person, wherever the browser is.
+    expect(fields).toMatchObject({ quitStartedAt: "2026-11-03T15:30:00.000Z" });
+  });
+
+  it("reads a stored start back in that zone, across a clock change", () => {
+    const form = formFromHabit(
+      {
+        id: "q",
+        title: "Smoking",
+        projectId: null,
+        schedule: { time: null, perWeek: null },
+        kind: "QUIT",
+        quitStartedAt: "2026-10-24T22:30:00.000Z",
+        reason: null,
+      },
+      zurich
+    );
+    // Summer time: UTC+2, so 00:30 on the 25th, the night the clocks go back.
+    expect(form.quitSince).toBe("2026-10-25T00:30");
+    expect(formFields(form)).toMatchObject({
+      quitStartedAt: "2026-10-24T22:30:00.000Z",
+    });
+  });
+
+  it("judges the future by the setting's zone", () => {
+    const now = new Date("2026-11-04T12:00:00Z");
+    // 20:00 in Tokyo is 11:00 UTC: already past.
+    expect(
+      checkHabitForm(
+        {
+          ...BLANK_HABIT_FORM,
+          title: "Smoking",
+          kind: "QUIT",
+          quitSince: "2026-11-04T20:00",
+          timeZone: tokyo,
+        },
+        now
+      ).ok
+    ).toBe(true);
+    // 20:00 in Zurich is 19:00 UTC: still ahead.
+    expect(
+      checkHabitForm(
+        {
+          ...BLANK_HABIT_FORM,
+          title: "Smoking",
+          kind: "QUIT",
+          quitSince: "2026-11-04T20:00",
+          timeZone: zurich,
+        },
+        now
+      ).timeError
+    ).toBe(SINCE_ERROR);
+  });
+
+  it("refuses what is not a time", () => {
+    expect(sinceInstant("yesterday", zurich)).toBeNull();
   });
 });

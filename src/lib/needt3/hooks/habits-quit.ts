@@ -45,6 +45,9 @@ export function useQuitSummary(habitId: string | null) {
 }
 
 /** The event log, newest first: enough for seven days of pulls and the eight-week map. */
+//todo: 200 is the server's page maximum and counts held pulls and slips too,
+// so a heavy user's eight-week map can be cut short; page with `before` +
+// `beforeId` (#609) until eight weeks are covered.
 export function useHabitEvents(habitId: string | null) {
   return useQuery({
     queryKey: qk.habitEvents(habitId ?? ""),

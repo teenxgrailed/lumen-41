@@ -122,9 +122,9 @@ export function useHabitsController(opts: HabitsControllerOptions) {
 
   const openNew = () => {
     if (blocked()) return;
-    setForm({ ...BLANK_HABIT_FORM });
+    setForm({ ...BLANK_HABIT_FORM, timeZone: tz });
   };
-  const openEdit = (h: V3Habit) => setForm(formFromHabit(h));
+  const openEdit = (h: V3Habit) => setForm(formFromHabit(h, tz));
   const closeForm = () => setForm(null);
   const patchForm = (p: Partial<HabitForm>) =>
     setForm((f) => (f ? { ...f, ...p } : f));
