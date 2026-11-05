@@ -28,6 +28,7 @@ const item = (over: Partial<CnItem> & { slug: string }): CnItem => ({
   account: null,
   detail: null,
   accountId: null,
+  lastSync: null,
   ...over,
 });
 

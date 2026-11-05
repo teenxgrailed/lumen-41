@@ -27,7 +27,9 @@ async function setBlocks(page: Page, homeBlocks: Record<string, unknown>) {
   expect(res.ok()).toBe(true);
 }
 
-test.afterEach(async ({ page }) => {
+test.afterEach(async ({ page }, info) => {
+  // A skipped run (the tablet and phone faces) never signed in.
+  if (info.status === "skipped") return;
   await setBlocks(page, {});
 });
 

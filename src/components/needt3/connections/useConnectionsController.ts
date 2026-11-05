@@ -42,6 +42,33 @@ import { strings } from "./strings";
 import { useMcpConnect } from "./useMcpConnect";
 
 export const TAB_KEY = "needt.connections.tab";
+/**
+ * Screen memory (prototype `needt.cnState`): the search, the chip and
+ * Connected / All live in sessionStorage, so leaving for Documents and coming
+ * back lands where you were. Only an explicit action resets them.
+ */
+export const STATE_KEY = "needt.cnState";
+
+interface Remembered {
+  q: string;
+  chip: string;
+  show: Show;
+}
+
+function recall(): Partial<Remembered> {
+  try {
+    const v = JSON.parse(
+      window.sessionStorage.getItem(STATE_KEY) ?? "{}"
+    ) as Partial<Remembered>;
+    return {
+      ...(typeof v.q === "string" ? { q: v.q } : {}),
+      ...(typeof v.chip === "string" ? { chip: v.chip } : {}),
+      ...(v.show === "all" || v.show === "connected" ? { show: v.show } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
 
 export type ConnectionsTab = "apps" | "ai";
 
@@ -62,6 +89,8 @@ export function useConnectionsController() {
   const [chip, setChip] = useState("all");
   const [show, setShow] = useState<Show>("all");
   const [busy, setBusy] = useState<string | null>(null);
+  /** The card whose Sync now is running (its key). */
+  const [syncing, setSyncing] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<CnItem | null>(null);
   const [caldav, setCaldav] = useState(false);
   const [api, setApi] = useState(false);
@@ -70,6 +99,22 @@ export function useConnectionsController() {
   const [listsKey, setListsKey] = useState<string | null>(null);
   const [returned, setReturned] = useState<string | null>(null);
 
+  useEffect(() => {
+    const v = recall();
+    if (v.q !== undefined) setQ(v.q);
+    if (v.chip !== undefined) setChip(v.chip);
+    if (v.show !== undefined) setShow(v.show);
+  }, []);
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(
+        STATE_KEY,
+        JSON.stringify({ q, chip, show } satisfies Remembered)
+      );
+    } catch {
+      /* private mode: the screen starts fresh next time */
+    }
+  }, [q, chip, show]);
   useEffect(() => {
     // `/settings#ai` lands here as `/connections#ai`: open the AI tools tab.
     if (window.location.hash === "#ai") return setTab("ai");
@@ -155,8 +200,9 @@ export function useConnectionsController() {
       setBusy(null);
     }
   };
-  const disconnect = async (item: CnItem) => {
-    if (!item.accountId) return;
+  /** Answers whether it went (a failure keeps the confirm open). */
+  const disconnect = async (item: CnItem): Promise<boolean> => {
+    if (!item.accountId) return false;
     setBusy(item.key);
     const kind = disconnectKind(item);
     const r =
@@ -170,14 +216,19 @@ export function useConnectionsController() {
               ? await disconnectGoogleTasks(item.accountId)
               : await disconnectToolkit(item.accountId);
     setBusy(null);
+    // A failure keeps the confirm open with its button live, to try again.
+    if (!r.ok) {
+      notify.error(r.error);
+      return false;
+    }
     setConfirm(null);
-    if (!r.ok) return void notify.error(r.error);
     notify.success(
       item.account && item.account !== item.name
         ? `${item.name} (${item.account}) disconnected`
         : `${item.name} disconnected`
     );
     await refresh();
+    return true;
   };
 
   /**
@@ -186,9 +237,11 @@ export function useConnectionsController() {
    * run. The notice says "started": the job is queued, not finished.
    */
   const syncNow = async (item: CnItem) => {
-    if (!canSyncNow(item) || !item.accountId) return;
+    if (!canSyncNow(item) || !item.accountId || syncing) return;
+    setSyncing(item.key);
     if (item.kind === "tasks") {
       const t = await syncGoogleTasksNow(item.accountId);
+      setSyncing(null);
       if (!t.ok) return void notify.error(t.error);
       notify.success(strings.tasksSynced);
       void qc.invalidateQueries({ queryKey: qk.tasks() });
@@ -197,10 +250,17 @@ export function useConnectionsController() {
     }
     const kind = item.kind === "mail" ? "mail" : "calendar";
     const r = await syncAccountNow(kind, item.accountId);
-    if (!r.ok) return void notify.error(r.error);
-    if (!r.queued) return void notify.info("Nothing to sync yet.");
+    if (!r.ok) {
+      setSyncing(null);
+      return void notify.error(r.error);
+    }
+    if (!r.queued) {
+      setSyncing(null);
+      return void notify.info("Nothing to sync yet.");
+    }
     notify.success(`Syncing ${item.name}…`);
     window.setTimeout(() => {
+      setSyncing(null);
       void refresh();
       void qc.invalidateQueries({ queryKey: qk.events() });
       void qc.invalidateQueries({ queryKey: qk.mail() });
@@ -228,6 +288,7 @@ export function useConnectionsController() {
     show,
     setShow,
     busy,
+    syncing,
     confirm,
     setConfirm,
     caldav,

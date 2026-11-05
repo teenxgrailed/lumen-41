@@ -3,6 +3,7 @@
  * from the screen: merging the catalog with what is connected, the filters,
  * and what pressing "Connect" does for each kind of card.
  */
+import { formatTimeAgo } from "@/lib/date-utils";
 import type {
   CatalogCategory,
   CatalogEntry,
@@ -26,6 +27,8 @@ export interface CnItem extends CatalogEntry {
   detail: string | null;
   /** Id to disconnect with (calendar account, mailbox, task provider or integration). */
   accountId: string | null;
+  /** When Needt last read it (ISO); null when never or not tracked. */
+  lastSync: string | null;
 }
 
 export const CATEGORY_LABEL: Record<string, string> = {
@@ -200,6 +203,7 @@ export function buildItems(
       account: null,
       detail: null,
       accountId: null,
+      lastSync: null,
     };
     if (calProvider || mailProvider) {
       const hits = accounts.filter(
@@ -217,6 +221,7 @@ export function buildItems(
         account: hit.label,
         detail: hit.detail,
         accountId: hit.accountId,
+        lastSync: hit.lastSync ?? null,
       }));
     }
     const rows = integrations.filter(
@@ -233,6 +238,7 @@ export function buildItems(
         account: row.label ?? row.toolkit,
         detail: live ? null : "Access ended — reconnect to sync",
         accountId: row.id,
+        lastSync: row.lastSyncedAt ?? null,
       },
     ];
   });
@@ -358,6 +364,25 @@ export function canSyncNow(item: Pick<CnItem, "kind" | "state" | "accountId">) {
       item.kind === "tasks") &&
     !!item.accountId
   );
+}
+
+/**
+ * The sync line under a connected calendar, mailbox or task list: "Syncing…"
+ * while a Sync now runs, "Synced 5 min ago" after, "Waiting for the first
+ * sync" before. Apps read through Composio are read live and keep no sync
+ * time, so they get no line (null).
+ */
+export function syncLine(
+  item: Pick<CnItem, "kind" | "state" | "accountId" | "lastSync">,
+  syncing: boolean,
+  now?: Date
+): string | null {
+  if (!canSyncNow(item)) return null;
+  if (syncing) return "Syncing…";
+  if (!item.lastSync) return "Waiting for the first sync";
+  const at = new Date(item.lastSync);
+  if (isNaN(at.getTime())) return null;
+  return `Synced ${formatTimeAgo(at, now)}`;
 }
 
 /** Which task lists to import is chosen on the card, once it is connected. */
