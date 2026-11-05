@@ -57,9 +57,9 @@ export interface ChatGptPlanRequestBody {
 
 /** Defence in depth: drops anything the route rejects, whoever added it. */
 export function stripUnsupportedFields<T extends object>(body: T): T {
-  const copy: Record<string, unknown> = { ...body };
+  const copy: Record<string, unknown> = { ...(body as object) };
   for (const field of UNSUPPORTED_RESPONSES_FIELDS) delete copy[field];
-  return copy as T;
+  return copy as unknown as T;
 }
 
 //todo: verify live that the plan route accepts this namespace tool shape

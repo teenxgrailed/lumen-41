@@ -71,13 +71,13 @@ describe("routes are invisible when the feature is off", () => {
 
   it("GET and DELETE status answer 404", async () => {
     const { GET, DELETE } = await import("@/app/api/ai/chatgpt-plan/route");
-    expect((await GET(req("/api/ai/chatgpt-plan"))).status).toBe(404);
-    expect((await DELETE(req("/api/ai/chatgpt-plan"))).status).toBe(404);
+    expect((await GET(req("/api/ai/chatgpt-plan")))?.status).toBe(404);
+    expect((await DELETE(req("/api/ai/chatgpt-plan")))?.status).toBe(404);
   });
   it("authorize and callback answer 404", async () => {
     const authorize = await import("@/app/api/ai/chatgpt-plan/authorize/route");
     const callback = await import("@/app/api/ai/chatgpt-plan/callback/route");
-    expect((await authorize.GET(req("/x"))).status).toBe(404);
-    expect((await callback.GET(req("/x?state=s&code=c"))).status).toBe(404);
+    expect((await authorize.GET(req("/x")))?.status).toBe(404);
+    expect((await callback.GET(req("/x?state=s&code=c")))?.status).toBe(404);
   });
 });
