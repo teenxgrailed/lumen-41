@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 
-import { FiDownload } from "react-icons/fi";
+import { FiChevronRight, FiDownload } from "react-icons/fi";
 
+import { openCookieSettings } from "@/lib/cookie-consent";
 import { sendJson } from "@/lib/needt3/hooks/core";
 import { useClearSample, useSampleStatus } from "@/lib/needt3/hooks/sample";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
@@ -120,6 +121,13 @@ export function DataSection() {
               void setPref("usage", v).then((saved) => saved && mark())
             }
           />
+        </SRow>
+        <SRow
+          title="Cookie settings"
+          desc="Choose whether Needt may use privacy-friendly analytics."
+          onClick={openCookieSettings}
+        >
+          <FiChevronRight size={14} aria-hidden />
         </SRow>
       </SGroup>
       {/* //todo: "This device → Download everything again". A safe version

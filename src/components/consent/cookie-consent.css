@@ -1,0 +1,93 @@
+/* Cookie banner. v3 tokens only: one text colour at ladder alphas, fill ladder,
+ * ring-first elevation, 13px chrome. The accent is not used as a fill; the two
+ * buttons are the same secondary style (fill-3 rest, fill-4 hover). */
+.needt-consent {
+  position: fixed;
+  z-index: 1500;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-floating);
+  font-size: 13px;
+  line-height: 1.45;
+  animation: needt-consent-in 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.needt-consent:focus {
+  outline: none;
+}
+.needt-consent:focus-visible {
+  box-shadow: var(--shadow-ring), var(--shadow-focus);
+}
+.needt-consent__text {
+  margin: 0;
+  color: var(--text-tertiary);
+}
+.needt-consent__link {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.needt-consent__actions {
+  display: flex;
+  gap: 8px;
+}
+.needt-consent__btn {
+  flex: 1 1 0;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--fill-3);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-inset-ring);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.needt-consent__btn:hover {
+  background: var(--fill-4);
+}
+.needt-consent__btn:active {
+  background: var(--fill-6);
+}
+.needt-consent__btn:focus-visible,
+.needt-consent__link:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+@media (min-width: 640px) {
+  .needt-consent {
+    left: 20px;
+    right: auto;
+    bottom: 20px;
+    width: min(380px, calc(100vw - 40px));
+  }
+}
+@keyframes needt-consent-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-consent {
+    animation: none;
+  }
+  .needt-consent__btn {
+    transition: none;
+  }
+}

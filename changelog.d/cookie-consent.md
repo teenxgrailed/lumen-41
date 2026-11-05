@@ -1,0 +1,1 @@
+- A cookie banner asks once whether Needt may use privacy-friendly analytics. Analytics stays off until you accept, and you can change your answer any time under Settings, Data & privacy, Cookie settings. The choice is shared with needt.app.
