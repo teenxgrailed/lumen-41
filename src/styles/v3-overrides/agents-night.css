@@ -1997,3 +1997,462 @@
     animation: none;
   }
 }
+
+/* ===== Chat: the owner's final reference (05.11.26) =====
+   One centred column, one input pill, a wave of capsules on its own
+   canvas. Glass on dark; the accent ring only on focus and the send. */
+.needt-v3 .ag-chat-stage {
+  background:
+    radial-gradient(900px 420px at 50% 112%, rgba(var(--blue), 0.1), transparent 70%),
+    radial-gradient(700px 360px at 50% 36%, rgba(var(--blue), 0.05), transparent 70%),
+    #050507;
+}
+.needt-v3 .ag-chat2 {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.needt-v3 .ag-chat-wave {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.needt-v3 .ag-glass2 {
+  background: rgba(20, 21, 27, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  box-shadow:
+    rgba(255, 255, 255, 0.06) 0 1px 0 inset,
+    rgba(0, 0, 0, 0.9) 0 18px 50px -22px;
+}
+.needt-v3 .ag-chatbar {
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  z-index: 6;
+  transform: translateX(-50%);
+  width: min(680px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .ag-round {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: rgba(236, 242, 255, 0.66);
+  cursor: default;
+  transition:
+    color 0.3s,
+    background 0.3s;
+}
+.needt-v3 .ag-round:hover {
+  color: rgb(236, 242, 255);
+  background: rgba(255, 255, 255, 0.09);
+}
+.needt-v3 .ag-round.is-on {
+  color: rgb(236, 242, 255);
+  box-shadow: rgba(var(--blue), 0.6) 0 0 0 1px inset;
+}
+.needt-v3 .ag-round-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(255, 163, 72);
+  box-shadow: 0 0 8px rgba(255, 163, 72, 0.9);
+}
+.needt-v3 .ag-chip-box {
+  position: relative;
+  min-width: 0;
+}
+.needt-v3 .ag-chip2 {
+  max-width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 400 13px/1 var(--font-sans);
+  color: rgba(236, 242, 255, 0.72);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+.needt-v3 .ag-chip2:hover {
+  color: rgb(236, 242, 255);
+}
+.needt-v3 .ag-chip2 i {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(var(--blue));
+  box-shadow: 0 0 8px rgba(var(--blue), 0.9);
+}
+.needt-v3 .ag-menu2 {
+  position: absolute;
+  top: 38px;
+  left: 0;
+  z-index: 7;
+  min-width: 160px;
+  padding: 5px;
+  border-radius: 16px;
+}
+.needt-v3 .ag-menu2 button {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+  font: 400 13px/18px var(--font-sans);
+  color: rgba(236, 242, 255, 0.66);
+}
+.needt-v3 .ag-menu2 button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgb(236, 242, 255);
+}
+.needt-v3 .ag-menu2 button:disabled {
+  color: rgba(236, 242, 255, 0.35);
+}
+.needt-v3 .ag-link2 {
+  margin-left: auto;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  font: 400 12px/16px var(--font-sans);
+  color: rgba(236, 242, 255, 0.4);
+}
+.needt-v3 .ag-link2:hover {
+  color: rgba(236, 242, 255, 0.85);
+}
+.needt-v3 .ag-drawer2 {
+  position: absolute;
+  top: 96px;
+  left: 14px;
+  z-index: 5;
+  width: 250px;
+  max-height: calc(100% - 200px);
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 20px;
+  opacity: 0;
+  transform: translateX(-10px);
+  pointer-events: none;
+  transition:
+    opacity 0.4s var(--ag-ease),
+    transform 0.4s var(--ag-ease);
+}
+.needt-v3 .ag-drawer2[data-open] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.needt-v3 .ag-drawer2 h4 {
+  margin: 6px 10px 8px;
+  font: 500 12px/16px var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(236, 242, 255, 0.3);
+}
+.needt-v3 .ag-drawer2 .ag-thread {
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  align-items: center;
+  padding: 8px 10px;
+  color: rgba(236, 242, 255, 0.7);
+}
+.needt-v3 .ag-thread-t {
+  font: 400 13px/18px var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.needt-v3 .ag-drawer2 em {
+  font: 400 12px/16px var(--font-sans);
+  font-style: normal;
+  color: rgba(236, 242, 255, 0.3);
+}
+.needt-v3 .ag-drawer2 .ag-un {
+  background: rgb(255, 163, 72);
+  box-shadow: 0 0 8px rgba(255, 163, 72, 0.9);
+}
+.needt-v3 .ag-mono {
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #3a404c, #20242c);
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  line-height: 1;
+}
+.needt-v3 .ag-mono-ai {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: radial-gradient(circle at 35% 25%, #8fc6ff, #3d86f0 60%, #2a63c9);
+}
+.needt-v3 .ag-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52%;
+  padding: 0 20px;
+  text-align: center;
+  font: 400 20px/28px var(--font-sans);
+  letter-spacing: -0.01em;
+  color: rgba(236, 242, 255, 0.82);
+  pointer-events: none;
+}
+.needt-v3 .ag-w {
+  display: inline-block;
+  white-space: pre;
+  margin-right: 0.27em;
+  animation: ag-win 0.7s var(--ag-ease) both;
+}
+@keyframes ag-win {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(4px);
+  }
+}
+.needt-v3 .ag-cmsgs {
+  position: absolute;
+  left: 50%;
+  top: 150px;
+  bottom: 150px;
+  transform: translateX(-50%);
+  width: min(680px, calc(100% - 32px));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 40px);
+  mask-image: linear-gradient(180deg, transparent 0, #000 40px);
+}
+.needt-v3 .ag-cmsgs::-webkit-scrollbar {
+  display: none;
+}
+.needt-v3 .ag-cmsgs > :first-child {
+  margin-top: auto;
+}
+.needt-v3 .ag-cmsgs .ag-convo-list {
+  padding: 0;
+}
+.needt-v3 .ag-cmsg {
+  max-width: 88%;
+  font: 400 15px/23px var(--font-sans);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .ag-cmsg.is-me {
+  align-self: flex-end;
+  padding: 10px 16px;
+  border-radius: 20px 20px 6px 20px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+.needt-v3 .ag-cmsg.is-ai {
+  align-self: flex-start;
+  color: rgba(236, 242, 255, 0.72);
+}
+/* An agent's card: a status rail (orange waits on you, red is urgent,
+   green once answered), the agent's tile, the question, two buttons. */
+.needt-v3 .ag-acard {
+  --c: 255, 163, 72;
+  position: relative;
+  align-self: flex-start;
+  width: min(430px, 100%);
+  padding: 14px 14px 14px 18px;
+  border-radius: 22px;
+  overflow: hidden;
+  animation: ag-win 0.8s var(--ag-ease) both;
+}
+.needt-v3 .ag-acard.is-alert {
+  --c: 255, 96, 96;
+}
+.needt-v3 .ag-acard.is-ok {
+  --c: 96, 214, 150;
+}
+.needt-v3 .ag-acard.is-note {
+  --c: 236, 242, 255;
+}
+.needt-v3 .ag-acard::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 2.5px;
+  border-radius: 2px;
+  background: rgb(var(--c));
+  box-shadow: 0 0 12px rgba(var(--c), 0.8);
+  transition:
+    background 0.5s,
+    box-shadow 0.5s;
+}
+.needt-v3 .ag-acard-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.needt-v3 .ag-acard-h b {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 600 13px/18px var(--font-sans);
+}
+.needt-v3 .ag-acard-h b i {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(var(--c));
+  box-shadow: 0 0 8px rgba(var(--c), 0.9);
+}
+.needt-v3 .ag-acard-h small {
+  display: block;
+  font: 400 12px/16px var(--font-sans);
+  color: rgba(236, 242, 255, 0.45);
+}
+.needt-v3 .ag-acard p {
+  margin: 10px 0 12px;
+  font: 400 15px/22px var(--font-sans);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .ag-acard-q {
+  display: block;
+  margin: -6px 0 12px;
+  font: 400 13px/19px var(--font-sans);
+  color: rgba(236, 242, 255, 0.6);
+}
+.needt-v3 .ag-acard-bt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.needt-v3 .ag-acard-done {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 400 13px/18px var(--font-sans);
+  color: rgba(236, 242, 255, 0.75);
+}
+.needt-v3 .ag-acard-done svg {
+  color: rgb(96, 214, 150);
+}
+.needt-v3 .ag-btn2 {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.06);
+  font: 500 13px/1 var(--font-sans);
+  color: rgba(236, 242, 255, 0.7);
+  cursor: default;
+  transition: 0.3s;
+}
+.needt-v3 .ag-btn2:hover {
+  color: rgb(236, 242, 255);
+  background: rgba(255, 255, 255, 0.1);
+}
+.needt-v3 .ag-btn2.is-pri {
+  border-color: rgba(var(--blue), 0.55);
+  color: rgb(236, 242, 255);
+  box-shadow: 0 0 18px -6px rgba(var(--blue), 0.6);
+}
+.needt-v3 .ag-btn2.is-quiet {
+  border-color: transparent;
+  background: none;
+}
+.needt-v3 .ag-composer {
+  position: absolute;
+  left: 50%;
+  bottom: 84px;
+  z-index: 6;
+  transform: translateX(-50%);
+  width: min(680px, calc(100% - 32px));
+  height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 22px;
+  border-radius: 27px;
+  transition:
+    box-shadow 0.4s,
+    border-color 0.4s;
+}
+.needt-v3 .ag-composer:focus-within {
+  border-color: rgba(var(--blue), 0.35);
+  box-shadow:
+    rgba(255, 255, 255, 0.06) 0 1px 0 inset,
+    rgba(0, 0, 0, 0.9) 0 18px 50px -22px,
+    rgba(var(--blue), 0.55) 0 0 40px -14px;
+}
+.needt-v3 .ag-composer input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: inherit;
+  font: 400 16px var(--font-sans);
+}
+.needt-v3 .ag-composer input::placeholder {
+  color: rgba(236, 242, 255, 0.4);
+}
+.needt-v3 .ag-composer .ag-round {
+  width: 38px;
+  height: 38px;
+}
+.needt-v3 .ag-composer .ag-send {
+  color: rgba(236, 242, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+.needt-v3 .ag-composer.has .ag-send {
+  color: rgb(236, 242, 255);
+  border-color: rgba(var(--blue), 0.6);
+  box-shadow: 0 0 16px -4px rgba(var(--blue), 0.7);
+}
+.needt-v3 .ag-round:focus-visible,
+.needt-v3 .ag-chip2:focus-visible,
+.needt-v3 .ag-btn2:focus-visible,
+.needt-v3 .ag-link2:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.needt-v3 .ag-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+@media (max-width: 700px) {
+  .needt-v3 .ag-hint {
+    font-size: 18px;
+  }
+  .needt-v3 .ag-composer {
+    bottom: 80px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ag-w,
+  .needt-v3 .ag-acard {
+    animation: none;
+  }
+}

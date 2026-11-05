@@ -472,7 +472,7 @@ export function AgentsScreen() {
   const searchRef = useRef<HTMLInputElement>(null);
   const [stuck, setStuck] = useState(false);
   // The scroller exists only off the Map; the observer follows it.
-  const onMap = tab === "map";
+  const onMap = tab === "map" || tab === "chat";
   useEffect(() => {
     const root = scrollRef.current;
     const el = sentinel.current;
@@ -759,7 +759,17 @@ export function AgentsScreen() {
         data-v3-screen="agents"
         data-ag-screen={tab}
       >
-        {tab === "map" ? (
+        {tab === "chat" ? (
+          // Chat takes the whole window too, one centred column.
+          <div
+            id="ag-panel"
+            role="tabpanel"
+            aria-labelledby="ag-tab-chat"
+            className="ag-map-stage ag-chat-stage"
+          >
+            {content}
+          </div>
+        ) : tab === "map" ? (
           // The Map takes the whole window: no hero (owner, 05.11.26).
           <div
             id="ag-panel"
@@ -844,11 +854,7 @@ export function AgentsScreen() {
                 className="ag-tabpanel"
                 key={tab}
               >
-                <StScreen
-                  query={tab === "chat" ? threads : overview}
-                  kind="list"
-                  screen="agents"
-                >
+                <StScreen query={overview} kind="list" screen="agents">
                   {content}
                 </StScreen>
               </div>

@@ -1,13 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { FiArrowUp, FiList, FiSquare, FiX } from "react-icons/fi";
+import {
+  FiArrowUp,
+  FiCheck,
+  FiChevronDown,
+  FiList,
+  FiMic,
+  FiSquare,
+} from "react-icons/fi";
 
 import { sendJson } from "@/lib/needt3/hooks/core";
 
 import { useAskNeedt } from "../corner/useAskNeedt";
-import { AgAvatar, AgBtn, listKeys, shortWhen, useAgentHue } from "./AgParts";
+import { listKeys, shortWhen } from "./AgParts";
+import { AgentIcon } from "./AgentIcon";
+import { ChatWave, type WaveHandle, type WaveMode } from "./ChatWave";
 import { type HubThreadRow, ThreadDetail } from "./MessagesTab";
 import type { HubItemRow } from "./TasksTab";
 
@@ -20,17 +29,59 @@ const FROM_LABEL: Record<string, string> = {
   gemini: "Gemini",
 };
 
+const HINTS = [
+  "Ask about your week…",
+  "What did the agents finish today?",
+  "Plan tomorrow around your calendar…",
+];
+
+/** Words that arrive one by one with a blur-in (the reference's `.w`). */
+function Words({ text, step = 38 }: { text: string; step?: number }) {
+  return (
+    <>
+      {text.split(" ").map((w, i) => (
+        <span
+          key={i}
+          className="ag-w"
+          style={{ animationDelay: `${i * step}ms` }}
+        >
+          {w}
+        </span>
+      ))}
+    </>
+  );
+}
+
+interface SpeechRec {
+  start: () => void;
+  stop: () => void;
+  onresult:
+    | ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void)
+    | null;
+  onend: (() => void) | null;
+  interimResults: boolean;
+}
+function speechRecognition(): (new () => SpeechRec) | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as Record<string, unknown>;
+  return (
+    ((w.SpeechRecognition ?? w.webkitSpeechRecognition) as
+      | (new () => SpeechRec)
+      | undefined) ?? null
+  );
+}
+
 /**
- * Chat (owner, 05.11.26: replaces Messages). In the middle, one conversation
- * with Needt AI and one line to type in. What agents ask you and write to you
- * arrives in the same stream as cards: an item waiting on your answer can be
- * answered right there, an unread thread opens in place. Every thread is in
- * a thin drawer on the left; opening one swaps the middle to it, and the
- * line then replies to that thread.
+ * Chat (owner, 05.11.26: replaces Messages; final reference). One centred
+ * column with one input pill. Empty, a breathing wave of capsules and a hint
+ * that types itself in; sending lifts the text out of the input, the wave
+ * contracts to a dot while Needt AI thinks, and the answer arrives word by
+ * word. What agents ask you arrives in the same stream as cards with a
+ * status rail (orange: waiting on you) and Approve / Answer. Threads are in
+ * a slim drawer on the left; opening one swaps the column to it.
  *
  * //todo: "the AI you came from" (for example ChatGPT) cannot be answered
- * from Needt; `?from=` only names it. Replies always come from Needt AI.
- * //todo: the visual waits for the owner's chosen style (05.11.26).
+ * from Needt; `?from=` only names it in the chip. Replies come from Needt AI.
  */
 export function ChatTab({
   threads,
@@ -52,34 +103,125 @@ export function ChatTab({
   from: string | null;
   run: Run;
 }) {
-  const hue = useAgentHue();
   const ai = useAskNeedt();
+  const wave = useRef<WaveHandle>(null);
   const [drawer, setDrawer] = useState(false);
+  const [menu, setMenu] = useState(false);
   const [thread, setThread] = useState<string | null>(focusThread);
   const [line, setLine] = useState("");
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const input = useRef<HTMLTextAreaElement>(null);
-  const end = useRef<HTMLDivElement>(null);
+  const [replyTo, setReplyTo] = useState<HubItemRow | null>(null);
+  const [answered, setAnswered] = useState<
+    Record<string, "answered" | "approved">
+  >({});
+  const [hint, setHint] = useState(0);
+  const [hintTop, setHintTop] = useState<number | null>(null);
+  const [listening, setListening] = useState(false);
+  const rec = useRef<SpeechRec | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const form = useRef<HTMLFormElement>(null);
+  const stream = useRef<HTMLDivElement>(null);
   const open = threads.find((t) => t.id === thread) ?? null;
   const unread = threads.filter((t) => t.ownerUnread);
   const busy = ai.phase !== "idle";
+  const started =
+    ai.messages.length > 0 || waiting.length > 0 || unread.length > 0;
+  const mode: WaveMode = open
+    ? "dock"
+    : busy
+      ? started
+        ? "thinkdock"
+        : "think"
+      : started
+        ? "dock"
+        : "chat";
+  const model = from && FROM_LABEL[from] ? FROM_LABEL[from] : "Needt AI";
+  const Speech = speechRecognition();
+
+  // The hint rotates every 7 s while the chat is empty.
+  useEffect(() => {
+    if (started) return undefined;
+    const id = window.setInterval(
+      () => setHint((h) => (h + 1) % HINTS.length),
+      7000
+    );
+    return () => window.clearInterval(id);
+  }, [started]);
+
+  // A new bubble of yours lifts out of the input (blur to sharp).
+  const mine = ai.messages.filter((m) => m.from === "you").length;
+  useLayoutEffect(() => {
+    if (!mine) return;
+    const box = form.current?.getBoundingClientRect();
+    const list = stream.current?.querySelectorAll<HTMLElement>(
+      "[data-ag-ai-msg='you']"
+    );
+    const last = list?.[list.length - 1];
+    if (!last || !box || typeof last.animate !== "function") return;
+    const b = last.getBoundingClientRect();
+    last.animate(
+      [
+        {
+          transform: `translateY(${box.top - b.top}px) scale(.94)`,
+          opacity: 0.15,
+          filter: "blur(7px)",
+        },
+        { transform: "none", opacity: 1, filter: "blur(0)" },
+      ],
+      { duration: 700, easing: "cubic-bezier(.2,.8,.2,1)" }
+    );
+  }, [mine]);
 
   useEffect(() => {
-    end.current?.scrollIntoView?.({ block: "end" });
-  }, [ai.messages.length, ai.phase]);
+    const el = stream.current;
+    el?.scrollTo?.({ top: el.scrollHeight, behavior: "smooth" });
+  }, [ai.messages.length, ai.phase, waiting.length]);
+
+  // An answer arriving wakes the wave.
+  useEffect(() => {
+    if (ai.phase === "streaming") wave.current?.spike(0.7);
+  }, [ai.phase]);
+
+  useEffect(() => {
+    if (!menu) return undefined;
+    const away = () => setMenu(false);
+    document.addEventListener("click", away);
+    return () => document.removeEventListener("click", away);
+  }, [menu]);
 
   const pick = (id: string | null) => {
     setThread(id);
     setDrawer(false);
+    setReplyTo(null);
     onOpenThread(id);
     window.requestAnimationFrame(() => input.current?.focus());
   };
 
+  const answer = (item: HubItemRow, text: string) =>
+    run(
+      () =>
+        sendJson(`/api/agent-hub/items/${item.id}/answer`, "POST", {
+          answer: text,
+        }),
+      "Answered"
+    ).then(() => setAnswered((a) => ({ ...a, [item.id]: "answered" })));
+  const approve = (item: HubItemRow) =>
+    run(
+      () =>
+        sendJson(`/api/agent-hub/items/${item.id}/approve`, "POST", {
+          risks: item.risks.filter((r) => !item.approvals[r]),
+        }),
+      "Approved"
+    ).then(() => {
+      setAnswered((a) => ({ ...a, [item.id]: "approved" }));
+      wave.current?.spike(1);
+      wave.current?.ripple(0.8);
+    });
+
   const submit = async () => {
     const text = line.trim();
     if (!text) return;
+    setLine("");
     if (open) {
-      setLine("");
       await run(() =>
         sendJson("/api/agent-hub/messages", "POST", {
           threadId: open.id,
@@ -88,30 +230,117 @@ export function ChatTab({
       );
       return;
     }
+    if (replyTo) {
+      const item = replyTo;
+      setReplyTo(null);
+      await answer(item, text);
+      return;
+    }
     if (busy) return;
-    setLine("");
+    wave.current?.spike(0.5);
     await ai.send(text);
   };
 
+  const mic = () => {
+    if (!Speech) return;
+    if (listening) {
+      rec.current?.stop();
+      return;
+    }
+    const r = new Speech();
+    r.interimResults = true;
+    r.onresult = (e) => {
+      const text = Array.from(e.results)
+        .map((res) => res[0]?.transcript ?? "")
+        .join("");
+      setLine(text);
+    };
+    r.onend = () => setListening(false);
+    rec.current = r;
+    setListening(true);
+    wave.current?.spike(0.9);
+    wave.current?.ripple(0.7);
+    r.start();
+  };
+
+  const who = (item: HubItemRow) =>
+    item.assignee && item.assignee !== "any"
+      ? (item.assignee.name ?? "An agent")
+      : "An agent";
+
   return (
-    <div className={"ag-chat" + (drawer ? " has-drawer" : "")} data-ag-chat="">
+    <div
+      className={"ag-chat2" + (started ? " is-started" : "")}
+      data-ag-chat=""
+    >
+      <ChatWave ref={wave} mode={mode} onLayout={setHintTop} />
+
+      <div className="ag-chatbar">
+        <button
+          type="button"
+          className="ag-round ag-glass2"
+          aria-label="Threads"
+          aria-expanded={drawer}
+          data-ag-threads-toggle=""
+          onClick={() => setDrawer(!drawer)}
+        >
+          <FiList size={15} aria-hidden />
+          {unread.length ? (
+            <span className="ag-round-dot" aria-hidden="true" />
+          ) : null}
+        </button>
+        <div className="ag-chip-box">
+          <button
+            type="button"
+            className="ag-chip2 ag-glass2"
+            aria-haspopup="menu"
+            aria-expanded={menu}
+            data-ag-model=""
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenu(!menu);
+            }}
+          >
+            <i aria-hidden="true" />
+            {open ? open.subject : model}
+            <FiChevronDown size={11} aria-hidden />
+          </button>
+          {menu ? (
+            <div className="ag-menu2 ag-glass2" role="menu">
+              <button type="button" role="menuitem" onClick={() => pick(null)}>
+                Needt AI
+              </button>
+              {from && FROM_LABEL[from] ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled
+                  title="Answers come from Needt AI"
+                >
+                  {`From ${FROM_LABEL[from]}`}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        {open ? (
+          <button type="button" className="ag-link2" onClick={() => pick(null)}>
+            Back to Needt AI
+          </button>
+        ) : ai.messages.length ? (
+          <button type="button" className="ag-link2" onClick={ai.reset}>
+            New chat
+          </button>
+        ) : null}
+      </div>
+
       <aside
-        className="ag-chat-drawer"
+        className="ag-drawer2 ag-glass2"
         aria-label="Threads"
         data-open={drawer ? "" : undefined}
       >
-        <div className="ag-chat-drawer-head">
-          <span>Threads</span>
-          <button
-            type="button"
-            className="cn-iconbtn"
-            aria-label="Close threads"
-            onClick={() => setDrawer(false)}
-          >
-            <FiX size={14} aria-hidden />
-          </button>
-        </div>
-        <div className="ag-list" role="list" onKeyDown={listKeys}>
+        <h4>Threads</h4>
+        <div role="list" onKeyDown={listKeys}>
           <div role="listitem">
             <button
               type="button"
@@ -120,19 +349,8 @@ export function ChatTab({
               data-ag-thread="ai"
               onClick={() => pick(null)}
             >
-              <AgAvatar
-                name="Needt AI"
-                hue="rgba(246,245,250,0.85)"
-                size={28}
-              />
-              <span className="ag-thread-text">
-                <b>Needt AI</b>
-                <span className="ag-thread-prev">
-                  {from && FROM_LABEL[from]
-                    ? `You came from ${FROM_LABEL[from]}`
-                    : "Ask about anything in Needt"}
-                </span>
-              </span>
+              <span className="ag-mono ag-mono-ai" aria-hidden="true" />
+              <span className="ag-thread-t">Needt AI</span>
             </button>
           </div>
           {threads.map((t) => (
@@ -144,238 +362,240 @@ export function ChatTab({
                 data-ag-thread={t.id}
                 onClick={() => pick(t.id)}
               >
-                <AgAvatar
-                  name={t.last?.from ?? t.subject}
-                  hue={hue(t.last?.from)}
-                  size={28}
-                />
-                <span className="ag-thread-text">
-                  <b>{t.subject}</b>
-                  <span className="ag-thread-prev">
-                    {t.last ? `${t.last.from}: ${t.last.text}` : "Empty"}
-                  </span>
-                </span>
-                <span className="ag-thread-meta">
-                  <span>{shortWhen(t.lastMessageAt)}</span>
-                  {t.ownerUnread ? (
-                    <span className="ag-un" role="img" aria-label="Unread" />
-                  ) : null}
-                </span>
+                <AgentIcon name={t.last?.from ?? t.subject} size={20} />
+                <span className="ag-thread-t">{t.subject}</span>
+                {t.ownerUnread ? (
+                  <span className="ag-un" role="img" aria-label="Unread" />
+                ) : null}
+                <em>{shortWhen(t.lastMessageAt).split(", ")[1] ?? ""}</em>
               </button>
             </div>
           ))}
         </div>
       </aside>
 
-      <section
-        className="ag-chat-main"
-        aria-label={open ? open.subject : "Needt AI"}
-      >
-        <header className="ag-chat-head">
-          <button
-            type="button"
-            className="ag-btn"
-            aria-expanded={drawer}
-            data-ag-threads-toggle=""
-            onClick={() => setDrawer(!drawer)}
-          >
-            <FiList size={13} aria-hidden />
-            Threads
-            {unread.length ? <small>{unread.length}</small> : null}
-          </button>
-          <h2 className="ag-chat-title">{open ? open.subject : "Needt AI"}</h2>
-          {open ? (
-            <AgBtn tone="text" onClick={() => pick(null)}>
-              Back to Needt AI
-            </AgBtn>
-          ) : ai.messages.length ? (
-            <AgBtn tone="text" onClick={ai.reset}>
-              New chat
-            </AgBtn>
-          ) : null}
-        </header>
+      {!started && !open ? (
+        <div
+          className="ag-hint"
+          aria-hidden="true"
+          key={hint}
+          style={hintTop !== null ? { top: hintTop } : undefined}
+        >
+          <Words text={HINTS[hint]} step={140} />
+        </div>
+      ) : null}
 
-        <div className="ag-chat-stream" data-ag-chat-stream="">
-          {open ? (
-            <ThreadDetail
-              key={open.id}
-              id={open.id}
-              task={
-                open.itemId
-                  ? {
-                      id: open.itemId,
-                      title: itemTitle(open.itemId) ?? "The task",
-                    }
-                  : null
-              }
-              onOpenItem={onOpenItem}
-              withReply={false}
-            />
-          ) : (
-            <ol className="ag-convo-list" aria-label="Conversation">
-              {waiting.map((item) => (
-                <li
+      <div className="ag-cmsgs" ref={stream} data-ag-chat-stream="">
+        {open ? (
+          <ThreadDetail
+            key={open.id}
+            id={open.id}
+            task={
+              open.itemId
+                ? {
+                    id: open.itemId,
+                    title: itemTitle(open.itemId) ?? "The task",
+                  }
+                : null
+            }
+            onOpenItem={onOpenItem}
+            withReply={false}
+          />
+        ) : (
+          <>
+            {waiting.map((item) => {
+              const done = answered[item.id];
+              const risky = item.risks.some((r) => !item.approvals[r]);
+              return (
+                <div
                   key={item.id}
-                  className="ag-chat-card"
+                  className={
+                    "ag-acard ag-glass2" +
+                    (done ? " is-ok" : "") +
+                    (risky ? " is-alert" : "")
+                  }
                   data-ag-ask={item.id}
                 >
-                  <span className="ag-msg-head">
-                    {`${
-                      item.assignee && item.assignee !== "any"
-                        ? (item.assignee.name ?? "An agent")
-                        : "An agent"
-                    } asks · ${shortWhen(item.updatedAt)}`}
-                  </span>
-                  <b>{item.title}</b>
-                  <span className="ag-chat-q">
-                    {item.question ?? "Waiting for your decision"}
-                  </span>
-                  {item.status === "needs_owner" ? (
-                    <span className="ag-answer">
-                      <input
-                        className="nt-input"
-                        aria-label={`Answer ${item.title}`}
-                        value={answers[item.id] ?? ""}
-                        placeholder="Answer"
-                        onChange={(e) =>
-                          setAnswers({ ...answers, [item.id]: e.target.value })
-                        }
-                        onKeyDown={(e) => {
-                          if (
-                            e.key === "Enter" &&
-                            (answers[item.id] ?? "").trim()
-                          ) {
-                            e.preventDefault();
-                            void run(
-                              () =>
-                                sendJson(
-                                  `/api/agent-hub/items/${item.id}/answer`,
-                                  "POST",
-                                  {
-                                    answer: answers[item.id],
-                                  }
-                                ),
-                              "Answered"
-                            );
-                          }
+                  <div className="ag-acard-h">
+                    <AgentIcon name={who(item)} size={32} />
+                    <div>
+                      <b>
+                        {who(item)}
+                        <i aria-hidden="true" />
+                      </b>
+                      <small>{risky ? "asks for approval" : "asks you"}</small>
+                    </div>
+                  </div>
+                  <p>{item.question ?? item.title}</p>
+                  {done ? (
+                    <div className="ag-acard-done">
+                      <FiCheck size={14} aria-hidden />
+                      {done === "approved" ? "Approved." : "Answered."}
+                    </div>
+                  ) : (
+                    <div className="ag-acard-bt">
+                      {risky ? (
+                        <button
+                          type="button"
+                          className="ag-btn2 is-pri"
+                          onClick={() => void approve(item)}
+                        >
+                          Approve
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className={"ag-btn2" + (risky ? "" : " is-pri")}
+                        onClick={() => {
+                          setReplyTo(item);
+                          input.current?.focus();
                         }}
-                      />
-                      <AgBtn
-                        disabled={!(answers[item.id] ?? "").trim()}
-                        onClick={() =>
-                          run(
-                            () =>
-                              sendJson(
-                                `/api/agent-hub/items/${item.id}/answer`,
-                                "POST",
-                                {
-                                  answer: answers[item.id],
-                                }
-                              ),
-                            "Answered"
-                          )
-                        }
                       >
                         Answer
-                      </AgBtn>
-                    </span>
-                  ) : null}
-                  <AgBtn tone="text" onClick={() => onOpenItem(item.id)}>
-                    Open the task
-                  </AgBtn>
-                </li>
-              ))}
-              {unread.map((t) => (
-                <li key={t.id} className="ag-chat-card" data-ag-unread={t.id}>
-                  <span className="ag-msg-head">
-                    {`${t.last?.from ?? "An agent"} wrote · ${shortWhen(t.lastMessageAt)}`}
-                  </span>
-                  <b>{t.subject}</b>
-                  {t.last ? (
-                    <span className="ag-chat-q">{t.last.text}</span>
-                  ) : null}
-                  <AgBtn tone="text" onClick={() => pick(t.id)}>
+                      </button>
+                      <button
+                        type="button"
+                        className="ag-btn2 is-quiet"
+                        onClick={() => onOpenItem(item.id)}
+                      >
+                        Open the task
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {unread.map((t) => (
+              <div
+                key={t.id}
+                className="ag-acard ag-glass2 is-note"
+                data-ag-unread={t.id}
+              >
+                <div className="ag-acard-h">
+                  <AgentIcon name={t.last?.from ?? t.subject} size={32} />
+                  <div>
+                    <b>
+                      {t.last?.from ?? "An agent"}
+                      <i aria-hidden="true" />
+                    </b>
+                    <small>{`wrote · ${shortWhen(t.lastMessageAt)}`}</small>
+                  </div>
+                </div>
+                <p>{t.subject}</p>
+                {t.last ? (
+                  <span className="ag-acard-q">{t.last.text}</span>
+                ) : null}
+                <div className="ag-acard-bt">
+                  <button
+                    type="button"
+                    className="ag-btn2"
+                    onClick={() => pick(t.id)}
+                  >
                     Open the thread
-                  </AgBtn>
-                </li>
-              ))}
-              {ai.messages.map((m) => (
-                <li
+                  </button>
+                </div>
+              </div>
+            ))}
+            {ai.messages.map((m) =>
+              m.from === "you" ? (
+                <div key={m.id} className="ag-cmsg is-me" data-ag-ai-msg="you">
+                  {m.text}
+                </div>
+              ) : m.text ? (
+                <div
                   key={m.id}
-                  className={"ag-msg" + (m.from === "you" ? " is-mine" : "")}
-                  data-ag-ai-msg={m.from}
+                  className="ag-cmsg is-ai"
+                  data-ag-ai-msg="needt"
                 >
-                  <span className="ag-msg-head">
-                    {m.from === "you" ? "You" : "Needt AI"}
-                  </span>
-                  <span className="ag-msg-body">
-                    {m.text ||
-                      (m.from === "needt" && busy
-                        ? "Thinking…"
-                        : m.failed
-                          ? "Could not reach Needt AI."
-                          : "")}
-                  </span>
-                </li>
-              ))}
-              {!waiting.length && !unread.length && !ai.messages.length ? (
-                <li className="ag-chat-empty" data-ag-chat-empty="">
-                  Ask Needt AI about your agents and their work. When an agent
-                  asks you something, it shows up here.
-                </li>
-              ) : null}
-            </ol>
-          )}
-          <div ref={end} />
-        </div>
+                  <Words text={m.text} />
+                </div>
+              ) : m.failed ? (
+                <div
+                  key={m.id}
+                  className="ag-cmsg is-ai"
+                  data-ag-ai-msg="needt"
+                >
+                  Could not reach Needt AI.
+                </div>
+              ) : null
+            )}
+            {!started ? (
+              <span className="ag-sr" data-ag-chat-empty="">
+                Ask Needt AI about your agents and their work. When an agent
+                asks you something, it shows up here.
+              </span>
+            ) : null}
+          </>
+        )}
+      </div>
 
-        <form
-          className="ag-chat-line"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <textarea
-            ref={input}
-            className="ag-chat-input"
-            rows={1}
-            value={line}
-            aria-label={open ? `Reply in ${open.subject}` : "Message Needt AI"}
-            placeholder={
-              open ? "Reply to everyone in the thread" : "Message Needt AI"
+      <form
+        ref={form}
+        className={"ag-composer ag-glass2" + (line.trim() ? " has" : "")}
+        autoComplete="off"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <input
+          ref={input}
+          value={line}
+          aria-label={
+            open
+              ? `Reply in ${open.subject}`
+              : replyTo
+                ? `Reply to ${who(replyTo)}`
+                : "Ask Needt"
+          }
+          placeholder={
+            open
+              ? "Reply to everyone in the thread…"
+              : replyTo
+                ? `Reply to ${who(replyTo)}…`
+                : "Ask Needt…"
+          }
+          data-ag-chat-input=""
+          onChange={(e) => setLine(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && replyTo) {
+              e.stopPropagation();
+              setReplyTo(null);
             }
-            data-ag-chat-input=""
-            onChange={(e) => setLine(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void submit();
-              }
-            }}
-          />
-          {busy && !open ? (
-            <button
-              type="button"
-              className="ag-btn"
-              aria-label="Stop"
-              onClick={ai.stop}
-            >
-              <FiSquare size={13} aria-hidden />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              className="ag-btn"
-              aria-label="Send"
-              disabled={!line.trim()}
-              data-ag-chat-send=""
-            >
-              <FiArrowUp size={14} aria-hidden />
-            </button>
-          )}
-        </form>
-      </section>
+          }}
+        />
+        {Speech ? (
+          <button
+            type="button"
+            className={"ag-round" + (listening ? " is-on" : "")}
+            aria-label={listening ? "Stop listening" : "Speak"}
+            aria-pressed={listening}
+            onClick={mic}
+          >
+            <FiMic size={15} aria-hidden />
+          </button>
+        ) : null}
+        {busy && !open && !replyTo ? (
+          <button
+            type="button"
+            className="ag-round ag-send"
+            aria-label="Stop"
+            onClick={ai.stop}
+          >
+            <FiSquare size={13} aria-hidden />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="ag-round ag-send"
+            aria-label="Send"
+            disabled={!line.trim()}
+            data-ag-chat-send=""
+          >
+            <FiArrowUp size={15} aria-hidden />
+          </button>
+        )}
+      </form>
     </div>
   );
 }

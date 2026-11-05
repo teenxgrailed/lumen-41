@@ -466,7 +466,7 @@ describe("Agents screen", () => {
   it("deep-links a thread with ?thread=, and old ?tab=messages lands in Chat", async () => {
     await mount("thread=t1");
     expect(selected()).toBe("chat");
-    expect(host.querySelector(".ag-chat-title")?.textContent).toBe(
+    expect(host.querySelector("[data-ag-model]")?.textContent).toBe(
       "Cover image options"
     );
     expect(host.querySelector('[data-ag-thread-item="i2"]')).not.toBeNull();
@@ -479,11 +479,11 @@ describe("Agents screen", () => {
   it("sends the line to Needt AI, and to the thread when one is open", async () => {
     await mount("tab=chat");
     const input = () =>
-      host.querySelector<HTMLTextAreaElement>("[data-ag-chat-input]")!;
+      host.querySelector<HTMLInputElement>("[data-ag-chat-input]")!;
     const type = async (text: string) => {
       await act(async () => {
         const set = Object.getOwnPropertyDescriptor(
-          HTMLTextAreaElement.prototype,
+          HTMLInputElement.prototype,
           "value"
         )!.set!;
         set.call(input(), text);
@@ -491,11 +491,7 @@ describe("Agents screen", () => {
       });
     };
     await type("What is Claude doing?");
-    await act(async () => {
-      input().dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
-      );
-    });
+    await click(host.querySelector("[data-ag-chat-send]"));
     expect(aiSend).toHaveBeenCalledWith("What is Claude doing?");
 
     await click(host.querySelector('[data-ag-thread="t1"]'));
