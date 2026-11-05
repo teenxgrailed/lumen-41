@@ -56,6 +56,21 @@ function Tile({ id, name, size }: { id: string; name: string; size: number }) {
   return <AgentIcon name={name} size={size} />;
 }
 
+/**
+ * Is this agent already connected? Its id or name appears in a connected
+ * hub agent (name, kind) or a connected OAuth app (client name). "Other
+ * MCP" counts any connection at all.
+ */
+export function alreadyConnected(id: string, name: string, known: string[]) {
+  const hay = known.map((k) => k.toLowerCase());
+  if (id === "mcp") return hay.length > 0;
+  const needles = [id.toLowerCase(), name.toLowerCase()];
+  return hay.some((k) => needles.some((n) => k.includes(n)));
+}
+
+/** How long step 2 waits before offering to go on by hand. */
+export const MANUAL_AFTER_MS = 20_000;
+
 function Check() {
   return (
     <span className="ag-ck" aria-hidden="true">
@@ -76,18 +91,22 @@ function Check() {
  *    sit in a grid below, the outer ones faded.
  * 2. Three short steps for the first picked agent, the connector address to
  *    copy, and "Waiting for …" that turns to "Connected" when a new agent
- *    actually shows up in the hub.
+ *    shows up in the hub, or at once when that agent is already connected.
+ *    After 20 s "I've connected it — continue" lets the person go on.
  * 3. The picked tiles fly into the constellation and the Map draws itself.
  *
  * Esc, or "Not now", leaves at any step.
  */
 export function AgentsSetup({
   agentCount,
+  known = [],
   onDone,
   onFinish,
 }: {
   /** Connected agents right now; a rise during step 2 means "Connected". */
   agentCount: number;
+  /** Names of what is already connected: hub agents, OAuth apps. */
+  known?: string[];
   /** Closed without finishing. */
   onDone: () => void;
   /** Finished: the Map should draw itself again (a new layout). */
@@ -110,7 +129,7 @@ export function AgentsSetup({
   const [flyers, setFlyers] = useState<
     { id: string; name: string; rect: DOMRect }[]
   >([]);
-  const connected = step === 2 && agentCount > baseline;
+  const [manual, setManual] = useState(false);
 
   useLayoutEffect(() => {
     const el = top.current;
@@ -187,6 +206,16 @@ export function AgentsSetup({
     ...MORE.filter(([id]) => more.has(id)).map(([, n]) => n),
   ];
   const first = picked[0] ?? SETUP_AGENTS[7];
+  const connected =
+    step === 2 &&
+    (agentCount > baseline || alreadyConnected(first[0], first[1], known));
+  // Step 2 is never a dead end: after a while the person may go on.
+  useEffect(() => {
+    if (step !== 2 || connected) return undefined;
+    setManual(false);
+    const t = window.setTimeout(() => setManual(true), MANUAL_AFTER_MS);
+    return () => window.clearTimeout(t);
+  }, [step, connected]);
 
   const finish = () => {
     remember();
@@ -458,7 +487,16 @@ export function AgentsSetup({
               Back
             </button>
             <span className="ag-row2-r">
-              {connected ? null : (
+              {connected ? null : manual ? (
+                <button
+                  type="button"
+                  className="ag-link2"
+                  data-ag-setup-manual=""
+                  onClick={finish}
+                >
+                  I&apos;ve connected it — continue
+                </button>
+              ) : (
                 <button type="button" className="ag-link2" onClick={finish}>
                   Later
                 </button>

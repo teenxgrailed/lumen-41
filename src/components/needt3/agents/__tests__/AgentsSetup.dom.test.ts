@@ -9,7 +9,12 @@ import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
-import { AgentsSetup, onboardingSeen } from "../AgentsSetup";
+import {
+  AgentsSetup,
+  MANUAL_AFTER_MS,
+  alreadyConnected,
+  onboardingSeen,
+} from "../AgentsSetup";
 import { CONNECTOR_URL } from "../connect-guide";
 
 (
@@ -25,9 +30,9 @@ let root: Root;
 const onDone = jest.fn();
 const onFinish = jest.fn();
 
-function render(agentCount: number) {
+function render(agentCount: number, known: string[] = []) {
   act(() => {
-    root.render(h(AgentsSetup, { agentCount, onDone, onFinish }));
+    root.render(h(AgentsSetup, { agentCount, known, onDone, onFinish }));
   });
 }
 const $ = (s: string) => host.querySelector<HTMLElement>(s);
@@ -104,5 +109,38 @@ describe("Agents setup", () => {
     click($("[data-ag-onboard-skip]"));
     expect(onDone).toHaveBeenCalled();
     expect(onboardingSeen()).toBe(true);
+  });
+
+  it("says Connected at once when the picked agent is already connected", () => {
+    // Claude's MCP is connected already (an OAuth app named "Claude").
+    render(4, ["Codex", "other", "Claude"]);
+    click($("[data-ag-setup-continue]"));
+    expect($(".ag-card2-hd h2")?.textContent).toBe("Connect Claude");
+    expect(
+      $("[data-ag-setup-status]")?.getAttribute("data-ag-setup-status")
+    ).toBe("ok");
+    expect(($("[data-ag-setup-finish]") as HTMLButtonElement).disabled).toBe(
+      false
+    );
+  });
+
+  it("offers to go on by hand after waiting", () => {
+    render(0);
+    click($("[data-ag-setup-continue]"));
+    expect($("[data-ag-setup-manual]")).toBeNull();
+    act(() => {
+      jest.advanceTimersByTime(MANUAL_AFTER_MS + 10);
+    });
+    click($("[data-ag-setup-manual]"));
+    expect(onFinish).toHaveBeenCalled();
+    expect(onboardingSeen()).toBe(true);
+  });
+
+  it("matches what is connected by name, kind or app", () => {
+    expect(alreadyConnected("claude", "Claude", ["Claude Desktop"])).toBe(true);
+    expect(alreadyConnected("codex", "Codex", ["codex"])).toBe(true);
+    expect(alreadyConnected("gemini", "Gemini", ["Claude"])).toBe(false);
+    expect(alreadyConnected("mcp", "Other MCP", [])).toBe(false);
+    expect(alreadyConnected("mcp", "Other MCP", ["n8n"])).toBe(true);
   });
 });

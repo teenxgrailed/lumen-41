@@ -1,0 +1,1 @@
+- Agents setup: an agent you have already connected (such as Claude through MCP) shows as Connected right away instead of waiting for a new one. The setup opens by itself only when you have no agents yet (Replay setup opens it any time), and after 20 seconds of waiting you can go on with "I've connected it — continue".

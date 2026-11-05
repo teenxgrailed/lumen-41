@@ -428,9 +428,27 @@ export function AgentsScreen() {
       run: () => openItem(i.id),
     });
   }
-  // The setup opens once on a first visit, and again from "Replay setup".
+  // The setup opens by itself only for someone with no agents yet (once per
+  // device); anyone may open it again from "Replay setup".
   const [onboarded, setOnboarded] = useState(onboardingSeen);
-  const showOnboarding = !onboarded && overview.data !== undefined;
+  const [replay, setReplay] = useState(false);
+  const showOnboarding =
+    overview.data !== undefined &&
+    (replay || (!onboarded && agents.length === 0));
+  // What is already connected, so step 2 can say "Connected" at once.
+  const connectedApps = useQuery({
+    queryKey: ["oauth", "connected-apps"],
+    queryFn: () =>
+      fetchJson<{ apps?: { clientName: string }[] }>(
+        "/api/oauth/connected-apps"
+      ),
+    enabled: showOnboarding,
+    refetchInterval: showOnboarding ? 5_000 : false,
+  });
+  const known = [
+    ...agents.filter((a) => !a.disabledAt).flatMap((a) => [a.name, a.kind]),
+    ...(connectedApps.data?.apps ?? []).map((a) => a.clientName),
+  ];
 
   const freshMap: MapInput = {
     now: newDate().getTime(),
@@ -804,7 +822,7 @@ export function AgentsScreen() {
                 seed={seed}
                 status={overview.data ? statsLine(stats) : null}
                 onNewLayout={() => setSeed(freshSeed())}
-                onReplaySetup={() => setOnboarded(false)}
+                onReplaySetup={() => setReplay(true)}
                 onOpenChat={() => setTab("chat")}
                 paused={showOnboarding}
                 onOpenAgent={openAgent}
@@ -817,7 +835,11 @@ export function AgentsScreen() {
             {showOnboarding ? (
               <AgentsSetup
                 agentCount={live.length}
-                onDone={() => setOnboarded(true)}
+                known={known}
+                onDone={() => {
+                  setOnboarded(true);
+                  setReplay(false);
+                }}
                 onFinish={() => setSeed(freshSeed())}
               />
             ) : null}
