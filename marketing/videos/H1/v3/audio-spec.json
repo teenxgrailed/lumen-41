@@ -19,7 +19,7 @@
   },
   "ttsModel": "eleven_v4",
   "lines": [
-    { "id": "vo1_chaos", "text": "Tabs. Mail. Code. Calls. Who's on all of it?" },
+    { "id": "vo1_chaos", "text": "Who's on all of it?" },
     { "id": "vo2_funnel", "text": "Feed it all in." },
     { "id": "vo3_brain", "text": "One brain." },
     { "id": "vo4_agents", "text": "Your agents pick it up." },

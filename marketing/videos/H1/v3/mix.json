@@ -1,5 +1,5 @@
 {
-  "note": "Times from H1/sound.md (scene.js c0fa2e8). Logo swell starts 1.2 s before its hit; move it by ear if the take's hit sits elsewhere.",
+  "note": "Times from H1/sound.md (scene.js c0fa2e8). Logo swell starts 1.2 s before its hit; move it by ear if the take's hit sits elsewhere. Lines retimed 05.11 to the generated takes so none overlap.",
   "renders": [
     {
       "video": "../v2/H1-v2_9x16.mp4",
@@ -15,7 +15,7 @@
   "lines": [
     {
       "id": "vo1_chaos",
-      "at": 0.8
+      "at": 1.4
     },
     {
       "id": "vo2_funnel",
@@ -23,11 +23,11 @@
     },
     {
       "id": "vo3_brain",
-      "at": 6.8
+      "at": 6.2
     },
     {
       "id": "vo4_agents",
-      "at": 7.3
+      "at": 7.4
     },
     {
       "id": "vo5_yes",

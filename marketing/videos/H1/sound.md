@@ -47,10 +47,10 @@ Lines (beat → line). No partner names spoken; the on-screen labels stay as the
 
 | t, s | Visual | Sound | Voice |
 |---|---|---|---|
-| 0.0–3.4 | fade-in, chaos | #1 swarm fades in 0.0–0.6, cut at 3.4 | 0.8 "Tabs. Mail. Code. Calls. Who's on all of it?" |
+| 0.0–3.4 | fade-in, chaos | #1 swarm fades in 0.0–0.6, cut at 3.4 | 1.4 "Who's on all of it?" |
 | 3.4–6.0 | funnel | #2 riser 4.0 → ends 6.0 | 3.8 "Feed it all in." |
-| 6.6 | "n" fully formed | #3 impact on 6.6 | 6.8 "One brain." |
-| 7.20 / 7.85 / 8.50 / 9.15 | cards out | #4 slide on each, +1 semitone | 7.3 "Your agents pick it up." |
+| 6.6 | "n" fully formed | #3 impact on 6.6 | 6.2 "One brain." |
+| 7.20 / 7.85 / 8.50 / 9.15 | cards out | #4 slide on each, +1 semitone | 7.4 "Your agents pick it up." |
 | 7.65 / 8.30 / 8.95 / 9.50 | agent chips "claimed" | soft tick (#4 tail, -6 dB) | — |
 | 9.00 / 9.55 / 10.35 | done ✓ | #5 chime, rising | — |
 | 9.85 | card 4 amber | low tension tone under | 9.85 "You just say yes." (ends before 10.5) |
@@ -64,3 +64,7 @@ Render: Needt Cloud (has source and ffmpeg), not the Mac.
 
 Mix: voice leads; SFX duck 3 dB under each line; impacts land on the frame where the motion resolves (risers build into it); a 0.3 s near-silence before #7; master -14 LUFS, true peak -1 dBTP.
 About 21 generations + about 2,000 voice credits: fits inside Starter.
+
+## Takes (05.11.2026)
+
+Generated on ElevenLabs Starter with the voice "Needt Hivemind" (`v3/audio/voice.json`). The full line "Tabs. Mail. Code. Calls. Who's on all of it?" took 5.4 s, because the voice keeps long pauses between words and `speed` did not shorten it. That does not fit the chaos beat (0–3.4 s), so the line is now only the question, at 1.4 s. The four words are on screen anyway. "One brain." moved to 6.2 s and "Your agents pick it up." to 7.4 s, so the two lines no longer overlap.
