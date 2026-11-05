@@ -9,6 +9,7 @@ import { type CityPlace, parseCityPlace } from "@/lib/needt3/city";
 import { openHelp } from "@/lib/needt3/help";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 import { sendJson } from "@/lib/needt3/hooks/core";
+import { useQuitGate } from "@/lib/needt3/hooks/habits-quit";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
   useSetPref,
@@ -246,6 +247,7 @@ export function FocusPage() {
  */
 export function AlertsPage() {
   const mark = useMark();
+  const quitGate = useQuitGate();
   const alerts = useAlerts();
   const update = useUpdateAlerts();
   const a = alerts.data;
@@ -264,7 +266,11 @@ export function AlertsPage() {
     | "channelPush"
     | "emailNotifications"
     | "quietHours"
-    | "digest";
+    | "digest"
+    | "habitReminders"
+    | "habitCheckin"
+    | "habitMilestones"
+    | "habitReengage";
   const row = (title: string, key: Key) => (
     <PsRow
       key={key}
@@ -309,6 +315,21 @@ export function AlertsPage() {
         {row("Daily digest instead of a stream", "digest")}
         {a?.digest ? row("Also email the digest", "emailNotifications") : null}
       </PsGroup>
+      {quitGate !== "off" ? (
+        <PsGroup
+          title="Habits"
+          hint={
+            a
+              ? `Check-in at ${a.habitCheckinTime}. A pull you log in quiet hours still works — only Needt stays quiet.`
+              : undefined
+          }
+        >
+          {row("Reminders at each habit's time", "habitReminders")}
+          {row("Evening check-in", "habitCheckin")}
+          {row("Milestones", "habitMilestones")}
+          {row("Been a while", "habitReengage")}
+        </PsGroup>
+      ) : null}
     </>
   );
 }

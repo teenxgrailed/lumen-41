@@ -65,7 +65,12 @@ export interface PullSession {
 export function useQuitController() {
   const gate = useQuitGate();
   const log = useLogHabitEvent();
-  const [openId, setOpenId] = useState<string | null>(null);
+  // `/habits?quit=<id>` (a milestone's Open) lands on that Quit habit.
+  const [openId, setOpenId] = useState<string | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : new URLSearchParams(window.location.search).get("quit")
+  );
   const [session, setSession] = useState<PullSession | null>(null);
   const writes = useRef<{
     urge: Promise<string | null> | null;

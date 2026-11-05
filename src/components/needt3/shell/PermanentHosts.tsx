@@ -6,6 +6,7 @@ import { AppIconHost } from "../app-icon/AppIconHost";
 import { ComposerHost } from "../composer/Composer";
 import { CornerLayer } from "../corner/CornerLayer";
 import { FocusHost } from "../focus/FocusHost";
+import { HabitPresenceHost } from "../habits/quit/HabitPresenceHost";
 import { NativePushHost } from "../push/NativePushHost";
 import { usePhoneUi } from "../root/phone-ui-context";
 import { SettingsSheet } from "../settings/SettingsSheet";
@@ -38,6 +39,8 @@ export function PermanentHosts() {
       <ActionToasts />
       {/* One instance for both UIs; the controller inside survives the swap. */}
       <FocusHost />
+      {/* Habits speaking up in the corner (behind habits_quit). */}
+      <HabitPresenceHost />
       {/* The iOS app: notification taps and the APNs token. */}
       <NativePushHost />
       {ui === "phone" ? null : (

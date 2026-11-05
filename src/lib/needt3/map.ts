@@ -559,6 +559,8 @@ export interface ApiHabit {
   kind?: "BUILD" | "QUIT";
   quitStartedAt?: string | null;
   reason?: string | null;
+  /** A reminder at its time (Settings → Notifications → Habits). */
+  remindersEnabled?: boolean;
 }
 
 export interface V3Habit {
@@ -576,6 +578,8 @@ export interface V3Habit {
   quitStartedAt?: string | null;
   /** QUIT only: the person's own reason, shown when they press Pulling. */
   reason?: string | null;
+  /** False turns off this habit's reminder; true when absent. */
+  remindersEnabled?: boolean;
 }
 
 export function habitFromApi(row: ApiHabit): V3Habit {
@@ -591,6 +595,7 @@ export function habitFromApi(row: ApiHabit): V3Habit {
     kind: row.kind === "QUIT" ? "QUIT" : "BUILD",
     quitStartedAt: row.quitStartedAt ?? null,
     reason: row.reason ?? null,
+    remindersEnabled: row.remindersEnabled !== false,
   };
 }
 
@@ -606,6 +611,7 @@ export function habitPatchToApi(
     "kind",
     "quitStartedAt",
     "reason",
+    "remindersEnabled",
   ] as const) {
     if (k in patch) out[k] = patch[k];
   }

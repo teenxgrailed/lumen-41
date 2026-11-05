@@ -40,6 +40,8 @@ export type NotificationOptions = {
   /** One button on the notice. The stack dismisses the card before running
    * it, the same as it does for its own acts. */
   action?: { label: string; onClick: () => void };
+  /** Several buttons (the island's "Done" and "Later"); after `action`. */
+  actions?: readonly { label: string; onClick: () => void }[];
   /**
    * Where it is drawn: `toast` (default, bottom centre) for what you did and
    * its Undo; `island` for the product speaking up unprompted.
@@ -66,9 +68,13 @@ function raise(
     key: options?.dedupeKey,
     ms: options?.duration,
     sticky,
-    acts: options?.action
-      ? [{ label: options.action.label, run: options.action.onClick }]
-      : undefined,
+    acts:
+      options?.action || options?.actions
+        ? [
+            ...(options.action ? [options.action] : []),
+            ...(options.actions ?? []),
+          ].map((a) => ({ label: a.label, run: a.onClick }))
+        : undefined,
   });
 }
 

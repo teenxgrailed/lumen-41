@@ -2,6 +2,8 @@
 
 import { isMacApp } from "@/lib/desktop";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
+import { useHabits, useUpdateHabit } from "@/lib/needt3/hooks/habits";
+import { useQuitGate } from "@/lib/needt3/hooks/habits-quit";
 
 import { EmailGroup } from "./EmailGroup";
 import { PushGroup } from "./PushGroup";
@@ -134,7 +136,124 @@ export function AlertsSection() {
             )
           : null}
       </SGroup>
+      <HabitsGroup />
       <EmailGroup />
     </>
   );
 }
+
+/**
+ * Settings → Notifications → Habits (HANDOFF §5): the reminder at each
+ * habit's time, the evening check-in, Quit milestones and "Been a while"
+ * (off unless turned on). Behind `habits_quit`.
+ */
+function HabitsGroup() {
+  const mark = useMark();
+  const gate = useQuitGate();
+  const alerts = useAlerts();
+  const update = useUpdateAlerts();
+  const habits = useHabits().data ?? [];
+  const updateHabit = useUpdateHabit();
+  const a = alerts.data;
+  if (gate === "off" || !a) return null;
+  const save = (patch: Parameters<typeof update.mutateAsync>[0]) =>
+    void update.mutateAsync(patch).then(mark);
+  const live = habits.filter((h) => !h.archivedAt);
+  return (
+    <>
+      <SGroup
+        title="Habits"
+        hint="A pull you log in quiet hours still works — only Needt stays quiet."
+      >
+        <SRow
+          title="Reminders"
+          desc="At each habit's own time; none once it is done."
+        >
+          <V3Switch
+            label="Habit reminders"
+            checked={a.habitReminders}
+            onChange={(v) => save({ habitReminders: v })}
+          />
+        </SRow>
+        <SRow
+          title="Check-in"
+          desc="Once a day; skipped when everything is marked."
+        >
+          <V3Switch
+            label="Evening check-in"
+            checked={a.habitCheckin}
+            onChange={(v) => save({ habitCheckin: v })}
+          />
+        </SRow>
+        {a.habitCheckin ? (
+          <SRow title="Check-in at">
+            <SSelect
+              label="Check-in time"
+              value={a.habitCheckinTime}
+              options={CHECKIN_TIMES}
+              width={100}
+              onChange={(v) => save({ habitCheckinTime: v })}
+            />
+          </SRow>
+        ) : null}
+        <SRow
+          title="Milestones"
+          desc="Quit habits: 1, 3, 7, 14, 30, 90 and 365 days."
+        >
+          <V3Switch
+            label="Habit milestones"
+            checked={a.habitMilestones}
+            onChange={(v) => save({ habitMilestones: v })}
+          />
+        </SRow>
+        <SRow
+          title="Been a while"
+          desc="Once, after a few days away. Never a count of missed days."
+        >
+          <V3Switch
+            label="Been a while"
+            checked={a.habitReengage}
+            onChange={(v) => save({ habitReengage: v })}
+          />
+        </SRow>
+      </SGroup>
+      {live.length ? (
+        <SGroup title="Per habit" hint="The reminder at its own time.">
+          {live.map((h) => (
+            <SRow
+              key={h.id}
+              title={h.title}
+              desc={
+                h.kind === "QUIT"
+                  ? "Milestones only"
+                  : (h.schedule.time ?? "No time set")
+              }
+            >
+              {h.kind === "QUIT" ? null : (
+                <V3Switch
+                  label={`Reminder for ${h.title}`}
+                  checked={h.remindersEnabled !== false}
+                  onChange={(v) =>
+                    void updateHabit
+                      .mutateAsync({ id: h.id, patch: { remindersEnabled: v } })
+                      .then(mark)
+                  }
+                />
+              )}
+            </SRow>
+          ))}
+        </SGroup>
+      ) : null}
+    </>
+  );
+}
+
+/** Half-hour steps from 18:00 to 23:30, where an evening check-in belongs. */
+const CHECKIN_TIMES: readonly (readonly [string, string])[] = Array.from(
+  { length: 12 },
+  (_, i) => {
+    const m = 18 * 60 + i * 30;
+    const v = `${String(Math.floor(m / 60)).padStart(2, "0")}:${m % 60 ? "30" : "00"}`;
+    return [v, v] as const;
+  }
+);
