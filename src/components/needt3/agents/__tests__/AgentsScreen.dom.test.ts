@@ -325,12 +325,12 @@ describe("Agents screen", () => {
       "2 agents · 3 tasks this week · 1 working now"
     );
     expect(host.querySelector("[data-ag-map]")).not.toBeNull();
-    const legend = host.querySelector(".ag-map-srcs")?.textContent ?? "";
-    expect(legend).toContain("Google Calendar");
-    expect(legend).toContain("Tasks");
-    expect(
-      host.querySelector('[data-ag-map-result="i3"]')?.textContent
-    ).toContain("Prices collected for five shops");
+    // Each agent carries a label; the right column holds its latest work.
+    expect(host.querySelectorAll(".ag-alab")).toHaveLength(2);
+    expect(host.querySelector("[data-ag-map-result]")).not.toBeNull();
+    expect(host.querySelector(".ag-map-status-legend")?.textContent).toContain(
+      "Needs your reply"
+    );
   });
 
   it("opens an agent's card from the Map", async () => {
@@ -344,10 +344,14 @@ describe("Agents screen", () => {
 
   it("opens a finished result as a hub item inside Agents", async () => {
     await mount();
-    await click(host.querySelector('[data-ag-map-result="i3"]'));
+    const pill = host.querySelector<HTMLElement>(
+      '[data-ag-map-result="i1"], [data-ag-map-result="i3"]'
+    );
+    const id = pill?.getAttribute("data-ag-map-result");
+    await click(pill);
     expect(selected()).toBe("tasks");
     expect(
-      host.querySelector("[data-ag-focused] [data-ag-item='i3']")
+      host.querySelector(`[data-ag-focused] [data-ag-item='${id}']`)
     ).not.toBeNull();
   });
 

@@ -131,7 +131,7 @@ export function mapSources(connections: V3Connection[]): MapSourceInput[] {
 function mapShape(input: MapInput) {
   return JSON.stringify([
     input.sources.map((s) => s.id),
-    input.agents.map((a) => [a.id, a.name, a.status, a.seen]),
+    input.agents.map((a) => [a.id, a.name, a.status, a.line, a.seen]),
     input.items.map((i) => [
       i.id,
       i.title,
@@ -390,27 +390,52 @@ export function AgentsScreen() {
   // risky step waits on you, orange when it asks you in Chat, blue while it
   // works, green otherwise.
   const statusOf = useMemo(() => {
-    const map = new Map<string, AgentStatus>();
+    const map = new Map<
+      string,
+      { status: AgentStatus; line: string; reason: string | null }
+    >();
     for (const a of agents) {
       const own = items.filter(
         (i) => i.assignee && i.assignee !== "any" && i.assignee.id === a.id
       );
       const list: AgentStatus[] = [];
-      if (a.token?.revoked) list.push("alert");
+      let reason: string | null = null;
+      let asked: string | null = null;
+      if (a.token?.revoked) {
+        list.push("alert");
+        reason = "connection expired";
+      }
       for (const i of own) {
-        if (i.status === "failed") list.push("alert");
-        else if (
+        if (i.status === "failed") {
+          list.push("alert");
+          reason ??= "a task failed";
+        } else if (
           i.status === "needs_owner" &&
           i.risks.some((r) => !i.approvals[r])
-        )
+        ) {
           list.push("alert");
-        else if (i.status === "needs_owner") list.push("waiting");
+          reason ??= "approval needed";
+        } else if (i.status === "needs_owner") {
+          list.push("waiting");
+          asked ??= i.question ?? i.title;
+        }
       }
       if (working.has(a.id)) list.push("working");
-      map.set(a.id, worstStatus(list));
+      const status = worstStatus(list);
+      const line =
+        status === "alert"
+          ? reason === "connection expired"
+            ? "Connection expired — reconnect"
+            : `Needs you · ${reason}`
+          : status === "waiting"
+            ? `Asked: ${asked}`
+            : status === "working"
+              ? `Working · ${nowOf.get(a.id) ?? "on a task"}`
+              : "All good";
+      map.set(a.id, { status, line, reason });
     }
     return map;
-  }, [agents, items, working]);
+  }, [agents, items, working, nowOf]);
   // The setup opens once on a first visit, and again from "Replay setup".
   const [onboarded, setOnboarded] = useState(onboardingSeen);
   const showOnboarding = !onboarded && overview.data !== undefined;
@@ -421,7 +446,9 @@ export function AgentsScreen() {
     agents: live.map((a) => ({
       id: a.id,
       name: a.name,
-      status: statusOf.get(a.id) ?? "ok",
+      status: statusOf.get(a.id)?.status ?? "ok",
+      line: statusOf.get(a.id)?.line ?? "All good",
+      reason: statusOf.get(a.id)?.reason ?? null,
       seen: agentSeen(a),
     })),
     items: items.map((i) => ({
@@ -783,6 +810,7 @@ export function AgentsScreen() {
                 status={overview.data ? statsLine(stats) : null}
                 onNewLayout={() => setSeed(freshSeed())}
                 onReplaySetup={() => setOnboarded(false)}
+                onOpenChat={() => setTab("chat")}
                 onOpenAgent={openAgent}
                 onOpenItem={openItem}
                 onOpenThread={openThread}

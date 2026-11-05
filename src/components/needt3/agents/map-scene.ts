@@ -1,20 +1,21 @@
 /**
  * The Agents Map: a pure function from (hub data, seed, size) to a scene the
  * canvas draws. Nothing here touches the DOM, so one seed always gives one
- * picture and the unit test can check it. The look is the owner's chosen
- * "Constellation" (additions-4/agents-variants/a-constellation.html,
- * 05.11.26): a dense constellation, bundles of source threads from the left,
- * result pills with a progress ring on the right.
+ * picture and the unit test can check it. The look is the owner's final
+ * reference (additions-4/agents-variants/final.html, approved 05.11.26): a
+ * tall glowing core, luminous threads from the left edge and the left
+ * corners converging into it (a few flow on out to the right), the person's
+ * data riding in from the left, and a column of pills on the right joined
+ * to the core by straight callouts.
  *
  * Real data decides the counts and the connections; the seed decides the
- * shape. A new account has little data, so decorative nodes fill the picture.
- * They look the same but carry no label, and `stats` never counts them.
+ * shape. A new account has little data, so decorative nodes fill the
+ * picture. They carry no label, and `stats` never counts them.
  *
- * Colour: white ink on near black with one cold blue glow. Status colours
- * appear only as marks on an agent (its dot, its rings, its nearest lines,
- * its pulses and the ring of its pill): red when it is broken or needs you
- * urgently, orange when it waits for your answer in Chat, blue while it
- * works, green when all is well (owner, 05.11.26).
+ * Colour: white ink on near black, one cold blue glow. Status colours only
+ * as marks near an agent: red when it is broken or needs you now, orange
+ * when it waits for your answer in Chat, blue while it works, green when all
+ * is well (owner, 05.11.26).
  */
 import { newDate } from "@/lib/date-utils";
 
@@ -47,6 +48,10 @@ export interface MapAgentInput {
   id: string;
   name: string;
   status: AgentStatus;
+  /** One line for the hover: "Working · Week plan", "All good", … */
+  line: string;
+  /** For an alert, the short reason ("connection expired", "a task failed"). */
+  reason?: string | null;
   /** Seen in the last 10 minutes: a soft pulse only. */
   seen: boolean;
 }
@@ -95,7 +100,7 @@ export interface MapGraph {
   messagesThisWeek: number;
 }
 
-export type NodeKind = "agent" | "item" | "thread" | "deco";
+export type NodeKind = "agent" | "item" | "thread" | "deco" | "anchor";
 
 export interface MapNode {
   /** The hub id for real nodes; an index for decoration. */
@@ -109,28 +114,44 @@ export interface MapNode {
   /** Depth 0.5..1: how far the pointer parallax moves it. */
   z: number;
   real: boolean;
-  /** Agents only; "ok" for everything else. */
+  /** Agents (and pill anchors); "ok" for everything else. */
   status: AgentStatus;
   seen: boolean;
   /** The owner's own words (task title, agent name); null on decoration. */
   label: string | null;
+  /** Agents: their status line. Items: "Task", threads: "Thread". */
+  sub: string | null;
   /** 0..2π, offsets this node's twinkle. */
   phase: number;
-  /** Distance from the core, 1 at the ellipse edge (reveal and waves). */
+  /** Distance from the core, 1 at its edge (reveal and waves). */
   d: number;
+  /** 0..1, how near the nearest agent is (its status tints the node). */
+  sw: number;
+  /** That agent's node index, or -1. */
+  sa: number;
 }
 
 export interface MapEdge {
   a: number;
   b: number;
-  /** Shimmer phase and rate. */
   phase: number;
   rate: number;
+  /** Status tint from the nearer agent, 0..1. */
+  sw: number;
+  sa: number;
+  /** Mean distance from the core. */
+  d: number;
+  /** The link from an agent to its pill's anchor. */
+  link: boolean;
 }
 
-/** One source thread: a cubic Bézier in px into a node of the cluster. */
-export interface MapStream {
-  source: number;
+/**
+ * A luminous thread: from the left edge (L), the top-left (T) or the
+ * bottom-left (B) into a node, or from a node out past the right edge (O).
+ */
+export interface MapThread {
+  kind: "L" | "T" | "B" | "O";
+  /** The node it ends at (L, T, B) or starts from (O). */
   node: number;
   x0: number;
   y0: number;
@@ -138,36 +159,47 @@ export interface MapStream {
   c1y: number;
   c2x: number;
   c2y: number;
-  width: number;
+  /** O only: the end past the right edge. */
+  x3: number;
+  y3: number;
+  /** Approximate length, for the draw-in dash. */
+  len: number;
   alpha: number;
-  /** Fraction of the curve per second. */
-  speed: number;
+  width: number;
   offset: number;
+  speed: number;
   sway: number;
+  /** Draw-in delay, 0..0.3 of the entry. */
+  delay: number;
 }
 
-export interface MapSource {
-  id: string;
-  label: string;
-  /** Short form for a phone. */
-  short: string;
-  kind: SourceKind;
-  /** Where the name sits, px. */
-  x: number;
-  y: number;
+/** A thumbnail or a voice wave riding in from the left. */
+export interface MapRider {
+  kind: "thumb" | "wave";
+  /** Thumbnail art: 0 doc, 1 mail, 2 calendar, 3 picture, 4 glow, 5 code. */
+  type: number;
+  /** Lane, 0..1 of the height. */
+  lane: number;
+  offset: number;
+  speed: number;
 }
 
-/** A result pill on the right: progress ring, title, who and when. */
-export interface MapResult {
+/** A pill in the right column. */
+export interface MapPill {
+  /** Unique key: the agent id. */
   id: string;
+  status: AgentStatus;
   title: string;
-  by: string | null;
-  at: string;
+  sub: string;
   /** 0..1, the ring. */
   progress: number;
-  /** The agent the leader line starts from (its status colours the ring). */
-  node: number;
-  status: AgentStatus;
+  /** What a click opens. */
+  go: { kind: "chat" | "agent" | "item"; id: string };
+  /** The agent node, and the anchor node on the core's edge (-1 on a phone). */
+  agent: number;
+  anchor: number;
+  /** Shown in Presentation instead of the owner's words. */
+  neutral: string;
   x: number;
   y: number;
   w: number;
@@ -189,27 +221,31 @@ export interface MapScene {
   width: number;
   height: number;
   core: { x: number; y: number; rx: number; ry: number };
-  sources: MapSource[];
   nodes: MapNode[];
   edges: MapEdge[];
-  /** Edge indices per node, for hover and the pulses' walks. */
   adj: number[][];
-  streams: MapStream[];
-  /** Node indices of the agents. */
+  threads: MapThread[];
+  riders: MapRider[];
+  /** Neutral data rows on the far left: a type and, for the owner, a title. */
+  rows: { type: string; title: string | null }[];
   agents: number[];
-  results: MapResult[];
+  pills: MapPill[];
   stats: MapStats;
 }
 
-/** Nodes, lines and threads the canvas keeps on screen stay under this. */
-export const MAP_BUDGET = 600;
-/** Below this width the scene stands on end, as on a phone. */
+/** Desktop: nodes, lines and threads the canvas keeps on screen. */
+export const MAP_BUDGET = 1000;
+/** On a phone the scene is about half. */
+export const MAP_BUDGET_PHONE = 520;
+/** Below this width the scene is laid out for a phone. */
 export const PHONE_WIDTH = 700;
 
 export const WHITE: Rgb = [236, 242, 255];
 /** The one ambient colour: the cold blue glow. */
 export const BLUE: Rgb = [90, 169, 255];
-/** Status marks on an agent; never a surface. */
+/** A paler blue for threads and lit lines. */
+export const BLUE_WHITE: Rgb = [150, 195, 255];
+/** Status marks near an agent; never a surface. */
 export const STATUS_HUE: Record<AgentStatus, Rgb> = {
   alert: [255, 84, 96],
   waiting: [255, 159, 67],
@@ -222,15 +258,17 @@ const STATUS_RANK: Record<AgentStatus, number> = {
   working: 1,
   ok: 0,
 };
-
-/** Needt's own places: every account has them, so the left edge is never bare. */
-const OWN_SOURCES: (MapSourceInput & { short: string })[] = [
-  { id: "own-calendar", label: "Calendar", short: "Cal", kind: "calendar" },
-  { id: "own-tasks", label: "Tasks", short: "Tasks", kind: "tasks" },
-  { id: "own-docs", label: "Documents", short: "Docs", kind: "docs" },
-  { id: "own-habits", label: "Habits", short: "Habits", kind: "habits" },
+/** Where agents sit inside the core, as fractions of its radii. */
+const SLOTS: [number, number][] = [
+  [-0.28, -0.42],
+  [0.3, -0.2],
+  [-0.24, 0.06],
+  [0.3, 0.3],
+  [-0.1, 0.56],
+  [0.12, -0.68],
+  [0.16, 0.72],
+  [-0.32, -0.08],
 ];
-const MAX_SOURCES = 7;
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
 /** mulberry32: small, fast, and the same everywhere. */
@@ -263,6 +301,8 @@ function time(iso: string | undefined) {
   return Number.isFinite(t) ? t : 0;
 }
 
+const clamp = (v: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
+
 /** The worst of several statuses: alert over waiting over working over ok. */
 export function worstStatus(list: AgentStatus[]): AgentStatus {
   return list.reduce<AgentStatus>(
@@ -271,7 +311,7 @@ export function worstStatus(list: AgentStatus[]): AgentStatus {
   );
 }
 
-/** The real numbers in the pill. Decorative nodes never count. */
+/** The real numbers in the counts line. Decorative nodes never count. */
 export function mapStats(input: MapInput): MapStats {
   const since = input.now - WEEK;
   return {
@@ -287,7 +327,7 @@ export function mapStats(input: MapInput): MapStats {
   };
 }
 
-/** The pill: real counts only. */
+/** The counts line: real numbers only. */
 export function statsLine(stats: MapStats) {
   const n = (count: number, one: string, many: string) =>
     `${count} ${count === 1 ? one : many}`;
@@ -298,13 +338,44 @@ export function statsLine(stats: MapStats) {
   ].join(" · ");
 }
 
-const clamp = (v: number, lo: number, hi: number) =>
-  Math.min(hi, Math.max(lo, v));
+/** "4 min ago", "2 h ago", "3 d ago" against `now`. */
+export function ago(iso: string, now: number) {
+  const m = Math.max(0, Math.round((now - time(iso)) / 60000));
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 48) return `${h} h ago`;
+  return `${Math.round(h / 24)} d ago`;
+}
+
+function bezLength(p: number[]) {
+  let L = 0;
+  let px = p[0];
+  let py = p[1];
+  for (let k = 1; k <= 10; k++) {
+    const t = k / 10;
+    const u = 1 - t;
+    const x =
+      u * u * u * p[0] +
+      3 * u * u * t * p[2] +
+      3 * u * t * t * p[4] +
+      t * t * t * p[6];
+    const y =
+      u * u * u * p[1] +
+      3 * u * u * t * p[3] +
+      3 * u * t * t * p[5] +
+      t * t * t * p[7];
+    L += Math.hypot(x - px, y - py);
+    px = x;
+    py = y;
+  }
+  return L * 1.02;
+}
 
 /**
  * Build the scene for a canvas of `width` × `height` px. Below
- * `PHONE_WIDTH` it stands on end: sources across the top, two pills at the
- * bottom.
+ * `PHONE_WIDTH` it is laid out for a phone: two pills at the bottom with no
+ * callouts.
  */
 export function buildMapScene(
   input: MapInput,
@@ -324,83 +395,61 @@ export function buildMapScene(
   const H = Math.max(1, height);
   const phone = W < PHONE_WIDTH;
   const core = phone
-    ? { x: W * 0.5, y: H * 0.42, rx: W * 0.44, ry: H * 0.245 }
-    : { x: W * 0.545, y: H * 0.5, rx: W * 0.2, ry: H * 0.43 };
+    ? { x: W * 0.6, y: H * 0.42, rx: W * 0.15, ry: H * 0.33 }
+    : { x: W * 0.62, y: H * 0.5, rx: W * 0.082, ry: H * 0.35 };
+  const budget = phone ? MAP_BUDGET_PHONE : MAP_BUDGET;
+  const nodeCount = phone ? 180 : 340;
+  const threadCount = phone ? 40 : 90;
+  const exitCount = phone ? 6 : 14;
 
-  // The budget: nodes first, then the source threads, then lines.
-  const nodeCount = phone ? 150 : 260;
-  const perSourceCap = phone ? 9 : 14;
-
-  // Nodes in a few soft clusters inside the ellipse.
-  const clusters = Array.from({ length: 5 }, () => ({
-    x: gauss() * 0.32,
-    y: gauss() * 0.5,
-    s: 0.14 + rand() * 0.16,
-  }));
+  // The core: a tall spindle, widest at its middle.
   const nodes: MapNode[] = [];
   for (let i = 0; i < nodeCount; i++) {
-    const c = clusters[Math.floor(rand() * clusters.length)];
-    let ux = c.x + gauss() * c.s;
-    let uy = c.y + gauss() * c.s * 1.4;
-    const m = Math.hypot(ux, uy);
-    if (m > 1.1) {
-      ux *= 1.1 / m;
-      uy *= 1.1 / m;
-    }
-    const x = core.x + ux * core.rx * 1.05;
-    const y = clamp(core.y + uy * core.ry, 36, H - 96);
+    const v = clamp(gauss() * 0.5, -1, 1);
+    const hw = core.rx * (1.2 - 0.9 * Math.pow(Math.abs(v), 1.6));
+    const u = clamp(gauss() * 0.5, -1.25, 1.25);
+    const d = Math.hypot(u * 0.8, v);
     nodes.push({
       id: String(i),
       kind: "deco",
-      x,
-      y,
-      r: 0.7 + rand() * 1.3,
+      x: core.x + u * hw,
+      y: core.y + v * core.ry,
+      r:
+        0.6 +
+        rand() * 0.9 +
+        (rand() < 0.22 ? (1.15 - Math.min(1, d)) * 1.8 : 0),
       z: 0.5 + rand() * 0.5,
       real: false,
       status: "ok",
       seen: false,
       label: null,
+      sub: null,
       phase: rand() * Math.PI * 2,
-      d: Math.hypot((x - core.x) / core.rx, (y - core.y) / core.ry),
+      d,
+      sw: 0,
+      sa: -1,
     });
   }
 
-  // Results first, so their agents can sit toward the pills.
-  const agentName = new Map(input.agents.map((a) => [a.id, a.name]));
-  const resultItems = input.items
-    .filter(
-      (i) =>
-        i.status === "done" ||
-        (i.status === "in_progress" && (i.criteria?.all ?? 0) > 0)
-    )
-    .sort((a, b) => time(b.updatedAt) - time(a.updatedAt))
-    .slice(0, phone ? 2 : 3);
-  const pillOwners = new Set(
-    resultItems.map((i) => i.assigneeId).filter(Boolean) as string[]
-  );
-
-  // Agents near the core, spaced apart; pill owners lean right.
+  // Agents at fixed slots inside the core; a second ring past eight.
   const byId = new Map<string, number>();
   const agents: number[] = [];
-  const gap = phone ? 62 : 110;
-  for (const agent of input.agents.slice(0, 16)) {
-    const right = !phone && pillOwners.has(agent.id);
+  input.agents.slice(0, 16).forEach((agent, k) => {
+    const slot = SLOTS[k % SLOTS.length];
+    const ring = Math.floor(k / SLOTS.length);
+    const tx = core.x + slot[0] * core.rx * (1.4 + ring * 0.5);
+    const ty = core.y + slot[1] * core.ry * (1 - ring * 0.15);
     let best = -1;
-    for (let tries = 0; tries < 600 && best < 0; tries++) {
-      const j = Math.floor(rand() * nodeCount);
-      const n = nodes[j];
-      if (n.kind !== "deco" || n.d > 0.6) continue;
-      if (right && n.x < core.x + core.rx * 0.05) continue;
-      if (
-        agents.some((q) => Math.hypot(nodes[q].x - n.x, nodes[q].y - n.y) < gap)
-      )
-        continue;
-      best = j;
-    }
-    if (best < 0) {
-      best = nodes.findIndex((n) => n.kind === "deco");
-      if (best < 0) break;
-    }
+    let bd = Infinity;
+    nodes.forEach((n, j) => {
+      if (n.kind !== "deco") return;
+      const dd = Math.hypot(n.x - tx, n.y - ty);
+      if (dd < bd) {
+        bd = dd;
+        best = j;
+      }
+    });
+    if (best < 0) return;
     Object.assign(nodes[best], {
       id: agent.id,
       kind: "agent",
@@ -409,12 +458,13 @@ export function buildMapScene(
       status: agent.status,
       seen: agent.seen,
       label: agent.name,
+      sub: agent.line,
     });
     byId.set("agent:" + agent.id, best);
     agents.push(best);
-  }
+  });
 
-  // Items and threads take random places; a third stays decoration.
+  // Items and threads take random places; half stays decoration.
   const free = nodes
     .map((n, i) => (n.kind === "deco" ? i : -1))
     .filter((i) => i >= 0);
@@ -422,7 +472,7 @@ export function buildMapScene(
     const j = Math.floor(rand() * (i + 1));
     [free[i], free[j]] = [free[j], free[i]];
   }
-  const room = Math.floor(free.length * 0.66);
+  const room = Math.floor(free.length * 0.5);
   let at = 0;
   const realLinks: [number, number][] = [];
   const items = input.items.slice(0, room);
@@ -431,9 +481,10 @@ export function buildMapScene(
     Object.assign(nodes[i], {
       id: item.id,
       kind: "item",
-      r: 1.8,
+      r: Math.max(nodes[i].r, 1.8),
       real: true,
       label: item.title,
+      sub: "Task",
     });
     byId.set("item:" + item.id, i);
     const owner = item.assigneeId
@@ -457,108 +508,270 @@ export function buildMapScene(
     Object.assign(nodes[i], {
       id: thread.id,
       kind: "thread",
-      r: 1.6,
+      r: Math.max(nodes[i].r, 1.6),
       real: true,
       label: thread.subject,
+      sub: "Thread",
     });
     const near = thread.itemId ? byId.get("item:" + thread.itemId) : undefined;
     if (near !== undefined) realLinks.push([near, i]);
   }
 
-  // Sources: what the person connected, then Needt's own places.
-  const sourceRows: (MapSourceInput & { short: string })[] = [];
-  for (const s of input.sources.slice(0, MAX_SOURCES - 2))
-    sourceRows.push({ ...s, short: s.label.split(" ")[0].slice(0, 7) });
-  for (const own of OWN_SOURCES) {
-    if (sourceRows.length >= MAX_SOURCES) break;
-    if (sourceRows.some((s) => s.kind === own.kind)) continue;
-    sourceRows.push(own);
+  // Pills: what needs you first, then what the agents did.
+  const latestFor = new Map<string, MapItemInput>();
+  for (const item of [...input.items].sort(
+    (a, b) => time(b.updatedAt) - time(a.updatedAt)
+  )) {
+    if (!item.assigneeId || latestFor.has(item.assigneeId)) continue;
+    if (
+      item.status === "done" ||
+      (item.status === "in_progress" && (item.criteria?.all ?? 0) > 0)
+    )
+      latestFor.set(item.assigneeId, item);
   }
-  const count = sourceRows.length;
-  const anchorOf = (si: number) =>
-    phone
-      ? W * (0.08 + (0.84 * (si + 0.5)) / count)
-      : H * (0.15 + (0.7 * (si + 0.5)) / count);
-  const sources: MapSource[] = sourceRows.map((s, si) => ({
-    id: s.id,
-    label: s.label,
-    short: s.short,
-    kind: s.kind,
-    x: phone ? anchorOf(si) : 30,
-    y: phone ? 54 : anchorOf(si) - 8,
-  }));
-
-  // Threads: a trunk per source, fanning out into the near half of the
-  // constellation.
-  const near = nodes
-    .map((n, i) => ({ i, k: phone ? n.y : n.x }))
-    .sort((p, q) => p.k - q.k)
-    .slice(0, Math.floor(nodeCount * 0.5))
-    .map((p) => p.i);
-  const streamCount = Math.min(perSourceCap * count, phone ? 84 : 98);
-  const per = Math.max(1, Math.floor(streamCount / count));
-  const streams: MapStream[] = [];
-  sourceRows.forEach((_, si) => {
-    const anchor = anchorOf(si);
-    const trunk = {
-      x: phone ? anchor + gauss() * 16 : W * 0.2,
-      y: phone ? H * 0.13 : anchor + (rand() - 0.5) * H * 0.3,
-    };
-    for (let k = 0; k < per; k++) {
-      const node = near[Math.floor(rand() * near.length)];
-      const t = nodes[node];
-      const spread = gauss() * (phone ? 5 : 9);
-      const x0 = phone ? anchor + spread : 134;
-      const y0 = phone ? 78 : anchor + spread;
-      streams.push({
-        source: si,
-        node,
-        x0,
-        y0,
-        c1x: trunk.x + gauss() * 8,
-        c1y: trunk.y + gauss() * 8 + (phone ? 0 : (trunk.y - anchor) * 0.2),
-        c2x: phone ? t.x + gauss() * 40 : t.x - 120 - rand() * 90,
-        c2y: phone ? t.y - 70 - rand() * 60 : t.y + gauss() * 40,
-        width: 0.35 + rand() * 0.55,
-        alpha: 0.05 + rand() * 0.08,
-        speed: 0.04 + rand() * 0.06,
-        offset: rand(),
-        sway: rand() * Math.PI * 2,
+  type Draft = Omit<MapPill, "x" | "y" | "w" | "h" | "anchor">;
+  const drafts: Draft[] = [];
+  const order = [...input.agents].sort(
+    (a, b) => STATUS_RANK[b.status] - STATUS_RANK[a.status]
+  );
+  for (const agent of order) {
+    const node = byId.get("agent:" + agent.id);
+    if (node === undefined) continue;
+    if (agent.status === "alert") {
+      const reconnect = agent.reason === "connection expired";
+      drafts.push({
+        id: agent.id,
+        status: "alert",
+        title: reconnect
+          ? `Reconnect ${agent.name}`
+          : `${agent.name} needs you`,
+        sub: agent.reason ?? "needs you now",
+        progress: 1,
+        go: { kind: "agent", id: agent.id },
+        agent: node,
+        neutral: reconnect
+          ? `Reconnect ${agent.name}`
+          : `${agent.name} needs you`,
+      });
+      continue;
+    }
+    if (agent.status === "waiting") {
+      drafts.push({
+        id: agent.id,
+        status: "waiting",
+        title: `${agent.name} is waiting`,
+        sub: "for your answer",
+        progress: 0.6,
+        go: { kind: "chat", id: agent.id },
+        agent: node,
+        neutral: `${agent.name} is waiting`,
+      });
+      continue;
+    }
+    const item = latestFor.get(agent.id);
+    if (!item) continue;
+    drafts.push({
+      id: agent.id,
+      status: agent.status,
+      title: item.result || item.title,
+      sub: `${agent.name} · ${ago(item.updatedAt, input.now)}`,
+      progress:
+        item.status === "done"
+          ? 1
+          : item.criteria && item.criteria.all > 0
+            ? item.criteria.met / item.criteria.all
+            : 0,
+      go: { kind: "item", id: item.id },
+      agent: node,
+      neutral: item.status === "done" ? "Finished task" : "Task in progress",
+    });
+  }
+  const shown = drafts.slice(0, phone ? 2 : 4);
+  const pw = phone ? W - 32 : 288;
+  const ph = phone ? 58 : 68;
+  const pills: MapPill[] = shown.map((p, i) => {
+    const x = phone ? 16 : W - pw - 44;
+    const y = phone
+      ? H - 150 - (shown.length - i) * 66
+      : H * (0.5 + (i - (shown.length - 1) / 2) * 0.17) - ph / 2;
+    let anchor = -1;
+    if (!phone) {
+      const yc = y + ph / 2;
+      const v = clamp((yc - core.y) / core.ry, -1, 1);
+      anchor = nodes.length;
+      nodes.push({
+        id: `anchor-${p.id}`,
+        kind: "anchor",
+        x: core.x + core.rx * (1.2 - 0.9 * Math.pow(Math.abs(v), 1.6)) * 0.82,
+        y: yc,
+        r: 3,
+        z: 0.8,
+        real: false,
+        status: p.status,
+        seen: false,
+        label: null,
+        sub: null,
+        phase: 1,
+        d: 0.5,
+        sw: 0,
+        sa: -1,
       });
     }
+    return { ...p, anchor, x, y, w: pw, h: ph };
   });
 
-  // Lines: the real links first, then nearest neighbours (seven for an
-  // agent, three for the rest) within reach, and a few longer ones.
-  const edgeBudget = MAP_BUDGET - nodes.length - streams.length;
+  // Threads into the core from the left edge and corners, a few out right.
+  const left = nodes
+    .map((n, i) => ({ n, i }))
+    .filter(({ n }) => n.kind !== "anchor" && n.x < core.x + core.rx * 0.15);
+  const threads: MapThread[] = [];
+  const gx = core.x - W * 0.06;
+  for (let i = 0; i < threadCount && left.length; i++) {
+    const a = left[Math.floor(rand() * left.length)];
+    const b = left[Math.floor(rand() * left.length)];
+    const node = a.n.d < b.n.d ? a.i : b.i;
+    const t = nodes[node];
+    const r10 = i % 10;
+    const kind: MapThread["kind"] = r10 < 5 ? "L" : r10 < 8 ? "T" : "B";
+    let p: number[];
+    if (kind === "L") {
+      const y0 = H * (0.04 + rand() * 0.92);
+      p = [
+        -30,
+        y0,
+        W * (0.12 + rand() * 0.2),
+        y0 + gauss() * H * 0.03,
+        t.x - W * (0.1 + rand() * 0.12),
+        t.y + gauss() * H * 0.06,
+        t.x,
+        t.y,
+      ];
+    } else {
+      const top = kind === "T";
+      const x0 = W * rand() * 0.3;
+      p = [
+        x0,
+        top ? -30 : H + 30,
+        x0 + W * (0.18 + rand() * 0.2),
+        top ? H * (-0.04 + rand() * 0.12) : H * (0.92 + rand() * 0.12),
+        Math.min(gx, t.x - W * (0.12 + rand() * 0.08)),
+        top ? t.y - H * (0.14 + rand() * 0.2) : t.y + H * (0.14 + rand() * 0.2),
+        t.x,
+        t.y,
+      ];
+    }
+    threads.push({
+      kind,
+      node,
+      x0: p[0],
+      y0: p[1],
+      c1x: p[2],
+      c1y: p[3],
+      c2x: p[4],
+      c2y: p[5],
+      x3: p[6],
+      y3: p[7],
+      len: bezLength(p),
+      alpha: 0.16 + rand() * 0.3,
+      width: 0.5 + rand() * 0.55,
+      offset: rand(),
+      speed: 0.05 + rand() * 0.07,
+      sway: rand() * Math.PI * 2,
+      delay: rand() * 0.25,
+    });
+  }
+  const right = (top: boolean) =>
+    nodes
+      .map((n, i) => ({ n, i }))
+      .filter(
+        ({ n }) =>
+          n.kind !== "anchor" &&
+          n.x > core.x - core.rx * 0.2 &&
+          (top ? n.y < core.y - core.ry * 0.45 : n.y > core.y + core.ry * 0.45)
+      );
+  const rightTop = right(true);
+  const rightBot = right(false);
+  for (let i = 0; i < exitCount; i++) {
+    const top = i % 2 === 0;
+    const src = top ? rightTop : rightBot;
+    if (!src.length) continue;
+    const { n: t, i: node } = src[Math.floor(rand() * src.length)];
+    const sg = top ? -1 : 1;
+    const p = [
+      t.x,
+      t.y,
+      t.x + W * 0.012 + rand() * W * 0.02,
+      t.y + sg * H * (0.1 + rand() * 0.08),
+      t.x + W * (0.08 + rand() * 0.08),
+      top ? H * (0.02 + rand() * 0.05) : H * (0.93 - rand() * 0.05),
+      W + 40,
+      top ? H * (0.02 + rand() * 0.09) : H * (0.89 + rand() * 0.09),
+    ];
+    threads.push({
+      kind: "O",
+      node,
+      x0: p[0],
+      y0: p[1],
+      c1x: p[2],
+      c1y: p[3],
+      c2x: p[4],
+      c2y: p[5],
+      x3: p[6],
+      y3: p[7],
+      len: bezLength(p),
+      alpha: 0.1 + rand() * 0.2,
+      width: 0.5 + rand() * 0.5,
+      offset: rand(),
+      speed: 0.04 + rand() * 0.05,
+      sway: rand() * 6,
+      delay: 0.1 + rand() * 0.2,
+    });
+  }
+
+  // Lines: each pill's agent to its anchor, real links, nearest neighbours,
+  // a few long ones. Up to the budget.
+  const edgeBudget = Math.max(0, budget - nodes.length - threads.length);
   const edges: MapEdge[] = [];
   const seen = new Set<number>();
-  const push = (a: number, b: number) => {
+  const push = (a: number, b: number, link = false) => {
     if (a === b || edges.length >= edgeBudget) return;
     const k = a < b ? a * 100000 + b : b * 100000 + a;
     if (seen.has(k)) return;
     seen.add(k);
-    edges.push({ a, b, phase: rand() * Math.PI * 2, rate: 0.6 + rand() * 1.2 });
-  };
-  for (const [a, b] of realLinks) push(a, b);
-  const reach = (phone ? 70 : 95) ** 2;
-  const order = nodes
-    .map((_, i) => i)
-    .sort((p, q) => {
-      // Agents first, so their spokes survive the budget.
-      const pa = nodes[p].kind === "agent" ? 0 : 1;
-      const qa = nodes[q].kind === "agent" ? 0 : 1;
-      return pa - qa;
+    edges.push({
+      a,
+      b,
+      phase: rand() * Math.PI * 2,
+      rate: 0.6 + rand() * 1.2,
+      sw: 0,
+      sa: -1,
+      d: 0,
+      link,
     });
-  for (const i of order) {
-    const want = nodes[i].kind === "agent" ? 7 : 3;
-    for (const [j, d] of nearest(nodes, i, want)) if (d < reach) push(i, j);
+  };
+  for (const p of pills) if (p.anchor >= 0) push(p.agent, p.anchor, true);
+  for (const [a, b] of realLinks) push(a, b);
+  const rank = (i: number) =>
+    nodes[i].kind === "anchor" ? 0 : nodes[i].kind === "agent" ? 1 : 2;
+  const visit = nodes.map((_, i) => i).sort((p, q) => rank(p) - rank(q));
+  for (const i of visit) {
+    const near = nearest(nodes, i, 11);
+    const want =
+      nodes[i].kind === "anchor" ? 4 : nodes[i].kind === "agent" ? 6 : 3;
+    for (let m = 0; m < want && near.length; m++) {
+      push(
+        i,
+        nodes[i].kind === "anchor"
+          ? near[m]
+          : near[Math.floor(rand() * near.length)]
+      );
+    }
   }
   for (let i = 0; i < nodes.length; i++) {
-    if (rand() < 0.07) {
-      const far = nearest(nodes, i, 9);
-      const pick = far[4 + Math.floor(rand() * Math.max(1, far.length - 4))];
-      if (pick && pick[1] < reach * 2) push(i, pick[0]);
+    if (rand() < 0.1) {
+      const far = nearest(nodes, i, 24);
+      const pick = far[12 + Math.floor(rand() * Math.max(1, far.length - 12))];
+      if (pick !== undefined) push(i, pick);
     }
   }
   const adj: number[][] = nodes.map(() => []);
@@ -567,35 +780,82 @@ export function buildMapScene(
     adj[e.b].push(k);
   });
 
-  // Result pills: real items only, from the agent that holds them.
-  const results: MapResult[] = resultItems.map((item, i) => {
-    const owner =
-      (item.assigneeId ? byId.get("agent:" + item.assigneeId) : undefined) ??
-      byId.get("item:" + item.id) ??
-      agents[0] ??
-      0;
-    const w = phone ? W - 32 : 272;
-    const h = phone ? 60 : 68;
-    const progress =
-      item.status === "done"
-        ? 1
-        : item.criteria && item.criteria.all > 0
-          ? item.criteria.met / item.criteria.all
-          : 0;
-    return {
-      id: item.id,
-      title: item.result || item.title,
-      by: item.assigneeId ? (agentName.get(item.assigneeId) ?? null) : null,
-      at: item.updatedAt,
-      progress,
-      node: owner,
-      status: nodes[owner]?.status ?? "ok",
-      x: phone ? 16 : W - w - 40,
-      y: phone ? H - 268 + i * 72 : H * (0.25 + 0.2 * i) - h / 2,
-      w,
-      h,
-    };
+  // Status tint: how near each node is to an agent, fading with distance.
+  const R = phone ? 55 : 88;
+  nodes.forEach((n, ni) => {
+    if (n.kind === "agent") {
+      n.sw = 1;
+      n.sa = ni;
+      return;
+    }
+    let bd = Infinity;
+    let bi = -1;
+    for (const q of agents) {
+      const dd = Math.hypot(nodes[q].x - n.x, nodes[q].y - n.y);
+      if (dd < bd) {
+        bd = dd;
+        bi = q;
+      }
+    }
+    n.sw = bi >= 0 ? clamp(1 - bd / R) : 0;
+    n.sa = bi;
   });
+  for (const e of edges) {
+    const a = nodes[e.a];
+    const b = nodes[e.b];
+    e.sw = Math.max(a.sw, b.sw) * (e.link ? 1 : 0.85);
+    e.sa = a.sw >= b.sw ? a.sa : b.sa;
+    e.d = (a.d + b.d) / 2;
+  }
+
+  // Data riding in from the left: thumbnails in two lanes and a voice wave.
+  const riders: MapRider[] = [];
+  const perLane = phone ? 7 : 12;
+  [0.4, 0.53].forEach((lane, li) => {
+    for (let k = 0; k < perLane; k++)
+      riders.push({
+        kind: "thumb",
+        type: (k * 3 + li * 2) % 6,
+        lane: lane + (k % 2 ? 0.012 : -0.012),
+        offset: k / perLane + li * 0.04,
+        speed: 0.022 + li * 0.004,
+      });
+  });
+  for (const o of [0, 0.5])
+    riders.push({
+      kind: "wave",
+      type: 0,
+      lane: 0.655,
+      offset: o,
+      speed: 0.018,
+    });
+
+  // Rows on the far left: the type of each real thing (task, event, mail,
+  // doc, voice) and, for the owner only, its title.
+  const rows: MapScene["rows"] = [];
+  for (const item of input.items.slice(0, 24))
+    rows.push({ type: "task", title: item.title });
+  for (const t of input.threads.slice(0, 8))
+    rows.push({ type: "mail", title: t.subject });
+  for (const s of input.sources)
+    rows.push({
+      type:
+        s.kind === "calendar"
+          ? "event"
+          : s.kind === "mail"
+            ? "mail"
+            : s.kind === "docs"
+              ? "doc"
+              : "task",
+      title: s.label,
+    });
+  const fill = ["task", "event", "mail", "doc", "voice"];
+  for (let i = 0; rows.length < 40; i++)
+    rows.push({ type: fill[i % fill.length], title: null });
+  for (let i = rows.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [rows[i], rows[j]] = [rows[j], rows[i]];
+  }
 
   return {
     seed,
@@ -603,18 +863,19 @@ export function buildMapScene(
     width: W,
     height: H,
     core,
-    sources,
     nodes,
     edges,
     adj,
-    streams,
+    threads,
+    riders,
+    rows,
     agents,
-    results,
+    pills,
     stats: mapStats(input),
   };
 }
 
-/** The nearest `count` nodes to node `i`, with squared distances. */
+/** The nearest `count` node indices to node `i`. */
 function nearest(nodes: MapNode[], i: number, count: number) {
   const best: [number, number][] = [];
   const n = nodes[i];
@@ -627,20 +888,20 @@ function nearest(nodes: MapNode[], i: number, count: number) {
       best.sort((p, q) => p[1] - q[1]);
     }
   }
-  return best;
+  return best.map((b) => b[0]);
 }
 
 /** Nodes, lines and threads the canvas keeps on screen for this scene. */
 export function sceneSize(scene: MapScene) {
-  return scene.nodes.length + scene.edges.length + scene.streams.length;
+  return scene.nodes.length + scene.edges.length + scene.threads.length;
 }
 
 /**
  * What a node says on hover. In presentation mode the owner's words go: a
- * task reads "Task", a thread "Review"; agent names stay.
+ * task reads "Task", a thread "Thread"; agent names stay.
  */
 export function nodeLabel(node: MapNode, presentation: boolean) {
   if (!node.real || !node.label) return null;
   if (!presentation || node.kind === "agent") return node.label;
-  return node.kind === "thread" ? "Review" : "Task";
+  return node.kind === "thread" ? "Thread" : "Task";
 }

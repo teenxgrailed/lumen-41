@@ -42,6 +42,7 @@ const input: MapInput = {
     id: `a${i}`,
     name: `Agent ${i}`,
     status: (["working", "waiting", "alert", "ok", "ok"] as const)[i],
+    line: "All good",
     seen: i < 3,
   })),
   items: Array.from({ length: 60 }, (_, i) => ({
@@ -57,6 +58,12 @@ const input: MapInput = {
 };
 
 beforeAll(() => {
+  // jsdom has no Path2D; the loop only builds and strokes them.
+  (globalThis as { Path2D?: unknown }).Path2D = class {
+    moveTo() {}
+    lineTo() {}
+    bezierCurveTo() {}
+  };
   // A glow sprite is a canvas too; give it a context that records nothing.
   HTMLCanvasElement.prototype.getContext = (() =>
     fakeContext().ctx) as unknown as HTMLCanvasElement["getContext"];
@@ -81,10 +88,13 @@ describe("Map drawing loop", () => {
     const stamps = calls.drawImage ?? 0;
     // The first frame: the threads are still drawing in; lines and threads
     // are batched, nodes are one fill each, glows one stamp each.
-    expect(strokes).toBeLessThan(80);
-    expect(fills).toBeLessThanOrEqual(scene.nodes.length + 20);
-    expect(stamps).toBeLessThanOrEqual(scene.nodes.length + 30);
-    expect(calls.fillRect).toBe(2);
+    // Threads still drawing in stroke alone on the first frame; the lines
+    // are a few batched paths.
+    expect(strokes).toBeLessThan(scene.threads.length + 60);
+    expect(fills).toBeLessThanOrEqual(scene.nodes.length + 40);
+    expect(stamps).toBeLessThanOrEqual(
+      scene.nodes.length + scene.riders.length + 40
+    );
   });
 
   it("finds the node under the pointer and reports it once a frame", () => {

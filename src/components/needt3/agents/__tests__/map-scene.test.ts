@@ -1,6 +1,7 @@
 import {
   BLUE,
   MAP_BUDGET,
+  MAP_BUDGET_PHONE,
   type MapInput,
   STATUS_HUE,
   buildMapScene,
@@ -21,9 +22,21 @@ const input: MapInput = {
     { id: "m", label: "Gmail", kind: "mail" },
   ],
   agents: [
-    { id: "a1", name: "Claude", status: "working", seen: true },
-    { id: "a2", name: "Grok", status: "waiting", seen: true },
-    { id: "a3", name: "Codex", status: "ok", seen: false },
+    {
+      id: "a1",
+      name: "Claude",
+      status: "working",
+      line: "Working · Collect screenshots",
+      seen: true,
+    },
+    {
+      id: "a2",
+      name: "Grok",
+      status: "waiting",
+      line: "Asked: post at 18:00?",
+      seen: true,
+    },
+    { id: "a3", name: "Codex", status: "ok", line: "All good", seen: false },
   ],
   items: [
     {
@@ -85,8 +98,8 @@ describe("buildMapScene", () => {
     const a = buildMapScene(input, 1, 1440, 900);
     const b = buildMapScene(input, 2, 1440, 900);
     expect(b.nodes.map((n) => n.x)).not.toEqual(a.nodes.map((n) => n.x));
-    expect(b.streams.map((s) => s.c1y)).not.toEqual(
-      a.streams.map((s) => s.c1y)
+    expect(b.threads.map((s) => s.c1y)).not.toEqual(
+      a.threads.map((s) => s.c1y)
     );
     expect(b.stats).toEqual(a.stats);
     expect(b.nodes.filter((n) => n.real).length).toBe(
@@ -128,7 +141,7 @@ describe("buildMapScene", () => {
     expect(has(idx("item", "i1"), idx("thread", "t1"))).toBe(true);
   });
 
-  it("fills a new account with decoration and Needt's own sources", () => {
+  it("fills a new account with decoration and neutral rows", () => {
     const empty = buildMapScene(
       { now: NOW, sources: [], agents: [], items: [], threads: [] },
       3,
@@ -137,14 +150,11 @@ describe("buildMapScene", () => {
     );
     expect(empty.nodes.length).toBeGreaterThanOrEqual(150);
     expect(empty.nodes.every((n) => !n.real)).toBe(true);
-    expect(empty.sources.map((s) => s.label)).toEqual([
-      "Calendar",
-      "Tasks",
-      "Documents",
-      "Habits",
-    ]);
-    expect(empty.streams.length).toBeGreaterThan(0);
-    expect(empty.results).toHaveLength(0);
+    expect(empty.threads.length).toBeGreaterThan(0);
+    expect(empty.riders.length).toBeGreaterThan(0);
+    expect(empty.pills).toHaveLength(0);
+    // The rows on the left are neutral types only when there is no data.
+    expect(empty.rows.every((r) => r.title === null)).toBe(true);
   });
 
   it("carries each agent's status, and picks the worst of several", () => {
@@ -168,24 +178,50 @@ describe("buildMapScene", () => {
     const agent = scene.nodes.find((n) => n.kind === "agent")!;
     expect(nodeLabel(item, false)).toBe(item.label);
     expect(nodeLabel(item, true)).toBe("Task");
-    expect(nodeLabel(thread, true)).toBe("Review");
+    expect(nodeLabel(thread, true)).toBe("Thread");
     expect(nodeLabel(agent, true)).toBe(agent.label);
   });
 
-  it("pills show real work only: finished, or in progress with a checklist", () => {
-    const scene = buildMapScene(input, 11, 1440, 900);
-    expect(scene.results.map((r) => r.id)).toEqual(["i2", "i1", "i3"]);
-    const [progress, done] = scene.results;
-    expect(progress.progress).toBe(0.75);
-    expect(progress.status).toBe("waiting");
-    expect(done.progress).toBe(1);
+  it("pills put what needs you first, then what agents did", () => {
+    const alerting: MapInput = {
+      ...input,
+      agents: [
+        ...input.agents,
+        {
+          id: "a4",
+          name: "ChatGPT",
+          status: "alert",
+          line: "Connection expired — reconnect",
+          reason: "connection expired",
+          seen: false,
+        },
+      ],
+    };
+    const scene = buildMapScene(alerting, 11, 1440, 900);
+    expect(scene.pills.map((p) => p.id)).toEqual(["a4", "a2", "a1"]);
+    const [red, orange, done] = scene.pills;
+    expect(red.title).toBe("Reconnect ChatGPT");
+    expect(red.go).toEqual({ kind: "agent", id: "a4" });
+    expect(orange.title).toBe("Grok is waiting");
+    expect(orange.go.kind).toBe("chat");
     expect(done.title).toBe("Posted the draft to the hub");
-    expect(done.by).toBe("Claude");
-    // Pills sit on the right, inside the canvas.
-    for (const r of scene.results) {
-      expect(r.x + r.w).toBeLessThanOrEqual(1440);
-      expect(r.x).toBeGreaterThan(1440 / 2);
+    expect(done.progress).toBe(1);
+    expect(done.go).toEqual({ kind: "item", id: "i1" });
+    // Each pill has an anchor on the core's edge, linked to its agent.
+    for (const p of scene.pills) {
+      expect(scene.nodes[p.anchor].kind).toBe("anchor");
+      expect(
+        scene.edges.some((e) => e.link && e.a === p.agent && e.b === p.anchor)
+      ).toBe(true);
+      expect(p.x + p.w).toBeLessThanOrEqual(1440);
     }
+  });
+
+  it("tints the lines near an agent by its status", () => {
+    const scene = buildMapScene(input, 3, 1440, 900);
+    const claude = scene.nodes.findIndex((n) => n.id === "a1");
+    const near = scene.edges.filter((e) => e.sa === claude && e.sw > 0.3);
+    expect(near.length).toBeGreaterThan(0);
   });
 
   it("stays inside the element budget with a large account", () => {
@@ -196,6 +232,7 @@ describe("buildMapScene", () => {
         id: `a${i}`,
         name: `A${i}`,
         status: "ok" as const,
+        line: "All good",
         seen: false,
       })),
       items: Array.from({ length: 900 }, (_, i) => ({
@@ -221,13 +258,12 @@ describe("buildMapScene", () => {
     expect(scene.stats.tasksThisWeek).toBe(900);
   });
 
-  it("stands on end on a phone: sources on top, two pills at the bottom", () => {
+  it("lays out a phone: two pills at the bottom, no callouts", () => {
     const scene = buildMapScene(input, 4, 390, 760);
     expect(scene.phone).toBe(true);
-    expect(scene.streams.every((s) => s.y0 < 100)).toBe(true);
-    expect(scene.sources.every((s) => s.y < 100)).toBe(true);
-    expect(scene.results).toHaveLength(2);
-    expect(scene.results.every((r) => r.y > 760 / 2)).toBe(true);
-    expect(sceneSize(scene)).toBeLessThanOrEqual(MAP_BUDGET);
+    expect(scene.pills.length).toBeLessThanOrEqual(2);
+    expect(scene.pills.every((p) => p.anchor === -1)).toBe(true);
+    expect(scene.pills.every((p) => p.y > 760 / 2)).toBe(true);
+    expect(sceneSize(scene)).toBeLessThanOrEqual(MAP_BUDGET_PHONE);
   });
 });

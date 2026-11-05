@@ -12,9 +12,11 @@ import { createPortal } from "react-dom";
 import { FiMaximize2, FiMinimize2, FiMonitor, FiShuffle } from "react-icons/fi";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
-import { shortWhen } from "./AgParts";
+import { AgentIcon } from "./AgentIcon";
 import {
+  type AgentStatus,
   BLUE,
+  BLUE_WHITE,
   type MapInput,
   type MapScene,
   type Rgb,
@@ -25,32 +27,50 @@ import {
   nodeLabel,
 } from "./map-scene";
 
-/** One breath for everything alive in the product (PORT.md §6). */
+/** One breath for everything calm in the product (PORT.md §6). */
 const BREATH_S = 5.2;
-/** The scene draws at 30 frames a second: the motion is slow, the budget is not. */
+/** Breathing per status: red pulses fast and strong, orange gently. */
+const PERIOD: Record<AgentStatus, number> = {
+  alert: 1.6,
+  waiting: 3.4,
+  working: 5.2,
+  ok: 5.2,
+};
+const AMP: Record<AgentStatus, number> = {
+  alert: 1.55,
+  waiting: 1,
+  working: 1,
+  ok: 0.85,
+};
+/** Pulses per second leaving an agent, by status. */
+const RATE: Record<AgentStatus, number> = {
+  alert: 1.3,
+  waiting: 0.5,
+  working: 0.6,
+  ok: 0.32,
+};
+/** 30 frames a second: the motion is slow, the budget is not. */
 const FRAME_MS = 1000 / 30;
 /** The scene draws itself in over this long on arrival. */
 const ENTRY_MS = 1800;
 /** A new mood every 13 s, crossfading over about 2.5 s. */
 const MOOD_MS = 13_000;
 const MOOD_TAU_S = 0.9;
-/**
- * Three moods as weights: pulses, the light wave's speed, the glow, how
- * often a small "constellation forms". The scene only leans, it never jumps.
- */
+/** Weights: pulses, the light wave's speed, the glow, how often forms appear. */
 const MOODS: readonly [number, number, number, number][] = [
   [1, 1, 1, 1],
   [1.9, 1.7, 1.1, 0.8],
   [0.7, 0.75, 1.35, 1.9],
 ];
 const NIGHT = "#050507";
-const MAX_PULSES = 24;
-/** Lines are batched into this many brightness steps. */
-const ALPHA_STEPS = 6;
+const MAX_PULSES = 46;
+/** The legend says what the colours mean, then gets out of the way. */
+const LEGEND_MS = 8000;
 
 const rgba = (c: Rgb, a: number) =>
   `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const clamp = (v: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, v));
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const easeOut = (u: number) => 1 - Math.pow(1 - u, 3);
 
 function bez(
@@ -75,31 +95,206 @@ function bez(
   ] as const;
 }
 
-/** The cold glow, drawn once and stamped with drawImage. */
-let glowSprite: HTMLCanvasElement | null = null;
-function glow() {
-  if (glowSprite) return glowSprite;
-  const el = document.createElement("canvas");
-  el.width = el.height = 128;
-  const g = el.getContext("2d");
-  if (g) {
-    const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-    grad.addColorStop(0, "rgba(170,215,255,.95)");
-    grad.addColorStop(0.22, "rgba(90,169,255,.38)");
-    grad.addColorStop(1, "rgba(90,169,255,0)");
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 128, 128);
-  }
-  glowSprite = el;
-  return el;
-}
-
 function reducedMotion() {
   return (
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
+}
+
+/* ---------- sprites, drawn once ---------- */
+
+function canvasOf(w: number, h: number) {
+  const el = document.createElement("canvas");
+  el.width = w;
+  el.height = h;
+  return { el, g: el.getContext("2d") };
+}
+
+const sprites = new Map<string, HTMLCanvasElement>();
+/** A soft round glow in one colour, stamped with drawImage. */
+function glowOf(col: Rgb) {
+  const key = col.join(",");
+  const hit = sprites.get(key);
+  if (hit) return hit;
+  const { el, g } = canvasOf(128, 128);
+  if (g) {
+    const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, rgba(mix(col, [255, 255, 255], 0.55), 0.95));
+    gr.addColorStop(0.22, rgba(col, 0.4));
+    gr.addColorStop(1, rgba(col, 0));
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 128, 128);
+  }
+  sprites.set(key, el);
+  return el;
+}
+const GLOW_WHITE: Rgb = [170, 210, 255];
+
+let thumbArt: HTMLCanvasElement[] | null = null;
+/** Six neutral thumbnails: doc, mail, calendar, picture, glow, code. */
+function thumbs() {
+  if (thumbArt) return thumbArt;
+  const out: HTMLCanvasElement[] = [];
+  const mk = (fn: (g: CanvasRenderingContext2D) => void) => {
+    const { el, g } = canvasOf(88, 64);
+    if (g) {
+      g.beginPath();
+      if (typeof g.roundRect === "function") g.roundRect(1, 1, 86, 62, 6);
+      else g.rect(1, 1, 86, 62);
+      g.save();
+      g.clip();
+      fn(g);
+      g.restore();
+      g.strokeStyle = "rgba(255,255,255,.28)";
+      g.lineWidth = 1;
+      g.stroke();
+    }
+    out.push(el);
+  };
+  mk((g) => {
+    g.fillStyle = "rgba(232,238,252,.9)";
+    g.fillRect(0, 0, 88, 64);
+    g.fillStyle = "rgba(40,52,80,.85)";
+    g.fillRect(10, 10, 40, 5);
+    g.fillStyle = "rgba(40,52,80,.35)";
+    for (let i = 0; i < 5; i++)
+      g.fillRect(10, 22 + i * 8, 68 - (i % 2) * 18, 3);
+  });
+  mk((g) => {
+    g.fillStyle = "rgba(18,24,40,.92)";
+    g.fillRect(0, 0, 88, 64);
+    g.strokeStyle = "rgba(190,215,255,.7)";
+    g.lineWidth = 1.4;
+    g.strokeRect(14, 16, 60, 34);
+    g.beginPath();
+    g.moveTo(14, 16);
+    g.lineTo(44, 36);
+    g.lineTo(74, 16);
+    g.stroke();
+  });
+  mk((g) => {
+    g.fillStyle = "rgba(236,241,255,.92)";
+    g.fillRect(0, 0, 88, 64);
+    g.fillStyle = "rgba(70,110,200,.9)";
+    g.fillRect(0, 0, 88, 16);
+    g.fillStyle = "rgba(30,40,70,.55)";
+    for (let r = 0; r < 3; r++)
+      for (let c = 0; c < 6; c++) g.fillRect(8 + c * 13, 24 + r * 12, 7, 6);
+  });
+  mk((g) => {
+    const gr = g.createLinearGradient(0, 0, 0, 64);
+    gr.addColorStop(0, "#1a2a4a");
+    gr.addColorStop(1, "#06080f");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 88, 64);
+    g.fillStyle = "rgba(210,225,255,.85)";
+    g.beginPath();
+    g.arc(60, 18, 6, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = "rgba(14,20,36,.95)";
+    g.beginPath();
+    g.moveTo(0, 64);
+    g.lineTo(22, 34);
+    g.lineTo(40, 50);
+    g.lineTo(62, 28);
+    g.lineTo(88, 56);
+    g.lineTo(88, 64);
+    g.fill();
+  });
+  mk((g) => {
+    const gr = g.createRadialGradient(44, 32, 2, 44, 32, 44);
+    gr.addColorStop(0, "#cfe4ff");
+    gr.addColorStop(0.35, "#3e78d8");
+    gr.addColorStop(1, "#070b16");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 88, 64);
+  });
+  mk((g) => {
+    g.fillStyle = "rgba(8,10,16,.95)";
+    g.fillRect(0, 0, 88, 64);
+    const cs = [
+      "rgba(120,170,255,.8)",
+      "rgba(220,230,255,.75)",
+      "rgba(150,160,190,.6)",
+    ];
+    for (let i = 0; i < 6; i++) {
+      g.fillStyle = cs[i % 3];
+      g.fillRect(8 + (i % 3) * 8, 9 + i * 8.4, 14 + ((i * 29) % 40), 3.2);
+    }
+  });
+  thumbArt = out;
+  return out;
+}
+
+let waveArt: HTMLCanvasElement | null = null;
+/** A small voice wave riding in with the data. */
+function wave() {
+  if (waveArt) return waveArt;
+  const { el, g } = canvasOf(260, 70);
+  if (g) {
+    let s = 7;
+    const r = () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+    g.strokeStyle = "rgba(235,242,255,.95)";
+    g.lineWidth = 1.6;
+    g.beginPath();
+    for (let x = 4; x < 256; x += 3) {
+      const env = Math.exp(-Math.pow((x - 120) / 70, 2));
+      const h = (3 + r() * 30) * env + 1;
+      g.moveTo(x, 35 - h);
+      g.lineTo(x, 35 + h);
+    }
+    g.stroke();
+  }
+  waveArt = el;
+  return el;
+}
+
+/**
+ * The neutral rows of data on the far left: a type for everyone, and the
+ * owner's own title only outside Presentation.
+ */
+function rowsArt(scene: MapScene, presentation: boolean) {
+  const w = Math.round(scene.width * (scene.phone ? 0.5 : 0.3));
+  const { el, g } = canvasOf(
+    Math.max(1, w),
+    Math.max(1, Math.round(scene.height))
+  );
+  if (!g) return el;
+  const lh = scene.phone ? 12 : 15;
+  g.font = `${scene.phone ? 9 : 10.5}px ui-monospace, "SF Mono", Menlo, monospace`;
+  g.textBaseline = "top";
+  let k = 0;
+  for (let y = 6; y < scene.height - 10; y += lh) {
+    const row = scene.rows[k++ % scene.rows.length];
+    const text =
+      !presentation && row.title ? `${row.type} · ${row.title}` : row.type;
+    const ind = (k * 37) % 5 < 2 ? 0 : (k * 13) % 30;
+    g.fillStyle = `rgba(${k % 4 === 0 ? "150,195,255" : "205,218,245"},${0.28 + ((k * 17) % 42) / 100})`;
+    g.fillText(text.slice(0, 20 + (k % 14)), 6 + ind, y);
+  }
+  g.globalCompositeOperation = "destination-in";
+  const m = g.createLinearGradient(0, 0, w, 0);
+  m.addColorStop(0, "#000");
+  m.addColorStop(0.55, "rgba(0,0,0,.55)");
+  m.addColorStop(1, "transparent");
+  g.fillStyle = m;
+  g.fillRect(0, 0, w, scene.height);
+  const v = g.createLinearGradient(0, 0, 0, scene.height);
+  [0, 0.3, 0.36, 0.62, 0.68, 0.8, 0.91].forEach((s, i) =>
+    v.addColorStop(
+      s,
+      i === 2 || i === 3
+        ? "rgba(0,0,0,.18)"
+        : i === 6
+          ? "rgba(0,0,0,0)"
+          : "#000"
+    )
+  );
+  g.fillStyle = v;
+  g.fillRect(0, 0, w, scene.height);
+  return el;
 }
 
 export interface Live {
@@ -110,11 +305,10 @@ export interface Live {
 }
 
 /**
- * The drawing loop for one scene (the owner's "Constellation", 05.11.26).
- * Returns its controls. Batched: the source threads and their particles in
- * one stroke and one fill, the lines in a few brightness steps, the lit and
- * hovered ones on top. Colour is white and one blue; an agent's status
- * colours only its own marks (dot, rings, pulses, nearest lines).
+ * The drawing loop for one scene (the owner's final reference). Returns
+ * its controls. Batched: the converging threads in one glow and one core
+ * stroke per kind, the lines in six brightness paths and twelve status
+ * paths; only hovered lines, pulses and the entry draw-in stroke alone.
  */
 export function startLoop(
   ctx: CanvasRenderingContext2D,
@@ -123,6 +317,8 @@ export function startLoop(
   live: Live,
   hooks: {
     onHover: (index: number, x: number, y: number) => void;
+    /** Each frame: where each agent's label goes (screen px) and its alpha. */
+    onAgents?: (pos: { i: number; x: number; y: number; a: number }[]) => void;
   },
   /**
    * Carried across rebuilds of the same layout (new data, full screen): the
@@ -134,13 +330,13 @@ export function startLoop(
     moodAt: performance.now(),
   }
 ) {
-  const { nodes, edges, streams, adj, core, results } = scene;
+  const { nodes, edges, threads, adj, core, pills, riders } = scene;
   const W = scene.width;
   const H = scene.height;
   const N = nodes.length;
   const still = reducedMotion();
   // A phone rasterises the canvas on a slow CPU (perf, iPhone 13 at 4x):
-  // fewer frames, no additive blending, smaller glows.
+  // fewer frames, no additive blending, fewer glows.
   const lite = scene.phone;
   const frameMs = lite ? 1000 / 24 : FRAME_MS;
   const px = new Float32Array(N);
@@ -148,20 +344,12 @@ export function startLoop(
   const lit = new Float32Array(N);
   const hit = new Float32Array(N);
   const reveal = new Float32Array(N);
-  const owner = new Int32Array(N).fill(-1);
-  // Each node takes the status of the agent it hangs from (for its lines).
-  scene.agents.forEach((a) => {
-    owner[a] = a;
-    for (const e of adj[a]) {
-      const E = edges[e];
-      const other = E.a === a ? E.b : E.a;
-      if (owner[other] < 0) owner[other] = a;
-    }
-  });
-  const hueOf = (i: number) =>
-    owner[i] >= 0 && nodes[owner[i]].status !== "ok"
-      ? STATUS_HUE[nodes[owner[i]].status]
-      : null;
+  const stOf = (i: number): AgentStatus => (i >= 0 ? nodes[i].status : "ok");
+  let rows = rowsArt(scene, live.presentation);
+  let rowsFor = live.presentation;
+  const art = thumbs();
+  const waveImg = wave();
+  const agentT = scene.agents.map(() => Math.random());
 
   const mood = { cur: [...MOODS[clock.mood % MOODS.length]] };
   const rings: { t0: number; n: number }[] = [];
@@ -172,6 +360,8 @@ export function startLoop(
     u: number;
     v: number;
     hops: number;
+    st: AgentStatus;
+    str: number;
   }[] = [];
   const forms: { set: number[]; links: [number, number][]; t0: number }[] = [];
   let nextRing = clock.born + 3500;
@@ -189,6 +379,10 @@ export function startLoop(
     lastT = t;
     const age = still ? 1 : clamp((now - clock.born) / ENTRY_MS);
     const ease = easeOut(age);
+    if (rowsFor !== live.presentation) {
+      rows = rowsArt(scene, live.presentation);
+      rowsFor = live.presentation;
+    }
 
     if (!still && now - clock.moodAt > MOOD_MS) {
       clock.moodAt = now;
@@ -202,37 +396,53 @@ export function startLoop(
     const [mP, mW, mG, mF] = mood.cur;
     const breath = 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / BREATH_S);
 
-    // A slow drift, and parallax from the pointer by each node's depth.
     const p = live.pointer;
     const k = 1 - Math.exp(-dt / 0.4);
     mouse.px += ((p ? p.x / W - 0.5 : 0) - mouse.px) * k;
     mouse.py += ((p ? p.y / H - 0.5 : 0) - mouse.py) * k;
-    const OX = still ? 0 : Math.sin(t * 0.045) * 10 - mouse.px * 26;
-    const OY = still ? 0 : Math.cos(t * 0.038) * 7 - mouse.py * 18;
+    const OX = still ? 0 : Math.sin(t * 0.045) * 8 - mouse.px * 20;
+    const OY = still ? 0 : Math.cos(t * 0.038) * 6 - mouse.py * 14;
     drift = { dx: OX, dy: OY };
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.globalCompositeOperation = "source-over";
     ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
     ctx.fillStyle = NIGHT;
     ctx.fillRect(0, 0, W, H);
-    // The single blue glow behind the constellation.
-    const gx = core.x + OX * 0.5;
-    const gy = core.y + OY * 0.5;
-    const gr = Math.max(core.rx * 2.2, core.ry * 1.3);
-    const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
-    g.addColorStop(0, rgba(BLUE, (0.24 + 0.07 * breath) * mG * ease));
-    g.addColorStop(0.45, rgba(BLUE, 0.05 * mG * ease));
+    // White base and the soft blue glow, brightest at the core.
+    ctx.save();
+    ctx.translate(core.x + OX * 0.4, core.y + OY * 0.4);
+    ctx.scale(0.5, 1);
+    let g = ctx.createRadialGradient(0, 0, 0, 0, 0, core.ry * 1.25);
+    g.addColorStop(0, rgba(BLUE_WHITE, (0.22 + 0.07 * breath) * mG * ease));
+    g.addColorStop(0.4, rgba(BLUE, 0.07 * mG * ease));
+    g.addColorStop(1, "rgba(90,169,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(-core.rx * 8, -core.ry * 1.4, core.rx * 16, core.ry * 2.8);
+    ctx.restore();
+    g = ctx.createRadialGradient(
+      core.x * 0.5,
+      H * 0.5,
+      0,
+      core.x * 0.5,
+      H * 0.5,
+      Math.max(W, H) * 0.8
+    );
+    g.addColorStop(0, "rgba(90,169,255,.035)");
     g.addColorStop(1, "rgba(90,169,255,0)");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
+
+    // Incoming data: faint neutral rows, far left.
+    ctx.globalAlpha =
+      (0.7 + 0.12 * Math.sin(t * 0.6)) * clamp(age * 2) * (lite ? 0.4 : 1);
+    ctx.drawImage(rows, 0, 0, rows.width, rows.height);
+    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = lite ? "source-over" : "lighter";
 
-    // Positions: breathe about the core, parallax by depth; a slow wave of
-    // light crosses the cluster and rings spread from the agents.
-    const front = -1.6 + ((t * 0.085 * mW) % 1) * 3.4;
-    const ca = Math.cos(-0.35);
-    const sa = Math.sin(-0.35);
+    // Positions, the light wave, rings from the agents.
+    const front = -1.7 + ((t * 0.08 * mW) % 1) * 3.6;
     while (rings.length && now - rings[0].t0 > 2800) rings.shift();
     if (!still && now > nextRing && scene.agents.length) {
       rings.push({
@@ -243,19 +453,20 @@ export function startLoop(
     }
     for (let i = 0; i < N; i++) {
       const n = nodes[i];
-      const s = 1 + 0.02 * Math.sin((t * Math.PI * 2) / BREATH_S + n.d * 2);
+      const s = 1 + 0.015 * Math.sin((t * Math.PI * 2) / BREATH_S + n.d * 2);
       const x = core.x + (n.x - core.x) * s;
       const y = core.y + (n.y - core.y) * s;
       px[i] = x + OX * n.z;
       py[i] = y + OY * n.z;
-      const u = ((n.x - core.x) * ca + (n.y - core.y) * sa) / (core.rx * 1.3);
-      let l = still ? 0 : Math.exp(-(((u - front) / 0.16) ** 2)) * 0.85;
+      const u =
+        ((n.x - core.x) * 0.25 + (n.y - core.y) * 0.97) / (core.ry * 1.25);
+      let l = still ? 0 : Math.exp(-(((u - front) / 0.14) ** 2)) * 0.85;
       for (const r of rings) {
-        const rr = ((now - r.t0) / 1000) * 190;
+        const rr = ((now - r.t0) / 1000) * 170;
         const dd = Math.hypot(x - nodes[r.n].x, y - nodes[r.n].y);
         l = Math.max(
           l,
-          Math.exp(-(((dd - rr) / 26) ** 2)) * (1 - (now - r.t0) / 2800) * 0.9
+          Math.exp(-(((dd - rr) / 22) ** 2)) * (1 - (now - r.t0) / 2800) * 0.9
         );
       }
       hit[i] *= 0.94;
@@ -263,149 +474,231 @@ export function startLoop(
       reveal[i] =
         n.kind === "agent"
           ? clamp(age * 2.4 - 0.35)
-          : Math.min(1, clamp(age * 1.5 - n.d * 0.6) * 2.5);
+          : n.kind === "anchor"
+            ? clamp(age * 2 - 0.4)
+            : clamp(clamp(age * 1.6 - n.d * 0.55) * 2.5);
     }
 
-    // Source threads: white, low alpha, drawn in; particles white to blue.
-    const grow = clamp(age * 1.35);
-    ctx.lineWidth = 0.6;
-    ctx.strokeStyle = rgba(WHITE, 1);
-    ctx.globalAlpha = 0.09 * (1 + 0.15 * mP);
-    ctx.beginPath();
-    for (const st of streams) {
-      const sw = still ? 0 : Math.sin(t * 0.6 + st.sway) * 9;
-      const x0 = st.x0 + OX * 0.2;
-      const y0 = st.y0 + OY * 0.2;
-      const x1 = px[st.node];
-      const y1 = py[st.node];
-      ctx.moveTo(x0, y0);
-      if (grow >= 1) {
-        ctx.bezierCurveTo(
-          st.c1x,
-          st.c1y + sw,
-          st.c2x + sw * 0.4,
-          st.c2y - sw,
-          x1,
-          y1
+    // Thumbnails and the voice wave: they shrink and fade into the core.
+    if (age > 0.35) {
+      const fin = clamp((age - 0.35) * 2.2);
+      const tx0 = core.x - core.rx;
+      const sc = lite ? 0.55 : 1;
+      for (const rd of riders) {
+        const u = still
+          ? clamp(rd.offset * 0.95 + 0.02)
+          : (t * rd.speed + rd.offset) % 1;
+        const x = lerp(-70, tx0, u);
+        const y = lerp(
+          H * rd.lane,
+          core.y + (H * rd.lane - core.y) * 0.3,
+          Math.pow(u, 1.7)
         );
-      } else {
-        const steps = 24;
-        for (let q = 1; q <= Math.floor(steps * grow); q++) {
-          const [bx, by] = bez(
-            x0,
-            y0,
-            st.c1x,
-            st.c1y + sw,
-            st.c2x + sw * 0.4,
-            st.c2y - sw,
-            x1,
-            y1,
-            q / steps
+        const s = 1 - 0.82 * Math.pow(u, 1.15);
+        const a = Math.min(1, u * 12) * (1 - clamp((u - 0.86) / 0.14));
+        if (a <= 0.01) continue;
+        if (rd.kind === "thumb") {
+          const w = 66 * sc * s;
+          ctx.globalAlpha = a * 0.58 * fin;
+          ctx.drawImage(
+            art[rd.type % art.length],
+            x - w / 2,
+            y - (w * 0.73) / 2,
+            w,
+            w * 0.73
           );
-          ctx.lineTo(bx, by);
+        } else {
+          const w = 230 * sc * s;
+          const h = 62 * sc * (0.4 + 0.6 * s);
+          ctx.globalAlpha = a * 0.8 * fin;
+          ctx.drawImage(waveImg, x - w / 2, y - h / 2, w, h);
         }
       }
-    }
-    ctx.stroke();
-    if (!still && age > 0.3) {
-      ctx.fillStyle = rgba(mix(WHITE, BLUE, 0.5), 1);
-      ctx.globalAlpha = 0.55;
-      ctx.beginPath();
-      for (const st of streams) {
-        const sw = Math.sin(t * 0.6 + st.sway) * 9;
-        for (let q = 0; q < 2; q++) {
-          const ph = (t * st.speed * mP + st.offset + q * 0.5) % 1;
-          if (ph > grow) continue;
-          const [bx, by] = bez(
-            st.x0 + OX * 0.2,
-            st.y0 + OY * 0.2,
-            st.c1x,
-            st.c1y + sw,
-            st.c2x + sw * 0.4,
-            st.c2y - sw,
-            px[st.node],
-            py[st.node],
-            ph
-          );
-          ctx.moveTo(bx + 1.1, by);
-          ctx.arc(bx, by, 1.1, 0, Math.PI * 2);
-        }
-      }
-      ctx.fill();
+      ctx.globalAlpha = 1;
     }
 
-    // Lines: faint white, shimmering, in a few brightness steps; brighter
-    // where the wave passes; the agent's status colour near it.
+    // Threads: a soft glow and a bright core, converging into the mesh; a
+    // few carry on out to the right. One path per kind once drawn in.
+    const tr = clamp(age * 1.25);
+    ctx.lineCap = "round";
+    const inGrad = ctx.createLinearGradient(0, 0, core.x, 0);
+    inGrad.addColorStop(0, rgba(BLUE_WHITE, 0.03));
+    inGrad.addColorStop(0.55, rgba(BLUE_WHITE, 0.22));
+    inGrad.addColorStop(1, rgba(WHITE, 0.7));
+    const outGrad = ctx.createLinearGradient(core.x, 0, W, 0);
+    outGrad.addColorStop(0, rgba(BLUE_WHITE, 0.4));
+    outGrad.addColorStop(1, rgba(BLUE_WHITE, 0.03));
+    const pathIn = new Path2D();
+    const pathOut = new Path2D();
+    const curve = (th: (typeof threads)[number], sw: number) => {
+      const O = th.kind === "O";
+      return [
+        O ? px[th.node] : th.x0,
+        O ? py[th.node] : th.y0,
+        th.c1x,
+        th.c1y + sw,
+        th.c2x + sw * 0.5,
+        th.c2y - sw,
+        O ? th.x3 : px[th.node],
+        O ? th.y3 : py[th.node],
+      ] as const;
+    };
+    for (const th of threads) {
+      const rev = still ? 1 : clamp((tr - th.delay) / (1 - th.delay));
+      if (rev <= 0) continue;
+      const sw = still ? 0 : Math.sin(t * 0.5 + th.sway) * 10;
+      const c = curve(th, sw);
+      if (rev < 1) {
+        // Drawing itself in: this one strokes alone with a growing dash.
+        ctx.setLineDash([th.len * rev, th.len * 3]);
+        ctx.strokeStyle = th.kind === "O" ? outGrad : inGrad;
+        ctx.globalAlpha = th.alpha * 1.6;
+        ctx.lineWidth = th.width;
+        ctx.beginPath();
+        ctx.moveTo(c[0], c[1]);
+        ctx.bezierCurveTo(c[2], c[3], c[4], c[5], c[6], c[7]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        continue;
+      }
+      const path = th.kind === "O" ? pathOut : pathIn;
+      path.moveTo(c[0], c[1]);
+      path.bezierCurveTo(c[2], c[3], c[4], c[5], c[6], c[7]);
+    }
+    for (const [path, grad] of [
+      [pathIn, inGrad],
+      [pathOut, outGrad],
+    ] as const) {
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 2.4;
+      ctx.globalAlpha = 0.22 * (0.9 + 0.1 * mP);
+      ctx.stroke(path);
+      ctx.lineWidth = 0.75;
+      ctx.globalAlpha = 0.9 * (0.9 + 0.1 * mP);
+      ctx.stroke(path);
+    }
+    ctx.globalAlpha = 1;
+    if (!still) {
+      const spr = glowOf(GLOW_WHITE);
+      for (let i = 0; i < threads.length; i += lite ? 2 : 1) {
+        const th = threads[i];
+        if (clamp((tr - th.delay) / (1 - th.delay)) < 1) continue;
+        const sw = Math.sin(t * 0.5 + th.sway) * 10;
+        const c = curve(th, sw);
+        const ph = (t * th.speed * mP + th.offset) % 1;
+        const [bx, by] = bez(
+          c[0],
+          c[1],
+          c[2],
+          c[3],
+          c[4],
+          c[5],
+          c[6],
+          c[7],
+          ph
+        );
+        ctx.globalAlpha = Math.sin(ph * Math.PI) * 0.7 + 0.1;
+        ctx.drawImage(spr, bx - 5, by - 5, 10, 10);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Mesh lines: six brightness paths; those near an agent in twelve
+    // status paths (its colour, fading with distance); hovered lines alone.
     const hset = live.hover >= 0 ? new Set(adj[live.hover]) : null;
-    const buckets: number[][] = Array.from({ length: ALPHA_STEPS }, () => []);
-    const extra: number[] = [];
+    const plain = Array.from({ length: 6 }, () => new Path2D());
+    const used = new Uint8Array(6);
+    const tinted = new Map<string, Path2D>();
+    const hot: number[] = [];
     for (let e = 0; e < edges.length; e++) {
       const E = edges[e];
       const rv = Math.min(reveal[E.a], reveal[E.b]);
       if (rv <= 0) continue;
-      if (
-        (hset && hset.has(e)) ||
-        Math.max(lit[E.a], lit[E.b]) > 0.08 ||
-        hueOf(E.a) ||
-        hueOf(E.b)
-      ) {
-        extra.push(e);
+      if (hset && hset.has(e)) {
+        hot.push(e);
         continue;
       }
-      const sh = still ? 0 : 0.035 * Math.sin(t * E.rate + E.phase);
-      const a = (0.085 + sh + 0.03 * breath) * rv;
-      buckets[
-        clamp(Math.floor((a / 0.16) * ALPHA_STEPS), 0, ALPHA_STEPS - 1)
-      ].push(e);
-    }
-    ctx.strokeStyle = rgba(WHITE, 1);
-    ctx.lineWidth = 0.5;
-    buckets.forEach((list, b) => {
-      if (!list.length) return;
-      ctx.globalAlpha = ((b + 0.5) / ALPHA_STEPS) * 0.16;
-      ctx.beginPath();
-      for (const e of list) {
-        ctx.moveTo(px[edges[e].a], py[edges[e].a]);
-        ctx.lineTo(px[edges[e].b], py[edges[e].b]);
-      }
-      ctx.stroke();
-    });
-    for (const e of extra) {
-      const E = edges[e];
-      const hot = hset?.has(e);
       const l = Math.max(lit[E.a], lit[E.b]);
-      const status = hueOf(E.a) ?? hueOf(E.b);
-      const base = status ?? WHITE;
+      const centre = E.d < 0.5 ? 1 : 0;
+      if (E.sw > 0.03) {
+        const level = E.sw > 0.66 ? 2 : E.sw > 0.33 ? 1 : 0;
+        const key = `${stOf(E.sa)}:${level}:${rv < 1 ? 0 : 1}`;
+        let path = tinted.get(key);
+        if (!path) {
+          path = new Path2D();
+          tinted.set(key, path);
+        }
+        path.moveTo(px[E.a], py[E.a]);
+        path.lineTo(px[E.b], py[E.b]);
+        continue;
+      }
+      const bi = (l > 0.4 ? 2 : l > 0.12 ? 1 : 0) * 2 + centre;
+      plain[bi].moveTo(px[E.a], py[E.a]);
+      plain[bi].lineTo(px[E.b], py[E.b]);
+      used[bi] = 1;
+    }
+    const BA: [number, number][] = [
+      [0.17, 0.5],
+      [0.32, 0.7],
+      [0.42, 0.5],
+      [0.58, 0.75],
+      [0.82, 0.95],
+      [0.96, 1.15],
+    ];
+    const shim = 1 + 0.18 * Math.sin(t * 0.9);
+    for (let bi = 0; bi < 6; bi++) {
+      if (!used[bi]) continue;
       ctx.strokeStyle = rgba(
-        hot ? (status ?? BLUE) : mix(base, BLUE, l * 0.8),
+        bi >= 4 ? [200, 225, 255] : bi >= 2 ? [185, 215, 255] : [170, 205, 255],
         1
       );
-      ctx.globalAlpha = hot
-        ? 0.85
-        : (0.085 + (status ? 0.12 : 0) + 0.55 * l) *
-          Math.min(reveal[E.a], reveal[E.b]);
-      ctx.lineWidth = hot ? 1.2 : 0.5 + 0.7 * l;
+      ctx.globalAlpha = clamp(BA[bi][0] * shim * (1 + 0.12 * breath) * ease);
+      ctx.lineWidth = BA[bi][1];
+      ctx.stroke(plain[bi]);
+    }
+    for (const [key, path] of tinted) {
+      const [st, lv, full] = key.split(":") as [AgentStatus, string, string];
+      const sw = (Number(lv) + 0.5) / 3;
+      const red =
+        st === "alert"
+          ? 0.55 + 0.25 * Math.sin((t * Math.PI * 2) / PERIOD.alert)
+          : 0.38;
+      ctx.strokeStyle = rgba(mix(WHITE, STATUS_HUE[st], sw * 0.75), 1);
+      ctx.globalAlpha = clamp((0.14 + sw * red) * (full === "1" ? 1 : 0.5));
+      ctx.lineWidth = 0.5 + sw * 0.5;
+      ctx.stroke(path);
+    }
+    for (const e of hot) {
+      const E = edges[e];
+      ctx.strokeStyle = rgba(BLUE_WHITE, 1);
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.moveTo(px[E.a], py[E.a]);
       ctx.lineTo(px[E.b], py[E.b]);
       ctx.stroke();
     }
 
-    // Pulses: an agent's work hopping along the lines, in its status colour.
-    if (
-      !still &&
-      pulses.length < MAX_PULSES &&
-      scene.agents.length &&
-      age > 0.8 &&
-      Math.random() < dt * 2.4 * mP
-    ) {
-      pulses.push({
-        cur: scene.agents[Math.floor(Math.random() * scene.agents.length)],
-        prev: -1,
-        e: -1,
-        u: 1,
-        v: 1.6 + Math.random(),
-        hops: 0,
+    // Pulses from each agent at its status's rate, in its colour, whitening
+    // along the chain.
+    if (!still && age > 0.8) {
+      scene.agents.forEach((ni, ai) => {
+        const st = nodes[ni].status;
+        agentT[ai] -= dt * RATE[st] * mP;
+        if (agentT[ai] > 0 || pulses.length >= (lite ? 20 : MAX_PULSES)) return;
+        agentT[ai] = 0.6 + Math.random() * 1.2;
+        pulses.push({
+          cur: ni,
+          prev: -1,
+          e: -1,
+          u: 1,
+          v:
+            (st === "alert" ? 2.6 : st === "waiting" ? 1.5 : 1.9) +
+            Math.random() * 0.6,
+          hops: 0,
+          st,
+          str: st === "alert" ? 1.35 : 1,
+        });
       });
     }
     for (let i = pulses.length - 1; i >= 0; i--) {
@@ -415,7 +708,7 @@ export function startLoop(
           const E = edges[pl.e];
           pl.prev = pl.cur;
           pl.cur = E.a === pl.cur ? E.b : E.a;
-          hit[pl.cur] = 1;
+          hit[pl.cur] = Math.max(hit[pl.cur], pl.st === "alert" ? 1 : 0.8);
         }
         const next = adj[pl.cur].filter(
           (k2) => edges[k2].a !== pl.prev && edges[k2].b !== pl.prev
@@ -432,35 +725,34 @@ export function startLoop(
       const a = pl.cur;
       const b = E.a === pl.cur ? E.b : E.a;
       const u = Math.min(1, pl.u);
-      const x = px[a] + (px[b] - px[a]) * u;
-      const y = py[a] + (py[b] - py[a]) * u;
-      const back = Math.max(0, u - 0.35);
-      const hue = hueOf(a) ?? mix(WHITE, BLUE, 0.4);
-      ctx.strokeStyle = rgba(hue, 1);
-      ctx.globalAlpha = 0.7;
-      ctx.lineWidth = 1.3;
+      const x = lerp(px[a], px[b], u);
+      const y = lerp(py[a], py[b], u);
+      const back = Math.max(0, u - 0.4);
+      const col = mix(STATUS_HUE[pl.st], WHITE, clamp(pl.hops / 9) * 0.9);
+      ctx.strokeStyle = rgba(mix(col, [255, 255, 255], 0.35), 1);
+      ctx.globalAlpha = Math.min(1, 0.8 * pl.str);
+      ctx.lineWidth = 1.4 * pl.str;
       ctx.beginPath();
-      ctx.moveTo(
-        px[a] + (px[b] - px[a]) * back,
-        py[a] + (py[b] - py[a]) * back
-      );
+      ctx.moveTo(lerp(px[a], px[b], back), lerp(py[a], py[b], back));
       ctx.lineTo(x, y);
       ctx.stroke();
-      ctx.fillStyle = rgba(hue, 1);
-      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = rgba(col, 1);
+      ctx.globalAlpha = 0.95;
       ctx.beginPath();
-      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+      ctx.arc(x, y, 1.7 * pl.str, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // "Constellation forms": a few neighbours briefly link brighter.
+    // Small constellations form and fade.
     if (!still && now > nextForm && age > 0.9) {
       const mids = nodes
-        .map((n, i) => (n.kind !== "agent" && n.d < 0.85 ? i : -1))
+        .map((n, i) =>
+          n.kind !== "agent" && n.kind !== "anchor" && n.d < 0.85 ? i : -1
+        )
         .filter((i) => i >= 0);
       const c = mids[Math.floor(Math.random() * mids.length)];
       if (c !== undefined) {
-        const R = lite ? 70 : 125;
+        const R = lite ? 50 : 70;
         const set = mids
           .map(
             (i) =>
@@ -486,137 +778,151 @@ export function startLoop(
     for (const f of forms) {
       const u = (now - f.t0) / 3600;
       const a = Math.pow(Math.sin(Math.PI * u), 1.4);
-      const gw = Math.min(1, u * 3.2);
-      ctx.strokeStyle = rgba(mix(WHITE, BLUE, 0.45), 1);
+      const grow = Math.min(1, u * 3.2);
+      ctx.strokeStyle = rgba(mix(WHITE, BLUE_WHITE, 0.45), 1);
       ctx.globalAlpha = 0.8 * a;
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (const [p1, q1] of f.links) {
         ctx.moveTo(px[p1], py[p1]);
-        ctx.lineTo(
-          px[p1] + (px[q1] - px[p1]) * gw,
-          py[p1] + (py[q1] - py[p1]) * gw
-        );
+        ctx.lineTo(lerp(px[p1], px[q1], grow), lerp(py[p1], py[q1], grow));
       }
       ctx.stroke();
-      if (!lite)
-        for (const n of f.set) {
-          ctx.globalAlpha = a;
+      if (!lite) {
+        ctx.globalAlpha = a;
+        const spr = glowOf(GLOW_WHITE);
+        for (const n of f.set)
           ctx.drawImage(
-            glow(),
+            spr,
             px[n] - 11 * a - 2,
             py[n] - 11 * a - 2,
             22 * a + 4,
             22 * a + 4
           );
-        }
+      }
     }
 
-    // Nodes: white, lit toward blue; decoration dimmer than real ones.
-    ctx.fillStyle = rgba(WHITE, 1);
+    // Nodes: very bright whites in the middle, glow on the big ones, tinted
+    // toward the nearest agent's status.
     for (let i = 0; i < N; i++) {
       const n = nodes[i];
-      if (reveal[i] <= 0 || n.kind === "agent") continue;
+      if (reveal[i] <= 0 || n.kind === "agent" || n.kind === "anchor") continue;
+      const cen = 1 - Math.min(1, n.d);
       const tw = still ? 0 : 0.12 * Math.sin(t * 1.3 + n.phase);
-      ctx.globalAlpha = clamp(
-        ((n.real ? 0.55 : 0.36) + tw + 0.6 * lit[i]) * reveal[i]
+      const a = clamp(
+        (0.5 + 0.5 * cen + tw + 0.6 * lit[i]) * reveal[i] * (n.real ? 1 : 0.85)
       );
-      ctx.fillStyle =
-        lit[i] > 0.1 ? rgba(mix(WHITE, BLUE, lit[i] * 0.7), 1) : rgba(WHITE, 1);
+      const r = n.r * (1 + 0.55 * lit[i]) * (0.5 + 0.5 * reveal[i]);
+      const base = mix(WHITE, BLUE_WHITE, lit[i] * 0.7);
+      const col =
+        n.sw > 0.02 ? mix(base, STATUS_HUE[stOf(n.sa)], n.sw * 0.45) : base;
+      ctx.fillStyle = rgba(col, 1);
+      ctx.globalAlpha = a;
+      ctx.beginPath();
+      ctx.arc(px[i], py[i], r, 0, Math.PI * 2);
+      ctx.fill();
+      if (!lite && (r > 1.7 || lit[i] > 0.35)) {
+        const s = (r * 5 + 14 * lit[i]) * reveal[i];
+        ctx.globalAlpha = (0.3 + 0.4 * cen) * reveal[i] + lit[i] * 0.4;
+        ctx.drawImage(
+          n.sw > 0.45 ? glowOf(STATUS_HUE[stOf(n.sa)]) : glowOf(GLOW_WHITE),
+          px[i] - s,
+          py[i] - s,
+          s * 2,
+          s * 2
+        );
+      }
+    }
+
+    // Agents: a halo and breathing rings in the status colour; red pulses
+    // faster and stronger, orange gently, blue and green calmly on 5.2 s.
+    const labels: { i: number; x: number; y: number; a: number }[] = [];
+    scene.agents.forEach((i, ai) => {
+      const n = nodes[i];
+      const ap = reveal[i];
+      if (ap <= 0) return;
+      const st = n.status;
+      const c = STATUS_HUE[st];
+      const per = PERIOD[st];
+      const am = AMP[st];
+      const hov = live.hover === i ? 1 : 0;
+      const br = still
+        ? 0.5
+        : 0.5 + 0.5 * Math.sin((t * Math.PI * 2) / per + ai);
+      const sz =
+        (lite ? 0.6 : 1) *
+        (30 + 9 * am * br + 12 * hov + (st === "alert" ? 12 * br : 0)) *
+        ap;
+      ctx.globalAlpha = Math.min(1, 0.8 + 0.2 * am);
+      ctx.drawImage(glowOf(c), px[i] - sz, py[i] - sz, sz * 2, sz * 2);
+      if (!still) {
+        for (let q = 0; q < 2; q++) {
+          const ph = (t / per + q * 0.5 + ai * 0.13) % 1;
+          ctx.strokeStyle = rgba(c, 1);
+          ctx.globalAlpha = (1 - ph) * (st === "alert" ? 0.95 : 0.6) * ap;
+          ctx.lineWidth = st === "alert" ? 1.6 : 1;
+          ctx.beginPath();
+          ctx.arc(
+            px[i],
+            py[i],
+            5 + ph * 17 * ap * (st === "alert" ? 1.3 : 1),
+            0,
+            Math.PI * 2
+          );
+          ctx.stroke();
+        }
+      }
+      ctx.strokeStyle = rgba(mix(WHITE, c, 0.55), 1);
+      ctx.globalAlpha = 0.7 * ap;
+      ctx.lineWidth = 1.1;
       ctx.beginPath();
       ctx.arc(
         px[i],
         py[i],
-        n.r * (1 + 0.6 * lit[i]) * (0.5 + 0.5 * reveal[i]),
+        7.5 + br * (st === "alert" ? 2.4 : 1.2),
         0,
         Math.PI * 2
       );
-      ctx.fill();
-      if (!lite && lit[i] > 0.35) {
-        const s = 14 * lit[i];
-        ctx.globalAlpha = lit[i] * 0.5;
-        ctx.drawImage(glow(), px[i] - s, py[i] - s, s * 2, s * 2);
-      }
-    }
-
-    // Agents: a glow, two breathing rings and a dot in the status colour.
-    ctx.font = "500 12px system-ui, sans-serif";
-    ctx.textBaseline = "middle";
-    for (const i of scene.agents) {
-      const n = nodes[i];
-      const ap = reveal[i];
-      if (ap <= 0) continue;
-      const hue = STATUS_HUE[n.status];
-      const hot = live.hover === i ? 1 : 0;
-      const sz = (lite ? 0.6 : 1) * (46 + 10 * breath + 14 * hot) * ap;
-      ctx.globalAlpha = 1;
-      ctx.drawImage(glow(), px[i] - sz, py[i] - sz, sz * 2, sz * 2);
-      ctx.lineWidth = 1;
-      for (let q = 0; q < 2; q++) {
-        const ph = (t / BREATH_S + q * 0.5) % 1;
-        ctx.strokeStyle = rgba(hue, 1);
-        ctx.globalAlpha =
-          (1 - ph) * 0.55 * ap * (n.seen || n.status !== "ok" ? 1 : 0.5);
-        ctx.beginPath();
-        ctx.arc(px[i], py[i], 5 + ph * 15 * ap, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.strokeStyle = rgba(WHITE, 1);
-      ctx.globalAlpha = 0.45 * ap;
-      ctx.beginPath();
-      ctx.arc(px[i], py[i], 7.5 + breath * 1.2, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.fillStyle = rgba(n.status === "ok" ? [255, 255, 255] : hue, 1);
+      ctx.fillStyle = "#fff";
       ctx.globalAlpha = ap;
       ctx.beginPath();
       ctx.arc(px[i], py[i], 3.4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = rgba(WHITE, 1);
-      ctx.globalAlpha = 0.6 * ap;
-      ctx.fillText(n.label ?? "", px[i] + 14, py[i] + 1);
-    }
+      labels.push({ i, x: px[i] + 14, y: py[i] - 11, a: ap });
+    });
+    hooks.onAgents?.(labels);
 
-    // Leader lines from an agent to its result pill.
-    results.forEach((res, ri) => {
-      const r = still ? 1 : clamp((now - clock.born - 1400 - ri * 420) / 900);
+    // Callouts: a straight line from a dot on the core's edge to its pill.
+    pills.forEach((pl, pi) => {
+      if (pl.anchor < 0) return;
+      const r = still ? 1 : clamp((now - clock.born - 1300 - pi * 420) / 900);
       if (r <= 0) return;
-      const n = res.node;
-      const ex = scene.phone ? res.x + 34 : res.x;
-      const ey = scene.phone ? res.y : res.y + res.h / 2;
-      const dx = ex - px[n];
-      const dy = ey - py[n];
-      const c1x = scene.phone ? px[n] : px[n] + dx * 0.55;
-      const c1y = scene.phone ? py[n] + dy * 0.5 : py[n];
-      const c2x = scene.phone ? ex : ex - dx * 0.3;
-      const c2y = scene.phone ? ey - dy * 0.35 : ey;
+      const n = pl.anchor;
+      const c = STATUS_HUE[pl.status];
       const rr = easeOut(r);
-      ctx.strokeStyle = rgba(mix(WHITE, BLUE, 0.35), 1);
-      ctx.globalAlpha = 0.38;
+      const ex = px[n] + (pl.x - px[n]) * rr;
+      ctx.strokeStyle = rgba(mix(WHITE, c, 0.6), 1);
+      ctx.globalAlpha = 0.6;
       ctx.lineWidth = 0.9;
       ctx.beginPath();
       ctx.moveTo(px[n], py[n]);
-      for (let q = 1; q <= 30 * rr; q++) {
-        const [bx, by] = bez(px[n], py[n], c1x, c1y, c2x, c2y, ex, ey, q / 30);
-        ctx.lineTo(bx, by);
-      }
+      ctx.lineTo(ex, py[n]);
       ctx.stroke();
-      if (rr > 0.98) {
-        ctx.globalAlpha = 1;
-        ctx.drawImage(glow(), ex - 9, ey - 9, 18, 18);
-        ctx.fillStyle = rgba(WHITE, 1);
-        ctx.globalAlpha = 0.95;
+      ctx.globalAlpha = reveal[n];
+      ctx.drawImage(glowOf(c), px[n] - 13, py[n] - 13, 26, 26);
+      ctx.fillStyle = rgba(WHITE, 1);
+      ctx.globalAlpha = 0.98 * reveal[n];
+      ctx.beginPath();
+      ctx.arc(px[n], py[n], 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      if (rr > 0.98 && !still) {
+        const ph = (t / (PERIOD[pl.status] * 0.6) + pi * 0.31) % 1;
+        ctx.fillStyle = rgba(c, 1);
+        ctx.globalAlpha = 0.9;
         ctx.beginPath();
-        ctx.arc(ex, ey, 2, 0, Math.PI * 2);
+        ctx.arc(lerp(px[n], pl.x, ph), py[n], 1.7, 0, Math.PI * 2);
         ctx.fill();
-        if (!still) {
-          const ph = (t * 0.22 + ri * 0.31) % 1;
-          const [bx, by] = bez(px[n], py[n], c1x, c1y, c2x, c2y, ex, ey, ph);
-          ctx.fillStyle = rgba(mix(WHITE, BLUE, ph), 1);
-          ctx.globalAlpha = 0.9;
-          ctx.beginPath();
-          ctx.arc(bx, by, 1.6, 0, Math.PI * 2);
-          ctx.fill();
-        }
       }
     });
     ctx.globalCompositeOperation = "source-over";
@@ -632,9 +938,7 @@ export function startLoop(
           : -1;
       if (best !== live.hover) {
         live.hover = best;
-        hooks.onHover(best, live.pointer?.x ?? 0, live.pointer?.y ?? 0);
-      } else if (best >= 0 && live.pointer) {
-        hooks.onHover(best, live.pointer.x, live.pointer.y);
+        hooks.onHover(best, best >= 0 ? px[best] : 0, best >= 0 ? py[best] : 0);
       }
     }
   };
@@ -676,7 +980,7 @@ export function startLoop(
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
     },
-    /** Reduced motion: hover redraws one frame on demand. */
+    /** Reduced motion or paused: redraw one frame (hover, Presentation). */
     poke() {
       if (still || !running) frame(performance.now());
     },
@@ -688,25 +992,27 @@ export function startLoop(
   };
 }
 
-/** A result pill: a glowing progress ring, the title, who and when. */
+/** A pill: a progress ring glowing in its status colour, a title and a line. */
 function Pill({
+  id,
   title,
   sub,
   progress,
   status,
+  clickable,
   style,
   delay,
   onOpen,
-  id,
 }: {
+  id: string;
   title: string;
   sub: string;
   progress: number;
-  status: keyof typeof STATUS_HUE;
+  status: AgentStatus;
+  clickable: boolean;
   style: CSSProperties;
   delay: number;
   onOpen: () => void;
-  id: string;
 }) {
   const C = 2 * Math.PI * 16;
   const [shown, setShown] = useState(reducedMotion());
@@ -715,15 +1021,15 @@ function Pill({
     const t = window.setTimeout(() => setShown(true), delay);
     return () => window.clearTimeout(t);
   }, [delay, shown]);
-  const hue = STATUS_HUE[status];
   return (
     <button
       type="button"
-      className={"ag-pill-res" + (shown ? " is-in" : "")}
-      data-ag-map-result={id}
-      style={
-        { ...style, "--ring": `${hue[0]},${hue[1]},${hue[2]}` } as CSSProperties
+      className={
+        "ag-pill-res" + (shown ? " is-in" : "") + (clickable ? " is-go" : "")
       }
+      data-ag-map-result={id}
+      data-st={status}
+      style={style}
       onClick={(e) => {
         e.stopPropagation();
         onOpen();
@@ -750,14 +1056,24 @@ function Pill({
   );
 }
 
+const LEGEND: [AgentStatus, string][] = [
+  ["working", "Working"],
+  ["ok", "All good"],
+  ["waiting", "Needs your reply"],
+  ["alert", "Needs you now"],
+];
+
 /**
- * The Map: the night panel with the live constellation. One canvas, drawn on
- * requestAnimationFrame at 30 frames a second with device pixels capped at 2;
- * it stops while the tab is hidden or the panel is off screen, and with
- * reduced motion it is one still frame. Hover names a node and lights its
- * lines; a click opens an agent's card or an item inside Agents. Full screen
- * fills the window (Esc leaves it) and offers Presentation, which swaps the
- * owner's words for neutral ones.
+ * The Map (owner's final reference, 05.11.26): the whole window, one
+ * canvas drawn on requestAnimationFrame at 30 frames a second (24 on a
+ * phone) with device pixels capped at 2; it stops while the tab is hidden
+ * or the canvas is off screen, and with reduced motion it is one still
+ * frame. Agents carry a small label (their tile, their name, a status dot);
+ * the right column holds what needs you and what they did. Hover names a
+ * node; a click opens an agent's card, its question in Chat, or an item.
+ * Expand uses the Fullscreen API on the web and the whole window in the
+ * app; Presentation (in full screen) swaps the owner's words for neutral
+ * ones everywhere.
  */
 export function AgentsMap({
   data,
@@ -768,10 +1084,11 @@ export function AgentsMap({
   onOpenAgent,
   onOpenItem,
   onOpenThread,
+  onOpenChat,
 }: {
   data: MapInput;
   seed: number;
-  /** The hero pill's real counts, shown on the panel's bar. */
+  /** The real counts, shown small on the top bar. */
   status?: string | null;
   onNewLayout: () => void;
   /** Opens the first-visit setup again. */
@@ -779,15 +1096,19 @@ export function AgentsMap({
   onOpenAgent: (id: string) => void;
   onOpenItem: (id: string) => void;
   onOpenThread: (id: string) => void;
+  /** An agent waiting on your answer: its question is in Chat. */
+  onOpenChat?: () => void;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const tip = useRef<HTMLDivElement>(null);
+  const labelEls = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const portal = useV3PortalContainer();
   const [size, setSize] = useState({ w: 0, h: 0 });
   /** "window": the panel fills the app window; "screen": the Fullscreen API. */
   const [full, setFullMode] = useState<false | "window" | "screen">(false);
   const [presentation, setPresentation] = useState(false);
+  const [legend, setLegend] = useState(true);
   const live = useRef<Live>({
     hover: -1,
     pointer: null,
@@ -796,6 +1117,13 @@ export function AgentsMap({
   });
   live.current.presentation = presentation;
   const loop = useRef<ReturnType<typeof startLoop> | null>(null);
+
+  // The legend says what the colours mean, then fades after 8 s.
+  useEffect(() => {
+    setLegend(true);
+    const id = window.setTimeout(() => setLegend(false), LEGEND_MS);
+    return () => window.clearTimeout(id);
+  }, [seed]);
 
   // One observer, on the panel itself (PORT.md §8: never one per element).
   useEffect(() => {
@@ -815,6 +1143,7 @@ export function AgentsMap({
 
   // On the web the panel goes truly full screen; inside the desktop app (or
   // where the API is missing) it fills the app's window (owner, 05.11.26).
+  const toggled = useRef(false);
   const setFull = (on: boolean) => {
     toggled.current = true;
     const el = panel.current;
@@ -835,7 +1164,6 @@ export function AgentsMap({
     }
     setFullMode("window");
   };
-  // Esc or the system leaving full screen ends the mode.
   useEffect(() => {
     if (full !== "screen") return undefined;
     const left = () => {
@@ -872,17 +1200,16 @@ export function AgentsMap({
     document.addEventListener("keydown", esc, true);
     return () => document.removeEventListener("keydown", esc, true);
   }, [full]);
-  const toggled = useRef(false);
   useEffect(() => {
     if (!full) setPresentation(false);
-    // The panel moved (into the window, or back): focus stays on its button.
     if (!toggled.current) return;
     panel.current?.querySelector<HTMLElement>("[data-ag-map-full]")?.focus();
   }, [full]);
-  // Presentation on: a tooltip already showing an owner's title goes.
+  // Presentation on or off: a showing tooltip goes, the rows redraw.
   useEffect(() => {
     if (tip.current) tip.current.style.opacity = "0";
     live.current.moved = true;
+    loop.current?.poke();
   }, [presentation]);
 
   const scene = useMemo(
@@ -920,7 +1247,7 @@ export function AgentsMap({
       dpr,
       live.current,
       {
-        onHover: (index, px, py) => {
+        onHover: (index, x, y) => {
           const box = tip.current;
           if (!box) return;
           const node = index >= 0 ? scene.nodes[index] : null;
@@ -931,13 +1258,28 @@ export function AgentsMap({
             return;
           }
           box.textContent = text;
+          const small = document.createElement("small");
           if (node.kind === "agent") {
-            const more = document.createElement("small");
-            more.textContent = ` · ${scene.adj[index].length} links · open`;
-            box.appendChild(more);
+            const dot = document.createElement("i");
+            const c = STATUS_HUE[node.status].join(",");
+            dot.style.background = `rgb(${c})`;
+            dot.style.boxShadow = `0 0 8px rgba(${c},.9)`;
+            small.appendChild(dot);
+            small.append(live.current.presentation ? "" : (node.sub ?? ""));
+          } else {
+            small.append(node.sub ?? "");
           }
-          box.style.transform = `translate(${px + 14}px, ${py - 30}px)`;
+          box.appendChild(small);
+          box.style.transform = `translate(${x + 16}px, ${y - 40}px)`;
           box.style.opacity = "1";
+        },
+        onAgents: (list) => {
+          for (const l of list) {
+            const lab = labelEls.current.get(l.i);
+            if (!lab) continue;
+            lab.style.opacity = String(l.a);
+            lab.style.transform = `translate(${l.x.toFixed(1)}px,${l.y.toFixed(1)}px)`;
+          }
         },
       },
       clock.current
@@ -1007,12 +1349,21 @@ export function AgentsMap({
       ) ?? live.current.hover;
     if (i < 0) return;
     const node = s.nodes[i];
-    if (node.kind === "agent") onOpenAgent(node.id);
-    else if (node.kind === "item") onOpenItem(node.id);
+    if (node.kind === "agent") {
+      if (node.status === "waiting" && onOpenChat) onOpenChat();
+      else onOpenAgent(node.id);
+    } else if (node.kind === "item") onOpenItem(node.id);
     else if (node.kind === "thread") onOpenThread(node.id);
   };
+  const openPill = (go: { kind: "chat" | "agent" | "item"; id: string }) => {
+    if (go.kind === "chat" && onOpenChat) onOpenChat();
+    else if (go.kind === "item") onOpenItem(go.id);
+    else onOpenAgent(go.id);
+  };
 
-  const agents = scene ? scene.agents.map((i) => scene.nodes[i]) : [];
+  const agents = scene
+    ? scene.agents.map((i) => ({ i, n: scene.nodes[i] }))
+    : [];
   const body = (
     <div
       ref={panel}
@@ -1094,45 +1445,40 @@ export function AgentsMap({
           )}
         </button>
       </div>
-      {scene ? (
-        <div className="ag-map-srcs" aria-label="Sources">
-          {scene.sources.map((s, i) => (
-            <span
-              key={s.id}
-              className="ag-map-src"
-              style={{
-                left: s.x,
-                top: s.y,
-                animationDelay: `${200 + i * 60}ms`,
-              }}
-            >
-              {scene.phone ? s.short : s.label}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {scene?.results.map((r, i) => (
+      <div className="ag-alabs" aria-hidden="true">
+        {agents.map(({ i, n }) => (
+          <div
+            key={n.id}
+            ref={(el) => {
+              labelEls.current.set(i, el);
+            }}
+            className="ag-alab"
+            style={{ "--c": STATUS_HUE[n.status].join(",") } as CSSProperties}
+          >
+            <AgentIcon name={n.label ?? ""} size={18} />
+            <span>{n.label}</span>
+          </div>
+        ))}
+      </div>
+      {scene?.pills.map((pl, i) => (
         <Pill
-          key={r.id}
-          id={r.id}
-          title={presentation ? "Finished task" : r.title}
-          sub={[r.by, shortWhen(r.at)].filter(Boolean).join(" · ")}
-          progress={r.progress}
-          status={r.status}
+          key={pl.id}
+          id={pl.go.kind === "item" ? pl.go.id : pl.id}
+          title={presentation ? pl.neutral : pl.title}
+          sub={presentation && pl.go.kind === "item" ? "" : pl.sub}
+          progress={pl.progress}
+          status={pl.status}
+          clickable={pl.go.kind !== "item"}
           delay={1500 + i * 420}
-          style={{ left: r.x, top: r.y, width: r.w, height: r.h }}
-          onOpen={() => onOpenItem(r.id)}
+          style={{ left: pl.x, top: pl.y, width: pl.w, height: pl.h }}
+          onOpen={() => openPill(pl.go)}
         />
       ))}
-      <div className="ag-map-status-legend" aria-label="What the colours mean">
-        {(
-          [
-            ["working", "Working"],
-            ["ok", "All good"],
-            ["waiting", "Needs your reply"],
-            ["alert", "Needs you now"],
-          ] as const
-        ).map(([k, label]) => (
+      <div
+        className={"ag-map-status-legend" + (legend ? "" : " is-off")}
+        aria-label="What the colours mean"
+      >
+        {LEGEND.map(([k, label]) => (
           <span key={k}>
             <i
               aria-hidden="true"
@@ -1145,7 +1491,7 @@ export function AgentsMap({
       <div ref={tip} className="ag-map-tip" aria-hidden="true" />
       {agents.length ? (
         <ul className="ag-map-agents" aria-label="Agents on the map">
-          {agents.map((n) => (
+          {agents.map(({ n }) => (
             <li key={n.id}>
               <button
                 type="button"

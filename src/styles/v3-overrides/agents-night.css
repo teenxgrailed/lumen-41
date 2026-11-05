@@ -3028,3 +3028,142 @@
     bottom: 76px;
   }
 }
+
+/* ===== Map, final reference (approved 05.11.26) ===== */
+/* Agent labels: the tile, the name, a status dot; placed by the loop. */
+.needt-v3 .ag-alabs {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.needt-v3 .ag-alab {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px 3px 3px;
+  border-radius: 12px;
+  background: rgba(8, 9, 14, 0.55);
+  box-shadow: rgba(255, 255, 255, 0.09) 0 0 0 1px inset;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  font: 500 12px/16px var(--font-sans);
+  color: rgba(236, 242, 255, 0.85);
+  white-space: nowrap;
+  opacity: 0;
+  will-change: transform;
+}
+.needt-v3 .ag-alab::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgb(var(--c, var(--blue)));
+  box-shadow: 0 0 8px rgba(var(--c, var(--blue)), 0.9);
+}
+.needt-v3 .ag-alab .ag-mono,
+.needt-v3 .ag-alab [data-brand-icon] {
+  border-radius: 6px;
+}
+/* Pills: the ring glows in the status colour; red pulses fast, orange
+   gently, blue and green on the calm 5.2 s. */
+.needt-v3 .ag-pill-res {
+  --c: var(--blue);
+  --per: 5.2s;
+  padding: 0 20px 0 12px;
+}
+.needt-v3 .ag-pill-res[data-st="alert"] {
+  --c: 255, 84, 96;
+  --per: 1.6s;
+}
+.needt-v3 .ag-pill-res[data-st="waiting"] {
+  --c: 255, 159, 67;
+  --per: 3.4s;
+}
+.needt-v3 .ag-pill-res[data-st="ok"] {
+  --c: 72, 214, 138;
+}
+.needt-v3 .ag-pill-res::before {
+  background: radial-gradient(closest-side, rgba(var(--c), 0.3), transparent);
+}
+.needt-v3 .ag-pill-res[data-st="alert"]::before {
+  background: radial-gradient(closest-side, rgba(var(--c), 0.42), transparent);
+}
+.needt-v3 .ag-pill-res.is-go:hover,
+.needt-v3 .ag-pill-res[data-st="alert"]:hover {
+  box-shadow:
+    rgba(var(--c), 0.55) 0 0 0 1px inset,
+    #000 0 24px 60px -24px;
+}
+.needt-v3 .ag-pill-pg {
+  stroke: rgb(var(--c));
+  filter: drop-shadow(0 0 5px rgba(var(--c), 0.85));
+  animation: ag-ringglow2 var(--per) ease-in-out infinite;
+}
+@keyframes ag-ringglow2 {
+  50% {
+    filter: drop-shadow(0 0 10px rgba(var(--c), 1));
+  }
+}
+.needt-v3 .ag-pill-res[data-st="alert"] .ag-pill-pg {
+  animation-name: ag-ringred;
+}
+@keyframes ag-ringred {
+  50% {
+    filter: drop-shadow(0 0 14px rgba(var(--c), 1)) drop-shadow(0 0 4px rgba(var(--c), 1));
+    stroke-width: 4.5;
+  }
+}
+/* The legend fades out after 8 s. */
+.needt-v3 .ag-map-status-legend {
+  transition: opacity 1.2s;
+}
+.needt-v3 .ag-map-status-legend.is-off {
+  opacity: 0;
+}
+/* The hover label: a title and a quiet line with a status dot. */
+.needt-v3 .ag-map-tip {
+  padding: 7px 11px;
+  border-radius: 11px;
+  background: rgba(12, 14, 20, 0.88);
+}
+.needt-v3 .ag-map-tip small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font: 400 12px/16px var(--font-sans);
+  color: rgba(236, 242, 255, 0.55);
+}
+.needt-v3 .ag-map-tip small i {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+}
+/* The Chat tab's orange dot pulses on 3.4 s. */
+.needt-v3 .ag-tab {
+  position: relative;
+}
+.needt-v3 .ag-tab-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  animation: ag-dotp 3.4s ease-in-out infinite;
+}
+@keyframes ag-dotp {
+  50% {
+    box-shadow: 0 0 4px rgba(255, 159, 67, 0.5);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ag-tab-dot {
+    animation: none;
+  }
+}
