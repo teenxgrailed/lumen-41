@@ -4,7 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
   FiArrowUp,
-  FiChevronDown,
   FiList,
   FiMic,
   FiSquare,
@@ -35,13 +34,6 @@ type Run = (
   task: () => Promise<unknown>,
   done?: string
 ) => Promise<boolean | void>;
-
-/** Where the person came from, by `?from=`; a label only. */
-const FROM_LABEL: Record<string, string> = {
-  chatgpt: "ChatGPT",
-  claude: "Claude",
-  gemini: "Gemini",
-};
 
 const HINTS = [
   "Ask about your week…",
@@ -93,9 +85,6 @@ function speechRecognition(): (new () => SpeechRec) | null {
  * word. What agents ask you arrives in the same stream as cards with a
  * status rail (orange: waiting on you) and Approve / Answer. Threads are in
  * a slim drawer on the left; opening one swaps the column to it.
- *
- * //todo: "the AI you came from" (for example ChatGPT) cannot be answered
- * from Needt; `?from=` only names it in the chip. Replies come from Needt AI.
  */
 export function ChatTab({
   threads,
@@ -105,7 +94,6 @@ export function ChatTab({
   onOpenThread,
   onOpenItem,
   itemTitle,
-  from,
   run,
 }: {
   threads: HubThreadRow[];
@@ -117,13 +105,11 @@ export function ChatTab({
   onOpenThread: (id: string | null) => void;
   onOpenItem: (id: string) => void;
   itemTitle: (id: string) => string | null;
-  from: string | null;
   run: Run;
 }) {
   const ai = useAskNeedt();
   const wave = useRef<WaveHandle>(null);
   const [drawer, setDrawer] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [thread, setThread] = useState<string | null>(focusThread);
   const [line, setLine] = useState("");
   const [replyTo, setReplyTo] = useState<HubItemRow | null>(null);
@@ -154,7 +140,6 @@ export function ChatTab({
       : started
         ? "dock"
         : "chat";
-  const model = from && FROM_LABEL[from] ? FROM_LABEL[from] : "Needt AI";
   const Speech = speechRecognition();
 
   // The hint rotates every 7 s while the chat is empty.
@@ -212,13 +197,6 @@ export function ChatTab({
     },
     []
   );
-
-  useEffect(() => {
-    if (!menu) return undefined;
-    const away = () => setMenu(false);
-    document.addEventListener("click", away);
-    return () => document.removeEventListener("click", away);
-  }, [menu]);
 
   const pick = (id: string | null) => {
     setThread(id);
@@ -335,40 +313,10 @@ export function ChatTab({
             <span className="ag-round-dot" aria-hidden="true" />
           ) : null}
         </button>
-        <div className="ag-chip-box">
-          <button
-            type="button"
-            className="ag-chip2 ag-glass2"
-            aria-haspopup="menu"
-            aria-expanded={menu}
-            data-ag-model=""
-            onClick={(e) => {
-              e.stopPropagation();
-              setMenu(!menu);
-            }}
-          >
-            <i aria-hidden="true" />
-            {open ? open.subject : model}
-            <FiChevronDown size={11} aria-hidden />
-          </button>
-          {menu ? (
-            <div className="ag-menu2 ag-glass2" role="menu">
-              <button type="button" role="menuitem" onClick={() => pick(null)}>
-                Needt AI
-              </button>
-              {from && FROM_LABEL[from] ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled
-                  title="Answers come from Needt AI"
-                >
-                  {`From ${FROM_LABEL[from]}`}
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+        <span className="ag-chip2 ag-glass2" data-ag-model="">
+          <i aria-hidden="true" />
+          {open ? open.subject : "Needt AI"}
+        </span>
         {open ? (
           <button type="button" className="ag-link2" onClick={() => pick(null)}>
             Back to Needt AI

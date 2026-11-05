@@ -2098,10 +2098,6 @@
   background: rgb(255, 159, 67);
   box-shadow: 0 0 8px rgba(255, 159, 67, 0.9);
 }
-.needt-v3 .ag-chip-box {
-  position: relative;
-  min-width: 0;
-}
 .needt-v3 .ag-chip2 {
   max-width: 100%;
   height: 32px;
@@ -2115,10 +2111,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: default;
-}
-.needt-v3 .ag-chip2:hover {
-  color: rgb(236, 242, 255);
+  min-width: 0;
 }
 .needt-v3 .ag-chip2 i {
   flex: none;
@@ -2127,33 +2120,6 @@
   border-radius: 3px;
   background: rgb(var(--blue));
   box-shadow: 0 0 8px rgba(var(--blue), 0.9);
-}
-.needt-v3 .ag-menu2 {
-  position: absolute;
-  top: 38px;
-  left: 0;
-  z-index: 7;
-  min-width: 160px;
-  padding: 5px;
-  border-radius: 16px;
-}
-.needt-v3 .ag-menu2 button {
-  display: block;
-  width: 100%;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: 10px;
-  background: none;
-  text-align: left;
-  font: 400 13px/18px var(--font-sans);
-  color: rgba(236, 242, 255, 0.66);
-}
-.needt-v3 .ag-menu2 button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgb(236, 242, 255);
-}
-.needt-v3 .ag-menu2 button:disabled {
-  color: rgba(236, 242, 255, 0.35);
 }
 .needt-v3 .ag-link2 {
   margin-left: auto;

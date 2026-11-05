@@ -260,7 +260,6 @@ export function AgentsScreen() {
   const threadParam = params.get("thread");
   const agentParam = params.get("agent");
   const seedParam = params.get("seed");
-  const fromParam = params.get("from");
   const [tab, setTabState] = useState<Tab>(
     threadParam
       ? "chat"
@@ -758,7 +757,6 @@ export function AgentsScreen() {
         }}
         onOpenItem={openItem}
         itemTitle={(id) => items.find((i) => i.id === id)?.title ?? null}
-        from={fromParam}
         run={run}
       />
     );
