@@ -98,8 +98,8 @@ function Preview({ file }: { file: HubFile }) {
 /**
  * What an agent asks you, in Chat (owner's final reference, card v3): a
  * dark card on a tray in its status colour. The top line says what it is
- * and when; the agent, its question and the checks from the done-when list;
- * previews of the item's media (vertical, they play in place); Approve and
+ * and when; the agent and its question; previews of the item's media
+ * (vertical, they play in place); Approve and
  * Answer; the tray's foot says what waits, and after Approve offers Undo
  * for five seconds before anything is sent. Everything comes from the hub
  * item: what it does not have is not drawn.
@@ -142,8 +142,10 @@ export function ApprovalCard({
   const media = (files.data?.attachments ?? [])
     .filter((f) => f.mime.startsWith("video/") || f.mime.startsWith("image/"))
     .slice(0, 3);
-  const checks = item.criteria ?? [];
   const due = item.due ?? null;
+  // A post or a message has a send time; anything else has a due time.
+  const posts = item.risks.some((r) => r === "publish" || r === "send_message");
+  const when = due ? `${posts ? "posts at" : "due"} ${hhmm(due)}` : null;
   const left = due ? until(due, now) : null;
   const ok = pending || done === "approved" || done === "answered";
 
@@ -207,16 +209,6 @@ export function ApprovalCard({
             </div>
           ) : null}
         </div>
-        {checks.length ? (
-          <ul className="ag-checks" aria-label="Checks">
-            {checks.map((c, i) => (
-              <li key={i} className={c.met ? "is-met" : "is-open"}>
-                <i aria-hidden="true" />
-                {c.text}
-              </li>
-            ))}
-          </ul>
-        ) : null}
         {ok ? null : (
           <div className="ag-acard3-btns">
             {risky ? (
@@ -241,7 +233,7 @@ export function ApprovalCard({
         {pending ? (
           <>
             <FiCheck size={16} aria-hidden />
-            Approved
+            {`Approved${when ? ` · ${agent} ${when}` : ""}`}
             <button type="button" data-ag-undo="" onClick={undo}>
               Undo
             </button>
@@ -249,14 +241,74 @@ export function ApprovalCard({
         ) : done ? (
           <>
             <FiCheck size={16} aria-hidden />
-            {done === "approved" ? "Approved" : "Answered"}
+            {done === "approved"
+              ? `Approved${when ? ` · ${agent} ${when}` : ""}`
+              : "Answered"}
           </>
         ) : (
           <>
             <FiZap size={16} aria-hidden />
-            {`Waiting for you${due ? ` · due ${hhmm(due)}` : ""}`}
+            {`Waiting for you${when ? ` · ${when}` : ""}`}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Something is broken or urgent (red): a revoked token, a failed task. The
+ * same card on a red tray, with the reason and the one action that fixes
+ * it.
+ */
+export function AlertCard({
+  agent,
+  what,
+  reason,
+  at,
+  action,
+  onAction,
+}: {
+  agent: string;
+  what: string;
+  reason: string;
+  at: string | null;
+  action: string;
+  onAction: () => void;
+}) {
+  return (
+    <div className="ag-tray is-alert" data-ag-alert={agent}>
+      <div className="ag-acard3">
+        <div className="ag-acard3-top">
+          <span className="ag-acard3-what">{what}</span>
+          {at ? (
+            <span>
+              <FiClock size={14} aria-hidden />
+              {hhmm(at)}
+            </span>
+          ) : null}
+        </div>
+        <div className="ag-acard3-who">
+          <span className="ag-acard3-av">
+            <AgentIcon name={agent} size={30} />
+          </span>
+          <div className="ag-acard3-q">
+            <b>{agent}</b>
+            <small>
+              <i aria-hidden="true" />
+              {reason}
+            </small>
+          </div>
+        </div>
+        <div className="ag-acard3-btns">
+          <button type="button" data-ag-alert-action="" onClick={onAction}>
+            {action}
+          </button>
+        </div>
+      </div>
+      <div className="ag-tray-foot">
+        <FiZap size={16} aria-hidden />
+        Needs you now
       </div>
     </div>
   );

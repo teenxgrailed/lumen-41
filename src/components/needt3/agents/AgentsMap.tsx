@@ -313,7 +313,7 @@ export interface Live {
 export function startLoop(
   ctx: CanvasRenderingContext2D,
   scene: MapScene,
-  dpr: number,
+  dprStart: number,
   live: Live,
   hooks: {
     onHover: (index: number, x: number, y: number) => void;
@@ -338,7 +338,24 @@ export function startLoop(
   // A phone rasterises the canvas on a slow CPU (perf, iPhone 13 at 4x):
   // fewer frames, no additive blending, fewer glows.
   const lite = scene.phone;
-  const frameMs = lite ? 1000 / 24 : FRAME_MS;
+  // Adaptive quality: while the smoothed frame time stays over 22 ms for
+  // 1.5 s, the resolution steps down to 1, then the frame rate. Only the
+  // canvas's pixel size changes; the scene is not rebuilt.
+  let dpr = dprStart;
+  let frameMs = lite ? 1000 / 24 : FRAME_MS;
+  let ema = 0;
+  let slowSince = 0;
+  const degrade = (now: number) => {
+    if (dpr > 1) {
+      dpr = Math.max(1, Math.round((dpr - 0.25) * 4) / 4);
+      ctx.canvas.width = Math.round(W * dpr);
+      ctx.canvas.height = Math.round(H * dpr);
+    } else if (frameMs < 1000 / 20) {
+      frameMs = 1000 / 20;
+    }
+    slowSince = now;
+    ema = 0;
+  };
   const px = new Float32Array(N);
   const py = new Float32Array(N);
   const lit = new Float32Array(N);
@@ -962,7 +979,14 @@ export function startLoop(
     if (!running) return;
     if (now - last >= frameMs - 2) {
       last = now;
+      const t0 = performance.now();
       frame(now);
+      const took = performance.now() - t0;
+      ema = ema ? ema * 0.9 + took * 0.1 : took;
+      if (ema > 22) {
+        if (!slowSince) slowSince = now;
+        else if (now - slowSince > 1500) degrade(now);
+      } else slowSince = 0;
     }
     raf = requestAnimationFrame(loop);
   };
@@ -985,6 +1009,8 @@ export function startLoop(
       if (still || !running) frame(performance.now());
     },
     drift: () => drift,
+    /** The current pixel ratio and frame interval (adaptive quality). */
+    quality: () => ({ dpr, frameMs }),
     /** The real node under a point, against the last frame (a tap). */
     hitAt(x: number, y: number) {
       return nearestReal(x, y);
@@ -1231,8 +1257,17 @@ export function AgentsMap({
     if (!el || !scene) return undefined;
     const ctx = el.getContext?.("2d");
     if (!ctx) return undefined;
-    // Device pixels at most 2, and 1.5 on a phone (see `lite` in startLoop).
-    const dpr = Math.min(scene.phone ? 1.5 : 2, window.devicePixelRatio || 1);
+    // Device pixels at most 2; 1.5 on a phone and 1.25 in Safari, where the
+    // canvas costs the most (owner's report, 05.11.26). Adaptive quality
+    // lowers them further when frames run long.
+    const safari =
+      typeof navigator !== "undefined" &&
+      /Safari\//.test(navigator.userAgent) &&
+      !/Chrome|Chromium|CriOS|Edg\//.test(navigator.userAgent);
+    const dpr = Math.min(
+      safari ? 1.25 : scene.phone ? 1.5 : 2,
+      window.devicePixelRatio || 1
+    );
     el.width = Math.round(scene.width * dpr);
     el.height = Math.round(scene.height * dpr);
     if (!clock.current || clock.current.seed !== seed) {

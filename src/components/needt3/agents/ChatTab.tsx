@@ -16,10 +16,20 @@ import { sendJson } from "@/lib/needt3/hooks/core";
 import { useAskNeedt } from "../corner/useAskNeedt";
 import { listKeys, shortWhen } from "./AgParts";
 import { AgentIcon } from "./AgentIcon";
-import { ApprovalCard } from "./ApprovalCard";
+import { AlertCard, ApprovalCard } from "./ApprovalCard";
 import { ChatWave, type WaveHandle, type WaveMode } from "./ChatWave";
 import { type HubThreadRow, ThreadDetail } from "./MessagesTab";
 import type { HubItemRow } from "./TasksTab";
+
+export interface ChatAlert {
+  key: string;
+  agent: string;
+  what: string;
+  reason: string;
+  at: string | null;
+  action: string;
+  run: () => void;
+}
 
 type Run = (task: () => Promise<unknown>, done?: string) => Promise<void>;
 
@@ -87,6 +97,7 @@ function speechRecognition(): (new () => SpeechRec) | null {
 export function ChatTab({
   threads,
   waiting,
+  alerts = [],
   focusThread,
   onOpenThread,
   onOpenItem,
@@ -97,6 +108,8 @@ export function ChatTab({
   threads: HubThreadRow[];
   /** Items an agent is waiting on you for. */
   waiting: HubItemRow[];
+  /** Broken or urgent (red): a revoked token, a failed task. */
+  alerts?: ChatAlert[];
   focusThread: string | null;
   onOpenThread: (id: string | null) => void;
   onOpenItem: (id: string) => void;
@@ -125,7 +138,10 @@ export function ChatTab({
   const unread = threads.filter((t) => t.ownerUnread);
   const busy = ai.phase !== "idle";
   const started =
-    ai.messages.length > 0 || waiting.length > 0 || unread.length > 0;
+    ai.messages.length > 0 ||
+    waiting.length > 0 ||
+    unread.length > 0 ||
+    alerts.length > 0;
   const mode: WaveMode = open
     ? "dock"
     : busy
@@ -404,6 +420,17 @@ export function ChatTab({
           />
         ) : (
           <>
+            {alerts.map((a) => (
+              <AlertCard
+                key={a.key}
+                agent={a.agent}
+                what={a.what}
+                reason={a.reason}
+                at={a.at}
+                action={a.action}
+                onAction={a.run}
+              />
+            ))}
             {waiting.map((item) => (
               <ApprovalCard
                 key={item.id}

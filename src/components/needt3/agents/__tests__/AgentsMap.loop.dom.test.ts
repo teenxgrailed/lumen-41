@@ -175,4 +175,42 @@ describe("Map drawing loop", () => {
     // A minute in, the entry is over and the mood is still the one it had.
     expect(clock.mood).toBe(2);
   });
+
+  it("steps the resolution down when frames run long, without a rebuild", () => {
+    const scene = buildMapScene(input, 5, 1200, 620);
+    const { ctx } = fakeContext();
+    const canvas = { width: 2400, height: 1240 };
+    Object.defineProperty(ctx, "canvas", { value: canvas });
+    let queued: ((t: number) => void) | null = null;
+    const raf = jest
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb) => {
+        queued = cb;
+        return 1;
+      });
+    // Every frame "takes" 30 ms.
+    let clockMs = 0;
+    const now = jest
+      .spyOn(performance, "now")
+      .mockImplementation(() => (clockMs += 30));
+    const loop = startLoop(
+      ctx,
+      scene,
+      2,
+      { hover: -1, pointer: null, moved: false, presentation: false },
+      { onHover: () => undefined }
+    );
+    loop.run();
+    for (let f = 1; f <= 120 && queued; f++) {
+      const cb: (t: number) => void = queued;
+      queued = null;
+      cb(f * 40);
+    }
+    loop.pause();
+    raf.mockRestore();
+    now.mockRestore();
+    const q = loop.quality();
+    expect(q.dpr).toBeLessThan(2);
+    expect(canvas.width).toBe(Math.round(1200 * q.dpr));
+  });
 });

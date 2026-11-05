@@ -37,7 +37,7 @@ import {
   agentSeen,
   agentState,
 } from "./AgentsTab";
-import { ChatTab } from "./ChatTab";
+import { type ChatAlert, ChatTab } from "./ChatTab";
 import { MemoryTab, noteTags } from "./MemoryTab";
 import { useHubThreads } from "./MessagesTab";
 import {
@@ -409,13 +409,9 @@ export function AgentsScreen() {
         if (i.status === "failed") {
           list.push("alert");
           reason ??= "a task failed";
-        } else if (
-          i.status === "needs_owner" &&
-          i.risks.some((r) => !i.approvals[r])
-        ) {
-          list.push("alert");
-          reason ??= "approval needed";
         } else if (i.status === "needs_owner") {
+          // A question or an approval waits on you: orange, not red (owner,
+          // 05.11.26). Red is for broken: a revoked token, a failed task.
           list.push("waiting");
           asked ??= i.question ?? i.title;
         }
@@ -436,6 +432,32 @@ export function AgentsScreen() {
     }
     return map;
   }, [agents, items, working, nowOf]);
+  // Red in Chat: what is broken, with the one action that fixes it.
+  const chatAlerts: ChatAlert[] = [];
+  for (const a of live) {
+    if (a.token?.revoked)
+      chatAlerts.push({
+        key: `revoked-${a.id}`,
+        agent: a.name,
+        what: "Connection",
+        reason: "Connection expired — make a new token to reconnect",
+        at: a.token.lastUsedAt,
+        action: "Reconnect",
+        run: () => openAgent(a.id),
+      });
+  }
+  for (const i of items) {
+    if (i.status !== "failed" || !i.assignee || i.assignee === "any") continue;
+    chatAlerts.push({
+      key: `failed-${i.id}`,
+      agent: i.assignee.name ?? "An agent",
+      what: "Task failed",
+      reason: i.title,
+      at: i.updatedAt,
+      action: "Open task",
+      run: () => openItem(i.id),
+    });
+  }
   // The setup opens once on a first visit, and again from "Replay setup".
   const [onboarded, setOnboarded] = useState(onboardingSeen);
   const showOnboarding = !onboarded && overview.data !== undefined;
@@ -760,6 +782,7 @@ export function AgentsScreen() {
       <ChatTab
         threads={threadRows}
         waiting={items.filter(waitsForYou)}
+        alerts={chatAlerts}
         focusThread={threadFocus}
         onOpenThread={(id) => {
           setThreadFocus(id);

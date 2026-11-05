@@ -3449,3 +3449,45 @@
     animation: none;
   }
 }
+
+/* Red tray: broken or urgent, with the one action that fixes it. */
+.needt-v3 .ag-tray.is-alert {
+  --c: 255, 84, 96;
+}
+
+/* ===== Safari: nothing with backdrop-filter over a live canvas =====
+   Safari re-blurs it every frame (owner's report, 05.11.26). Everything
+   that floats over the Map or the Chat wave takes a dense dark fill
+   instead. */
+.needt-v3 .ag-pill-res,
+.needt-v3 .ag-alab,
+.needt-v3 .ag-map-tip,
+.needt-v3 .ag-map-ib,
+.needt-v3 .ag-map-out,
+.needt-v3 .ag-tabs.ag-dock,
+.needt-v3 .ag-glass2,
+.needt-v3 .ag-map-agents button {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.needt-v3 .ag-pill-res {
+  background: linear-gradient(180deg, rgba(24, 26, 34, 0.94), rgba(14, 15, 21, 0.92));
+}
+.needt-v3 .ag-alab {
+  background: rgba(8, 9, 14, 0.88);
+}
+.needt-v3 .ag-map-tip {
+  background: rgba(12, 14, 20, 0.95);
+}
+.needt-v3 .ag-map-ib {
+  background: rgba(18, 20, 28, 0.88);
+}
+.needt-v3 .ag-map-ib:hover {
+  background: rgba(30, 32, 42, 0.92);
+}
+.needt-v3 .ag-tabs.ag-dock {
+  background: rgba(14, 16, 24, 0.9);
+}
+.needt-v3 .ag-glass2 {
+  background: rgba(20, 21, 27, 0.92);
+}

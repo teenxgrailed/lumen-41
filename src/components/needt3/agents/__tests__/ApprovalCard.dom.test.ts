@@ -100,11 +100,13 @@ describe("ApprovalCard", () => {
     expect($(".ag-acard3-q small")?.textContent).toContain(
       "Post 2 shorts at 18:00?"
     );
-    expect(host.querySelectorAll(".ag-checks li")).toHaveLength(2);
+    // No checklist on the card (owner, 05.11.26): question, previews, two buttons.
+    expect(host.querySelector(".ag-checks")).toBeNull();
     act(() => $("[data-ag-approve]")!.click());
     expect($("[data-ag-ask]")?.getAttribute("data-ag-ask-state")).toBe(
       "pending"
     );
+    expect($(".ag-tray-foot")?.textContent).toContain("Approved");
     act(() => $("[data-ag-undo]")!.click());
     act(() => {
       jest.advanceTimersByTime(UNDO_MS + 100);
