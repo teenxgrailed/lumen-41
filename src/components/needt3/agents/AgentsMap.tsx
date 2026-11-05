@@ -764,6 +764,7 @@ export function AgentsMap({
   seed,
   status,
   onNewLayout,
+  onReplaySetup,
   onOpenAgent,
   onOpenItem,
   onOpenThread,
@@ -773,6 +774,8 @@ export function AgentsMap({
   /** The hero pill's real counts, shown on the panel's bar. */
   status?: string | null;
   onNewLayout: () => void;
+  /** Opens the first-visit setup again. */
+  onReplaySetup?: () => void;
   onOpenAgent: (id: string) => void;
   onOpenItem: (id: string) => void;
   onOpenThread: (id: string) => void;
@@ -1032,6 +1035,19 @@ export function AgentsMap({
           </span>
         ) : null}
         <span className="ag-map-sp" />
+        {onReplaySetup && !full ? (
+          <button
+            type="button"
+            className="ag-map-link"
+            data-ag-replay-setup=""
+            onClick={(e) => {
+              e.stopPropagation();
+              onReplaySetup();
+            }}
+          >
+            Replay setup
+          </button>
+        ) : null}
         {full ? (
           <button
             type="button"

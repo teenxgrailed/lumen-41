@@ -290,6 +290,8 @@ beforeAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // The setup shows once per device; most tests start past it.
+  window.localStorage.setItem("needt:agents-onboarded", "1");
   (fetchJson as jest.Mock).mockImplementation((url: string) =>
     Promise.resolve(route(url))
   );
@@ -523,7 +525,7 @@ describe("Agents screen", () => {
     ).not.toBeNull();
   });
 
-  it("opens the onboarding on a first visit with nothing connected", async () => {
+  it("opens the setup on a first visit, and Not now leaves it", async () => {
     window.localStorage.clear();
     (fetchJson as jest.Mock).mockImplementation((url: string) =>
       Promise.resolve(

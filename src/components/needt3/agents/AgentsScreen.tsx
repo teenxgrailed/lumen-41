@@ -28,7 +28,7 @@ import { StScreen } from "../states/StScreen";
 import { ActivityTab } from "./ActivityTab";
 import { AgentHueProvider, agentHueMap } from "./AgParts";
 import { AgentsMap } from "./AgentsMap";
-import { AgentsOnboarding, onboardingSeen } from "./AgentsOnboarding";
+import { AgentsSetup, onboardingSeen } from "./AgentsSetup";
 import {
   type AgentState,
   AgentsTab,
@@ -411,10 +411,9 @@ export function AgentsScreen() {
     }
     return map;
   }, [agents, items, working]);
-  // First visit with nothing connected: the onboarding over the Map.
+  // The setup opens once on a first visit, and again from "Replay setup".
   const [onboarded, setOnboarded] = useState(onboardingSeen);
-  const showOnboarding =
-    !onboarded && overview.data !== undefined && agents.length === 0;
+  const showOnboarding = !onboarded && overview.data !== undefined;
 
   const freshMap: MapInput = {
     now: newDate().getTime(),
@@ -783,6 +782,7 @@ export function AgentsScreen() {
                 seed={seed}
                 status={overview.data ? statsLine(stats) : null}
                 onNewLayout={() => setSeed(freshSeed())}
+                onReplaySetup={() => setOnboarded(false)}
                 onOpenAgent={openAgent}
                 onOpenItem={openItem}
                 onOpenThread={openThread}
@@ -791,13 +791,10 @@ export function AgentsScreen() {
               <div className="ag-map-panel is-loading" aria-busy="true" />
             )}
             {showOnboarding ? (
-              <AgentsOnboarding
+              <AgentsSetup
+                agentCount={live.length}
                 onDone={() => setOnboarded(true)}
-                onConnect={() => {
-                  setOnboarded(true);
-                  setManualGuide(true);
-                  setTab("agents");
-                }}
+                onFinish={() => setSeed(freshSeed())}
               />
             ) : null}
           </div>
