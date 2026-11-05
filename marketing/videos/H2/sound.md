@@ -11,11 +11,11 @@ Voice: the same "Needt Hivemind" as H1. Copy `H1/v3/audio/voice.json` into `H2/a
 | 0.3–1.0 | week grid fades in | low room tone, soft | — |
 | 0.9 → 1.7 | 9 overdue cards drop onto Today, one every 0.1 s | #1 card thud on each, pitch randomised ±2 st | — |
 | 1.9 | pinned task appears | #2 pin click | — |
-| 2.1–4.6 | the pile trembles | #3 rattling tension, rising | 2.3 "Nine things. One day." |
+| 2.1–4.6 | the pile trembles | #3 rattling tension, rising | 1.0 "Nine things. One day." |
 | 2.9 | "n" mark appears | — | — |
-| 3.6 / 4.1 / 4.6 | mark pulses | #4 sonar pulse on each | 3.7 "Let it plan." |
+| 3.6 / 4.1 / 4.6 | mark pulses | #4 sonar pulse on each | 4.0 "Let it plan." |
 | 4.6 → 7.06 | task i leaves at 4.6 + 0.22·i, lands 0.7 s later | #5 short whoosh on each leave; quiet tick on each land | — |
-| 7.3 | free time lights up | #6 relief bloom | 7.4 "All nine placed. Now watch today." |
+| 7.3 | free time lights up | #6 relief bloom | 6.9 "All nine placed. Now watch today." |
 | 7.9–9.9 | "now" line runs down Today, ticks tasks it passes | #7 glassy tick on each tick (sync to `passed()`); the pin stays put, no sound on it | — |
 | 10.1–10.6 | calendar fades out | near-silence | — |
 | 10.7 / 10.9 / 11.35 | end mark, "It plans the day." / "You just show up." | #8 reverse swell into hit on 10.9 | 11.35 "You just show up." |
@@ -35,3 +35,7 @@ Voice: the same "Needt Hivemind" as H1. Copy `H1/v3/audio/voice.json` into `H2/a
 | 8 | reverse swell building into a deep cinematic logo hit, short dark tail | 2.2 s |
 
 Mix: voice leads, SFX duck 3 dB under each line; the 9 thuds and 9 whooshes must not pile into noise — keep each at -10 dB relative to #3/#6; -14 LUFS, true peak -1 dBTP.
+
+## Takes (05.11.2026)
+
+Generated on ElevenLabs Starter with the shared voice "Needt Hivemind". Lines are retimed to the real takes so none overlap. `mix.json` holds the final times.

@@ -1,5 +1,5 @@
 {
-  "note": "Times from H2/sound.md (scene.js 3c138c9). The 'now'-line ticks are spaced evenly over 7.9\u20139.9; snap them to passed() in scene.js before the final mix. Logo swell starts 1.2 s before its hit.",
+  "note": "Times from H2/sound.md (scene.js 3c138c9). The 'now'-line ticks are spaced evenly over 7.9\u20139.9; snap them to passed() in scene.js before the final mix. Logo swell starts 1.2 s before its hit. Lines retimed 05.11 to the generated takes so none overlap.",
   "renders": [
     {
       "video": "H2_9x16.mp4",
@@ -15,15 +15,15 @@
   "lines": [
     {
       "id": "vo1_nine",
-      "at": 2.3
+      "at": 1.0
     },
     {
       "id": "vo2_plan",
-      "at": 3.7
+      "at": 4.0
     },
     {
       "id": "vo3_sorted",
-      "at": 7.4
+      "at": 6.9
     },
     {
       "id": "vo4_showup",

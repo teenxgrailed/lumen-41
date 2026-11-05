@@ -1,5 +1,5 @@
 {
-  "note": "Times from H3/sound.md (scene.js 3c138c9). Logo swell starts 1.2 s before its hit.",
+  "note": "Times from H3/sound.md (scene.js 3c138c9). Logo swell starts 1.2 s before its hit. Lines retimed 05.11 to the generated takes so none overlap.",
   "renders": [
     {
       "video": "H3_9x16.mp4",
@@ -15,11 +15,11 @@
   "lines": [
     {
       "id": "vo1_sources",
-      "at": 1.1
+      "at": 0.4
     },
     {
       "id": "vo2_sync",
-      "at": 3.5
+      "at": 3.7
     },
     {
       "id": "vo3_place",
@@ -27,7 +27,7 @@
     },
     {
       "id": "vo4_add",
-      "at": 6.6
+      "at": 6.8
     },
     {
       "id": "vo5_everywhere",
