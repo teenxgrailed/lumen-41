@@ -3491,3 +3491,35 @@
 .needt-v3 .ag-glass2 {
   background: rgba(20, 21, 27, 0.92);
 }
+
+/* Layout fixes seen in the CI shots (05.11.26). */
+/* The Map shows no counts (final reference); they stay for screen readers. */
+.needt-v3 .ag-map-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* The legend sits clear of the tab bar; a phone has no room for it. */
+.needt-v3 .ag-map-panel:not([data-ag-map-phone]) .ag-map-status-legend {
+  bottom: 84px;
+}
+.needt-v3 [data-ag-map-phone] .ag-map-status-legend {
+  display: none;
+}
+/* On a phone the app's own dock sits at the bottom: the Agents tab bar
+   and Chat's input rise above it. */
+.needt-v3[data-ui="phone"] .ag-tabs.ag-dock {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
+}
+.needt-v3[data-ui="phone"] .ag-composer {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 146px);
+}
+.needt-v3[data-ui="phone"] .ag-cmsgs {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 212px);
+}
+.needt-v3[data-ui="phone"] .ag-night .ag-page {
+  padding-bottom: 200px;
+}

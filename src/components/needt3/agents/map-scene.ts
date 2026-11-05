@@ -598,7 +598,7 @@ export function buildMapScene(
   const pills: MapPill[] = shown.map((p, i) => {
     const x = phone ? 16 : W - pw - 44;
     const y = phone
-      ? clamp(H - 150 - (shown.length - i) * 66, 12 + i * 66, H - ph - 12)
+      ? clamp(H - 230 - (shown.length - i) * 66, 12 + i * 66, H - ph - 12)
       : clamp(
           H * 0.5 + (i - (shown.length - 1) / 2) * step - ph / 2,
           12,
