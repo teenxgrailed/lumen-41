@@ -119,7 +119,13 @@ jest.mock("@/lib/needt3/hooks/settings", () => ({
   useTimeZone: () => "UTC",
   // Connections' first-visit setup: already skipped; its own suite opens it.
   useSettings: () => ({
-    data: { prefs: { connectionsSetup: "skipped" }, userId: "u1" },
+    data: {
+      prefs: {
+        [jest.requireActual("../../../connections/setup-keys").SETUP_PREF]:
+          "skipped",
+      },
+      userId: "u1",
+    },
   }),
   useSetPref: () => () => Promise.resolve(null),
 }));

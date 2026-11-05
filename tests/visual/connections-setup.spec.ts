@@ -44,13 +44,10 @@ async function prepare(page: Page, theme: "dark" | "light") {
   });
   await signInVisualUser(page);
   // The setup opens only while it was never skipped or finished.
-  const cur = await page.request.get("/api/user-settings");
-  const row = (await cur.json().catch(() => ({}))) as {
-    prefs?: Record<string, unknown>;
-  };
-  const prefs = { ...(row.prefs ?? {}) };
-  delete prefs[SETUP_PREF];
-  await page.request.patch("/api/user-settings", { data: { prefs } });
+  // `prefs` is a patch the server merges; null removes the key.
+  await page.request.patch("/api/user-settings", {
+    data: { prefs: { [SETUP_PREF]: null } },
+  });
   const themeResponse = await page.request.patch("/api/user-settings", {
     data: { theme },
   });

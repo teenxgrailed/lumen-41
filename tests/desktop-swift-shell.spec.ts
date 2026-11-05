@@ -17,12 +17,9 @@ import { createV3User, signInAs } from "./helpers/v3-user";
 
 /** Connections' first-visit setup, marked skipped in the person's settings. */
 async function markConnectionsSetupSeen(page: import("@playwright/test").Page) {
-  const cur = await page.request.get("/api/user-settings");
-  const row = (await cur.json().catch(() => ({}))) as {
-    prefs?: Record<string, unknown>;
-  };
+  // `prefs` is a patch the server merges into the stored map.
   await page.request.patch("/api/user-settings", {
-    data: { prefs: { ...(row.prefs ?? {}), [SETUP_PREF]: "skipped" } },
+    data: { prefs: { [SETUP_PREF]: "skipped" } },
   });
 }
 

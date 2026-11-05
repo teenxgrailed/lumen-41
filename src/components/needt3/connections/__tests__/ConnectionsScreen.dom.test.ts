@@ -18,6 +18,7 @@ import { notify } from "@/lib/notifications";
 
 import { V3PortalScope } from "../../ctx/PortalScope";
 import { ConnectionsScreen } from "../ConnectionsScreen";
+import { SETUP_PREF, SETUP_RUN_KEY, setupRunKey } from "../setup-keys";
 import { useConnectionsController } from "../useConnectionsController";
 
 (
@@ -70,12 +71,22 @@ jest.mock("@/lib/notifications", () => ({
   notify: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
 /** The person's settings as the server keeps them (survives a sign-out). */
-const serverPrefs: { current: Record<string, unknown> } = { current: {} };
+const serverPrefs: {
+  current: Record<string, unknown>;
+  /** Writes that fail before one succeeds (a network blip). */
+  failures: number;
+  writes: number;
+} = { current: {}, failures: 0, writes: 0 };
 jest.mock("@/lib/needt3/hooks/settings", () => ({
   useSettings: () => ({
     data: { prefs: serverPrefs.current, userId: "u1" },
   }),
   useSetPref: () => (key: string, value: unknown) => {
+    serverPrefs.writes += 1;
+    if (serverPrefs.failures > 0) {
+      serverPrefs.failures -= 1;
+      return Promise.reject(new Error("offline"));
+    }
     serverPrefs.current = { ...serverPrefs.current, [key]: value };
     return Promise.resolve(null);
   },
@@ -216,7 +227,7 @@ beforeEach(() => {
   window.localStorage.clear();
   window.sessionStorage.clear();
   // The first-visit setup has its own suite at the end of this file.
-  serverPrefs.current = { connectionsSetup: "skipped" };
+  serverPrefs.current = { [SETUP_PREF]: "skipped" };
   window.history.replaceState(null, "", "/");
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -962,9 +973,11 @@ describe("the first-visit setup", () => {
   const { startOAuth } = jest.requireMock("@/lib/needt3/hooks/catalog") as {
     startOAuth: jest.Mock;
   };
-  const RUN = "needt.cnSetupRun:u1";
+  const RUN = setupRunKey("u1");
   beforeEach(() => {
     serverPrefs.current = {};
+    serverPrefs.failures = 0;
+    serverPrefs.writes = 0;
     startOAuth.mockReset();
     startOAuth.mockResolvedValue({ ok: true });
   });
@@ -1006,7 +1019,7 @@ describe("the first-visit setup", () => {
     click($("[data-cs-skip]"));
     expect(step()).toBe("3");
     expect(text(".cs-title")).toBe("Set up later");
-    expect(serverPrefs.current.connectionsSetup).toBe("skipped");
+    expect(serverPrefs.current[SETUP_PREF]).toBe("skipped");
     click($("[data-cs-go]"));
     expect(step()).toBeNull();
     expect($("[data-cn-card]")).not.toBeNull();
@@ -1022,7 +1035,7 @@ describe("the first-visit setup", () => {
     expect(step()).toBe("2");
     click($("[data-cs-close]"));
     expect(step()).toBeNull();
-    expect(serverPrefs.current.connectionsSetup).toBe("skipped");
+    expect(serverPrefs.current[SETUP_PREF]).toBe("skipped");
     expect(window.sessionStorage.getItem(RUN)).toBeNull();
     await frame();
     expect(document.activeElement).toBe($("[data-cn-setup-open]"));
@@ -1036,7 +1049,7 @@ describe("the first-visit setup", () => {
     expect(step()).toBe("1");
     esc();
     expect(step()).toBeNull();
-    expect(serverPrefs.current.connectionsSetup).toBe("skipped");
+    expect(serverPrefs.current[SETUP_PREF]).toBe("skipped");
   });
   it("Escape inside the iCloud form cancels the form (skips iCloud), not the setup", () => {
     window.sessionStorage.setItem(
@@ -1052,7 +1065,7 @@ describe("the first-visit setup", () => {
     esc($("[data-cs-caldav]"));
     expect(step()).toBe("2");
     expect($("[data-cs-card=icloud-calendar]").dataset.state).toBe("skipped");
-    expect(serverPrefs.current.connectionsSetup).toBeUndefined();
+    expect(serverPrefs.current[SETUP_PREF]).toBeUndefined();
   });
   it("step 2 connects through the card's own flow and keeps the run under the person", async () => {
     render();
@@ -1069,7 +1082,7 @@ describe("the first-visit setup", () => {
     expect(startOAuth).toHaveBeenCalledWith("/api/calendar/google/auth");
     expect(JSON.parse(window.sessionStorage.getItem(RUN) ?? "{}").step).toBe(2);
     // Not under a bare key another person on this device would resume.
-    expect(window.sessionStorage.getItem("needt.cnSetupRun")).toBeNull();
+    expect(window.sessionStorage.getItem(SETUP_RUN_KEY)).toBeNull();
   });
   it("back from the provider it resumes step 2 with that source connected", () => {
     window.sessionStorage.setItem(
@@ -1096,7 +1109,27 @@ describe("the first-visit setup", () => {
       "google-calendar",
     ]);
     click($("[data-cs-go]"));
-    expect(serverPrefs.current.connectionsSetup).toBe("done");
+    expect(serverPrefs.current[SETUP_PREF]).toBe("done");
+  });
+  it("a failed save is tried once more, and this session does not reopen it meanwhile", async () => {
+    serverPrefs.failures = 2; // both tries fail
+    render();
+    click($("[data-cs-close]"));
+    expect(step()).toBeNull();
+    remount();
+    expect(step()).toBeNull();
+    await act(async () => void (await new Promise((r) => setTimeout(r, 1100))));
+    expect(serverPrefs.writes).toBe(2);
+    expect(serverPrefs.current[SETUP_PREF]).toBeUndefined();
+    // One failure, then the retry lands on the server.
+    serverPrefs.failures = 1;
+    serverPrefs.writes = 0;
+    window.sessionStorage.clear();
+    remount();
+    click($("[data-cs-close]"));
+    await act(async () => void (await new Promise((r) => setTimeout(r, 1100))));
+    expect(serverPrefs.writes).toBe(2);
+    expect(serverPrefs.current[SETUP_PREF]).toBe("skipped");
   });
   it("does not open when something is connected; Set up opens it", () => {
     accountsData = [acct({})];

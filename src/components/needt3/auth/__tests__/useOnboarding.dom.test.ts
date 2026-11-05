@@ -118,28 +118,26 @@ describe("before settings have loaded", () => {
   });
 });
 
-describe("prefs are replaced whole on the server", () => {
-  it("with the cache empty, skipping writes nothing but still opens Today", async () => {
+describe("prefs are a patch the server merges", () => {
+  it("with the cache empty, finishing still saves onboarded (a patch wipes nothing) and opens Today", async () => {
     settingsData = settings({ accent: "mint" });
     cache = undefined;
     await mount();
     await act(async () => {
       await ob.finish(true);
     });
-    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(mutateAsync).toHaveBeenCalledWith({ prefs: { onboarded: true } });
     expect(push).toHaveBeenCalledWith("/today");
   });
 
-  it("with it loaded, a patch is merged into every key already there", async () => {
+  it("with it loaded, only the changed key is sent; the stored ones stay on the server", async () => {
     settingsData = settings({ accent: "mint", docsSort: "title" });
     cache = { prefs: { accent: "mint", docsSort: "title" } };
     await mount();
     await act(async () => {
       await ob.finish(true);
     });
-    expect(mutateAsync).toHaveBeenCalledWith({
-      prefs: { accent: "mint", docsSort: "title", onboarded: true },
-    });
+    expect(mutateAsync).toHaveBeenCalledWith({ prefs: { onboarded: true } });
   });
 });
 
