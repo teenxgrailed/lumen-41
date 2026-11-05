@@ -1965,8 +1965,8 @@
   width: 6px;
   height: 6px;
   border-radius: 3px;
-  background: rgb(255, 163, 72);
-  box-shadow: 0 0 8px rgba(255, 163, 72, 0.8);
+  background: rgb(255, 159, 67);
+  box-shadow: 0 0 8px rgba(255, 159, 67, 0.8);
 }
 @container ag (max-width: 700px) {
   .needt-v3 .ag-dock .ag-tab {
@@ -2070,8 +2070,8 @@
   width: 6px;
   height: 6px;
   border-radius: 3px;
-  background: rgb(255, 163, 72);
-  box-shadow: 0 0 8px rgba(255, 163, 72, 0.9);
+  background: rgb(255, 159, 67);
+  box-shadow: 0 0 8px rgba(255, 159, 67, 0.9);
 }
 .needt-v3 .ag-chip-box {
   position: relative;
@@ -2188,8 +2188,8 @@
   color: rgba(236, 242, 255, 0.3);
 }
 .needt-v3 .ag-drawer2 .ag-un {
-  background: rgb(255, 163, 72);
-  box-shadow: 0 0 8px rgba(255, 163, 72, 0.9);
+  background: rgb(255, 159, 67);
+  box-shadow: 0 0 8px rgba(255, 159, 67, 0.9);
 }
 .needt-v3 .ag-mono {
   flex: none;
@@ -2274,7 +2274,7 @@
 /* An agent's card: a status rail (orange waits on you, red is urgent,
    green once answered), the agent's tile, the question, two buttons. */
 .needt-v3 .ag-acard {
-  --c: 255, 163, 72;
+  --c: 255, 159, 67;
   position: relative;
   align-self: flex-start;
   width: min(430px, 100%);
@@ -2284,10 +2284,10 @@
   animation: ag-win 0.8s var(--ag-ease) both;
 }
 .needt-v3 .ag-acard.is-alert {
-  --c: 255, 96, 96;
+  --c: 255, 84, 96;
 }
 .needt-v3 .ag-acard.is-ok {
-  --c: 96, 214, 150;
+  --c: 72, 214, 138;
 }
 .needt-v3 .ag-acard.is-note {
   --c: 236, 242, 255;
@@ -2353,7 +2353,7 @@
   color: rgba(236, 242, 255, 0.75);
 }
 .needt-v3 .ag-acard-done svg {
-  color: rgb(96, 214, 150);
+  color: rgb(72, 214, 138);
 }
 .needt-v3 .ag-btn2 {
   height: 34px;
@@ -2910,8 +2910,8 @@
 }
 .needt-v3 .ag-stat.is-ok .ag-pd {
   animation: none;
-  background: rgb(96, 214, 150);
-  box-shadow: 0 0 14px 2px rgba(96, 214, 150, 0.8);
+  background: rgb(72, 214, 138);
+  box-shadow: 0 0 14px 2px rgba(72, 214, 138, 0.8);
 }
 .needt-v3 .ag-row2 {
   display: flex;
@@ -2991,5 +2991,40 @@
   }
   .needt-v3 .ag-stile {
     opacity: 1;
+  }
+}
+
+/* The status legend, bottom left (final reference). */
+.needt-v3 .ag-map-status-legend {
+  position: absolute;
+  left: 22px;
+  bottom: 28px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font: 400 12px/16px var(--font-sans);
+  letter-spacing: 0.01em;
+  color: rgba(236, 242, 255, 0.45);
+  pointer-events: none;
+}
+.needt-v3 .ag-map-status-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.needt-v3 .ag-map-status-legend i {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+}
+.needt-v3 [data-ag-map-phone] .ag-map-status-legend {
+  left: 14px;
+  bottom: 70px;
+  gap: 6px 10px;
+}
+@media (max-width: 1100px) {
+  .needt-v3 .ag-map-panel:not([data-ag-map-phone]) .ag-map-status-legend {
+    bottom: 76px;
   }
 }

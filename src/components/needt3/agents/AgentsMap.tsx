@@ -1124,6 +1124,24 @@ export function AgentsMap({
           onOpen={() => onOpenItem(r.id)}
         />
       ))}
+      <div className="ag-map-status-legend" aria-label="What the colours mean">
+        {(
+          [
+            ["working", "Working"],
+            ["ok", "All good"],
+            ["waiting", "Needs your reply"],
+            ["alert", "Needs you now"],
+          ] as const
+        ).map(([k, label]) => (
+          <span key={k}>
+            <i
+              aria-hidden="true"
+              style={{ background: `rgb(${STATUS_HUE[k].join(",")})` }}
+            />
+            {label}
+          </span>
+        ))}
+      </div>
       <div ref={tip} className="ag-map-tip" aria-hidden="true" />
       {agents.length ? (
         <ul className="ag-map-agents" aria-label="Agents on the map">

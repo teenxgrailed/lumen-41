@@ -211,10 +211,10 @@ export const WHITE: Rgb = [236, 242, 255];
 export const BLUE: Rgb = [90, 169, 255];
 /** Status marks on an agent; never a surface. */
 export const STATUS_HUE: Record<AgentStatus, Rgb> = {
-  alert: [255, 96, 96],
-  waiting: [255, 163, 72],
+  alert: [255, 84, 96],
+  waiting: [255, 159, 67],
   working: BLUE,
-  ok: [96, 214, 150],
+  ok: [72, 214, 138],
 };
 const STATUS_RANK: Record<AgentStatus, number> = {
   alert: 3,
