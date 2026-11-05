@@ -12,7 +12,7 @@
 
 ## 2. Presence (PR 2)
 
-- [ ] 2.1 Additive notification settings fields and per-habit switch.
-- [ ] 2.2 Pure due-time and dedup logic with tests (quiet hours, time zone, DST, dedup).
-- [ ] 2.3 Worker sweep jobs: reminder, evening check-in, milestones, re-engage (off by default).
-- [ ] 2.4 Delivery through `reminder-delivery`, texts through the existing i18n if present.
+- [x] 2.1 Additive notification settings fields and per-habit switch.
+- [x] 2.2 Pure due-time and dedup logic with tests (quiet hours, time zone, DST, dedup).
+- [x] 2.3 Worker sweep jobs: reminder, evening check-in, milestones, re-engage (off by default).
+- [x] 2.4 Delivery through `reminder-delivery`, texts in English (the app has no i18n files yet).
