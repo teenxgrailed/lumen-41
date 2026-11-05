@@ -199,10 +199,7 @@
   top: calc(50% - 22px);
   height: 44px;
 }
-/* Text fields in Settings at 16 px on a touch screen, so iOS does not zoom
-   the page when they take focus (as the sign-in fields do). */
-@media (pointer: coarse) {
-  .needt-v3 :is(.ps11-sheet, .ps-pick-sheet) :is(.city-field, .pl-field) {
-    font-size: 16px;
-  }
+/* Nothing under 12 px: the PRO tag comes up to the floor. */
+.needt-v3 .ps-pro {
+  font-size: 12px;
 }
