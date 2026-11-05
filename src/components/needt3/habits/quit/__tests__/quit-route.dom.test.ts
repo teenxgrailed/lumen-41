@@ -43,6 +43,7 @@ const mockLogAsync = jest.fn();
 const mockPatch = jest.fn();
 const mockCreate = jest.fn();
 const mockArchive = jest.fn();
+const mockUpdate = jest.fn();
 
 jest.mock("@/lib/needt3/hooks/habits", () => ({
   useHabits: () => query(mockHabits),
@@ -51,7 +52,7 @@ jest.mock("@/lib/needt3/hooks/habits", () => ({
   useToggleHabitToday: () => ({ mutate: jest.fn() }),
   useToggleHabitDay: () => ({ mutate: jest.fn() }),
   useCreateHabit: () => ({ mutateAsync: mockCreate }),
-  useUpdateHabit: () => ({ mutateAsync: jest.fn() }),
+  useUpdateHabit: () => ({ mutateAsync: mockUpdate }),
   useArchiveHabit: () => ({ mutateAsync: mockArchive }),
 }));
 jest.mock("@/lib/needt3/hooks/habits-quit", () => ({
@@ -168,6 +169,7 @@ beforeEach(() => {
   mockPatch.mockReset();
   mockCreate.mockReset();
   mockArchive.mockReset().mockResolvedValue({});
+  mockUpdate.mockReset().mockResolvedValue({ undo: jest.fn() });
   mockLogAsync
     .mockReset()
     .mockImplementation(async ({ type }: { type: string }) => ({
@@ -537,6 +539,35 @@ describe("editing and archiving a Quit habit", () => {
       expect(q('[data-hq-detail="q"]')).toBeNull();
     });
   }
+
+  it("renames after a downgrade with only the name and project", async () => {
+    mockGate = "upgrade";
+    mockPlanKind = "free";
+    render("desktop");
+    click(q('[data-hq-quit="q"] .hq-card-open'));
+    click(q('[data-hq-edit="q"]'));
+    expect(q<HTMLInputElement>('input[name="habit-since"]')?.readOnly).toBe(
+      true
+    );
+    expect(
+      q<HTMLTextAreaElement>('textarea[name="habit-reason"]')?.readOnly
+    ).toBe(true);
+    const name = q<HTMLInputElement>('input[name="habit-name"]')!;
+    const set = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value"
+    )?.set;
+    act(() => {
+      set?.call(name, "Cigarettes");
+      name.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    click(q(".pl-habit-save"));
+    await flush();
+    expect(mockUpdate).toHaveBeenCalledWith({
+      id: "q",
+      patch: { title: "Cigarettes", projectId: null },
+    });
+  });
 
   it("on the phone too", async () => {
     render("phone");

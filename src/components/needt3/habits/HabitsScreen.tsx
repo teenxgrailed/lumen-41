@@ -398,6 +398,8 @@ function HabitSheet({
   // A new Quit habit on Free: the form becomes the Pro card, and there is no
   // Create. A Quit habit kept from before a downgrade stays editable.
   const quitLocked = quit && quitGate !== "on" && !habit;
+  // Kept after a downgrade: name and project change, Since and Why are read.
+  const quitKept = quit && quitGate !== "on" && !!habit;
   const save = () => {
     if (!ok || saving || quitLocked) return;
     onSave();
@@ -471,19 +473,23 @@ function HabitSheet({
               <input
                 name="habit-since"
                 type="datetime-local"
+                readOnly={quitKept}
                 value={f.quitSince}
                 aria-invalid={!ok && !!timeError}
                 onChange={(e) => setF({ ...f, quitSince: e.target.value })}
                 className={`pl-field is-num${timeError ? " is-invalid" : ""}`}
               />
               <span className="pl-habit-sheet-text-3">
-                {timeError ?? "Can be in the past. Empty starts it now."}
+                {quitKept
+                  ? "Changing it needs Pro."
+                  : (timeError ?? "Can be in the past. Empty starts it now.")}
               </span>
             </label>
             <label className="pl-stack-6">
               <span className="pl-label">Why</span>
               <textarea
                 name="habit-reason"
+                readOnly={quitKept}
                 rows={3}
                 maxLength={500}
                 value={f.reason}
@@ -492,7 +498,9 @@ function HabitSheet({
                 className="pl-field hq-reason"
               />
               <span className="pl-habit-sheet-text-3">
-                Your reason is shown when you press Pulling.
+                {quitKept
+                  ? "Changing it needs Pro."
+                  : "Your reason is shown when you press Pulling."}
               </span>
             </label>
           </>

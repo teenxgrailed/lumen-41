@@ -241,6 +241,12 @@ export interface HabitForm {
    * zone does not move the start of the run.
    */
   timeZone: string;
+  /**
+   * What an edited Quit habit had when the sheet opened. A save sends only
+   * what changed: the server treats `kind`, `quitStartedAt` and `reason` as
+   * Quit writes (Pro), so a rename after a downgrade must not carry them.
+   */
+  initial: { quitSince: string; reason: string } | null;
 }
 
 export const BLANK_HABIT_FORM: HabitForm = {
@@ -253,6 +259,7 @@ export const BLANK_HABIT_FORM: HabitForm = {
   quitSince: "",
   reason: "",
   timeZone: "UTC",
+  initial: null,
 };
 
 export function formFromHabit(
@@ -267,7 +274,7 @@ export function formFromHabit(
   },
   timeZone: string
 ): HabitForm {
-  return {
+  const form: HabitForm = {
     editId: h.id,
     title: h.title,
     time: h.schedule.time ?? "",
@@ -279,7 +286,11 @@ export function formFromHabit(
       : "",
     reason: h.reason ?? "",
     timeZone,
+    initial: null,
   };
+  if (form.kind === "QUIT")
+    form.initial = { quitSince: form.quitSince, reason: form.reason };
+  return form;
 }
 
 /**
@@ -330,6 +341,20 @@ export function checkHabitForm(f: HabitForm, now = newDate()): HabitFormCheck {
 
 /** The fields a save writes (PhbNewSheet.save), trimmed and normalised. */
 export function formFields(f: HabitForm) {
+  if (f.kind === "QUIT" && f.editId) {
+    const was = f.initial ?? { quitSince: "", reason: "" };
+    const since = f.quitSince.trim();
+    const reason = f.reason.trim();
+    return {
+      title: f.title.trim(),
+      projectId: f.projectId,
+      // Never `kind`: it does not change. The rest only when it did.
+      ...(since && since !== was.quitSince
+        ? { quitStartedAt: sinceInstant(since, f.timeZone)?.toISOString() }
+        : {}),
+      ...(reason !== was.reason.trim() ? { reason: reason || null } : {}),
+    };
+  }
   if (f.kind === "QUIT")
     return {
       title: f.title.trim(),

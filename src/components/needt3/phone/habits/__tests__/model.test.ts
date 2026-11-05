@@ -183,6 +183,7 @@ describe("the habit form", () => {
       quitSince: "",
       reason: "",
       timeZone: "UTC",
+      initial: null,
     });
   });
 });
@@ -296,9 +297,11 @@ describe("Since in the person's zone, not the browser's", () => {
     );
     // Summer time: UTC+2, so 00:30 on the 25th, the night the clocks go back.
     expect(form.quitSince).toBe("2026-10-25T00:30");
-    expect(formFields(form)).toMatchObject({
-      quitStartedAt: "2026-10-24T22:30:00.000Z",
-    });
+    expect(sinceInstant(form.quitSince, zurich)?.toISOString()).toBe(
+      "2026-10-24T22:30:00.000Z"
+    );
+    // Unchanged on save: not sent at all.
+    expect("quitStartedAt" in formFields(form)).toBe(false);
   });
 
   it("judges the future by the setting's zone", () => {
@@ -333,5 +336,42 @@ describe("Since in the person's zone, not the browser's", () => {
 
   it("refuses what is not a time", () => {
     expect(sinceInstant("yesterday", zurich)).toBeNull();
+  });
+});
+
+describe("saving an edited Quit habit", () => {
+  const kept = formFromHabit(
+    {
+      id: "q",
+      title: "Smoking",
+      projectId: null,
+      schedule: { time: null, perWeek: null },
+      kind: "QUIT",
+      quitStartedAt: "2026-10-23T09:10:00.000Z",
+      reason: "Run the 10k",
+    },
+    "UTC"
+  );
+
+  it("sends only the name and project when nothing Quit changed", () => {
+    expect(formFields({ ...kept, title: "Cigarettes" })).toEqual({
+      title: "Cigarettes",
+      projectId: null,
+    });
+  });
+
+  it("sends the date or the reason only when they changed, never kind", () => {
+    const fields = formFields({
+      ...kept,
+      quitSince: "2026-10-22T09:10",
+      reason: "Run the 10k in spring",
+    });
+    expect(fields).toEqual({
+      title: "Smoking",
+      projectId: null,
+      quitStartedAt: "2026-10-22T09:10:00.000Z",
+      reason: "Run the 10k in spring",
+    });
+    expect("kind" in fields).toBe(false);
   });
 });

@@ -346,6 +346,8 @@ function HabitSheet({
   // A new Quit habit on Free: the form becomes the Pro card, and there is no
   // Create. A Quit habit kept from before a downgrade stays editable.
   const quitLocked = quit && quitGate !== "on" && !editing;
+  // Kept after a downgrade: name and project change, Since and Why are read.
+  const quitKept = quit && quitGate !== "on" && editing;
   return (
     <PkSheet
       open={!!form}
@@ -416,6 +418,7 @@ function HabitSheet({
                     inputProps={{
                       type: "datetime-local",
                       name: "habit-since",
+                      readOnly: quitKept,
                       "aria-invalid": !!check?.timeError,
                       "aria-describedby": "phb-since-note",
                     }}
@@ -424,8 +427,10 @@ function HabitSheet({
                     id="phb-since-note"
                     className={check?.timeError ? "phb-err" : "pk-meta"}
                   >
-                    {check?.timeError ??
-                      "Can be in the past. Empty starts it now."}
+                    {quitKept
+                      ? "Changing it needs Pro."
+                      : (check?.timeError ??
+                        "Can be in the past. Empty starts it now.")}
                   </p>
                   <PkField
                     label="Why"
@@ -433,10 +438,16 @@ function HabitSheet({
                     value={f.reason}
                     onChange={(reason) => onChange({ reason })}
                     placeholder="The way you would say it to yourself"
-                    inputProps={{ name: "habit-reason", maxLength: 500 }}
+                    inputProps={{
+                      name: "habit-reason",
+                      maxLength: 500,
+                      readOnly: quitKept,
+                    }}
                   />
                   <p className="pk-meta">
-                    Your reason is shown when you press Pulling.
+                    {quitKept
+                      ? "Changing it needs Pro."
+                      : "Your reason is shown when you press Pulling."}
                   </p>
                 </>
               ) : (
