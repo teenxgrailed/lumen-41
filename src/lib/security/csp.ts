@@ -27,7 +27,11 @@ const SIGN_IN_ORIGINS = [
   "https://login.microsoftonline.com",
   "https://appleid.apple.com",
 ];
-const CHECKOUT_ORIGIN = "https://*.creem.io";
+const CHECKOUT_ORIGINS = [
+  "https://*.creem.io",
+  // Creem custom checkout domain (owner, 05.11.2026).
+  "https://checkout.needt.app",
+];
 
 /** The ws(s) origin of the collaboration server, or null when unset/invalid. */
 export function collaborationOrigin(url: string | undefined): string | null {
@@ -58,7 +62,7 @@ export function contentSecurityPolicy(
     "base-uri": ["'self'"],
     "object-src": ["'none'"],
     "frame-ancestors": ["'self'"],
-    "form-action": ["'self'", ...SIGN_IN_ORIGINS, CHECKOUT_ORIGIN],
+    "form-action": ["'self'", ...SIGN_IN_ORIGINS, ...CHECKOUT_ORIGINS],
     "script-src": [
       "'self'",
       "'unsafe-inline'",
