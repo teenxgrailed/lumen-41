@@ -839,9 +839,11 @@
 
 /* ── the 390-px phone (audit 05.11) ────────────────────────────────────── */
 /* The picture at the top gives way on a shorter phone, so the plans start
-   above the fold: 300 px on a tall screen, down to 180 px on an SE. */
+   higher: 300 px on a tall screen, 253 px at 844, 228 px on an SE. Not less:
+   the top is bottom-anchored, and below 228 px its "Unlock … with Pro" line
+   rises under the close button (seen at 375x667). */
 .needt-v3 .pov-paywall-in .pw-phone .pw-top {
-  height: clamp(180px, 30vh, 300px);
+  height: clamp(228px, 30vh, 300px);
 }
 /* 44-px touch targets for Monthly / Yearly, close and Retry; drawn size
    unchanged. */
