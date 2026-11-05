@@ -323,7 +323,7 @@ describe("Agents screen", () => {
       "2 agents · 3 tasks this week · 1 working now"
     );
     expect(host.querySelector("[data-ag-map]")).not.toBeNull();
-    const legend = host.querySelector(".ag-map-legend")?.textContent ?? "";
+    const legend = host.querySelector(".ag-map-srcs")?.textContent ?? "";
     expect(legend).toContain("Google Calendar");
     expect(legend).toContain("Tasks");
     expect(

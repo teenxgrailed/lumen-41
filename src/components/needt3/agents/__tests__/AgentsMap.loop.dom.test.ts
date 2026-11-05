@@ -41,7 +41,7 @@ const input: MapInput = {
   agents: Array.from({ length: 5 }, (_, i) => ({
     id: `a${i}`,
     name: `Agent ${i}`,
-    active: i < 2,
+    status: (["working", "waiting", "alert", "ok", "ok"] as const)[i],
     seen: i < 3,
   })),
   items: Array.from({ length: 60 }, (_, i) => ({
@@ -74,7 +74,6 @@ describe("Map drawing loop", () => {
     };
     const loop = startLoop(ctx, scene, 2, live, {
       onHover: () => undefined,
-      onMood: () => undefined,
     });
     loop.pause();
     const strokes = calls.stroke ?? 0;
@@ -89,6 +88,9 @@ describe("Map drawing loop", () => {
   });
 
   it("finds the node under the pointer and reports it once a frame", () => {
+    // A still frame (reduced motion): no drift, the entry already done.
+    const media = window.matchMedia;
+    window.matchMedia = (() => ({ matches: true })) as never;
     const scene = buildMapScene(input, 9, 1200, 620);
     const { ctx } = fakeContext();
     const agent = scene.nodes[scene.agents[0]];
@@ -101,14 +103,14 @@ describe("Map drawing loop", () => {
     const seen: number[] = [];
     const loop = startLoop(ctx, scene, 1, live, {
       onHover: (i) => seen.push(i),
-      onMood: () => undefined,
     });
     loop.pause();
+    window.matchMedia = media;
     expect(seen).toEqual([scene.agents[0]]);
     expect(live.hover).toBe(scene.agents[0]);
   });
 
-  it("draws the phone scene without exits", () => {
+  it("draws the phone scene", () => {
     const scene = buildMapScene(input, 3, 390, 640);
     const { ctx, calls } = fakeContext();
     const loop = startLoop(
@@ -116,14 +118,15 @@ describe("Map drawing loop", () => {
       scene,
       2,
       { hover: -1, pointer: null, moved: false, presentation: false },
-      { onHover: () => undefined, onMood: () => undefined }
+      { onHover: () => undefined }
     );
     loop.pause();
-    expect(scene.exits).toHaveLength(0);
     expect(calls.stroke ?? 0).toBeGreaterThan(0);
   });
 
   it("finds the node under a tap, with no pointermove before it", () => {
+    const media = window.matchMedia;
+    window.matchMedia = (() => ({ matches: true })) as never;
     const scene = buildMapScene(input, 11, 390, 640);
     const { ctx } = fakeContext();
     const live = {
@@ -134,12 +137,12 @@ describe("Map drawing loop", () => {
     };
     const loop = startLoop(ctx, scene, 1, live, {
       onHover: () => undefined,
-      onMood: () => undefined,
     });
     loop.pause();
     const i = scene.agents[1];
     const { dx, dy } = loop.drift();
     expect(loop.hitAt(scene.nodes[i].x + dx, scene.nodes[i].y + dy)).toBe(i);
+    window.matchMedia = media;
     expect(live.hover).toBe(-1);
   });
 
@@ -150,18 +153,16 @@ describe("Map drawing loop", () => {
       mood: 2,
       moodAt: performance.now(),
     };
-    const moods: number[] = [];
     const loop = startLoop(
       fakeContext().ctx,
       scene,
       1,
       { hover: -1, pointer: null, moved: false, presentation: false },
-      { onHover: () => undefined, onMood: (m) => moods.push(m) },
+      { onHover: () => undefined },
       clock
     );
     loop.pause();
     // A minute in, the entry is over and the mood is still the one it had.
     expect(clock.mood).toBe(2);
-    expect(moods).toEqual([]);
   });
 });

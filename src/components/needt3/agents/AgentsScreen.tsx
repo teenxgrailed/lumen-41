@@ -51,12 +51,14 @@ import {
   waitsForYou,
 } from "./TasksTab";
 import {
+  type AgentStatus,
   type MapGraph,
   type MapInput,
   type MapSourceInput,
   freshSeed,
   mapStats,
   statsLine,
+  worstStatus,
 } from "./map-scene";
 
 interface Overview {
@@ -129,7 +131,7 @@ export function mapSources(connections: V3Connection[]): MapSourceInput[] {
 function mapShape(input: MapInput) {
   return JSON.stringify([
     input.sources.map((s) => s.id),
-    input.agents.map((a) => [a.id, a.name, a.active, a.seen]),
+    input.agents.map((a) => [a.id, a.name, a.status, a.seen]),
     input.items.map((i) => [
       i.id,
       i.title,
@@ -137,6 +139,7 @@ function mapShape(input: MapInput) {
       i.assigneeId,
       i.related,
       i.result,
+      i.criteria?.met,
     ]),
     input.threads.map((t) => [t.id, t.subject, t.itemId]),
   ]);
@@ -383,6 +386,31 @@ export function AgentsScreen() {
     () => new Map(threadRows.map((t) => [t.id, t.subject])),
     [threadRows]
   );
+  // Each agent's status on the Map (owner, 05.11.26): red when broken or a
+  // risky step waits on you, orange when it asks you in Chat, blue while it
+  // works, green otherwise.
+  const statusOf = useMemo(() => {
+    const map = new Map<string, AgentStatus>();
+    for (const a of agents) {
+      const own = items.filter(
+        (i) => i.assignee && i.assignee !== "any" && i.assignee.id === a.id
+      );
+      const list: AgentStatus[] = [];
+      if (a.token?.revoked) list.push("alert");
+      for (const i of own) {
+        if (i.status === "failed") list.push("alert");
+        else if (
+          i.status === "needs_owner" &&
+          i.risks.some((r) => !i.approvals[r])
+        )
+          list.push("alert");
+        else if (i.status === "needs_owner") list.push("waiting");
+      }
+      if (working.has(a.id)) list.push("working");
+      map.set(a.id, worstStatus(list));
+    }
+    return map;
+  }, [agents, items, working]);
   // First visit with nothing connected: the onboarding over the Map.
   const [onboarded, setOnboarded] = useState(onboardingSeen);
   const showOnboarding =
@@ -394,7 +422,7 @@ export function AgentsScreen() {
     agents: live.map((a) => ({
       id: a.id,
       name: a.name,
-      active: working.has(a.id),
+      status: statusOf.get(a.id) ?? "ok",
       seen: agentSeen(a),
     })),
     items: items.map((i) => ({
@@ -407,6 +435,12 @@ export function AgentsScreen() {
       updatedAt: i.updatedAt,
       createdAt: i.createdAt,
       result: i.result?.summary ?? null,
+      criteria: i.criteria?.length
+        ? {
+            met: i.criteria.filter((c) => c.met).length,
+            all: i.criteria.length,
+          }
+        : null,
     })),
     // The graph carries thread links without text; the subject, for the
     // owner's own hover, comes from the threads list when it has it.
@@ -842,6 +876,13 @@ export function AgentsScreen() {
             >
               {label}
               {count[id] ? <small>{count[id]}</small> : null}
+              {id === "chat" && stats.waiting ? (
+                <span
+                  className="ag-tab-dot"
+                  role="img"
+                  aria-label={`${stats.waiting} waiting on your answer`}
+                />
+              ) : null}
             </button>
           ))}
         </div>
