@@ -175,6 +175,13 @@ async function settle(page: import("@playwright/test").Page) {
   await page.waitForTimeout(350);
 }
 
+/** The open Settings page's title in the sheet's bar. */
+const sheetTitle = (page: import("@playwright/test").Page, title: string) =>
+  page
+    .getByRole("dialog", { name: "Settings" })
+    .getByRole("banner")
+    .getByText(title, { exact: true });
+
 const shot = async (page: import("@playwright/test").Page, name: string) => {
   await settle(page);
   await expect(page).toHaveScreenshot(
@@ -189,11 +196,11 @@ test("Settings on a 390-px phone", async ({ page }) => {
   await prepare(page);
 
   await page.goto("/settings#plan", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("Plan & billing").first()).toBeVisible();
+  await expect(sheetTitle(page, "Plan & billing")).toBeVisible();
   await shot(page, "settings-plan");
 
   await page.goto("/settings#alerts", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("Notifications").first()).toBeVisible();
+  await expect(sheetTitle(page, "Notifications")).toBeVisible();
   await shot(page, "settings-alerts");
   // The Habits group, further down the same page (from #621).
   const habits = page.getByText("Evening check-in");
