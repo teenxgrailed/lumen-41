@@ -93,10 +93,17 @@ export async function GET(request: NextRequest) {
       }
       return backToSettings(oauthState.redirectUri, "failed");
     }
-    const identity = await verifyChatGptIdToken(tokens.idToken, {
-      clientId: config.clientId,
-      nonce: nonceFromState(state),
-    });
+    let identity: Awaited<ReturnType<typeof verifyChatGptIdToken>>;
+    try {
+      identity = await verifyChatGptIdToken(tokens.idToken, {
+        clientId: config.clientId,
+        nonce: nonceFromState(state),
+      });
+    } catch (error) {
+      // A token that fails verification still opened a session at OpenAI.
+      await revokeChatGptPlanSession(config, tokens.refreshToken);
+      throw error;
+    }
     const data = {
       encryptedAccessToken: encryptSecret(tokens.accessToken),
       encryptedRefreshToken: encryptSecret(tokens.refreshToken),
