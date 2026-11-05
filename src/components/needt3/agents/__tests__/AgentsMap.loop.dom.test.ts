@@ -213,4 +213,40 @@ describe("Map drawing loop", () => {
     expect(q.dpr).toBeLessThan(2);
     expect(canvas.width).toBe(Math.round(1200 * q.dpr));
   });
+
+  it("steps down when frames land late although the script is fast", () => {
+    const scene = buildMapScene(input, 5, 1200, 620);
+    const { ctx } = fakeContext();
+    const canvas = { width: 1200, height: 620 };
+    Object.defineProperty(ctx, "canvas", { value: canvas });
+    let queued: ((t: number) => void) | null = null;
+    const raf = jest
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb) => {
+        queued = cb;
+        return 1;
+      });
+    // The script takes 1 ms, but frames arrive every 66 ms (raster bound).
+    let clockMs = 0;
+    const now = jest
+      .spyOn(performance, "now")
+      .mockImplementation(() => (clockMs += 0.5));
+    const loop = startLoop(
+      ctx,
+      scene,
+      1,
+      { hover: -1, pointer: null, moved: false, presentation: false },
+      { onHover: () => undefined }
+    );
+    loop.run();
+    for (let f = 1; f <= 60 && queued; f++) {
+      const cb: (t: number) => void = queued;
+      queued = null;
+      cb(f * 66);
+    }
+    loop.pause();
+    raf.mockRestore();
+    now.mockRestore();
+    expect(loop.quality().lite).toBe(true);
+  });
 });

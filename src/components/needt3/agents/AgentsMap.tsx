@@ -331,6 +331,7 @@ export function startLoop(
     /** Learned by adaptive quality; kept across rebuilds. */
     dpr?: number;
     frameMs?: number;
+    lite?: boolean;
   } = {
     born: performance.now(),
     mood: 0,
@@ -344,10 +345,11 @@ export function startLoop(
   const still = reducedMotion();
   // A phone rasterises the canvas on a slow CPU (perf, iPhone 13 at 4x):
   // fewer frames, no additive blending, fewer glows.
-  const lite = scene.phone;
-  // Adaptive quality: while the smoothed frame time stays over 22 ms for
-  // 1.5 s, the resolution steps down to 1, then the frame rate. Only the
-  // canvas's pixel size changes; the scene is not rebuilt.
+  // Adaptive quality: while frames run slow for a second (the script takes
+  // over 22 ms, or frames land 40% later than asked, which is where a
+  // software raster shows), the resolution steps down to 1, then the light
+  // drawing a phone uses, then the frame rate. The scene is not rebuilt.
+  let lite = scene.phone || !!clock.lite;
   let dpr = Math.min(dprStart, clock.dpr ?? dprStart);
   let frameMs = Math.max(lite ? 1000 / 24 : FRAME_MS, clock.frameMs ?? 0);
   if (dpr !== dprStart) {
@@ -355,19 +357,24 @@ export function startLoop(
     ctx.canvas.height = Math.round(H * dpr);
   }
   let ema = 0;
+  let gapEma = 0;
   let slowSince = 0;
   const degrade = (now: number) => {
     if (dpr > 1) {
       dpr = Math.max(1, Math.round((dpr - 0.25) * 4) / 4);
       ctx.canvas.width = Math.round(W * dpr);
       ctx.canvas.height = Math.round(H * dpr);
+    } else if (!lite) {
+      lite = true;
     } else if (frameMs < 1000 / 20) {
       frameMs = 1000 / 20;
     }
     clock.dpr = dpr;
+    clock.lite = lite;
     clock.frameMs = frameMs;
     slowSince = now;
     ema = 0;
+    gapEma = 0;
   };
   const px = new Float32Array(N);
   const py = new Float32Array(N);
@@ -991,14 +998,17 @@ export function startLoop(
     raf = 0;
     if (!running) return;
     if (now - last >= frameMs - 2) {
+      const gap = now - last;
       last = now;
       const t0 = performance.now();
       frame(now);
       const took = performance.now() - t0;
       ema = ema ? ema * 0.9 + took * 0.1 : took;
-      if (ema > 22) {
+      // A gap over 250 ms is a pause (hidden tab), not a slow frame.
+      if (gap < 250) gapEma = gapEma ? gapEma * 0.9 + gap * 0.1 : gap;
+      if (ema > 22 || gapEma > frameMs * 1.4) {
         if (!slowSince) slowSince = now;
-        else if (now - slowSince > 1500) degrade(now);
+        else if (now - slowSince > 1000) degrade(now);
       } else slowSince = 0;
     }
     raf = requestAnimationFrame(loop);
@@ -1022,8 +1032,8 @@ export function startLoop(
       if (still || !running) frame(performance.now());
     },
     drift: () => drift,
-    /** The current pixel ratio and frame interval (adaptive quality). */
-    quality: () => ({ dpr, frameMs }),
+    /** The current pixel ratio, light drawing and frame interval. */
+    quality: () => ({ dpr, lite, frameMs }),
     /** The real node under a point, against the last frame (a tap). */
     hitAt(x: number, y: number) {
       return nearestReal(x, y);
@@ -1271,6 +1281,7 @@ export function AgentsMap({
     moodAt: number;
     dpr?: number;
     frameMs?: number;
+    lite?: boolean;
   } | null>(null);
 
   useEffect(() => {
