@@ -298,11 +298,14 @@ export function AgentsScreen() {
     });
   }, []);
 
+  // The graph is asked for only where it is drawn: the Map, the agent
+  // cards' sparklines, Activity's week. Elsewhere the last one is kept.
+  const withGraph = tab === "map" || tab === "agents" || tab === "activity";
   const overview = useQuery({
-    queryKey: ["agent-hub", archived, memTag],
+    queryKey: ["agent-hub", archived, memTag, withGraph],
     queryFn: () =>
       fetchJson<Overview>(
-        `/api/agent-hub/overview?graph=1&includeArchived=${archived}${
+        `/api/agent-hub/overview?${withGraph ? "graph=1&" : ""}includeArchived=${archived}${
           memTag ? `&tag=${encodeURIComponent(memTag)}` : ""
         }`
       ),
@@ -310,6 +313,9 @@ export function AgentsScreen() {
     placeholderData: (previous) => previous,
     refetchInterval: 15_000,
   });
+  const lastGraph = useRef<MapGraph | undefined>(undefined);
+  if (overview.data?.graph) lastGraph.current = overview.data.graph;
+  const graphNow = overview.data?.graph ?? lastGraph.current;
   const threads = useHubThreads();
   const connections = useConnections();
 
@@ -456,7 +462,7 @@ export function AgentsScreen() {
     })),
     // The graph carries thread links without text; the subject, for the
     // owner's own hover, comes from the threads list when it has it.
-    threads: (overview.data?.graph?.threads ?? threadRows).map((t) => ({
+    threads: (graphNow?.threads ?? threadRows).map((t) => ({
       id: t.id,
       subject: subjects.get(t.id) ?? "Thread",
       itemId: t.itemId,
@@ -573,7 +579,7 @@ export function AgentsScreen() {
   });
   if (!memTag) allTags.current = { tags: noteTags(notes), total: notes.length };
   const tags = allTags.current.tags;
-  const graph = overview.data?.graph;
+  const graph = graphNow;
   const week = graph
     ? {
         days: (activityAgent

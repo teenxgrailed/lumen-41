@@ -67,6 +67,8 @@ export interface HubItemRow {
   doneCriteria: string;
   /** The done-criteria as a checklist; `met` is null until the item is done. */
   criteria?: { text: string; met: boolean | null }[];
+  /** Waiting items only: up to three image or video stubs for previews. */
+  media?: { id: string; mime: string; name: string }[];
   relations?: HubRelation[];
   blockedBy?: string[];
   /** Held for over four hours with no update. */

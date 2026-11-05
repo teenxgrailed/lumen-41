@@ -2,12 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import {
-  FiArrowUp,
-  FiList,
-  FiMic,
-  FiSquare,
-} from "react-icons/fi";
+import { FiArrowUp, FiList, FiMic, FiSquare } from "react-icons/fi";
 
 import { newDate } from "@/lib/date-utils";
 import { sendJson } from "@/lib/needt3/hooks/core";
@@ -416,6 +411,16 @@ export function ChatTab({
                 now={newDate().getTime()}
                 done={answered[item.id] ?? null}
                 onApprove={() => approve(item)}
+                onLeavePage={() => {
+                  void fetch(`/api/agent-hub/items/${item.id}/approve`, {
+                    method: "POST",
+                    keepalive: true,
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      risks: item.risks.filter((r) => !item.approvals[r]),
+                    }),
+                  }).catch(() => undefined);
+                }}
                 onAnswer={() => {
                   setReplyTo(item);
                   input.current?.focus();

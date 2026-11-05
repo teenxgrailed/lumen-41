@@ -298,7 +298,7 @@ function AgentCard({
           aria-hidden="true"
           style={
             state === "offline"
-              ? { background: "rgba(246,245,250,.3)" }
+              ? { background: "var(--text-disabled)" }
               : undefined
           }
         />

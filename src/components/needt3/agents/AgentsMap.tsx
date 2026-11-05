@@ -1641,12 +1641,22 @@ export function AgentsMap({
   const agents = scene
     ? scene.agents.map((i) => ({ i, n: scene.nodes[i] }))
     : [];
+  // Real task nodes, for the keyboard: the same open as a click.
+  const taskNodes = scene
+    ? scene.nodes.filter((n) => n.real && n.kind === "item" && n.label)
+    : [];
   const body = (
     <div
       ref={panel}
       className={
         "ag-map-panel" +
-        (full === "window" ? " is-full" : full === "screen" ? " is-screen" : "")
+        // In the window the panel is portalled out of the screen: it takes
+        // the night's tokens with it.
+        (full === "window"
+          ? " is-full ag-night"
+          : full === "screen"
+            ? " is-screen"
+            : "")
       }
       data-ag-map=""
       data-ag-map-seed={seed}
@@ -1766,8 +1776,8 @@ export function AgentsMap({
         ))}
       </div>
       <div ref={tip} className="ag-map-tip" aria-hidden="true" />
-      {agents.length ? (
-        <ul className="ag-map-agents" aria-label="Agents on the map">
+      {agents.length || taskNodes.length ? (
+        <ul className="ag-map-agents" aria-label="Agents and tasks on the map">
           {agents.map(({ n }) => (
             <li key={n.id}>
               <button
@@ -1779,6 +1789,20 @@ export function AgentsMap({
                 }}
               >
                 {`Open ${n.label}`}
+              </button>
+            </li>
+          ))}
+          {taskNodes.map((n) => (
+            <li key={n.id}>
+              <button
+                type="button"
+                data-ag-map-item={n.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenItem(n.id);
+                }}
+              >
+                {`Open task: ${nodeLabel(n, presentation)}`}
               </button>
             </li>
           ))}

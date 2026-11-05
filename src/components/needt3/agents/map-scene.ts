@@ -90,15 +90,7 @@ export interface MapInput {
  * `GET /api/agent-hub/overview?graph=1` adds this: the Map's compact links
  * and counts, without titles or message text.
  */
-export interface MapGraph {
-  /** Start of the first day counted, UTC. */
-  since: string;
-  /** Agent id -> events per UTC day, oldest first, today last. */
-  activity: Record<string, number[]>;
-  /** Threads as links only: no subject, no text. */
-  threads: { id: string; itemId: string | null; lastMessageAt: string }[];
-  messagesThisWeek: number;
-}
+export type { MapGraph } from "@/services/agent-hub/map-graph-types";
 
 export type NodeKind = "agent" | "item" | "thread" | "deco" | "anchor";
 

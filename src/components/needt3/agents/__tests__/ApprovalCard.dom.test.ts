@@ -3,7 +3,7 @@
  *
  * The approval card: Approve waits five seconds so Undo is real; a card
  * draws only what the hub item has (no due time, no previews, no checks
- * when the item has none).
+ * when the item has none); previews come from the overview, not a request.
  */
 import { act, createElement as h } from "react";
 
@@ -50,9 +50,9 @@ const item = (extra: Partial<HubItemRow> = {}): HubItemRow =>
 let host: HTMLElement;
 let root: Root;
 const onApprove = jest.fn();
+const onLeavePage = jest.fn();
 
-async function mount(it: HubItemRow, files: unknown[] = []) {
-  (fetchJson as jest.Mock).mockResolvedValue({ attachments: files });
+async function mount(it: HubItemRow) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await act(async () => {
     root.render(
@@ -65,6 +65,7 @@ async function mount(it: HubItemRow, files: unknown[] = []) {
           now: Date.now(),
           done: null,
           onApprove,
+          onLeavePage,
           onAnswer: jest.fn(),
           onOpen: jest.fn(),
         })
@@ -119,12 +120,17 @@ describe("ApprovalCard", () => {
     expect(onApprove).toHaveBeenCalledTimes(1);
   });
 
-  it("draws previews only for media, and a question without Approve", async () => {
-    await mount(item({ risks: [], criteria: [] }), [
-      { id: "f1", name: "short-1.mp4", mime: "video/mp4", size: 1 },
-      { id: "f2", name: "notes.pdf", mime: "application/pdf", size: 1 },
-    ]);
+  it("draws previews from the overview's media stubs, with no request", async () => {
+    await mount(
+      item({
+        risks: [],
+        criteria: [],
+        media: [{ id: "f1", name: "short-1.mp4", mime: "video/mp4" }],
+      })
+    );
     expect(host.querySelectorAll(".ag-th")).toHaveLength(1);
+    expect(host.querySelector("video")?.getAttribute("preload")).toBe("none");
+    expect(fetchJson).not.toHaveBeenCalled();
     expect($("[data-ag-approve]")).toBeNull();
     expect($(".ag-checks")).toBeNull();
     expect($(".ag-acard3-what")?.textContent).toBe("Question");
@@ -150,5 +156,30 @@ describe("ApprovalCard", () => {
     });
     expect($("[data-ag-ask]")?.getAttribute("data-ag-ask-state")).toBe("open");
     expect($("[data-ag-approve]")).not.toBeNull();
+  });
+
+  it("sends a pending approval with the page when the tab closes", async () => {
+    await mount(item());
+    act(() => $("[data-ag-approve]")!.click());
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    expect(onLeavePage).toHaveBeenCalledTimes(1);
+    act(() => jest.advanceTimersByTime(UNDO_MS + 10));
+    // Sent once, by the page leaving, not again by the timer or unmount.
+    expect(onApprove).not.toHaveBeenCalled();
+    act(() => root.unmount());
+    expect(onApprove).not.toHaveBeenCalled();
+    root = createRoot(host);
+  });
+
+  it("does not send on leaving once the item no longer waits on you", async () => {
+    await mount(item());
+    act(() => $("[data-ag-approve]")!.click());
+    await mount(item({ status: "in_progress" }));
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+    expect(onLeavePage).not.toHaveBeenCalled();
   });
 });

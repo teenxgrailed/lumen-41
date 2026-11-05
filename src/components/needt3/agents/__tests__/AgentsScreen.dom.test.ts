@@ -355,6 +355,18 @@ describe("Agents screen", () => {
     ).not.toBeNull();
   });
 
+  it("lists the Map's task nodes for the keyboard; one opens inside Agents", async () => {
+    await mount();
+    const btn = host.querySelector<HTMLElement>("[data-ag-map-item]");
+    expect(btn).not.toBeNull();
+    const id = btn?.getAttribute("data-ag-map-item");
+    await click(btn);
+    expect(selected()).toBe("tasks");
+    expect(
+      host.querySelector(`[data-ag-focused] [data-ag-item='${id}']`)
+    ).not.toBeNull();
+  });
+
   it("New layout redraws from a new seed; ?seed= pins one", async () => {
     await mount("seed=42");
     const panel = () => host.querySelector("[data-ag-map]");
@@ -467,6 +479,15 @@ describe("Agents screen", () => {
     await click(host.querySelector("[data-ag-view-done]"));
     expect(host.querySelector("[data-ag-item='i3']")).not.toBeNull();
     expect(host.querySelector("[data-ag-item='i2']")).toBeNull();
+  });
+
+  it("asks for the graph only on the tabs that draw it", async () => {
+    await mount("tab=tasks");
+    const urls = (fetchJson as jest.Mock).mock.calls
+      .map(([u]) => String(u))
+      .filter((u) => u.startsWith("/api/agent-hub/overview"));
+    expect(urls.length).toBeGreaterThan(0);
+    expect(urls.every((u) => !u.includes("graph=1"))).toBe(true);
   });
 
   it("deep-links a thread with ?thread=, and old ?tab=messages lands in Chat", async () => {

@@ -126,8 +126,8 @@
   height: 30px;
   padding: 0 14px;
   border-radius: 15px;
-  background: rgba(var(--foreground-rgb), 0.12);
-  box-shadow: rgba(var(--foreground-rgb), 0.09) 0 0 0 1px;
+  background: var(--fill-6);
+  box-shadow: var(--fill-5) 0 0 0 1px;
   font: 400 13px/1 var(--font-sans);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
@@ -161,15 +161,15 @@
   padding: 0 12px;
   border: 0;
   border-radius: 10px;
-  background: rgba(var(--foreground-rgb), 0.08);
-  box-shadow: rgba(var(--foreground-rgb), 0.1) 0 0 0 1px inset;
+  background: var(--fill-5);
+  box-shadow: var(--fill-6) 0 0 0 1px inset;
   color: var(--text-primary);
   font: 500 13px/1 var(--font-sans);
   cursor: default;
   transition: background-color var(--transition-hover);
 }
 .needt-v3 .ag-btn:hover {
-  background: rgba(var(--foreground-rgb), 0.12);
+  background: var(--fill-6);
 }
 .needt-v3 .ag-btn:focus-visible,
 .needt-v3 .ag-tab:focus-visible,
@@ -208,7 +208,7 @@
   background: rgba(12, 12, 18, 0.72);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
-  box-shadow: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
 }
 .needt-v3 .ag-tabs {
   display: inline-flex;
@@ -218,8 +218,8 @@
   max-width: 100%;
   overflow-x: auto;
   scrollbar-width: none;
-  background: rgba(var(--foreground-rgb), 0.05);
-  box-shadow: rgba(var(--foreground-rgb), 0.09) 0 0 0 1px inset;
+  background: var(--fill-4);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
 }
 .needt-v3 .ag-tabs::-webkit-scrollbar {
   display: none;
@@ -243,12 +243,12 @@
 }
 .needt-v3 .ag-tab:hover:not([aria-selected="true"]) {
   color: var(--text-primary);
-  background: rgba(var(--foreground-rgb), 0.05);
+  background: var(--fill-4);
 }
 .needt-v3 .ag-tab[aria-selected="true"] {
-  background: rgba(var(--foreground-rgb), 0.12);
+  background: var(--fill-6);
   color: var(--text-primary);
-  box-shadow: rgba(var(--foreground-rgb), 0.09) 0 0 0 1px inset;
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
 }
 .needt-v3 .ag-tab small,
 .needt-v3 .ag-chip small {
@@ -265,7 +265,7 @@
   padding: 6px;
   border-radius: 16px;
   background: rgba(12, 12, 18, 0.7);
-  box-shadow: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
 }
 .needt-v3 .ag-chip {
   display: inline-flex;
@@ -281,11 +281,11 @@
   cursor: default;
 }
 .needt-v3 .ag-chip:hover {
-  background: rgba(var(--foreground-rgb), 0.05);
+  background: var(--fill-4);
   color: var(--text-primary);
 }
 .needt-v3 .ag-chip[aria-pressed="true"] {
-  background: rgba(var(--foreground-rgb), 0.1);
+  background: var(--fill-6);
   color: var(--text-primary);
 }
 /* The agent filter: one chip per agent, in the bar's own row. */
@@ -300,15 +300,15 @@
   height: 30px;
   border-radius: 10px;
   color: var(--text-primary);
-  background: rgba(var(--foreground-rgb), 0.05);
-  box-shadow: rgba(var(--foreground-rgb), 0.07) 0 0 0 1px inset;
+  background: var(--fill-4);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
 }
 .needt-v3 .ag-kbd {
   position: absolute;
   right: 8px;
   padding: 1px 5px;
   border-radius: 5px;
-  background: rgba(var(--foreground-rgb), 0.07);
+  background: var(--fill-5);
   font: 500 12px/16px var(--font-sans);
   color: var(--text-muted);
   pointer-events: none;
@@ -328,8 +328,8 @@
   position: relative;
   box-sizing: border-box;
   border-radius: 18px;
-  background: rgba(var(--foreground-rgb), 0.045);
-  box-shadow: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  background: var(--fill-3);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
@@ -381,14 +381,14 @@
   border-radius: 12px;
 }
 .needt-v3 .ag-night .ag-item + .ag-item {
-  box-shadow: rgba(var(--foreground-rgb), 0.05) 0 1px 0 0 inset;
+  box-shadow: var(--fill-4) 0 1px 0 0 inset;
 }
 .needt-v3 .ag-night .ag-row {
   min-height: 48px;
   border-radius: 12px;
 }
 .needt-v3 .ag-night .ag-row:hover {
-  background: rgba(var(--foreground-rgb), 0.04);
+  background: var(--fill-3);
 }
 .needt-v3 .ag-panel-empty {
   padding: 20px;
@@ -447,15 +447,15 @@
   gap: 12px;
   padding: 16px;
   border-radius: 18px;
-  background: rgba(var(--foreground-rgb), 0.045);
-  box-shadow: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  background: var(--fill-3);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
   transition:
     background-color 0.15s,
     box-shadow 0.15s;
 }
 .needt-v3 .ag-card:hover {
-  background: rgba(var(--foreground-rgb), 0.07);
-  box-shadow: rgba(var(--foreground-rgb), 0.13) 0 0 0 1px inset;
+  background: var(--fill-5);
+  box-shadow: var(--fill-6) 0 0 0 1px inset;
 }
 .needt-v3 .ag-card::before {
   content: "";
@@ -475,7 +475,7 @@
 .needt-v3 .ag-card.is-focused {
   box-shadow:
     color-mix(in srgb, var(--c) 70%, transparent) 0 0 0 1.5px inset,
-    rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+    var(--fill-5) 0 0 0 1px inset;
 }
 .needt-v3 .ag-card-top {
   display: flex;
@@ -511,7 +511,7 @@
   height: 24px;
   padding: 0 10px;
   border-radius: 12px;
-  background: rgba(var(--foreground-rgb), 0.05);
+  background: var(--fill-4);
   font: 500 12px/1 var(--font-sans);
   color: var(--text-secondary);
 }
@@ -534,7 +534,7 @@
   align-items: center;
   gap: 10px;
   padding-top: 10px;
-  box-shadow: rgba(var(--foreground-rgb), 0.06) 0 1px 0 0 inset;
+  box-shadow: var(--fill-4) 0 1px 0 0 inset;
   font: 400 12px/16px var(--font-sans);
   color: var(--text-quaternary);
   font-variant-numeric: tabular-nums;
@@ -543,7 +543,7 @@
   flex: 1 1 auto;
   height: 3px;
   border-radius: 2px;
-  background: rgba(var(--foreground-rgb), 0.08);
+  background: var(--fill-5);
   overflow: hidden;
 }
 .needt-v3 .ag-load i {
@@ -572,7 +572,7 @@
   min-height: 236px;
   background: none;
   box-shadow: none;
-  border: 1px dashed rgba(var(--foreground-rgb), 0.14);
+  border: 1px dashed var(--fill-6);
 }
 .needt-v3 .ag-card.is-add b {
   font: 600 13px/18px var(--font-sans);
@@ -583,7 +583,7 @@
   width: 40px;
   height: 40px;
   border-radius: 20px;
-  background: rgba(var(--foreground-rgb), 0.07);
+  background: var(--fill-5);
 }
 .needt-v3 .ag-card-add-line {
   font: var(--type-meta);
@@ -616,7 +616,7 @@
   border-radius: 12px;
 }
 .needt-v3 .ag-trow-wrap.is-open {
-  background: rgba(var(--foreground-rgb), 0.05);
+  background: var(--fill-4);
 }
 .needt-v3 button.ag-main.ag-trow {
   display: grid;
@@ -629,7 +629,7 @@
   border-radius: 12px;
 }
 .needt-v3 button.ag-main.ag-trow:hover {
-  background: rgba(var(--foreground-rgb), 0.04);
+  background: var(--fill-3);
 }
 .needt-v3 .ag-rail {
   width: 3px;
@@ -643,7 +643,7 @@
   width: 18px;
   height: 18px;
   border-radius: 9px;
-  box-shadow: rgba(var(--foreground-rgb), 0.3) 0 0 0 1.5px inset;
+  box-shadow: var(--text-disabled) 0 0 0 1.5px inset;
 }
 .needt-v3 .ag-ring.is-prog {
   box-shadow: var(--c, var(--text-tertiary)) 0 0 0 1.5px inset;
@@ -702,7 +702,7 @@
   height: 22px;
   padding: 0 8px;
   border-radius: 7px;
-  background: rgba(var(--foreground-rgb), 0.06);
+  background: var(--fill-4);
   font: 400 12px/1 var(--font-sans);
   color: var(--text-tertiary);
   white-space: nowrap;
@@ -725,7 +725,7 @@
   width: 36px;
   height: 3px;
   border-radius: 2px;
-  background: rgba(var(--foreground-rgb), 0.1);
+  background: var(--fill-6);
   overflow: hidden;
 }
 .needt-v3 .ag-crit i::after {
@@ -789,7 +789,7 @@
   width: 14px;
   height: 14px;
   border-radius: 4px;
-  box-shadow: rgba(var(--foreground-rgb), 0.3) 0 0 0 1.5px inset;
+  box-shadow: var(--text-disabled) 0 0 0 1.5px inset;
 }
 .needt-v3 .ag-chk i.is-on {
   box-shadow: var(--success) 0 0 0 1.5px inset;
@@ -853,10 +853,10 @@
   border-radius: 10px;
 }
 .needt-v3 .ag-thread:hover {
-  background: rgba(var(--foreground-rgb), 0.04);
+  background: var(--fill-3);
 }
 .needt-v3 .ag-thread[aria-current="true"] {
-  background: rgba(var(--foreground-rgb), 0.07);
+  background: var(--fill-5);
 }
 .needt-v3 .ag-thread-text {
   min-width: 0;
@@ -910,7 +910,7 @@
   align-items: center;
   gap: 10px;
   padding: 14px 18px;
-  box-shadow: rgba(var(--foreground-rgb), 0.07) 0 -1px 0 0 inset;
+  box-shadow: var(--fill-5) 0 -1px 0 0 inset;
 }
 .needt-v3 .ag-convo-head .ag-av {
   border-radius: 9px;
@@ -950,13 +950,13 @@
   max-width: 68%;
   padding: 10px 13px;
   border-radius: 16px;
-  background: rgba(var(--foreground-rgb), 0.06);
+  background: var(--fill-4);
   font: 400 13px/19px var(--font-sans);
   overflow-wrap: anywhere;
 }
 .needt-v3 .ag-msg.is-mine {
   align-self: flex-end;
-  background: rgba(var(--foreground-rgb), 0.13);
+  background: var(--fill-6);
 }
 .needt-v3 .ag-msg-head {
   display: flex;
@@ -987,7 +987,7 @@
   border: 0;
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.25);
-  box-shadow: rgba(var(--foreground-rgb), 0.07) 0 0 0 1px inset;
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
   color: inherit;
   text-align: left;
   cursor: default;
@@ -1004,8 +1004,8 @@
   margin: 12px 14px 14px;
   padding: 6px 6px 6px 8px;
   border-radius: 14px;
-  background: rgba(var(--foreground-rgb), 0.05);
-  box-shadow: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  background: var(--fill-4);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
 }
 .needt-v3 .ag-convo-reply .nt-input {
   box-shadow: none;
@@ -1057,7 +1057,7 @@
   top: 22px;
   bottom: -10px;
   width: 1px;
-  background: linear-gradient(var(--c), rgba(var(--foreground-rgb), 0.06));
+  background: linear-gradient(var(--c), var(--fill-4));
   opacity: 0.5;
 }
 .needt-v3 .ag-ev:last-child::before {
@@ -1097,7 +1097,7 @@
   height: 24px;
   padding: 0 9px;
   border-radius: 7px;
-  background: rgba(var(--foreground-rgb), 0.06);
+  background: var(--fill-4);
   color: var(--text-tertiary);
   font: 500 12px/1 var(--font-sans);
 }
@@ -1123,11 +1123,7 @@
 .needt-v3 .ag-bars i {
   flex: 1;
   border-radius: 3px 3px 1px 1px;
-  background: linear-gradient(
-    180deg,
-    rgba(246, 245, 250, 0.7),
-    rgba(246, 245, 250, 0.18)
-  );
+  background: linear-gradient(180deg, var(--text-tertiary), var(--fill-6));
 }
 .needt-v3 .ag-bars-axis {
   display: flex;
@@ -1214,7 +1210,7 @@
   background: #050508;
   overflow: hidden;
   box-shadow:
-    rgba(255, 255, 255, 0.06) 0 0 0 1px,
+    var(--fill-4) 0 0 0 1px,
     rgba(20, 20, 60, 0.6) 0 40px 90px -40px;
   transition: border-radius 0.42s cubic-bezier(0.2, 0.9, 0.24, 1);
   color: #f6f5fa;
@@ -1247,7 +1243,7 @@
   align-items: center;
   gap: 8px;
   font: 400 12px/1 var(--font-sans);
-  color: rgba(246, 245, 250, 0.6);
+  color: var(--text-quaternary);
   pointer-events: none;
 }
 .needt-v3 .ag-map-live {
@@ -1257,8 +1253,8 @@
   height: 26px;
   padding: 0 10px;
   border-radius: 13px;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: rgba(255, 255, 255, 0.08) 0 0 0 1px inset;
+  background: var(--fill-4);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
 }
 .needt-v3 .ag-map-live i {
   width: 6px;
@@ -1284,15 +1280,15 @@
   padding: 0 10px;
   border: 0;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: rgba(255, 255, 255, 0.09) 0 0 0 1px inset;
-  color: rgba(246, 245, 250, 0.85);
+  background: var(--fill-4);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
+  color: var(--text-secondary);
   font: 500 12px/1 var(--font-sans);
   cursor: default;
 }
 .needt-v3 .ag-map-ib:hover,
 .needt-v3 .ag-map-ib[aria-pressed="true"] {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--fill-6);
 }
 .needt-v3 .ag-map-legend {
   position: absolute;
@@ -1304,7 +1300,7 @@
   gap: 6px 14px;
   max-width: 60%;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(246, 245, 250, 0.6);
+  color: var(--text-quaternary);
   pointer-events: none;
 }
 .needt-v3 .ag-map-legend span {
@@ -1324,8 +1320,8 @@
   padding: 10px 12px;
   border: 0;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: rgba(255, 255, 255, 0.09) 0 0 0 1px inset;
+  background: var(--fill-4);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   color: #f6f5fa;
@@ -1356,7 +1352,7 @@
   margin-top: 3px;
   padding-left: 14px;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(246, 245, 250, 0.55);
+  color: var(--text-quaternary);
 }
 .needt-v3 .ag-map-tip {
   position: absolute;
@@ -1366,7 +1362,7 @@
   padding: 6px 9px;
   border-radius: 9px;
   background: rgba(20, 20, 26, 0.85);
-  box-shadow: rgba(255, 255, 255, 0.1) 0 0 0 1px inset;
+  box-shadow: var(--fill-6) 0 0 0 1px inset;
   font: 400 12px/16px var(--font-sans);
   color: #f6f5fa;
   white-space: nowrap;
@@ -1376,7 +1372,7 @@
 }
 .needt-v3 .ag-map-tip small {
   font-size: 12px;
-  color: rgba(246, 245, 250, 0.55);
+  color: var(--text-quaternary);
 }
 /* The agents on the map as buttons, for the keyboard and screen readers;
    they show only while one of them has focus. */
@@ -1402,7 +1398,7 @@
   border: 0;
   border-radius: 9px;
   background: rgba(20, 20, 26, 0.85);
-  box-shadow: rgba(255, 255, 255, 0.1) 0 0 0 1px inset;
+  box-shadow: var(--fill-6) 0 0 0 1px inset;
   color: #f6f5fa;
   font: 500 12px/1 var(--font-sans);
 }
@@ -1555,7 +1551,7 @@
 }
 .needt-v3 .ag-map-status {
   margin-left: 8px;
-  color: rgba(246, 245, 250, 0.7);
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
 .needt-v3 .ag-tabs.ag-dock {
@@ -1586,7 +1582,7 @@
   background: rgba(12, 12, 18, 0.82);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
-  box-shadow: rgba(var(--foreground-rgb), 0.1) 0 0 0 1px inset;
+  box-shadow: var(--fill-6) 0 0 0 1px inset;
 }
 .needt-v3 .ag-onboard-title {
   margin: 0 0 8px;
@@ -1630,7 +1626,7 @@
   box-sizing: border-box;
   border-radius: 18px;
   background: rgba(12, 12, 18, 0.9);
-  box-shadow: rgba(var(--foreground-rgb), 0.08) 0 0 0 1px inset;
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
   transform: translateX(-12px);
   opacity: 0;
   pointer-events: none;
@@ -1684,8 +1680,8 @@
   max-width: 80%;
   padding: 12px 14px;
   border-radius: 16px;
-  background: rgba(var(--foreground-rgb), 0.05);
-  box-shadow: rgba(var(--foreground-rgb), 0.09) 0 0 0 1px inset;
+  background: var(--fill-4);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
   font: 400 13px/19px var(--font-sans);
 }
 .needt-v3 .ag-chat-q {
@@ -1706,8 +1702,8 @@
   margin-top: 12px;
   padding: 6px 6px 6px 14px;
   border-radius: 16px;
-  background: rgba(var(--foreground-rgb), 0.05);
-  box-shadow: rgba(var(--foreground-rgb), 0.09) 0 0 0 1px inset;
+  background: var(--fill-4);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
 }
 .needt-v3 .ag-chat-input {
   flex: 1 1 auto;
@@ -1751,7 +1747,7 @@
 .needt-v3 .ag-map-status {
   margin-left: 0;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.45);
+  color: var(--text-muted);
   letter-spacing: 0.02em;
 }
 .needt-v3 .ag-map-ib {
@@ -1760,12 +1756,12 @@
   height: 32px;
   padding: 0;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.045);
-  box-shadow: rgba(255, 255, 255, 0.08) 0 0 0 1px inset;
-  color: rgba(236, 242, 255, 0.8);
+  background: var(--fill-3);
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
+  color: var(--text-secondary);
 }
 .needt-v3 .ag-map-ib:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: var(--fill-5);
 }
 .needt-v3 .ag-map-link {
   pointer-events: auto;
@@ -1776,12 +1772,12 @@
   border: 0;
   background: none;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.4);
+  color: var(--text-muted);
   cursor: default;
 }
 .needt-v3 .ag-map-link:hover,
 .needt-v3 .ag-map-link[aria-pressed="true"] {
-  color: rgba(236, 242, 255, 0.85);
+  color: var(--text-secondary);
 }
 .needt-v3 .ag-map-link:focus-visible {
   outline: 2px solid var(--accent);
@@ -1799,7 +1795,7 @@
   position: absolute;
   font: 400 12px/16px var(--font-sans);
   letter-spacing: 0.02em;
-  color: rgba(236, 242, 255, 0.5);
+  color: var(--text-quaternary);
   white-space: nowrap;
   animation: ag-src-in 1s var(--ag-ease) both;
 }
@@ -1810,7 +1806,7 @@
   height: 1px;
   margin-left: 8px;
   vertical-align: middle;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3), transparent);
+  background: linear-gradient(90deg, var(--text-disabled), transparent);
 }
 .needt-v3 [data-ag-map-phone] .ag-map-src {
   transform: translateX(-50%);
@@ -1836,17 +1832,13 @@
   overflow: hidden;
   border: 0;
   border-radius: 34px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.075),
-    rgba(255, 255, 255, 0.028)
-  );
+  background: linear-gradient(180deg, var(--fill-5), var(--fill-2));
   box-shadow:
-    rgba(255, 255, 255, 0.09) 0 0 0 1px inset,
+    var(--fill-5) 0 0 0 1px inset,
     #000 0 24px 60px -24px;
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
-  color: rgb(236, 242, 255);
+  color: var(--text-primary);
   text-align: left;
   cursor: default;
   opacity: 0;
@@ -1894,7 +1886,7 @@
 }
 .needt-v3 .ag-pill-tr {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.1);
+  stroke: var(--text-disabled);
   stroke-width: 3.5;
 }
 .needt-v3 .ag-pill-pg {
@@ -1926,7 +1918,7 @@
   display: block;
   margin-top: 2px;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.5);
+  color: var(--text-quaternary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1952,7 +1944,7 @@
   border-radius: 26px;
   background: rgba(14, 16, 24, 0.55);
   box-shadow:
-    rgba(255, 255, 255, 0.09) 0 0 0 1px inset,
+    var(--fill-5) 0 0 0 1px inset,
     #000 0 24px 60px -20px;
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
@@ -1960,22 +1952,22 @@
 .needt-v3 .ag-dock .ag-tab {
   height: 38px;
   border-radius: 20px;
-  color: rgba(236, 242, 255, 0.55);
+  color: var(--text-quaternary);
 }
 .needt-v3 .ag-dock .ag-tab:hover:not([aria-selected="true"]) {
   background: none;
-  color: rgb(236, 242, 255);
+  color: var(--text-primary);
 }
 .needt-v3 .ag-dock .ag-tab[aria-selected="true"] {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgb(236, 242, 255);
+  background: var(--fill-6);
+  color: var(--text-primary);
   box-shadow:
-    rgba(255, 255, 255, 0.09) 0 0 0 1px inset,
+    var(--fill-5) 0 0 0 1px inset,
     rgba(var(--blue), 0.45) 0 0 24px -6px;
 }
 .needt-v3 .ag-dock .ag-tab small {
   font-size: 12px;
-  color: rgba(236, 242, 255, 0.38);
+  color: var(--text-muted);
 }
 /* Orange on the Chat tab: an agent waits for your answer (a mark only). */
 .needt-v3 .ag-tab-dot {
@@ -2046,11 +2038,11 @@
 }
 .needt-v3 .ag-glass2 {
   background: rgba(20, 21, 27, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--fill-5);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   backdrop-filter: blur(24px) saturate(1.4);
   box-shadow:
-    rgba(255, 255, 255, 0.06) 0 1px 0 inset,
+    var(--fill-4) 0 1px 0 inset,
     rgba(0, 0, 0, 0.9) 0 18px 50px -22px;
 }
 .needt-v3 .ag-chatbar {
@@ -2074,18 +2066,18 @@
   border: 0;
   border-radius: 50%;
   background: none;
-  color: rgba(236, 242, 255, 0.66);
+  color: var(--text-tertiary);
   cursor: default;
   transition:
     color 0.3s,
     background 0.3s;
 }
 .needt-v3 .ag-round:hover {
-  color: rgb(236, 242, 255);
-  background: rgba(255, 255, 255, 0.09);
+  color: var(--text-primary);
+  background: var(--fill-5);
 }
 .needt-v3 .ag-round.is-on {
-  color: rgb(236, 242, 255);
+  color: var(--text-primary);
   box-shadow: rgba(var(--blue), 0.6) 0 0 0 1px inset;
 }
 .needt-v3 .ag-round-dot {
@@ -2107,7 +2099,7 @@
   align-items: center;
   gap: 7px;
   font: 400 13px/1 var(--font-sans);
-  color: rgba(236, 242, 255, 0.72);
+  color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2127,10 +2119,10 @@
   border: 0;
   background: none;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.4);
+  color: var(--text-muted);
 }
 .needt-v3 .ag-link2:hover {
-  color: rgba(236, 242, 255, 0.85);
+  color: var(--text-secondary);
 }
 .needt-v3 .ag-drawer2 {
   position: absolute;
@@ -2159,13 +2151,13 @@
   font: 500 12px/16px var(--font-sans);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(236, 242, 255, 0.3);
+  color: var(--text-disabled);
 }
 .needt-v3 .ag-drawer2 .ag-thread {
   grid-template-columns: 20px minmax(0, 1fr) auto auto;
   align-items: center;
   padding: 8px 10px;
-  color: rgba(236, 242, 255, 0.7);
+  color: var(--text-tertiary);
 }
 .needt-v3 .ag-thread-t {
   font: 400 13px/18px var(--font-sans);
@@ -2176,7 +2168,7 @@
 .needt-v3 .ag-drawer2 em {
   font: 400 12px/16px var(--font-sans);
   font-style: normal;
-  color: rgba(236, 242, 255, 0.3);
+  color: var(--text-disabled);
 }
 .needt-v3 .ag-drawer2 .ag-un {
   background: rgb(255, 159, 67);
@@ -2187,7 +2179,7 @@
   display: grid;
   place-items: center;
   background: linear-gradient(145deg, #3a404c, #20242c);
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-secondary);
   font-weight: 600;
   line-height: 1;
 }
@@ -2206,7 +2198,7 @@
   text-align: center;
   font: 400 20px/28px var(--font-sans);
   letter-spacing: -0.01em;
-  color: rgba(236, 242, 255, 0.82);
+  color: var(--text-secondary);
   pointer-events: none;
 }
 .needt-v3 .ag-w {
@@ -2255,12 +2247,12 @@
   align-self: flex-end;
   padding: 10px 16px;
   border-radius: 20px 20px 6px 20px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: var(--fill-5);
+  border: 1px solid var(--fill-5);
 }
 .needt-v3 .ag-cmsg.is-ai {
   align-self: flex-start;
-  color: rgba(236, 242, 255, 0.72);
+  color: var(--text-tertiary);
 }
 /* An agent's card: a status rail (orange waits on you, red is urgent,
    green once answered), the agent's tile, the question, two buttons. */
@@ -2318,7 +2310,7 @@
 .needt-v3 .ag-acard-h small {
   display: block;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.45);
+  color: var(--text-muted);
 }
 .needt-v3 .ag-acard p {
   margin: 10px 0 12px;
@@ -2329,7 +2321,7 @@
   display: block;
   margin: -6px 0 12px;
   font: 400 13px/19px var(--font-sans);
-  color: rgba(236, 242, 255, 0.6);
+  color: var(--text-quaternary);
 }
 .needt-v3 .ag-acard-bt {
   display: flex;
@@ -2341,7 +2333,7 @@
   align-items: center;
   gap: 7px;
   font: 400 13px/18px var(--font-sans);
-  color: rgba(236, 242, 255, 0.75);
+  color: var(--text-tertiary);
 }
 .needt-v3 .ag-acard-done svg {
   color: rgb(72, 214, 138);
@@ -2349,21 +2341,21 @@
 .needt-v3 .ag-btn2 {
   height: 34px;
   padding: 0 16px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--fill-5);
   border-radius: 17px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--fill-4);
   font: 500 13px/1 var(--font-sans);
-  color: rgba(236, 242, 255, 0.7);
+  color: var(--text-tertiary);
   cursor: default;
   transition: 0.3s;
 }
 .needt-v3 .ag-btn2:hover {
-  color: rgb(236, 242, 255);
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  background: var(--fill-6);
 }
 .needt-v3 .ag-btn2.is-pri {
   border-color: rgba(var(--blue), 0.55);
-  color: rgb(236, 242, 255);
+  color: var(--text-primary);
   box-shadow: 0 0 18px -6px rgba(var(--blue), 0.6);
 }
 .needt-v3 .ag-btn2.is-quiet {
@@ -2390,7 +2382,7 @@
 .needt-v3 .ag-composer:focus-within {
   border-color: rgba(var(--blue), 0.35);
   box-shadow:
-    rgba(255, 255, 255, 0.06) 0 1px 0 inset,
+    var(--fill-4) 0 1px 0 inset,
     rgba(0, 0, 0, 0.9) 0 18px 50px -22px,
     rgba(var(--blue), 0.55) 0 0 40px -14px;
 }
@@ -2404,18 +2396,18 @@
   font: 400 16px var(--font-sans);
 }
 .needt-v3 .ag-composer input::placeholder {
-  color: rgba(236, 242, 255, 0.4);
+  color: var(--text-muted);
 }
 .needt-v3 .ag-composer .ag-round {
   width: 38px;
   height: 38px;
 }
 .needt-v3 .ag-composer .ag-send {
-  color: rgba(236, 242, 255, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: var(--text-disabled);
+  border: 1px solid var(--fill-5);
 }
 .needt-v3 .ag-composer.has .ag-send {
-  color: rgb(236, 242, 255);
+  color: var(--text-primary);
   border-color: rgba(var(--blue), 0.6);
   box-shadow: 0 0 16px -4px rgba(var(--blue), 0.7);
 }
@@ -2455,7 +2447,7 @@
   z-index: 30;
   overflow: hidden;
   background: #050507;
-  color: rgb(236, 242, 255);
+  color: var(--text-primary);
   transition: background 0.9s;
 }
 .needt-v3 .ag-setup.is-fly {
@@ -2510,7 +2502,7 @@
   transform: translateX(-50%);
   font: 400 12px/16px var(--font-sans);
   letter-spacing: 0.08em;
-  color: rgba(236, 242, 255, 0.35);
+  color: var(--text-muted);
   transition: opacity 0.5s;
 }
 .needt-v3 .ag-setup-skip {
@@ -2522,10 +2514,10 @@
   border: 0;
   background: none;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.4);
+  color: var(--text-muted);
 }
 .needt-v3 .ag-setup-skip:hover {
-  color: rgba(236, 242, 255, 0.85);
+  color: var(--text-secondary);
 }
 .needt-v3 .ag-step {
   position: absolute;
@@ -2570,11 +2562,11 @@
   fill: none;
 }
 .needt-v3 .ag-s-lines .is-base {
-  stroke: rgba(255, 255, 255, 0.07);
+  stroke: var(--text-disabled);
   stroke-width: 0.8;
 }
 .needt-v3 .ag-s-lines .is-arc {
-  stroke: rgba(255, 255, 255, 0.06);
+  stroke: var(--text-disabled);
   stroke-width: 1;
   stroke-dasharray: 3 7;
 }
@@ -2590,7 +2582,7 @@
   stroke-dashoffset: 0;
 }
 .needt-v3 .ag-s-dot {
-  fill: #fff;
+  fill: var(--text-primary);
   filter: drop-shadow(0 0 5px rgba(90, 169, 255, 1));
   animation: ag-dot-in 0.6s 0.6s both;
 }
@@ -2612,7 +2604,7 @@
   background: radial-gradient(circle at 35% 25%, #9ccdff, #3d86f0 60%, #2a63c9);
   border: 1px solid rgba(150, 205, 255, 0.55);
   box-shadow:
-    rgba(255, 255, 255, 0.5) 0 1px 0 inset,
+    var(--text-quaternary) 0 1px 0 inset,
     rgba(var(--blue), 0.45) 0 0 60px 8px,
     rgba(var(--blue), 0.08) 0 0 0 6px,
     rgba(var(--blue), 0.2) 0 0 140px 30px;
@@ -2624,7 +2616,7 @@
   width: 56%;
   height: 56%;
   fill: none;
-  stroke: #fff;
+  stroke: var(--text-primary);
   stroke-width: 2.1;
   stroke-linecap: round;
 }
@@ -2647,13 +2639,9 @@
   padding: 0;
   border: 0;
   border-radius: 30%;
-  background: linear-gradient(
-    150deg,
-    rgba(255, 255, 255, 0.13),
-    rgba(255, 255, 255, 0.03) 62%
-  );
+  background: linear-gradient(150deg, var(--fill-6), var(--fill-2) 62%);
   box-shadow:
-    rgba(255, 255, 255, 0.11) 0 0 0 1px inset,
+    var(--fill-6) 0 0 0 1px inset,
     rgba(0, 0, 0, 0.5) 0 10px 30px;
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -2730,7 +2718,7 @@
   max-width: 430px;
   margin: 10px auto 0;
   font: 400 15px/1.5 var(--font-sans);
-  color: rgba(236, 242, 255, 0.5);
+  color: var(--text-quaternary);
 }
 .needt-v3 .ag-s-grid {
   display: flex;
@@ -2769,16 +2757,16 @@
 .needt-v3 .ag-s-foot small {
   height: 16px;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.38);
+  color: var(--text-muted);
 }
 .needt-v3 .ag-go {
   height: 44px;
   padding: 0 34px;
   border: 0;
   border-radius: 22px;
-  background: rgba(236, 242, 255, 0.95);
+  background: var(--text-primary);
   color: #07080c;
-  font: 500 14px/1 var(--font-sans);
+  font: 500 13px/1 var(--font-sans);
   box-shadow: 0 0 36px -6px rgba(var(--blue), 0.6);
   cursor: default;
   transition:
@@ -2801,13 +2789,9 @@
   width: min(460px, calc(100% - 32px));
   padding: 26px;
   border-radius: 28px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.06),
-    rgba(255, 255, 255, 0.025)
-  );
+  background: linear-gradient(180deg, var(--fill-4), var(--fill-2));
   box-shadow:
-    rgba(255, 255, 255, 0.09) 0 0 0 1px inset,
+    var(--fill-5) 0 0 0 1px inset,
     #000 0 40px 90px -30px,
     rgba(var(--blue), 0.6) 0 0 90px -40px;
   -webkit-backdrop-filter: blur(20px);
@@ -2827,15 +2811,15 @@
 .needt-v3 .ag-card2-hd p {
   margin: 2px 0 0;
   font: 400 13px/18px var(--font-sans);
-  color: rgba(236, 242, 255, 0.45);
+  color: var(--text-muted);
 }
 .needt-v3 .ag-stp {
   position: relative;
   display: flex;
   gap: 14px;
   padding-bottom: 18px;
-  font: 400 14px/1.45 var(--font-sans);
-  color: rgba(236, 242, 255, 0.85);
+  font: 400 13px/1.45 var(--font-sans);
+  color: var(--text-secondary);
 }
 .needt-v3 .ag-stp:not(.is-last)::before {
   content: "";
@@ -2844,7 +2828,7 @@
   top: 26px;
   bottom: 2px;
   width: 1px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--fill-6);
 }
 .needt-v3 .ag-stp.is-last {
   margin-top: 18px;
@@ -2859,8 +2843,8 @@
   border-radius: 12px;
   font: 400 12px/1 var(--font-sans);
   font-style: normal;
-  color: rgba(236, 242, 255, 0.7);
-  box-shadow: rgba(255, 255, 255, 0.2) 0 0 0 1px inset;
+  color: var(--text-tertiary);
+  box-shadow: var(--text-disabled) 0 0 0 1px inset;
 }
 .needt-v3 .ag-url {
   display: flex;
@@ -2871,7 +2855,7 @@
   padding: 0 6px 0 14px;
   border-radius: 16px;
   background: rgba(0, 0, 0, 0.35);
-  box-shadow: rgba(255, 255, 255, 0.1) 0 0 0 1px inset;
+  box-shadow: var(--fill-6) 0 0 0 1px inset;
 }
 .needt-v3 .ag-url code {
   flex: 1;
@@ -2884,15 +2868,15 @@
     "SF Mono",
     Menlo,
     monospace;
-  color: rgba(236, 242, 255, 0.8);
+  color: var(--text-secondary);
 }
 .needt-v3 .ag-url button {
   height: 32px;
   padding: 0 12px;
   border: 0;
   border-radius: 11px;
-  background: rgba(255, 255, 255, 0.09);
-  color: rgb(236, 242, 255);
+  background: var(--fill-5);
+  color: var(--text-primary);
   font: 500 12px/1 var(--font-sans);
 }
 .needt-v3 .ag-stat {
@@ -2901,7 +2885,7 @@
   gap: 10px;
   margin-top: 20px;
   font: 400 13px/18px var(--font-sans);
-  color: rgba(236, 242, 255, 0.6);
+  color: var(--text-quaternary);
 }
 .needt-v3 .ag-pd {
   width: 10px;
@@ -2919,7 +2903,7 @@
   }
 }
 .needt-v3 .ag-stat.is-ok {
-  color: rgb(236, 242, 255);
+  color: var(--text-primary);
 }
 .needt-v3 .ag-stat.is-ok .ag-pd {
   animation: none;
@@ -2949,7 +2933,7 @@
   text-align: center;
   font: 400 13px/18px var(--font-sans);
   letter-spacing: 0.02em;
-  color: rgba(236, 242, 255, 0.5);
+  color: var(--text-quaternary);
   animation: ag-src-in 0.6s both;
 }
 .needt-v3 .ag-flyer {
@@ -2958,9 +2942,9 @@
   display: grid;
   place-items: center;
   border-radius: 30%;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--fill-5);
   box-shadow:
-    rgba(255, 255, 255, 0.12) 0 0 0 1px inset,
+    var(--fill-6) 0 0 0 1px inset,
     rgba(var(--blue), 0.5) 0 0 40px;
   pointer-events: none;
 }
@@ -2978,7 +2962,7 @@
     font-size: 27px;
   }
   .needt-v3 .ag-s-copy p {
-    font-size: 14px;
+    font-size: 13px;
   }
   .needt-v3 .ag-s-grid {
     margin-top: 18px;
@@ -3018,7 +3002,7 @@
   gap: 6px 14px;
   font: 400 12px/16px var(--font-sans);
   letter-spacing: 0.01em;
-  color: rgba(236, 242, 255, 0.45);
+  color: var(--text-muted);
   pointer-events: none;
 }
 .needt-v3 .ag-map-status-legend span {
@@ -3060,11 +3044,11 @@
   padding: 3px 9px 3px 3px;
   border-radius: 12px;
   background: rgba(8, 9, 14, 0.55);
-  box-shadow: rgba(255, 255, 255, 0.09) 0 0 0 1px inset;
+  box-shadow: var(--fill-5) 0 0 0 1px inset;
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   font: 500 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.85);
+  color: var(--text-secondary);
   white-space: nowrap;
   opacity: 0;
   will-change: transform;
@@ -3150,7 +3134,7 @@
   gap: 6px;
   margin-top: 2px;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.55);
+  color: var(--text-quaternary);
 }
 .needt-v3 .ag-map-tip small i {
   flex: none;
@@ -3212,7 +3196,7 @@
   border-radius: 30px;
   background: linear-gradient(160deg, #1b1b1f 0%, #0d0d10 60%);
   box-shadow:
-    rgba(255, 255, 255, 0.07) 0 0 0 1px inset,
+    var(--fill-5) 0 0 0 1px inset,
     rgba(0, 0, 0, 0.6) 0 10px 26px -8px;
 }
 .needt-v3 .ag-acard3-top {
@@ -3221,7 +3205,7 @@
   justify-content: space-between;
   gap: 10px;
   font: 400 13px/18px var(--font-sans);
-  color: rgba(236, 242, 255, 0.45);
+  color: var(--text-muted);
 }
 .needt-v3 .ag-acard3-top span {
   display: inline-flex;
@@ -3250,8 +3234,8 @@
   place-items: center;
   overflow: hidden;
   border-radius: 26px;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: rgba(255, 255, 255, 0.1) 0 0 0 1px inset;
+  background: var(--fill-5);
+  box-shadow: var(--fill-6) 0 0 0 1px inset;
 }
 .needt-v3 .ag-acard3-q {
   min-width: 0;
@@ -3267,7 +3251,7 @@
   gap: 7px;
   margin-top: 3px;
   font: 400 14px/1.4 var(--font-sans);
-  color: rgba(236, 242, 255, 0.7);
+  color: var(--text-tertiary);
   overflow-wrap: anywhere;
 }
 .needt-v3 .ag-acard3-q small i {
@@ -3285,14 +3269,14 @@
   border: 0;
   background: none;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.45);
+  color: var(--text-muted);
   text-align: left;
   text-decoration: underline;
-  text-decoration-color: rgba(236, 242, 255, 0.2);
+  text-decoration-color: var(--text-disabled);
   text-underline-offset: 2px;
 }
 .needt-v3 .ag-acard3-ctx:hover {
-  color: rgba(236, 242, 255, 0.8);
+  color: var(--text-secondary);
 }
 .needt-v3 .ag-acard3-thumbs {
   flex: none;
@@ -3309,7 +3293,7 @@
   border: 0;
   border-radius: 9px;
   background: #111;
-  box-shadow: rgba(255, 255, 255, 0.12) 0 0 0 1px inset;
+  box-shadow: var(--fill-6) 0 0 0 1px inset;
   cursor: default;
 }
 .needt-v3 .ag-th video,
@@ -3328,7 +3312,7 @@
   overflow: hidden;
   font: 600 9px/1 var(--font-sans);
   font-style: normal;
-  color: #fff;
+  color: var(--text-primary);
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3340,7 +3324,7 @@
   left: 50%;
   top: 40%;
   margin: -5px 0 0 -3px;
-  border-left: 8px solid rgba(255, 255, 255, 0.85);
+  border-left: 8px solid var(--text-secondary);
   border-top: 5px solid transparent;
   border-bottom: 5px solid transparent;
 }
@@ -3353,7 +3337,7 @@
   right: 0;
   bottom: 0;
   height: 2px;
-  background: #fff;
+  background: var(--text-primary);
   transform-origin: left;
 }
 .needt-v3 .ag-th:focus-visible {
@@ -3368,7 +3352,7 @@
   padding: 0;
   list-style: none;
   font: 400 12px/16px var(--font-sans);
-  color: rgba(236, 242, 255, 0.6);
+  color: var(--text-quaternary);
 }
 .needt-v3 .ag-checks li {
   display: inline-flex;
@@ -3398,14 +3382,10 @@
   gap: 9px;
   border: 0;
   border-radius: 16px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.16),
-    rgba(255, 255, 255, 0.09)
-  );
+  background: linear-gradient(180deg, var(--fill-6), var(--fill-5));
   box-shadow:
-    rgba(255, 255, 255, 0.12) 0 1px 0 inset,
-    rgba(255, 255, 255, 0.06) 0 0 0 1px inset;
+    var(--fill-6) 0 1px 0 inset,
+    var(--fill-4) 0 0 0 1px inset;
   font: 500 15px/1 var(--font-sans);
   color: #f6f5fa;
   cursor: default;
@@ -3414,18 +3394,10 @@
     transform 0.09s;
 }
 .needt-v3 .ag-acard3-btns button + button {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.09),
-    rgba(255, 255, 255, 0.05)
-  );
+  background: linear-gradient(180deg, var(--fill-5), var(--fill-4));
 }
 .needt-v3 .ag-acard3-btns button:hover {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.2),
-    rgba(255, 255, 255, 0.12)
-  );
+  background: linear-gradient(180deg, var(--text-disabled), var(--fill-6));
 }
 .needt-v3 .ag-acard3-btns button:active {
   transform: scale(0.97);

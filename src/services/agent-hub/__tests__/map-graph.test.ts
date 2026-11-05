@@ -4,13 +4,13 @@ import { mapGraph } from "../map-graph";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    hubItemEvent: { findMany: jest.fn() },
+    $queryRaw: jest.fn(),
     hubThread: { findMany: jest.fn() },
     hubMessage: { count: jest.fn() },
   },
 }));
 
-const events = prisma.hubItemEvent.findMany as jest.Mock;
+const events = prisma.$queryRaw as unknown as jest.Mock;
 const threads = prisma.hubThread.findMany as jest.Mock;
 const count = prisma.hubMessage.count as jest.Mock;
 const key = { userId: "u1", workspaceId: "w1" };
@@ -26,11 +26,12 @@ beforeEach(() => {
 
 describe("map graph", () => {
   it("counts each agent's events per UTC day, oldest first", async () => {
+    // The database groups by agent and day (day 0 = 30.10).
     events.mockResolvedValue([
-      { actorAgentId: "a1", at: new Date("2026-11-05T09:00:00Z") },
-      { actorAgentId: "a1", at: new Date("2026-11-05T01:00:00Z") },
-      { actorAgentId: "a1", at: new Date("2026-10-30T23:00:00Z") },
-      { actorAgentId: "a2", at: new Date("2026-11-03T12:00:00Z") },
+      { agent: "a1", day: 6, n: 2 },
+      { agent: "a1", day: 0, n: 1 },
+      { agent: "a2", day: 4, n: 1 },
+      { agent: "a2", day: 9, n: 3 },
     ]);
     const graph = await mapGraph(key, NOW);
     expect(graph.since).toBe("2026-10-30T00:00:00.000Z");
@@ -42,9 +43,11 @@ describe("map graph", () => {
   it("scopes every query to the owner's workspace and the window", async () => {
     events.mockResolvedValue([]);
     await mapGraph(key, NOW);
-    const where = events.mock.calls[0][0].where;
-    expect(where.item).toEqual(key);
-    expect(where.at.gte.toISOString()).toBe("2026-10-30T00:00:00.000Z");
+    const [sql, ...values] = events.mock.calls[0];
+    expect(sql.join("?")).toContain("GROUP BY");
+    expect(values).toContain("u1");
+    expect(values).toContain("w1");
+    expect(values).toContain("2026-10-30T00:00:00.000Z");
     expect(threads.mock.calls[0][0].where).toEqual(key);
     expect(count.mock.calls[0][0].where).toMatchObject(key);
   });

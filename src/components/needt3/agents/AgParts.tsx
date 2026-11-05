@@ -19,15 +19,15 @@ import { Art, type ArtName } from "../menu/Art";
  * rail, a ring, a thin line. Never a surface or a button.
  */
 export const AGENT_HUES = [
-  "rgb(246,245,250)",
-  "rgb(214,214,224)",
-  "rgb(184,186,200)",
-  "rgb(156,160,178)",
-  "rgb(130,134,154)",
+  "var(--text-primary)",
+  "var(--text-secondary)",
+  "var(--text-tertiary)",
+  "var(--text-quaternary)",
+  "var(--text-muted)",
 ] as const;
 /** The one colour on the night: an agent working right now. */
 export const LIVE_HUE = "rgb(92,140,255)";
-const NEUTRAL_HUE = "rgba(246,245,250,0.45)";
+const NEUTRAL_HUE = "var(--text-muted)";
 
 /** id and name → hue, in the order the overview lists the agents. */
 export function agentHueMap(

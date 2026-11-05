@@ -2,11 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
 import { FiCheck, FiClock, FiCornerUpLeft, FiZap } from "react-icons/fi";
 
 import { formatDateToLocal, newDate } from "@/lib/date-utils";
-import { fetchJson } from "@/lib/needt3/hooks/core";
 
 import { AgentIcon } from "./AgentIcon";
 import type { HubItemRow } from "./TasksTab";
@@ -15,7 +13,6 @@ interface HubFile {
   id: string;
   name: string;
   mime: string;
-  size: number;
 }
 
 /** How long Approve waits before it is sent, so Undo is real. */
@@ -84,7 +81,7 @@ function Preview({ file }: { file: HubFile }) {
           src={src}
           muted
           playsInline
-          preload="metadata"
+          preload="none"
           onTimeUpdate={(e) => {
             const v = e.currentTarget;
             setProgress(v.duration ? v.currentTime / v.duration : 0);
@@ -93,7 +90,7 @@ function Preview({ file }: { file: HubFile }) {
         />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element -- an authenticated attachment, not a static asset
-        <img src={src} alt="" />
+        <img src={src} alt="" loading="lazy" />
       )}
       <em>{name}</em>
       {isVideo ? (
@@ -122,6 +119,7 @@ export function ApprovalCard({
   now,
   done,
   onApprove,
+  onLeavePage,
   onAnswer,
   onOpen,
 }: {
@@ -131,6 +129,11 @@ export function ApprovalCard({
   done: "approved" | "answered" | null;
   /** Sends the approval after the Undo window; false when it failed. */
   onApprove: () => Promise<boolean | void> | void;
+  /**
+   * The page is closing inside the Undo window: send the approval with a
+   * request that outlives the page (fetch keepalive).
+   */
+  onLeavePage?: () => void;
   onAnswer: () => void;
   onOpen: () => void;
 }) {
@@ -139,6 +142,23 @@ export function ApprovalCard({
   const timer = useRef<number | null>(null);
   const send = useRef(onApprove);
   send.current = onApprove;
+  const leave = useRef(onLeavePage);
+  leave.current = onLeavePage;
+  const status = useRef(item.status);
+  status.current = item.status;
+  // Closing the tab inside the Undo window: the approval goes out with the
+  // page, unless the item has moved on (no longer waiting on the owner).
+  useEffect(() => {
+    if (!pending) return undefined;
+    const away = () => {
+      if (!timer.current) return;
+      window.clearTimeout(timer.current);
+      timer.current = null;
+      if (status.current === "needs_owner") leave.current?.();
+    };
+    window.addEventListener("pagehide", away);
+    return () => window.removeEventListener("pagehide", away);
+  }, [pending]);
   // Leaving the card inside the Undo window (another tab, a refetch) sends
   // the approval now: it was shown as approved, so it must not be lost.
   useEffect(
@@ -150,17 +170,8 @@ export function ApprovalCard({
     },
     []
   );
-  const files = useQuery({
-    queryKey: ["agent-hub", "item", item.id, "files"],
-    queryFn: () =>
-      fetchJson<{ attachments: HubFile[] }>(
-        `/api/agent-hub/items/${item.id}/attachments`
-      ),
-    staleTime: 60_000,
-  });
-  const media = (files.data?.attachments ?? [])
-    .filter((f) => f.mime.startsWith("video/") || f.mime.startsWith("image/"))
-    .slice(0, 3);
+  // Stubs from the overview: no request per card; a file loads on a click.
+  const media: HubFile[] = (item.media ?? []).slice(0, 3);
   const due = item.due ?? null;
   // A post or a message has a send time; anything else has a due time.
   const posts = item.risks.some((r) => r === "publish" || r === "send_message");

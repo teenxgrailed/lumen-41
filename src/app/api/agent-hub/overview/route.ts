@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { listAgentsForOwner } from "@/services/agent-hub/agents";
+import { mediaStubs } from "@/services/agent-hub/attachments";
 import {
   authenticateHubOwner,
   hubRoute,
@@ -14,7 +15,8 @@ import { listReservations } from "@/services/agent-hub/reservations";
 /**
  * Everything the Agents screen shows, for the signed-in owner. `?graph=1`
  * adds the Map's compact links and counts (per-agent activity by day, thread
- * to item links, messages this week) in the same request.
+ * to item links, messages this week) in the same request. An item waiting
+ * on the owner carries up to three media stubs for its card's previews.
  */
 export async function GET(request: NextRequest) {
   return hubRoute(async () => {
@@ -35,10 +37,19 @@ export async function GET(request: NextRequest) {
       listReservations(auth.scope),
       withGraph ? mapGraph(auth.scope) : null,
     ]);
+    const waiting = items.filter((i) => i.status === "needs_owner");
+    const media = await mediaStubs(
+      auth.scope,
+      waiting.map((i) => i.id)
+    );
     return NextResponse.json({
       workspaceId: auth.scope.workspaceId,
       agents,
-      items,
+      items: media.size
+        ? items.map((i) =>
+            media.has(i.id) ? { ...i, media: media.get(i.id) } : i
+          )
+        : items,
       notes: notes.notes,
       reservations: reservations.reservations,
       ...(graph ? { graph } : {}),

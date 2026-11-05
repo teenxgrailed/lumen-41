@@ -11,8 +11,22 @@ jest.mock("@/services/agent-hub/http", () => ({
 jest.mock("@/services/agent-hub/agents", () => ({
   listAgentsForOwner: jest.fn(async () => []),
 }));
+const listItems = jest.fn(async (): Promise<unknown[]> => []);
 jest.mock("@/services/agent-hub/items", () => ({
-  listItems: jest.fn(async () => []),
+  listItems: () => listItems(),
+}));
+const mediaStubs = jest.fn(
+  async (_scope: unknown, ids: string[]) =>
+    new Map(
+      ids.map((id) => [
+        id,
+        [{ id: `f-${id}`, mime: "video/mp4", name: "a.mp4" }],
+      ])
+    )
+);
+jest.mock("@/services/agent-hub/attachments", () => ({
+  mediaStubs: (...args: unknown[]) =>
+    mediaStubs(...(args as [unknown, string[]])),
 }));
 jest.mock("@/services/agent-hub/notes", () => ({
   searchNotes: jest.fn(async () => ({ notes: [] })),
@@ -47,5 +61,19 @@ describe("GET /api/agent-hub/overview", () => {
     expect(mapGraph).toHaveBeenCalledWith(scope);
     expect(body.graph.activity.a1).toEqual([0, 0, 0, 0, 0, 0, 2]);
     expect(body.agents).toEqual([]);
+  });
+
+  it("gives items waiting on the owner their media stubs in one call", async () => {
+    listItems.mockResolvedValueOnce([
+      { id: "i1", status: "needs_owner" },
+      { id: "i2", status: "in_progress" },
+    ]);
+    const body = await ((await get()) as NextResponse).json();
+    expect(mediaStubs).toHaveBeenCalledTimes(1);
+    expect(mediaStubs).toHaveBeenCalledWith(scope, ["i1"]);
+    expect(body.items[0].media).toEqual([
+      { id: "f-i1", mime: "video/mp4", name: "a.mp4" },
+    ]);
+    expect(body.items[1].media).toBeUndefined();
   });
 });

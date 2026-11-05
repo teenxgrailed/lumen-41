@@ -115,6 +115,35 @@ export async function listAttachments(scope: HubScope, itemId: string) {
   };
 }
 
+/**
+ * Up to three image or video stubs ({id, mime, name}) per item, in one
+ * query, for the cards that preview them (Chat's asks). The file itself is
+ * fetched only when a preview is opened.
+ */
+export async function mediaStubs(scope: HubScope, itemIds: string[]) {
+  const out = new Map<string, { id: string; mime: string; name: string }[]>();
+  if (!itemIds.length) return out;
+  const rows = await prisma.hubItemAttachment.findMany({
+    where: {
+      itemId: { in: itemIds },
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      OR: [
+        { mime: { startsWith: "image/" } },
+        { mime: { startsWith: "video/" } },
+      ],
+    },
+    select: { id: true, itemId: true, mime: true, name: true },
+    orderBy: { createdAt: "asc" },
+  });
+  for (const r of rows) {
+    const list = out.get(r.itemId) ?? [];
+    if (list.length < 3) list.push({ id: r.id, mime: r.mime, name: r.name });
+    out.set(r.itemId, list);
+  }
+  return out;
+}
+
 interface Uploader {
   userId: string;
   workspaceId: string;
