@@ -189,6 +189,7 @@ function buildPlan(userId, workspaceId) {
 
     // Habits (after tasks: Task.habitId is ON DELETE RESTRICT)
     ["HabitCompletion", "habitCompletion", viaWs("habit")],
+    ["HabitEvent", "habitEvent", viaWs("habit")],
     ["Habit", "habit", wsOnly],
 
     // Goals (Task.goalId is ON DELETE SET NULL; GoalProject cascades)

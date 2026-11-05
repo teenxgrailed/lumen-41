@@ -1,4 +1,5 @@
-import { agentHubEnabled } from "@/lib/feature-flags";
+import { agentHubEnabled, isFeatureEnabled } from "@/lib/feature-flags";
+import { HABITS_QUIT } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 
 import { isHubTool } from "./hub-tools";
@@ -6,6 +7,7 @@ import {
   type McpTool,
   type McpToolContext,
   findMcpTool,
+  isQuitTool,
   listMcpTools,
   toolError,
 } from "./tools";
@@ -106,6 +108,18 @@ export async function hubToolHidden(
   return isHubTool(tool) && !(await agentHubEnabled(userId));
 }
 
+/**
+ * The QUIT-habit tools exist only for accounts with the habits_quit flag; the
+ * Pro check is the tool's own, so a Free account with the flag gets a clear
+ * upgrade answer instead of a missing tool.
+ */
+export async function quitToolHidden(
+  tool: { name: string },
+  userId: string
+): Promise<boolean> {
+  return isQuitTool(tool) && !(await isFeatureEnabled(HABITS_QUIT, userId));
+}
+
 async function callTool(ctx: McpToolContext, id: JsonRpcId, params: unknown) {
   const { name, arguments: rawArgs } = (params ?? {}) as {
     name?: unknown;
@@ -115,6 +129,9 @@ async function callTool(ctx: McpToolContext, id: JsonRpcId, params: unknown) {
   if (!tool)
     return failure(id, INVALID_PARAMS, `Unknown tool: ${String(name)}`);
   if (await hubToolHidden(tool, ctx.userId)) {
+    return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
+  }
+  if (await quitToolHidden(tool, ctx.userId)) {
     return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
   }
 
@@ -183,6 +200,7 @@ export async function handleMcpMessage(
       return result(id, {
         tools: listMcpTools(ctx.auth.scopes, {
           hub: await agentHubEnabled(ctx.userId),
+          quit: await isFeatureEnabled(HABITS_QUIT, ctx.userId),
         }),
       });
     case "tools/call":

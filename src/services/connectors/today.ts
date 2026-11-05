@@ -143,6 +143,7 @@ export async function habitsToday(
     where: {
       ...workspaceDataScopeWhere(workspace, userId),
       userId,
+      kind: "BUILD",
       archivedAt: null,
       isActive: true,
     },

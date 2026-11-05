@@ -15,6 +15,11 @@ import {
   authenticateBearer,
 } from "@/services/connectors/bearer";
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
+import {
+  getQuitSummary,
+  quitGate,
+  recordHabitEvent,
+} from "@/services/habits/quit-service";
 import { appendPageBlocks, createPage } from "@/services/pages/page-service";
 import {
   PageCollaborationActiveError,
@@ -61,6 +66,12 @@ jest.mock("@/services/ai/memory", () => ({
   listAgentMemories: jest.fn(),
   rememberFromAssistant: jest.fn(),
   updateMemoryForUser: jest.fn(),
+}));
+jest.mock("@/services/habits/quit-service", () => ({
+  ...jest.requireActual("@/services/habits/quit-service"),
+  quitGate: jest.fn(),
+  recordHabitEvent: jest.fn(),
+  getQuitSummary: jest.fn(),
 }));
 jest.mock("@/services/connectors/webhooks", () => ({
   sendConnectorWebhook: jest.fn(),
@@ -575,6 +586,92 @@ describe("MCP write tools", () => {
         status: 404,
         error: "Habit not found",
       });
+    });
+  });
+
+  describe("quit habit tools", () => {
+    const flagOn = () =>
+      jest.mocked(prisma.featureFlag.findUnique).mockResolvedValue({
+        enabled: true,
+        rolloutPercentage: 100,
+        overrides: [],
+      } as never);
+
+    afterEach(() => {
+      jest.mocked(prisma.featureFlag.findUnique).mockResolvedValue(null);
+    });
+
+    it("does not exist while habits_quit is off", async () => {
+      const result = await call("needt_habit_event", {
+        id: "habit-1",
+        type: "URGE",
+      });
+      expect(result.payload.error.code).toBe(-32601);
+      expect(recordHabitEvent).not.toHaveBeenCalled();
+    });
+
+    it("tells a Free account to upgrade", async () => {
+      flagOn();
+      jest
+        .mocked(quitGate)
+        .mockResolvedValue({
+          status: 403,
+          error: "UPGRADE_REQUIRED",
+          plan: "FREE",
+        });
+      const result = await call("needt_habit_event", {
+        id: "habit-1",
+        type: "RELAPSE",
+      });
+      expect(result.isError).toBe(true);
+      expect(result.payload).toMatchObject({
+        status: 403,
+        error: "UPGRADE_REQUIRED",
+      });
+      expect(recordHabitEvent).not.toHaveBeenCalled();
+    });
+
+    it("logs an event in the caller's workspace", async () => {
+      flagOn();
+      jest.mocked(quitGate).mockResolvedValue(null);
+      jest.mocked(recordHabitEvent).mockResolvedValue({
+        id: "ev-1",
+        habitId: "habit-1",
+        type: "URGE",
+        at: new Date("2026-11-04T10:00:00Z"),
+      } as never);
+      const result = await call("needt_habit_event", {
+        id: "habit-1",
+        type: "URGE",
+        tag: "stress",
+        intensity: 3,
+      });
+      expect(result.isError).toBe(false);
+      expect(result.payload).toMatchObject({ id: "ev-1", type: "URGE" });
+      expect(jest.mocked(recordHabitEvent).mock.calls[0][0]).toMatchObject({
+        userId: "user-1",
+        habitId: "habit-1",
+        event: { type: "URGE", tag: "stress", intensity: 3 },
+      });
+    });
+
+    it("refuses a bad date and returns the summary", async () => {
+      flagOn();
+      jest.mocked(quitGate).mockResolvedValue(null);
+      const bad = await call("needt_habit_event", {
+        id: "habit-1",
+        type: "URGE",
+        at: "yesterday-ish",
+      });
+      expect(bad.payload.status).toBe(400);
+      jest
+        .mocked(getQuitSummary)
+        .mockResolvedValue({ habitId: "habit-1", currentStreak: 4 } as never);
+      const ok = await call("needt_habit_quit_summary", { id: "habit-1" });
+      expect(ok.payload).toMatchObject({ currentStreak: 4 });
+      jest.mocked(getQuitSummary).mockResolvedValue(null);
+      const missing = await call("needt_habit_quit_summary", { id: "x" });
+      expect(missing.payload.status).toBe(404);
     });
   });
 

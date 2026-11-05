@@ -1,7 +1,8 @@
+import type { SubscriptionPlan } from "@prisma/client";
 import { createHash } from "crypto";
 
-import { canUseAgentHub } from "@/lib/entitlements";
-import { AGENT_HUB } from "@/lib/feature-flags-keys";
+import { canUseAgentHub, canUseQuitHabits } from "@/lib/entitlements";
+import { AGENT_HUB, HABITS_QUIT } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
 
 export function rolloutBucket(flagKey: string, userId: string) {
@@ -48,4 +49,25 @@ export async function isFeatureEnabledForEveryone(flagKey: string) {
 export async function agentHubEnabled(userId: string) {
   if (!(await isFeatureEnabled(AGENT_HUB, userId))) return false;
   return (await canUseAgentHub(userId)).allowed;
+}
+
+/**
+ * QUIT habits are available to this account: the `habits_quit` flag, then the
+ * Pro check from `canUseQuitHabits` (a trial counts as Pro). The flag is read
+ * first, so an account without it never costs a plan lookup.
+ */
+export async function quitHabitsEnabled(
+  userId: string
+): Promise<
+  | { allowed: true }
+  | { allowed: false; reason: "flag_off" }
+  | { allowed: false; reason: "upgrade_required"; plan: SubscriptionPlan }
+> {
+  if (!(await isFeatureEnabled(HABITS_QUIT, userId))) {
+    return { allowed: false, reason: "flag_off" };
+  }
+  const plan = await canUseQuitHabits(userId);
+  if (!plan.allowed)
+    return { allowed: false, reason: "upgrade_required", plan: plan.plan };
+  return { allowed: true };
 }

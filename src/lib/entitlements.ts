@@ -331,6 +331,21 @@ export async function canUseGoals(userId: string) {
   };
 }
 
+/**
+ * QUIT habits are Pro (a trial counts as Pro). This gates writes only: making
+ * a QUIT habit, logging or editing events on one. Reads (the event log and the
+ * summary) need the flag and ownership, so a downgraded account still reaches
+ * its own history.
+ */
+export async function canUseQuitHabits(userId: string) {
+  const plan = await getPlan(userId);
+  return {
+    allowed: PLAN_LIMITS[plan].quitHabits,
+    upgradeRequired: !PLAN_LIMITS[plan].quitHabits,
+    plan,
+  };
+}
+
 /** Plans the agent hub is for once it is opened beyond its owner-only trial. */
 export const AGENT_HUB_PLANS: readonly SubscriptionPlan[] = [
   SubscriptionPlan.PRO,

@@ -74,6 +74,13 @@ export const AGENT_HUB = "agent_hub";
  */
 export const APPLE_IAP = "apple_iap";
 
+/**
+ * QUIT habits and habit presence: `Habit.kind = QUIT`, `HabitEvent`, the events
+ * and quit-summary routes, the MCP tools and the habit reminders. Off for
+ * everybody; Pro only on top of the flag (`quitHabitsEnabled`).
+ */
+export const HABITS_QUIT = "habits_quit";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -85,6 +92,7 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [APPLE_IAP]: "Apple In-App Purchase in the iOS / Mac App Store apps.",
   [AGENT_HUB]:
     "Agent hub: handoffs and notes between agents (per-user override).",
+  [HABITS_QUIT]: "QUIT habits and habit presence (Pro).",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

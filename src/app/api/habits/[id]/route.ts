@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { WorkspaceRole } from "@prisma/client";
+import { quitGate, quitGateResponse } from "@/services/habits/quit-service";
+import { HabitKind, WorkspaceRole } from "@prisma/client";
 import { z } from "zod";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { withHabitSlot } from "@/lib/entitlements";
-import { habitInputSchema } from "@/lib/habits";
+import { habitInputSchema, quitFieldsError } from "@/lib/habits";
 import { prisma } from "@/lib/prisma";
 import { partialWithoutDefaults } from "@/lib/zod-patch";
 
@@ -40,6 +41,38 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const parsed = partialWithoutDefaults(habitInputSchema).safeParse(body);
   if (!parsed.success)
     return NextResponse.json({ error: "Invalid habit" }, { status: 400 });
+  // QUIT fields: Pro, behind `habits_quit`. Turning a habit into a quit habit
+  // or touching its quit date or reason needs the gate; editing anything else
+  // on a quit habit (after a downgrade, say) does not.
+  const nextKind = parsed.data.kind ?? existing.kind;
+  const quitError = quitFieldsError(nextKind, parsed.data, newDate());
+  if (quitError)
+    return NextResponse.json({ error: quitError }, { status: 400 });
+  const touchesQuit =
+    (parsed.data.kind === HabitKind.QUIT && existing.kind !== HabitKind.QUIT) ||
+    (nextKind === HabitKind.QUIT &&
+      (parsed.data.quitStartedAt !== undefined ||
+        parsed.data.reason !== undefined));
+  if (
+    parsed.data.kind === HabitKind.BUILD &&
+    existing.kind === HabitKind.QUIT
+  ) {
+    return NextResponse.json(
+      { error: "A quit habit cannot become a build habit" },
+      { status: 400 }
+    );
+  }
+  if (touchesQuit) {
+    const refusal = await quitGate(auth.userId);
+    if (refusal) return quitGateResponse(refusal);
+  }
+  if (
+    parsed.data.kind === HabitKind.QUIT &&
+    existing.kind !== HabitKind.QUIT &&
+    !parsed.data.quitStartedAt
+  ) {
+    parsed.data.quitStartedAt = newDate();
+  }
   if (parsed.data.projectId) {
     const project = await prisma.project.findFirst({
       where: {
