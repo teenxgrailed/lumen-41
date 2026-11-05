@@ -437,6 +437,8 @@ function HabitSheet({
                     value={f.reason}
                     onChange={(reason) => onChange({ reason })}
                     placeholder="The way you would say it to yourself"
+                    multiline
+                    rows={3}
                     inputProps={{
                       name: "habit-reason",
                       maxLength: 500,

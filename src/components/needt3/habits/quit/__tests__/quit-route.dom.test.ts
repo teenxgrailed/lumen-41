@@ -614,6 +614,15 @@ describe("a new habit", () => {
     expect(document.body.textContent).not.toContain("Empty starts it now");
   });
 
+  it("asks Why in a text area on the phone, up to 500 characters", () => {
+    render("phone");
+    click(q("[data-phb-new]"));
+    click(q("[data-hq-kind-quit]"));
+    const why = q<HTMLTextAreaElement>('textarea[name="habit-reason"]');
+    expect(why).not.toBeNull();
+    expect(why?.maxLength).toBe(500);
+  });
+
   it("offers Do or Quit, and a Quit on Free has no Create", () => {
     mockGate = "upgrade";
     mockPlanKind = "free";
