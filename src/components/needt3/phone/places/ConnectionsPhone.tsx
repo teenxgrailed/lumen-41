@@ -13,11 +13,7 @@ import { AiSetup } from "../../connections/AiSetup";
 import { visibleTools } from "../../connections/AiToolsPanel";
 import { ApiAccess } from "../../connections/ApiAccess";
 import { CalDavForm } from "../../connections/CalDavForm";
-import {
-  appBrand,
-  appDates,
-  scopeChips,
-} from "../../connections/ConnectedApps";
+import { appBrand, appUsed, scopeChips } from "../../connections/ConnectedApps";
 import { GoogleTasksLists } from "../../connections/GoogleTasksLists";
 import {
   CATEGORY_LABEL,
@@ -359,7 +355,7 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
               key={a.id}
               lead={<PplTile slug={appBrand(a.clientName) ?? a.clientName} />}
               title={a.clientName}
-              meta={[scopeChips(a.scopes).join(", "), appDates(a)].join(" · ")}
+              meta={[scopeChips(a.scopes).join(", "), appUsed(a)].join(" · ")}
               action={
                 <PkButton
                   kind="chip"

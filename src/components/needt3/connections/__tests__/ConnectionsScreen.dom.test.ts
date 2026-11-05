@@ -720,6 +720,8 @@ describe("the AI tools tab", () => {
     click($("[data-cn-show=connected]"));
     expect(cards()).toEqual(["claude"]);
     expect($("[data-cn-card=claude]").dataset.state).toBe("connected");
+    // The hero counts the apps that signed in.
+    expect(text("[data-cn-status]")).toBe("1 connected app");
     // Permissions are chips, dates are words; Disconnect is in "…" and asks.
     const row = $("[data-cn-app=g1]");
     expect(

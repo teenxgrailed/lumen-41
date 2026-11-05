@@ -43,6 +43,17 @@ export function appDates(
     .join(" · ");
 }
 
+/** The short form for a narrow row: "Used today" / "Not used yet". */
+export function appUsed(
+  app: Pick<ConnectedApp, "lastUsedAt">,
+  now?: Date
+): string {
+  const d = app.lastUsedAt ? new Date(app.lastUsedAt) : null;
+  return d && !isNaN(d.getTime())
+    ? `Used ${formatDayAgo(d, now)}`
+    : "Not used yet";
+}
+
 /** The mark an app wears: the first known brand in its name ("Claude Desktop"). */
 export function appBrand(name: string) {
   return (

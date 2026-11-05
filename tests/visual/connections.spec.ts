@@ -143,6 +143,13 @@ test("Connections: AI tools with connected apps", async ({ page }) => {
   await expect(page.getByText("Cursor").first()).toBeVisible();
   await settle(page);
   await expect(page).toHaveScreenshot("connections-ai.png");
+  // The Connected apps panel sits below the fold on the desktop and tablet.
+  const panel = page.locator("[data-cn-apps]");
+  if (await panel.count()) {
+    await panel.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await expect(panel).toHaveScreenshot("connections-ai-apps-panel.png");
+  }
 });
 
 test("Connections: AI tools on Free", async ({ page }) => {

@@ -51,6 +51,7 @@ import {
   pillOf,
   syncLine,
 } from "./derive";
+import { aiSub } from "./mcp";
 import { mergeQueries } from "./query";
 import { strings } from "./strings";
 import type { ConnectionsController } from "./useConnectionsController";
@@ -487,7 +488,13 @@ export function ConnectionsScreen({ c: ctl }: { c: ConnectionsController }) {
     );
   }, []);
 
-  const status = heroStatus(apps ? items : [], tab);
+  // On AI tools the pill counts the apps that signed in, as the phone does.
+  const aiApps = ctl.mcp.apps?.length ?? 0;
+  const status = apps
+    ? heroStatus(items, tab)
+    : aiApps
+      ? { text: aiSub(aiApps), tone: "ok" as const, names: [] as string[] }
+      : heroStatus([], tab);
   const chips = chipsOf(items);
   const needle = q.trim();
   const onTabKey = (e: KeyboardEvent) => {
