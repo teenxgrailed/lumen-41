@@ -4,6 +4,7 @@ import { POST } from "@/app/api/webhooks/resend/route";
 import { createHmac } from "node:crypto";
 
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -198,6 +199,11 @@ describe("Resend webhook", () => {
     const response = await POST(signed(body));
     expect(response.status).toBe(200);
     expect(prisma.emailSuppression.upsert).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(
+      "Resend event accepted",
+      { id: "msg_1", type: "email.delivered" },
+      "ResendWebhookRoute"
+    );
   });
 
   it("forgets the event id when applying fails, so the retry is applied", async () => {
