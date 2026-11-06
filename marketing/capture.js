@@ -128,7 +128,7 @@ async function shoot(ctx, base, name, s, out) {
   const b = await chromium.launch({ channel: "chrome", headless: true });
   try {
     const ctx = await b.newContext({ viewport: { width: +arg("width", 1440), height: +arg("height", 900) }, deviceScaleFactor: +arg("scale", 2) });
-    await ctx.addInitScript((t) => { try { localStorage.setItem("needt.theme", t); } catch (e) {} }, theme);
+    await ctx.addInitScript((t) => { try { localStorage.setItem("needt.theme", t); } catch { /* storage blocked: keep the default theme */ } }, theme);
     for (const n of pick) await shoot(ctx, base, n, SCENES[n], out);
   } finally {
     await b.close();
