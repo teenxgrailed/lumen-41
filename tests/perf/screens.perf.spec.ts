@@ -53,6 +53,11 @@ const hubSetup = async (user: V3User) => {
   await seedAgentHub(user.id, user.workspaceId);
 };
 
+/** The hub on, with no agents yet: the setup opens by itself. */
+const hubEmpty = async (user: V3User) => {
+  await enableAgentHub(user.id);
+};
+
 const agentsReady = async (p: Page) => {
   await shellReady(p);
   await p.locator("[data-ag-map] canvas").waitFor({ timeout: 45_000 });
@@ -250,7 +255,7 @@ const screens: Screen[] = [
     id: "agents-setup",
     path: "/agents",
     signedIn: true,
-    setup: hubSetup,
+    setup: hubEmpty,
     withAgentsSetup: true,
     ready: async (p) => {
       await shellReady(p);

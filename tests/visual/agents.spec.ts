@@ -378,6 +378,9 @@ for (const theme of ["dark", "light"] as const) {
     const phone = width < 768;
     await prepare(page, theme, { setup: true });
     await page.goto("/agents?seed=7", { waitUntil: "domcontentloaded" });
+    // The fixture has agents, so the setup opens from Replay setup (it opens
+    // by itself only with none).
+    await page.locator("[data-ag-replay-setup]").click({ timeout: 45_000 });
     await expect(page.locator("[data-ag-onboarding]")).toBeVisible({
       timeout: 45_000,
     });

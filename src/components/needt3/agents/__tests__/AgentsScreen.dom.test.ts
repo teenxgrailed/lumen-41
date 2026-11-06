@@ -579,6 +579,16 @@ describe("Agents screen", () => {
     expect(window.localStorage.getItem("needt:agents-onboarded")).toBe("1");
   });
 
+  it("does not open the setup by itself for someone with agents; Replay does", async () => {
+    window.localStorage.clear();
+    await mount();
+    expect(host.querySelector("[data-ag-onboarding]")).toBeNull();
+    await click(host.querySelector("[data-ag-replay-setup]"));
+    expect(host.querySelector("[data-ag-onboarding]")).not.toBeNull();
+    await click(host.querySelector("[data-ag-onboard-skip]"));
+    expect(host.querySelector("[data-ag-onboarding]")).toBeNull();
+  });
+
   it("asks the server for a tag's notes", async () => {
     await mount("tab=memory");
     await click(

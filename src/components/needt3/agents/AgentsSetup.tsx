@@ -56,6 +56,41 @@ function Tile({ id, name, size }: { id: string; name: string; size: number }) {
   return <AgentIcon name={name} size={size} />;
 }
 
+/**
+ * Is this agent already connected? Its id or name appears in a connected
+ * hub agent (name, kind) or a connected OAuth app (client name). "Other
+ * MCP" counts any connection at all.
+ */
+export function alreadyConnected(id: string, name: string, known: string[]) {
+  // Whole words only: "Claude Desktop" is Claude, "Claudette" is not.
+  const words = (s: string) =>
+    s
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean);
+  const named = (k: string, tid: string, tname: string) => {
+    const w = words(k);
+    const target = words(tname);
+    return (
+      w.includes(tid) ||
+      (target.length > 0 && target.every((t) => w.includes(t)))
+    );
+  };
+  if (id === "mcp") {
+    // Other MCP: something connected that is none of the named agents.
+    return known.some(
+      (k) =>
+        !SETUP_AGENTS.some(
+          ([tid, tname]) => tid !== "mcp" && named(k, tid, tname)
+        )
+    );
+  }
+  return known.some((k) => named(k, id, name));
+}
+
+/** How long step 2 waits before offering to go on by hand. */
+export const MANUAL_AFTER_MS = 20_000;
+
 function Check() {
   return (
     <span className="ag-ck" aria-hidden="true">
@@ -76,24 +111,34 @@ function Check() {
  *    sit in a grid below, the outer ones faded.
  * 2. Three short steps for the first picked agent, the connector address to
  *    copy, and "Waiting for …" that turns to "Connected" when a new agent
- *    actually shows up in the hub.
+ *    shows up in the hub, or at once when that agent is already connected.
+ *    After 20 s "I've connected it — continue" lets the person go on.
  * 3. The picked tiles fly into the constellation and the Map draws itself.
  *
  * Esc, or "Not now", leaves at any step.
  */
 export function AgentsSetup({
   agentCount,
+  known = [],
+  onStep,
   onDone,
   onFinish,
 }: {
+  /** The current step, for the screen (it polls connections on step 2). */
+  onStep?: (step: 1 | 2 | 3) => void;
   /** Connected agents right now; a rise during step 2 means "Connected". */
   agentCount: number;
+  /** Names of what is already connected: hub agents, OAuth apps. */
+  known?: string[];
   /** Closed without finishing. */
   onDone: () => void;
   /** Finished: the Map should draw itself again (a new layout). */
   onFinish: () => void;
 }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const stepHook = useRef(onStep);
+  stepHook.current = onStep;
+  useEffect(() => stepHook.current?.(step), [step]);
   const [sel, setSel] = useState<Set<string>>(
     () => new Set(["claude", "chatgpt"])
   );
@@ -110,7 +155,7 @@ export function AgentsSetup({
   const [flyers, setFlyers] = useState<
     { id: string; name: string; rect: DOMRect }[]
   >([]);
-  const connected = step === 2 && agentCount > baseline;
+  const [manual, setManual] = useState(false);
 
   useLayoutEffect(() => {
     const el = top.current;
@@ -187,6 +232,16 @@ export function AgentsSetup({
     ...MORE.filter(([id]) => more.has(id)).map(([, n]) => n),
   ];
   const first = picked[0] ?? SETUP_AGENTS[7];
+  const connected =
+    step === 2 &&
+    (agentCount > baseline || alreadyConnected(first[0], first[1], known));
+  // Step 2 is never a dead end: after a while the person may go on.
+  useEffect(() => {
+    if (step !== 2 || connected) return undefined;
+    setManual(false);
+    const t = window.setTimeout(() => setManual(true), MANUAL_AFTER_MS);
+    return () => window.clearTimeout(t);
+  }, [step, connected]);
 
   const finish = () => {
     remember();
@@ -458,7 +513,16 @@ export function AgentsSetup({
               Back
             </button>
             <span className="ag-row2-r">
-              {connected ? null : (
+              {connected ? null : manual ? (
+                <button
+                  type="button"
+                  className="ag-link2"
+                  data-ag-setup-manual=""
+                  onClick={finish}
+                >
+                  I&apos;ve connected it — continue
+                </button>
+              ) : (
                 <button type="button" className="ag-link2" onClick={finish}>
                   Later
                 </button>

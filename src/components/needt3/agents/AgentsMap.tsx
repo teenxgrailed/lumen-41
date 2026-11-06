@@ -23,6 +23,7 @@ import {
   STATUS_HUE,
   WHITE,
   buildMapScene,
+  labelX,
   mix,
   nodeLabel,
 } from "./map-scene";
@@ -1350,6 +1351,7 @@ export function AgentsMap({
   const canvas = useRef<HTMLCanvasElement>(null);
   const tip = useRef<HTMLDivElement>(null);
   const labelEls = useRef<Map<number, HTMLDivElement | null>>(new Map());
+  const labelSize = useRef<Map<number, { w: number; h: number }>>(new Map());
   const portal = useV3PortalContainer();
   const [size, setSize] = useState({ w: 0, h: 0 });
   /** "window": the panel fills the app window; "screen": the Fullscreen API. */
@@ -1482,6 +1484,8 @@ export function AgentsMap({
     if (!el || !scene) return undefined;
     const ctx = el.getContext?.("2d");
     if (!ctx) return undefined;
+    // A new scene may put other agents behind the same indices.
+    labelSize.current.clear();
     // Device pixels at most 2; 1.5 on a phone and 1.25 in Safari, where the
     // canvas costs the most (owner's report, 05.11.26). Adaptive quality
     // lowers them further when frames run long.
@@ -1542,11 +1546,21 @@ export function AgentsMap({
           box.style.opacity = "1";
         },
         onAgents: (list) => {
+          const pills = sceneRef.current?.pills ?? [];
           for (const l of list) {
             const lab = labelEls.current.get(l.i);
             if (!lab) continue;
+            // A label never sits under a result pill: it flips to the left
+            // of its node when the right side would run into one. Its size
+            // is read once (the text does not change while it is shown).
+            let size = labelSize.current.get(l.i);
+            if (!size) {
+              size = { w: lab.offsetWidth, h: lab.offsetHeight || 22 };
+              if (size.w) labelSize.current.set(l.i, size);
+            }
+            const x = labelX(l.x, l.y, size, pills);
             lab.style.opacity = String(l.a);
-            lab.style.transform = `translate(${l.x.toFixed(1)}px,${l.y.toFixed(1)}px)`;
+            lab.style.transform = `translate(${x.toFixed(1)}px,${l.y.toFixed(1)}px)`;
           }
         },
       },
