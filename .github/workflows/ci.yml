@@ -295,14 +295,12 @@ jobs:
             timeout 480 npx playwright install --with-deps && exit 0
             echo "playwright install attempt $attempt failed"
             # timeout stops npx, not the apt-get it started under sudo, and
-            # that orphan keeps the dpkg lock. Clear it, then try the main
-            # Ubuntu archive instead of the Azure mirror that stalled.
+            # that orphan keeps the dpkg lock. Clear it; the archives already
+            # downloaded stay in apt's cache, so the next attempt resumes.
             sudo pkill -9 -x apt-get || true
             sudo pkill -9 -x dpkg || true
             sleep 3
             sudo dpkg --configure -a || true
-            sudo sed -i 's#http://azure.archive.ubuntu.com#http://archive.ubuntu.com#g' \
-              /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
             sleep 10
           done
           exit 1
@@ -390,14 +388,12 @@ jobs:
             timeout 480 npx playwright install --with-deps chromium && exit 0
             echo "playwright install attempt $attempt failed"
             # timeout stops npx, not the apt-get it started under sudo, and
-            # that orphan keeps the dpkg lock. Clear it, then try the main
-            # Ubuntu archive instead of the Azure mirror that stalled.
+            # that orphan keeps the dpkg lock. Clear it; the archives already
+            # downloaded stay in apt's cache, so the next attempt resumes.
             sudo pkill -9 -x apt-get || true
             sudo pkill -9 -x dpkg || true
             sleep 3
             sudo dpkg --configure -a || true
-            sudo sed -i 's#http://azure.archive.ubuntu.com#http://archive.ubuntu.com#g' \
-              /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
             sleep 10
           done
           exit 1
@@ -531,22 +527,22 @@ jobs:
         if: needs.changes.outputs.ui == 'true'
         # apt mirrors sometimes stall and the job then dies at its timeout,
         # reported as "cancelled". Bound each attempt and retry three times.
+        # Visual and style suites run Chromium only; the WebKit/Firefox deps
+        # (~180 packages, mostly GStreamer) were most of the stalled download.
         timeout-minutes: 28
         run: |
           printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' \
             | sudo tee /etc/apt/apt.conf.d/80-ci-retries >/dev/null
           for attempt in 1 2 3; do
-            timeout 480 npx playwright install --with-deps && exit 0
+            timeout 480 npx playwright install --with-deps chromium && exit 0
             echo "playwright install attempt $attempt failed"
             # timeout stops npx, not the apt-get it started under sudo, and
-            # that orphan keeps the dpkg lock. Clear it, then try the main
-            # Ubuntu archive instead of the Azure mirror that stalled.
+            # that orphan keeps the dpkg lock. Clear it; the archives already
+            # downloaded stay in apt's cache, so the next attempt resumes.
             sudo pkill -9 -x apt-get || true
             sudo pkill -9 -x dpkg || true
             sleep 3
             sudo dpkg --configure -a || true
-            sudo sed -i 's#http://azure.archive.ubuntu.com#http://archive.ubuntu.com#g' \
-              /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
             sleep 10
           done
           exit 1
