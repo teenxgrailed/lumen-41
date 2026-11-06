@@ -17,6 +17,12 @@ import {
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
+// The blocking screen pulls the v3 stylesheet, which jest cannot parse; this
+// file tests only the banner.
+jest.mock("@/components/needt3/auth/CheckInboxScreen", () => ({
+  CheckInboxScreen: () => null,
+}));
+
 jest.mock("@/lib/notifications", () => ({
   notify: { success: jest.fn(), error: jest.fn() },
 }));
