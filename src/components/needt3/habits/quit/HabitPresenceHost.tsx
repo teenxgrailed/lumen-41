@@ -10,14 +10,24 @@ import { useAskPhase } from "@/components/needt3/corner/AskProvider";
 import { hasNoticeSink } from "@/components/needt/corner/bridge";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
-import { isDesktopApp, sendDesktopNotification } from "@/lib/desktop";
+import {
+  PRESENCE_DUE_EVENT,
+  cancelDesktopNotifications,
+  desktopCanSchedule,
+  desktopNotificationsAllowed,
+  isDesktopApp,
+  scheduleDesktopNotifications,
+  sendDesktopNotification,
+} from "@/lib/desktop";
 import {
   EMPTY_MEMORY,
   ISLAND_GAP_MS,
   type PresenceIsland,
   type PresenceMemory,
   type PresenceSettings,
+  type ScheduledMoment,
   nextIsland,
+  presenceSchedule,
   readMemory,
   rememberShown,
   seedMemory,
@@ -89,6 +99,12 @@ function closePush(tag: string) {
  */
 export function HabitPresenceHost() {
   const gate = useQuitGate();
+  // With habits_quit off for this account (another account signed in, the
+  // flag turned off) nothing of a previous set may still fire.
+  useEffect(() => {
+    if (gate === "off" && desktopCanSchedule())
+      scheduleDesktopNotifications([]);
+  }, [gate]);
   if (gate === "off") return null;
   // Milestones (and Quit in the check-in count) are Pro, as on the server.
   return <Presence quitOn={gate === "on"} />;
@@ -159,7 +175,13 @@ function Presence({ quitOn }: { quitOn: boolean }) {
       // says it instead, with the push's tag, if Mac notifications are on.
       const front =
         document.visibilityState === "visible" && document.hasFocus();
-      if (isDesktopApp() && !front && settings.channelMac !== false) {
+      // (A shell that schedules has shown it at its time already.)
+      if (
+        isDesktopApp() &&
+        !desktopCanSchedule() &&
+        !front &&
+        settings.channelMac !== false
+      ) {
         // Claimed before the send, so a second window of the app does not
         // send it too while this one waits; given back if the send fails.
         const before = loadMemory();
@@ -186,7 +208,10 @@ function Presence({ quitOn }: { quitOn: boolean }) {
       const fresh = loadMemory();
       if (!due(fresh)) return;
       saveMemory(rememberShown(fresh, island.key, now));
+      islandSaid.add(island.tag);
       closePush(island.tag);
+      // The Mac app's own notification of the same moment, if it showed one.
+      cancelDesktopNotifications([island.tag]);
       if (island.kind === "reminder") {
         notify.info(island.title, {
           surface: "island",
@@ -218,6 +243,9 @@ function Presence({ quitOn }: { quitOn: boolean }) {
       });
     };
 
+    const scheduled = { current: "" };
+    let planByTag = new Map<string, ScheduledMoment>();
+    const islandSaid = new Set<string>();
     const tick = () => {
       const l = latest.current;
       // No receiver (the corner is not mounted, and no desktop app to show a
@@ -238,6 +266,7 @@ function Presence({ quitOn }: { quitOn: boolean }) {
                 currentStreak: s.currentStreak,
                 lastMilestone: s.lastMilestone ?? null,
                 streakStartedAt: s.streakStartedAt,
+                nextMilestone: s.nextMilestone,
               },
             ]
           : [];
@@ -247,34 +276,87 @@ function Presence({ quitOn }: { quitOn: boolean }) {
         memory = seedMemory(memory, quits);
         saveMemory(memory);
       }
+      const dos = l.live
+        .filter((h) => h.kind !== "QUIT")
+        .map((h) => {
+          const mine = l.checkins.filter((c) => c.habitId === h.id && c.done);
+          return {
+            id: h.id,
+            title: h.title,
+            at: h.schedule.time,
+            daysOfWeek: h.daysOfWeek ?? [],
+            doneToday: mine.some((c) => c.date === today),
+            remindersEnabled: h.remindersEnabled !== false,
+            of14: mine.length,
+          };
+        });
+      // A Mac app that can schedule gets the next day and a half of moments
+      // to show at their times by itself, the window closed or the page
+      // asleep. Sent again only when the set changes: a habit marked done
+      // drops its reminder, a new time moves it.
+      if (desktopCanSchedule()) {
+        const plan = presenceSchedule({
+          now,
+          timeZone: tz,
+          settings: l.alerts,
+          dos,
+          quits,
+        });
+        planByTag = new Map(plan.map((m) => [m.tag, m]));
+        //todo: once NeedtRemotePush is on, the server's push and this local
+        // notification can both arrive for one moment on this Mac. They share
+        // the tag (apns-collapse-id = identifier), so the later replaces the
+        // earlier in Notification Center, but both may sound; skip the local
+        // one when this Mac has a saved APNs token.
+        // Nothing is scheduled without the system's permission (asked only
+        // by Allow in Settings, which shows the status).
+        void desktopNotificationsAllowed().then((allowed) => {
+          const set = allowed ? plan : [];
+          const key = JSON.stringify(set);
+          if (key === scheduled.current) return;
+          scheduled.current = key;
+          scheduleDesktopNotifications(set);
+        });
+      }
       const island = nextIsland({
         now,
         timeZone: tz,
         busy: l.busy,
         memory,
         settings: l.alerts,
-        dos: l.live
-          .filter((h) => h.kind !== "QUIT")
-          .map((h) => {
-            const mine = l.checkins.filter((c) => c.habitId === h.id && c.done);
-            return {
-              id: h.id,
-              title: h.title,
-              at: h.schedule.time,
-              daysOfWeek: h.daysOfWeek ?? [],
-              doneToday: mine.some((c) => c.date === today),
-              remindersEnabled: h.remindersEnabled !== false,
-              of14: mine.length,
-            };
-          }),
+        dos,
         quits,
       });
       if (island) void show(island, l.alerts);
     };
 
+    // The app says a scheduled moment came due with Needt in front (it held
+    // the banner back): the island says it, or, when the island cannot (Ask
+    // open, a focus, the 20-minute gap, not loaded), the banner shows.
+    const due = (e: Event) => {
+      const tag = (e as CustomEvent<string>).detail;
+      if (typeof tag !== "string") return;
+      tick();
+      if (islandSaid.has(tag)) return;
+      const moment = planByTag.get(tag);
+      if (!moment) return;
+      void sendDesktopNotification(moment.title, moment.body, moment.url, {
+        ask: false,
+        tag,
+        banner: true,
+      });
+    };
+    window.addEventListener(PRESENCE_DUE_EVENT, due);
+
     const t = window.setInterval(tick, TICK_MS);
     tick();
-    return () => window.clearInterval(t);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener(PRESENCE_DUE_EVENT, due);
+      // Gone (a downgrade's gate, sign-out in the page, unmount): the app's
+      // set goes too; the next mount schedules afresh.
+      if (desktopCanSchedule()) scheduleDesktopNotifications([]);
+    };
     // The tick reads `latest`. The zone restarts it, and so does the data
     // landing: the first check waits for it, not for the next minute.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -8,6 +8,8 @@ export type ApnsVariableName = (typeof APNS_VARIABLE_NAMES)[number];
 
 /** The iOS app's bundle id: the APNs topic of every token it registers. */
 export const IOS_BUNDLE_ID = "app.needt.ios";
+/** The Mac app's bundle id: the APNs topic for its tokens (one team key). */
+export const MAC_BUNDLE_ID = "app.needt.mac";
 
 export type ApnsConfiguration =
   | {

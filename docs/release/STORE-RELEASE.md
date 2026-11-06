@@ -96,6 +96,20 @@ Groups). The Mac groups are team-prefixed and need no registration.
   yet" and nothing is sent; reminders still show in the bell. Then on the
   phone: Settings, Notifications, Enable notifications, Send test
   notification. Not checked yet on a device (no signed build exists).
+- Push on the Mac (the same key serves it; the Mac app's topic is
+  `app.needt.mac`):
+  1. Identifiers → `app.needt.mac` → tick **Push Notifications** → Save.
+  2. Profiles → regenerate the Mac App Store profile for `app.needt.mac`
+     (it now carries push) and the Developer ID / development one if used.
+  3. Tell the integrator: they add `com.apple.developer.aps-environment:
+     production` to the three Mac app entitlements in `apps/macos/project.yml`
+     and set `NeedtRemotePush: true` there, then run step 8 for `target=mac`.
+     Until both are in a build the Mac app never registers (a build without
+     the capability would fail to sign with the entitlement).
+  4. After that build: Settings, Notifications on the Mac shows the app's
+     status; a habit reminder or the 21:00 check-in arrives with the app
+     closed. The app's own schedule (local notifications) works before this,
+     with no key at all, from the next Mac build.
 
 ### 4. App Store Connect API key and GitHub secrets
 

@@ -21,6 +21,8 @@ import {
   presenceTag,
 } from "@/services/habits/presence";
 
+import { zonedWallToDate } from "@/lib/date-utils";
+
 /** At most one island in this long. */
 export const ISLAND_GAP_MS = 20 * 60_000;
 
@@ -62,6 +64,8 @@ export interface PresenceQuit {
   lastMilestone: number | null;
   /** The current run's start; null before the person started. */
   streakStartedAt: string | null;
+  /** The next step and the calendar days to it (the summary's). */
+  nextMilestone?: { days: number; daysLeft: number } | null;
 }
 
 /** What was shown, kept per device. */
@@ -294,4 +298,121 @@ export function checkinTimeOptions(current: string): [string, string][] {
   if (/^\d{2}:\d{2}$/.test(current) && !out.includes(current))
     out.push(current);
   return out.sort().map((v) => [v, v]);
+}
+
+/** A moment handed to the desktop app to show at its time, even with the
+ * window closed or its page asleep (UNCalendarNotificationTrigger). */
+export interface ScheduledMoment {
+  /** The push's tag (presenceTag): the notification's identifier. */
+  tag: string;
+  /** The instant, ISO. */
+  at: string;
+  title: string;
+  body: string;
+  /** A same-origin path the click opens. */
+  url: string;
+  /** The person's zone: the app keeps the instant if the Mac's zone changes. */
+  timeZone: string;
+}
+
+const dayAfter = (dayKey: string) =>
+  new Date(Date.parse(`${dayKey}T12:00:00.000Z`) + 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+/** "HH:MM" on a person's calendar day, as an instant in their zone. */
+function wallInstant(dayKey: string, hhmm: string, timeZone: string) {
+  return zonedWallToDate(new Date(`${dayKey}T${hhmm}:00.000Z`), timeZone);
+}
+
+/**
+ * The habit moments of the next `hours` (today and tomorrow), by the same
+ * rules as the island and the push sweep: a reminder at each Do habit's
+ * time on its weekdays (not today once it is done), the evening check-in
+ * while something would still be open, and a Quit milestone at 09:00 on the
+ * day its run reaches the next step. Nothing in quiet hours, nothing with
+ * Reminders or Mac notifications off or a daily digest instead. Only future ones.
+ */
+export function presenceSchedule(
+  i: Omit<PresenceInput, "memory" | "busy">,
+  hours = 36
+): ScheduledMoment[] {
+  const s = i.settings;
+  // System notifications: Mac notifications, not In the app (the island's).
+  if (!s.reminders || s.channelMac === false || s.digest) return [];
+  const nowMs = i.now.getTime();
+  const until = nowMs + hours * 3_600_000;
+  const today = localClock(i.now, i.timeZone).dayKey;
+  // Three calendar days cover any 36-hour window; `until` trims the rest.
+  const days = [today, dayAfter(today), dayAfter(dayAfter(today))];
+  const out: ScheduledMoment[] = [];
+  const add = (
+    dayKey: string,
+    hhmm: string,
+    m: Omit<ScheduledMoment, "at" | "timeZone">
+  ) => {
+    const minutes = minutesOf(hhmm);
+    if (minutes === null || inQuiet(s, minutes)) return;
+    const at = wallInstant(dayKey, hhmm, i.timeZone);
+    const t = at.getTime();
+    if (!Number.isFinite(t) || t <= nowMs || t > until) return;
+    out.push({ ...m, at: at.toISOString(), timeZone: i.timeZone });
+  };
+
+  for (const dayKey of days) {
+    const clock = localClock(
+      wallInstant(dayKey, "12:00", i.timeZone),
+      i.timeZone
+    );
+    const isToday = dayKey === today;
+    const runs = (h: PresenceDo) =>
+      h.remindersEnabled &&
+      habitRunsToday(h.daysOfWeek, clock) &&
+      !(isToday && h.doneToday);
+
+    if (s.habitReminders)
+      for (const h of i.dos) {
+        if (!h.at || !runs(h)) continue;
+        add(dayKey, h.at, {
+          tag: presenceTag({ kind: "reminder", habitId: h.id, dayKey }),
+          title: `${h.title}, ${h.at}`,
+          body: "Your slot starts now",
+          url: "/habits",
+        });
+      }
+
+    if (s.habitCheckin) {
+      const open =
+        i.dos.filter(runs).length +
+        i.quits.filter((q) => q.remindersEnabled).length;
+      if (open > 0)
+        add(dayKey, s.habitCheckinTime, {
+          tag: presenceTag({ kind: "checkin", habitId: null, dayKey }),
+          title: "Evening check-in",
+          body: `${open} ${open === 1 ? "habit" : "habits"} · takes ten seconds`,
+          url: "/habits",
+        });
+    }
+  }
+
+  if (s.habitMilestones)
+    for (const q of i.quits) {
+      const next = q.nextMilestone;
+      if (!q.remindersEnabled || !q.streakStartedAt || !next) continue;
+      if (next.daysLeft > 1) continue;
+      const dayKey = days[Math.max(0, next.daysLeft)];
+      add(dayKey, MILESTONE_TIME, {
+        tag: presenceTag({
+          kind: "milestone",
+          habitId: q.id,
+          dayKey,
+          days: next.days,
+        }),
+        title: `${STEP_WORDS[next.days] ?? `${next.days} days`} without ${q.title.toLowerCase()}`,
+        body: `${next.days} ${next.days === 1 ? "day" : "days"} in.`,
+        url: `/habits?quit=${encodeURIComponent(q.id)}`,
+      });
+    }
+
+  return out.sort((a, b) => a.at.localeCompare(b.at));
 }

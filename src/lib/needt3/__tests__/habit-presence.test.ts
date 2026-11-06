@@ -6,6 +6,7 @@ import {
   checkinTimeOptions,
   inQuiet,
   nextIsland,
+  presenceSchedule,
   readMemory,
   rememberShown,
   seedMemory,
@@ -310,5 +311,85 @@ describe("the device's memory", () => {
       lastShownAt: 5,
       seeded: true,
     });
+  });
+});
+
+describe("the Mac app's schedule", () => {
+  // Wednesday 4 November, 15:00 UTC.
+  const at15 = new Date("2026-11-04T15:00:00Z");
+  const plan = (patch: Partial<PresenceInput> = {}) => {
+    const all = input({ now: at15, ...patch });
+    return presenceSchedule({
+      now: all.now,
+      timeZone: all.timeZone,
+      settings: all.settings,
+      dos: all.dos,
+      quits: all.quits,
+    });
+  };
+
+  it("holds today's and tomorrow's moments, later than now, in order", () => {
+    expect(plan().map((m) => [m.tag, m.at])).toEqual([
+      ["rem:de:2026-11-04", "2026-11-04T18:00:00.000Z"],
+      ["checkin:2026-11-04", "2026-11-04T21:00:00.000Z"],
+      ["rem:de:2026-11-05", "2026-11-05T18:00:00.000Z"],
+      ["checkin:2026-11-05", "2026-11-05T21:00:00.000Z"],
+    ]);
+  });
+
+  it("drops today's reminder once the habit is done, not tomorrow's", () => {
+    const tags = plan({ dos: [{ ...german, doneToday: true }] }).map(
+      (m) => m.tag
+    );
+    expect(tags).not.toContain("rem:de:2026-11-04");
+    expect(tags).not.toContain("checkin:2026-11-04");
+    expect(tags).toContain("rem:de:2026-11-05");
+  });
+
+  it("keeps to the habit's weekdays and the person's zone", () => {
+    // Thursday only (4); Zurich is UTC+1 in November.
+    const tags = plan({
+      timeZone: "Europe/Zurich",
+      dos: [{ ...german, daysOfWeek: [4] }],
+    });
+    expect(tags.filter((m) => m.tag.startsWith("rem:"))).toEqual([
+      expect.objectContaining({
+        tag: "rem:de:2026-11-05",
+        at: "2026-11-05T17:00:00.000Z",
+      }),
+    ]);
+  });
+
+  it("names the milestone on its day at 09:00", () => {
+    const m = plan({
+      dos: [],
+      quits: [{ ...quit, nextMilestone: { days: 30, daysLeft: 1 } }],
+    }).find((x) => x.tag.startsWith("ms:"));
+    expect(m).toEqual(
+      expect.objectContaining({
+        tag: "ms:q:30",
+        at: "2026-11-05T09:00:00.000Z",
+        url: "/habits?quit=q",
+      })
+    );
+  });
+
+  it("is empty with the switches that silence the app, and skips quiet hours", () => {
+    expect(plan({ settings: { ...settings, digest: true } })).toEqual([]);
+    expect(plan({ settings: { ...settings, channelMac: false } })).toEqual([]);
+    // In the app is the island's channel, not the system's.
+    expect(
+      plan({ settings: { ...settings, channelInApp: false } })
+    ).not.toEqual([]);
+    const quiet = plan({
+      settings: {
+        ...settings,
+        quietHours: true,
+        quietStart: "20:00",
+        quietEnd: "07:00",
+      },
+    }).map((m) => m.tag);
+    expect(quiet.some((t) => t.startsWith("checkin:"))).toBe(false);
+    expect(quiet).toContain("rem:de:2026-11-04");
   });
 });
