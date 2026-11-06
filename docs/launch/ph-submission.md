@@ -69,7 +69,7 @@ Ready to upload: `marketing/product-hunt/1270x760/` holds all five screens from 
 
 Recommended order: 1 calendar re-slot, 2 Agents Map, 3 Today, 4 composer, 5 docs. Minimum to submit: items 1-3 (PH recommends 3+).
 
-Also missing: the 240x240 square thumbnail. Export the Needt mark.
+Thumbnail (240x240, owner's pick 06.11.26): `marketing/product-hunt/thumbnail-240.png`.
 
 ## 5. Video
 
