@@ -3563,18 +3563,16 @@
 /* The tab dock floats over long lists: every scrolling page leaves room
    under its last row for the dock, a toast above it and the safe area. */
 .needt-v3 .ag-night {
-  --ag-dock-bottom: 18px;
+  /* The safe area is counted once, in the dock's offset. */
+  --ag-dock-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
   --ag-dock-h: 48px;
-  --ag-dock-space: calc(
-    var(--ag-dock-bottom) + var(--ag-dock-h) + 80px +
-      env(safe-area-inset-bottom, 0px)
-  );
+  --ag-dock-space: calc(var(--ag-dock-bottom) + var(--ag-dock-h) + 80px);
 }
 .needt-v3[data-ui="phone"] .ag-night {
   --ag-dock-bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
 }
-.needt-v3 .ag-night .ag-page,
-.needt-v3[data-ui="phone"] .ag-night .ag-page {
+.needt-v3 .ag-night .ag-page:not(.is-map),
+.needt-v3[data-ui="phone"] .ag-night .ag-page:not(.is-map) {
   padding-bottom: var(--ag-dock-space);
 }
 .needt-v3 .ag-night .ag-scroll {
