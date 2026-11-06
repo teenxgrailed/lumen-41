@@ -3,3 +3,7 @@
 # Frozen design prototype for the port: reference only, never built or served.
 docs/port/prototype/
 docs/port/_ds/
+
+# Local headless capture tool: serves a local prototype on 127.0.0.1, never
+# shipped or deployed. Its fixed inputs trip the generic web-server rules.
+marketing/capture.js
