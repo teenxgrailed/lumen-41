@@ -148,3 +148,37 @@ describe("desktop shell commands", () => {
     expect(emit).toHaveBeenCalledWith("needt-tray-state", { open: 2 });
   });
 });
+
+describe("the Mac app's push token", () => {
+  it("is a command with a lower-case hex token and its environment", () => {
+    const { parseDesktopCommand } = jest.requireActual("@/lib/desktop");
+    const token = "AB".repeat(32);
+    expect(
+      parseDesktopCommand({ type: "push-token", token, environment: "sandbox" })
+    ).toEqual({
+      type: "push-token",
+      token: token.toLowerCase(),
+      environment: "sandbox",
+    });
+    expect(parseDesktopCommand({ type: "push-token", token })).toEqual({
+      type: "push-token",
+      token: token.toLowerCase(),
+      environment: "production",
+    });
+    expect(
+      parseDesktopCommand({ type: "push-token", token: "../x" })
+    ).toBeNull();
+  });
+});
+
+describe("a due habit moment from the Mac app", () => {
+  it("is a command with a presence tag, and nothing else is", () => {
+    const { parseDesktopCommand } = jest.requireActual("@/lib/desktop");
+    expect(
+      parseDesktopCommand({ type: "presence-due", tag: "rem:h1:2026-11-04" })
+    ).toEqual({ type: "presence-due", tag: "rem:h1:2026-11-04" });
+    expect(
+      parseDesktopCommand({ type: "presence-due", tag: "<script>" })
+    ).toBeNull();
+  });
+});

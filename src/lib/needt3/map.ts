@@ -555,6 +555,14 @@ export interface ApiHabit {
   archivedAt?: string | null;
   /** A first-run example: not counted toward the Free habit limit. */
   isSample?: boolean;
+  /** BUILD (do it) or QUIT (count the time without), behind `habits_quit`. */
+  kind?: "BUILD" | "QUIT";
+  quitStartedAt?: string | null;
+  reason?: string | null;
+  /** A reminder at its time (Settings → Notifications → Habits). */
+  remindersEnabled?: boolean;
+  /** 0 = Sunday; empty means every day. */
+  daysOfWeek?: number[];
 }
 
 export interface V3Habit {
@@ -566,6 +574,16 @@ export interface V3Habit {
   schedule: { time: string | null; perWeek: number | null };
   archivedAt: string | null;
   isSample?: boolean;
+  /** BUILD when absent. */
+  kind?: "BUILD" | "QUIT";
+  /** QUIT only: when the person stopped (may be in the past). */
+  quitStartedAt?: string | null;
+  /** QUIT only: the person's own reason, shown when they press Pulling. */
+  reason?: string | null;
+  /** False turns off this habit's reminder; true when absent. */
+  remindersEnabled?: boolean;
+  /** 0 = Sunday; empty means every day (the reminder and check-in read it). */
+  daysOfWeek?: number[];
 }
 
 export function habitFromApi(row: ApiHabit): V3Habit {
@@ -578,6 +596,11 @@ export function habitFromApi(row: ApiHabit): V3Habit {
     schedule: { time: row.at ?? null, perWeek: row.quota ?? null },
     archivedAt: row.archivedAt ?? null,
     isSample: row.isSample === true,
+    kind: row.kind === "QUIT" ? "QUIT" : "BUILD",
+    quitStartedAt: row.quitStartedAt ?? null,
+    reason: row.reason ?? null,
+    remindersEnabled: row.remindersEnabled !== false,
+    daysOfWeek: Array.isArray(row.daysOfWeek) ? row.daysOfWeek : [],
   };
 }
 
@@ -585,7 +608,16 @@ export function habitPatchToApi(
   patch: Partial<Omit<V3Habit, "id" | "archivedAt">>
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const k of ["title", "projectId", "color", "icon"] as const) {
+  for (const k of [
+    "title",
+    "projectId",
+    "color",
+    "icon",
+    "kind",
+    "quitStartedAt",
+    "reason",
+    "remindersEnabled",
+  ] as const) {
     if (k in patch) out[k] = patch[k];
   }
   if (patch.schedule) {

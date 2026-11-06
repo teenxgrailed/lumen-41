@@ -1,8 +1,14 @@
 "use client";
 
+import { desktopPlatform } from "@/lib/desktop";
 import { notify } from "@/lib/notifications";
 
-import { NATIVE_PUSH_COPY, PUSH_COPY, usePushNotifications } from "./push";
+import {
+  APP_PUSH_COPY,
+  NATIVE_PUSH_COPY,
+  PUSH_COPY,
+  usePushNotifications,
+} from "./push";
 
 export type PushAction = {
   key: "enable" | "test" | "disable";
@@ -17,8 +23,19 @@ export type PushAction = {
  */
 export function usePushRow() {
   const push = usePushNotifications();
+  const appCopy = push.app ? APP_PUSH_COPY[push.state] : undefined;
   const { title, desc } =
     (push.native ? NATIVE_PUSH_COPY[push.state] : undefined) ??
+    (appCopy && desktopPlatform() === "windows"
+      ? {
+          // Windows says Settings, not macOS's System Settings.
+          title: appCopy.title.replace("System Settings", "Settings"),
+          desc: appCopy.desc.replace(
+            "System Settings, Notifications, Needt",
+            "Settings, System, Notifications, Needt"
+          ),
+        }
+      : appCopy) ??
     PUSH_COPY[push.state];
 
   const enable = () =>
@@ -47,7 +64,7 @@ export function usePushRow() {
       ? [
           {
             key: "enable",
-            label: "Enable notifications",
+            label: push.app ? "Allow" : "Enable notifications",
             onClick: enable,
             disabled: push.busy,
           },
@@ -60,12 +77,17 @@ export function usePushRow() {
               onClick: test,
               disabled: push.busy,
             },
-            {
-              key: "disable",
-              label: "Turn off",
-              onClick: disable,
-              disabled: push.busy,
-            },
+            // The app's permission is the system's to take back.
+            ...(push.app
+              ? []
+              : [
+                  {
+                    key: "disable" as const,
+                    label: "Turn off",
+                    onClick: disable,
+                    disabled: push.busy,
+                  },
+                ]),
           ]
         : [];
 

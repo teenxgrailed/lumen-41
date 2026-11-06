@@ -22,6 +22,8 @@ export type NativePushPayload = {
   /** A same-origin path the app opens when the notification is tapped. */
   url: string;
   taskId?: string;
+  /** Sent as apns-collapse-id: a repeat of the moment replaces the last. */
+  tag?: string;
 };
 
 type ApnsEnvironment = "production" | "sandbox";
@@ -249,6 +251,10 @@ export async function deliverNativePush(
         "apns-priority": "10",
         // Like web push: a reminder that cannot arrive in 15 minutes is stale.
         "apns-expiration": String(nowSeconds + 15 * 60),
+        // A repeat of the same moment replaces the earlier one (max 64 bytes).
+        ...(payload.tag
+          ? { "apns-collapse-id": payload.tag.slice(0, 64) }
+          : {}),
       },
       body
     );

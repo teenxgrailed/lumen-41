@@ -1,0 +1,1 @@
+- A new Quit habit's Since now starts at the current time in your zone, instead of an empty field that showed the browser's own placeholder time.

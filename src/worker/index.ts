@@ -22,6 +22,7 @@ import {
 } from "@/services/email-lifecycle/engine";
 import { deliverFocusEnded } from "@/services/focus/focus-end-notification";
 import { expireProGifts } from "@/services/gifts/gifts";
+import { runHabitPresenceSweep } from "@/services/habits/presence-sweep";
 import {
   processImportRun,
   sweepStuckImportRuns,
@@ -271,6 +272,10 @@ async function processReminder(job: Job<ReminderJobData>) {
   }
   if (job.data.kind === "activity") {
     await deliverActivityPushes();
+    return;
+  }
+  if (job.data.kind === "habits") {
+    await runHabitPresenceSweep();
     return;
   }
   const reminderIds = await findDueReminderIds();
@@ -586,6 +591,11 @@ export async function start(): Promise<void> {
     "notification-activity-push-sweep",
     { every: 2 * 60_000 },
     { name: "sweep-activity-pushes", data: { kind: "activity" } }
+  );
+  await getReminderQueue().upsertJobScheduler(
+    "habit-presence-sweep",
+    { every: 5 * 60_000 },
+    { name: "sweep-habit-presence", data: { kind: "habits" } }
   );
   await getNudgeQueue().upsertJobScheduler(
     "proactive-nudge-sweep",

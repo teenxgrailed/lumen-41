@@ -183,6 +183,9 @@ final class AuthFlow: ObservableObject {
     /// marker and goes back to its own start window.
     func signedOut() {
         removeMarker()
+        // The account's habit moments go with it: nothing of theirs fires
+        // after sign-out (the page cannot clear them; it is already gone).
+        Notifier.shared.clearPresence()
         SessionSync.clear()
         pending = nil
         timeout?.cancel()

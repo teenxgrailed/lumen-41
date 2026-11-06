@@ -16,7 +16,35 @@ interface TauriNotificationApi {
     body?: string;
     /** A same-origin path the Mac app opens when the notification is clicked. */
     url?: string;
+    /**
+     * Names the moment (presenceTag): a shell that reads it replaces an
+     * earlier notification with the same tag. Older shells ignore it.
+     */
+    tag?: string;
+    /** Show as a banner even with the app in front (the island could not). */
+    banner?: boolean;
   }) => void;
+  /**
+   * Replace the app's scheduled habit moments with these (Mac shell 2b):
+   * each fires at `at` even with the window closed. Older shells lack it.
+   */
+  schedule?: (items: readonly DesktopScheduled[]) => unknown;
+  /** Take these tags back: pending and already shown. */
+  cancel?: (tags: readonly string[]) => unknown;
+}
+
+/** A notification the desktop app shows at its time by itself. */
+export interface DesktopScheduled {
+  /** The identifier: a later one with the same tag replaces it. */
+  tag: string;
+  /** ISO instant. */
+  at: string;
+  title: string;
+  body: string;
+  /** A same-origin path the click opens. */
+  url: string;
+  /** IANA zone the instant is shown in (the person's setting). */
+  timeZone?: string;
 }
 
 interface TauriGlobal {
@@ -56,22 +84,90 @@ export function isMacApp(): boolean {
 export async function sendDesktopNotification(
   title: string,
   body?: string,
-  url?: string
+  url?: string,
+  options: {
+    /** Ask for permission when it is not granted yet (default). False for
+     * anything not started by the person: no prompt out of nowhere. */
+    ask?: boolean;
+    tag?: string;
+    banner?: boolean;
+  } = {}
 ): Promise<boolean> {
   const api = tauriGlobal()?.notification;
   if (!api?.sendNotification) return false;
   try {
     let granted = (await api.isPermissionGranted?.()) ?? false;
-    if (!granted) {
+    if (!granted && options.ask !== false) {
       granted = (await api.requestPermission?.()) === "granted";
     }
     if (!granted) return false;
-    api.sendNotification(
-      url && /^\/(?!\/)/.test(url) ? { title, body, url } : { title, body }
-    );
+    api.sendNotification({
+      title,
+      body,
+      ...(url && /^\/(?!\/)/.test(url) ? { url } : {}),
+      ...(options.tag ? { tag: options.tag } : {}),
+      ...(options.banner ? { banner: true } : {}),
+    });
     return true;
   } catch {
     return false;
+  }
+}
+
+/** The window event a due habit moment arrives as (DesktopBridge → presence). */
+export const PRESENCE_DUE_EVENT = "needt:presence-due";
+
+/** True when the desktop app can show notifications at a time by itself. */
+export function desktopCanSchedule(): boolean {
+  return typeof tauriGlobal()?.notification?.schedule === "function";
+}
+
+/** Hand the app the habit moments to show at their times (replaces the set). */
+export function scheduleDesktopNotifications(
+  items: readonly DesktopScheduled[]
+): void {
+  try {
+    void Promise.resolve(tauriGlobal()?.notification?.schedule?.(items)).catch(
+      () => undefined
+    );
+  } catch {
+    /* an older shell: the live path covers it while the window is open */
+  }
+}
+
+/** Take notifications back by tag (pending and shown). */
+export function cancelDesktopNotifications(tags: readonly string[]): void {
+  if (!tags.length) return;
+  try {
+    void Promise.resolve(tauriGlobal()?.notification?.cancel?.(tags)).catch(
+      () => undefined
+    );
+  } catch {
+    /* nothing to take back in an older shell */
+  }
+}
+
+/** Whether the desktop app may show notifications (no prompt). */
+export async function desktopNotificationsAllowed(): Promise<boolean> {
+  try {
+    return (
+      (await tauriGlobal()?.notification?.isPermissionGranted?.()) === true
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Ask the desktop app's system prompt. "default" when there is none to ask. */
+export async function requestDesktopNotifications(): Promise<
+  "granted" | "denied" | "default"
+> {
+  try {
+    return (
+      (await tauriGlobal()?.notification?.requestPermission?.()) ?? "default"
+    );
+  } catch {
+    return "default";
   }
 }
 
@@ -95,7 +191,15 @@ export type DesktopCommand =
   /** Menu bar: end the running focus session. */
   | { type: "focus-end" }
   /** Menu bar: start a focus session on the next task of the day. */
-  | { type: "focus-start-next" };
+  | { type: "focus-start-next" }
+  /** The Mac app's APNs device token, to save for remote pushes. */
+  | {
+      type: "push-token";
+      token: string;
+      environment: "production" | "sandbox";
+    }
+  /** A scheduled habit moment came due with the app in front. */
+  | { type: "presence-due"; tag: string };
 
 type DesktopHost = {
   platform?: unknown;
@@ -131,7 +235,10 @@ const NAVIGABLE = /^\/[A-Za-z0-9\-._~!$&'()*+,;=:@%/?#]*$/;
 /** A command from the shell, or null for anything that is not one. */
 export function parseDesktopCommand(raw: unknown): DesktopCommand | null {
   if (!raw || typeof raw !== "object") return null;
-  const { type, path, id } = raw as Record<string, unknown>;
+  const { type, path, id, token, environment, tag } = raw as Record<
+    string,
+    unknown
+  >;
   switch (type) {
     case "navigate":
       return typeof path === "string" &&
@@ -143,6 +250,19 @@ export function parseDesktopCommand(raw: unknown): DesktopCommand | null {
     case "open-task":
       return typeof id === "string" && /^[\w-]{1,64}$/.test(id)
         ? { type, id }
+        : null;
+    case "presence-due":
+      return typeof tag === "string" &&
+        /^[a-z]+:[A-Za-z0-9:_-]{1,120}$/.test(tag)
+        ? { type, tag }
+        : null;
+    case "push-token":
+      return typeof token === "string" && /^[0-9a-fA-F]{64,200}$/.test(token)
+        ? {
+            type,
+            token: token.toLowerCase(),
+            environment: environment === "sandbox" ? "sandbox" : "production",
+          }
         : null;
     case "new-task":
     case "new-doc":

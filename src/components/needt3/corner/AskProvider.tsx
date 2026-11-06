@@ -44,6 +44,19 @@ export function AskProvider({ children }: { children: React.ReactNode }) {
   return <AskContext.Provider value={api}>{children}</AskContext.Provider>;
 }
 
+/**
+ * Whether the assistant is answering right now; "idle" outside the shell.
+ * For things that must not speak over it (habit presence).
+ */
+export function useAskPhase() {
+  return React.useContext(AskContext)?.ask.phase ?? "idle";
+}
+
+/** The shared conversation, or null outside the v3 shell. */
+export function useSharedAsk() {
+  return React.useContext(AskContext)?.ask ?? null;
+}
+
 /** The shared Ask controller; only inside the v3 shell (`AskProvider`). */
 export function useAsk(): AskApi {
   const api = React.useContext(AskContext);

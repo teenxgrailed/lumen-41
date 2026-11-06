@@ -17,6 +17,7 @@ import {
   useToggleHabitToday,
   useUpdateHabit,
 } from "@/lib/needt3/hooks/habits";
+import { useQuitGate } from "@/lib/needt3/hooks/habits-quit";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
@@ -24,13 +25,13 @@ import type { V3Habit } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 
 import {
-  BLANK_HABIT_FORM,
   type HabitForm,
   checkHabitForm,
   formFields,
   formFromHabit,
   habitQuota,
   keptToday,
+  newHabitForm,
 } from "../phone/habits/model";
 import { snack } from "../phone/overlays/snack";
 import { capHabits } from "./derive";
@@ -85,7 +86,12 @@ export function useHabitsController(opts: HabitsControllerOptions) {
      state re-renders. */
   const busy = useRef(false);
 
-  const list = liveHabits(habits.data ?? []);
+  const live = liveHabits(habits.data ?? []);
+  // Quit habits draw their own cards (habits/quit); everything that counts
+  // days kept — the strip, "n of m kept", the months — is Do habits only.
+  const list = live.filter((h) => h.kind !== "QUIT");
+  const quitList = live.filter((h) => h.kind === "QUIT");
+  const quitGate = useQuitGate();
   const checkins = checkinsQuery.data ?? [];
   // The long read (124 days); until it arrives the cards' own fourteen.
   const history = historyQuery.data ?? checkins;
@@ -116,9 +122,9 @@ export function useHabitsController(opts: HabitsControllerOptions) {
 
   const openNew = () => {
     if (blocked()) return;
-    setForm({ ...BLANK_HABIT_FORM });
+    setForm(newHabitForm(tz));
   };
-  const openEdit = (h: V3Habit) => setForm(formFromHabit(h));
+  const openEdit = (h: V3Habit) => setForm(formFromHabit(h, tz));
   const closeForm = () => setForm(null);
   const patchForm = (p: Partial<HabitForm>) =>
     setForm((f) => (f ? { ...f, ...p } : f));
@@ -204,6 +210,8 @@ export function useHabitsController(opts: HabitsControllerOptions) {
     habits,
     checkinsQuery,
     list,
+    quitList,
+    quitGate,
     shown,
     over,
     all,

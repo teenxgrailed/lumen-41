@@ -58,7 +58,7 @@ export async function getAdminSignupStats(
  * still inside the paid period; an App Store Pro only until its period end
  * plus the slack, whatever its status.
  */
-function holdsPlan(plan: SubscriptionPlan, now: Date) {
+export function holdsPlan(plan: SubscriptionPlan, now: Date) {
   const legacy = {
     OR: [
       { status: SubscriptionStatus.ACTIVE },

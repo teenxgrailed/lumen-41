@@ -4,6 +4,8 @@ import { FREE_HABITS } from "../../../habits/derive";
 import {
   BLANK_HABIT_FORM,
   HABITS_PAYWALL_FEATURE,
+  type HabitForm,
+  SINCE_ERROR,
   TIME_ERROR,
   checkHabitForm,
   clockFacts,
@@ -13,9 +15,11 @@ import {
   habitQuota,
   historyDots,
   keptToday,
+  newHabitForm,
   phoneHabitRow,
   searchHabits,
   shortDay,
+  sinceInstant,
   streakFigure,
   streakLabel,
 } from "../model";
@@ -161,18 +165,26 @@ describe("the habit form", () => {
   });
   it("an edit form speaks the database", () => {
     expect(
-      formFromHabit({
-        id: "h",
-        title: "Read",
-        projectId: null,
-        schedule: { time: "07:30", perWeek: 5 },
-      })
+      formFromHabit(
+        {
+          id: "h",
+          title: "Read",
+          projectId: null,
+          schedule: { time: "07:30", perWeek: 5 },
+        },
+        "UTC"
+      )
     ).toEqual({
       editId: "h",
       title: "Read",
       time: "07:30",
       perWeek: 5,
       projectId: null,
+      kind: "BUILD",
+      quitSince: "",
+      reason: "",
+      timeZone: "UTC",
+      initial: null,
     });
   });
 });
@@ -209,5 +221,183 @@ describe("searchHabits", () => {
   it("is capped at five", () => {
     const many = Array.from({ length: 9 }, (_, i) => ({ title: `Walk ${i}` }));
     expect(searchHabits(many, "walk")).toHaveLength(5);
+  });
+});
+
+describe("a Quit habit in the form", () => {
+  const quit = (patch: Partial<HabitForm>): HabitForm => ({
+    ...BLANK_HABIT_FORM,
+    title: "Smoking",
+    kind: "QUIT",
+    ...patch,
+  });
+  const now = new Date("2026-11-04T12:00:00Z");
+
+  it("takes a past date and no time", () => {
+    expect(
+      checkHabitForm(quit({ quitSince: "2026-10-23T09:10" }), now).ok
+    ).toBe(true);
+    expect(checkHabitForm(quit({ quitSince: "", time: "nope" }), now).ok).toBe(
+      true
+    );
+  });
+
+  it("refuses a date in the future", () => {
+    const check = checkHabitForm(quit({ quitSince: "2027-01-01T00:00" }), now);
+    expect(check.ok).toBe(false);
+    expect(check.timeError).toBe(SINCE_ERROR);
+  });
+
+  it("writes kind, the quit date and the reason, and no schedule", () => {
+    const fields = formFields(
+      quit({ quitSince: "2026-10-23T09:10", reason: "  run the 10k  " })
+    );
+    expect(fields).toMatchObject({
+      title: "Smoking",
+      kind: "QUIT",
+      reason: "run the 10k",
+    });
+    expect("quitStartedAt" in fields).toBe(true);
+    expect("schedule" in fields).toBe(false);
+  });
+
+  it("leaves the date to the server when it is empty", () => {
+    expect("quitStartedAt" in formFields(quit({ quitSince: "" }))).toBe(false);
+  });
+});
+
+describe("Since in the person's zone, not the browser's", () => {
+  const zurich = "Europe/Zurich";
+  const tokyo = "Asia/Tokyo";
+
+  it("writes the wall time of the setting's zone", () => {
+    const fields = formFields({
+      ...BLANK_HABIT_FORM,
+      title: "Smoking",
+      kind: "QUIT",
+      quitSince: "2026-11-04T00:30",
+      timeZone: tokyo,
+    });
+    // 00:30 in Tokyo is 15:30 UTC the day before: the run starts on the 4th
+    // for the person, wherever the browser is.
+    expect(fields).toMatchObject({ quitStartedAt: "2026-11-03T15:30:00.000Z" });
+  });
+
+  it("reads a stored start back in that zone, across a clock change", () => {
+    const form = formFromHabit(
+      {
+        id: "q",
+        title: "Smoking",
+        projectId: null,
+        schedule: { time: null, perWeek: null },
+        kind: "QUIT",
+        quitStartedAt: "2026-10-24T22:30:00.000Z",
+        reason: null,
+      },
+      zurich
+    );
+    // Summer time: UTC+2, so 00:30 on the 25th, the night the clocks go back.
+    expect(form.quitSince).toBe("2026-10-25T00:30");
+    expect(sinceInstant(form.quitSince, zurich)?.toISOString()).toBe(
+      "2026-10-24T22:30:00.000Z"
+    );
+    // Unchanged on save: not sent at all.
+    expect("quitStartedAt" in formFields(form)).toBe(false);
+  });
+
+  it("judges the future by the setting's zone", () => {
+    const now = new Date("2026-11-04T12:00:00Z");
+    // 20:00 in Tokyo is 11:00 UTC: already past.
+    expect(
+      checkHabitForm(
+        {
+          ...BLANK_HABIT_FORM,
+          title: "Smoking",
+          kind: "QUIT",
+          quitSince: "2026-11-04T20:00",
+          timeZone: tokyo,
+        },
+        now
+      ).ok
+    ).toBe(true);
+    // 20:00 in Zurich is 19:00 UTC: still ahead.
+    expect(
+      checkHabitForm(
+        {
+          ...BLANK_HABIT_FORM,
+          title: "Smoking",
+          kind: "QUIT",
+          quitSince: "2026-11-04T20:00",
+          timeZone: zurich,
+        },
+        now
+      ).timeError
+    ).toBe(SINCE_ERROR);
+  });
+
+  it("refuses what is not a time", () => {
+    expect(sinceInstant("yesterday", zurich)).toBeNull();
+  });
+});
+
+describe("saving an edited Quit habit", () => {
+  const kept = formFromHabit(
+    {
+      id: "q",
+      title: "Smoking",
+      projectId: null,
+      schedule: { time: null, perWeek: null },
+      kind: "QUIT",
+      quitStartedAt: "2026-10-23T09:10:00.000Z",
+      reason: "Run the 10k",
+    },
+    "UTC"
+  );
+
+  it("sends only the name and project when nothing Quit changed", () => {
+    expect(formFields({ ...kept, title: "Cigarettes" })).toEqual({
+      title: "Cigarettes",
+      projectId: null,
+    });
+  });
+
+  it("sends the date or the reason only when they changed, never kind", () => {
+    const fields = formFields({
+      ...kept,
+      quitSince: "2026-10-22T09:10",
+      reason: "Run the 10k in spring",
+    });
+    expect(fields).toEqual({
+      title: "Smoking",
+      projectId: null,
+      quitStartedAt: "2026-10-22T09:10:00.000Z",
+      reason: "Run the 10k in spring",
+    });
+    expect("kind" in fields).toBe(false);
+  });
+});
+
+describe("a new habit's Since", () => {
+  it("starts at now in the person's zone, to the minute", () => {
+    // 17:40:30 UTC is 18:40 in Zurich (winter time).
+    const form = newHabitForm(
+      "Europe/Zurich",
+      new Date("2026-11-05T17:40:30Z")
+    );
+    expect(form.quitSince).toBe("2026-11-05T18:40");
+    expect(form.timeZone).toBe("Europe/Zurich");
+  });
+
+  it("is not the future a moment later", () => {
+    const now = new Date("2026-11-05T17:40:59Z");
+    const form = {
+      ...newHabitForm("Europe/Zurich", now),
+      title: "Smoking",
+      kind: "QUIT" as const,
+    };
+    expect(checkHabitForm(form, now).ok).toBe(true);
+    expect(formFields(form)).toMatchObject({
+      quitStartedAt: "2026-11-05T17:40:00.000Z",
+    });
   });
 });

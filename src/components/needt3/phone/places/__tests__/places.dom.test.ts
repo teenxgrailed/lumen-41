@@ -118,6 +118,17 @@ jest.mock("@/lib/needt3/hooks/places", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/settings", () => ({
   useTimeZone: () => "UTC",
+  // Connections' first-visit setup: already skipped; its own suite opens it.
+  useSettings: () => ({
+    data: {
+      prefs: {
+        [jest.requireActual("../../../connections/setup-keys").SETUP_PREF]:
+          "skipped",
+      },
+      userId: "u1",
+    },
+  }),
+  useSetPref: () => () => Promise.resolve(null),
 }));
 
 let tasksQ: Q<unknown>;
@@ -325,6 +336,32 @@ const sheetOf = (label: string) =>
 const rowTitles = () => $$(".ppl-row-title").map((e) => text(e));
 
 describe("Connections", () => {
+  it("Set up opens the setup as a modal layer: dialog, the rest inert, heading focused; × gives the focus back", async () => {
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    try {
+      mount(ConnectionsFace);
+      const opener = $<HTMLElement>("[data-ppl-setup-open]")!;
+      click(opener);
+      const layer = $<HTMLElement>(".cs-phone")!;
+      expect(layer.getAttribute("role")).toBe("dialog");
+      expect(layer.getAttribute("aria-modal")).toBe("true");
+      expect(layer.getAttribute("aria-label")).toBe("Set up connections");
+      expect(outside.inert).toBe(true);
+      expect(document.activeElement).toBe($(".cs-title"));
+      expect($("[data-cs-setup='1'] .cs-cta[data-assistant-avoid]")).not.toBe(
+        null
+      );
+      click($("[data-cs-close]"));
+      expect($(".cs-phone")).toBeNull();
+      expect(outside.inert).toBe(false);
+      await act(async () => void (await new Promise((r) => setTimeout(r, 40))));
+      expect(document.activeElement).toBe($("[data-ppl-setup-open]"));
+    } finally {
+      outside.remove();
+    }
+  });
+
   it("lists what needs you first, then the categories, with the right action", () => {
     mount(ConnectionsFace);
     const sections = $$(".pk-sec .pk-label").map((e) => text(e));

@@ -131,6 +131,7 @@ const connectionsCtl = {
   syncNow: noop,
   openTasksLists: noop,
   closeTasksLists: noop,
+  onboarding: { run: null, open: noop },
 } as never;
 
 interface Surface {

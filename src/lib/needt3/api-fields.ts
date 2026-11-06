@@ -5,6 +5,7 @@ import { newDate } from "@/lib/date-utils";
 import { appIconPrefsError } from "./app-icon";
 import { parseCityPlace } from "./city";
 import { HOME_BLOCKS_PREF, homeBlocksError } from "./home-blocks";
+import { PREFS_FORBIDDEN_KEYS } from "./prefs-limits";
 import { TASK_VIEW_PREF, taskViewError } from "./task-view";
 
 /**
@@ -78,8 +79,17 @@ export const userSettingsV3FieldsSchema = z.object({
   timeFormat: z.enum(["12h", "24h"]).optional(),
   // `prefs.taskView` is the one task-list view setting (task-view.ts); when
   // present it must be a valid one, so a bad write is a 400, not a stored typo
+  // A patch: the server merges it into the stored map, and a key sent as
+  // null is removed, so null is never checked as a value.
   prefs: jsonObjectSchema
-    .superRefine((value, ctx) => {
+    .superRefine((patch, ctx) => {
+      // never a key that could reach an object's prototype
+      for (const key of Object.keys(patch))
+        if (PREFS_FORBIDDEN_KEYS.includes(key))
+          ctx.addIssue({ code: "custom", message: `Invalid key: ${key}` });
+      const value = Object.fromEntries(
+        Object.entries(patch).filter(([, v]) => v !== null)
+      );
       // a picked city is a place with real coordinates, or absent
       if (value.cityPlace != null && !parseCityPlace(value.cityPlace))
         ctx.addIssue({ code: "custom", message: "Invalid city" });
@@ -127,6 +137,15 @@ export const notificationSettingsV3FieldsSchema = z.object({
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
     .optional(),
+  // Habit presence (behind habits_quit).
+  habitReminders: z.boolean().optional(),
+  habitCheckin: z.boolean().optional(),
+  habitCheckinTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
+  habitMilestones: z.boolean().optional(),
+  habitReengage: z.boolean().optional(),
 });
 
 type Parsed<S extends z.ZodTypeAny> =

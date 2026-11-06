@@ -216,6 +216,8 @@ const sw = (label: string) =>
   q<HTMLButtonElement>(`button[role="switch"][aria-label="${label}"]`);
 const settingsWrites = () => writes.filter((w) => w.url === URLS.settings);
 
+let mockFinePointer = false;
+
 beforeEach(() => {
   routes = {};
   writes = [];
@@ -240,7 +242,9 @@ beforeEach(() => {
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: (query: string) => ({
-      matches: query.includes("reduce"),
+      matches:
+        query.includes("reduce") ||
+        (mockFinePointer && query.includes("pointer: fine")),
       media: query,
       addEventListener() {},
       removeEventListener() {},
@@ -265,6 +269,14 @@ afterEach(() => {
 /* ---------- tests ---------- */
 
 describe("the list and its pages", () => {
+  it("lists Shortcuts where there is a keyboard (a fine pointer)", async () => {
+    mockFinePointer = true;
+    routes[URLS.billing] = billing();
+    await mount();
+    expect(q('[data-ps-open="keys"]')).not.toBeNull();
+    mockFinePointer = false;
+  });
+
   it("shows you, the Pro plate on Free and a row for every page", async () => {
     routes[URLS.billing] = billing();
     await mount();
@@ -282,10 +294,11 @@ describe("the list and its pages", () => {
       "alerts",
       "menu",
       "data",
-      "keys",
       "about",
     ])
       expect(q(`[data-ps-open="${id}"]`)).not.toBeNull();
+    // A phone has no keyboard for ⌘ shortcuts.
+    expect(q('[data-ps-open="keys"]')).toBeNull();
     expect(q("[data-ps-connections]")).not.toBeNull();
     expect(q("[data-ps-signout]")).not.toBeNull();
     expect(q("[data-ps-open='sidebar']")).toBeNull();
@@ -406,14 +419,14 @@ describe("writes once loaded, through the desktop's rules", () => {
     routes[URLS.alerts] = ALERTS;
   });
 
-  it("a pref is merged into the loaded map, never written alone", async () => {
+  it("a pref is sent alone, as a patch the server merges into the stored map", async () => {
     await mount("general");
     expect(sw("Offline mode")?.disabled).toBe(false);
     await tap(sw("Offline mode"));
     expect(settingsWrites()).toHaveLength(1);
     expect(settingsWrites()[0].method).toBe("PATCH");
     expect(settingsWrites()[0].body).toEqual({
-      prefs: { ...SETTINGS.prefs, offline: false },
+      prefs: { offline: false },
     });
     expect(onMark).toHaveBeenCalled();
   });
@@ -422,7 +435,7 @@ describe("writes once loaded, through the desktop's rules", () => {
     await mount("focus");
     await tap(sw("Animate the logo"));
     expect(settingsWrites()[0].body).toEqual({
-      prefs: { ...SETTINGS.prefs, stopMark: true },
+      prefs: { stopMark: true },
     });
   });
 
@@ -502,7 +515,7 @@ describe("writes once loaded, through the desktop's rules", () => {
     await mount("day");
     await tap(sw("Hide done in calendar"));
     expect(settingsWrites()[0].body).toEqual({
-      prefs: { ...SETTINGS.prefs, calHideDone: true },
+      prefs: { calHideDone: true },
     });
   });
 
@@ -538,7 +551,7 @@ describe("writes once loaded, through the desktop's rules", () => {
     expect(list?.getAttribute("role")).toBe("listbox");
     await tap(q('[data-ps-option="25"]'));
     expect(settingsWrites()[0].body).toEqual({
-      prefs: { ...SETTINGS.prefs, len: "25" },
+      prefs: { len: "25" },
     });
   });
 
@@ -547,7 +560,7 @@ describe("writes once loaded, through the desktop's rules", () => {
     await mount("appearance");
     await tap(q('[data-ps-accent="pink"]'));
     expect(settingsWrites()[0].body).toEqual({
-      prefs: { ...SETTINGS.prefs, accent: "pink" },
+      prefs: { accent: "pink" },
     });
     expect(useNeedt3Ui.getState().accent).toBe("pink");
   });
@@ -663,7 +676,7 @@ describe("the pill", () => {
     await tap(q('[data-ps-menu-place="mail"]'));
     expect(settingsWrites()).toHaveLength(1);
     expect(settingsWrites()[0].body).toEqual({
-      prefs: { ...SETTINGS.prefs, mobileTiles: ["docs", "ask", "mail"] },
+      prefs: { mobileTiles: ["docs", "ask", "mail"] },
     });
     // a fourth is refused with a word, and writes nothing
     await tap(q('[data-ps-menu-place="tasks"]'));

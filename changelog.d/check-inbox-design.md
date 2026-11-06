@@ -1,2 +1,1 @@
 - The "Check your inbox" screen after sign-up now wears the sign-in's sky and card, on phone and desktop, instead of the old dark card.
-- Every Needt email now carries the landing's look: a lavender header with the Needt mark, the display heading and a pill button, in light and dark.

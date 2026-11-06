@@ -27,6 +27,11 @@ function preferenceFields(settings: NotificationSettings) {
     quietEnd: settings.quietEnd,
     digest: settings.digest,
     digestTime: settings.digestTime,
+    habitReminders: settings.habitReminders,
+    habitCheckin: settings.habitCheckin,
+    habitCheckinTime: settings.habitCheckinTime,
+    habitMilestones: settings.habitMilestones,
+    habitReengage: settings.habitReengage,
   };
 }
 

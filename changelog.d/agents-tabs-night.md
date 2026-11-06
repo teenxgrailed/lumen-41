@@ -1,0 +1,1 @@
+- Agents: every tab sits on the same night as the Map. Section hints are back in place (the Webhooks hint no longer floats over the page), agent cards and task rows are denser, and long lists leave room under their last row for the tab bar and toasts.

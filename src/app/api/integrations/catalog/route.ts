@@ -39,14 +39,17 @@ export async function GET(request: NextRequest) {
           id: true,
           accountId: true,
           error: true,
+          lastSyncedAt: true,
           account: { select: { email: true } },
         },
       }),
     ]);
     // `label` is the account a native connection belongs to, where its toolkit
     // name would say nothing (Google Tasks: the Google address).
-    const rows: ((typeof connections)[number] & { label?: string })[] =
-      connections;
+    const rows: ((typeof connections)[number] & {
+      label?: string;
+      lastSyncedAt?: Date | null;
+    })[] = connections;
     // Pinterest keeps its own grant; the card reads it as one more connection.
     if (pinterest) {
       rows.push({
@@ -67,6 +70,7 @@ export async function GET(request: NextRequest) {
           googleTasks.accountId && !googleTasks.error ? "CONNECTED" : "ERROR",
         externalConnectionId: googleTasks.accountId ?? googleTasks.id,
         label: googleTasks.account?.email ?? undefined,
+        lastSyncedAt: googleTasks.lastSyncedAt,
       });
     }
     return NextResponse.json({ catalog, connections: rows, isAdmin });

@@ -184,14 +184,10 @@ export function useOnboarding({
      key; refuse instead. */
   const setPref = React.useCallback(
     (patch: Record<string, unknown>) => {
-      const cur = qc.getQueryData<{ prefs: Record<string, unknown> }>(
-        qk.settings()
-      )?.prefs;
-      if (!cur || typeof cur !== "object")
-        return Promise.reject(new Error("Settings are not loaded yet"));
-      return update.mutateAsync({ prefs: { ...cur, ...patch } });
+      // A patch: the server merges it into the stored map.
+      return update.mutateAsync({ prefs: patch });
     },
-    [qc, update]
+    [update]
   );
 
   /** The per-day editor's write: never before the schedule loaded, never invalid. */

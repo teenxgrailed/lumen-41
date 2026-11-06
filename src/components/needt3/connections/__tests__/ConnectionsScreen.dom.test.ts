@@ -18,6 +18,7 @@ import { notify } from "@/lib/notifications";
 
 import { V3PortalScope } from "../../ctx/PortalScope";
 import { ConnectionsScreen } from "../ConnectionsScreen";
+import { SETUP_PREF, SETUP_RUN_KEY, setupRunKey } from "../setup-keys";
 import { useConnectionsController } from "../useConnectionsController";
 
 (
@@ -68,6 +69,27 @@ jest.mock("@/store/needt3-ui", () => ({
 }));
 jest.mock("@/lib/notifications", () => ({
   notify: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
+}));
+/** The person's settings as the server keeps them (survives a sign-out). */
+const serverPrefs: {
+  current: Record<string, unknown>;
+  /** Writes that fail before one succeeds (a network blip). */
+  failures: number;
+  writes: number;
+} = { current: {}, failures: 0, writes: 0 };
+jest.mock("@/lib/needt3/hooks/settings", () => ({
+  useSettings: () => ({
+    data: { prefs: serverPrefs.current, userId: "u1" },
+  }),
+  useSetPref: () => (key: string, value: unknown) => {
+    serverPrefs.writes += 1;
+    if (serverPrefs.failures > 0) {
+      serverPrefs.failures -= 1;
+      return Promise.reject(new Error("offline"));
+    }
+    serverPrefs.current = { ...serverPrefs.current, [key]: value };
+    return Promise.resolve(null);
+  },
 }));
 
 type Cat =
@@ -155,6 +177,9 @@ let appsData: unknown[] = [];
 let tokensData: unknown[] = [];
 const fetchMock = jest.fn();
 const flush = () => act(async () => void (await Promise.resolve()));
+/** A frame and a little: `refocus` waits for the next animation frame. */
+const frame = () =>
+  act(async () => void (await new Promise((r) => setTimeout(r, 40))));
 beforeEach(() => {
   appsData = [];
   tokensData = [];
@@ -200,6 +225,9 @@ beforeEach(() => {
   catalogRows = null;
   planKind = "monthly";
   window.localStorage.clear();
+  window.sessionStorage.clear();
+  // The first-visit setup has its own suite at the end of this file.
+  serverPrefs.current = { [SETUP_PREF]: "skipped" };
   window.history.replaceState(null, "", "/");
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -325,6 +353,21 @@ describe("the tabs", () => {
     });
     expect($("[data-cn-tab='ai']").getAttribute("aria-selected")).toBe("true");
     expect(window.localStorage.getItem("needt.connections.tab")).toBe("ai");
+  });
+});
+
+describe("screen memory", () => {
+  it("the search and Connected / All come back after leaving the screen", () => {
+    render();
+    type($(".cn-search input") as HTMLInputElement, "notion");
+    click($("[data-cn-show=connected]"));
+    act(() => root.unmount());
+    root = createRoot(host);
+    render();
+    expect(($(".cn-search input") as HTMLInputElement).value).toBe("notion");
+    expect($("[data-cn-show=connected]").getAttribute("aria-pressed")).toBe(
+      "true"
+    );
   });
 });
 
@@ -473,6 +516,90 @@ describe("the cards", () => {
     await flush();
     expect(syncAccountNow).toHaveBeenCalledWith("calendar", "a1");
     expect(notify.success).toHaveBeenCalledWith("Syncing Google Calendar…");
+    // The card says so while the job runs.
+    expect(
+      $("[data-cn-card='google-calendar'] [data-cn-sync-line]").textContent
+    ).toBe("Syncing…");
+  });
+  it("a connected calendar says when it last synced", () => {
+    accountsData = [acct({ lastSync: new Date().toISOString() })];
+    render();
+    expect(
+      $("[data-cn-card='google-calendar'] [data-cn-sync-line]").textContent
+    ).toBe("Synced just now");
+  });
+  it("the menu works from the keyboard: first row focused, arrows move, Escape returns", () => {
+    accountsData = [acct({})];
+    render();
+    const more = $("[data-cn-more='google-calendar']");
+    click(more);
+    const rows = [
+      ...document.querySelectorAll<HTMLElement>(
+        "[data-cn-menu] [role=menuitem]"
+      ),
+    ];
+    expect(rows.map((r) => r.textContent)).toEqual(["Sync now", "Disconnect…"]);
+    expect(document.activeElement).toBe(rows[0]);
+    act(() => {
+      rows[0].dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })
+      );
+    });
+    expect(document.activeElement).toBe(rows[1]);
+    act(() => {
+      rows[1].dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(document.activeElement).toBe(more);
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+  });
+  it("ArrowUp on the trigger opens the menu at its last row", () => {
+    accountsData = [acct({})];
+    render();
+    const more = $("[data-cn-more='google-calendar']");
+    act(() => {
+      more.focus();
+      more.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })
+      );
+    });
+    const rows = [
+      ...document.querySelectorAll<HTMLElement>(
+        "[data-cn-menu] [role=menuitem]"
+      ),
+    ];
+    expect(rows).toHaveLength(2);
+    expect(document.activeElement).toBe(rows[1]);
+  });
+  it("the disconnect confirm gives the focus back to the card's …: on Cancel, and to Connect once it went", async () => {
+    accountsData = [acct({})];
+    render();
+    const more = () =>
+      document.querySelector<HTMLElement>("[data-cn-more='google-calendar']");
+    click(more());
+    click(document.querySelector("[data-cn-disconnect]"));
+    const cancel = [
+      ...document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((b) => b.textContent === "Cancel");
+    click(cancel!);
+    await frame();
+    expect(document.activeElement).toBe(more());
+    // Confirmed: the card stays without its menu, so Connect takes the focus.
+    const { disconnectCalendar } = jest.requireMock(
+      "@/lib/needt3/hooks/catalog"
+    ) as { disconnectCalendar: jest.Mock };
+    disconnectCalendar.mockResolvedValue({ ok: true });
+    click(more());
+    click(document.querySelector("[data-cn-disconnect]"));
+    accountsData = [];
+    click(document.body.querySelector("[data-cn-confirm='google-calendar']"));
+    await flush();
+    act(() => root.render(h(Screen)));
+    await frame();
+    expect(document.activeElement).toBe(
+      $("[data-cn-connect='google-calendar']")
+    );
   });
   it("a sync that cannot start shows the reason", async () => {
     syncAccountNow.mockResolvedValue({ ok: false, error: "Not configured" });
@@ -495,6 +622,13 @@ describe("the AI tools tab", () => {
     expect(promo.querySelector(".cn-promo-title")?.textContent).toBe(
       "Bring Needt into your AI tools"
     );
+    expect(
+      [...promo.querySelectorAll(".cn-promo-li")].map((n) => n.textContent)
+    ).toEqual([
+      "Plan with your real tasks in Claude and ChatGPT",
+      "Your own MCP and API links",
+      "Works with Cursor, Gemini and any MCP client",
+    ]);
     // No filter bar, no cards on Free.
     expect($(".cn-bar")).toBeNull();
     expect($("[data-cn-card]")).toBeNull();
@@ -620,6 +754,103 @@ describe("the AI tools tab", () => {
     });
     expect(rows()).toEqual(["default"]);
   });
+  it("Disconnect that fails on the network keeps the confirm open with a live button; success reads the list again", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    appsData = [
+      {
+        id: "g1",
+        clientName: "Claude",
+        scopes: ["needt.read"],
+        connectedAt: "2026-10-01T00:00:00Z",
+        lastUsedAt: null,
+      },
+    ];
+    render();
+    await flush();
+    const base = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (url: string, init?: object) => {
+      if (String(url).startsWith("/api/oauth/connected-apps/"))
+        throw new TypeError("Failed to fetch");
+      return base(url, init);
+    });
+    click($("[data-cn-more=app-g1]"));
+    click(document.body.querySelector("[data-cn-app-bye=g1]"));
+    const confirm = () =>
+      document.body.querySelector(
+        "[data-cn-app-confirm=g1]"
+      ) as HTMLButtonElement | null;
+    click(confirm());
+    await flush();
+    await flush();
+    expect(notify.error).toHaveBeenCalledWith(
+      "Could not disconnect Claude. Try again."
+    );
+    expect(confirm()).not.toBeNull();
+    expect(confirm()!.disabled).toBe(false);
+    // The network is back: it goes, and the list is read from the server.
+    fetchMock.mockImplementation(base);
+    const reads = () =>
+      fetchMock.mock.calls.filter((c) => c[0] === "/api/oauth/connected-apps")
+        .length;
+    const before = reads();
+    appsData = [];
+    click(confirm());
+    await flush();
+    await flush();
+    expect(confirm()).toBeNull();
+    expect(reads()).toBeGreaterThan(before);
+    expect($("[data-cn-apps-empty]")).not.toBeNull();
+    // Its row went: the focus lands on the panel's heading.
+    await frame();
+    expect(document.activeElement).toBe($("#cn-apps-title"));
+  });
+  it("Cancel on an app's confirm gives the focus back to its …", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    appsData = [
+      {
+        id: "g1",
+        clientName: "Claude",
+        scopes: ["needt.read"],
+        connectedAt: "2026-10-01T00:00:00Z",
+        lastUsedAt: null,
+      },
+    ];
+    render();
+    await flush();
+    const more = $("[data-cn-more=app-g1]");
+    click(more);
+    click(document.body.querySelector("[data-cn-app-bye=g1]"));
+    const cancel = [
+      ...document.body.querySelectorAll<HTMLButtonElement>("button"),
+    ].find((b) => b.textContent === "Cancel");
+    click(cancel!);
+    await frame();
+    expect(document.activeElement).toBe(more);
+  });
+  it("Connected apps: an empty state, and a failed load offers Try again", async () => {
+    planKind = "monthly";
+    window.localStorage.setItem("needt.connections.tab", "ai");
+    render();
+    await flush();
+    expect($("[data-cn-apps-empty]")).not.toBeNull();
+    // No Beta mark left on the AI tab: Needt MCP is live.
+    expect($(".cn-badge")).toBeNull();
+    act(() => root.unmount());
+    host.remove();
+    fetchMock.mockImplementation(async () => ({
+      ok: false,
+      json: async () => ({}),
+    }));
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    render();
+    await flush();
+    expect($("[data-cn-apps-failed]")).not.toBeNull();
+    expect($("[data-cn-apps-retry]").textContent).toBe("Try again");
+  });
   it("lists connected apps, Connected hides tools without one, Disconnect deletes", async () => {
     planKind = "monthly";
     window.localStorage.setItem("needt.connections.tab", "ai");
@@ -638,12 +869,31 @@ describe("the AI tools tab", () => {
     click($("[data-cn-show=connected]"));
     expect(cards()).toEqual(["claude"]);
     expect($("[data-cn-card=claude]").dataset.state).toBe("connected");
-    click($("[data-cn-app-bye=g1]"));
+    // The hero counts the apps that signed in.
+    expect(text("[data-cn-status]")).toBe("1 connected app");
+    // Permissions are chips, dates are words; Disconnect is in "…" and asks.
+    const row = $("[data-cn-app=g1]");
+    expect(
+      [...row.querySelectorAll("[data-cn-scope]")].map((n) => n.textContent)
+    ).toEqual(["Read"]);
+    expect(row.querySelector("[data-cn-app-dates]")?.textContent).toMatch(
+      /^Connected .+ · Not used yet$/
+    );
+    expect(row.querySelector("button.nx-btn")).toBeNull();
+    click($("[data-cn-more=app-g1]"));
+    click(document.body.querySelector("[data-cn-app-bye=g1]"));
+    await flush();
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/oauth/connected-apps/g1", {
+      method: "DELETE",
+    });
+    appsData = []; // what the server lists once the grant is revoked
+    click(document.body.querySelector("[data-cn-app-confirm=g1]"));
     await flush();
     expect(fetchMock).toHaveBeenCalledWith("/api/oauth/connected-apps/g1", {
       method: "DELETE",
     });
     expect($$("[data-cn-app]").length).toBe(0);
+    expect($("[data-cn-apps-empty]")).not.toBeNull();
     expect($("[data-cn-ai-soon]")).not.toBeNull();
   });
 });
@@ -716,5 +966,176 @@ describe("connectors this server cannot start", () => {
     viewerIsAdmin = true;
     render();
     expect(cards()).toContain("todoist");
+  });
+});
+
+describe("the first-visit setup", () => {
+  const { startOAuth } = jest.requireMock("@/lib/needt3/hooks/catalog") as {
+    startOAuth: jest.Mock;
+  };
+  const RUN = setupRunKey("u1");
+  beforeEach(() => {
+    serverPrefs.current = {};
+    serverPrefs.failures = 0;
+    serverPrefs.writes = 0;
+    startOAuth.mockReset();
+    startOAuth.mockResolvedValue({ ok: true });
+  });
+  const step = () => $("[data-cs-setup]")?.dataset.csSetup ?? null;
+  const pressed = () =>
+    $$("[data-cs-tile][aria-pressed=true]").map((t) => t.dataset.csTile);
+  const remount = () => {
+    act(() => root.unmount());
+    root = createRoot(host);
+    render();
+  };
+  const esc = (target: Element = document.body) =>
+    act(() => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    });
+
+  it("opens on step 1 for an account with nothing connected, heading focused", () => {
+    render();
+    expect(step()).toBe("1");
+    expect(text(".cs-title")).toBe("Connect your day");
+    expect(document.activeElement).toBe($(".cs-title"));
+    expect($("[data-cs-steps]").textContent).toContain("Step 1 of 3");
+    // The screen's own sky, no second one.
+    expect($$("[data-px-sky]")).toHaveLength(1);
+    expect($("[data-cn-card]")).toBeNull();
+    expect(pressed()).toEqual(["google-calendar", "gmail", "icloud-calendar"]);
+    expect(text("[data-cs-continue]")).toBe("Continue (3)");
+    click($("[data-cs-tile=notion]"));
+    expect(text("[data-cs-continue]")).toBe("Continue (4)");
+  });
+  it("Skip for now is saved to the person's settings and survives a sign-out", () => {
+    render();
+    click($("[data-cs-skip]"));
+    expect(step()).toBe("3");
+    expect(text(".cs-title")).toBe("Set up later");
+    expect(serverPrefs.current[SETUP_PREF]).toBe("skipped");
+    click($("[data-cs-go]"));
+    expect(step()).toBeNull();
+    expect($("[data-cn-card]")).not.toBeNull();
+    // Sign-out wipes the device's storage; the setting is on the server.
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    remount();
+    expect(step()).toBeNull();
+  });
+  it("× leaves from any step as skipped, and gives the focus to Set up", async () => {
+    render();
+    click($("[data-cs-continue]"));
+    expect(step()).toBe("2");
+    click($("[data-cs-close]"));
+    expect(step()).toBeNull();
+    expect(serverPrefs.current[SETUP_PREF]).toBe("skipped");
+    expect(window.sessionStorage.getItem(RUN)).toBeNull();
+    await frame();
+    expect(document.activeElement).toBe($("[data-cn-setup-open]"));
+  });
+  it("Escape leaves it too; Escape in the search only clears the search", () => {
+    render();
+    const search = $("[data-cs-search]") as HTMLInputElement;
+    type(search, "zz");
+    esc(search);
+    expect(search.value).toBe("");
+    expect(step()).toBe("1");
+    esc();
+    expect(step()).toBeNull();
+    expect(serverPrefs.current[SETUP_PREF]).toBe("skipped");
+  });
+  it("Escape inside the iCloud form cancels the form (skips iCloud), not the setup", () => {
+    window.sessionStorage.setItem(
+      RUN,
+      JSON.stringify({
+        step: 2,
+        picked: ["icloud-calendar", "notion"],
+        skipped: [],
+      })
+    );
+    render();
+    expect($("[data-cs-card=icloud-calendar]").dataset.state).toBe("active");
+    esc($("[data-cs-caldav]"));
+    expect(step()).toBe("2");
+    expect($("[data-cs-card=icloud-calendar]").dataset.state).toBe("skipped");
+    expect(serverPrefs.current[SETUP_PREF]).toBeUndefined();
+  });
+  it("step 2 connects through the card's own flow and keeps the run under the person", async () => {
+    render();
+    click($("[data-cs-continue]"));
+    expect(step()).toBe("2");
+    expect($$("[data-cs-card]").map((c) => c.dataset.state)).toEqual([
+      "active",
+      "queued",
+      "queued",
+    ]);
+    expect(text("[data-cs-connect]")).toBe("Sign in with Google");
+    click($("[data-cs-connect]"));
+    await flush();
+    expect(startOAuth).toHaveBeenCalledWith("/api/calendar/google/auth");
+    expect(JSON.parse(window.sessionStorage.getItem(RUN) ?? "{}").step).toBe(2);
+    // Not under a bare key another person on this device would resume.
+    expect(window.sessionStorage.getItem(SETUP_RUN_KEY)).toBeNull();
+  });
+  it("back from the provider it resumes step 2 with that source connected", () => {
+    window.sessionStorage.setItem(
+      RUN,
+      JSON.stringify({
+        step: 2,
+        picked: ["google-calendar", "notion"],
+        skipped: [],
+      })
+    );
+    accountsData = [acct({})];
+    render();
+    expect(step()).toBe("2");
+    expect($("[data-cs-card=google-calendar]").dataset.state).toBe("done");
+    expect($("[data-cs-stat=done]").textContent).toContain(
+      "Connected · syncing"
+    );
+    expect(text("[data-cs-connect]")).toBe("Authorize Notion");
+    click($("[data-cs-skip-one=notion]"));
+    click($("[data-cs-finish]"));
+    expect(step()).toBe("3");
+    expect(text(".cs-title")).toBe("You’re all set");
+    expect($$("[data-cs-done]").map((t) => t.dataset.csDone)).toEqual([
+      "google-calendar",
+    ]);
+    click($("[data-cs-go]"));
+    expect(serverPrefs.current[SETUP_PREF]).toBe("done");
+  });
+  it("a failed save is tried once more, and this session does not reopen it meanwhile", async () => {
+    serverPrefs.failures = 2; // both tries fail
+    render();
+    click($("[data-cs-close]"));
+    expect(step()).toBeNull();
+    remount();
+    expect(step()).toBeNull();
+    await act(async () => void (await new Promise((r) => setTimeout(r, 1100))));
+    expect(serverPrefs.writes).toBe(2);
+    expect(serverPrefs.current[SETUP_PREF]).toBeUndefined();
+    // One failure, then the retry lands on the server.
+    serverPrefs.failures = 1;
+    serverPrefs.writes = 0;
+    window.sessionStorage.clear();
+    remount();
+    click($("[data-cs-close]"));
+    await act(async () => void (await new Promise((r) => setTimeout(r, 1100))));
+    expect(serverPrefs.writes).toBe(2);
+    expect(serverPrefs.current[SETUP_PREF]).toBe("skipped");
+  });
+  it("does not open when something is connected; Set up opens it", () => {
+    accountsData = [acct({})];
+    render();
+    expect(step()).toBeNull();
+    click($("[data-cn-setup-open]"));
+    expect(step()).toBe("1");
   });
 });

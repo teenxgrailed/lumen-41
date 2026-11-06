@@ -121,6 +121,20 @@ function PageBody({ id }: { id: PsPageId }) {
   }
 }
 
+/** True when the main pointer is fine (a mouse or trackpad), as on an iPad with a keyboard. */
+function useFinePointer(): boolean {
+  const [fine, setFine] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const q = window.matchMedia("(pointer: fine)");
+    const sync = () => setFine(q.matches);
+    sync();
+    q.addEventListener?.("change", sync);
+    return () => q.removeEventListener?.("change", sync);
+  }, []);
+  return fine;
+}
+
 /**
  * The list: you (avatar, name, plan), the Pro plate on Free, then the pages.
  * It mounts only while the sheet is up, so the queries behind the summaries
@@ -138,6 +152,9 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
   const theme = useNeedt3Ui((s) => s.theme);
   const accent = useNeedt3Ui((s) => s.accent);
   const signOut = useSignOut();
+  // Shortcuts only where there is a keyboard to press them: an iPad with
+  // one, not a phone (decided 05.11). The page and the deep link stay.
+  const keyboard = useFinePointer();
 
   const user = session.data?.user;
   const name = user?.name || user?.email?.split("@")[0] || "Account";
@@ -283,7 +300,7 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
 
       {PS_LIST.map((g, i) => (
         <PsGroup key={i} title={g.title} hint={g.hint}>
-          {g.rows.map(row)}
+          {g.rows.filter((r) => r !== "keys" || keyboard).map(row)}
         </PsGroup>
       ))}
       <PsGroup>

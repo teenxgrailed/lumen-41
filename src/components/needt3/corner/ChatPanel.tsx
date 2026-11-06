@@ -108,6 +108,8 @@ function clock(at: number): string {
 
 export interface ChatPanelProps {
   messages: readonly AskMessage[];
+  /** The saved thread is still loading: no empty state yet. */
+  restoring?: boolean;
   phase: AskPhase;
   /** What it is looking at, and every scope that could be switched to. */
   scope: AskScope;
@@ -179,6 +181,7 @@ function useSettled(need: boolean): boolean {
 
 export function ChatPanel({
   messages,
+  restoring = false,
   phase,
   scope,
   scopes,
@@ -210,7 +213,7 @@ export function ChatPanel({
   const locked = gate !== null;
   const lockCopy = gate ? gateCopy(gate) : null;
   const last = messages[messages.length - 1];
-  const empty = messages.length === 0;
+  const empty = messages.length === 0 && !restoring;
   const settled = useSettled(messages.length > OPEN_TAIL);
   const hidden = settled ? 0 : Math.max(0, messages.length - OPEN_TAIL);
 

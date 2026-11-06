@@ -4,7 +4,7 @@
  * checkins, streaks, the Free count and the time-left dots come from
  * `@/lib/needt3/derive` and `components/needt3/habits/derive`, never copied.
  */
-import { formatInTimeZone } from "@/lib/date-utils";
+import { formatInTimeZone, newDate, zonedWallToDate } from "@/lib/date-utils";
 import {
   type Checkin,
   addDays,
@@ -219,6 +219,9 @@ export function habitQuota(
 /** The line the paywall names when a new habit is blocked ("Unlock … with Pro"). */
 export const HABITS_PAYWALL_FEATURE = `more than ${FREE_HABITS} habits`;
 
+/** The paywall line for Quit habits (Pro). */
+export const QUIT_PAYWALL_FEATURE = "Quit habits";
+
 export interface HabitForm {
   /** null = a new habit. */
   editId: string | null;
@@ -226,6 +229,24 @@ export interface HabitForm {
   time: string;
   perWeek: number | null;
   projectId: string | null;
+  /** Do (BUILD) or Quit; the first choice decides the rest of the form. */
+  kind: "BUILD" | "QUIT";
+  /** Quit: when it stopped, as `YYYY-MM-DDTHH:mm`; empty means now. */
+  quitSince: string;
+  /** Quit: the person's reason, shown when they press Pulling. */
+  reason: string;
+  /**
+   * The zone `quitSince` is read and written in: the person's setting
+   * (`useTimeZone`), not the browser's, so a trip or a laptop on another
+   * zone does not move the start of the run.
+   */
+  timeZone: string;
+  /**
+   * What an edited Quit habit had when the sheet opened. A save sends only
+   * what changed: the server treats `kind`, `quitStartedAt` and `reason` as
+   * Quit writes (Pro), so a rename after a downgrade must not carry them.
+   */
+  initial: { quitSince: string; reason: string } | null;
 }
 
 export const BLANK_HABIT_FORM: HabitForm = {
@@ -234,21 +255,75 @@ export const BLANK_HABIT_FORM: HabitForm = {
   time: "",
   perWeek: null,
   projectId: null,
+  kind: "BUILD",
+  quitSince: "",
+  reason: "",
+  timeZone: "UTC",
+  initial: null,
 };
 
-export function formFromHabit(h: {
-  id: string;
-  title: string;
-  projectId: string | null;
-  schedule: { time: string | null; perWeek: number | null };
-}): HabitForm {
+/**
+ * A new habit's form. Since starts at now in the person's zone, to the
+ * minute: an empty datetime-local field draws the browser's own grey
+ * placeholder (Safari: today, 12:30), a time that would never be saved.
+ */
+export function newHabitForm(timeZone: string, now = newDate()): HabitForm {
   return {
+    ...BLANK_HABIT_FORM,
+    timeZone,
+    quitSince: formatInTimeZone(now, timeZone, "yyyy-MM-dd'T'HH:mm"),
+  };
+}
+
+export function formFromHabit(
+  h: {
+    id: string;
+    title: string;
+    projectId: string | null;
+    schedule: { time: string | null; perWeek: number | null };
+    kind?: "BUILD" | "QUIT";
+    quitStartedAt?: string | null;
+    reason?: string | null;
+  },
+  timeZone: string
+): HabitForm {
+  const form: HabitForm = {
     editId: h.id,
     title: h.title,
     time: h.schedule.time ?? "",
     perWeek: h.schedule.perWeek,
     projectId: h.projectId,
+    kind: h.kind === "QUIT" ? "QUIT" : "BUILD",
+    quitSince: h.quitStartedAt
+      ? formatInTimeZone(h.quitStartedAt, timeZone, "yyyy-MM-dd'T'HH:mm")
+      : "",
+    reason: h.reason ?? "",
+    timeZone,
+    initial: null,
   };
+  if (form.kind === "QUIT")
+    form.initial = { quitSince: form.quitSince, reason: form.reason };
+  return form;
+}
+
+/**
+ * A `datetime-local` value ("YYYY-MM-DDTHH:mm") read as a wall clock in
+ * `timeZone`; null when it is not a time.
+ */
+export function sinceInstant(since: string, timeZone: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(since.trim())) return null;
+  const floating = newDate(`${since.trim()}:00.000Z`);
+  if (!Number.isFinite(floating.getTime())) return null;
+  return zonedWallToDate(floating, timeZone);
+}
+
+export const SINCE_ERROR = "Since cannot be in the future.";
+
+/** A Quit date may be in the past, never in the future; empty means now. */
+export function sinceOk(since: string, now: Date, timeZone: string): boolean {
+  if (!since.trim()) return true;
+  const at = sinceInstant(since, timeZone);
+  return !!at && at.getTime() <= now.getTime() + 60_000;
 }
 
 export interface HabitFormCheck {
@@ -260,7 +335,15 @@ export interface HabitFormCheck {
 
 export const TIME_ERROR = "Use 24-hour time, like 08:30.";
 
-export function checkHabitForm(f: HabitForm): HabitFormCheck {
+export function checkHabitForm(f: HabitForm, now = newDate()): HabitFormCheck {
+  if (f.kind === "QUIT") {
+    const ok = sinceOk(f.quitSince, now, f.timeZone);
+    return {
+      ok: !!f.title.trim() && ok,
+      timeOk: true,
+      timeError: ok ? null : SINCE_ERROR,
+    };
+  }
   const atOk = timeOk(f.time);
   return {
     ok: !!f.title.trim() && atOk,
@@ -271,6 +354,33 @@ export function checkHabitForm(f: HabitForm): HabitFormCheck {
 
 /** The fields a save writes (PhbNewSheet.save), trimmed and normalised. */
 export function formFields(f: HabitForm) {
+  if (f.kind === "QUIT" && f.editId) {
+    const was = f.initial ?? { quitSince: "", reason: "" };
+    const since = f.quitSince.trim();
+    const reason = f.reason.trim();
+    return {
+      title: f.title.trim(),
+      projectId: f.projectId,
+      // Never `kind`: it does not change. The rest only when it did.
+      ...(since && since !== was.quitSince
+        ? { quitStartedAt: sinceInstant(since, f.timeZone)?.toISOString() }
+        : {}),
+      ...(reason !== was.reason.trim() ? { reason: reason || null } : {}),
+    };
+  }
+  if (f.kind === "QUIT")
+    return {
+      title: f.title.trim(),
+      projectId: f.projectId,
+      kind: "QUIT" as const,
+      // Empty: the server starts the run now.
+      ...(f.quitSince.trim()
+        ? {
+            quitStartedAt: sinceInstant(f.quitSince, f.timeZone)?.toISOString(),
+          }
+        : {}),
+      reason: f.reason.trim() || null,
+    };
   return {
     title: f.title.trim(),
     projectId: f.projectId,

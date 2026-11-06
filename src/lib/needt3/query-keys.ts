@@ -84,6 +84,10 @@ export const qk = {
   pageAssets: (id: string) => [V3, "doc", id, "assets"] as const,
 
   habits: () => [V3, "habits"] as const,
+  /** Whether Quit habits show here: "on", "upgrade" or "off" (from GET /api/habits). */
+  quitGate: () => [V3, "habits", "quit-gate"] as const,
+  quitSummary: (id: string) => [V3, "habits", "quit", id, "summary"] as const,
+  habitEvents: (id: string) => [V3, "habits", "quit", id, "events"] as const,
   checkins: (range?: DateRange) =>
     range ? ([V3, "checkins", range] as const) : ([V3, "checkins"] as const),
   /** The long read for "Last four months"; under `checkins`, so a tick refreshes it too. */

@@ -11,6 +11,8 @@ import {
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
+import { consentCookieFor } from "./consent";
+
 /**
  * A real account for a v3 E2E test: a verified user with a personal workspace
  * and (by default) a PRO subscription, so no plan limit or paywall sits between the test
@@ -90,5 +92,6 @@ export async function signInAs(page: Page, user: V3User) {
       httpOnly: true,
       sameSite: "Lax",
     },
+    consentCookieFor(process.env.TEST_BASE_URL ?? "http://localhost:3000"),
   ]);
 }

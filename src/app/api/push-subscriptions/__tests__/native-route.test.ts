@@ -98,6 +98,23 @@ describe("/api/push-subscriptions/native", () => {
     );
   });
 
+  it("saves the Mac app's token under the Mac bundle, sandbox for a debug build", async () => {
+    tokens.findUnique.mockResolvedValue(null);
+    const response = await POST(
+      request("POST", { token, platform: "macos", environment: "sandbox" })
+    );
+    expect(response.status).toBe(201);
+    expect(tokens.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          platform: "macos",
+          bundleId: "app.needt.mac",
+          environment: "sandbox",
+        }),
+      })
+    );
+  });
+
   it("refuses anything that is not a hex APNs token", async () => {
     for (const body of [
       { token: "../../etc", platform: "ios" },

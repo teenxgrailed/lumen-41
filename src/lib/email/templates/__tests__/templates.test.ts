@@ -13,7 +13,17 @@ describe("email templates", () => {
     expect(mail.text).toContain("https://use.needt.app");
     expect((mail.html.match(/class="btn-a"/g) ?? []).length).toBe(1);
     expect(mail.html).toContain('name="color-scheme"');
-    expect(mail.html).not.toMatch(/<img/i);
+    // One image only: the logo, absolute https, with the wordmark as text beside it.
+    const imgs = mail.html.match(/<img[^>]*>/gi) ?? [];
+    expect(imgs).toHaveLength(1);
+    expect(imgs[0]).toContain('src="https://use.needt.app/icons/icon-192.png"');
+    expect(imgs[0]).toContain("width=");
+    expect(mail.html).toContain("[data-ogsc]");
+    expect(mail.html).toContain("[data-ogsb]");
+    expect(mail.html).toContain("prefers-color-scheme:dark");
+    expect(mail.html).not.toMatch(/var\(--/);
+    expect(mail.html).not.toMatch(/#fff(fff)?\b|#000(000)?\b/i);
+    expect(mail.html).toMatch(/<div style="display:none[^"]*">/);
   });
 
   it("escapes every interpolation", () => {

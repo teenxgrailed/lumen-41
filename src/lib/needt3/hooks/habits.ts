@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import {
@@ -8,6 +8,7 @@ import {
   checkinsFromStrip,
   setCheckin,
 } from "@/lib/needt3/derive";
+import { readQuitGate } from "@/lib/needt3/habits-quit";
 import {
   type ApiHabit,
   type V3Habit,
@@ -32,12 +33,18 @@ const CHECKINS = qk.checkins();
 const HISTORY = qk.checkinHistory();
 
 export function useHabits() {
+  const qc = useQueryClient();
   return useQuery({
     queryKey: HABITS,
-    queryFn: async () =>
-      (await fetchJson<{ habits: ApiHabit[] }>("/api/habits")).habits.map(
-        habitFromApi
-      ),
+    queryFn: async () => {
+      const body = await fetchJson<{ habits: ApiHabit[]; quit?: unknown }>(
+        "/api/habits"
+      );
+      // The same read says whether Quit habits show (`habits_quit` and Pro);
+      // a server without the field has the feature off.
+      qc.setQueryData(qk.quitGate(), readQuitGate(body.quit));
+      return body.habits.map(habitFromApi);
+    },
   });
 }
 

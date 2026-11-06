@@ -272,6 +272,9 @@ model User {
   accessLinks                  AccessLink[]
   importRuns                   ImportRun[]
   importItemMaps               ImportItemMap[]
+  HabitPush                    HabitPush[]
+
+  @@index([lastActiveAt])
 }
 
 model Workspace {
@@ -1154,6 +1157,8 @@ model Habit {
   quitStartedAt            DateTime? // When the clean streak began; QUIT only.
   reason                   String? // The person's own words for why.
   events                   HabitEvent[]
+  remindersEnabled         Boolean                @default(true) // Per-habit push switch.
+  pushes                   HabitPush[]
   // First-run example; see Task.isSample. Never counts toward the Free limit.
   isSample                 Boolean                @default(false)
   createdAt                DateTime               @default(now())
@@ -1272,6 +1277,26 @@ model HabitEvent {
 
   @@index([habitId, at])
   @@index([userId, at])
+}
+
+/// One habit push that was claimed, so a sweep that runs twice sends once.
+/// `scope` is the habit id, or "user" for pushes about the person's day.
+/// `dayKey` is the local day (yyyy-MM-dd); a milestone uses the day its streak
+/// began, so it is sent once per streak.
+model HabitPush {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habitId   String?
+  habit     Habit?   @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  scope     String
+  kind      String
+  dayKey    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, scope, kind, dayKey])
+  @@index([userId, kind, createdAt])
+  @@index([habitId])
 }
 
 model HabitCompletion {
@@ -1690,7 +1715,7 @@ model NativePushToken {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token       String   @unique
-  /// "ios" today; the Mac app joins later.
+  /// "ios" or "macos" (the Mac app, bundle app.needt.mac).
   platform    String
   /// The bundle id the token belongs to; it is the APNs topic.
   bundleId    String
@@ -1746,6 +1771,20 @@ model FeatureFlagOverride {
 
   @@unique([flagKey, userId])
   @@index([userId])
+}
+
+/// One admin change to a feature flag (the flag itself or one person's
+/// override), written with the change. `before`/`after` are small JSON
+/// snapshots; no FK so the history outlives a deleted flag or account.
+model FeatureFlagChange {
+  id          String   @id @default(cuid())
+  flagKey     String
+  actorUserId String?
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now())
+
+  @@index([flagKey, createdAt])
 }
 
 model BookingPage {
@@ -2618,6 +2657,8 @@ model AIOAuthConnection {
   tokenType             String?
   scope                 String?
   expiresAt             DateTime?
+  // CHATGPT_PLAN only: the verified email of the ChatGPT account, for display.
+  accountLabel          String?
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
@@ -2864,6 +2905,13 @@ model NotificationSettings {
   quietEnd              String    @default("08:00")
   digest                Boolean   @default(false)
   digestTime            String    @default("08:00")
+  // Habit presence (habits_quit): a push at a habit's time, an evening
+  // check-in, QUIT milestones, and a soft nudge after 3 quiet days (opt-in).
+  habitReminders        Boolean   @default(true)
+  habitCheckin          Boolean   @default(true)
+  habitCheckinTime      String    @default("21:00")
+  habitMilestones       Boolean   @default(true)
+  habitReengage         Boolean   @default(false)
   lastDigestAt          DateTime?
   // Activity pushes (mentions, shares, system) are sent for what arrived after this.
   activityPushedAt      DateTime?
@@ -3598,6 +3646,10 @@ enum AIProvider {
   GROK
   GLM
   CUSTOM
+  // The person's own ChatGPT plan via Sign in with ChatGPT (flag
+  // ai_chatgpt_plan). Only an AIOAuthConnection / AIOAuthState provider, never
+  // AISettings.provider.
+  CHATGPT_PLAN
 }
 
 enum AgentMemoryKind {

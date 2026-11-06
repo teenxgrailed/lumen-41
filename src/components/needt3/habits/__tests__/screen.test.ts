@@ -14,6 +14,11 @@ import { HabitsScreen } from "../HabitsScreen";
 import { FREE_HABITS } from "../derive";
 import type { HabitsController } from "../useHabitsController";
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
+  usePathname: () => "/habits",
+  useSearchParams: () => new URLSearchParams(""),
+}));
 jest.mock("../../root/V3Root", () => ({ useDesignV3: () => false }));
 let planKind = "free";
 jest.mock("@/lib/needt3/hooks/plan", () => ({
@@ -22,6 +27,11 @@ jest.mock("@/lib/needt3/hooks/plan", () => ({
 let history: Checkin[] | undefined;
 jest.mock("@/lib/needt3/hooks/habits", () => ({
   useCheckinHistory: () => ({ data: history }),
+}));
+// The Quit part's controller: no Quit habits drawn here.
+jest.mock("@/lib/needt3/hooks/habits-quit", () => ({
+  useQuitGate: () => "off",
+  useLogHabitEvent: () => ({ mutateAsync: jest.fn() }),
 }));
 
 const TODAY = "2026-09-01";
@@ -48,6 +58,8 @@ const ctl = (n: number) => {
       refetch: jest.fn(),
     },
     list,
+    quitList: [],
+    quitGate: "off",
     shown: list,
     over: false,
     all: false,

@@ -1,0 +1,1039 @@
+/* Habits: Quit (additions-4/habits-quit/hq.css, 04.11.26), ported as-is.
+ * HAND-WRITTEN copy of the design file: the sections drawn so far (shared
+ * controls, list, detail, the pull flow, create, Free). Presence (§4),
+ * pushes and settings (§5) and the iOS blocker (§7) come with their own
+ * work. .hq-desk reads the DS tokens (13/12 chrome); .hq-phone reads
+ * --v2p-*. The count on the detail screen is a display figure (44/52px),
+ * as HANDOFF §3 records; the accent is only a mark (progress fill, breath
+ * ring, focus ring).
+ */
+.hq-desk {
+  --hq-ink: var(--text-primary);
+  --hq-ink-2: var(--text-secondary);
+  --hq-ink-3: var(--text-tertiary);
+  --hq-ink-4: var(--text-quaternary);
+  --hq-ground: var(--background);
+  --hq-card: var(--surface-raised);
+  --hq-well: var(--fill-3);
+  --hq-well-2: var(--fill-5);
+  --hq-line: var(--fill-5);
+  --hq-mark: var(--accent);
+  --hq-r: 16px;
+  --hq-fs: 13px;
+  --hq-fs-s: 12px;
+  --hq-row: 32px;
+}
+.hq-phone {
+  --hq-ink: var(--v2p-ink);
+  --hq-ink-2: var(--v2p-ink-2);
+  --hq-ink-3: var(--v2p-ink-2);
+  --hq-ink-4: var(--v2p-ink-3);
+  --hq-ground: var(--v2p-ground);
+  --hq-card: var(--v2p-card);
+  --hq-well: var(--v2p-raise);
+  --hq-well-2: var(--v2p-ink-3);
+  --hq-line: var(--v2p-line);
+  --hq-mark: var(--v2p-lav);
+  --hq-r: 24px;
+  --hq-fs: 15px;
+  --hq-fs-s: 13px;
+  --hq-row: 48px;
+}
+.hq-desk,
+.hq-phone {
+  --hq-ok: var(--success);
+  --hq-ease: cubic-bezier(0.2, 0.9, 0.24, 1);
+  --hq-breath: 5.2s;
+  color: var(--hq-ink);
+  font: 400 var(--hq-fs) / 1.4 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.hq-desk *,
+.hq-phone * {
+  box-sizing: border-box;
+}
+.hq-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── shared controls ─────────────────────────────────────────────────────── */
+.hq-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--hq-card);
+  color: var(--hq-ink);
+  box-shadow: var(--shadow-raised);
+  font: 500 var(--hq-fs) / 1 var(--font-sans);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.hq-btn.is-primary {
+  background: var(--hq-ink);
+  color: var(--hq-ground);
+  box-shadow: none;
+}
+.hq-btn.is-text {
+  background: none;
+  box-shadow: none;
+  color: var(--hq-ink-3);
+}
+.hq-btn.is-sm {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  font-size: var(--hq-fs-s);
+}
+.hq-btn:active {
+  transform: scale(0.97);
+  transition: transform 90ms;
+}
+.hq-phone .hq-btn {
+  height: 48px;
+  border-radius: 24px;
+  padding: 0 20px;
+}
+.hq-phone .hq-btn.is-sm {
+  height: 36px;
+  border-radius: 18px;
+  padding: 0 14px;
+}
+.hq-btn.is-wide {
+  width: 100%;
+}
+.hq-pro {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--hq-well);
+  color: var(--hq-ink-3);
+  font: 600 12px/1 var(--font-sans);
+  letter-spacing: 0.02em;
+}
+.hq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  border: 0;
+  background: var(--hq-well);
+  color: var(--hq-ink-2);
+  font: 500 var(--hq-fs-s) / 1 var(--font-sans);
+  cursor: pointer;
+}
+.hq-chip[aria-pressed="true"] {
+  box-shadow: var(--hq-ink) 0 0 0 1.5px inset;
+  color: var(--hq-ink);
+}
+.hq-phone .hq-chip {
+  height: 36px;
+  border-radius: 18px;
+  padding: 0 14px;
+}
+.hq-eyebrow {
+  font: 500 var(--hq-fs-s) / 1.3 var(--font-sans);
+  color: var(--hq-ink-3);
+}
+.hq-meta {
+  font: 400 var(--hq-fs-s) / 1.35 var(--font-sans);
+  color: var(--hq-ink-3);
+}
+
+/* ── 1 · habit cards (Do vs Quit) ───────────────────────────────────────── */
+.hq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.hq-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--hq-r);
+  background: var(--hq-card);
+  box-shadow: var(--shadow-ring);
+  min-height: 132px;
+}
+.hq-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hq-card-top .t {
+  flex: 1;
+  min-width: 0;
+  font: 500 var(--hq-fs) / 1.3 var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hq-card-top .at {
+  color: var(--hq-ink-3);
+  font-size: var(--hq-fs-s);
+}
+.hq-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  flex: none;
+}
+.hq-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  flex: none;
+  box-shadow: inset 0 0 0 1.5px var(--hq-hue);
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+.hq-check.is-on {
+  background: var(--hq-ok);
+  box-shadow: none;
+}
+.hq-strip {
+  display: flex;
+  gap: 3px;
+  margin-top: auto;
+}
+.hq-strip i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--hq-well);
+}
+.hq-strip i.on {
+  background: var(--hq-hue);
+}
+/* the Quit card: a live number instead of the fourteen cells, one button */
+.hq-count {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: auto;
+}
+.hq-count b {
+  font: 600 22px/1 var(--font-sans);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.hq-count b small {
+  font: 500 var(--hq-fs) / 1 var(--font-sans);
+  color: var(--hq-ink-3);
+  margin: 0 4px 0 2px;
+}
+.hq-count span {
+  color: var(--hq-ink-3);
+  font-size: var(--hq-fs-s);
+}
+.hq-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hq-phone .hq-count b {
+  font-size: 28px;
+}
+/* the tick: the seconds digit is the one element that changes */
+.hq-tick {
+  display: inline-block;
+  animation: hq-rise 0.42s var(--hq-ease) both;
+}
+@keyframes hq-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* phone list rows */
+.hq-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hq-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 14px;
+  border-radius: 20px;
+  background: var(--hq-card);
+}
+.hq-row .body {
+  flex: 1;
+  min-width: 0;
+}
+.hq-row .body b {
+  display: block;
+  font: 500 var(--hq-fs) / 1.3 var(--font-sans);
+}
+.hq-row .body span {
+  display: block;
+  font: 400 var(--hq-fs-s) / 1.35 var(--font-sans);
+  color: var(--hq-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 2 · Quit detail ─────────────────────────────────────────────────────── */
+.hq-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.hq-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 2px 0;
+}
+.hq-hero .big {
+  font: 600 44px/1 var(--font-sans);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.hq-hero .big small {
+  font: 500 var(--hq-fs) / 1 var(--font-sans);
+  color: var(--hq-ink-3);
+  letter-spacing: 0;
+  margin: 0 8px 0 3px;
+}
+.hq-phone .hq-hero .big {
+  font-size: 52px;
+}
+.hq-why {
+  font: 400 var(--hq-fs) / 1.45 var(--font-sans);
+  color: var(--hq-ink-2);
+}
+.hq-ms {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--hq-well);
+}
+.hq-ms-l {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--hq-fs-s);
+  color: var(--hq-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.hq-ms-l b {
+  color: var(--hq-ink);
+  font-weight: 500;
+}
+.hq-bar {
+  position: relative;
+  height: 3px;
+  margin-top: 10px;
+  border-radius: 2px;
+  background: var(--hq-well-2);
+}
+.hq-bar i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: var(--accent-fill, var(--hq-mark));
+}
+.hq-ms-steps {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--hq-ink-4);
+  font-variant-numeric: tabular-nums;
+}
+.hq-ms-steps .past {
+  color: var(--hq-ink-3);
+}
+.hq-ms-steps .next {
+  color: var(--hq-ink);
+  font-weight: 500;
+}
+.hq-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.hq-stat {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--hq-card);
+  box-shadow: var(--shadow-ring);
+}
+.hq-stat b {
+  display: block;
+  font: 600 17px/1.15 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.hq-stat span {
+  font-size: var(--hq-fs-s);
+  color: var(--hq-ink-3);
+}
+.hq-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: 500 var(--hq-fs-s) / 1.3 var(--font-sans);
+  color: var(--hq-ink-3);
+  margin: 4px 2px -6px;
+}
+/* urge log: one form-row geometry */
+.hq-log {
+  border-radius: 14px;
+  background: var(--hq-card);
+  box-shadow: var(--shadow-ring);
+  padding: 4px;
+}
+.hq-log-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--hq-row);
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: var(--hq-fs);
+}
+.hq-log-row + .hq-log-row {
+  box-shadow: 0 -1px 0 var(--hq-line);
+}
+.hq-log-row .w {
+  color: var(--hq-ink-3);
+  font-size: var(--hq-fs-s);
+  font-variant-numeric: tabular-nums;
+}
+.hq-log-row .o {
+  font-size: var(--hq-fs-s);
+  color: var(--hq-ink-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.hq-log-row .o.ok {
+  color: var(--hq-ok);
+}
+.hq-pips {
+  display: inline-flex;
+  gap: 2px;
+}
+.hq-pips i {
+  width: 4px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--hq-well-2);
+}
+.hq-pips i.on {
+  background: var(--hq-ink-2);
+}
+/* urge map: hours × weekdays, the grey ladder only */
+.hq-map {
+  display: grid;
+  grid-template-columns: 22px repeat(12, 1fr);
+  gap: 3px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--hq-card);
+  box-shadow: var(--shadow-ring);
+  font-size: 12px;
+  color: var(--hq-ink-4);
+  font-variant-numeric: tabular-nums;
+}
+.hq-map i {
+  aspect-ratio: 1;
+  border-radius: 3px;
+}
+.hq-map .l0 {
+  background: var(--fill-2);
+}
+.hq-map .l1 {
+  background: var(--fill-4);
+}
+.hq-map .l2 {
+  background: var(--fill-6);
+}
+.hq-map .l3 {
+  background: color-mix(in srgb, var(--hq-ink) 40%, transparent);
+}
+.hq-map .l4 {
+  background: color-mix(in srgb, var(--hq-ink) 70%, transparent);
+}
+.hq-phone .hq-map .l0 {
+  background: color-mix(in srgb, var(--hq-ink) 3%, transparent);
+}
+.hq-phone .hq-map .l1 {
+  background: color-mix(in srgb, var(--hq-ink) 8%, transparent);
+}
+.hq-phone .hq-map .l2 {
+  background: color-mix(in srgb, var(--hq-ink) 12%, transparent);
+}
+.hq-map-note {
+  font-size: var(--hq-fs-s);
+  color: var(--hq-ink-3);
+  margin: 6px 2px 0;
+}
+.hq-detail-acts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* "I slipped" — a plain card that says what resets and what stays */
+.hq-confirm {
+  border-radius: var(--hq-r);
+  background: var(--hq-card);
+  box-shadow: var(--shadow-floating);
+  padding: 16px;
+  max-width: 340px;
+  animation: hq-rise 0.42s var(--hq-ease) both;
+}
+.hq-confirm b {
+  display: block;
+  font: 600 var(--hq-fs) / 1.3 var(--font-sans);
+}
+.hq-confirm p {
+  margin: 6px 0 0;
+  font-size: var(--hq-fs-s);
+  color: var(--hq-ink-2);
+  line-height: 1.45;
+}
+.hq-confirm ul {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  font-size: var(--hq-fs-s);
+}
+.hq-confirm li {
+  display: flex;
+  justify-content: space-between;
+  color: var(--hq-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.hq-confirm li b {
+  display: inline;
+  font-weight: 500;
+  color: var(--hq-ink);
+  font-size: var(--hq-fs-s);
+}
+.hq-confirm .acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  justify-content: flex-end;
+}
+
+/* ── 3 · Pull flow (full screen, the canvas itself, no sheet) ───────────── */
+.hq-pull {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 72px 28px 40px;
+  background: var(--hq-ground);
+  text-align: center;
+}
+.hq-pull.is-desk {
+  position: relative;
+  inset: auto;
+  height: 560px;
+  border-radius: 18px;
+}
+.hq-pull .step {
+  position: absolute;
+  top: 64px;
+  left: 0;
+  right: 0;
+  font-size: var(--hq-fs-s);
+  color: var(--hq-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.hq-pull.is-desk .step {
+  top: 24px;
+}
+.hq-pull .x {
+  position: absolute;
+  top: 56px;
+  right: 18px;
+}
+.hq-pull.is-desk .x {
+  top: 16px;
+}
+.hq-pull h3 {
+  margin: 0;
+  font: 600 22px/1.25 var(--font-sans);
+  letter-spacing: -0.01em;
+  max-width: 22ch;
+}
+.hq-pull.is-desk h3 {
+  font-size: 20px;
+}
+.hq-pull p {
+  margin: 0;
+  color: var(--hq-ink-2);
+  max-width: 30ch;
+}
+.hq-pull .acts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 8px;
+}
+.hq-pull .acts.row {
+  flex-direction: row;
+}
+.hq-pull .acts.row .hq-btn {
+  flex: 1;
+}
+/* the breath: one 5.2 s period in, one out — the product's one breathing period, here as an instrument */
+.hq-breath {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  display: grid;
+  place-items: center;
+}
+.hq-breath .disc {
+  position: absolute;
+  inset: 20px;
+  border-radius: 50%;
+  background: var(--hq-well);
+  animation: hq-breathe calc(var(--hq-breath) * 2) ease-in-out infinite;
+}
+.hq-breath svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.hq-breath .bg {
+  fill: none;
+  stroke: var(--hq-well);
+  stroke-width: 3;
+}
+.hq-breath .fg {
+  fill: none;
+  stroke: var(--hq-mark);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.hq-breath em {
+  position: relative;
+  font: 500 var(--hq-fs) / 1 var(--font-sans);
+  font-style: normal;
+  color: var(--hq-ink-2);
+}
+@keyframes hq-breathe {
+  0%,
+  100% {
+    transform: scale(0.72);
+  }
+  50% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hq-breath .disc {
+    animation: none;
+    transform: scale(0.86);
+  }
+}
+.hq-quote {
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--hq-card);
+  box-shadow: var(--shadow-ring);
+  max-width: 320px;
+  font: 400 17px/1.45 var(--font-sans);
+  text-align: left;
+}
+.hq-quote small {
+  display: block;
+  margin-top: 8px;
+  font-size: var(--hq-fs-s);
+  color: var(--hq-ink-3);
+}
+.hq-trig {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+  text-align: left;
+}
+.hq-trig .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hq-scale {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.hq-scale button {
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--hq-well);
+  color: var(--hq-ink-2);
+  font: 500 var(--hq-fs-s) / 1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.hq-scale button[aria-pressed="true"] {
+  box-shadow: var(--hq-ink) 0 0 0 1.5px inset;
+  color: var(--hq-ink);
+}
+.hq-phone .hq-scale button {
+  height: 44px;
+  border-radius: 14px;
+}
+.hq-held {
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--hq-ok) 14%, transparent);
+  color: var(--hq-ok);
+  animation: hq-rise 0.42s var(--hq-ease) both;
+}
+
+/* the assistant, opened with context (the corner panel register, 392 wide) */
+.hq-chat {
+  width: 100%;
+  max-width: 392px;
+  border-radius: 20px;
+  background: var(--hq-card);
+  box-shadow: var(--shadow-floating);
+  padding: 14px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hq-ctx {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hq-ctx span {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--hq-well);
+  color: var(--hq-ink-3);
+  font: 500 11.5px/22px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.hq-msg {
+  font-size: var(--hq-fs);
+  line-height: 1.45;
+}
+.hq-msg.me {
+  align-self: flex-end;
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--hq-well);
+}
+.hq-input {
+  height: 36px;
+  border-radius: 12px;
+  background: var(--hq-well);
+  color: var(--hq-ink-4);
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  font-size: var(--hq-fs);
+}
+
+/* ── 6 · create: Do / Quit ──────────────────────────────────────────────── */
+.hq-dialog {
+  width: 460px;
+  max-width: 100%;
+  border-radius: var(--hq-r);
+  background: var(--hq-card);
+  box-shadow: var(--shadow-floating);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hq-phone .hq-dialog {
+  width: 100%;
+  border-radius: 28px;
+}
+.hq-dialog .ttl {
+  font: 600 var(--hq-fs) / 1.3 var(--font-sans);
+}
+.hq-kinds {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.hq-kind {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 0;
+  background: var(--hq-well);
+  color: var(--hq-ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  min-height: 84px;
+}
+.hq-kind[aria-pressed="true"] {
+  box-shadow: var(--hq-ink) 0 0 0 1.5px inset;
+}
+.hq-kind b {
+  font: 500 var(--hq-fs) / 1.3 var(--font-sans);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hq-kind span {
+  font-size: var(--hq-fs-s);
+  color: var(--hq-ink-3);
+  line-height: 1.35;
+}
+.hq-dialog .foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── 8 · Free ───────────────────────────────────────────────────────────── */
+.hq-lock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--hq-r);
+  background: var(--hq-card);
+  box-shadow: var(--shadow-ring);
+}
+.hq-lock .ex {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  opacity: 0.55;
+  filter: saturate(0);
+}
+.hq-lock .ex b {
+  font: 600 22px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.hq-lock p {
+  margin: 0;
+  font-size: var(--hq-fs-s);
+  color: var(--hq-ink-2);
+  line-height: 1.45;
+}
+.hq-lock .acts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── port additions: what the app needs around the pieces ─────────────── */
+.hq-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.hq-btn:focus-visible,
+.hq-chip:focus-visible,
+.hq-kind:focus-visible,
+.hq-card:has(.hq-card-open:focus-visible),
+.hq-scale button:focus-visible {
+  outline: 2px solid var(--hq-mark);
+  outline-offset: 2px;
+}
+.hq-card {
+  cursor: pointer;
+}
+/* The title is the card's way in, stretched over the whole card; Pulling
+   sits above it as its own control. */
+.hq-card-open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.hq-card-open:focus-visible {
+  outline: none;
+}
+.hq-card-open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.hq-card-act {
+  position: relative;
+  z-index: 1;
+}
+.hq-row-open {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.hq-back {
+  align-self: flex-start;
+  margin-left: -10px;
+}
+.hq-empty {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--hq-card);
+  box-shadow: var(--shadow-ring);
+}
+.hq-lock.is-inline {
+  box-shadow: none;
+  background: var(--hq-well);
+}
+/* A text field of the flow ("Other…"): the well, like the chips around it.
+   On the phone 16 px, so iOS does not zoom the page when it takes focus. */
+.hq-field {
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--hq-well);
+  color: var(--hq-ink);
+  font: 400 var(--hq-fs) / 1 var(--font-sans);
+  outline: none;
+}
+.hq-field:focus-visible {
+  box-shadow: var(--hq-mark) 0 0 0 2px;
+}
+.hq-phone .hq-field {
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 24px;
+  font-size: 16px;
+}
+.hq-other {
+  width: 100%;
+}
+
+/* ── the 390-px phone ─────────────────────────────────────────────────── */
+/* The pull flow scrolls when it is taller than the screen (a short phone,
+   the keyboard open for "Other…") and clears the notch and the home
+   indicator. */
+.hq-pull:not(.is-desk) {
+  overflow-y: auto;
+  justify-content: center;
+  justify-content: safe center;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 72px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+}
+.hq-pull:not(.is-desk) .step {
+  top: max(64px, calc(env(safe-area-inset-top, 0px) + 20px));
+}
+/* Close stays put while the flow scrolls or the keyboard is up: fixed to
+   the screen (the pull layer fills it), above the content. */
+.hq-pull:not(.is-desk) .x {
+  position: fixed;
+  z-index: 2;
+  top: max(56px, calc(env(safe-area-inset-top, 0px) + 12px));
+}
+/* 44-px touch targets for the 36-px controls, without changing how they
+   look: the hit area reaches past the drawn shape. */
+.hq-phone .hq-btn.is-sm:not(.x),
+.hq-phone .hq-chip {
+  position: relative;
+}
+.hq-phone .hq-btn.is-sm::after,
+.hq-phone .hq-chip::after {
+  content: "";
+  position: absolute;
+  inset: -4px -2px;
+}
+/* Chips sit 6 px apart in wrapped rows: their hit areas must not meet. */
+.hq-phone .hq-chip::after {
+  inset: -3px -2px;
+}
+/* A long word (a name, a tag typed in "Other…") wraps instead of pushing
+   past the screen. */
+.hq-row .body b,
+.hq-eyebrow,
+.hq-quote,
+.hq-log-row > span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.hq-log-row {
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+}
+.hq-log-row .w {
+  white-space: nowrap;
+}
+.hq-reason {
+  min-height: 64px;
+  resize: vertical;
+}
+.pl-habits-quit {
+  margin-bottom: 16px;
+}
+/* the phone's pull covers the whole screen, on the canvas itself */
+.hq-pull :focus:not(:focus-visible) {
+  outline: none;
+}
+.hq-detail-more {
+  display: flex;
+  gap: 4px;
+  margin-left: -10px;
+}
+.hq-pull-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--hq-ground);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hq-tick,
+  .hq-held,
+  .hq-confirm {
+    animation: none;
+  }
+}
+/* The pull log's separators are straight lines: a row's own radius curved
+   them, so the rows read as cards stacked in a card (seen at 390). */
+.hq-log-row {
+  border-radius: 0;
+}

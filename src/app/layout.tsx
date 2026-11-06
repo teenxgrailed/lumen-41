@@ -2,11 +2,14 @@ import Script from "next/script";
 
 import "@excalidraw/excalidraw/index.css";
 
+import { CookieConsent } from "@/components/consent/CookieConsent";
 import { AmbientBackdrop } from "@/components/liquid";
 import { Providers } from "@/components/providers";
 
 import { CHUNK_RELOAD_SCRIPT } from "@/lib/pwa/chunk-reload";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-init";
+
+import "@/components/consent/cookie-consent.css";
 
 import "./globals.css";
 import {
@@ -22,7 +25,8 @@ const FIGMA_CAPTURE_ENABLED =
   process.env.NODE_ENV !== "production" &&
   process.env.NEEDT_FIGMA_CAPTURE === "1";
 
-// Cookieless Umami analytics, inlined at build time; absent means off.
+// Cookieless Umami analytics, inlined at build time; absent means off. It
+// loads only after the visitor accepts (CookieConsent), never from the head.
 const UMAMI_WEBSITE_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID?.trim();
 
 export default function RootLayout({
@@ -75,18 +79,9 @@ export default function RootLayout({
             strategy="afterInteractive"
           />
         ) : null}
-        {UMAMI_WEBSITE_ID ? (
-          <Script
-            id="umami-analytics"
-            src="https://stats.needt.app/script.js"
-            data-website-id={UMAMI_WEBSITE_ID}
-            data-do-not-track="true"
-            strategy="afterInteractive"
-            defer
-          />
-        ) : null}
       </head>
       <body className="flex h-full flex-col bg-[var(--surface-canvas)] antialiased">
+        <CookieConsent umamiWebsiteId={UMAMI_WEBSITE_ID} />
         <AmbientBackdrop />
         <div className="relative z-10 flex min-h-full flex-col">
           <Providers>{children}</Providers>

@@ -13,18 +13,27 @@ import { AiSetup } from "../../connections/AiSetup";
 import { visibleTools } from "../../connections/AiToolsPanel";
 import { ApiAccess } from "../../connections/ApiAccess";
 import { CalDavForm } from "../../connections/CalDavForm";
+import { appBrand, appUsed, scopeChips } from "../../connections/ConnectedApps";
+import {
+  ConnectionsSetup,
+  useInertOutside,
+} from "../../connections/ConnectionsSetup";
 import { GoogleTasksLists } from "../../connections/GoogleTasksLists";
+import { refocus } from "../../connections/MoreMenu";
 import {
   CATEGORY_LABEL,
   type CnItem,
   canChooseLists,
   canSyncNow,
   disconnectTitle,
+  syncLine,
 } from "../../connections/derive";
 import { AI_META, appsFor, toolAvailable } from "../../connections/mcp";
 import { mergeQueries } from "../../connections/query";
 import { strings } from "../../connections/strings";
 import type { ConnectionsController } from "../../connections/useConnectionsController";
+import type { ConnectedApp } from "../../connections/useMcpConnect";
+import { PxSky } from "../../scenes";
 import {
   PkButton,
   PkChips,
@@ -68,14 +77,44 @@ function useLast<T>(value: T | null) {
  *
  * A connected calendar or mailbox also has "Sync now" in its sheet.
  *
- * //todo: the calendar sync settings, the consent sheet's scope list, brand
- * marks.
+ * Apps that signed in through Needt's OAuth are listed under "Connected
+ * apps" with their permissions and dates; Disconnect asks first.
+ *
+ * //todo: the calendar sync settings, the consent sheet's scope list.
  */
+/**
+ * The setup on the phone: a modal layer over the app (dialog, everything
+ * behind it inert), on the same PxSky the screens use. Under reduced motion
+ * the sky paints one still frame (sky-engine).
+ */
+function SetupLayer({ c }: { c: ConnectionsController }) {
+  const layer = useRef<HTMLDivElement>(null);
+  useInertOutside(layer);
+  return (
+    <div
+      ref={layer}
+      className="cs-phone"
+      data-px-scope=""
+      role="dialog"
+      aria-modal="true"
+      aria-label="Set up connections"
+    >
+      <PxSky variant="a" horizon="cloudsea" fps={15} />
+      <div className="cs-phone-scroll">
+        <ConnectionsSetup s={c.onboarding} c={c} />
+      </div>
+    </div>
+  );
+}
+
 export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
   const openPaywall = usePhoneOverlays((s) => s.openPaywall);
   const plan = usePlan();
   const store = useStoreDistribution();
   const [acctKey, setAcctKey] = useState<string | null>(null);
+  const [appBye, setAppBye] = useState<ConnectedApp | null>(null);
+  const [appGoing, setAppGoing] = useState(false);
+  const B = useLast(appBye);
   const acctNow = acctKey
     ? (c.items.find((i) => i.key === acctKey) ?? null)
     : null;
@@ -162,6 +201,14 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
   const chips = connectionChips(c.items);
   const appsTab = (
     <PhoneState query={query} screen="connections">
+      <PkButton
+        kind="chip"
+        className="ppl-setup-open"
+        onClick={c.onboarding.open}
+        data-ppl-setup-open=""
+      >
+        Set up
+      </PkButton>
       <label className="ppl-search pk-glass is-round">
         <LuSearch size={16} aria-hidden />
         <input
@@ -282,7 +329,7 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
       )}
     </PkGlass>
   ) : (
-    <div className="ppl-list" data-ppl-ai-list="">
+    <div className="ppl-list" data-ppl-ai-list="" tabIndex={-1}>
       <span className="ppl-row-meta">
         Needt MCP — use your tasks, calendar and notes in your favourite AI.
       </span>
@@ -316,30 +363,56 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
           />
         );
       })}
-      {(c.mcp.apps ?? []).map((a) => (
-        <PplRow
-          key={a.id}
-          title={a.clientName}
-          meta={`Connected app · last used ${
-            a.lastUsedAt ? new Date(a.lastUsedAt).toLocaleDateString() : "never"
-          }`}
-          action={
-            <PkButton
-              kind="chip"
-              onClick={() => void c.mcp.disconnectApp(a)}
-              data-ppl-app-bye={a.id}
-            >
-              Disconnect
-            </PkButton>
-          }
-          data={{ "data-ppl-app": a.id }}
-        />
-      ))}
-      {!(c.mcp.apps ?? []).length ? (
-        <span className="ppl-row-meta" data-ppl-ai-empty="">
-          No AI tools connected yet. Pick one above and follow its steps.
-        </span>
-      ) : null}
+      <PkSection
+        title="Connected apps"
+        count={c.mcp.apps?.length || undefined}
+        className="ppl-sec"
+      >
+        {c.mcp.apps === null ? (
+          <span className="ppl-row-meta" data-ppl-apps-loading="">
+            Loading connected apps…
+          </span>
+        ) : c.mcp.failed && !c.mcp.apps.length ? (
+          <PplRow
+            title="Could not load connected apps"
+            meta="Check your connection and try again."
+            tone="late"
+            action={
+              <PkButton
+                kind="chip"
+                onClick={() => void c.mcp.reload()}
+                data-ppl-apps-retry=""
+              >
+                Try again
+              </PkButton>
+            }
+            data={{ "data-ppl-apps-failed": "" }}
+          />
+        ) : c.mcp.apps.length ? (
+          c.mcp.apps.map((a) => (
+            <PplRow
+              key={a.id}
+              lead={<PplTile slug={appBrand(a.clientName) ?? a.clientName} />}
+              title={a.clientName}
+              meta={[scopeChips(a.scopes).join(", "), appUsed(a)].join(" · ")}
+              action={
+                <PkButton
+                  kind="chip"
+                  onClick={() => setAppBye(a)}
+                  data-ppl-app-bye={a.id}
+                >
+                  Disconnect
+                </PkButton>
+              }
+              data={{ "data-ppl-app": a.id }}
+            />
+          ))
+        ) : (
+          <span className="ppl-row-meta" data-ppl-ai-empty="">
+            No apps signed in yet. Connect one above and it shows up here.
+          </span>
+        )}
+      </PkSection>
     </div>
   );
 
@@ -352,6 +425,9 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
         ? (A.detail ?? "Lost access")
         : (CATEGORY_LABEL[A.category] ?? A.category)
     : null;
+
+  // The first-visit setup takes the whole screen, on the sky.
+  if (c.onboarding.run) return <SetupLayer c={c} />;
 
   return (
     <>
@@ -450,6 +526,14 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
                   <span className="ppl-kv-v">{A.account}</span>
                 </div>
               ) : null}
+              {A.state === "connected" && syncLine(A, c.syncing === A.key) ? (
+                <div className="ppl-kv">
+                  <span>Sync</span>
+                  <span className="ppl-kv-v" data-ppl-sync-line="">
+                    {syncLine(A, c.syncing === A.key)}
+                  </span>
+                </div>
+              ) : null}
               <div className="ppl-kv">
                 <span>Kind</span>
                 <span className="ppl-kv-v">
@@ -477,9 +561,47 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
               onClick={() => {
                 if (!C) return;
                 // the account sheet behind it closes once the write is done
-                void c.disconnect(C).then(closeAcct);
+                void c.disconnect(C).then((ok) => {
+                  if (ok) closeAcct();
+                });
               }}
               data-ppl-bye=""
+            >
+              Disconnect
+            </PkButton>
+          </>
+        }
+      />
+
+      <PkSheet
+        open={!!appBye}
+        onClose={() => setAppBye(null)}
+        className="ppl-confirm"
+        title={B ? `Disconnect ${B.clientName}?` : ""}
+        meta={
+          B
+            ? `${B.clientName} loses access to your Needt at once. To use it again, connect it and allow it again.`
+            : null
+        }
+        footer={
+          <>
+            <PkButton onClick={() => setAppBye(null)}>Cancel</PkButton>
+            <PkButton
+              kind="primary"
+              className="ppl-danger"
+              disabled={appGoing}
+              onClick={async () => {
+                if (!B) return;
+                setAppGoing(true);
+                const ok = await c.mcp.disconnectApp(B);
+                setAppGoing(false);
+                // A failure keeps the confirm open, the button live again.
+                if (!ok) return;
+                setAppBye(null);
+                // Its row is gone: the next app's Disconnect, else the list.
+                refocus("[data-ppl-app-bye]", "[data-ppl-ai-list]");
+              }}
+              data-ppl-app-confirm=""
             >
               Disconnect
             </PkButton>

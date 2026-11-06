@@ -230,7 +230,6 @@ export function AiSetup({ id, mcp }: { id: AiToolId; mcp: McpConnect }) {
             Reads your tasks, calendar and notes through Needt MCP
           </span>
         </span>
-        <span className="cn-badge cn-setup-el">Beta</span>
       </div>
       <ol className="cn-steps" data-cn-steps={id}>
         {steps.map((s, i) => (

@@ -1,0 +1,1 @@
+- Habits can send a push at their time, an evening check-in, a note when a quit streak reaches a milestone, and (off by default) one soft nudge after three days without a check-in. Each can be switched off globally in notification settings and per habit, and none are sent in quiet hours. Behind a feature flag for now.
