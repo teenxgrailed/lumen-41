@@ -78,6 +78,8 @@ interface SavedMessage {
   role: string;
   content: string;
   createdAt: string;
+  /** The reply asked to confirm an action (it is not live any more). */
+  requiresConfirm?: boolean;
 }
 
 /**
@@ -88,8 +90,14 @@ interface SavedMessage {
 export function restoredMessages(saved: SavedMessage[]): AskMessage[] {
   return saved.flatMap((m): AskMessage[] => {
     if (m.role !== "user" && m.role !== "assistant") return [];
-    const text = typeof m.content === "string" ? m.content : "";
-    if (!text.trim()) return [];
+    const raw = typeof m.content === "string" ? m.content : "";
+    if (!raw.trim()) return [];
+    // A question that waited for "confirm" back then is not live now: it is
+    // read as history, never as an action waiting on you.
+    const text =
+      m.role === "assistant" && m.requiresConfirm
+        ? `${raw.trim()} (not confirmed)`
+        : raw;
     const at = newDate(m.createdAt).getTime();
     return [
       {
@@ -132,8 +140,16 @@ export function useAskNeedt({ restore = true }: { restore?: boolean } = {}) {
     refetchOnWindowFocus: false,
   });
   const [restored, setRestored] = React.useState(!restore);
+  // Once something was sent here, the saved thread no longer replaces it,
+  // so a fast second message cannot land in the old conversation.
+  const sent = React.useRef(false);
   React.useEffect(() => {
-    if (restored || history.isFetching) return;
+    if (restored) return;
+    if (sent.current) {
+      setRestored(true);
+      return;
+    }
+    if (history.isFetching) return;
     if (history.isError || history.data !== undefined) {
       const saved = history.data;
       if (saved && !conversation.current) {
@@ -161,6 +177,7 @@ export function useAskNeedt({ restore = true }: { restore?: boolean } = {}) {
     async (raw: string, confirmed = false, shown?: string) => {
       const line = raw.trim();
       if (!line || abort.current) return;
+      sent.current = true;
       const at = newDate().getTime();
       const reply: AskMessage = { id: uid(), from: "needt", text: "", at };
       setMessages((list) =>
