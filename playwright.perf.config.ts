@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 import { configureE2eEnvironment } from "./tests/e2e/environment";
+import { declinedConsentStorageState } from "./tests/helpers/consent";
 
 /*
  * Performance baseline. CI only (.github/workflows/perf.yml): it runs against
@@ -31,6 +32,8 @@ export default defineConfig({
   outputDir: "perf/test-results",
   use: {
     baseURL,
+    // A saved cookie choice keeps the banner out of every screenshot.
+    storageState: declinedConsentStorageState(baseURL),
     colorScheme: "dark",
     locale: "en-US",
     timezoneId: "Europe/Zurich",

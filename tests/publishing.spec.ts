@@ -3,6 +3,8 @@ import { encode } from "next-auth/jwt";
 import { expect, test } from "@playwright/test";
 import { existsSync } from "node:fs";
 
+import { consentCookieFor } from "./helpers/consent";
+
 if (!process.env.NEXTAUTH_SECRET && existsSync(".env.local")) {
   process.loadEnvFile(".env.local");
 }
@@ -115,6 +117,7 @@ test("publishes a read-only link and revokes an already open session", async ({
   );
 
   await page.context().clearCookies();
+  await page.context().addCookies([consentCookieFor("http://localhost:3000")]);
   await page.goto(`/p/${token}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Published read-only content")).toBeVisible();
   await expect(page.getByLabel("Published Page document")).toHaveAttribute(
