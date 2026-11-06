@@ -481,6 +481,85 @@ describe("Agents screen", () => {
     expect(host.querySelector("[data-ag-item='i2']")).toBeNull();
   });
 
+  it("filters tasks by agent with the agent chips", async () => {
+    await mount("tab=tasks");
+    const chip = (name: string) =>
+      Array.from(
+        host.querySelectorAll<HTMLElement>(".ag-bar-agents .ag-chip")
+      ).find((b) => b.textContent === name) ?? null;
+    await click(chip("Grok"));
+    expect(host.querySelector("[data-ag-item='i2']")).not.toBeNull();
+    expect(host.querySelector("[data-ag-item='i1']")).toBeNull();
+    // Pressed again, the filter lets go.
+    await click(chip("Grok"));
+    expect(host.querySelector("[data-ag-item='i1']")).not.toBeNull();
+  });
+
+  it("filters Activity by agent, and Open lands on the hub item", async () => {
+    await mount("tab=activity");
+    expect(host.querySelector("[data-ag-event]")).not.toBeNull();
+    await click(
+      Array.from(host.querySelectorAll<HTMLElement>(".ag-chip")).find(
+        (b) => b.textContent?.trim() === "Claude"
+      ) ?? null
+    );
+    expect(
+      (fetchJson as jest.Mock).mock.calls.some(([u]) =>
+        String(u).includes("/api/agent-hub/activity?agent=a1")
+      )
+    ).toBe(true);
+    await click(host.querySelector<HTMLElement>(".ag-ev .ag-undo"));
+    expect(selected()).toBe("tasks");
+    expect(
+      host.querySelector("[data-ag-focused] [data-ag-item='i3']")
+    ).not.toBeNull();
+  });
+
+  it("edits an agent note in Memory", async () => {
+    await mount("tab=memory");
+    await click(
+      host.querySelector('[data-ag-note="n1"] [aria-label="Edit note"]')
+    );
+    const area = host.querySelector<HTMLTextAreaElement>(
+      '[data-ag-note="n1"] textarea'
+    );
+    expect(area?.value).toBeTruthy();
+    await click(
+      Array.from(
+        host.querySelectorAll<HTMLElement>('[data-ag-note="n1"] button')
+      ).find((b) => b.textContent === "Save") ?? null
+    );
+    const { sendJson } = jest.requireMock("@/lib/needt3/hooks/core");
+    expect(
+      (sendJson as jest.Mock).mock.calls.some(
+        ([u, m]: [string, string]) =>
+          u === "/api/agent-hub/notes/n1" && m === "PATCH"
+      )
+    ).toBe(true);
+  });
+
+  it("says so when a tab has nothing yet", async () => {
+    (fetchJson as jest.Mock).mockImplementation((url: string) =>
+      Promise.resolve(
+        url.startsWith("/api/agent-hub/overview")
+          ? { ...OVERVIEW, items: [], notes: [] }
+          : url.startsWith("/api/agent-hub/activity")
+            ? { windowDays: 7, nextCursor: null, events: [] }
+            : route(url)
+      )
+    );
+    await mount("tab=activity");
+    expect(
+      host.querySelector("[data-ag-activity] [data-ag-empty]")
+    ).not.toBeNull();
+    act(() => root.unmount());
+    root = createRoot(host);
+    await mount("tab=memory");
+    expect(
+      host.querySelector("[data-ag-notes] [data-ag-empty]")
+    ).not.toBeNull();
+  });
+
   it("draws the Map without its counts when the graph failed (null)", async () => {
     (fetchJson as jest.Mock).mockImplementation((url: string) =>
       Promise.resolve(

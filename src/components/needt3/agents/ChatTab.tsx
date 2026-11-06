@@ -370,7 +370,7 @@ export function ChatTab({
 
       {!started && !open && !ai.restoring ? (
         <div
-          className="ag-hint"
+          className="ag-chint"
           aria-hidden="true"
           key={hint}
           style={hintTop !== null ? { top: hintTop } : undefined}

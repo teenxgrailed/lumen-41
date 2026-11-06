@@ -2189,7 +2189,8 @@
   border-radius: 6px;
   background: radial-gradient(circle at 35% 25%, #8fc6ff, #3d86f0 60%, #2a63c9);
 }
-.needt-v3 .ag-hint {
+/* Chat's typing hint (its own class: .ag-hint is a section's line). */
+.needt-v3 .ag-chint {
   position: absolute;
   left: 0;
   right: 0;
@@ -2426,7 +2427,7 @@
   clip-path: inset(50%);
 }
 @media (max-width: 700px) {
-  .needt-v3 .ag-hint {
+  .needt-v3 .ag-chint {
     font-size: 18px;
   }
   .needt-v3 .ag-composer {
@@ -3524,4 +3525,60 @@
 }
 .needt-v3[data-ui="phone"] .ag-night .ag-page {
   padding-bottom: 200px;
+}
+
+/* Denser agents and task rows (owner, 05.11.26: "smaller tasks"). Nothing
+   is dropped: the same lines, tighter. A task row is 42 px. */
+.needt-v3 .ag-card {
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+.needt-v3 .ag-card-now {
+  min-height: 0;
+}
+.needt-v3 .ag-card-foot {
+  padding-top: 8px;
+}
+.needt-v3 .ag-spark {
+  height: 26px;
+}
+.needt-v3 button.ag-main.ag-trow {
+  min-height: 42px;
+  gap: 10px;
+}
+.needt-v3 .ag-rail {
+  height: 20px;
+}
+.needt-v3 .ag-tt {
+  gap: 0;
+}
+.needt-v3 .ag-tt b {
+  line-height: 17px;
+}
+.needt-v3 .ag-tt-sub {
+  line-height: 15px;
+}
+
+/* The tab dock floats over long lists: every scrolling page leaves room
+   under its last row for the dock, a toast above it and the safe area. */
+.needt-v3 .ag-night {
+  /* The safe area is counted once, in the dock's offset. */
+  --ag-dock-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  --ag-dock-h: 48px;
+  --ag-dock-space: calc(var(--ag-dock-bottom) + var(--ag-dock-h) + 80px);
+}
+.needt-v3[data-ui="phone"] .ag-night {
+  --ag-dock-bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
+}
+.needt-v3 .ag-night .ag-page:not(.is-map),
+.needt-v3[data-ui="phone"] .ag-night .ag-page:not(.is-map) {
+  padding-bottom: var(--ag-dock-space);
+}
+.needt-v3 .ag-night .ag-scroll {
+  scroll-padding-bottom: var(--ag-dock-space);
+}
+.needt-v3 .ag-tabs.ag-dock,
+.needt-v3[data-ui="phone"] .ag-tabs.ag-dock {
+  bottom: var(--ag-dock-bottom);
 }
