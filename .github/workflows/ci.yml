@@ -283,8 +283,27 @@ jobs:
         run: npx prisma migrate deploy
       - if: needs.changes.outputs.code == 'true'
         run: npx tsx prisma/ci-seed.ts
-      - if: needs.changes.outputs.code == 'true'
-        run: npx playwright install --with-deps
+      - name: Install Playwright browsers
+        if: needs.changes.outputs.code == 'true'
+        # apt mirrors sometimes stall and the job then dies at its timeout,
+        # reported as "cancelled". Bound each attempt and retry three times.
+        timeout-minutes: 28
+        run: |
+          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' \
+            | sudo tee /etc/apt/apt.conf.d/80-ci-retries >/dev/null
+          for attempt in 1 2 3; do
+            timeout 480 npx playwright install --with-deps && exit 0
+            echo "playwright install attempt $attempt failed"
+            # timeout stops npx, not the apt-get it started under sudo, and
+            # that orphan keeps the dpkg lock. Clear it; the archives already
+            # downloaded stay in apt's cache, so the next attempt resumes.
+            sudo pkill -9 -x apt-get || true
+            sudo pkill -9 -x dpkg || true
+            sleep 3
+            sudo dpkg --configure -a || true
+            sleep 10
+          done
+          exit 1
       - if: needs.changes.outputs.code == 'true'
         name: Build E2E application
         env:
@@ -358,7 +377,26 @@ jobs:
             exit 1
           }
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        # apt mirrors sometimes stall and the job then dies at its timeout,
+        # reported as "cancelled". Bound each attempt and retry three times.
+        timeout-minutes: 28
+        run: |
+          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' \
+            | sudo tee /etc/apt/apt.conf.d/80-ci-retries >/dev/null
+          for attempt in 1 2 3; do
+            timeout 480 npx playwright install --with-deps chromium && exit 0
+            echo "playwright install attempt $attempt failed"
+            # timeout stops npx, not the apt-get it started under sudo, and
+            # that orphan keeps the dpkg lock. Clear it; the archives already
+            # downloaded stay in apt's cache, so the next attempt resumes.
+            sudo pkill -9 -x apt-get || true
+            sudo pkill -9 -x dpkg || true
+            sleep 3
+            sudo dpkg --configure -a || true
+            sleep 10
+          done
+          exit 1
       - run: npx prisma generate && npx prisma migrate deploy
       - name: Build visual test application
         # Cold build with no .next/cache restore; the default heap OOMs here.
@@ -485,8 +523,29 @@ jobs:
           cache: npm
       - if: needs.changes.outputs.ui == 'true'
         run: npm ci
-      - if: needs.changes.outputs.ui == 'true'
-        run: npx playwright install --with-deps
+      - name: Install Playwright browsers
+        if: needs.changes.outputs.ui == 'true'
+        # apt mirrors sometimes stall and the job then dies at its timeout,
+        # reported as "cancelled". Bound each attempt and retry three times.
+        # Visual and style suites run Chromium only; the WebKit/Firefox deps
+        # (~180 packages, mostly GStreamer) were most of the stalled download.
+        timeout-minutes: 28
+        run: |
+          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' \
+            | sudo tee /etc/apt/apt.conf.d/80-ci-retries >/dev/null
+          for attempt in 1 2 3; do
+            timeout 480 npx playwright install --with-deps chromium && exit 0
+            echo "playwright install attempt $attempt failed"
+            # timeout stops npx, not the apt-get it started under sudo, and
+            # that orphan keeps the dpkg lock. Clear it; the archives already
+            # downloaded stay in apt's cache, so the next attempt resumes.
+            sudo pkill -9 -x apt-get || true
+            sudo pkill -9 -x dpkg || true
+            sleep 3
+            sudo dpkg --configure -a || true
+            sleep 10
+          done
+          exit 1
       - if: needs.changes.outputs.ui == 'true'
         run: npx prisma generate && npx prisma migrate deploy
       - name: Cache Next.js build

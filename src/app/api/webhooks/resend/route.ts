@@ -71,5 +71,11 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json({ error: "failed" }, { status: 500 });
   }
+  /* One line per accepted event, so a delivery can be confirmed from the logs. */
+  logger.info(
+    "Resend event accepted",
+    { id, type: typeof event.type === "string" ? event.type : "" },
+    LOG_SOURCE
+  );
   return NextResponse.json({ ok: true });
 }
