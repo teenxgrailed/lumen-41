@@ -1,0 +1,1 @@
+- QUIT habits and habit presence are now available to every account (Pro).
