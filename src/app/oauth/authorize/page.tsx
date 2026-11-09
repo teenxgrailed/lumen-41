@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 
 import { isAdminUserId } from "@/lib/auth/admin-role";
 import { getAuthOptions } from "@/lib/auth/auth-options";
+import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
 import { SECTION_TITLES } from "@/lib/needt3/section-titles";
 
 import { WorkspacePicker } from "./WorkspacePicker";
@@ -103,6 +104,22 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
   if (!session?.user?.id) {
     redirect(
       `/auth/signin?callbackUrl=${encodeURIComponent(`/oauth/authorize?${params.toString()}`)}`
+    );
+  }
+
+  const verification = await getEmailVerificationStatus(session.user.id);
+  if (verification.required && !verification.verified) {
+    return (
+      <Shell>
+        <h1 className="text-[15px] font-semibold">Confirm your email first</h1>
+        <p className="mt-2 text-muted-foreground">
+          Open Needt and confirm {verification.email ?? "your email"}, then
+          start the connection again.
+        </p>
+        <p className="mt-3 text-[12px] text-muted-foreground">
+          Nothing was shared.
+        </p>
+      </Shell>
     );
   }
 

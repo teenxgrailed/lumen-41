@@ -21,6 +21,7 @@ import {
 
 import { isAdminUserId } from "@/lib/auth/admin-role";
 import { getAuthOptions } from "@/lib/auth/auth-options";
+import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
 import { publicAppUrl } from "@/lib/public-url";
 import { requestIp } from "@/lib/security/rate-limit";
 
@@ -51,6 +52,11 @@ export async function POST(request: NextRequest) {
   const session = await getServerSession(await getAuthOptions());
   const userId = session?.user?.id;
   if (!userId) return page(401, "Sign in again and retry.");
+  // An address nobody proved is not an identity to hand a client access to.
+  const verification = await getEmailVerificationStatus(userId);
+  if (verification.required && !verification.verified) {
+    return page(403, "Confirm your email in Needt before connecting an app.");
+  }
 
   const form = await request.formData();
   const params = new URLSearchParams();

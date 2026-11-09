@@ -3,6 +3,7 @@ import type { JWT } from "next-auth/jwt";
 import { revokeConnectorTokens } from "@/services/connectors/auth";
 import { revokeNamedPersonalTokens } from "@/services/connectors/personal-tokens";
 
+import { revokeDelegatedTokens } from "@/lib/auth/revoke-delegated-tokens";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -186,6 +187,7 @@ export function revokeAllAccess(userId: string) {
     bumpSessionVersion(userId),
     revokeConnectorTokens(userId),
     revokeNamedPersonalTokens(userId),
+    ...revokeDelegatedTokens(userId),
   ] as const;
 }
 

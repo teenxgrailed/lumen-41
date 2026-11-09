@@ -3,6 +3,7 @@ import { revokeNamedPersonalTokens } from "@/services/connectors/personal-tokens
 import { hash as hashPassword } from "bcryptjs";
 import { createHash, randomBytes } from "node:crypto";
 
+import { revokeDelegatedTokens } from "@/lib/auth/revoke-delegated-tokens";
 import { forgetSessionState } from "@/lib/auth/session-version";
 import { isUnprovenPasswordAccount } from "@/lib/auth/unproven-password";
 import { addHours, newDate } from "@/lib/date-utils";
@@ -166,6 +167,7 @@ export async function confirmEmailVerification(input: {
     forgetSessionState(result.userId);
     await revokeConnectorTokens(result.userId);
     await revokeNamedPersonalTokens(result.userId);
+    await Promise.all(revokeDelegatedTokens(result.userId));
   }
   if (result.status === "verified") {
     await sendWelcomeEmail({

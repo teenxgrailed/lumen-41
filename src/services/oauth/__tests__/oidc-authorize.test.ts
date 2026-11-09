@@ -9,6 +9,7 @@ import {
 } from "@/services/oauth/first-party";
 import crypto from "crypto";
 
+import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/prisma", () => ({
@@ -23,6 +24,9 @@ jest.mock("next-auth", () => ({
 }));
 jest.mock("@/lib/auth/auth-options", () => ({
   getAuthOptions: jest.fn().mockResolvedValue({}),
+}));
+jest.mock("@/lib/auth/email-verification-access", () => ({
+  getEmailVerificationStatus: jest.fn(),
 }));
 jest.mock("@/lib/auth/admin-role", () => ({
   isAdminUserId: jest.fn().mockResolvedValue(false),
@@ -79,6 +83,11 @@ beforeEach(() => {
   process.env.OIDC_BUDGET_REDIRECT_URIS = BUDGET_REDIRECT;
   (prisma.oAuthClient.findUnique as jest.Mock).mockResolvedValue(budgetRow);
   (prisma.oAuthClient.upsert as jest.Mock).mockResolvedValue(budgetRow);
+  jest.mocked(getEmailVerificationStatus).mockResolvedValue({
+    email: "a@b.c",
+    verified: true,
+    required: true,
+  });
 });
 afterAll(() => {
   process.env = original;
@@ -284,6 +293,21 @@ describe("openid authorization requests", () => {
 describe("the authorize page for a first-party client", () => {
   const searchParams = () =>
     Promise.resolve(Object.fromEntries(openidParams().entries()));
+
+  it("an unverified account gets neither a code nor a consent form", async () => {
+    jest.mocked(getEmailVerificationStatus).mockResolvedValue({
+      email: "a@b.c",
+      verified: false,
+      required: true,
+    });
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: { id: "user-1", email: "a@b.c" },
+    });
+    const page = await AuthorizePage({ searchParams: searchParams() });
+    expect(JSON.stringify(page)).toContain("Confirm your email first");
+    expect(JSON.stringify(page)).not.toContain("/oauth/authorize/decision");
+    expect(prisma.oAuthAuthorizationCode.create).not.toHaveBeenCalled();
+  });
 
   it("a signed-in person gets a code for needt-budget without a consent screen", async () => {
     (getServerSession as jest.Mock).mockResolvedValue({

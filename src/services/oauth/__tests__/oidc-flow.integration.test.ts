@@ -107,7 +107,12 @@ describeIntegration("Sign in with a Needt account (real database)", () => {
       .toString();
     process.env.OIDC_BUDGET_REDIRECT_URIS = BUDGET_REDIRECT;
     await prisma.user.create({
-      data: { id: userId, email, name: "Test Person" },
+      data: {
+        id: userId,
+        email,
+        name: "Test Person",
+        emailVerified: new Date(),
+      },
     });
     jest.mocked(getServerSession).mockResolvedValue({
       user: { id: userId, email },
