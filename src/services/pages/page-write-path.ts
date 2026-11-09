@@ -7,7 +7,7 @@ import {
   pageActorCanAccess,
   pageActorCanAccessInTransaction,
   pageActorUserId,
-  pageDetailInclude,
+  pageDetailIncludeFor,
 } from "@/services/pages/page-model";
 import {
   PageAccessRole,
@@ -197,7 +197,7 @@ async function persistPageBlocks(
 
     const page = await tx.page.findUnique({
       where: { id: pageId },
-      include: pageDetailInclude,
+      include: pageDetailIncludeFor(actor),
     });
     if (!page) return null;
     if (
@@ -338,7 +338,7 @@ async function persistPageBlocks(
     });
     return tx.page.findUnique({
       where: { id: pageId },
-      include: pageDetailInclude,
+      include: pageDetailIncludeFor(actor),
     });
   });
 }

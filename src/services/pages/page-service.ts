@@ -9,7 +9,7 @@ import {
   pageActorScope as actorPageScope,
   pageActorUserId as actorUserId,
   pageActorWorkspaceId as actorWorkspaceId,
-  pageDetailInclude,
+  pageDetailIncludeFor,
 } from "@/services/pages/page-model";
 import { loadPagePreviews } from "@/services/pages/page-preview-service";
 import {
@@ -139,7 +139,7 @@ export function pageShareFlags(
 export async function getPage(actor: PageActor, pageId: string) {
   const page = await prisma.page.findFirst({
     where: { id: pageId, ...actorPageScope(actor), trashedAt: null },
-    include: pageDetailInclude,
+    include: pageDetailIncludeFor(actor),
   });
   if (page && actorIsAi(actor) && (await isPageInPrivateTree(page.id))) {
     return null;
@@ -313,7 +313,7 @@ export async function createPage(
         },
       },
     },
-    include: pageDetailInclude,
+    include: pageDetailIncludeFor(actor),
   });
 }
 
@@ -386,7 +386,7 @@ export async function updatePage(
         : {}),
       ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
     },
-    include: pageDetailInclude,
+    include: pageDetailIncludeFor(actor),
   });
 }
 
@@ -425,7 +425,7 @@ export async function createDatabase(
         },
       },
     },
-    include: pageDetailInclude,
+    include: pageDetailIncludeFor(actor),
   });
 }
 
@@ -759,6 +759,6 @@ export async function restorePageRevision(
       icon:
         typeof snapshot.icon === "string" ? snapshot.icon.slice(0, 32) : null,
     },
-    include: pageDetailInclude,
+    include: pageDetailIncludeFor(actor),
   });
 }

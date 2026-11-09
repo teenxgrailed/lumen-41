@@ -124,25 +124,35 @@ export function pageActorWorkspaceId(actor: PageActor) {
   return typeof actor === "string" ? undefined : actor.workspace?.workspaceId;
 }
 
-export const pageDetailInclude = {
-  folder: { select: { id: true, name: true, color: true } },
-  tags: { select: { id: true, name: true, color: true } },
-  blocks: { orderBy: { position: "asc" as const } },
-  children: {
-    where: { trashedAt: null },
-    orderBy: { position: "asc" as const },
-  },
-  database: {
-    include: {
-      properties: { orderBy: { position: "asc" as const } },
-      views: { orderBy: { position: "asc" as const } },
-      records: {
-        orderBy: { position: "asc" as const },
-        include: {
-          page: true,
-          values: true,
+/**
+ * The detail payload of a page, with its children and database record pages
+ * limited to the ones this actor could open on their own. Page access is per
+ * page, so reading a shared parent must not hand over another member's
+ * private child or private record page.
+ */
+export function pageDetailIncludeFor(actor: PageActor) {
+  const visible = pageActorScope(actor);
+  return {
+    folder: { select: { id: true, name: true, color: true } },
+    tags: { select: { id: true, name: true, color: true } },
+    blocks: { orderBy: { position: "asc" as const } },
+    children: {
+      where: { trashedAt: null, ...visible },
+      orderBy: { position: "asc" as const },
+    },
+    database: {
+      include: {
+        properties: { orderBy: { position: "asc" as const } },
+        views: { orderBy: { position: "asc" as const } },
+        records: {
+          where: { page: visible },
+          orderBy: { position: "asc" as const },
+          include: {
+            page: true,
+            values: true,
+          },
         },
       },
     },
-  },
-} satisfies Prisma.PageInclude;
+  } satisfies Prisma.PageInclude;
+}
