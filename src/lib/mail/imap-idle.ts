@@ -18,7 +18,22 @@ export async function ensureImapIdleWatcher(accountId: string): Promise<void> {
     return;
   }
 
-  const credentials = imapCredentials(account);
+  let credentials: ReturnType<typeof imapCredentials>;
+  try {
+    credentials = imapCredentials(account);
+  } catch (error) {
+    // Undecryptable or invalid stored credentials must never take the worker
+    // down; the repeatable sync reports the account problem on its own.
+    await logger.warn(
+      "IMAP IDLE skipped: stored credentials are unusable",
+      {
+        accountId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
+    return;
+  }
   const client = new ImapFlow({
     ...imapConnectionOptions(credentials),
     maxIdleTime: IDLE_RESTART_INTERVAL_MS,
@@ -65,6 +80,26 @@ export async function ensureImapIdleWatcher(accountId: string): Promise<void> {
       LOG_SOURCE
     );
   }
+}
+
+/** Starts watchers for every account; one account's failure never rejects. */
+export async function startImapIdleWatchers(
+  accountIds: string[]
+): Promise<void> {
+  await Promise.all(
+    accountIds.map((accountId) =>
+      ensureImapIdleWatcher(accountId).catch((error: unknown) =>
+        logger.warn(
+          "IMAP IDLE watcher could not start",
+          {
+            accountId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          LOG_SOURCE
+        )
+      )
+    )
+  );
 }
 
 export async function closeImapIdleWatchers(): Promise<void> {

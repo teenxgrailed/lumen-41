@@ -98,6 +98,7 @@ import { listActiveMailAccountIds } from "@/lib/mail-db";
 import {
   closeImapIdleWatchers,
   ensureImapIdleWatcher,
+  startImapIdleWatchers,
 } from "@/lib/mail/imap-idle";
 import { syncMailAccount } from "@/lib/mail/sync";
 import {
@@ -667,9 +668,7 @@ export async function start(): Promise<void> {
   await Promise.all(
     mailAccountIds.map((accountId) => ensureMailSyncSchedule(accountId))
   );
-  await Promise.all(
-    mailAccountIds.map((accountId) => ensureImapIdleWatcher(accountId))
-  );
+  await startImapIdleWatchers(mailAccountIds);
   await logger.info(
     "Needt background worker started",
     {
