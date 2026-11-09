@@ -132,6 +132,26 @@ describe("account deletion of file and waitlist rows", () => {
     });
   });
 
+  it("lets habit tasks in surviving shared workspaces go before the user is deleted", async () => {
+    await finalizeAccountDeletion("request-1");
+
+    const release = calls.findIndex(
+      (c) =>
+        c.model === "task" &&
+        c.method === "updateMany" &&
+        JSON.stringify(c.arg).includes('"habitId":null')
+    );
+    const userDelete = calls.findIndex(
+      (c) => c.model === "user" && c.method === "delete"
+    );
+    expect(release).toBeGreaterThanOrEqual(0);
+    expect(calls[release].arg).toMatchObject({
+      where: { habit: { userId: "user-1" } },
+      data: { habitId: null },
+    });
+    expect(release).toBeLessThan(userDelete);
+  });
+
   it("deletes the app waitlist rows for the account's email", async () => {
     await finalizeAccountDeletion("request-1");
 

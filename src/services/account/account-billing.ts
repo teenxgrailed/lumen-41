@@ -27,6 +27,21 @@ function isAlreadyGone(error: unknown): boolean {
   );
 }
 
+/** A Creem subscription a purchase replaced and Creem has not yet confirmed
+ *  cancelled: the worker cannot retry once the row is gone, so finish it now. */
+async function cancelPendingCreemSubscription(
+  pendingCreemCancelId: string | null | undefined
+): Promise<void> {
+  if (!pendingCreemCancelId) return;
+  try {
+    await getCreemClient().subscriptions.cancel(pendingCreemCancelId, {
+      mode: "immediate",
+    });
+  } catch (error) {
+    if (!isAlreadyGone(error)) throw error;
+  }
+}
+
 export async function cancelRecurringBillingForDeletion(
   userId: string
 ): Promise<void> {
@@ -58,21 +73,13 @@ export async function cancelRecurringBillingForDeletion(
         LOG_SOURCE
       );
     }
-    // A Creem subscription the Apple purchase replaced and Creem has not yet
-    // confirmed cancelled: the worker cannot retry once the row is gone, so
-    // finish it now.
-    if (subscription.pendingCreemCancelId) {
-      try {
-        await getCreemClient().subscriptions.cancel(
-          subscription.pendingCreemCancelId,
-          { mode: "immediate" }
-        );
-      } catch (error) {
-        if (!isAlreadyGone(error)) throw error;
-      }
-    }
+    await cancelPendingCreemSubscription(subscription.pendingCreemCancelId);
     return;
   }
+  // A Creem Pro that a Lifetime purchase replaced and Creem has not yet
+  // confirmed cancelled: the row is Lifetime, so the Pro branch below skips
+  // it, and the marker disappears with the row.
+  await cancelPendingCreemSubscription(subscription?.pendingCreemCancelId);
   if (
     !subscription?.creemSubscriptionId ||
     subscription.plan !== SubscriptionPlan.PRO ||

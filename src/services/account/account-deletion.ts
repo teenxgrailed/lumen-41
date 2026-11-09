@@ -102,6 +102,13 @@ async function tombstoneSharedContent(
   const moodboardIds = ownedMoodboards.map(({ id }) => id);
 
   await tx.pagePublication.deleteMany({ where: { page: { userId } } });
+  // Habits cascade with the user but Task.habitId is ON DELETE RESTRICT, so a
+  // habit task that survives in a shared workspace must let go of its habit
+  // first or the final user delete rolls back and the sweep retries forever.
+  await tx.task.updateMany({
+    where: { habit: { userId }, habitId: { not: null } },
+    data: { habitId: null, habitOccurrenceAt: null },
+  });
   // Learned memories are the person's own and never outlive the account,
   // in any workspace they were made in.
   await tx.agentMemory.deleteMany({ where: { userId } });
