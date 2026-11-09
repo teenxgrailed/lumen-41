@@ -209,9 +209,15 @@ async function applyCreemBillingEvent(event: CreemBillingEvent) {
         currentSubscription.creemSubscriptionId !== mutation.creemSubscriptionId
     );
     const incomingGrantsAccess = restrictionLevel(mutation.data) === 0;
+    // Level 5 is an ended subscription; level 4 is one canceled but paid
+    // through its period end. Checkout lets a canceled Pro buy again, so the
+    // replacement must be able to take over during that grace. A subscription
+    // that is still renewing or failing to pay (levels 0 to 3) is never
+    // replaced here.
     const storedSubscriptionIdentityEnded = Boolean(
       !currentSubscription?.creemSubscriptionId ||
-        storedSubscriptionCursor?.restrictionLevel === 5
+        (storedSubscriptionCursor?.restrictionLevel !== undefined &&
+          storedSubscriptionCursor.restrictionLevel >= 4)
     );
     const canEstablishSubscriptionIdentity = Boolean(
       mutation.creemSubscriptionId &&
