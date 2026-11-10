@@ -22,8 +22,15 @@ const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
 const GRAPH_API = "https://graph.microsoft.com/v1.0/me";
 const MAX_MESSAGES_PER_SYNC = 2_000;
 
+class MailProviderError extends Error {
+  constructor(readonly status: number) {
+    super(`Mail provider request failed (${status}).`);
+  }
+}
+
 interface GmailHistoryPage {
   history?: Array<{
+    id?: string;
     messages?: Array<{ id?: string }>;
     messagesAdded?: Array<{ message?: { id?: string } }>;
     messagesDeleted?: Array<{ message?: { id?: string } }>;
@@ -81,7 +88,7 @@ async function jsonRequest<T>(
     },
   });
   if (!response.ok) {
-    throw new Error(`Mail provider request failed (${response.status}).`);
+    throw new MailProviderError(response.status);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
@@ -107,6 +114,9 @@ export async function syncGmail(
   let ids: string[] = [];
   let deletedExternalIds: string[] = [];
   let cursor = account.syncCursor;
+  // Set when paging stopped at the cap: the cursor must then stay at the last
+  // history entry read, not jump to the mailbox head past the unread pages.
+  let truncatedAt: string | null = null;
 
   if (cursor) {
     try {
@@ -137,10 +147,21 @@ export async function syncGmail(
             )
           )
         );
+        const entries = historyPage.history ?? [];
+        const lastEntryId = entries[entries.length - 1]?.id;
         cursor = historyPage.historyId ?? cursor;
         pageToken = historyPage.nextPageToken;
+        if (pageToken && ids.length >= MAX_MESSAGES_PER_SYNC && lastEntryId) {
+          truncatedAt = lastEntryId;
+        }
       } while (pageToken && ids.length < MAX_MESSAGES_PER_SYNC);
-    } catch {
+    } catch (error) {
+      // Only an expired history id means "resync from scratch"; a 429 or 5xx
+      // must fail the run and retry from the same cursor.
+      if (!(error instanceof MailProviderError && error.status === 404)) {
+        throw error;
+      }
+      truncatedAt = null;
       cursor = null;
       ids = [];
       deletedExternalIds = [];
@@ -168,14 +189,36 @@ export async function syncGmail(
     } while (pageToken && ids.length < MAX_MESSAGES_PER_SYNC);
   }
 
-  const uniqueIds = [...new Set(ids)].slice(0, MAX_MESSAGES_PER_SYNC);
-  const resources = await mapWithConcurrency(uniqueIds, 10, (id) =>
-    gmailMessage(token, id)
-  );
+  // The incremental list is already bounded by the page loop; slicing it
+  // would drop ids the cursor has moved past.
+  const uniqueIds = [...new Set(ids)];
+  const fetched = await mapWithConcurrency(uniqueIds, 10, async (id) => {
+    try {
+      return await gmailMessage(token, id);
+    } catch (error) {
+      // Deleted for good since the history entry: nothing to fetch.
+      if (error instanceof MailProviderError && error.status === 404) {
+        deletedExternalIds.push(id);
+        return null;
+      }
+      throw error;
+    }
+  });
+  const resources = fetched.flatMap((message) => (message ? [message] : []));
   const messages = resources.flatMap((message) => {
     const mapped = mapGmailMessage(message);
     return mapped ? [mapped] : [];
   });
+  if (truncatedAt) {
+    return {
+      cursor: truncatedAt,
+      messages: resources.flatMap((message) => {
+        const mapped = mapGmailMessage(message);
+        return mapped ? [mapped] : [];
+      }),
+      deletedExternalIds,
+    };
+  }
   cursor =
     resources.reduce<string | null>(
       (latest, message) =>
@@ -230,6 +273,9 @@ export async function syncOutlookMail(
     cursor = page["@odata.deltaLink"] ?? cursor;
     url = page["@odata.nextLink"] ?? "";
   }
+  // Stopped at the cap with pages left: resume from that page next run, or the
+  // account would restart from page one for ever and never get a delta link.
+  if (url) cursor = url;
   const deletedExternalIds = resources.flatMap((message) =>
     message.id && message["@removed"] ? [message.id] : []
   );
