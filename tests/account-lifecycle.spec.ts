@@ -386,14 +386,21 @@ test.describe("account export and deletion lifecycle", () => {
     const client = await playwrightRequest.newContext({
       baseURL: process.env.TEST_BASE_URL || "http://127.0.0.1:3000",
     });
-    const first = await client.get(
+    // A GET (what a mail scanner does) only shows the confirm page and must
+    // not spend the one-time token.
+    const preview = await client.get(
       `/api/account/export/download?token=${encodeURIComponent(activeToken)}`
     );
+    expect(preview.status()).toBe(200);
+    expect(preview.headers()["content-type"]).toContain("text/html");
+    const first = await client.post("/api/account/export/download", {
+      form: { token: activeToken },
+    });
     expect(first.status()).toBe(200);
     expect(await first.body()).toEqual(Buffer.from("account archive"));
-    const second = await client.get(
-      `/api/account/export/download?token=${encodeURIComponent(activeToken)}`
-    );
+    const second = await client.post("/api/account/export/download", {
+      form: { token: activeToken },
+    });
     expect(second.status()).toBe(410);
 
     const expiredToken = `expired-export-${runId}`;
@@ -406,9 +413,9 @@ test.describe("account export and deletion lifecycle", () => {
         expiresAt: addCalendarDays(newDate(), -1),
       },
     });
-    const expiredResponse = await client.get(
-      `/api/account/export/download?token=${encodeURIComponent(expiredToken)}`
-    );
+    const expiredResponse = await client.post("/api/account/export/download", {
+      form: { token: expiredToken },
+    });
     expect(expiredResponse.status()).toBe(410);
     expect(
       await prisma.dataExportRequest.findUnique({ where: { id: expired.id } })
