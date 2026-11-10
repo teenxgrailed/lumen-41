@@ -17,6 +17,9 @@ jest.mock("@/lib/prisma", () => ({
     user: { findUnique: jest.fn(), update: jest.fn() },
     connectorSettings: { updateMany: jest.fn() },
     personalApiToken: { updateMany: jest.fn() },
+    oAuthAuthorizationCode: { updateMany: jest.fn() },
+    oAuthToken: { updateMany: jest.fn() },
+    hubAgentToken: { updateMany: jest.fn() },
     systemSettings: { findFirst: jest.fn().mockResolvedValue(null) },
   },
 }));

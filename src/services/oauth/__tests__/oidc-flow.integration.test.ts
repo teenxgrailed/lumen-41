@@ -175,7 +175,7 @@ describeIntegration("Sign in with a Needt account (real database)", () => {
       aud: "needt-budget",
       nonce: "nonce-1",
       email,
-      email_verified: false,
+      email_verified: true,
       name: "Test Person",
     });
 
