@@ -11,23 +11,15 @@ import { sealSystemSettingsSecrets } from "@/lib/system-settings-secrets";
 
 const LOG_SOURCE = "SetupAPI";
 
+// Arbitrary constant key for the first-run advisory lock.
+const SETUP_LOCK_KEY = 7_411_001;
+
 /**
  * POST /api/setup
  * Creates the initial admin user and migrates existing data
  */
 export async function POST(request: Request) {
   try {
-    // Check if any users already exist
-    const userCount = await prisma.user.count();
-
-    if (userCount > 0) {
-      logger.warn("Setup attempted when users already exist", {}, LOG_SOURCE);
-      return NextResponse.json(
-        { error: "Setup has already been completed" },
-        { status: 400 }
-      );
-    }
-
     // Parse request body
     const body = await request.json();
     const { name, email, password } = body;
@@ -48,25 +40,38 @@ export async function POST(request: Request) {
     // Hash the password
     const hashedPassword = await hash(password, 10);
 
-    // Create the admin user
-    const adminUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        role: "admin",
-        // Store the hashed password in a way that's compatible with NextAuth
-        // This assumes you'll be using the credentials provider in the future
-        accounts: {
-          create: {
-            type: "credentials",
-            provider: "credentials",
-            providerAccountId: email,
-            // Store the hashed password in a field that won't conflict with OAuth providers
-            id_token: hashedPassword,
+    // Create the admin user. The "no users yet" check and the insert run
+    // under one advisory lock, so two concurrent first requests cannot both
+    // pass the check and create two admins.
+    const adminUser = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SETUP_LOCK_KEY})`;
+      if ((await tx.user.count()) > 0) return null;
+      return tx.user.create({
+        data: {
+          name,
+          email,
+          role: "admin",
+          // Store the hashed password in a way that's compatible with NextAuth
+          accounts: {
+            create: {
+              type: "credentials",
+              provider: "credentials",
+              providerAccountId: email,
+              // Store the hashed password in a field that won't conflict with OAuth providers
+              id_token: hashedPassword,
+            },
           },
         },
-      },
+      });
     });
+
+    if (!adminUser) {
+      logger.warn("Setup attempted when users already exist", {}, LOG_SOURCE);
+      return NextResponse.json(
+        { error: "Setup has already been completed" },
+        { status: 400 }
+      );
+    }
 
     logger.info("Created admin user", { userId: adminUser.id }, LOG_SOURCE);
 
@@ -190,28 +195,14 @@ export async function POST(request: Request) {
         {
           error:
             "Database is not reachable. Start Postgres and run `prisma migrate deploy`, then try setup again.",
-          detail: error.message,
         },
         { status: 503 }
       );
     }
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      return NextResponse.json(
-        {
-          error: `Database setup failed (${error.code}). ${error.message}`,
-        },
-        { status: 500 }
-      );
-    }
-
+    // Details stay in the log: this route is reachable without a session.
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to complete setup for an unknown reason",
-      },
+      { error: "Failed to complete setup" },
       { status: 500 }
     );
   }
