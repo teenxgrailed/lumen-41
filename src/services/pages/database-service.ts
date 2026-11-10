@@ -229,6 +229,11 @@ export async function deleteDatabaseRecord(actor: PageActor, recordId: string) {
   return true;
 }
 
+/** Dates sort by their ISO text; String(Date) would sort by weekday name. */
+function sortText(value: unknown) {
+  return value instanceof Date ? value.toISOString() : String(value ?? "");
+}
+
 interface QueryFilter {
   propertyId: string;
   operator: "equals" | "contains" | "is_empty";
@@ -255,34 +260,36 @@ export async function queryDatabase(
   const propertyById = new Map(
     database.properties.map((property) => [property.id, property])
   );
-  const projected = database.records.map((record) => {
-    const values = Object.fromEntries(
-      record.values.map((entry) => [entry.propertyId, entry.value])
-    );
-    const byName = Object.fromEntries(
-      database.properties.map((property) => [
-        property.name,
-        values[property.id] as string | number | boolean | null,
-      ])
-    );
-    for (const property of database.properties) {
-      if (property.type !== DatabasePropertyType.FORMULA) continue;
-      const expression =
-        property.config &&
-        typeof property.config === "object" &&
-        !Array.isArray(property.config)
-          ? (property.config as Prisma.JsonObject).expression
-          : undefined;
-      if (typeof expression === "string") {
-        try {
-          values[property.id] = evaluateFormula(expression, byName);
-        } catch {
-          values[property.id] = null;
+  const projected = database.records
+    .filter((record) => !record.page.trashedAt)
+    .map((record) => {
+      const values = Object.fromEntries(
+        record.values.map((entry) => [entry.propertyId, entry.value])
+      );
+      const byName = Object.fromEntries(
+        database.properties.map((property) => [
+          property.name,
+          values[property.id] as string | number | boolean | null,
+        ])
+      );
+      for (const property of database.properties) {
+        if (property.type !== DatabasePropertyType.FORMULA) continue;
+        const expression =
+          property.config &&
+          typeof property.config === "object" &&
+          !Array.isArray(property.config)
+            ? (property.config as Prisma.JsonObject).expression
+            : undefined;
+        if (typeof expression === "string") {
+          try {
+            values[property.id] = evaluateFormula(expression, byName);
+          } catch {
+            values[property.id] = null;
+          }
         }
       }
-    }
-    return { ...record, values };
-  });
+      return { ...record, values };
+    });
 
   const filtered = projected.filter((record) =>
     (input.filters ?? []).every((filter) => {
@@ -312,8 +319,8 @@ export async function queryDatabase(
         : sort.propertyId
           ? right.values[sort.propertyId]
           : null;
-      const comparison = String(leftValue ?? "").localeCompare(
-        String(rightValue ?? ""),
+      const comparison = sortText(leftValue).localeCompare(
+        sortText(rightValue),
         undefined,
         { numeric: true }
       );
