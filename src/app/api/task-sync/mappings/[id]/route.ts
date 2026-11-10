@@ -11,7 +11,7 @@ const LOG_SOURCE = "task-sync-mapping-api";
 
 // Schema for mapping patch requests
 const mappingPatchSchema = z.object({
-  projectId: z.string().uuid().optional(),
+  projectId: z.string().min(1).optional(),
   direction: z.enum(["incoming", "outgoing", "bidirectional"]).optional(),
   isAutoScheduled: z.boolean().optional(),
 });
