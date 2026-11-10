@@ -124,9 +124,11 @@ import {
   getNudgeQueue,
   getOAuthCleanupQueue,
   getReminderQueue,
+  getRescheduleQueue,
   getTrialQueue,
   getWebhookRenewQueue,
 } from "@/lib/queue/queues";
+import { deferTrailingJob } from "@/lib/queue/trailing";
 import {
   AccountLifecycleJobData,
   BugReportSyncJobData,
@@ -182,7 +184,11 @@ if (process.env.SENTRY_DSN) {
 const BUILD_SHA = requireProductionBuildSha();
 const WORKER_RELEASE_HEARTBEAT_VALUE = `${newDate().toISOString()}:${randomUUID()}`;
 
-async function processCalendarSync(job: Job<CalendarSyncJobData>) {
+async function processCalendarSync(
+  job: Job<CalendarSyncJobData>,
+  token?: string
+) {
+  await deferTrailingJob(job, token, getCalendarSyncQueue());
   if (job.data.taskMappingId) {
     await syncTaskMapping(job.data.taskMappingId);
     return;
@@ -239,7 +245,8 @@ async function processCalendarSync(job: Job<CalendarSyncJobData>) {
   }
 }
 
-async function processReschedule(job: Job<RescheduleJobData>) {
+async function processReschedule(job: Job<RescheduleJobData>, token?: string) {
+  await deferTrailingJob(job, token, getRescheduleQueue());
   if (job.data.runId) {
     await executeSchedulingRun(job.data.runId);
   } else {
