@@ -36,10 +36,27 @@ jobs:
       RUN_ID: ${{ github.event.workflow_run.id }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
+      # A main run cancelled because a newer push queued behind it (only one
+      # pending run per concurrency group) has no failed jobs and cannot be
+      # rerun; the newer commit's own run covers it, so skip.
       - name: Rerun failed jobs once
-        run: gh run rerun "$RUN_ID" --failed
+        id: rerun
+        run: |
+          head=$(gh api "repos/$GH_REPO/commits/main" -q .sha)
+          if [ "$head" != "$HEAD_SHA" ]; then
+            echo "main moved to $head; its own CI run covers this commit."
+            echo "rerun=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if gh run rerun "$RUN_ID" --failed; then
+            echo "rerun=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Run $RUN_ID cannot be rerun (superseded or nothing failed); nothing to do."
+            echo "rerun=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Wait for the second attempt
         id: wait
+        if: steps.rerun.outputs.rerun == 'true'
         run: |
           sleep 30
           if gh run watch "$RUN_ID" --exit-status --interval 60 >/dev/null; then
