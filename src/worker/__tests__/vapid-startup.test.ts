@@ -81,6 +81,7 @@ jest.mock("@/lib/mail-db", () => ({
 jest.mock("@/lib/mail/imap-idle", () => ({
   closeImapIdleWatchers: jest.fn(),
   ensureImapIdleWatcher: jest.fn(),
+  startImapIdleWatchers: jest.fn(),
 }));
 jest.mock("@/lib/mail/sync", () => ({ syncMailAccount: jest.fn() }));
 jest.mock("@/lib/outlook-calendar", () => ({ getOutlookClient: jest.fn() }));
