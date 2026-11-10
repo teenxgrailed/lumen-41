@@ -49,7 +49,7 @@ describe("POST /api/import/tasks", () => {
         tasks: [{ title: "A", status: "todo", createdAt: "not-a-date" }],
       })
     );
-    const json = await res.json();
+    const json = await (res as Response).json();
     expect(json.imported).toBe(1);
     const created = taskCreate.mock.calls[0][0].data.createdAt as Date;
     expect(Number.isNaN(created.getTime())).toBe(false);
@@ -75,7 +75,7 @@ describe("POST /api/import/tasks", () => {
         ],
       })
     );
-    const json = await res.json();
+    const json = await (res as Response).json();
     expect(json.imported).toBe(1);
     expect(json.skipped).toBe(1);
     expect(json.skippedTasks[0].title).toBe("Bad");

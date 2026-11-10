@@ -6,8 +6,8 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import type { SyncResult } from "@/lib/task-sync/types";
 import { TaskSyncManager } from "@/lib/task-sync/task-sync-manager";
+import type { SyncResult } from "@/lib/task-sync/types";
 
 // Log source for this file
 const LOG_SOURCE = "TaskSyncAPI";

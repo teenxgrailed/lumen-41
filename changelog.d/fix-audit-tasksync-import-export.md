@@ -1,0 +1,1 @@
+- Task sync now reports failed lists instead of "Sync completed", task import restores archived tasks and schedule fields and tells you what it skipped, and the account export includes goals, habit history and more; the export download link needs one click so mail scanners cannot use it up.
