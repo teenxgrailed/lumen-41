@@ -1,1 +1,1 @@
-- Page images and files with non-Latin names (Cyrillic, CJK, emoji) now download and display instead of failing with an error.
+- Collaborative editing no longer drops everyone with an access-revoked error when the database hiccups; pages cannot be moved under their own sub-pages, and database views hide trashed rows and sort by edit date correctly.
