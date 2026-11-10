@@ -68,19 +68,24 @@ export async function PATCH(request: NextRequest) {
     const auth = await authenticateRequest(request, LOG_SOURCE);
     if ("response" in auth) return auth.response;
 
-    await ensureAISettings(auth.userId);
+    const current = await ensureAISettings(auth.userId);
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== "object") {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
-    const provider = isProvider(body.provider) ? body.provider : "NONE";
+    // Partial update: a field that is absent keeps its saved value.
+    const provider = isProvider(body.provider)
+      ? body.provider
+      : current.provider;
+    const providerChanged = provider !== current.provider;
     const timeout = Number(body.requestTimeoutSeconds);
     const apiKey =
       typeof body.apiKey === "string" && body.apiKey.trim()
         ? encryptSecret(body.apiKey.trim())
         : undefined;
     const keyField = encryptedKeyField(provider);
-    const soulPreset = body.soulPreset === "coach" ? "coach" : "business";
+    const flag = (value: unknown, saved: boolean) =>
+      typeof value === "boolean" ? value : saved;
 
     const settings = await prisma.aISettings.update({
       where: { userId: auth.userId },
@@ -89,21 +94,31 @@ export async function PATCH(request: NextRequest) {
         model:
           typeof body.model === "string"
             ? body.model.trim() || defaultModelForProvider(provider)
-            : defaultModelForProvider(provider),
+            : providerChanged
+              ? defaultModelForProvider(provider)
+              : current.model,
         customUrl:
           typeof body.customUrl === "string"
             ? body.customUrl.trim() || getDefaultCustomAIUrl()
-            : getDefaultCustomAIUrl(),
+            : current.customUrl,
         ...(apiKey && keyField && { [keyField]: apiKey }),
-        soulPreset,
-        allowParseTasks: Boolean(body.allowParseTasks),
-        allowReorder: Boolean(body.allowReorder),
-        allowSuggestEnergy: Boolean(body.allowSuggestEnergy),
-        allowFullAuto: Boolean(body.allowFullAuto),
+        soulPreset:
+          body.soulPreset === "coach" || body.soulPreset === "business"
+            ? body.soulPreset
+            : current.soulPreset,
+        allowParseTasks: flag(body.allowParseTasks, current.allowParseTasks),
+        allowReorder: flag(body.allowReorder, current.allowReorder),
+        allowSuggestEnergy: flag(
+          body.allowSuggestEnergy,
+          current.allowSuggestEnergy
+        ),
+        allowFullAuto: flag(body.allowFullAuto, current.allowFullAuto),
         requestTimeoutSeconds:
-          Number.isFinite(timeout) && timeout >= 5 && timeout <= 60
-            ? Math.round(timeout)
-            : 20,
+          body.requestTimeoutSeconds === undefined
+            ? current.requestTimeoutSeconds
+            : Number.isFinite(timeout) && timeout >= 5 && timeout <= 60
+              ? Math.round(timeout)
+              : 20,
       },
     });
 
