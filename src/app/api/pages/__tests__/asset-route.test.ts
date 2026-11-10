@@ -67,7 +67,7 @@ describe("GET /api/pages/[id]/assets/[assetId]", () => {
       asset(type, "vector.svg");
       const res = await get();
       expect(res.headers.get("content-disposition")).toBe(
-        'attachment; filename="vector.svg"'
+        'attachment; filename="vector.svg"; filename*=UTF-8''vector.svg'
       );
     }
   });
@@ -75,18 +75,18 @@ describe("GET /api/pages/[id]/assets/[assetId]", () => {
   it("still shows ordinary pictures inline and everything else as a download", async () => {
     asset("image/png", "a.png");
     expect((await get()).headers.get("content-disposition")).toBe(
-      'inline; filename="a.png"'
+      'inline; filename="a.png"; filename*=UTF-8''a.png'
     );
     asset("text/html", "page.html");
     expect((await get()).headers.get("content-disposition")).toBe(
-      'attachment; filename="page.html"'
+      'attachment; filename="page.html"; filename*=UTF-8''page.html'
     );
   });
 
   it("keeps a quote or newline out of the file name", async () => {
     asset("image/png", 'a"b\r\nc.png');
     expect((await get()).headers.get("content-disposition")).toBe(
-      'inline; filename="a_b__c.png"'
+      'inline; filename="a_b__c.png"; filename*=UTF-8''a_b__c.png'
     );
   });
 
