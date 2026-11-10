@@ -73,7 +73,8 @@ describe("deliverPush", () => {
     );
     expect(fetchMock).toHaveBeenCalledWith(
       subscription.endpoint,
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({ method: "POST" }),
+      expect.anything()
     );
   });
 
@@ -93,3 +94,10 @@ describe("deliverPush", () => {
     expect(prisma.pushSubscription.deleteMany).not.toHaveBeenCalled();
   });
 });
+
+// Web push goes through safeFetch; these tests drive it with a fetch mock.
+jest.mock("@/services/oauth/safe-fetch", () => ({
+  ...jest.requireActual("@/services/oauth/safe-fetch"),
+  safeFetch: (...args: unknown[]) =>
+    (global.fetch as unknown as (...a: unknown[]) => unknown)(...args),
+}));
