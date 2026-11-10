@@ -14,6 +14,12 @@ import {
 import { useRouter } from "next/navigation";
 
 import {
+  decidePageDraft,
+  type PageDraft,
+  parsePageDraft,
+  serializePageDraft,
+} from "@/components/pages/page-draft";
+import {
   legacyPageCollaborationDraftKey,
   pageCollaborationDocumentName,
   pageCollaborationDraftKey,
@@ -848,7 +854,10 @@ export function PageWorkspace({
       isOnline: () => navigator.onLine,
       onStateChange: setSaveState,
       persistDraft: (document) =>
-        localStorage.setItem(draftKey, JSON.stringify(document)),
+        localStorage.setItem(
+          draftKey,
+          serializePageDraft(document, pageRevisionRef.current)
+        ),
       removeDraft: () => {
         localStorage.removeItem(draftKey);
         if (legacyDraftPendingRef.current) {
@@ -1358,11 +1367,66 @@ export function PageWorkspace({
       );
       dirtyTitleRef.current = null;
       const draftKey = pageCollaborationDraftKey(pageId);
+      const heldDraftKey = `${draftKey}:held`;
       const legacyDraftKey = legacyPageCollaborationDraftKey(pageId);
       const currentDraft = localStorage.getItem(draftKey);
       const legacyDraft = localStorage.getItem(legacyDraftKey);
       const localDraft = currentDraft ?? legacyDraft;
       legacyDraftPendingRef.current = legacyDraft ? legacyDraftKey : null;
+
+      // A draft is only laid over the server's content when it was written
+      // against the revision that is there now. Otherwise another device has
+      // saved in between and the draft would silently overwrite it.
+      let draftToApply: JSONContent | null = null;
+      let heldDraft: PageDraft | null = null;
+      if (localDraft) {
+        const parsedDraft = parsePageDraft(localDraft);
+        const decision = parsedDraft
+          ? decidePageDraft({
+              draft: parsedDraft,
+              serverRevision: loaded.contentRevision,
+              serverDocument: documentFromPageBlocks(loaded.blocks),
+            })
+          : "discard";
+        if (decision === "apply" && parsedDraft) {
+          draftToApply = parsedDraft.document;
+        } else {
+          if (decision === "stale" && parsedDraft) {
+            heldDraft = parsedDraft;
+            try {
+              localStorage.setItem(
+                heldDraftKey,
+                serializePageDraft(
+                  parsedDraft.document,
+                  parsedDraft.baseRevision
+                )
+              );
+            } catch {
+              // The held copy is best effort; the notice still offers it.
+            }
+          }
+          localStorage.removeItem(draftKey);
+          localStorage.removeItem(legacyDraftKey);
+          legacyDraftPendingRef.current = null;
+        }
+      }
+      const announceHeldDraft = () => {
+        if (!heldDraft) return;
+        const held = heldDraft;
+        notify.warning("Unsaved edits were kept aside", {
+          description:
+            "This page changed on another device, so your offline edits were not applied.",
+          dedupeKey: `page-draft-held:${pageId}`,
+          action: {
+            label: "Restore mine",
+            onClick: () => {
+              editor.commands.setContent(held.document);
+              ensureBlockIds(editor);
+              localStorage.removeItem(heldDraftKey);
+            },
+          },
+        });
+      };
 
       const tokenResponse = await fetch(
         `/api/pages/${pageId}/collaboration-token`,
@@ -1406,14 +1470,11 @@ export function PageWorkspace({
           );
           collaborationProvider.attach();
           editor.commands.updateUser(collaboration.user);
-          if (localDraft) {
+          if (draftToApply) {
             try {
-              editor.commands.setContent(
-                JSON.parse(localDraft) as JSONContent,
-                {
-                  emitUpdate: false,
-                }
-              );
+              editor.commands.setContent(draftToApply, {
+                emitUpdate: false,
+              });
               collaborationDraftPendingRef.current = true;
               setSaveState("failed");
             } catch {
@@ -1425,6 +1486,7 @@ export function PageWorkspace({
           ensureBlockIds(editor);
           hydrated.current = true;
           setDocReady(true);
+          announceHeldDraft();
           void collaborationSocket
             .connect()
             .catch(() => updateCollaborationStatus("disconnected"));
@@ -1440,9 +1502,9 @@ export function PageWorkspace({
       editor.commands.setContent(document || legacyPageHtml(loaded.blocks), {
         emitUpdate: false,
       });
-      if (localDraft) {
+      if (draftToApply) {
         try {
-          editor.commands.setContent(JSON.parse(localDraft) as JSONContent, {
+          editor.commands.setContent(draftToApply, {
             emitUpdate: false,
           });
           setSaveState("failed");
@@ -1455,7 +1517,8 @@ export function PageWorkspace({
       hydrated.current = true;
       setDocReady(true);
       updateCollaborationStatus("disconnected");
-      if (localDraft) autosave.current?.schedule(editor.getJSON());
+      if (draftToApply) autosave.current?.schedule(editor.getJSON());
+      announceHeldDraft();
     })().catch(() => router.replace("/pages"));
     return () => {
       cancelled = true;
