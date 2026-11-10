@@ -145,7 +145,11 @@ describeIntegration("OAuth 2.1 server (real database)", () => {
     process.env.MCP_RESOURCE_URL = RESOURCE;
     (globalThis as { __oauthUser?: string }).__oauthUser = userId;
     await prisma.user.create({
-      data: { id: userId, email: `${run}@example.test` },
+      data: {
+        id: userId,
+        email: `${run}@example.test`,
+        emailVerified: new Date(),
+      },
     });
     await prisma.workspace.create({
       data: {

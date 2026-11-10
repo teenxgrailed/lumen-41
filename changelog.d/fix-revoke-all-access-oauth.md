@@ -1,0 +1,1 @@
+- Resetting your password or signing out everywhere now also disconnects connected apps and agents, and apps can only be connected after your email is confirmed.

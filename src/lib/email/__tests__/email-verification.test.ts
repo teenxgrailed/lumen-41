@@ -46,6 +46,9 @@ jest.mock("bcryptjs", () => ({
 jest.mock("@/services/connectors/auth", () => ({
   revokeConnectorTokens: jest.fn().mockResolvedValue({ count: 0 }),
 }));
+jest.mock("@/lib/auth/revoke-delegated-tokens", () => ({
+  revokeDelegatedTokens: jest.fn(() => [{ delegated: true }]),
+}));
 jest.mock("@/services/connectors/personal-tokens", () => ({
   revokeNamedPersonalTokens: jest.fn().mockResolvedValue({ count: 0 }),
 }));
