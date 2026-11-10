@@ -56,13 +56,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Same claims the NextAuth jwt callback sets at sign-in: a sandbox account
+  // carries its kind (the middleware lock reads it) and is never an admin,
+  // whatever its row says.
   const token = await issueSessionVersion(
     {
       sub: user.id,
       name: user.name,
       email: user.email,
       picture: user.image,
-      role: user.role,
+      role: user.sandboxKind ? "user" : user.role,
+      ...(user.sandboxKind ? { sandboxKind: user.sandboxKind } : {}),
       provider: "desktop",
     },
     user.id

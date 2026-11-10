@@ -101,6 +101,7 @@ export async function redeemDesktopAuthCode(input: {
   email: string | null;
   image: string | null;
   role: string;
+  sandboxKind: string | null;
 } | null> {
   if (
     !DESKTOP_CODE_PATTERN.test(input.code) ||
@@ -132,6 +133,7 @@ export async function redeemDesktopAuthCode(input: {
       email: true,
       image: true,
       role: true,
+      sandboxKind: true,
       isActive: true,
     },
   });
@@ -142,6 +144,7 @@ export async function redeemDesktopAuthCode(input: {
     email: user.email,
     image: user.image,
     role: user.role,
+    sandboxKind: user.sandboxKind,
   };
 }
 

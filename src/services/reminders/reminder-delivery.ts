@@ -1,3 +1,4 @@
+import { UnsafeFetchError, safeFetch } from "@/services/oauth/safe-fetch";
 import { ReminderDeliveryStatus, TaskReminderKind } from "@prisma/client";
 
 import { logger } from "@/lib/logger";
@@ -163,7 +164,24 @@ export async function deliverPush(
       privateKey: configuration.privateKey,
     }
   );
-  const response = await fetch(subscription.endpoint, request);
+  // The endpoint was checked when it was saved; DNS can answer differently
+  // now and a push service can redirect. safeFetch re-checks every resolved
+  // address, connects to the checked one and follows no redirect.
+  let response: Response;
+  try {
+    response = await safeFetch(subscription.endpoint, request, {
+      timeoutMs: 15_000,
+      maxBytes: 64 * 1024,
+    });
+  } catch (error) {
+    if (!(error instanceof UnsafeFetchError)) throw error;
+    await logger.warn(
+      "Push endpoint refused: not a public address",
+      { host: new URL(subscription.endpoint).host, error: error.message },
+      LOG_SOURCE
+    );
+    return false;
+  }
   if (response.status === 404 || response.status === 410) {
     await prisma.pushSubscription.deleteMany({
       where: { id: subscription.id },

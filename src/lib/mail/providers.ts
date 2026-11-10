@@ -2,7 +2,7 @@ import { decryptSecret } from "@/services/ai/encryption";
 import { ImapFlow } from "imapflow";
 
 import { newDate } from "@/lib/date-utils";
-import { imapConnectionOptions } from "@/lib/mail/imap-tls";
+import { pinnedImapOptions } from "@/lib/mail/imap-pinned";
 import {
   gmailBodyHtml,
   mapGmailMessage,
@@ -326,8 +326,9 @@ async function withImapClient<T>(
   operation: (client: ImapFlow) => Promise<T>
 ) {
   const credentials = imapCredentials(account);
+  // Checked and pinned at connect time, not only when the account was added.
   const client = new ImapFlow({
-    ...imapConnectionOptions(credentials),
+    ...(await pinnedImapOptions(credentials)),
     maxIdleTime: 4 * 60 * 1_000,
   });
   await client.connect();

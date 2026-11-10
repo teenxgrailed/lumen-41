@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
+import { WorkspaceRole } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { getEvent } from "@/lib/calendar-db";
@@ -9,6 +10,17 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "event-route";
+
+const EDITABLE_FIELDS = [
+  "title",
+  "description",
+  "start",
+  "end",
+  "location",
+  "isRecurring",
+  "recurrenceRule",
+  "allDay",
+] as const;
 
 // Get a specific event
 export async function GET(
@@ -65,7 +77,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authenticateRequest(request, LOG_SOURCE);
+    const auth = await authenticateRequest(request, LOG_SOURCE, {
+      requiredRole: WorkspaceRole.EDITOR,
+    });
     if ("response" in auth) {
       return auth.response;
     }
@@ -94,15 +108,41 @@ export async function PATCH(
       );
     }
 
-    const updates = await request.json();
-    const restore = updates.restore;
-    delete updates.archivedAt;
-    delete updates.restore;
+    const body = await request.json();
+    const restore = body?.restore;
     if (existingEvent.archivedAt && restore !== true) {
       return NextResponse.json(
         { error: "Restore the event before editing it" },
         { status: 409 }
       );
+    }
+    // Only the fields a person edits. Sync identity (feedId, externalEventId,
+    // masterEventId, ...) and bookkeeping columns are never client-writable.
+    const updates: Record<string, unknown> = {};
+    for (const key of EDITABLE_FIELDS) {
+      if (body && key in body) updates[key] = body[key];
+    }
+    // Only a change to the times is validated, and a zero-length event (as
+    // providers send them) stays editable: end may equal start.
+    if ("start" in updates || "end" in updates) {
+      const startsAt =
+        "start" in updates
+          ? newDate(updates.start as string)
+          : existingEvent.start;
+      const endsAt =
+        "end" in updates ? newDate(updates.end as string) : existingEvent.end;
+      if (
+        Number.isNaN(startsAt.getTime()) ||
+        Number.isNaN(endsAt.getTime()) ||
+        endsAt < startsAt
+      ) {
+        return NextResponse.json(
+          { error: "Event end cannot be before its start" },
+          { status: 400 }
+        );
+      }
+      if ("start" in updates) updates.start = startsAt;
+      if ("end" in updates) updates.end = endsAt;
     }
     const updated = await prisma.calendarEvent.update({
       where: { id },

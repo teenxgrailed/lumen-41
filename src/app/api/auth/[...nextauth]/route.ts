@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { classifyCredentialAttempt } from "@/lib/auth/credential-attempt";
+import { credentialsEmail } from "@/lib/auth/credentials-email";
 import { newDate } from "@/lib/date-utils";
 import {
   accountRule,
@@ -78,10 +79,7 @@ export async function GET(request: NextRequest, context: AuthRouteContext) {
 export async function POST(request: NextRequest, context: AuthRouteContext) {
   const handler = await getHandler();
   if (request.nextUrl.pathname.endsWith("/callback/credentials")) {
-    const form = await request.clone().formData();
-    const email = String(form.get("email") ?? "")
-      .trim()
-      .toLowerCase();
+    const email = await credentialsEmail(request);
     const locked = await enforceCredentialLock(email);
     if (locked) return locked;
     const limited = await enforceRateLimits(

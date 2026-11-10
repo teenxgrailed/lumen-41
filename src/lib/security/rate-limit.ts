@@ -8,6 +8,30 @@ import { getRedisConnection } from "@/lib/queue/connection";
 
 const LOG_SOURCE = "RateLimit";
 
+/**
+ * The shared Redis client retries forever and queues commands while Redis is
+ * down (BullMQ needs that), so a limiter call would never settle and the
+ * request would hang until the platform timeout. Bound each call: on timeout
+ * it rejects and the callers' catch blocks answer 503. The limiter fails
+ * closed on purpose: it guards sign-in and abuse-prone routes, so a Redis
+ * outage must not silently switch the guard off.
+ */
+export const RATE_LIMIT_REDIS_TIMEOUT_MS = 1_500;
+
+export function withRedisTimeout<T>(
+  call: Promise<T>,
+  ms = RATE_LIMIT_REDIS_TIMEOUT_MS
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error("Redis did not answer in time")),
+      ms
+    );
+  });
+  return Promise.race([call, timeout]).finally(() => clearTimeout(timer));
+}
+
 const LIMIT_SCRIPT = `
 local current = redis.call("INCR", KEYS[1])
 if current == 1 then
@@ -102,11 +126,8 @@ export async function enforceRateLimits(
     const redis = getRedisConnection();
     for (const rule of rules) {
       const key = `needt:rate-limit:${rule.namespace}:${rule.identifier}`;
-      const [count, ttlMs] = (await redis.eval(
-        LIMIT_SCRIPT,
-        1,
-        key,
-        String(rule.windowSeconds * 1_000)
+      const [count, ttlMs] = (await withRedisTimeout(
+        redis.eval(LIMIT_SCRIPT, 1, key, String(rule.windowSeconds * 1_000))
       )) as [number, number];
 
       if (count > rule.limit) {
@@ -123,8 +144,10 @@ export async function enforceRateLimits(
           LOG_SOURCE
         );
         const spikeKey = `needt:rate-limit-spike:${metadata.route}:${Math.floor(Date.now() / 300_000)}`;
-        const blockedInWindow = await redis.incr(spikeKey);
-        if (blockedInWindow === 1) await redis.expire(spikeKey, 300);
+        const blockedInWindow = await withRedisTimeout(redis.incr(spikeKey));
+        if (blockedInWindow === 1) {
+          await withRedisTimeout(redis.expire(spikeKey, 300));
+        }
         if (blockedInWindow === 50) {
           Sentry.captureMessage(
             `Abnormal rate-limit spike on ${metadata.route}`,
@@ -163,7 +186,9 @@ export async function enforceCredentialLock(
   try {
     const hash = hashRateLimitIdentifier(accountIdentifier || "missing");
     const redis = getRedisConnection();
-    const ttl = await redis.ttl(`needt:credentials:lock:${hash}`);
+    const ttl = await withRedisTimeout(
+      redis.ttl(`needt:credentials:lock:${hash}`)
+    );
     if (ttl <= 0) return null;
     return NextResponse.json(
       { error: "Too many attempts. Try again later." },
@@ -180,19 +205,21 @@ export async function enforceCredentialLock(
 export async function recordCredentialFailure(accountIdentifier: string) {
   const hash = hashRateLimitIdentifier(accountIdentifier || "missing");
   const redis = getRedisConnection();
-  return redis.eval(
-    FAILURE_SCRIPT,
-    3,
-    `needt:credentials:failures:${hash}`,
-    `needt:credentials:strikes:${hash}`,
-    `needt:credentials:lock:${hash}`
+  return withRedisTimeout(
+    redis.eval(
+      FAILURE_SCRIPT,
+      3,
+      `needt:credentials:failures:${hash}`,
+      `needt:credentials:strikes:${hash}`,
+      `needt:credentials:lock:${hash}`
+    )
   );
 }
 
 export async function clearCredentialFailures(accountIdentifier: string) {
   const hash = hashRateLimitIdentifier(accountIdentifier || "missing");
   const redis = getRedisConnection();
-  await redis.del(`needt:credentials:failures:${hash}`);
+  await withRedisTimeout(redis.del(`needt:credentials:failures:${hash}`));
 }
 
 export async function enforceByteBudget(input: {
@@ -207,12 +234,14 @@ export async function enforceByteBudget(input: {
   try {
     const identifierHash = hashRateLimitIdentifier(input.identifier);
     const redis = getRedisConnection();
-    const [current, ttl] = (await redis.eval(
-      BYTE_BUDGET_SCRIPT,
-      1,
-      `needt:byte-budget:${input.namespace}:${identifierHash}`,
-      String(Math.max(0, input.bytes)),
-      String(input.windowSeconds)
+    const [current, ttl] = (await withRedisTimeout(
+      redis.eval(
+        BYTE_BUDGET_SCRIPT,
+        1,
+        `needt:byte-budget:${input.namespace}:${identifierHash}`,
+        String(Math.max(0, input.bytes)),
+        String(input.windowSeconds)
+      )
     )) as [number, number];
     if (current <= input.limitBytes) return null;
     await logger.warn(

@@ -2,7 +2,7 @@ import { ImapFlow } from "imapflow";
 
 import { logger } from "@/lib/logger";
 import { getMailAccountForSync } from "@/lib/mail-db";
-import { imapConnectionOptions } from "@/lib/mail/imap-tls";
+import { pinnedImapOptions } from "@/lib/mail/imap-pinned";
 import { imapCredentials } from "@/lib/mail/providers";
 import { enqueueMailSync } from "@/lib/queue/enqueue";
 
@@ -34,8 +34,23 @@ export async function ensureImapIdleWatcher(accountId: string): Promise<void> {
     );
     return;
   }
+  let connection: Awaited<ReturnType<typeof pinnedImapOptions>>;
+  try {
+    // Checked and pinned now, not only when the account was added.
+    connection = await pinnedImapOptions(credentials);
+  } catch (error) {
+    await logger.warn(
+      "IMAP IDLE skipped: the host is not reachable as a public address",
+      {
+        accountId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
+    return;
+  }
   const client = new ImapFlow({
-    ...imapConnectionOptions(credentials),
+    ...connection,
     maxIdleTime: IDLE_RESTART_INTERVAL_MS,
   });
   clients.set(accountId, client);

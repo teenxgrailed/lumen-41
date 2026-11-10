@@ -377,6 +377,24 @@ export async function refreshTokens(input: {
           "The refresh token was revoked."
         );
       }
+      // Checked before the claim: a rejected scope must not rotate the token,
+      // or the client's retry would look like reuse and revoke the family.
+      // An already rotated token still goes to the reuse path below.
+      let scope = stored.scope;
+      if (input.scope !== null) {
+        const asked = parseScopes(input.scope);
+        const granted = stored.scope.split(" ");
+        if (!asked || asked.some((s) => !granted.includes(s))) {
+          if (!stored.rotatedAt) {
+            return new OAuthError(
+              "invalid_scope",
+              "A refresh can only narrow the granted scopes."
+            );
+          }
+        } else {
+          scope = formatScopes(asked);
+        }
+      }
       const claimed = await tx.oAuthToken.updateMany({
         where: { id: stored.id, rotatedAt: null, revokedAt: null },
         data: { rotatedAt: newDate(), lastUsedAt: newDate() },
@@ -386,18 +404,6 @@ export async function refreshTokens(input: {
       if (claimed.count === 0) return { reuse: stored.familyId };
       if (stored.expiresAt.getTime() <= newDate().getTime()) {
         return new OAuthError("invalid_grant", "The refresh token expired.");
-      }
-      let scope = stored.scope;
-      if (input.scope !== null) {
-        const asked = parseScopes(input.scope);
-        const granted = stored.scope.split(" ");
-        if (!asked || asked.some((s) => !granted.includes(s))) {
-          return new OAuthError(
-            "invalid_scope",
-            "A refresh can only narrow the granted scopes."
-          );
-        }
-        scope = formatScopes(asked);
       }
       // The access tokens of the previous step stop with the rotation.
       await tx.oAuthToken.updateMany({
