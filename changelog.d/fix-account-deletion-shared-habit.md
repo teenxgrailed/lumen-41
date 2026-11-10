@@ -1,0 +1,1 @@
+- Deleting an account no longer gets stuck when it had habits in a shared workspace, and a replaced Pro subscription is cancelled too.

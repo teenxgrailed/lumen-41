@@ -88,6 +88,22 @@ describe("account deletion billing", () => {
     expect(cancel).toHaveBeenCalledWith("sub_dunning", { mode: "immediate" });
   });
 
+  it("finishes the pending Pro cancel when a Lifetime purchase left it behind", async () => {
+    jest.mocked(prisma.subscription.findUnique).mockResolvedValue({
+      creemSubscriptionId: null,
+      plan: SubscriptionPlan.LIFETIME,
+      status: SubscriptionStatus.ACTIVE,
+      provider: "CREEM",
+      appleOriginalTransactionId: null,
+      pendingCreemCancelId: "sub_old_pro",
+    } as never);
+    cancel.mockResolvedValue({});
+
+    await cancelRecurringBillingForDeletion("user-1");
+
+    expect(cancel).toHaveBeenCalledWith("sub_old_pro", { mode: "immediate" });
+  });
+
   it("does not call Creem for free or lifetime accounts", async () => {
     jest.mocked(prisma.subscription.findUnique).mockResolvedValue({
       creemSubscriptionId: null,
