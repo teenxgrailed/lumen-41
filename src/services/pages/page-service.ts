@@ -251,6 +251,22 @@ async function assertOwnedParent(actor: PageActor, parentId?: string | null) {
   if (!parent) throw new Error("Parent page not found");
 }
 
+/** Refuses a parent that is the page itself or one of its descendants. */
+async function assertNoParentCycle(pageId: string, parentId: string | null) {
+  const visited = new Set<string>();
+  let cursor = parentId;
+  while (cursor) {
+    if (cursor === pageId) throw new Error("A page cannot contain itself");
+    if (visited.has(cursor)) return;
+    visited.add(cursor);
+    const row = await prisma.page.findUnique({
+      where: { id: cursor },
+      select: { parentId: true },
+    });
+    cursor = row?.parentId ?? null;
+  }
+}
+
 /** A page may only be filed under a project the actor's workspace owns. */
 async function assertScopedProject(
   actor: PageActor,
@@ -356,6 +372,7 @@ export async function updatePage(
     throw new Error("A page cannot contain itself");
   if (input.parentId !== undefined) {
     await assertOwnedParent(actor, input.parentId);
+    await assertNoParentCycle(pageId, input.parentId);
   }
   if (input.projectId !== undefined) {
     await assertScopedProject(actor, input.projectId);
