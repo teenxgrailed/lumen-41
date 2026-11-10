@@ -162,6 +162,7 @@ describe("POST /api/auth/desktop/exchange", () => {
       email: "ada@example.com",
       image: null,
       role: "user",
+      sandboxKind: null,
     });
     const response = await exchange(post("/api/auth/desktop/exchange", body));
     expect(response.status).toBe(200);
@@ -190,6 +191,24 @@ describe("POST /api/auth/desktop/exchange", () => {
     });
     // The token only travels in Set-Cookie, never in the body.
     expect(text).not.toContain(cookie?.value as string);
+  });
+
+  it("carries the sandbox kind and never an admin role for a sandbox account", async () => {
+    jest.mocked(redeemDesktopAuthCode).mockResolvedValue({
+      id: "sandbox-1",
+      name: "Reviewer",
+      email: "reviewer@needt.test",
+      image: null,
+      role: "admin",
+      sandboxKind: "reviewer",
+    });
+    const response = await exchange(post("/api/auth/desktop/exchange", body));
+    expect(response.status).toBe(200);
+    const claims = await decode({
+      token: response.cookies.get("__Secure-next-auth.session-token")?.value,
+      secret: "test-secret-for-desktop-handoff",
+    });
+    expect(claims).toMatchObject({ sandboxKind: "reviewer", role: "user" });
   });
 
   it("answers every failure the same way and sets no cookie", async () => {
