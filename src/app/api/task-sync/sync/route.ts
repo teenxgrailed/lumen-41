@@ -6,6 +6,7 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import type { SyncResult } from "@/lib/task-sync/types";
 import { TaskSyncManager } from "@/lib/task-sync/task-sync-manager";
 
 // Log source for this file
@@ -17,10 +18,7 @@ const syncRequestSchema = z.object({
   providerId: z.string().optional(),
   mappingId: z.string().optional(),
   // Optional direction parameter
-  direction: z
-    .enum(["incoming", "outgoing", "bidirectional"])
-    .optional()
-    .default("bidirectional"),
+  direction: z.enum(["incoming", "outgoing", "bidirectional"]).optional(),
 });
 
 // Add a utility function to validate the direction parameter
@@ -63,10 +61,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { providerId, mappingId } = parseResult.data;
-    let { direction } = parseResult.data;
+    const direction = parseResult.data.direction ?? "bidirectional";
 
     // Validate the direction parameter
-    if (direction && !isValidDirection(direction)) {
+    if (!isValidDirection(direction)) {
       return NextResponse.json(
         {
           error: "Invalid direction",
@@ -76,6 +74,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 400 }
       );
     }
+
+    // A push-only pass does not exist yet; running a full sync instead would
+    // also pull and overwrite local tasks, so refuse it explicitly.
+    if (direction === "outgoing") {
+      return NextResponse.json(
+        {
+          error: "Unsupported direction",
+          message:
+            "Outgoing-only sync is not supported. Use 'incoming' or 'bidirectional'.",
+        },
+        { status: 400 }
+      );
+    }
+    const syncOptions = { direction };
 
     // Ensure at least one of providerId or mappingId is provided
     if (!providerId && !mappingId) {
@@ -117,15 +129,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           );
         }
 
-        // Use the mapping's direction if not explicitly provided
-        if (!direction) {
-          direction = mapping.direction as
-            | "incoming"
-            | "outgoing"
-            | "bidirectional";
-        }
-
-        result = await syncManager.syncTaskList(mapping);
+        result = await syncManager.syncTaskList(mapping, syncOptions);
       } else if (providerId) {
         // If providerId is provided, sync all mappings for that provider
         const provider = await prisma.taskProvider.findFirst({
@@ -155,10 +159,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         });
 
         // Sync each mapping
-        const results = [];
+        const results: SyncResult[] = [];
+        let failedMappings = 0;
+        const failures: Array<{ taskId: string; error: string }> = [];
         for (const mapping of mappings) {
           try {
-            const mappingResult = await syncManager.syncTaskList(mapping);
+            const mappingResult = await syncManager.syncTaskList(
+              mapping,
+              syncOptions
+            );
             results.push(mappingResult);
           } catch (error) {
             logger.error(
@@ -168,6 +177,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               },
               LOG_SOURCE
             );
+            failedMappings++;
+            failures.push({
+              taskId: mapping.id,
+              error: error instanceof Error ? error.message : "Unknown error",
+            });
           }
         }
 
@@ -187,12 +201,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             updated: 0,
             deleted: 0,
             skipped: 0,
-            errors: [] as Array<{ taskId: string; error: string }>,
+            errors: [...failures],
           }
         );
 
-        // Set success to false if any sync failed
-        result.success = results.every((r) => r.success);
+        // A mapping that threw is a failure too; it never reaches `results`.
+        result.success =
+          failedMappings === 0 && results.every((r) => r.success);
+
+        if (failedMappings > 0 && results.length === 0) {
+          return NextResponse.json(
+            {
+              error: "Sync failed",
+              message: "Every task list failed to sync",
+              result,
+            },
+            { status: 502 }
+          );
+        }
       }
 
       logger.info(

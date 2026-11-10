@@ -344,3 +344,34 @@ describe("TaskSyncManager incoming-only sync for import-only providers (issue #1
     });
   });
 });
+
+describe("TaskSyncManager health when every task failed", () => {
+  it("marks the mapping ERROR instead of OK when all tasks failed", async () => {
+    jest.clearAllMocks();
+    mockPrisma.taskListMapping.update.mockResolvedValue({});
+    const external: ExternalTask = {
+      id: "uid-1",
+      title: "Buy milk",
+      listId: "https://dav.example.com/cal/tasks/",
+    };
+    const provider = makeImportOnlyProvider([external]);
+    mockPrisma.task.findMany.mockResolvedValue([]);
+    mockPrisma.task.findFirst.mockResolvedValue(null);
+    mockPrisma.task.create.mockRejectedValue(new Error("db down"));
+
+    const manager = new TaskSyncManager();
+    jest.spyOn(manager, "getProvider").mockResolvedValue(provider);
+    jest
+      .spyOn(manager, "getFieldMapper")
+      .mockReturnValue(new CalDAVFieldMapper());
+
+    const result = await manager.syncTaskList(mapping());
+
+    expect(result.success).toBe(false);
+    const updates = mockPrisma.taskListMapping.update.mock.calls.map(
+      (c) => c[0].data
+    );
+    expect(updates.some((d) => d.syncStatus === "OK")).toBe(false);
+    expect(updates.some((d) => d.syncStatus === "ERROR")).toBe(true);
+  });
+});

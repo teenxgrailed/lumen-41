@@ -155,7 +155,8 @@ export class TaskSyncManager {
    * @returns Result of the sync operation
    */
   async syncTaskList(
-    mappingId: string | (TaskListMapping & { provider: DbTaskProvider })
+    mappingId: string | (TaskListMapping & { provider: DbTaskProvider }),
+    options: { direction?: "incoming" | "bidirectional" } = {}
   ): Promise<SyncResult> {
     let mapping: TaskListMapping & { provider: DbTaskProvider };
 
@@ -209,7 +210,10 @@ export class TaskSyncManager {
       // Import-only providers (e.g. CalDAV) cannot accept write-back, so run an
       // incoming-only path that pulls external -> local and never pushes local
       // changes or deletes local tasks based on a possibly-partial external read.
-      if (provider.supportsWriteBack?.() === false) {
+      if (
+        provider.supportsWriteBack?.() === false ||
+        options.direction === "incoming"
+      ) {
         result.direction = "incoming";
         await this.syncIncomingOnly(provider, mapping, result, fieldMapper);
       } else {
@@ -221,6 +225,30 @@ export class TaskSyncManager {
           fieldMapper,
           tracker
         );
+      }
+
+      // Per-task failures are collected, not thrown. When nothing succeeded and
+      // at least one task failed (a provider outage, a broken field mapping),
+      // the list is not healthy: record the error and keep the backoff.
+      const nothingSucceeded =
+        result.imported + result.updated + result.deleted === 0;
+      if (result.errors.length > 0 && nothingSucceeded) {
+        const summary = `All ${result.errors.length} task(s) failed to sync: ${result.errors[0].error}`;
+        await prisma.taskListMapping.update({
+          where: { id: mapping.id },
+          data: {
+            syncStatus: "ERROR",
+            lastError: summary,
+            syncFailureCount: { increment: 1 },
+            nextSyncAttemptAt: nextSyncAttemptAfterFailure(
+              newDate(),
+              (mapping.syncFailureCount ?? 0) + 1,
+              false
+            ),
+          },
+        });
+        result.success = false;
+        return result;
       }
 
       // Update the mapping with success status
