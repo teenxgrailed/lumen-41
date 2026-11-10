@@ -17,6 +17,7 @@ async function readSchedule(userId: string, workspace: WorkspaceAccess) {
     where: {
       ...workspaceDataScopeWhere(workspace, userId),
       isArchived: false,
+      trashedAt: null,
       status: { not: "completed" },
       OR: [
         { scheduledEnd: { gte: now } },
