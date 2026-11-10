@@ -1,0 +1,1 @@
+- A Pro buyer who re-subscribes after canceling now gets the new plan straight away, and a refund of an old payment no longer cancels the plan you have now.

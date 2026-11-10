@@ -97,6 +97,7 @@ type RevocationOutcome =
   | "partial_refund_retained"
   | "already_free"
   | "apple_active"
+  | "not_current_subscription"
   | "missing_subscription"
   | "replayed_event";
 
@@ -175,13 +176,40 @@ export async function processCreemRevocationEvent(
       const appleActive =
         existing.provider === BillingProvider.APPLE &&
         effectiveSubscriptionPlan(existing) !== SubscriptionPlan.FREE;
+      // A refund or chargeback only takes back the plan that payment bought.
+      // The row holds one subscription per user, so an event for an earlier
+      // subscription (the buyer re-subscribed since) or for a recurring
+      // subscription the Lifetime plan replaced must not touch the plan in
+      // force now.
+      let notCurrentSubscription = false;
+      if (revocation.creemSubscriptionId) {
+        if (existing.creemSubscriptionId) {
+          notCurrentSubscription =
+            existing.creemSubscriptionId !== revocation.creemSubscriptionId;
+        } else if (existing.plan === SubscriptionPlan.LIFETIME) {
+          // Lifetime is a one-time payment and never gets a subscription
+          // cursor; a cursor for the named id means a recurring Pro charge.
+          const recurringCursor = await tx.creemSubscriptionCursor.findUnique({
+            where: {
+              userId_creemSubscriptionId: {
+                userId,
+                creemSubscriptionId: revocation.creemSubscriptionId,
+              },
+            },
+            select: { userId: true },
+          });
+          notCurrentSubscription = Boolean(recurringCursor);
+        }
+      }
       const outcome: RevocationOutcome = appleActive
         ? "apple_active"
-        : partial
-          ? "partial_refund_retained"
-          : existing.plan === SubscriptionPlan.FREE
-            ? "already_free"
-            : "revoked";
+        : notCurrentSubscription
+          ? "not_current_subscription"
+          : partial
+            ? "partial_refund_retained"
+            : existing.plan === SubscriptionPlan.FREE
+              ? "already_free"
+              : "revoked";
 
       const receipt = await tx.creemWebhookEvent.createMany({
         data: [

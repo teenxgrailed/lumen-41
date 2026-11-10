@@ -22,7 +22,7 @@ const tx = {
     findFirst: jest.fn(),
     update: jest.fn(),
   },
-  creemSubscriptionCursor: { upsert: jest.fn() },
+  creemSubscriptionCursor: { upsert: jest.fn(), findUnique: jest.fn() },
   lifetimeHold: { updateMany: jest.fn() },
   creemWebhookEvent: { createMany: jest.fn() },
 };
@@ -76,6 +76,8 @@ beforeEach(() => {
   tx.subscription.update.mockResolvedValue({});
   tx.creemSubscriptionCursor.upsert.mockResolvedValue({});
   tx.lifetimeHold.updateMany.mockResolvedValue({ count: 1 });
+  tx.creemSubscriptionCursor.findUnique.mockReset();
+  tx.creemSubscriptionCursor.findUnique.mockResolvedValue(null);
 });
 
 describe("mapping a Creem revocation", () => {
@@ -110,6 +112,65 @@ describe("mapping a Creem revocation", () => {
 });
 
 describe("processing a Creem revocation", () => {
+  it("ignores a refund of an earlier subscription once the buyer re-subscribed", async () => {
+    tx.subscription.findFirst.mockResolvedValue({
+      id: "row_1",
+      userId: "user_1",
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.ACTIVE,
+      creemSubscriptionId: "sub_2",
+    });
+
+    await expect(processCreemRevocationEvent(refundEvent())).resolves.toEqual({
+      processed: false,
+      outcome: "not_current_subscription",
+    });
+    expect(tx.subscription.update).not.toHaveBeenCalled();
+    expect(tx.creemSubscriptionCursor.upsert).not.toHaveBeenCalled();
+    expect(tx.creemWebhookEvent.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({ outcome: "not_current_subscription" }),
+        ],
+      })
+    );
+  });
+
+  it("keeps Lifetime when the refund is for the recurring Pro charge it replaced", async () => {
+    tx.subscription.findFirst.mockResolvedValue({
+      id: "row_1",
+      userId: "user_1",
+      plan: SubscriptionPlan.LIFETIME,
+      status: SubscriptionStatus.ACTIVE,
+      creemSubscriptionId: null,
+    });
+    tx.creemSubscriptionCursor.findUnique.mockResolvedValue({
+      userId: "user_1",
+    });
+
+    await expect(processCreemRevocationEvent(refundEvent())).resolves.toEqual({
+      processed: false,
+      outcome: "not_current_subscription",
+    });
+    expect(tx.subscription.update).not.toHaveBeenCalled();
+    expect(tx.lifetimeHold.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("still revokes the current subscription when the ids match", async () => {
+    tx.subscription.findFirst.mockResolvedValue({
+      id: "row_1",
+      userId: "user_1",
+      plan: SubscriptionPlan.PRO,
+      status: SubscriptionStatus.ACTIVE,
+      creemSubscriptionId: "sub_1",
+    });
+
+    await expect(processCreemRevocationEvent(refundEvent())).resolves.toEqual({
+      processed: true,
+      outcome: "revoked",
+    });
+  });
+
   it("drops a refunded buyer to FREE immediately", async () => {
     tx.subscription.findFirst.mockResolvedValue({
       id: "row_1",
