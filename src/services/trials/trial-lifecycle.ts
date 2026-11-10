@@ -129,12 +129,27 @@ async function processMilestone(milestone: Milestone, now: Date) {
         payUrl: payUrl(),
         unsubscribeUrl: unsubscribe,
       });
-      await EmailService.sendEmail({
-        to: grant.user.email,
-        ...template,
-        commercial: true,
-        unsubscribeUrl: unsubscribe,
-      });
+      try {
+        await EmailService.sendEmail({
+          to: grant.user.email,
+          ...template,
+          commercial: true,
+          unsubscribeUrl: unsubscribe,
+        });
+      } catch (error) {
+        // One rejected address must not block the grants behind it. The claim
+        // stays, so this one is tried again after the claim expires.
+        logger.error(
+          "Trial email failed",
+          {
+            grantId: grant.id,
+            milestone,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          LOG_SOURCE
+        );
+        continue;
+      }
       await prisma.trialGrant.update({
         where: { id: grant.id },
         data: { [sentField]: now },

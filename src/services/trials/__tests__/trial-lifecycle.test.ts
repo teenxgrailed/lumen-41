@@ -52,6 +52,31 @@ describe("trial lifecycle worker", () => {
     jest.mocked(flagStates).mockResolvedValue(new Map());
   });
 
+  it("keeps mailing the next grant when one email is rejected", async () => {
+    const second = { ...expiredGrant, id: "trial-2" };
+    jest
+      .mocked(prisma.trialGrant.findMany)
+      .mockResolvedValueOnce([expiredGrant, second] as never)
+      .mockResolvedValueOnce([]);
+    jest
+      .mocked(EmailService.sendEmail)
+      .mockRejectedValueOnce(new Error("Resend API error: 422"))
+      .mockResolvedValueOnce({ jobId: "email-2" });
+
+    await expect(
+      processTrialLifecycle(newDate("2026-09-16T12:00:00.000Z"))
+    ).resolves.toEqual({ day11: 0, day14: 1 });
+    expect(EmailService.sendEmail).toHaveBeenCalledTimes(2);
+    expect(prisma.trialGrant.update).toHaveBeenCalledWith({
+      where: { id: "trial-2" },
+      data: { day14SentAt: newDate("2026-09-16T12:00:00.000Z") },
+    });
+    expect(prisma.trialGrant.update).not.toHaveBeenCalledWith({
+      where: { id: "trial-1" },
+      data: { day14SentAt: expect.anything() },
+    });
+  });
+
   it("leaves a person on the email programme to the programme", async () => {
     jest.mocked(flagStates).mockResolvedValue(new Map([["user-1", true]]));
     jest

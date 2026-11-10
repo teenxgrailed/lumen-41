@@ -1,6 +1,10 @@
 import { Prisma, ProactiveNudgeType } from "@prisma/client";
 
-import { formatInTimeZone, fromZonedTime } from "@/lib/date-utils";
+import {
+  formatInTimeZone,
+  fromZonedTime,
+  startOfDayInTimeZone,
+} from "@/lib/date-utils";
 import { canUseAdvancedNudges } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { type WeekHours } from "@/lib/work-week";
@@ -152,6 +156,19 @@ async function freeTimeDraft(
   };
 }
 
+/**
+ * Overdue means the due day is before today in the person's zone (the owner
+ * rule in lib/needt3/task-day.ts). A task due today is not overdue for the
+ * whole day, even though its stored midnight instant is already past.
+ */
+export function isDeadlineOverdue(
+  deadline: Date | null,
+  now: Date,
+  timeZone: string
+) {
+  return Boolean(deadline && deadline < startOfDayInTimeZone(now, timeZone));
+}
+
 export async function generateProactiveNudges(now = new Date()) {
   const users = await prisma.user.findMany({
     select: {
@@ -236,7 +253,7 @@ export async function generateProactiveNudges(now = new Date()) {
       });
       for (const task of tasks) {
         const deadline = task.deadline ?? task.dueDate;
-        if (deadline && deadline < now) {
+        if (isDeadlineOverdue(deadline, now, timeZone)) {
           drafts.push({
             taskId: task.id,
             type: ProactiveNudgeType.OVERDUE_TASK,

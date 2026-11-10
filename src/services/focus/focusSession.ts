@@ -289,17 +289,25 @@ export async function finalizeSession(input: {
     endedAt
   );
 
-  const finalized = await prisma.focusSession.update({
-    where: { id: session.id },
-    data: {
-      endedAt,
-      pausedAt: null,
-      pausedTotalSeconds,
-      elapsedMinutes: minutes,
-      completed: input.completed,
-      abandoned: !input.completed,
-    },
-  });
+  // Guarded on endedAt: null so two concurrent finalizes cannot both win and
+  // book the same minutes twice. The loser finds no open row (P2025) and stops.
+  let finalized: FocusSession;
+  try {
+    finalized = await prisma.focusSession.update({
+      where: { id: session.id, endedAt: null },
+      data: {
+        endedAt,
+        pausedAt: null,
+        pausedTotalSeconds,
+        elapsedMinutes: minutes,
+        completed: input.completed,
+        abandoned: !input.completed,
+      },
+    });
+  } catch (error) {
+    if ((error as { code?: string } | null)?.code === "P2025") return null;
+    throw error;
+  }
 
   await syncFocusEndJob(finalized);
 

@@ -1,0 +1,1 @@
+- Fixes from an internal audit: trashed tasks no longer show in connector schedule output, disconnecting an integration revokes its upstream grant, partial AI settings updates keep saved values, and several races and stuck queues (focus sessions, broadcast cancel, reminders, due-today nudges, Pinterest sync, trial emails, bug reports) are closed.

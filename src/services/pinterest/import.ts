@@ -278,7 +278,16 @@ export async function syncPinterestBoards(
       break;
     }
     try {
-      if (!(await hasPinterestPlan(userId))) continue;
+      if (!(await hasPinterestPlan(userId))) {
+        // Count the look, so a board without a plan moves to the back of the
+        // queue instead of holding the front of it forever.
+        await prisma.moodboard.update({
+          where: { id: b.id },
+          data: { pinterestSyncedAt: newDate() },
+          select: { id: true },
+        });
+        continue;
+      }
       const workspace = await resolveWorkspaceAccess({
         userId,
         requestedWorkspaceId: b.workspaceId,

@@ -75,7 +75,7 @@ async function handleControl(
   if (action === "overview") {
     const [tasks, projects, calendars, events] = await Promise.all([
       prisma.task.findMany({
-        where: { ...scope, isArchived: false },
+        where: { ...scope, isArchived: false, trashedAt: null },
         orderBy: [{ scheduledStart: "asc" }, { createdAt: "desc" }],
       }),
       prisma.project.findMany({

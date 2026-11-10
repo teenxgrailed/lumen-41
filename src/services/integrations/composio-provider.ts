@@ -309,6 +309,31 @@ export class ComposioIntegrationProvider implements IntegrationProvider {
     }
     return { deleted, failed, kept };
   }
+
+  /**
+   * Best effort: asks Composio to delete one connected account and revoke the
+   * upstream grant. Never throws; a connection already gone (404) counts as
+   * revoked. Returns whether the grant is gone.
+   */
+  async revokeConnection(connectionId: string): Promise<boolean> {
+    if (!this.isConfigured() || !connectionId) return false;
+    try {
+      await composioRequest(
+        `/connected_accounts/${encodeURIComponent(connectionId)}?revoke_on_delete=true`,
+        { method: "DELETE" }
+      );
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.startsWith("Composio returned 404")) return true;
+      await logger.warn(
+        "Could not revoke Composio connection",
+        { connectionId, error: message },
+        LOG_SOURCE
+      );
+      return false;
+    }
+  }
 }
 
 export const composioProvider = new ComposioIntegrationProvider();

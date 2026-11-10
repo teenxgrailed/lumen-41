@@ -84,35 +84,58 @@ export async function syncBugReportToGithub(reportId?: string) {
   if (!config) return;
   const reports = reportId
     ? [await prisma.bugReport.findUnique({ where: { id: reportId } })]
-    : await prisma.bugReport.findMany({ where: { githubIssueUrl: null }, orderBy: { createdAt: "asc" }, take: 20 });
+    : await prisma.bugReport.findMany({
+        where: { githubIssueUrl: null },
+        orderBy: { createdAt: "asc" },
+        take: 20,
+      });
+  let firstError: unknown;
   for (const report of reports) {
     if (!report || report.githubIssueUrl) continue;
 
     try {
-      const response = await fetch(`https://api.github.com/repos/${config.repository}/issues`, {
-      method: "POST",
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${config.token}`,
-        "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      body: JSON.stringify({
-        title: `[User report] ${report.title}`,
-        body: issueBody(report),
-        labels: ["user-report"],
-      }),
-    });
+      const response = await fetch(
+        `https://api.github.com/repos/${config.repository}/issues`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: `Bearer ${config.token}`,
+            "Content-Type": "application/json",
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+          body: JSON.stringify({
+            title: `[User report] ${report.title}`,
+            body: issueBody(report),
+            labels: ["user-report"],
+          }),
+        }
+      );
       if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
       const issue = (await response.json()) as { html_url?: string };
-      await prisma.bugReport.update({ where: { id: report.id }, data: { githubIssueUrl: issue.html_url ?? null, githubSyncError: null } });
+      await prisma.bugReport.update({
+        where: { id: report.id },
+        data: { githubIssueUrl: issue.html_url ?? null, githubSyncError: null },
+      });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown GitHub error";
-      await prisma.bugReport.update({ where: { id: report.id }, data: { githubSyncError: message.slice(0, 500) } });
-      await logger.warn("Bug report saved but GitHub sync failed", { reportId: report.id, error: message }, LOG_SOURCE);
-      throw error;
+      const message =
+        error instanceof Error ? error.message : "Unknown GitHub error";
+      await prisma.bugReport.update({
+        where: { id: report.id },
+        data: { githubSyncError: message.slice(0, 500) },
+      });
+      await logger.warn(
+        "Bug report saved but GitHub sync failed",
+        { reportId: report.id, error: message },
+        LOG_SOURCE
+      );
+      // A single report fails loudly. In the sweep one bad report must not
+      // block the ones behind it; the first error is rethrown at the end.
+      if (reportId) throw error;
+      firstError ??= error;
     }
   }
+  if (firstError) throw firstError;
 }
 
 export async function createBugReport(userId: string, input: BugReportInput) {
@@ -143,12 +166,20 @@ export async function createBugReport(userId: string, input: BugReportInput) {
           }
         : {}),
     },
-    include: { attachments: { select: { id: true, fileName: true, mimeType: true, size: true } } },
+    include: {
+      attachments: {
+        select: { id: true, fileName: true, mimeType: true, size: true },
+      },
+    },
   });
   await enqueueBugReportSync(report.id);
   return prisma.bugReport.findUnique({
     where: { id: report.id },
-    include: { attachments: { select: { id: true, fileName: true, mimeType: true, size: true } } },
+    include: {
+      attachments: {
+        select: { id: true, fileName: true, mimeType: true, size: true },
+      },
+    },
   });
 }
 
@@ -156,7 +187,9 @@ export async function listBugReports() {
   return prisma.bugReport.findMany({
     include: {
       user: { select: { id: true, name: true, email: true } },
-      attachments: { select: { id: true, fileName: true, mimeType: true, size: true } },
+      attachments: {
+        select: { id: true, fileName: true, mimeType: true, size: true },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: 200,

@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
     where: {
       ...workspaceDataScopeWhere(auth.workspace, auth.userId),
       isArchived: false,
+      trashedAt: null,
     },
   });
   await sendConnectorWebhook({

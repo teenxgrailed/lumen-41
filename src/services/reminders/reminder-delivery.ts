@@ -71,7 +71,8 @@ export async function findDueReminderIds(now = new Date()) {
 
   const candidates = await prisma.taskReminder.findMany({
     where: {
-      ...LIVE,
+      canceledAt: LIVE.canceledAt,
+      deliveredAt: LIVE.deliveredAt,
       OR: [
         { deliveryStatus: ReminderDeliveryStatus.PENDING },
         {
@@ -82,6 +83,7 @@ export async function findDueReminderIds(now = new Date()) {
       // Only rows that can have a time: a snooze, an absolute time, a task
       // with a start or deadline, or an event.
       AND: [
+        ...LIVE.AND,
         {
           OR: [
             { snoozedUntil: { lte: now } },

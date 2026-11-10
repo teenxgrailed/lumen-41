@@ -3,7 +3,7 @@ import { SafeFetchError } from "@/services/imports/safe-fetch";
 import { prisma } from "@/lib/prisma";
 
 import { PinterestApiError, listPinterestPins } from "../client";
-import { PinterestPlanError } from "../connection";
+import { PinterestPlanError, hasPinterestPlan } from "../connection";
 import {
   importPinterestBoard,
   isPinimgHost,
@@ -226,6 +226,17 @@ describe("syncPinterestBoards", () => {
     const data = (prisma.moodboard.update as jest.Mock).mock.calls[0][0].data;
     expect(data.pinterestSeen).toEqual(["1", "2"]);
     expect(Object.keys(data)).not.toContain("pinterestSync");
+  });
+
+  it("stamps a board whose owner has no plan so it leaves the front of the queue", async () => {
+    (hasPinterestPlan as jest.Mock).mockResolvedValueOnce(false);
+    (prisma.moodboard.findMany as jest.Mock).mockResolvedValue([due("m1")]);
+    const r = await syncPinterestBoards({ download });
+    expect(r.checked).toBe(0);
+    expect(listPinterestPins).not.toHaveBeenCalled();
+    const call = (prisma.moodboard.update as jest.Mock).mock.calls[0][0];
+    expect(call.where).toEqual({ id: "m1" });
+    expect(call.data.pinterestSyncedAt).toBeInstanceOf(Date);
   });
 
   it("only asks for boards that are synced and not looked at in 23 hours", async () => {
