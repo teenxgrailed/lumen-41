@@ -1,1 +1,2 @@
 - Calendar updates that arrive while a sync or reschedule is already running now trigger a follow-up run instead of being dropped.
+- Editing a Google recurring event with more than 250 occurrences no longer hides the later ones.

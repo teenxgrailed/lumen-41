@@ -345,7 +345,7 @@ export default async function getGoogleEvent(
     });
     const event = eventResponse.data;
     // Initialize instances array
-    let instances: GoogleEvent[] = [];
+    const instances: GoogleEvent[] = [];
     let masterEvent = event;
 
     // If this is an instance of a recurring event
@@ -374,24 +374,30 @@ export default async function getGoogleEvent(
 
     // If this is a recurring event (either master or we found the master)
     if (masterEvent.recurrence) {
-      const instancesResponse = await googleCalendarClient.events.instances({
-        calendarId,
-        eventId: masterEvent.id || "", // Ensure non-null string
-        timeMin: newDateFromYMD(newDate().getFullYear(), 0, 1).toISOString(),
-        timeMax: newDateFromYMD(
-          newDate().getFullYear() + 1,
-          0,
-          1
-        ).toISOString(),
-      });
-      if (instancesResponse && instancesResponse.data) {
-        instances = instancesResponse.data.items || [];
-        logger.debug(
-          "Fetched recurring event instances",
-          { eventId: masterEvent.id ?? null, count: instances.length },
-          LOG_SOURCE
-        );
-      }
+      // Google pages instances (250 by default); the caller archives every
+      // instance missing from this list, so a partial list would hide the rest.
+      let pageToken: string | undefined;
+      do {
+        const instancesResponse = await googleCalendarClient.events.instances({
+          calendarId,
+          eventId: masterEvent.id || "", // Ensure non-null string
+          timeMin: newDateFromYMD(newDate().getFullYear(), 0, 1).toISOString(),
+          timeMax: newDateFromYMD(
+            newDate().getFullYear() + 1,
+            0,
+            1
+          ).toISOString(),
+          maxResults: 250,
+          pageToken,
+        });
+        instances.push(...(instancesResponse?.data?.items || []));
+        pageToken = instancesResponse?.data?.nextPageToken || undefined;
+      } while (pageToken);
+      logger.debug(
+        "Fetched recurring event instances",
+        { eventId: masterEvent.id ?? null, count: instances.length },
+        LOG_SOURCE
+      );
     }
 
     return {
