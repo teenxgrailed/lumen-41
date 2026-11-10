@@ -1,0 +1,1 @@
+- Security hardening: calendar event edits accept only editable fields, first-run setup can no longer create two admins, push and IMAP connections are re-checked against private addresses, and a Redis outage now fails sign-in quickly instead of hanging.
