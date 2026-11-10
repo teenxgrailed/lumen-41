@@ -84,6 +84,39 @@ describe("calendar sync enqueue", () => {
     expect(syncQueue.add).toHaveBeenCalledTimes(1);
   });
 
+  it("queues one trailing run when the job with that id is active", async () => {
+    const active = {
+      ...runningJob(),
+      isActive: jest.fn().mockResolvedValue(true),
+    };
+    syncQueue.getJob.mockImplementation(async (id: string) =>
+      id === "calendar-sync-feed-1" ? active : null
+    );
+    await enqueueCalendarSync("feed-1");
+    expect(active.remove).not.toHaveBeenCalled();
+    expect(syncQueue.add).toHaveBeenCalledWith(
+      "sync-feed",
+      { feedId: "feed-1" },
+      expect.objectContaining({ jobId: "calendar-sync-feed-1-next" })
+    );
+  });
+
+  it("queues a trailing reschedule while one is active", async () => {
+    const active = {
+      ...runningJob(),
+      isActive: jest.fn().mockResolvedValue(true),
+    };
+    rescheduleQueue.getJob.mockImplementation(async (id: string) =>
+      id === "reschedule-user-1" ? active : null
+    );
+    await enqueueReschedule("user-1");
+    expect(rescheduleQueue.add).toHaveBeenCalledWith(
+      "reschedule-user",
+      { userId: "user-1", runId: undefined },
+      expect.objectContaining({ jobId: "reschedule-user-1-next" })
+    );
+  });
+
   it("clears a finished reschedule job the same way", async () => {
     const job = finishedJob("completed");
     rescheduleQueue.getJob.mockResolvedValue(job);

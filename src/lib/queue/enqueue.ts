@@ -46,6 +46,7 @@ async function clearFinishedJob(
       | {
           isCompleted: () => Promise<boolean>;
           isFailed: () => Promise<boolean>;
+          isActive?: () => Promise<boolean>;
           remove: () => Promise<void>;
         }
       | null
@@ -55,18 +56,51 @@ async function clearFinishedJob(
   jobId: string
 ) {
   const existing = await queue.getJob(jobId);
-  if (!existing) return;
+  if (!existing) return false;
   if ((await existing.isCompleted()) || (await existing.isFailed())) {
     await existing.remove().catch(() => undefined);
+    return false;
   }
+  return existing.isActive ? await existing.isActive() : false;
+}
+
+/** How long a trailing re-run waits, so it starts after the active job ends. */
+const TRAILING_RERUN_DELAY_MS = 10_000;
+
+/**
+ * A waiting job will read fresh data when it starts, so it can absorb a new
+ * request. A job that is already running has read its data and would drop the
+ * request on the floor, so the change goes in a single trailing job under a
+ * second id, which also dedupes a burst of requests.
+ */
+async function addOrTrail<T>(
+  queue: Parameters<typeof clearFinishedJob>[0] & {
+    add: (
+      name: string,
+      data: T,
+      opts: { jobId: string; delay?: number }
+    ) => Promise<unknown>;
+  },
+  name: string,
+  data: T,
+  jobId: string
+) {
+  if (await clearFinishedJob(queue, jobId)) {
+    const trailingId = `${jobId}-next`;
+    await clearFinishedJob(queue, trailingId);
+    return queue.add(name, data, {
+      jobId: trailingId,
+      delay: TRAILING_RERUN_DELAY_MS,
+    });
+  }
+  return queue.add(name, data, { jobId });
 }
 
 export async function enqueueCalendarSync(feedId: string) {
   if (await skipWhenUnconfigured("calendar-sync")) return null;
   const queue = getCalendarSyncQueue();
   const jobId = `calendar-sync-${feedId}`;
-  await clearFinishedJob(queue, jobId);
-  return queue.add("sync-feed", { feedId }, { jobId });
+  return addOrTrail(queue, "sync-feed", { feedId }, jobId);
 }
 
 export async function enqueueTaskListSync(mappingId: string) {
@@ -81,8 +115,7 @@ export async function enqueueReschedule(userId: string, runId?: string) {
   if (await skipWhenUnconfigured("reschedule")) return null;
   const queue = getRescheduleQueue();
   const jobId = runId ? `reschedule-run-${runId}` : `reschedule-${userId}`;
-  await clearFinishedJob(queue, jobId);
-  return queue.add("reschedule-user", { userId, runId }, { jobId });
+  return addOrTrail(queue, "reschedule-user", { userId, runId }, jobId);
 }
 
 export async function enqueueWebhookRenew(options?: {
