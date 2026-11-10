@@ -35,6 +35,9 @@ jest.mock("@/lib/mail/providers", () => ({
   }),
 }));
 jest.mock("@/lib/queue/enqueue", () => ({ enqueueMailSync: jest.fn() }));
+jest.mock("@/lib/mail/imap-pinned", () => ({
+  pinnedImapOptions: jest.fn(async (c: { host: string }) => ({ host: c.host })),
+}));
 
 import { startImapIdleWatchers } from "@/lib/mail/imap-idle";
 

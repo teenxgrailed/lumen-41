@@ -370,6 +370,26 @@ export async function assertPublicHost(
   }
 }
 
+/**
+ * The public address to connect to for `hostname`, checked once so a client
+ * that opens its own connection (IMAP) can dial that address instead of the
+ * name and not resolve it a second time. Refusals are `UnsafeFetchError`,
+ * as in `assertPublicHost`.
+ */
+export async function resolvePublicHost(
+  hostname: string,
+  deps: Pick<SafeFetchDeps, "lookup"> = defaultDeps
+): Promise<string> {
+  const host = hostname.trim();
+  if (!host) throw new UnsafeFetchError("The host is empty.");
+  try {
+    return await withDeadline(publicAddress(host, deps), Date.now() + 5_000);
+  } catch (error) {
+    if (error instanceof UnsafeFetchError) throw error;
+    throw new UnsafeFetchError("The host could not be resolved.");
+  }
+}
+
 export interface SafeFetchInit {
   method?: string;
   headers?: HeadersInit;
