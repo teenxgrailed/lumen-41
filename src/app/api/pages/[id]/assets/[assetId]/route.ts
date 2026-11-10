@@ -4,6 +4,7 @@ import { PageAccessRole } from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { resolvePageAccess } from "@/lib/auth/page-auth";
+import { contentDisposition } from "@/lib/content-disposition";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "PageAssetAPI";
@@ -53,13 +54,15 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     return assetJson({ error: "Asset not found" }, 404);
   }
   const disposition = isInlineType(asset.mimeType) ? "inline" : "attachment";
-  const safeName = asset.originalName.replace(/["\r\n]/g, "_");
   return new NextResponse(asset.bytes, {
     headers: {
       ...ASSET_SECURITY_HEADERS,
       "Content-Type": asset.mimeType,
       "Content-Length": String(asset.size),
-      "Content-Disposition": `${disposition}; filename="${safeName}"`,
+      "Content-Disposition": contentDisposition(
+        disposition,
+        asset.originalName
+      ),
       "Cache-Control": "private, max-age=3600",
     },
   });

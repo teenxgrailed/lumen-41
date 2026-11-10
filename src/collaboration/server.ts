@@ -24,6 +24,7 @@ import { randomUUID } from "node:crypto";
 import { Yjs as Y } from "@/lib/collaboration/yjs";
 import { newDate } from "@/lib/date-utils";
 import { isBuildShaAllowed, resolveBuildSha } from "@/lib/health/build-sha";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -32,6 +33,7 @@ import {
   reauthorizeCollaboration,
 } from "./access-policy";
 
+const LOG_SOURCE = "collaboration-server";
 const MOODBOARD_SNAPSHOT_INTERVAL_MS = 5 * 60 * 1_000;
 const DEFAULT_AUTHORIZATION_RECHECK_INTERVAL_MS = 15_000;
 const PAGE_LEASE_HEARTBEAT_INTERVAL_MS = 15_000;
@@ -85,6 +87,15 @@ function authenticateCollaboration(token: string, documentName: string) {
     : authenticatePageCollaboration(token, documentName);
 }
 
+function isTransientDatabaseError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError ||
+    error instanceof Prisma.PrismaClientInitializationError ||
+    error instanceof Prisma.PrismaClientUnknownRequestError ||
+    error instanceof Prisma.PrismaClientRustPanicError
+  );
+}
+
 async function refreshConnectionAuthorization(
   connection: Connection<CollaborationContext>,
   documentName: string
@@ -97,7 +108,17 @@ async function refreshConnectionAuthorization(
     connection.context = context;
     connection.readOnly = isCollaborationReadOnly(context);
     return context;
-  } catch {
+  } catch (error) {
+    // A database blip says nothing about access: keep the last known
+    // context and let the next check decide. Only a real denial closes.
+    if (isTransientDatabaseError(error)) {
+      logger.warn(
+        "Collaboration re-authorization skipped on a database error",
+        { error: error instanceof Error ? error.message : String(error) },
+        LOG_SOURCE
+      );
+      return connection.context;
+    }
     throw new CollaborationAuthorizationError();
   }
 }

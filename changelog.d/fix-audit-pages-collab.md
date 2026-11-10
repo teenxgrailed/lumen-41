@@ -1,0 +1,1 @@
+- Collaborative editing no longer drops everyone with an access-revoked error when the database hiccups; pages cannot be moved under their own sub-pages, and database views hide trashed rows and sort by edit date correctly.
