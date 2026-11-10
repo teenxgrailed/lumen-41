@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { WorkspaceRole } from "@prisma/client";
+import {
+  Prisma,
+  SchedulingEnergyLevel,
+  SchedulingTaskPriority,
+  WorkspaceRole,
+} from "@prisma/client";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
@@ -32,6 +37,30 @@ interface ImportData {
   tags?: ImportTag[];
   projects?: ImportProject[];
 }
+
+interface ExportedTaskExtras {
+  startDate?: string | null;
+  deadline?: string | null;
+  availableFrom?: string | null;
+  hardDeadline?: boolean;
+  estimatedMinutes?: number | null;
+  priorityLevel?: SchedulingTaskPriority;
+  energyRequired?: SchedulingEnergyLevel;
+  contextTag?: string | null;
+  isArchived?: boolean;
+  archivedAt?: string | null;
+}
+
+/** Parse an exported date; anything unparseable is null (never an Invalid Date). */
+export function parseImportDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") return null;
+  const date = new Date(value as string | number | Date);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+// Interactive transactions default to 5s; a restore of a few hundred tasks
+// needs far more.
+const IMPORT_TX_OPTIONS = { timeout: 120_000, maxWait: 10_000 };
 
 // Helper function to validate the import data structure
 function validateImportData(data: unknown): boolean {
@@ -137,6 +166,7 @@ export async function POST(request: NextRequest) {
 
       // Import tasks
       let importedCount = 0;
+      const skipped: { title: string; error: string }[] = [];
 
       for (const task of data.tasks) {
         try {
@@ -151,31 +181,50 @@ export async function POST(request: NextRequest) {
             ? projectMap.get(task.projectId) || null
             : null;
 
+          // Fields the typed Task shape does not list but the export carries.
+          const raw = task as unknown as ExportedTaskExtras;
+
           // Create the task with proper type handling
           const taskData = {
             title: task.title,
             description: task.description,
             status: task.status,
-            dueDate: task.dueDate,
+            dueDate: parseImportDate(task.dueDate),
+            startDate: parseImportDate(raw.startDate),
+            deadline: parseImportDate(raw.deadline),
+            availableFrom: parseImportDate(raw.availableFrom),
+            ...(typeof raw.hardDeadline === "boolean"
+              ? { hardDeadline: raw.hardDeadline }
+              : {}),
+            ...(typeof raw.estimatedMinutes === "number"
+              ? { estimatedMinutes: raw.estimatedMinutes }
+              : {}),
+            ...(raw.priorityLevel ? { priorityLevel: raw.priorityLevel } : {}),
+            ...(raw.energyRequired
+              ? { energyRequired: raw.energyRequired }
+              : {}),
+            contextTag: raw.contextTag ?? null,
+            isArchived: raw.isArchived === true,
+            archivedAt: parseImportDate(raw.archivedAt),
             duration: task.duration,
             priority: task.priority,
             energyLevel: task.energyLevel,
             preferredTime: task.preferredTime,
             isAutoScheduled: task.isAutoScheduled || false,
             scheduleLocked: task.scheduleLocked || false,
-            scheduledStart: task.scheduledStart,
-            scheduledEnd: task.scheduledEnd,
+            scheduledStart: parseImportDate(task.scheduledStart),
+            scheduledEnd: parseImportDate(task.scheduledEnd),
             scheduleScore: task.scheduleScore,
-            lastScheduled: task.lastScheduled,
+            lastScheduled: parseImportDate(task.lastScheduled),
             isRecurring: task.isRecurring || false,
             recurrenceRule: task.recurrenceRule,
-            lastCompletedDate: task.lastCompletedDate,
-            completedAt: task.completedAt,
-            postponedUntil: task.postponedUntil,
+            lastCompletedDate: parseImportDate(task.lastCompletedDate),
+            completedAt: parseImportDate(task.completedAt),
+            postponedUntil: parseImportDate(task.postponedUntil),
             externalTaskId: task.externalTaskId,
             source: task.source,
-            lastSyncedAt: task.lastSyncedAt,
-            createdAt: new Date(task.createdAt as Date) || new Date(),
+            lastSyncedAt: parseImportDate(task.lastSyncedAt),
+            createdAt: parseImportDate(task.createdAt) ?? new Date(),
             updatedAt: new Date(),
           };
 
@@ -220,6 +269,19 @@ export async function POST(request: NextRequest) {
 
           importedCount++;
         } catch (taskError) {
+          // A database error aborts the Postgres transaction: every later
+          // statement would fail too. Fail loudly and roll back instead.
+          if (
+            taskError instanceof Prisma.PrismaClientKnownRequestError ||
+            taskError instanceof Prisma.PrismaClientUnknownRequestError
+          ) {
+            throw taskError;
+          }
+          skipped.push({
+            title: String(task.title),
+            error:
+              taskError instanceof Error ? taskError.message : "Unknown error",
+          });
           logger.warn(
             "Error importing individual task",
             {
@@ -235,14 +297,15 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return { importedCount };
-    });
+      return { importedCount, skipped };
+    }, IMPORT_TX_OPTIONS);
 
     logger.info(
       "Tasks imported successfully",
       {
         userId,
         importedCount: result.importedCount,
+        skippedCount: result.skipped.length,
       },
       LOG_SOURCE
     );
@@ -250,6 +313,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       imported: result.importedCount,
+      skipped: result.skipped.length,
+      skippedTasks: result.skipped.slice(0, 50),
     });
   } catch (error) {
     logger.error(
