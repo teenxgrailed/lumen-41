@@ -352,9 +352,17 @@ export async function cancelBroadcast(
     throw new BroadcastError(409, "This broadcast is already finished.");
   }
   return prisma.$transaction(async (tx) => {
-    const updated = await tx.emailBroadcast.update({
-      where: { id },
+    // Re-check the status in the write: the sender may have finished the
+    // broadcast since it was loaded, and a sent one must stay sent.
+    const result = await tx.emailBroadcast.updateMany({
+      where: { id, status: { in: ["draft", "scheduled", "sending"] } },
       data: { status: "cancelled", cancelledAt: now },
+    });
+    if (result.count === 0) {
+      throw new BroadcastError(409, "This broadcast is already finished.");
+    }
+    const updated = await tx.emailBroadcast.findUniqueOrThrow({
+      where: { id },
     });
     await recordAdminAudit(
       {
