@@ -190,6 +190,25 @@ describe("finalizeSession, ending early", () => {
   });
 });
 
+describe("finalizeSession, concurrent finalize", () => {
+  it("guards the write on an open session and books nothing for the loser", async () => {
+    findFirst.mockResolvedValue(row());
+    update.mockRejectedValueOnce(
+      Object.assign(new Error("gone"), { code: "P2025" })
+    );
+    const result = await finalizeSession({
+      userId: "u1",
+      sessionId: "s1",
+      completed: false,
+      taskScope: SCOPE,
+    });
+    expect(update.mock.calls[0][0].where).toEqual({ id: "s1", endedAt: null });
+    expect(result).toBeNull();
+    expect(timeEntryCreate).not.toHaveBeenCalled();
+    expect(taskUpdate).not.toHaveBeenCalled();
+  });
+});
+
 describe("finalizeSession, the clock ran out", () => {
   it("books the planned length when the session is found hours later", async () => {
     findFirst.mockResolvedValue(row({ startedAt: minutesAgo(600) }));
