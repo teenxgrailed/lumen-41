@@ -314,7 +314,8 @@ export async function fetchEventInstances(
 export async function processMasterEvent(
   client: Client,
   masterEvent: OutlookEvent,
-  feed: { id: string; url: string }
+  feed: { id: string; url: string },
+  failures: { count: number } = { count: 0 }
 ) {
   const processedIds = new Set<string>();
   processedIds.add(masterEvent.id);
@@ -360,6 +361,7 @@ export async function processMasterEvent(
 
         await saveEventToDatabase(instanceData, feed.id, instance.id, false);
       } catch (error) {
+        failures.count += 1;
         logger.error(
           "Failed to process instance",
           {
@@ -372,6 +374,7 @@ export async function processMasterEvent(
       }
     }
   } catch (error) {
+    failures.count += 1;
     logger.error(
       "Failed to process master event",
       {
@@ -425,6 +428,9 @@ export async function syncOutlookCalendar(
     },
     LOG_SOURCE
   );
+  // A save that fails must fail the run: the caller stores the new delta
+  // token on success, and Graph would never send the missed event again.
+  const failures = { count: 0 };
   // Handle deleted events first if this is a delta sync
   if (lastSyncToken && deletedEventIds?.length > 0) {
     for (const eventId of deletedEventIds) {
@@ -443,6 +449,7 @@ export async function syncOutlookCalendar(
           });
         }
       } catch (error) {
+        failures.count += 1;
         logger.error(
           "Failed to delete event",
           {
@@ -496,6 +503,7 @@ export async function syncOutlookCalendar(
 
       await saveEventToDatabase(eventData, feed.id, event.id);
     } catch (error) {
+      failures.count += 1;
       logger.error(
         "Failed to process non-recurring event",
         {
@@ -510,8 +518,19 @@ export async function syncOutlookCalendar(
 
   // Then, process recurring events
   for (const [, masterEvent] of masterEvents) {
-    const processedIds = await processMasterEvent(client, masterEvent, feed);
+    const processedIds = await processMasterEvent(
+      client,
+      masterEvent,
+      feed,
+      failures
+    );
     processedIds.forEach((id) => processedEventIds.add(id));
+  }
+
+  if (failures.count > 0) {
+    throw new Error(
+      `Outlook sync could not save ${failures.count} change(s); the delta token was not advanced.`
+    );
   }
 
   if (fullSync) {
