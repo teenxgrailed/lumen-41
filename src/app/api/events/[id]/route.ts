@@ -122,24 +122,28 @@ export async function PATCH(
     for (const key of EDITABLE_FIELDS) {
       if (body && key in body) updates[key] = body[key];
     }
-    const startsAt =
-      "start" in updates
-        ? newDate(updates.start as string)
-        : existingEvent.start;
-    const endsAt =
-      "end" in updates ? newDate(updates.end as string) : existingEvent.end;
-    if (
-      Number.isNaN(startsAt.getTime()) ||
-      Number.isNaN(endsAt.getTime()) ||
-      endsAt <= startsAt
-    ) {
-      return NextResponse.json(
-        { error: "Event end must be after its start" },
-        { status: 400 }
-      );
+    // Only a change to the times is validated, and a zero-length event (as
+    // providers send them) stays editable: end may equal start.
+    if ("start" in updates || "end" in updates) {
+      const startsAt =
+        "start" in updates
+          ? newDate(updates.start as string)
+          : existingEvent.start;
+      const endsAt =
+        "end" in updates ? newDate(updates.end as string) : existingEvent.end;
+      if (
+        Number.isNaN(startsAt.getTime()) ||
+        Number.isNaN(endsAt.getTime()) ||
+        endsAt < startsAt
+      ) {
+        return NextResponse.json(
+          { error: "Event end cannot be before its start" },
+          { status: 400 }
+        );
+      }
+      if ("start" in updates) updates.start = startsAt;
+      if ("end" in updates) updates.end = endsAt;
     }
-    if ("start" in updates) updates.start = startsAt;
-    if ("end" in updates) updates.end = endsAt;
     const updated = await prisma.calendarEvent.update({
       where: { id },
       data: {

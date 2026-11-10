@@ -68,6 +68,42 @@ describe("PATCH /api/events/[id]", () => {
     expect(update.mock.calls[0][0].data).toEqual({ title: "New" });
   });
 
+  it("renames a zero-length event without touching its times", async () => {
+    const at = new Date("2026-11-10T10:00:00Z");
+    findUnique.mockResolvedValue({
+      id: "e1",
+      archivedAt: null,
+      start: at,
+      end: at,
+      feed: { userId: "u1" },
+    });
+    const res = await patch({ title: "Renamed" });
+    expect(res?.status).toBe(200);
+    expect(update.mock.calls[0][0].data).toEqual({ title: "Renamed" });
+  });
+
+  it("restores an archived zero-length event", async () => {
+    const at = new Date("2026-11-10T10:00:00Z");
+    findUnique.mockResolvedValue({
+      id: "e1",
+      archivedAt: new Date(),
+      start: at,
+      end: at,
+      feed: { userId: "u1" },
+    });
+    const res = await patch({ restore: true });
+    expect(res?.status).toBe(200);
+    expect(update.mock.calls[0][0].data).toEqual({ archivedAt: null });
+  });
+
+  it("accepts end equal to start in the body", async () => {
+    const res = await patch({
+      start: "2026-11-10T10:00:00Z",
+      end: "2026-11-10T10:00:00Z",
+    });
+    expect(res?.status).toBe(200);
+  });
+
   it("rejects an inverted time range", async () => {
     const res = await patch({ end: "2026-11-10T09:00:00Z" });
     expect(res?.status).toBe(400);
