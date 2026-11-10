@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { contentDisposition } from "@/lib/content-disposition";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ token: string; assetId: string }> };
@@ -42,13 +43,15 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     );
   }
   const disposition = isInlineType(asset.mimeType) ? "inline" : "attachment";
-  const safeName = asset.originalName.replace(/["\r\n]/g, "_");
   return new NextResponse(asset.bytes, {
     headers: {
       ...ASSET_SECURITY_HEADERS,
       "Content-Type": asset.mimeType,
       "Content-Length": String(asset.size),
-      "Content-Disposition": `${disposition}; filename="${safeName}"`,
+      "Content-Disposition": contentDisposition(
+        disposition,
+        asset.originalName
+      ),
       "Cache-Control": "private, no-store",
     },
   });

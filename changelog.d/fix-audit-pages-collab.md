@@ -1,0 +1,1 @@
+- Page images and files with non-Latin names (Cyrillic, CJK, emoji) now download and display instead of failing with an error.
