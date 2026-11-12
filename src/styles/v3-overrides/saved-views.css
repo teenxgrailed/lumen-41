@@ -1,0 +1,131 @@
+/* Design v3 - saved views on Tasks: the trigger left of the task view gear
+ * and its popover. HAND-WRITTEN. Same surface as the gear's popover, 13/12px
+ * type, greys from the text ladder, no accent fill (the check is a mark in
+ * the text colour). A name that does not fit is cut, the column stays. */
+.needt-v3 .sv-trigger {
+  gap: 6px;
+  max-width: 180px;
+  color: var(--text-secondary);
+}
+.needt-v3 .sv-trigger-label {
+  min-width: 0;
+}
+.needt-v3 .sv-pop {
+  z-index: 1100;
+  box-sizing: border-box;
+  width: 300px;
+  padding: 8px;
+  border-radius: var(--radius-xl);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-floating);
+  outline: none;
+}
+.needt-v3 .sv-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.needt-v3 .sv-title {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.needt-v3 .sv-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.needt-v3 .sv-row {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  border-radius: var(--radius-md, 8px);
+}
+.needt-v3 .sv-row:hover {
+  background: var(--fill-1);
+}
+.needt-v3 .sv-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px 0 4px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.needt-v3 .sv-mark {
+  flex: none;
+  display: inline-flex;
+  width: 16px;
+  justify-content: center;
+  color: var(--text-primary);
+}
+.needt-v3 .sv-name {
+  min-width: 0;
+}
+.needt-v3 .sv-meta {
+  flex: none;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.needt-v3 .sv-actions {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  padding-right: 4px;
+  opacity: 0;
+}
+.needt-v3 .sv-row:hover .sv-actions,
+.needt-v3 .sv-row:focus-within .sv-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .needt-v3 .sv-actions {
+    opacity: 1;
+  }
+}
+.needt-v3 .sv-act {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--text-secondary);
+}
+.needt-v3 .sv-empty {
+  margin: 0;
+  padding: 4px 8px 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.needt-v3 .sv-save {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 8px 4px 2px;
+  border-top: 1px solid var(--border-subtle, var(--border));
+}
+.needt-v3 .sv-save-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.needt-v3 .sv-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  font-size: 13px;
+}
+.needt-v3 .sv-row .sv-input {
+  margin: 2px 4px;
+}

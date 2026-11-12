@@ -38,6 +38,8 @@ export const qk = {
   workSchedules: () => [V3, "work-schedules"] as const,
 
   projects: () => [V3, "projects"] as const,
+  /** Saved views over tasks (`GET /api/saved-views?resource=TASKS`). */
+  savedViews: () => [V3, "saved-views"] as const,
   imports: () => [V3, "imports"] as const,
   /** What Needt has learned about the person (`GET /api/ai/memories`). */
   memories: () => [V3, "memories"] as const,
