@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-
 import { endNeedtSession } from "@/lib/auth/client-sign-out";
 
 /**
@@ -34,22 +32,24 @@ export function SignOutAndReturn({ to }: { to: string }) {
   if (failed) {
     return (
       <>
-        <h1 className="text-[15px] font-semibold">Could not sign you out</h1>
-        <p className="mt-2 text-muted-foreground">
-          Check your connection and try again.
-        </p>
-        <div className="mt-4 flex justify-end">
-          <Button variant="secondary" onClick={() => setAttempt(attempt + 1)}>
+        <h1 className="pub-card-title">Could not sign you out</h1>
+        <p className="pub-lead">Check your connection and try again.</p>
+        <div className="pub-actions">
+          <button
+            type="button"
+            className="nx-btn nx-btn-secondary"
+            onClick={() => setAttempt(attempt + 1)}
+          >
             Try again
-          </Button>
+          </button>
         </div>
       </>
     );
   }
   return (
     <>
-      <h1 className="text-[15px] font-semibold">Signing you out</h1>
-      <p className="mt-2 text-muted-foreground">One moment.</p>
+      <h1 className="pub-card-title">Signing you out</h1>
+      <p className="pub-lead">One moment.</p>
     </>
   );
 }

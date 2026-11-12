@@ -1,5 +1,7 @@
 import { resolvePostLogoutTarget } from "@/services/oauth/logout";
 
+import { PublicScope } from "@/components/needt3/states/PublicScope";
+
 import { SignOutAndReturn } from "./SignOutAndReturn";
 
 export const dynamic = "force-dynamic";
@@ -28,10 +30,12 @@ export default async function SigningOutPage({ searchParams }: PageProps) {
     one(raw.state)
   );
   return (
-    <main className="grid min-h-dvh place-items-center bg-background px-4 py-10 text-foreground">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 text-[13px]">
-        <SignOutAndReturn to={to} />
-      </div>
-    </main>
+    <PublicScope>
+      <main className="pub-center">
+        <div className="pub-card is-small">
+          <SignOutAndReturn to={to} />
+        </div>
+      </main>
+    </PublicScope>
   );
 }

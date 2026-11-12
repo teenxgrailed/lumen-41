@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 
-import { Check, Loader2 } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
+import { LuCheck, LuLoaderCircle } from "react-icons/lu";
 
 export function CancelBookingButton({ token }: { token: string }) {
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">(
@@ -29,24 +27,26 @@ export function CancelBookingButton({ token }: { token: string }) {
 
   if (status === "done") {
     return (
-      <p className="flex items-center justify-center gap-2 text-sm">
-        <Check className="h-4 w-4" /> Booking canceled.
+      <p className="pub-done">
+        <LuCheck size={16} aria-hidden /> Booking canceled.
       </p>
     );
   }
   return (
     <div>
-      <Button
-        className="h-11 w-full"
-        variant="destructive"
+      <button
+        type="button"
+        className="nx-btn nx-btn-danger pub-block"
         disabled={status === "loading"}
         onClick={() => void cancel()}
       >
-        {status === "loading" && <Loader2 className="h-4 w-4 animate-spin" />}
+        {status === "loading" && (
+          <LuLoaderCircle size={16} className="pub-spin" aria-hidden />
+        )}
         Cancel booking
-      </Button>
+      </button>
       {status === "error" && (
-        <p className="mt-3 text-sm text-destructive" role="alert">
+        <p className="pub-error" role="alert">
           {message}
         </p>
       )}

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
-import { FileText } from "lucide-react";
+import { LuFileText } from "react-icons/lu";
+
+import { PublicScope } from "@/components/needt3/states/PublicScope";
 
 export const metadata: Metadata = {
   title: "Page not found | Needt",
@@ -10,14 +12,16 @@ export const metadata: Metadata = {
 
 export default function PublishedPageNotFound() {
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-[var(--surface-canvas)] px-6 text-[var(--text-primary)]">
-      <div className="max-w-md text-center">
-        <FileText className="mx-auto mb-4 h-9 w-9 text-[var(--text-muted)]" />
-        <h1 className="text-xl font-semibold">Page not found</h1>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          This public link is invalid or no longer exists.
-        </p>
-      </div>
-    </main>
+    <PublicScope>
+      <main className="pub-center">
+        <div className="pub-card is-small">
+          <LuFileText size={32} className="pub-icon" aria-hidden />
+          <h1 className="pub-card-title">Page not found</h1>
+          <p className="pub-lead">
+            This public link is invalid or no longer exists.
+          </p>
+        </div>
+      </main>
+    </PublicScope>
   );
 }
