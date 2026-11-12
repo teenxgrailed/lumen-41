@@ -10,7 +10,8 @@ import {
   pushTargetsOf,
 } from "@/services/push/targets";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
-import { HabitEventType, HabitKind, Prisma } from "@prisma/client";
+import { HabitEventType, HabitKind } from "@prisma/client";
+import { randomUUID } from "crypto";
 
 import { newDate } from "@/lib/date-utils";
 import { canUseQuitHabits } from "@/lib/entitlements";
@@ -60,34 +61,28 @@ interface Candidate {
   after?: () => Promise<unknown>;
 }
 
-function isUniqueViolation(error: unknown) {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === "P2002"
-  );
-}
-
 /**
  * Claims one push: the unique row is the dedup, taken before sending, so two
  * sweeps (or two workers) cannot both send it. false = already claimed.
  */
 async function claim(userId: string, candidate: Candidate) {
-  try {
-    const row = await prisma.habitPush.create({
-      data: {
+  // createMany + skipDuplicates is INSERT .. ON CONFLICT DO NOTHING: an existing
+  // row is a count of 0, not a thrown P2002 that Prisma logs as an error first.
+  const id = randomUUID();
+  const { count } = await prisma.habitPush.createMany({
+    data: [
+      {
+        id,
         userId,
         habitId: candidate.habitId,
         scope: candidate.scope,
         kind: candidate.kind,
         dayKey: candidate.dayKey,
       },
-      select: { id: true },
-    });
-    return row.id;
-  } catch (error) {
-    if (isUniqueViolation(error)) return null;
-    throw error;
-  }
+    ],
+    skipDuplicates: true,
+  });
+  return count > 0 ? id : null;
 }
 
 async function send(
@@ -521,10 +516,41 @@ async function sweepPage(
   }
   if (due.size === 0) return 0;
 
-  const dueUsers = people.filter((user) => due.has(user.id));
+  // QUIT is Pro. The plan is only looked up for a person whose QUIT habits can
+  // change something in this sweep (a milestone or the check-in count), and a
+  // Free person's QUIT habits are kept out of the relapse read below.
+  const quitAllowedOf = new Map<string, boolean>();
+  const dueUsers: BareUser[] = [];
+  for (const user of people) {
+    const info = due.get(user.id);
+    if (!info) continue;
+    const needsPlan =
+      (info.what.milestone || info.what.checkin) &&
+      user.habits.some((h) => h.kind === HabitKind.QUIT);
+    if (needsPlan) {
+      try {
+        quitAllowedOf.set(user.id, (await canUseQuitHabits(user.id)).allowed);
+      } catch (error) {
+        await logger.error(
+          "Habit presence failed for one person",
+          {
+            userId: user.id,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          LOG_SOURCE
+        );
+        continue;
+      }
+    }
+    dueUsers.push(user);
+  }
+  if (dueUsers.length === 0) return 0;
   const habitIds = dueUsers.flatMap((user) => user.habits.map((h) => h.id));
   const quitIds = dueUsers
-    .filter((user) => due.get(user.id)?.what.milestone)
+    .filter(
+      (user) =>
+        due.get(user.id)?.what.milestone && quitAllowedOf.get(user.id) === true
+    )
     .flatMap((user) =>
       user.habits.filter((h) => h.kind === HabitKind.QUIT).map((h) => h.id)
     );
@@ -584,7 +610,8 @@ async function sweepPage(
         info.prefs,
         info.settings,
         lastReengageOf.get(user.id) ?? null,
-        now
+        now,
+        quitAllowedOf.get(user.id) ?? false
       );
     } catch (error) {
       await logger.error(
@@ -605,12 +632,10 @@ async function sweepUser(
   prefs: NotificationPrefs,
   settings: SettingsRow,
   lastReengageAt: Date | null,
-  now: Date
+  now: Date,
+  /** Pro: without it the person's QUIT habits get nothing from here. */
+  quitAllowed: boolean
 ) {
-  // QUIT is Pro: without it the person's QUIT habits get nothing from here.
-  const quitAllowed = user.habits.some((h) => h.kind === HabitKind.QUIT)
-    ? (await canUseQuitHabits(user.id)).allowed
-    : false;
   const candidates = presenceCandidates({
     user,
     prefs,
