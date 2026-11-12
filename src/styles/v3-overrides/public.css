@@ -465,3 +465,10 @@
   gap: 8px;
   margin-top: 24px;
 }
+
+/* Touch target: the old slot buttons were 44px tall; keep that on phones. */
+@media (max-width: 640px) {
+  .needt-v3 .pub-book-slot {
+    min-height: 44px;
+  }
+}
