@@ -15,7 +15,12 @@ export async function liveTableErrorResponse(
   if (known) {
     return NextResponse.json({ error: known.error }, { status: known.status });
   }
-  return routeErrorResponse(error, message, source, "Could not save the table.");
+  return routeErrorResponse(
+    error,
+    message,
+    source,
+    "Could not save the table."
+  );
 }
 
 /** Tell the writer's other open sessions to refetch their tables. */

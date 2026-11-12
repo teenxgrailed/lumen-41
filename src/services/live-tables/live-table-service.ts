@@ -8,11 +8,11 @@
  * Access follows the page: reading needs the page, writing needs edit rights
  * on it (and an AI actor never reaches a page in a private tree).
  */
-import { appendPageBlocks, createPage } from "@/services/pages/page-service";
 import {
   type PageActor,
   pageActorCanAccess,
 } from "@/services/pages/page-model";
+import { appendPageBlocks, createPage } from "@/services/pages/page-service";
 import { writePageBlocks } from "@/services/pages/page-write-path";
 import {
   type LiveTable,
@@ -23,6 +23,7 @@ import {
   Prisma,
 } from "@prisma/client";
 
+import { newDate } from "@/lib/date-utils";
 import {
   LIVE_TABLE_MAX_ROWS,
   LIVE_TABLE_MAX_ROWS_PER_APPEND,
@@ -37,7 +38,6 @@ import {
   parseStoredCells,
   parseStoredColumns,
 } from "@/lib/live-tables/schema";
-import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 import { randomId } from "@/lib/uuid";
 
@@ -224,6 +224,11 @@ export async function createLiveTable(
     if (!written) throw new LiveTablePageNotEditableError();
   } catch (error) {
     await prisma.liveTable.delete({ where: { id: table.id } }).catch(() => {});
+    if (createdPage) {
+      await prisma.page
+        .delete({ where: { id: createdPage.id } })
+        .catch(() => {});
+    }
     throw error;
   }
   return getLiveTable(actor, table.id);

@@ -21,7 +21,11 @@ describe("arrivalDelays", () => {
   });
 
   it("moves only rows that arrived since the last read", () => {
-    const delays = arrivalDelays(["a", "b", "c", "d"], new Set(["a", "b"]), true);
+    const delays = arrivalDelays(
+      ["a", "b", "c", "d"],
+      new Set(["a", "b"]),
+      true
+    );
     expect([...delays.entries()]).toEqual([
       ["c", 0],
       ["d", ARRIVAL_STAGGER_MS],
@@ -34,7 +38,10 @@ describe("isBuilding", () => {
   it("is true right after a write and false after the window", () => {
     expect(
       isBuilding(
-        { createdAt: "2026-11-12T11:00:00Z", updatedAt: "2026-11-12T11:59:30Z" },
+        {
+          createdAt: "2026-11-12T11:00:00Z",
+          updatedAt: "2026-11-12T11:59:30Z",
+        },
         now
       )
     ).toBe(true);

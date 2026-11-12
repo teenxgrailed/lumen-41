@@ -51,8 +51,14 @@ export function zodToJsonSchema(schema: z.ZodType): JsonSchema {
   }
   if (schema instanceof z.ZodNumber) {
     const json: JsonSchema = { type: schema.isInt ? "integer" : "number" };
-    if (schema.minValue !== null) json.minimum = schema.minValue;
-    if (schema.maxValue !== null) json.maximum = schema.maxValue;
+    // zod 4 reports an unbounded number as -Infinity / Infinity, which
+    // JSON.stringify turns into null; clients reject a null bound.
+    if (schema.minValue !== null && Number.isFinite(schema.minValue)) {
+      json.minimum = schema.minValue;
+    }
+    if (schema.maxValue !== null && Number.isFinite(schema.maxValue)) {
+      json.maximum = schema.maxValue;
+    }
     return withDescription(schema, json);
   }
   if (schema instanceof z.ZodBoolean) {

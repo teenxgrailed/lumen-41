@@ -93,19 +93,19 @@ describe("liveTableWorkbook", () => {
     const workbook = await read(
       await liveTableWorkbook({
         ...table,
+        title: "Lists",
         columns: [
           { id: "c1", name: "Pick", type: "select", options: ["a, b", "c"] },
         ],
         rows: [],
       })
     );
-    const lists = workbook.getWorksheet("Lists")!;
+    const lists = workbook.getWorksheet("_needt_lists")!;
     expect(lists.state).toBe("veryHidden");
     expect(lists.getCell("A1").value).toBe("a, b");
     expect(
-      workbook.getWorksheet(sheetName(table.title))!.getCell("A2")
-        .dataValidation?.formulae
-    ).toEqual(["Lists!$A$1:$A$2"]);
+      workbook.getWorksheet("Lists")!.getCell("A2").dataValidation?.formulae
+    ).toEqual(["'_needt_lists'!$A$1:$A$2"]);
   });
 
   it("names the sheet within Excel's rules", () => {

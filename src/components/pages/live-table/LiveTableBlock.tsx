@@ -17,7 +17,12 @@ import {
 import { notify } from "@/lib/notifications";
 import { exportFileName } from "@/lib/pages/export-markdown";
 
-import { arrivalDelays, isBuilding } from "./live-table-motion";
+import {
+  ARRIVAL_STAGGER_MS,
+  ENTRY_MS,
+  arrivalDelays,
+  isBuilding,
+} from "./live-table-motion";
 
 export const liveTableQueryKey = (id: string) => ["live-table", id] as const;
 
@@ -58,10 +63,12 @@ export function LiveTableBlock({ node, editor, selected }: NodeViewProps) {
     queryFn: () => fetchTable(tableId),
     enabled: Boolean(tableId),
     retry: (count, error) => error.message !== "missing" && count < 2,
+    // Fast while the table is being written; slow otherwise, so a person who
+    // gets no realtime event (a collaborator, no Redis) still sees new rows.
     refetchInterval: (current) =>
       current.state.data && isBuilding(current.state.data, newDate())
         ? 1200
-        : false,
+        : 15_000,
   });
   const table = query.data;
 
@@ -71,17 +78,36 @@ export function LiveTableBlock({ node, editor, selected }: NodeViewProps) {
   if (table && firstLoadAnimates.current === null) {
     firstLoadAnimates.current = isBuilding(table, newDate());
   }
-  const delays = useMemo(
-    () =>
-      table
-        ? arrivalDelays(
-            table.rows.map((row) => row.id),
-            known.current,
-            firstLoadAnimates.current === true
-          )
-        : new Map<string, number>(),
-    [table]
-  );
+  // When each arriving row starts to move (ms timestamps), kept across reads
+  // so a row still waiting its turn does not pop in when the next batch lands.
+  const starts = useRef(new Map<string, number>());
+  const delays = useMemo(() => {
+    if (!table) return new Map<string, number>();
+    const now = Date.now();
+    const ids = table.rows.map((row) => row.id);
+    const fresh = arrivalDelays(
+      ids,
+      known.current,
+      firstLoadAnimates.current === true
+    );
+    const queueEnd = Math.max(now, ...starts.current.values()) - now;
+    const offset =
+      known.current === null || queueEnd === 0
+        ? 0
+        : queueEnd + ARRIVAL_STAGGER_MS;
+    for (const [id, delay] of fresh)
+      starts.current.set(id, now + offset + delay);
+    const out = new Map<string, number>();
+    for (const id of ids) {
+      const start = starts.current.get(id);
+      if (start !== undefined && start > now - ENTRY_MS) {
+        out.set(id, Math.max(0, start - now));
+      } else {
+        starts.current.delete(id);
+      }
+    }
+    return out;
+  }, [table]);
   useEffect(() => {
     if (table) known.current = new Set(table.rows.map((row) => row.id));
   }, [table]);
@@ -95,25 +121,30 @@ export function LiveTableBlock({ node, editor, selected }: NodeViewProps) {
     value: LiveTableCell
   ) => {
     if (!table) return;
-    const previous = table;
-    queryClient.setQueryData<LiveTableView>(liveTableQueryKey(tableId), {
-      ...table,
-      rows: table.rows.map((row) =>
-        row.id === rowId
-          ? { ...row, cells: { ...row.cells, [column.id]: value } }
-          : row
-      ),
-    });
-    const response = await fetch(
-      `/api/live-tables/${tableId}/rows/${rowId}`,
-      {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ cells: { [column.id]: value } }),
-      }
-    ).catch(() => null);
+    const before = table.rows.find((row) => row.id === rowId)?.cells[column.id];
+    // Only this one cell changes in the cache, so two quick edits (or a poll
+    // landing in between) never overwrite each other.
+    const setCell = (next: LiveTableCell | undefined) =>
+      queryClient.setQueryData<LiveTableView>(
+        liveTableQueryKey(tableId),
+        (current) =>
+          current && {
+            ...current,
+            rows: current.rows.map((row) =>
+              row.id === rowId
+                ? { ...row, cells: { ...row.cells, [column.id]: next ?? null } }
+                : row
+            ),
+          }
+      );
+    setCell(value);
+    const response = await fetch(`/api/live-tables/${tableId}/rows/${rowId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ cells: { [column.id]: value } }),
+    }).catch(() => null);
     if (!response?.ok) {
-      queryClient.setQueryData(liveTableQueryKey(tableId), previous);
+      setCell(before);
       const body = (await response?.json().catch(() => null)) as {
         error?: string;
       } | null;
@@ -121,7 +152,8 @@ export function LiveTableBlock({ node, editor, selected }: NodeViewProps) {
       return;
     }
     const body = (await response.json()) as { table: LiveTableView };
-    queryClient.setQueryData(liveTableQueryKey(tableId), body.table);
+    // The stored value may be normalised (an option's spelling, a URL).
+    setCell(body.table.rows.find((row) => row.id === rowId)?.cells[column.id]);
   };
 
   const animateHeader = firstLoadAnimates.current === true;

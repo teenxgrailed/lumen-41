@@ -24,7 +24,14 @@ const [model, price, status, stock, since, link] = columns;
 
 describe("buildColumns", () => {
   it("gives short ids in order and keeps dropdown options", () => {
-    expect(columns.map((c) => c.id)).toEqual(["c1", "c2", "c3", "c4", "c5", "c6"]);
+    expect(columns.map((c) => c.id)).toEqual([
+      "c1",
+      "c2",
+      "c3",
+      "c4",
+      "c5",
+      "c6",
+    ]);
     expect(status.options).toEqual(["Брать", "Альтернатива", "Не брать"]);
     expect(model).not.toHaveProperty("options");
   });
@@ -55,6 +62,10 @@ describe("normalizeCell", () => {
   it("reads numbers from text, with comma decimals and thousands marks", () => {
     expect(normalizeCell(price, "1'299,50")).toBe(1299.5);
     expect(normalizeCell(price, 42)).toBe(42);
+    expect(normalizeCell(price, "1,234")).toBe(1234);
+    expect(normalizeCell(price, "1,234.50")).toBe(1234.5);
+    expect(normalizeCell(price, "1.234,50")).toBe(1234.5);
+    expect(normalizeCell(price, "1,5")).toBe(1.5);
     expect(() => normalizeCell(price, "cheap")).toThrow(/not a number/);
   });
 
@@ -92,7 +103,11 @@ describe("normalizeRow", () => {
 
   it("takes an object keyed by column name or id", () => {
     expect(
-      normalizeRow(columns, { model: "Rode VideoMic", c2: "99", Status: "Не брать" })
+      normalizeRow(columns, {
+        model: "Rode VideoMic",
+        c2: "99",
+        Status: "Не брать",
+      })
     ).toMatchObject({ c1: "Rode VideoMic", c2: 99, c3: "Не брать" });
   });
 
@@ -117,7 +132,9 @@ describe("stored values", () => {
       { id: "c1", name: "A", type: "text" },
       { id: "c2", name: "B", type: "select", options: ["x"] },
     ]);
-    expect(parseStoredCells(parsed, { c1: "a", c2: { bad: 1 }, c9: "x" })).toEqual({
+    expect(
+      parseStoredCells(parsed, { c1: "a", c2: { bad: 1 }, c9: "x" })
+    ).toEqual({
       c1: "a",
       c2: null,
     });

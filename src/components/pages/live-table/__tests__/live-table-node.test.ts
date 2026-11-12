@@ -1,4 +1,7 @@
-import { blockTypeForNode, pageBlocksFromDocument } from "@/components/pages/page-document";
+import {
+  blockTypeForNode,
+  pageBlocksFromDocument,
+} from "@/components/pages/page-document";
 
 import { documentToMarkdown } from "@/lib/pages/export-markdown";
 import { pageEditorSchema } from "@/lib/pages/page-editor-schema";
@@ -11,7 +14,10 @@ const node = {
 
 describe("needtLiveTable in the page document", () => {
   it("is part of the shared editor schema", () => {
-    const parsed = pageEditorSchema.nodeFromJSON({ type: "doc", content: [node] });
+    const parsed = pageEditorSchema.nodeFromJSON({
+      type: "doc",
+      content: [node],
+    });
     expect(parsed.firstChild?.type.name).toBe("needtLiveTable");
     expect(parsed.firstChild?.attrs.tableId).toBe("t1");
   });

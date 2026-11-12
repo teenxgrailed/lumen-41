@@ -82,6 +82,8 @@ describe("live table MCP tools", () => {
     const schema = zodToJsonSchema(tool!.input);
     expect(schema.type).toBe("object");
     expect(JSON.stringify(schema)).not.toContain("undefined");
+    // An unbounded z.number() must not become "maximum": null (clients refuse it).
+    expect(JSON.stringify(schema)).not.toMatch(/"(minimum|maximum)":null/);
   });
 
   it("creates a table as the AI and tells the open app", async () => {

@@ -134,7 +134,11 @@ describe("createLiveTable", () => {
   it("refuses a page the actor cannot edit", async () => {
     access.mockResolvedValue(null);
     await expect(
-      createLiveTable(actor, { pageId: "p1", title: "T", columns: [{ name: "A" }] })
+      createLiveTable(actor, {
+        pageId: "p1",
+        title: "T",
+        columns: [{ name: "A" }],
+      })
     ).rejects.toThrow(LiveTablePageNotEditableError);
   });
 
@@ -143,7 +147,11 @@ describe("createLiveTable", () => {
       new PageCollaborationActiveError()
     );
     await expect(
-      createLiveTable(actor, { pageId: "p1", title: "T", columns: [{ name: "A" }] })
+      createLiveTable(actor, {
+        pageId: "p1",
+        title: "T",
+        columns: [{ name: "A" }],
+      })
     ).rejects.toBeInstanceOf(PageCollaborationActiveError);
     expect(db.liveTable.delete).toHaveBeenCalledWith({ where: { id: "t1" } });
   });

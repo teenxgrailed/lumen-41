@@ -110,7 +110,12 @@ export function buildColumns(input: LiveTableColumnInput[]): LiveTableColumn[] {
           `Column "${column.name}" is a dropdown and needs options`
         );
       }
-      return { id: `c${index + 1}`, name: column.name, type: column.type, options };
+      return {
+        id: `c${index + 1}`,
+        name: column.name,
+        type: column.type,
+        options,
+      };
     }
     return { id: `c${index + 1}`, name: column.name, type: column.type };
   });
@@ -147,6 +152,28 @@ export function parseStoredColumns(value: unknown): LiveTableColumn[] {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
+ * A number typed by a person: spaces and ' are thousands marks; with both a
+ * comma and a dot the last one is the decimal mark; a lone comma is decimal
+ * unless it groups thousands ("1,5" is 1.5, "1,234" is 1234).
+ */
+export function parseNumberText(raw: string): number {
+  let text = raw.replace(/[\s'\u00a0]/g, "");
+  const comma = text.lastIndexOf(",");
+  const dot = text.lastIndexOf(".");
+  if (comma >= 0 && dot >= 0) {
+    text =
+      comma > dot
+        ? text.replace(/\./g, "").replace(",", ".")
+        : text.replace(/,/g, "");
+  } else if (comma >= 0) {
+    text = /^-?\d{1,3}(,\d{3})+$/.test(text)
+      ? text.replace(/,/g, "")
+      : text.replace(",", ".");
+  }
+  return text === "" ? Number.NaN : Number(text);
+}
+
+/**
  * One cell, checked against its column. Empty input (null, "") is stored as
  * null in every type. A dropdown value matches its option case-insensitively
  * and is stored in the option's own spelling.
@@ -170,7 +197,7 @@ export function normalizeCell(
         return Number.isFinite(value) ? value : fail("a number");
       }
       if (typeof value === "boolean") return fail("a number");
-      const parsed = Number(value.replace(/[\s']/g, "").replace(",", "."));
+      const parsed = parseNumberText(value);
       return Number.isFinite(parsed) ? parsed : fail("a number");
     }
     case "checkbox": {

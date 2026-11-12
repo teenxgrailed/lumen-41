@@ -7,7 +7,6 @@
 import ExcelJS from "exceljs";
 
 import { newDate } from "@/lib/date-utils";
-
 import {
   type LiveTableColumn,
   type LiveTableView,
@@ -16,9 +15,16 @@ import {
 
 /** Excel's own limits on sheet names: 31 characters, none of []:*?/\ */
 export function sheetName(title: string): string {
-  const cleaned = title.replace(/[[\]:*?/\\]/g, " ").trim().slice(0, 31);
-  return cleaned || "Table";
+  const cleaned = title
+    .replace(/[[\]:*?/\\]/g, " ")
+    .trim()
+    .slice(0, 31);
+  if (!cleaned || cleaned.toLowerCase() === LISTS_SHEET) return "Table";
+  return cleaned;
 }
+
+/** Hidden sheet for long dropdown lists; sheetName() never yields it for a title. */
+export const LISTS_SHEET = "_needt_lists";
 
 /** Inline list validation is capped by Excel at 255 characters. */
 const INLINE_LIST_LIMIT = 250;
@@ -46,9 +52,7 @@ function widthFor(column: LiveTableColumn, table: LiveTableView): number {
   return Math.min(60, Math.max(10, longest + 2, options + 4));
 }
 
-export async function liveTableWorkbook(
-  table: LiveTableView
-): Promise<Buffer> {
+export async function liveTableWorkbook(table: LiveTableView): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Needt";
   const sheet = workbook.addWorksheet(sheetName(table.title), {
@@ -109,15 +113,18 @@ export async function liveTableWorkbook(
     if (column.type !== "select" || !column.options?.length) return;
     let formula: string;
     const inline = column.options.join(",");
-    if (inline.length <= INLINE_LIST_LIMIT && !/[",]/.test(column.options.join(""))) {
+    if (
+      inline.length <= INLINE_LIST_LIMIT &&
+      !/[",]/.test(column.options.join(""))
+    ) {
       formula = `"${inline}"`;
     } else {
-      lists ??= workbook.addWorksheet("Lists", { state: "veryHidden" });
+      lists ??= workbook.addWorksheet(LISTS_SHEET, { state: "veryHidden" });
       const listColumn = columnLetter(index);
       column.options.forEach((option, optionIndex) => {
         lists!.getCell(`${listColumn}${optionIndex + 1}`).value = option;
       });
-      formula = `Lists!$${listColumn}$1:$${listColumn}$${column.options.length}`;
+      formula = `'${LISTS_SHEET}'!$${listColumn}$1:$${listColumn}$${column.options.length}`;
     }
     // exceljs keeps validation per cell (its typings have no range API).
     for (let rowNumber = 2; rowNumber <= lastRow; rowNumber += 1) {

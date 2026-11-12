@@ -8,6 +8,8 @@
 
 /** Gap between rows that arrive in the same read. */
 export const ARRIVAL_STAGGER_MS = 55;
+/** Length of the rise-and-settle a row plays when it arrives. */
+export const ENTRY_MS = 420;
 /** Head start of the header over the first row of a fresh table. */
 export const HEADER_LEAD_MS = 120;
 /** A table touched this recently is still being written: poll and animate. */
@@ -18,7 +20,9 @@ export function isBuilding(
   now: Date
 ): boolean {
   const touched = Date.parse(table.updatedAt || table.createdAt);
-  return Number.isFinite(touched) && now.getTime() - touched < BUILDING_WINDOW_MS;
+  return (
+    Number.isFinite(touched) && now.getTime() - touched < BUILDING_WINDOW_MS
+  );
 }
 
 /**
