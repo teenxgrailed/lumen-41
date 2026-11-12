@@ -48,6 +48,9 @@ final class WidgetBridge: NSObject, WKHTTPCookieStoreObserver {
     /// Opens a `needt://open?path=` link (or a pending one) in the web view.
     @discardableResult
     func open(_ url: URL, in webView: WKWebView?) -> Bool {
+        #if HABITS_QUIT
+        if openQuitPanic(url, in: webView) { return true }
+        #endif
         guard let path = NeedtLink.path(from: url), let webView,
               let target = URL(string: path, relativeTo: WidgetEnvironment.baseURL)?.absoluteURL,
               target.host == WidgetEnvironment.baseURL.host
@@ -65,6 +68,9 @@ final class WidgetBridge: NSObject, WKHTTPCookieStoreObserver {
     func sceneDidBecomeActive(webView: WKWebView?) {
         syncSession()
         openPending(in: webView)
+        #if HABITS_QUIT
+        openPendingQuitPanic(in: webView)
+        #endif
         reconcileFocus()
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.reconcileFocus() }
