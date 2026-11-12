@@ -31,6 +31,10 @@ export const qk = {
   tasks: (filter?: TaskFilter) =>
     filter ? ([V3, "tasks", filter] as const) : ([V3, "tasks"] as const),
   task: (id: string) => [V3, "task", id] as const,
+  /** Why an auto-scheduled task is at its time (`GET /api/tasks/:id/schedule-explanation`). */
+  scheduleWhy: (id: string) => [V3, "schedule-why", id] as const,
+  /** Planned load against work hours per day (`GET /api/tasks/capacity?days=`). */
+  capacity: (days: number) => [V3, "capacity", days] as const,
 
   /** The person's labels (`GET /api/tags`). */
   labels: () => [V3, "labels"] as const,

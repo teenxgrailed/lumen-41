@@ -142,6 +142,41 @@ export interface AtRiskTask {
   deadline: Date;
 }
 
+/**
+ * How one task got its place, recorded by `scheduleTasks` when the caller
+ * passes a `trace` map. Recording reads what the pass already decided and
+ * never feeds back into it: a run with a trace places exactly what a run
+ * without one does. "Why this time?" is built from this.
+ */
+export interface PlacementTrace {
+  /** 1-based position in the order tasks were placed. */
+  rank: number;
+  /** Tasks the pass tried to place (frozen ones excluded). */
+  queueSize: number;
+  /** Ids of the tasks placed before this one. */
+  placedBefore: string[];
+  /** The instant the search started from. */
+  earliestStart: Date;
+  /** What set `earliestStart`. */
+  earliestReason: "now" | "available-from" | "dependency";
+  /** Dependencies still open whose end pushed the start out. */
+  waitedOn: string[];
+  /**
+   * Which search found the first block: inside work hours with every limit
+   * kept, inside work hours with the daily deep-work limit relaxed to make
+   * the deadline, or after the deadline because nothing fit before it.
+   */
+  pass: "work-hours" | "relaxed-limits" | "after-deadline" | null;
+  /** The deadline the search used (date-only due dates end with their day). */
+  deadline: Date | null;
+  /** Minutes of each block, in order. */
+  chunkMinutes: number[];
+  /** Invisible recovery time reserved after each block. */
+  bufferAfterMinutes: number;
+  /** Spacing kept around busy time: max(buffer, minimum break). */
+  spacingMinutes: number;
+}
+
 interface OccupiedBlock {
   id: string;
   title: string;
@@ -348,7 +383,7 @@ export function applyFlexibleHoursOverrides(
   return result;
 }
 
-function getWorkWindows(
+export function getWorkWindows(
   date: Date,
   prefs: SchedulingPreferences,
   scheduleId?: string | null
@@ -738,6 +773,8 @@ export function scheduleTasks(input: {
   energyProfile: EnergyProfile;
   prefs: SchedulingPreferences;
   now: Date;
+  /** Filled with one entry per task the pass tried to place. */
+  trace?: Map<string, PlacementTrace>;
 }): ScheduleResult {
   // Deterministic scheduling pass:
   // 1. Keep frozen task blocks as immutable busy time.
@@ -807,8 +844,9 @@ export function scheduleTasks(input: {
     input.now
   );
   const planningHorizonEnd = addCalendarDays(input.now, DEFAULT_SEARCH_DAYS);
+  const placedOrder: string[] = [];
 
-  for (const task of candidateTasks) {
+  for (const [queueIndex, task] of candidateTasks.entries()) {
     const availableFrom =
       task.availableFrom && task.availableFrom > input.now
         ? task.availableFrom
@@ -874,6 +912,42 @@ export function scheduleTasks(input: {
     }
 
     const chunks = splitTaskIntoChunks(task, input.prefs);
+    const traced: PlacementTrace | null = input.trace
+      ? {
+          rank: queueIndex + 1,
+          queueSize: candidateTasks.length,
+          placedBefore: [...placedOrder],
+          earliestStart: dependencyReadyAt,
+          earliestReason:
+            dependencyReadyAt > availableFrom
+              ? "dependency"
+              : availableFrom > input.now
+                ? "available-from"
+                : "now",
+          waitedOn: [
+            ...new Set([
+              ...(task.dependsOnId ? [task.dependsOnId] : []),
+              ...(task.dependencyIds ?? []),
+            ]),
+          ].filter((id) => {
+            const end = placedTaskEnds.get(id);
+            return (
+              !(task.completedDependencyIds ?? []).includes(id) &&
+              end !== undefined &&
+              end > availableFrom
+            );
+          }),
+          pass: null,
+          deadline: task.deadline ?? null,
+          chunkMinutes: chunks.map((chunk) => chunk.minutes),
+          bufferAfterMinutes: chunks[0]?.bufferAfterMinutes ?? 0,
+          spacingMinutes: Math.max(
+            input.prefs.bufferMinutes,
+            input.prefs.minBreakMinutes
+          ),
+        }
+      : null;
+    if (traced) input.trace!.set(task.id, traced);
     const taskBlocks: ScheduledBlock[] = [];
     const occupiedLengthBeforeTask = occupied.length;
     const deepWorkBeforeTask = new Map(deepWorkByDay);
@@ -946,6 +1020,17 @@ export function scheduleTasks(input: {
             ));
       const slot = withinDeadline ?? afterDeadline;
       if (afterDeadline) placedAfterDeadline = true;
+      if (traced && slot) {
+        const pass = afterDeadline
+          ? "after-deadline"
+          : workScheduleSlot
+            ? "work-hours"
+            : "relaxed-limits";
+        const order = ["work-hours", "relaxed-limits", "after-deadline"];
+        if (!traced.pass || order.indexOf(pass) > order.indexOf(traced.pass)) {
+          traced.pass = pass;
+        }
+      }
 
       if (!slot) {
         if (task.hardDeadline && task.deadline) {
@@ -1006,6 +1091,7 @@ export function scheduleTasks(input: {
     }
 
     if (failedReason) {
+      if (traced) traced.pass = null;
       occupied.length = occupiedLengthBeforeTask;
       deepWorkByDay.clear();
       for (const [key, value] of deepWorkBeforeTask) {
@@ -1021,6 +1107,7 @@ export function scheduleTasks(input: {
     }
 
     blocks.push(...taskBlocks);
+    placedOrder.push(task.id);
     if (placedAfterDeadline && task.deadline) {
       atRisk.push({
         taskId: task.id,

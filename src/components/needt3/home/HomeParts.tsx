@@ -476,12 +476,15 @@ export function WeekLoad({
   cap,
   pro,
   onCalendar,
+  onReplan,
   onUpgrade,
 }: {
   days: readonly WeekDay[];
   cap: Capacity;
   pro: ProState;
   onCalendar: () => void;
+  /** Opens the what-if of a replan; nothing moves until Apply. */
+  onReplan?: () => void;
   onUpgrade: () => void;
 }) {
   const store = useStoreDistribution();
@@ -505,13 +508,21 @@ export function WeekLoad({
           </span>
         </span>
         {pro ? (
-          <button
-            type="button"
-            className="hd-link hd-push"
-            onClick={onCalendar}
-          >
-            Calendar
-          </button>
+          <span className="hd-push hd-load-links">
+            {onReplan ? (
+              <button
+                type="button"
+                className="hd-link"
+                onClick={onReplan}
+                title="See what a fresh plan would move before applying it"
+              >
+                Replan…
+              </button>
+            ) : null}
+            <button type="button" className="hd-link" onClick={onCalendar}>
+              Calendar
+            </button>
+          </span>
         ) : null}
       </header>
       <div

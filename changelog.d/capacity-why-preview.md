@@ -1,0 +1,3 @@
+- Scheduling: a task's Scheduling section can explain "Why this time" — the order it was placed in, what it waited for, its due date, work hours, deep-work limit, and what used the earlier work time — built from the scheduler's own inputs, read-only. Also at `GET /api/tasks/:id/schedule-explanation`.
+- Week load on Home now counts what the scheduler counts: the real work schedule, blocking events and personal time inside it, and every task block. `GET /api/tasks/capacity` returns a per-day breakdown (`days`).
+- "Fill it" and the new "Replan…" on Week load show a preview first: what moves, what would slip, and how each day's task time changes. Nothing moves until Apply, and Undo puts it back.

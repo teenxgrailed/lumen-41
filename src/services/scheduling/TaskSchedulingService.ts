@@ -333,6 +333,255 @@ export function scheduleAllTasksForUserDetailed(
   );
 }
 
+export type ScheduleInput = Parameters<typeof scheduleTasks>[0];
+
+/**
+ * Everything one scheduling pass reads for a person: their auto-scheduled
+ * tasks and the busy time, hours and preferences they are placed against.
+ * The live run and the read-only explanation (`explain.ts`) both start here,
+ * so an explanation is built from the same inputs the placement was.
+ */
+export async function loadScheduleInput(
+  userId: string,
+  options: { entitlementUserId?: string; workspaceId?: string } = {}
+): Promise<{ dbTasks: DbTaskWithRelations[]; input: ScheduleInput }> {
+  const legacySettings = await prisma.autoScheduleSettings.findUnique({
+    where: { userId },
+  });
+
+  if (!legacySettings) {
+    throw new AutoScheduleSettingsMissingError();
+  }
+
+  // Hours and days are wall-clock in the person's zone; the server runs UTC.
+  const userSettings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { timeZone: true },
+  });
+  const timeZone = normalizeUserTimeZone(userSettings?.timeZone);
+  const [smartPrefs, workSchedules, flexibleHoursOverrides] = await Promise.all(
+    [
+      prisma.schedulingPreferences.findUnique({ where: { userId } }),
+      prisma.workSchedule.findMany({
+        where: { userId },
+        include: {
+          windows: {
+            orderBy: [{ dayOfWeek: "asc" }, { sortOrder: "asc" }],
+          },
+        },
+        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+      }),
+      prisma.flexibleHoursOverride.findMany({
+        where: {
+          userId,
+          date: {
+            // The column is a date: today in the person's zone, as UTC midnight.
+            gte: new Date(
+              `${formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd")}T00:00:00.000Z`
+            ),
+            lt: addDays(new Date(), DEFAULT_HORIZON_DAYS + 1),
+          },
+        },
+        orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+      }),
+    ]
+  );
+  const calibration = await getCalibrationContext(userId);
+  // Null unless the person turned "Let Needt learn about me" on.
+  const learnedRatio = await getLearnedDurationRatio(
+    userId,
+    options.workspaceId
+  );
+  const now = new Date();
+  const busyFeedIds = await resolveBusyFeedIds(
+    userId,
+    legacySettings.excludedCalendars
+  );
+  // An event that echoes a task block we pushed to a calendar is not busy
+  // time: the task owns that slot.
+  const pushedBlockIds = await pushedBlockExternalIds(userId);
+  const busyEventRows = await prisma.calendarEvent.findMany({
+    where: {
+      archivedAt: null,
+      // All-day events (holidays, working locations) describe the day, not busy time.
+      allDay: false,
+      ...blockingEventWhere,
+      feedId: { in: busyFeedIds },
+      feed: { userId, enabled: true },
+      start: { lt: addDays(now, DEFAULT_HORIZON_DAYS) },
+      end: { gt: now },
+      OR: [
+        { description: null },
+        { NOT: { description: { startsWith: "[NEEDT_DAY_BLOCK]" } } },
+      ],
+    },
+    select: { id: true, start: true, end: true, externalEventId: true },
+  });
+  const busyEvents = busyEventRows.filter(
+    (event) =>
+      !event.externalEventId || !pushedBlockIds.has(event.externalEventId)
+  );
+
+  const personalBusy: CalendarBusyBlock[] = await personalBusyBlocks(
+    userId,
+    now,
+    addDays(now, DEFAULT_HORIZON_DAYS)
+  );
+
+  // A task with fixed times that Needt does not schedule (pinned by hand,
+  // made with a start through MCP, dragged) still occupies its slot.
+  const pinnedRows = await prisma.task.findMany({
+    where: {
+      ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+      isAutoScheduled: false,
+      autoScheduled: false,
+      assigneeId: userId,
+      isArchived: false,
+      trashedAt: null,
+      status: { not: TaskStatus.COMPLETED },
+      scheduledStart: { not: null, lt: addDays(now, DEFAULT_HORIZON_DAYS) },
+      scheduledEnd: { not: null, gt: now },
+      AND: [activeProjectTaskWhere],
+    },
+    select: {
+      id: true,
+      title: true,
+      scheduledStart: true,
+      scheduledEnd: true,
+    },
+  });
+  const pinnedBusy: CalendarBusyBlock[] = pinnedRows.flatMap((task) =>
+    task.scheduledStart && task.scheduledEnd
+      ? [
+          {
+            id: task.id,
+            title: task.title,
+            start: task.scheduledStart,
+            end: task.scheduledEnd,
+            source: "task" as const,
+          },
+        ]
+      : []
+  );
+
+  let dbTasks = (await prisma.task.findMany({
+    where: {
+      ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+      OR: [{ isAutoScheduled: true }, { autoScheduled: true }],
+      status: {
+        not: {
+          in: [TaskStatus.COMPLETED, TaskStatus.IN_PROGRESS],
+        },
+      },
+      assigneeId: userId,
+      isArchived: false,
+      trashedAt: null,
+      AND: [activeProjectTaskWhere],
+    },
+    include: {
+      project: true,
+      tags: true,
+      scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
+      dependsOn: { select: { status: true } },
+      blockedByDependencies: {
+        where: { removedAt: null },
+        include: {
+          blocker: { select: { status: true } },
+        },
+      },
+      projectBlockersTargeted: {
+        where: { resolvedAt: null },
+        select: {
+          id: true,
+          blockerTask: { select: { status: true } },
+        },
+      },
+      stage: {
+        select: {
+          blockers: {
+            where: { resolvedAt: null },
+            select: {
+              id: true,
+              blockerTask: { select: { status: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  })) as DbTaskWithRelations[];
+  const entitlement = await canAutoScheduleMore(
+    options.entitlementUserId || userId
+  );
+  dbTasks = selectTasksWithinAutoScheduleLimit(
+    dbTasks,
+    entitlement,
+    (task) =>
+      task.scheduledStart !== null || Boolean(task.scheduledBlocks?.length)
+  );
+
+  const input: ScheduleInput = {
+    tasks: dbTasks.map(toSchedulableTask),
+    busyBlocks: [
+      ...busyEvents.map(
+        (event): CalendarBusyBlock => ({
+          id: event.id,
+          title: "Busy",
+          start: event.start,
+          end: event.end,
+          source: "calendar",
+        })
+      ),
+      // Personal time (Lunch, Walk, Gym...) is protected: no task is placed
+      // in it, repeats and blocks linked to an event included.
+      ...personalBusy,
+      ...pinnedBusy,
+    ],
+    // Energy windows no longer constrain placement. They narrowed the day to
+    // a few hours, so tasks either piled into those hours or found no slot at
+    // all, and anything with a hard deadline then fell through to the
+    // overflow path — which ignores work hours entirely and could land a task
+    // at three in the morning. Owner decision 2026-08-31: schedule against
+    // work hours only. `EnergyProfileWindow` rows are left untouched in the
+    // database, so an assistant can still read them as a stated preference;
+    // they simply no longer decide where a block goes.
+    energyProfile: { windows: [] },
+    prefs: {
+      ...buildPreferences(smartPrefs, legacySettings),
+      timeZone,
+      calibrationFactors: calibration.factors,
+      learnedDurationRatio: learnedRatio ?? undefined,
+      defaultScheduleId:
+        workSchedules.find((schedule) => schedule.isDefault)?.id ??
+        workSchedules[0]?.id ??
+        null,
+      workHoursBySchedule: Object.fromEntries(
+        workSchedules.map((schedule) => [
+          schedule.id,
+          schedule.windows.reduce<
+            Record<string, Array<{ start: string; end: string }>>
+          >((days, window) => {
+            const day = String(window.dayOfWeek);
+            (days[day] ??= []).push({
+              start: window.startTime,
+              end: window.endTime,
+            });
+            return days;
+          }, {}),
+        ])
+      ),
+      flexibleHoursOverrides: flexibleHoursOverrides.map((override) => ({
+        date: override.date.toISOString().slice(0, 10),
+        kind: override.kind,
+        startTime: override.startTime,
+        endTime: override.endTime,
+      })),
+    },
+    now,
+  };
+  return { dbTasks, input };
+}
+
 async function scheduleAllTasksForUserLocked(
   userId: string,
   options: { entitlementUserId?: string; workspaceId?: string }
@@ -340,239 +589,9 @@ async function scheduleAllTasksForUserLocked(
   try {
     logger.info("Starting task scheduling for user", { userId }, LOG_SOURCE);
 
-    const legacySettings = await prisma.autoScheduleSettings.findUnique({
-      where: { userId },
-    });
-
-    if (!legacySettings) {
-      throw new AutoScheduleSettingsMissingError();
-    }
-
-    // Hours and days are wall-clock in the person's zone; the server runs UTC.
-    const userSettings = await prisma.userSettings.findUnique({
-      where: { userId },
-      select: { timeZone: true },
-    });
-    const timeZone = normalizeUserTimeZone(userSettings?.timeZone);
-    const [smartPrefs, workSchedules, flexibleHoursOverrides] =
-      await Promise.all([
-        prisma.schedulingPreferences.findUnique({ where: { userId } }),
-        prisma.workSchedule.findMany({
-          where: { userId },
-          include: {
-            windows: {
-              orderBy: [{ dayOfWeek: "asc" }, { sortOrder: "asc" }],
-            },
-          },
-          orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-        }),
-        prisma.flexibleHoursOverride.findMany({
-          where: {
-            userId,
-            date: {
-              // The column is a date: today in the person's zone, as UTC midnight.
-              gte: new Date(
-                `${formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd")}T00:00:00.000Z`
-              ),
-              lt: addDays(new Date(), DEFAULT_HORIZON_DAYS + 1),
-            },
-          },
-          orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-        }),
-      ]);
-    const calibration = await getCalibrationContext(userId);
-    // Null unless the person turned "Let Needt learn about me" on.
-    const learnedRatio = await getLearnedDurationRatio(
-      userId,
-      options.workspaceId
-    );
-    const now = new Date();
-    const busyFeedIds = await resolveBusyFeedIds(
-      userId,
-      legacySettings.excludedCalendars
-    );
-    // An event that echoes a task block we pushed to a calendar is not busy
-    // time: the task owns that slot.
-    const pushedBlockIds = await pushedBlockExternalIds(userId);
-    const busyEventRows = await prisma.calendarEvent.findMany({
-      where: {
-        archivedAt: null,
-        // All-day events (holidays, working locations) describe the day, not busy time.
-        allDay: false,
-        ...blockingEventWhere,
-        feedId: { in: busyFeedIds },
-        feed: { userId, enabled: true },
-        start: { lt: addDays(now, DEFAULT_HORIZON_DAYS) },
-        end: { gt: now },
-        OR: [
-          { description: null },
-          { NOT: { description: { startsWith: "[NEEDT_DAY_BLOCK]" } } },
-        ],
-      },
-      select: { id: true, start: true, end: true, externalEventId: true },
-    });
-    const busyEvents = busyEventRows.filter(
-      (event) =>
-        !event.externalEventId || !pushedBlockIds.has(event.externalEventId)
-    );
-
-    const personalBusy: CalendarBusyBlock[] = await personalBusyBlocks(
-      userId,
-      now,
-      addDays(now, DEFAULT_HORIZON_DAYS)
-    );
-
-    // A task with fixed times that Needt does not schedule (pinned by hand,
-    // made with a start through MCP, dragged) still occupies its slot.
-    const pinnedRows = await prisma.task.findMany({
-      where: {
-        ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
-        isAutoScheduled: false,
-        autoScheduled: false,
-        assigneeId: userId,
-        isArchived: false,
-        trashedAt: null,
-        status: { not: TaskStatus.COMPLETED },
-        scheduledStart: { not: null, lt: addDays(now, DEFAULT_HORIZON_DAYS) },
-        scheduledEnd: { not: null, gt: now },
-        AND: [activeProjectTaskWhere],
-      },
-      select: {
-        id: true,
-        title: true,
-        scheduledStart: true,
-        scheduledEnd: true,
-      },
-    });
-    const pinnedBusy: CalendarBusyBlock[] = pinnedRows.flatMap((task) =>
-      task.scheduledStart && task.scheduledEnd
-        ? [
-            {
-              id: task.id,
-              title: task.title,
-              start: task.scheduledStart,
-              end: task.scheduledEnd,
-              source: "task" as const,
-            },
-          ]
-        : []
-    );
-
-    let dbTasks = (await prisma.task.findMany({
-      where: {
-        ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
-        OR: [{ isAutoScheduled: true }, { autoScheduled: true }],
-        status: {
-          not: {
-            in: [TaskStatus.COMPLETED, TaskStatus.IN_PROGRESS],
-          },
-        },
-        assigneeId: userId,
-        isArchived: false,
-        trashedAt: null,
-        AND: [activeProjectTaskWhere],
-      },
-      include: {
-        project: true,
-        tags: true,
-        scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
-        dependsOn: { select: { status: true } },
-        blockedByDependencies: {
-          where: { removedAt: null },
-          include: {
-            blocker: { select: { status: true } },
-          },
-        },
-        projectBlockersTargeted: {
-          where: { resolvedAt: null },
-          select: {
-            id: true,
-            blockerTask: { select: { status: true } },
-          },
-        },
-        stage: {
-          select: {
-            blockers: {
-              where: { resolvedAt: null },
-              select: {
-                id: true,
-                blockerTask: { select: { status: true } },
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "asc" },
-    })) as DbTaskWithRelations[];
-    const entitlement = await canAutoScheduleMore(
-      options.entitlementUserId || userId
-    );
-    dbTasks = selectTasksWithinAutoScheduleLimit(
-      dbTasks,
-      entitlement,
-      (task) =>
-        task.scheduledStart !== null || Boolean(task.scheduledBlocks?.length)
-    );
-
-    const result = scheduleTasks({
-      tasks: dbTasks.map(toSchedulableTask),
-      busyBlocks: [
-        ...busyEvents.map(
-          (event): CalendarBusyBlock => ({
-            id: event.id,
-            title: "Busy",
-            start: event.start,
-            end: event.end,
-            source: "calendar",
-          })
-        ),
-        // Personal time (Lunch, Walk, Gym...) is protected: no task is placed
-        // in it, repeats and blocks linked to an event included.
-        ...personalBusy,
-        ...pinnedBusy,
-      ],
-      // Energy windows no longer constrain placement. They narrowed the day to
-      // a few hours, so tasks either piled into those hours or found no slot at
-      // all, and anything with a hard deadline then fell through to the
-      // overflow path — which ignores work hours entirely and could land a task
-      // at three in the morning. Owner decision 2026-08-31: schedule against
-      // work hours only. `EnergyProfileWindow` rows are left untouched in the
-      // database, so an assistant can still read them as a stated preference;
-      // they simply no longer decide where a block goes.
-      energyProfile: { windows: [] },
-      prefs: {
-        ...buildPreferences(smartPrefs, legacySettings),
-        timeZone,
-        calibrationFactors: calibration.factors,
-        learnedDurationRatio: learnedRatio ?? undefined,
-        defaultScheduleId:
-          workSchedules.find((schedule) => schedule.isDefault)?.id ??
-          workSchedules[0]?.id ??
-          null,
-        workHoursBySchedule: Object.fromEntries(
-          workSchedules.map((schedule) => [
-            schedule.id,
-            schedule.windows.reduce<
-              Record<string, Array<{ start: string; end: string }>>
-            >((days, window) => {
-              const day = String(window.dayOfWeek);
-              (days[day] ??= []).push({
-                start: window.startTime,
-                end: window.endTime,
-              });
-              return days;
-            }, {}),
-          ])
-        ),
-        flexibleHoursOverrides: flexibleHoursOverrides.map((override) => ({
-          date: override.date.toISOString().slice(0, 10),
-          kind: override.kind,
-          startTime: override.startTime,
-          endTime: override.endTime,
-        })),
-      },
-      now,
-    });
+    const { dbTasks, input } = await loadScheduleInput(userId, options);
+    const { now } = input;
+    const result = scheduleTasks(input);
 
     await prisma.task.updateMany({
       where: {
