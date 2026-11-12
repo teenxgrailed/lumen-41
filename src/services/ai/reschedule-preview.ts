@@ -701,6 +701,7 @@ export async function createReschedulePreview(
     changes,
     unscheduled: staged.unscheduled,
     atRisk: staged.atRisk,
+    timeZone: normalizeUserTimeZone(userSettings?.timeZone),
     load: taskLoadByDay(
       before,
       staged.snapshot,

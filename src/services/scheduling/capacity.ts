@@ -17,6 +17,7 @@ import {
 } from "@/lib/date-utils";
 import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
+import { activeProjectTaskWhere } from "@/lib/projects/archive";
 import { type WeekHours } from "@/lib/work-week";
 import { loadWeekHours } from "@/lib/work-week-server";
 
@@ -136,9 +137,13 @@ export async function getScheduleCapacity(
     prisma.task.findMany({
       where: {
         ...workspaceDataScopeWhere(workspace, userId),
+        // Your load: what the scheduler plans for you, not the workspace's.
+        assigneeId: userId,
         isArchived: false,
+        trashedAt: null,
         status: { not: "completed" },
         OR: [{ isAutoScheduled: true }, { autoScheduled: true }],
+        AND: [activeProjectTaskWhere],
       },
       select: {
         estimatedMinutes: true,
@@ -154,9 +159,11 @@ export async function getScheduleCapacity(
   const fixedTasks = await prisma.task.findMany({
     where: {
       ...workspaceDataScopeWhere(workspace, userId),
+      assigneeId: userId,
       isArchived: false,
       trashedAt: null,
       status: { not: "completed" },
+      AND: [activeProjectTaskWhere],
       isAutoScheduled: false,
       autoScheduled: false,
       scheduledStart: { not: null, lt: rangeEnd },

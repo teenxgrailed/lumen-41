@@ -267,3 +267,34 @@ describe("explainPlacement", () => {
     expect(why.facts[0]).toMatchObject({ kind: "unplaced" });
   });
 });
+
+describe("explainPlacement earlier time", () => {
+  it("never counts the same minute twice", () => {
+    const { input, trace, result } = run(
+      [task({ id: "me" })],
+      [
+        busy({ id: "m", start: at("09:00"), end: at("11:00") }),
+        // A fixed task inside the meeting: already covered.
+        busy({
+          id: "pin",
+          source: "task",
+          start: at("10:00"),
+          end: at("10:30"),
+        }),
+      ]
+    );
+    const block = result.blocks.find((b) => b.taskId === "me")!;
+    const why = explainPlacement({
+      input,
+      result,
+      trace,
+      taskId: "me",
+      current: { start: block.start, end: block.end },
+    });
+    expect(why.before).toMatchObject({
+      workMinutes: 120,
+      meetingMinutes: 120,
+      fixedTaskMinutes: 0,
+    });
+  });
+});

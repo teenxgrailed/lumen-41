@@ -343,8 +343,17 @@ export type ScheduleInput = Parameters<typeof scheduleTasks>[0];
  */
 export async function loadScheduleInput(
   userId: string,
-  options: { entitlementUserId?: string; workspaceId?: string } = {}
+  options: {
+    entitlementUserId?: string;
+    workspaceId?: string;
+    /**
+     * The instant to plan from. The live run leaves it out (the current
+     * time); the explanation passes the time of the run it explains.
+     */
+    now?: Date;
+  } = {}
 ): Promise<{ dbTasks: DbTaskWithRelations[]; input: ScheduleInput }> {
+  const planFrom = options.now ?? new Date();
   const legacySettings = await prisma.autoScheduleSettings.findUnique({
     where: { userId },
   });
@@ -377,9 +386,9 @@ export async function loadScheduleInput(
           date: {
             // The column is a date: today in the person's zone, as UTC midnight.
             gte: new Date(
-              `${formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd")}T00:00:00.000Z`
+              `${formatInTimeZone(planFrom, timeZone, "yyyy-MM-dd")}T00:00:00.000Z`
             ),
-            lt: addDays(new Date(), DEFAULT_HORIZON_DAYS + 1),
+            lt: addDays(planFrom, DEFAULT_HORIZON_DAYS + 1),
           },
         },
         orderBy: [{ date: "asc" }, { createdAt: "asc" }],
@@ -392,7 +401,7 @@ export async function loadScheduleInput(
     userId,
     options.workspaceId
   );
-  const now = new Date();
+  const now = planFrom;
   const busyFeedIds = await resolveBusyFeedIds(
     userId,
     legacySettings.excludedCalendars

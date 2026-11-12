@@ -14,18 +14,30 @@ import {
 
 import { BoardDialog, DialogFoot, DialogHead } from "../places/board/parts";
 
-const at = new Intl.DateTimeFormat(undefined, {
-  weekday: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-const day = new Intl.DateTimeFormat(undefined, {
-  weekday: "short",
-  day: "numeric",
-});
-
-function slot(iso: string | null) {
-  return iso ? at.format(newDate(iso)) : "no time";
+function formatters(timeZone?: string) {
+  const at = new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  });
+  // Day labels are "YYYY-MM-DD" in the person's zone: read them at noon UTC
+  // and print them in UTC so no zone shifts the day.
+  const day = new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+  const dueDay = new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    day: "numeric",
+    timeZone,
+  });
+  return {
+    slot: (iso: string | null) => (iso ? at.format(newDate(iso)) : "no time"),
+    day: (ymd: string) => day.format(newDate(`${ymd}T12:00:00.000Z`)),
+    due: (iso: string) => dueDay.format(newDate(iso)),
+  };
 }
 
 function hours(minutes: number) {
@@ -47,7 +59,7 @@ export function previewSummary(preview: SchedulePreview) {
   const title = moved ? "Apply the new plan?" : "The plan is current";
   const sub = moved
     ? `${moved} ${moved === 1 ? "task moves" : "tasks move"}${
-        slips ? `, ${slips} would slip` : ""
+        slips ? `, ${slips} still without room` : ""
       }. Nothing changes until you apply, and Undo puts it back.`
     : slips
       ? "Nothing would move, but some tasks have no room."
@@ -84,6 +96,7 @@ export function SchedulePreviewSheet({
         ? last.current
         : null;
   const words = preview ? previewSummary(preview) : null;
+  const f = formatters(preview?.timeZone);
   return (
     <BoardDialog open={open} onClose={onClose} label="Plan preview" width={480}>
       {state.phase === "loading" ? (
@@ -99,7 +112,7 @@ export function SchedulePreviewSheet({
                 <li key={c.taskId} className="sp-row">
                   <span className="sp-name">{c.title}</span>
                   <span className="sp-move hd-num">
-                    {slot(c.fromStart)} → {slot(c.toStart)}
+                    {f.slot(c.fromStart)} → {f.slot(c.toStart)}
                   </span>
                 </li>
               ))}
@@ -107,13 +120,13 @@ export function SchedulePreviewSheet({
           ) : null}
           {words.slips ? (
             <section className="sp-group" data-sp-slips="">
-              <span className="sp-head">Would slip</span>
+              <span className="sp-head">No room</span>
               <ul className="sp-list">
                 {(preview.atRisk ?? []).map((r) => (
                   <li key={`r-${r.taskId}`} className="sp-row is-risk">
                     <span className="sp-name">{r.title}</span>
                     <span className="sp-move">
-                      after its due date, {day.format(newDate(r.deadline))}
+                      after its due date, {f.due(r.deadline)}
                     </span>
                   </li>
                 ))}
@@ -132,9 +145,7 @@ export function SchedulePreviewSheet({
               <ul className="sp-list">
                 {words.load.map((d) => (
                   <li key={d.date} className="sp-row">
-                    <span className="sp-name">
-                      {day.format(newDate(`${d.date}T12:00:00`))}
-                    </span>
+                    <span className="sp-name">{f.day(d.date)}</span>
                     <span className="sp-move hd-num">
                       {hours(d.beforeMinutes)} → {hours(d.afterMinutes)}
                     </span>

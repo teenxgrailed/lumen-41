@@ -2,7 +2,7 @@ import { loadScheduleInput } from "@/services/scheduling/TaskSchedulingService";
 
 import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
-import { formatInTimeZone } from "@/lib/date-utils";
+import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 import { UNSCHEDULED_REASON_MESSAGES } from "@/lib/scheduling-reasons";
 
@@ -210,7 +210,20 @@ export function explainPlacement(args: {
     timeZone: tz ?? null,
   };
 
-  if (!task) return { ...base, status: "not-in-plan" };
+  if (!task) {
+    return {
+      ...base,
+      status: "not-in-plan",
+      facts: [
+        {
+          kind: "unplaced",
+          label: "Not planned",
+          text: "The planner does not place this task for you: it is assigned to someone else, started, or done.",
+          decisive: true,
+        },
+      ],
+    };
+  }
 
   if (task.isFrozen) {
     return {
@@ -255,7 +268,7 @@ export function explainPlacement(args: {
       text:
         placement.rank === 1
           ? `First of ${placement.queueSize} to be placed: ${reasons.join(", ")}.`
-          : `${ordinal(placement.rank)} of ${placement.queueSize} to be placed: ${reasons.join(", ")}. ASAP, hard deadlines and nearer due dates go first, then priority.`,
+          : `${ordinal(placement.rank)} of ${placement.queueSize} to be placed: ${reasons.join(", ")}. Prerequisites go first, then ASAP, hard deadlines, nearer due dates and priority.`,
     });
 
     if (placement.earliestReason === "dependency") {
@@ -352,12 +365,20 @@ export function explainPlacement(args: {
           .map((b) => b.taskId)
       ),
     ];
+    const layers = [meetings, personal, fixed, ahead];
+    const layered = layers.map(
+      (_, i) =>
+        sum(work, layers.slice(0, i + 1).flat()) -
+        (i ? sum(work, layers.slice(0, i).flat()) : 0)
+    );
     const before = {
       workMinutes: Math.round(workMinutes),
-      meetingMinutes: sum(work, meetings),
-      personalMinutes: sum(work, personal),
-      fixedTaskMinutes: sum(work, fixed),
-      tasksAheadMinutes: sum(work, ahead),
+      // Each kind counts only time the kinds before it did not already
+      // cover, so the parts never add up to more than the work time.
+      meetingMinutes: layered[0],
+      personalMinutes: layered[1],
+      fixedTaskMinutes: layered[2],
+      tasksAheadMinutes: layered[3],
       tasksAhead: aheadInWindow.slice(0, 3).map((id) => ({
         id,
         title: titleById.get(id) ?? "Task",
@@ -445,7 +466,7 @@ export function explainPlacement(args: {
     facts.unshift({
       kind: "stale",
       label: "Changed",
-      text: `Something changed since this was planned. Planned now, it would go to ${when(first.start, tz)}.`,
+      text: `Something changed since this was planned (a task, an event or a setting). With your plan as it is now, it would go to ${when(first.start, tz)} — the reasons below are for that time.`,
       decisive: true,
     });
   }
@@ -474,6 +495,7 @@ export async function explainTaskSchedule(
       autoScheduled: true,
       scheduledStart: true,
       scheduledEnd: true,
+      lastScheduled: true,
     },
   });
   if (!task) return null;
@@ -513,7 +535,11 @@ export async function explainTaskSchedule(
       timeZone: null,
     };
   }
+  // Replay the run that placed the task, from the instant it ran: a pass
+  // from "now" would see blocks that have started since as free time and
+  // move everything after them, which is not why the task is where it is.
   const { input } = await loadScheduleInput(userId, {
+    now: task.lastScheduled ?? newDate(),
     workspaceId:
       workspace.dataScope.mode === "workspace"
         ? workspace.workspaceId

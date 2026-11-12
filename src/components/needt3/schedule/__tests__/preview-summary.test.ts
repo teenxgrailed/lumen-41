@@ -31,7 +31,7 @@ describe("previewSummary", () => {
       ],
     });
     expect(words.title).toBe("Apply the new plan?");
-    expect(words.sub).toContain("1 task moves, 2 would slip");
+    expect(words.sub).toContain("1 task moves, 2 still without room");
     expect(words.sub).toContain("Undo");
     expect(words.load.map((d) => d.date)).toEqual(["2026-07-06"]);
   });

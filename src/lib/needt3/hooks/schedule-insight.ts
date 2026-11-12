@@ -6,7 +6,7 @@
  * person says so (and can be undone). All three read the server; none of
  * them moves anything by itself.
  */
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -101,6 +101,8 @@ export interface SchedulePreview {
   unscheduled: { taskId: string; title: string; reason: string }[];
   atRisk?: { taskId: string; title: string; deadline: string }[];
   load?: PreviewLoadDay[];
+  /** The person's zone; times in the preview are read in it. */
+  timeZone?: string;
 }
 
 interface ApplyReply {
@@ -123,19 +125,25 @@ export type PreviewState =
 export function useSchedulePreview() {
   const qc = useQueryClient();
   const [state, setState] = useState<PreviewState>({ phase: "idle" });
+  // Each open() gets a number; a reply for an older one (closed, or opened
+  // again since) is dropped instead of reopening the sheet.
+  const generation = useRef(0);
   const refresh = useCallback(
     () => qc.invalidateQueries({ queryKey: qk.all() }),
     [qc]
   );
 
   const open = useCallback(async () => {
+    const mine = ++generation.current;
     setState({ phase: "loading" });
     try {
       const preview = await sendJson<SchedulePreview>(PREVIEW_URL, "POST", {
         action: "preview",
       });
+      if (mine !== generation.current) return;
       setState({ phase: "ready", preview });
     } catch (error) {
+      if (mine !== generation.current) return;
       logger.warn(
         "Schedule preview failed",
         { error: error instanceof Error ? error.message : String(error) },
@@ -145,7 +153,10 @@ export function useSchedulePreview() {
     }
   }, []);
 
-  const close = useCallback(() => setState({ phase: "idle" }), []);
+  const close = useCallback(() => {
+    generation.current += 1;
+    setState({ phase: "idle" });
+  }, []);
 
   const undo = useCallback(
     async (token: string) => {
