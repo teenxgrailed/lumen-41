@@ -1,9 +1,13 @@
-import { chromium } from "playwright";
 import { readdirSync } from "fs";
+import { chromium } from "playwright";
+
 (async () => {
   const dir = process.argv[2];
   const b = await chromium.launch();
-  const p = await b.newPage({ viewport: { width: 1000, height: 1500 }, deviceScaleFactor: 1 });
+  const p = await b.newPage({
+    viewport: { width: 1000, height: 1500 },
+    deviceScaleFactor: 1,
+  });
   for (const f of readdirSync(dir).filter((x) => x.endsWith(".html"))) {
     await p.goto("file://" + dir + "/" + f);
     await p.waitForSelector("body[data-ready]");
