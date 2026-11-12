@@ -6,7 +6,7 @@ Drafts only. Nothing here is posted or sent without the owner's explicit "yes".
 | --- | --- |
 | `x.md` | Launch thread (8 posts) and 5 single posts for the week |
 | `instagram.md` | 3 posts: caption and visual brief each |
-| `product-hunt.md` | Product Hunt, 18.11: tagline, description, maker's first comment, 5 screenshots |
+| `product-hunt.md` | Product Hunt, 17.11: tagline, description, maker's first comment, 5 screenshots |
 | `waitlist-email.md` | Waitlist email: subject, 2 preview texts, body under 150 words |
 
 ## Sources of every claim

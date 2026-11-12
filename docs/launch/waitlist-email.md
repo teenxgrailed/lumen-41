@@ -40,5 +40,5 @@ still coming.
 Footer: unsubscribe link and the legal operator line, as in the existing templates in
 `src/lib/email/templates/`.
 
-- `[OWNER: send date; before or on PH day 18.11?]`
+- `[OWNER: send date; before or on PH day 17.11?]`
 - `[OWNER: does reply-to reach hello@needt.app?]`
