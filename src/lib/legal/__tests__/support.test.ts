@@ -6,6 +6,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { supportMarkdown } from "../documents/support";
 import { PRIVACY_EMAIL, SUPPORT_EMAIL } from "../operator";
 
+// The page's v3 scope pulls in CSS and next/font; neither runs in Node.
+jest.mock("@/components/needt3/states/PublicScope", () => ({
+  PublicScope: ({ children }: { children: unknown }) => children,
+}));
+
 const html = renderToStaticMarkup(h(SupportPage));
 
 describe("public support page", () => {
