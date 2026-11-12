@@ -15,6 +15,7 @@ import {
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useCreateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
+import { chf, groupMoney } from "@/lib/needt3/progress";
 import { notify } from "@/lib/notifications";
 
 import { useV3PortalContainer } from "../ctx/PortalScope";
@@ -163,9 +164,12 @@ export function ProjectPage({
   onFold,
   draft,
   onDraft,
+  moneyTasks,
 }: {
   project: V3Project;
   tasks: readonly V3Task[];
+  /** Every task, no-slot ones included: a sale has no slot but its money counts. */
+  moneyTasks?: readonly V3Task[];
   today: string;
   onOpenTask: (id: string) => void;
   onEdit: () => void;
@@ -213,6 +217,10 @@ export function ProjectPage({
   );
   const mine = tasks.filter((t) => t.projectId === p.id);
   const blocked = blockedIds(mine);
+  /* Plan 11 T-4: a group whose tasks carry amounts leads with money in. */
+  const money = groupMoney(
+    (moneyTasks ?? tasks).filter((t) => t.projectId === p.id)
+  );
   const row = (t: V3Task) => (
     <FlowItem key={t.id} task={t} all={mine} onTick={tick}>
       <Task
@@ -253,6 +261,29 @@ export function ProjectPage({
           <h1 className="wk-phero-name" title={p.name}>
             {p.name}
           </h1>
+          {money ? (
+            <span className="wk-phero-money" data-wk-money="">
+              <span className="wk-phero-earned" title="Money that came in">
+                {chf(money.earned)} earned
+              </span>
+              {money.listed ? (
+                <span
+                  className="wk-phero-listed"
+                  title="An estimate: the asking amount of what has not sold yet"
+                >
+                  {chf(money.listed)} listed
+                </span>
+              ) : null}
+              {money.unpriced ? (
+                <span
+                  className="wk-phero-listed"
+                  title="Closed with no amount entered — open one to add what came in"
+                >
+                  {money.unpriced} sold, amount not entered
+                </span>
+              ) : null}
+            </span>
+          ) : null}
           <span className="wk-phero-stats wk-num">
             <span>{openLine(s)}</span>
             {s.done ? <span>{s.done} done</span> : null}

@@ -34,7 +34,13 @@ export function stepList(t: Stepped): StepItem[] {
       part: null,
     });
   for (const p of parts)
-    items.push({ key: p.id, title: p.title, done: p.done, part: p });
+    items.push({
+      key: p.id,
+      // An unnamed part (a counter's, plan 11 T-1) beside named ones.
+      title: p.title.trim() || "Untitled step",
+      done: p.done,
+      part: p,
+    });
   return items.map((s, i) => ({ ...s, n: i + 1 }));
 }
 

@@ -1026,6 +1026,9 @@ model Task {
   noSlot                 Boolean          @default(false) // Belongs to no day/rail.
   lastTouchedAt          DateTime? // Backs `age` without updatedAt's reschedule noise.
   previousScheduledStart DateTime? // Backs `movedFrom`: where the scheduler moved it from.
+  /// How many times the person moved the task to a later day (plan 11 T-2):
+  /// two or more asks for a two-minute way in. The scheduler's own moves do not count.
+  moveCount              Int              @default(0)
   valueCents             Int? // Money task: what it is worth, in integer cents.
   earnedCents            Int? // Money task: what has come in, in integer cents.
   globalStage            TaskStage? // Four global stages, independent of any project.

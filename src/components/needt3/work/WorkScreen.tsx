@@ -416,6 +416,7 @@ function WorkScreenContent({
               key={page.id}
               project={page}
               tasks={liveAll}
+              moneyTasks={tasks}
               today={today}
               onOpenTask={openTask}
               onEdit={() => state.startEdit(page)}

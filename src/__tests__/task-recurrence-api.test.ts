@@ -105,9 +105,15 @@ describe("task recurrence instances", () => {
       })),
     };
     taskModel.findUnique.mockResolvedValue(master);
+    // Completing a repeating counter also unticks its unnamed parts (plan 11 T-1).
+    const transactionPart = { updateMany: jest.fn() };
     (prisma.$transaction as jest.Mock).mockImplementation(
-      (callback: (client: { task: typeof transactionTask }) => unknown) =>
-        callback({ task: transactionTask })
+      (
+        callback: (client: {
+          task: typeof transactionTask;
+          taskPart: typeof transactionPart;
+        }) => unknown
+      ) => callback({ task: transactionTask, taskPart: transactionPart })
     );
 
     const [first, second] = await Promise.all([

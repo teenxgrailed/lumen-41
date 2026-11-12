@@ -502,3 +502,21 @@
 .needt-v3 .tdc-check,
 .needt-v3 .tdc-icon-btn { transition: none; }
 }
+
+/* Plan 11: the counter row, the asked-for way in, and the two amounts. Same
+   row geometry as the first step (one form-row geometry). */
+.needt-v3 .tdc-count-val { flex: none; font: var(--type-ui-medium); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.needt-v3 .tdc-count-target { flex: none; width: 44px; height: 26px; padding: 0 6px; border: 0; border-radius: 6px; outline: none; background: var(--fill-3); font: var(--type-ui-medium); color: var(--text-primary); font-variant-numeric: tabular-nums; -moz-appearance: textfield; }
+.needt-v3 .tdc-count-target::-webkit-inner-spin-button,
+.needt-v3 .tdc-count-target::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.needt-v3 .tdc-count-btns { margin-left: auto; display: inline-flex; gap: 2px; }
+.needt-v3 .tdc-step.is-asking .tdc-step-label { color: var(--text-secondary); }
+.needt-v3 .tdc-step.is-asking .tdc-step-input::placeholder { color: var(--text-tertiary); }
+.needt-v3 .tdc-money { display: flex; flex-direction: column; gap: 2px; }
+.needt-v3 .tdc-money-input { font-variant-numeric: tabular-nums; }
+.needt-v3 .tk-money { flex: none; display: inline-flex; align-items: baseline; gap: 5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.needt-v3 .tk-money-listed { font: var(--type-meta); color: var(--text-quaternary); }
+.needt-v3 .tk-money-ask { font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .wk-phero-money { display: inline-flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
+.needt-v3 .wk-phero-earned { font: var(--type-ui-medium); color: var(--text-primary); }
+.needt-v3 .wk-phero-listed { font: var(--type-meta); color: var(--text-tertiary); }

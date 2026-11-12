@@ -818,7 +818,7 @@ function TaskSheetBody({
               </span>
             ) : null}
           </div>
-          {parts.map((p) => (
+          {parts.map((p, i) => (
             <div key={p.id} className={pkCx("pov-part", p.done && "is-done")}>
               <button
                 type="button"
@@ -831,7 +831,10 @@ function TaskSheetBody({
               >
                 {p.done ? <LuCheck size={12} /> : null}
               </button>
-              <span className="pov-part-title">{p.title}</span>
+              {/* An unnamed part is one of a counter's (plan 11 T-1). */}
+              <span className="pov-part-title">
+                {p.title.trim() || `${i + 1} of ${parts.length}`}
+              </span>
             </div>
           ))}
           <div className="pov-part is-add">
