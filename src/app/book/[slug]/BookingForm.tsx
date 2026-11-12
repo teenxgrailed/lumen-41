@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
-import { CalendarDays, Check, Clock, Loader2 } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  LuCalendarDays,
+  LuCheck,
+  LuClock,
+  LuLoaderCircle,
+} from "react-icons/lu";
 
 type Slot = { start: string; end: string };
 
@@ -24,6 +26,8 @@ export function BookingForm({
   const [submitting, setSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const nameId = useId();
+  const emailId = useId();
 
   useEffect(() => {
     void fetch(`/api/public/booking/${encodeURIComponent(slug)}/slots`)
@@ -82,43 +86,38 @@ export function BookingForm({
 
   if (confirmed) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-lg">
-        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background">
-          <Check className="h-5 w-5" />
+      <div className="pub-card pub-book-done">
+        <span className="pub-book-done-mark">
+          <LuCheck size={18} aria-hidden />
         </span>
-        <h2 className="mt-5 text-xl font-semibold">You’re booked</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          A confirmation has been sent to {email}.
-        </p>
+        <h2 className="pub-card-title pub-book-done-title">You’re booked</h2>
+        <p className="pub-lead">A confirmation has been sent to {email}.</p>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-lg">
-        <div className="mb-5 flex items-center gap-2 text-sm font-medium">
-          <CalendarDays className="h-4 w-4" /> Choose a time
+    <div className="pub-book-grid">
+      <div className="pub-card">
+        <div className="pub-book-head">
+          <LuCalendarDays size={14} aria-hidden /> Choose a time
         </div>
         {loading ? (
-          <Loader2 className="mx-auto my-16 h-5 w-5 animate-spin" />
+          <LuLoaderCircle size={18} className="pub-spin pub-book-loading" />
         ) : (
-          <div className="space-y-6">
+          <div className="pub-book-days">
             {Object.entries(grouped).map(([day, daySlots]) => (
               <section key={day}>
-                <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {day}
-                </h3>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                <h3 className="pub-book-day">{day}</h3>
+                <div className="pub-book-slots">
                   {daySlots.map((slot) => (
                     <button
                       key={slot.start}
                       type="button"
                       onClick={() => setSelected(slot.start)}
-                      className={`min-h-11 rounded-lg border px-2 text-sm transition ${
-                        selected === slot.start
-                          ? "border-foreground bg-foreground text-background shadow-sm"
-                          : "border-border bg-background hover:border-foreground/40"
+                      aria-pressed={selected === slot.start}
+                      className={`nx-btn nx-btn-secondary pub-book-slot${
+                        selected === slot.start ? " nx-selected" : ""
                       }`}
                     >
                       {new Intl.DateTimeFormat(undefined, {
@@ -132,45 +131,66 @@ export function BookingForm({
               </section>
             ))}
             {slots.length === 0 && (
-              <p className="py-12 text-center text-sm text-muted-foreground">
+              <p className="pub-meta pub-book-empty">
                 No available times in the next two weeks.
               </p>
             )}
           </div>
         )}
       </div>
-      <aside className="h-fit rounded-2xl border border-border bg-card p-5 shadow-lg">
-        <div className="mb-4 flex items-center gap-2 text-sm font-medium">
-          <Clock className="h-4 w-4" /> Your details
+      <aside className="pub-card pub-book-aside">
+        <div className="pub-book-head">
+          <LuClock size={14} aria-hidden /> Your details
         </div>
-        <div className="space-y-3">
-          <Input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Your name"
-            autoComplete="name"
-          />
-          <Input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
-            type="email"
-            autoComplete="email"
-          />
+        <div className="nt-form">
+          <div className="nt-row">
+            <label className="nt-row-label" htmlFor={nameId}>
+              Name
+            </label>
+            <div className="nt-row-control">
+              <input
+                id={nameId}
+                className="nt-input"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Your name"
+                autoComplete="name"
+              />
+            </div>
+          </div>
+          <div className="nt-row">
+            <label className="nt-row-label" htmlFor={emailId}>
+              Email
+            </label>
+            <div className="nt-row-control">
+              <input
+                id={emailId}
+                className="nt-input"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                type="email"
+                autoComplete="email"
+              />
+            </div>
+          </div>
           {error && (
-            <p className="text-sm text-destructive" role="alert">
+            <p className="pub-error" role="alert">
               {error}
             </p>
           )}
-          <Button
-            className="h-11 w-full"
+          <button
+            type="button"
+            className="nx-btn nx-btn-primary pub-book-submit"
             disabled={!selected || !name.trim() || !email.trim() || submitting}
             onClick={submit}
           >
-            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {submitting && (
+              <LuLoaderCircle size={14} className="pub-spin" aria-hidden />
+            )}
             Confirm booking
-          </Button>
-          <p className="text-xs leading-5 text-muted-foreground">
+          </button>
+          <p className="pub-meta">
             Times are shown in {timeZone}. The slot is checked again before it
             is confirmed.
           </p>

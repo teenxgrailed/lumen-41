@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 
-import { CalendarDays, Clock3 } from "lucide-react";
+import { LuCalendarDays, LuClock3 } from "react-icons/lu";
+
+import { PublicScope } from "@/components/needt3/states/PublicScope";
 
 import { prisma } from "@/lib/prisma";
 
@@ -29,26 +31,20 @@ export default async function PublicBookingPage({
   if (!page) notFound();
 
   return (
-    <main className="min-h-dvh bg-background px-4 py-10 text-foreground sm:py-16">
-      <div className="mx-auto max-w-5xl">
-        <header className="mb-8 max-w-2xl">
-          <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-            <CalendarDays className="h-4 w-4" /> Needt booking
+    <PublicScope>
+      <main className="pub-page">
+        <header className="pub-book-header">
+          <div className="pub-kicker">
+            <LuCalendarDays size={14} aria-hidden /> Needt booking
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            {page.title}
-          </h1>
-          {page.description && (
-            <p className="mt-3 text-base text-muted-foreground">
-              {page.description}
-            </p>
-          )}
-          <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock3 className="h-4 w-4" /> {page.durationMinutes} minutes
+          <h1 className="pub-title">{page.title}</h1>
+          {page.description && <p className="pub-lead">{page.description}</p>}
+          <div className="pub-kicker pub-book-duration">
+            <LuClock3 size={14} aria-hidden /> {page.durationMinutes} minutes
           </div>
         </header>
         <BookingForm slug={page.slug} timeZone={page.timeZone} />
-      </div>
-    </main>
+      </main>
+    </PublicScope>
   );
 }

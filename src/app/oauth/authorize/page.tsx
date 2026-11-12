@@ -20,7 +20,7 @@ import {
   limitAuthorize,
 } from "@/services/oauth/limits";
 
-import { Button } from "@/components/ui/button";
+import { PublicScope } from "@/components/needt3/states/PublicScope";
 
 import { isAdminUserId } from "@/lib/auth/admin-role";
 import { getAuthOptions } from "@/lib/auth/auth-options";
@@ -38,11 +38,11 @@ type PageProps = {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-dvh place-items-center bg-background px-4 py-10 text-foreground">
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 text-[13px]">
-        {children}
-      </div>
-    </main>
+    <PublicScope>
+      <main className="pub-center">
+        <div className="pub-card pub-oauth-card">{children}</div>
+      </main>
+    </PublicScope>
   );
 }
 
@@ -67,8 +67,8 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
   ) {
     return (
       <Shell>
-        <h1 className="text-[15px] font-semibold">Too many attempts</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="pub-card-title">Too many attempts</h1>
+        <p className="pub-lead">
           Wait a minute and start the connection again.
         </p>
       </Shell>
@@ -81,9 +81,9 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
   if (!result.ok && result.kind === "page") {
     return (
       <Shell>
-        <h1 className="text-[15px] font-semibold">This link cannot connect</h1>
-        <p className="mt-2 text-muted-foreground">{result.description}</p>
-        <p className="mt-3 text-[12px] text-muted-foreground">
+        <h1 className="pub-card-title">This link cannot connect</h1>
+        <p className="pub-lead">{result.description}</p>
+        <p className="pub-meta pub-oauth-note">
           Nothing was shared. Start the connection again from the app you came
           from.
         </p>
@@ -111,14 +111,12 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
   if (verification.required && !verification.verified) {
     return (
       <Shell>
-        <h1 className="text-[15px] font-semibold">Confirm your email first</h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className="pub-card-title">Confirm your email first</h1>
+        <p className="pub-lead">
           Open Needt and confirm {verification.email ?? "your email"}, then
           start the connection again.
         </p>
-        <p className="mt-3 text-[12px] text-muted-foreground">
-          Nothing was shared.
-        </p>
+        <p className="pub-meta pub-oauth-note">Nothing was shared.</p>
       </Shell>
     );
   }
@@ -139,29 +137,30 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
 
   return (
     <Shell>
-      <h1 className="text-[15px] font-semibold">
+      <h1 className="pub-card-title">
         Connect {request.client.name} to Needt?
       </h1>
-      <p className="mt-1 text-[12px] text-muted-foreground" data-client-host>
-        from <span className="font-medium text-foreground">{origin.host}</span>
+      <p className="pub-meta pub-oauth-host" data-client-host>
+        from <span className="pub-oauth-strong">{origin.host}</span>
       </p>
-      <p className="mt-2 text-muted-foreground">
+      <p className="pub-lead">
         {request.client.name} will act as {session.user.email ?? "you"}. After
         you allow it, Needt sends you back to{" "}
-        <span className="font-medium text-foreground">{redirectHost}</span>.
+        <span className="pub-oauth-strong">{redirectHost}</span>.
       </p>
       {origin.trusted ? null : (
-        <p
-          className="mt-2 text-[12px] text-muted-foreground"
-          data-client-caution
-        >
+        <p className="pub-meta pub-oauth-caution" data-client-caution>
           Needt cannot confirm who made this app; the name is what the app says
           about itself. Only continue if you started this connection from{" "}
           {origin.host}.
         </p>
       )}
 
-      <form method="post" action="/oauth/authorize/decision" className="mt-5">
+      <form
+        method="post"
+        action="/oauth/authorize/decision"
+        className="pub-oauth-form"
+      >
         {AUTHORIZE_PARAMS.map((key) => {
           const value = params.get(key);
           return value === null ? null : (
@@ -169,42 +168,40 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
           );
         })}
 
-        <fieldset className="space-y-2">
-          <legend className="mb-2 text-[12px] font-medium text-muted-foreground">
-            It may
-          </legend>
-          <label className="flex items-start gap-2">
-            <input type="checkbox" checked disabled className="mt-0.5" />
+        <fieldset className="pub-oauth-scopes">
+          <legend className="pub-oauth-legend">It may</legend>
+          <label className="pub-oauth-check">
+            <input type="checkbox" checked disabled className="pub-oauth-box" />
             <span>{SCOPE_LABELS["needt.read"]}</span>
           </label>
           {wantsWrite ? (
-            <label className="flex items-start gap-2">
+            <label className="pub-oauth-check">
               <input
                 type="checkbox"
                 name="write"
                 defaultChecked
-                className="mt-0.5"
+                className="pub-oauth-box"
               />
               <span>{SCOPE_LABELS["needt.write"]}</span>
             </label>
           ) : null}
           {wantsMail ? (
-            <label className="flex items-start gap-2">
-              <input type="checkbox" name="mail" className="mt-0.5" />
+            <label className="pub-oauth-check">
+              <input type="checkbox" name="mail" className="pub-oauth-box" />
               <span>
                 {SCOPE_LABELS["mail.read"]}
-                <span className="block text-[12px] text-muted-foreground">
+                <span className="pub-oauth-hint">
                   Off unless you tick it. Message bodies are not shared.
                 </span>
               </span>
             </label>
           ) : null}
           {offerAdmin ? (
-            <label className="flex items-start gap-2" data-consent-admin>
-              <input type="checkbox" name="admin" className="mt-0.5" />
+            <label className="pub-oauth-check" data-consent-admin>
+              <input type="checkbox" name="admin" className="pub-oauth-box" />
               <span>
                 {SCOPE_LABELS["needt.admin.read"]}
-                <span className="block text-[12px] text-muted-foreground">
+                <span className="pub-oauth-hint">
                   Off unless you tick it. Read only: it cannot change plans,
                   flags or accounts. Every read is recorded in the admin audit
                   log.
@@ -214,10 +211,8 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
           ) : null}
         </fieldset>
 
-        <div className="mt-5">
-          <span className="mb-1 block text-[12px] font-medium text-muted-foreground">
-            Only in this workspace
-          </span>
+        <div className="pub-oauth-workspace">
+          <span className="pub-oauth-legend">Only in this workspace</span>
           <WorkspacePicker
             workspaces={workspaces.map(({ workspace, role }) => ({
               id: workspace.id,
@@ -226,20 +221,25 @@ export default async function AuthorizePage({ searchParams }: PageProps) {
           />
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
-          <Button type="submit" name="decision" value="deny" variant="outline">
+        <div className="pub-oauth-actions">
+          <button
+            type="submit"
+            name="decision"
+            value="deny"
+            className="nx-btn nx-btn-text"
+          >
             Cancel
-          </Button>
-          <Button
+          </button>
+          <button
             type="submit"
             name="decision"
             value="allow"
-            variant="secondary"
+            className="nx-btn nx-btn-primary"
           >
             Allow
-          </Button>
+          </button>
         </div>
-        <p className="mt-4 text-[12px] text-muted-foreground">
+        <p className="pub-meta pub-oauth-note">
           You can disconnect it any time in Settings › Connected apps.
         </p>
       </form>
