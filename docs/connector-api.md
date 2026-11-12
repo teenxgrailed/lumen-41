@@ -260,12 +260,12 @@ polls the hub several times a day does not drain a shared usage budget. The
 limits sit on the agent (`HubAgent.limits`, one nullable Json column) and are
 all optional; an agent with none behaves exactly as before.
 
-| Key | Meaning |
-| --- | --- |
-| `maxInProgress` | Most items held at once (status claimed, in_progress or blocked). |
-| `maxClaimsPerDay` | Most new claims per UTC day. A holder re-claiming its own item to extend the lease does not count. |
-| `inboxLimit` | `needt_agent_inbox` and `needt_agent_next` offer at most this many claimable items, best first (assigned to the agent, closest skill match, due date, age). Items the agent already holds are always shown. |
-| `acceptsLarge` | `false`: items created with `large: true` are not offered and cannot be claimed, unless the owner approved them. |
+| Key               | Meaning                                                                                                                                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxInProgress`   | Most items held at once (status claimed, in_progress or blocked).                                                                                                                                           |
+| `maxClaimsPerDay` | Most new claims per UTC day. A holder re-claiming its own item to extend the lease does not count.                                                                                                          |
+| `inboxLimit`      | `needt_agent_inbox` and `needt_agent_next` offer at most this many claimable items, best first (assigned to the agent, closest skill match, due date, age). Items the agent already holds are always shown. |
+| `acceptsLarge`    | `false`: items created with `large: true` are not offered and cannot be claimed, unless the owner approved them.                                                                                            |
 
 At a cap, `needt_agent_task_claim` is refused with `AGENT_LIMIT` (REST status
 429, MCP: a normal tool error) and `needt_agent_next` returns `item: null`; the
@@ -318,10 +318,17 @@ the secret>`.
   "workspaceId": "cm…",
   "data": {
     "item": {
-      "id": "cm…", "title": "Upload the video", "status": "done",
-      "risks": ["publish"], "assigneeAgentId": "cm…", "claimedByAgentId": "cm…",
-      "creatorKind": "owner", "creatorAgentId": null,
-      "due": null, "question": null, "url": "/agents?item=cm…"
+      "id": "cm…",
+      "title": "Upload the video",
+      "status": "done",
+      "risks": ["publish"],
+      "assigneeAgentId": "cm…",
+      "claimedByAgentId": "cm…",
+      "creatorKind": "owner",
+      "creatorAgentId": null,
+      "due": null,
+      "question": null,
+      "url": "/agents?item=cm…"
     },
     "outcome": "done"
   }
@@ -341,9 +348,12 @@ compare:
 ```js
 // Node
 import { createHmac, timingSafeEqual } from "node:crypto";
+
 function verify(rawBody, header, secret) {
-  const expected = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
-  const a = Buffer.from(expected), b = Buffer.from(header ?? "");
+  const expected =
+    "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
+  const a = Buffer.from(expected),
+    b = Buffer.from(header ?? "");
   return a.length === b.length && timingSafeEqual(a, b);
 }
 ```
@@ -391,7 +401,7 @@ secret scan; a hit is refused naming the kind, never the value.
   bytes in its own database, so the URL points at Needt and not at an object
   store; a replayed PUT returns the first result instead of a second file.
 - `needt_agent_files` `{ itemId }` lists `{ id, name, mime, size, uploadedBy,
-  createdAt, url, urlExpiresAt }`. `url` is a signed GET valid 24 hours (the
+createdAt, url, urlExpiresAt }`. `url` is a signed GET valid 24 hours (the
   signature is the credential, so anyone holding the link can read the file
   until it expires; call the tool again for a fresh one).
 - REST: `GET` and `POST /api/connect/agent-hub/items/{id}/attachments` (bearer;
@@ -1543,6 +1553,68 @@ PATCH  /api/goals/:id/tasks/:taskId   { done } | { linked: false } # task.comple
 
 In MCP, `needt_list` and `needt_get` take `type: "goal"`; `needt_get`
 returns `{ goal, subgoals, tasks, checkIns }`.
+
+## Charts
+
+A chart block a person puts on a project or on Home: **progress over time**
+(`task_progress`: tasks done against all tasks, as running totals at the end
+of each day), **habit streaks** (`habit_streak`: check-ins per day, the
+current streak and the best one; `habitId` charts one habit, else every
+habit in scope) and **time spent** (`time_spent`: minutes from finished time
+entries — timer, manual and Focus — per day). The block stores only what to
+measure; the numbers are derived from the person's own rows on every read,
+in their time zone, so a chart never disagrees with its data.
+
+- **Place**: `projectId` puts the chart on that project and counts only that
+  project's tasks, habits and time. Without it the chart sits on Home and
+  counts the whole workspace. At most 12 charts per place.
+- **Shape**: `style` `line` or `bar`, `rangeDays` 7, 14, 30 or 90. The scale
+  starts at zero.
+- **Remove** takes only the block away; Undo brings it back.
+
+```json
+{
+  "id": "…",
+  "title": "Progress",
+  "metric": "task_progress",
+  "style": "line",
+  "rangeDays": 30,
+  "projectId": "…",
+  "habitId": null,
+  "position": 1,
+  "series": {
+    "unit": "tasks",
+    "points": [{ "day": "2026-11-12", "value": 6, "total": 10 }],
+    "summary": {
+      "metric": "task_progress",
+      "done": 6,
+      "total": 10,
+      "percent": 60
+    }
+  }
+}
+```
+
+Summaries: `task_progress` → `done`, `total`, `percent`; `habit_streak` →
+`current`, `best`, `daysKept`; `time_spent` → `totalMinutes`,
+`averageMinutes`.
+
+The app's routes take the session or a `needt_` token (`needt.read` to read,
+`needt.write` to change); every write answers with an `actionId`:
+
+```http
+GET    /api/charts?projectId= | ?home=true [&series=false]   # chart.list
+POST   /api/charts                                          # chart.create
+GET    /api/charts/:id                                      # chart.get
+PATCH  /api/charts/:id                                      # chart.update
+DELETE /api/charts/:id                                      # chart.delete
+```
+
+The same ops run at `POST /api/connect/ops/chart.*`. In MCP,
+`needt_create_chart` adds one and `needt_update_chart` changes it (`remove:
+true` takes it away); `needt_list` and `needt_get` take `type: "chart"`
+(`needt_get` returns `{ chart }` with its series). Home shows its charts in a
+rail tile that `homeBlocks.charts` switches off.
 
 ## Delete
 

@@ -12,6 +12,8 @@ const RELATIONS: Record<
 > = {
   scheduledBlock: { task: { model: "task", key: "taskId" } },
   calendarEvent: { feed: { model: "calendarFeed", key: "feedId" } },
+  habitCompletion: { habit: { model: "habit", key: "habitId" } },
+  timeEntry: { task: { model: "task", key: "taskId" } },
 };
 const CHILDREN: Record<
   string,
@@ -39,6 +41,7 @@ const HAS_UPDATED_AT = new Set([
   "page",
   "personalBlock",
   "goal",
+  "chart",
 ]);
 
 function clone<T>(value: T): T {
@@ -91,6 +94,8 @@ export function createFakePrisma() {
     goalCheckIn: [],
     taskPart: [],
     taskListMapping: [],
+    chart: [],
+    timeEntry: [],
   };
   let clock = Date.parse("2026-10-01T00:00:00.000Z");
   let ids = 0;
@@ -328,6 +333,16 @@ export function createFakePrisma() {
           checkInHour: 9,
           lastCheckInAt: null,
           sourceTaskId: null,
+          archivedAt: null,
+        });
+      }
+      if (model === "chart") {
+        Object.assign(base, {
+          projectId: null,
+          habitId: null,
+          style: "line",
+          rangeDays: 30,
+          position: 0,
           archivedAt: null,
         });
       }

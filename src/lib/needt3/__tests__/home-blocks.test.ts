@@ -30,6 +30,7 @@ describe("readHomeBlocks", () => {
       "todayBar",
       "week",
       "schedule",
+      "charts",
     ]);
   });
 
@@ -38,6 +39,7 @@ describe("readHomeBlocks", () => {
       order: ["inbox", "habits"],
       habits: false,
       week: false,
+      charts: false,
     });
     expect(shownRailTiles(b)).toEqual(["inbox", "todayBar", "schedule"]);
     const none = readHomeBlocks({
@@ -46,6 +48,7 @@ describe("readHomeBlocks", () => {
       week: false,
       schedule: false,
       inbox: false,
+      charts: false,
     });
     expect(shownRailTiles(none)).toEqual([]);
   });
@@ -57,7 +60,7 @@ describe("moveRailTile", () => {
     expect(moveRailTile(order, "habits", -1)[0]).toBe("habits");
     expect(moveRailTile(order, "habits", 1)[2]).toBe("habits");
     expect(moveRailTile(order, "todayBar", -1)).toEqual(order);
-    expect(moveRailTile(order, "inbox", 1)).toEqual(order);
+    expect(moveRailTile(order, "charts", 1)).toEqual(order);
   });
 });
 

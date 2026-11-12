@@ -117,6 +117,12 @@ import {
   type WorkspaceAccess,
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
+import {
+  CHART_METRICS,
+  CHART_RANGES,
+  CHART_STYLES,
+  CHART_TITLE_MAX,
+} from "@/lib/charts";
 import { newDate } from "@/lib/date-utils";
 import { effectiveSubscriptionPlan } from "@/lib/entitlements";
 import {
@@ -334,6 +340,7 @@ const LIST_TYPES = [
   "moodboard",
   "personal_time",
   "goal",
+  "chart",
 ] as const;
 type ListType = (typeof LIST_TYPES)[number];
 
@@ -537,6 +544,25 @@ async function listRows(
         ).map(personalBlockView),
         args.limit
       );
+    case "chart": {
+      const read = await runOp(
+        "chart.list",
+        { includeArchived: !!args.includeArchived, withSeries: false },
+        { userId, workspace, actor: "mcp" }
+      );
+      const charts = (read.result as { charts: { id: string }[] }).charts;
+      const start = args.cursor
+        ? charts.findIndex((c) => c.id === args.cursor) + 1
+        : 0;
+      const items = charts.slice(start, start + args.limit);
+      return {
+        items,
+        nextCursor:
+          start + args.limit < charts.length
+            ? (items[items.length - 1]?.id ?? null)
+            : null,
+      };
+    }
     case "goal": {
       const rows = page(
         (await prisma.goal.findMany({
@@ -643,6 +669,18 @@ async function getRow(
         if (error instanceof OpError && error.code === "NOT_FOUND") return null;
         throw error;
       }
+    case "chart":
+      try {
+        const read = await runOp(
+          "chart.get",
+          { chartId: id },
+          { userId, workspace, actor: "mcp" }
+        );
+        return read.result;
+      } catch (error) {
+        if (error instanceof OpError && error.code === "NOT_FOUND") return null;
+        throw error;
+      }
     case "mail":
       if (workspace.workspaceKind !== WorkspaceKind.PERSONAL) return null;
       return prisma.mailMessage.findFirst({
@@ -739,7 +777,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_list",
     description:
-      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard, personal_time (lunch, walks, gym and other time kept for the person; tasks are never scheduled in it), goal (with progress; never scheduled).",
+      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard, personal_time (lunch, walks, gym and other time kept for the person; tasks are never scheduled in it), goal (with progress; never scheduled), chart (chart blocks on projects and Home, without their numbers; read one with needt_get).",
     annotations: {
       title: "List objects",
       readOnlyHint: true,
@@ -786,7 +824,7 @@ export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_get",
     description:
-      "Read one object in full by type and id: task (with scheduled blocks and its subtasks in order, plus entry and dependsOnId), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body), or moodboard (title and your access role), or goal (progress, subgoals, the tasks that count towards it, recent check-ins).",
+      "Read one object in full by type and id: task (with scheduled blocks and its subtasks in order, plus entry and dependsOnId), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body), or moodboard (title and your access role), or goal (progress, subgoals, the tasks that count towards it, recent check-ins), or chart (a chart block with its series: one point per day and a summary).",
     annotations: {
       title: "Get object",
       readOnlyHint: true,
@@ -1914,6 +1952,81 @@ const goalManual = {
  * (goalId on a task, or a linked project), else the manual value, else the
  * subgoals. Pro to create; every write answers with actionId for undo.
  */
+/**
+ * Chart blocks on a project or on Home: progress over time, habit streaks,
+ * time spent. Read them with needt_get / needt_list type chart; every write
+ * answers with actionId for undo.
+ */
+const chartMetric = z
+  .enum(CHART_METRICS)
+  .describe(
+    "task_progress = tasks done against all tasks over time; habit_streak = check-ins per day and the streak; time_spent = tracked minutes per day."
+  );
+const chartRange = z
+  .number()
+  .int()
+  .refine((n) => (CHART_RANGES as readonly number[]).includes(n))
+  .describe(`Days shown: ${CHART_RANGES.join(", ")}.`);
+MCP_TOOLS.push(
+  defineTool(
+    {
+      name: "needt_create_chart",
+      description:
+        "Add a chart block. With projectId it sits on that project and counts only that project's tasks, habits and tracked time; without, it sits on Home and counts the whole workspace. habitId (habit_streak only) charts one habit instead of all. The answer carries the chart with its series and actionId for undo.",
+      annotations: {
+        title: "Create chart",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+      input: z
+        .object({
+          metric: chartMetric,
+          projectId: z.string().min(1).optional(),
+          habitId: z.string().min(1).optional(),
+          title: z.string().min(1).max(CHART_TITLE_MAX).optional(),
+          style: z.enum(CHART_STYLES).optional(),
+          rangeDays: chartRange.optional(),
+        })
+        .strict(),
+      invoke: (ctx, args) => goalOp(ctx, "chart.create", args),
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_update_chart",
+      description:
+        "Change a chart block: title, metric, habitId (null = every habit in scope), style (line, bar), rangeDays, position; remove: true takes the block away (its data stays). The answer carries actionId for undo.",
+      annotations: {
+        title: "Update chart",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      input: z
+        .object({
+          id: z.string().min(1).describe("Chart id."),
+          title: z.string().min(1).max(CHART_TITLE_MAX).optional(),
+          metric: chartMetric.optional(),
+          habitId: z.string().min(1).nullable().optional(),
+          style: z.enum(CHART_STYLES).optional(),
+          rangeDays: chartRange.optional(),
+          position: z.number().optional(),
+          remove: z.boolean().optional(),
+        })
+        .strict(),
+      invoke(ctx, args) {
+        const { id, remove, ...fields } = args;
+        if (remove) return goalOp(ctx, "chart.delete", { chartId: id });
+        return goalOp(ctx, "chart.update", { chartId: id, ...fields });
+      },
+    },
+    ["tasks-updated"]
+  )
+);
+
 MCP_TOOLS.push(
   defineTool(
     {

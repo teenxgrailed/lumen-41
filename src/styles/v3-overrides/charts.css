@@ -1,0 +1,114 @@
+/* Chart blocks on a project and on Home (components/needt3/charts).
+   Objects are white on the ground, ring-first; the hue is the mark only
+   (the line, the bars). Chrome type is 13px and 12px. */
+
+.needt-v3 .ch-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+.needt-v3 .ch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+}
+.needt-v3 .hd-rail .ch-grid {
+  grid-template-columns: 1fr;
+}
+.needt-v3 .ch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 12px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  min-width: 0;
+}
+.needt-v3 .ch-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+}
+.needt-v3 .ch-title {
+  flex: 0 1 auto;
+  max-width: 60%;
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .ch-caption {
+  margin-left: auto;
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.needt-v3 .ch-more {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--text-muted);
+}
+.needt-v3 .ch-svg {
+  display: block;
+  width: 100%;
+  height: 72px;
+  overflow: visible;
+}
+.needt-v3 .ch-base {
+  stroke: var(--fill-5);
+  stroke-width: 1;
+}
+.needt-v3 .ch-line {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.needt-v3 .ch-total {
+  stroke: var(--text-disabled);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+.needt-v3 .ch-bar {
+  fill: currentColor;
+}
+.needt-v3 .ch-foot {
+  display: flex;
+  justify-content: space-between;
+  font: var(--type-meta);
+  color: var(--text-muted);
+}
+.needt-v3 .ch-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--fill-3);
+  color: var(--text-tertiary);
+  font: var(--type-meta);
+  cursor: pointer;
+}
+.needt-v3 .ch-add:hover {
+  background: var(--fill-4);
+  color: var(--text-secondary);
+}
+.needt-v3 .ch-add.is-empty {
+  background: transparent;
+  color: var(--text-muted);
+}
+.needt-v3 .ch-add.is-empty:hover {
+  background: var(--fill-3);
+}

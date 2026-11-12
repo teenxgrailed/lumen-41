@@ -17,6 +17,7 @@ import { useCreateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
 
+import { ChartsSection } from "../charts/Charts";
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
 import { ProjectGoals } from "../goals/ProjectGoals";
@@ -290,6 +291,7 @@ export function ProjectPage({
         </span>
       </div>
       <ProjectGoals projectId={p.id} />
+      <ChartsSection place={{ projectId: p.id }} hue={hue} />
       <label
         className="wk-padd"
         data-wk-padd
