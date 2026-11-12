@@ -265,6 +265,9 @@
   padding: 12px 0;
   box-shadow: var(--border) 0 1px 0 0 inset;
 }
+.needt-v3 .admin-card > .admin-rows {
+  padding: 0;
+}
 .needt-v3 .admin-row:first-child {
   box-shadow: none;
 }
