@@ -1,5 +1,4 @@
 import { deliverPush } from "@/services/reminders/reminder-delivery";
-import { Prisma } from "@prisma/client";
 
 import { canUseQuitHabits } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
@@ -15,7 +14,7 @@ jest.mock("@/lib/prisma", () => ({
     userSettings: { findMany: jest.fn() },
     habitCompletion: { findMany: jest.fn() },
     habitPush: {
-      create: jest.fn(),
+      createMany: jest.fn(),
       delete: jest.fn(),
       deleteMany: jest.fn(),
       groupBy: jest.fn(),
@@ -46,7 +45,7 @@ const db = prisma as unknown as {
   userSettings: { findMany: jest.Mock };
   habitCompletion: { findMany: jest.Mock };
   habitPush: {
-    create: jest.Mock;
+    createMany: jest.Mock;
     delete: jest.Mock;
     deleteMany: jest.Mock;
     groupBy: jest.Mock;
@@ -137,13 +136,6 @@ function person(habits: object[]) {
   );
 }
 
-function uniqueViolation() {
-  return new Prisma.PrismaClientKnownRequestError("dup", {
-    code: "P2002",
-    clientVersion: "test",
-  });
-}
-
 beforeEach(() => {
   jest.resetAllMocks();
   db.featureFlag.findUnique.mockResolvedValue({
@@ -168,7 +160,7 @@ beforeEach(() => {
   } as never);
   db.habitCompletion.findMany.mockResolvedValue([]);
   db.habitEvent.findMany.mockResolvedValue([]);
-  db.habitPush.create.mockResolvedValue({ id: "claim-1" });
+  db.habitPush.createMany.mockResolvedValue({ count: 1 });
   db.habitPush.groupBy.mockResolvedValue([]);
   db.habitPush.delete.mockResolvedValue({});
   db.habitPush.deleteMany.mockResolvedValue({ count: 0 });
@@ -209,7 +201,7 @@ describe("runHabitPresenceSweep", () => {
       // The open app's island closes the push by this tag.
       tag: "rem:h1:2026-11-04",
     });
-    expect(db.habitPush.create.mock.calls[0][0].data).toMatchObject({
+    expect(db.habitPush.createMany.mock.calls[0][0].data[0]).toMatchObject({
       userId: "u1",
       habitId: "h1",
       scope: "h1",
@@ -245,7 +237,7 @@ describe("runHabitPresenceSweep", () => {
   it("sends one push of a kind per habit per day: a second run is claimed already", async () => {
     person([habit()]);
     await runHabitPresenceSweep(AT_1810);
-    db.habitPush.create.mockRejectedValueOnce(uniqueViolation());
+    db.habitPush.createMany.mockResolvedValueOnce({ count: 0 });
     const second = await runHabitPresenceSweep(
       new Date(AT_1810.getTime() + 5 * 60_000)
     );
@@ -254,13 +246,19 @@ describe("runHabitPresenceSweep", () => {
     expect(db.habitPush.delete).not.toHaveBeenCalled();
   });
 
+  it("claims with skipDuplicates, so an existing row is a count of 0 and not a thrown error", async () => {
+    person([habit()]);
+    await runHabitPresenceSweep(AT_1810);
+    expect(db.habitPush.createMany.mock.calls[0][0].skipDuplicates).toBe(true);
+  });
+
   it("claims before it sends, and releases the claim when nothing was delivered", async () => {
     person([habit()]);
     jest.mocked(deliverPush).mockResolvedValue(false);
     const result = await runHabitPresenceSweep(AT_1810);
     expect(result.pushed).toBe(0);
     expect(db.habitPush.delete).toHaveBeenCalledWith({
-      where: { id: "claim-1" },
+      where: { id: db.habitPush.createMany.mock.calls[0][0].data[0].id },
     });
   });
 
@@ -328,7 +326,7 @@ describe("runHabitPresenceSweep", () => {
         title: "Evening check-in",
         body: "2 habits are still open today.",
       });
-      expect(db.habitPush.create.mock.calls[0][0].data).toMatchObject({
+      expect(db.habitPush.createMany.mock.calls[0][0].data[0]).toMatchObject({
         scope: "user",
         kind: "checkin",
       });
@@ -367,7 +365,7 @@ describe("runHabitPresenceSweep", () => {
         title: "7 days in",
         body: "No sugar",
       });
-      expect(db.habitPush.create.mock.calls[0][0].data).toMatchObject({
+      expect(db.habitPush.createMany.mock.calls[0][0].data[0]).toMatchObject({
         scope: "q1:7",
         kind: "milestone",
         dayKey: "2026-10-28",
@@ -380,7 +378,7 @@ describe("runHabitPresenceSweep", () => {
 
     it("does not repeat it: the claim is already taken", async () => {
       person([quit("2026-10-28T08:00:00Z")]);
-      db.habitPush.create.mockRejectedValue(uniqueViolation());
+      db.habitPush.createMany.mockResolvedValue({ count: 0 });
       const result = await runHabitPresenceSweep(AT_0910);
       expect(result.pushed).toBe(0);
       expect(db.habitEvent.create).not.toHaveBeenCalled();
@@ -464,7 +462,7 @@ describe("runHabitPresenceSweep", () => {
     db.userSettings.findMany.mockImplementation(async () =>
       ["bad", "u1"].map((userId) => ({ userId, timeZone: prefState.timeZone }))
     );
-    db.habitPush.create.mockRejectedValueOnce(new Error("db down"));
+    db.habitPush.createMany.mockRejectedValueOnce(new Error("db down"));
     const result = await runHabitPresenceSweep(AT_1810);
     expect(result).toEqual({ users: 2, pushed: 1 });
   });
@@ -551,6 +549,50 @@ describe("runHabitPresenceSweep", () => {
       expect((await runHabitPresenceSweep(AT_1810)).pushed).toBe(1);
     });
 
+    it("looks the plan up once, and reads relapses, for a Pro account with a milestone due", async () => {
+      person([quit()]);
+      await runHabitPresenceSweep(AT_0910);
+      expect(canUseQuitHabits).toHaveBeenCalledTimes(1);
+      expect(db.habitEvent.findMany).toHaveBeenCalledTimes(1);
+      expect(db.habitEvent.findMany.mock.calls[0][0].where).toMatchObject({
+        habitId: { in: ["q1"] },
+      });
+    });
+
+    it("skips the relapse read for a Free account at 09:00", async () => {
+      person([quit()]);
+      jest.mocked(canUseQuitHabits).mockResolvedValue({
+        allowed: false,
+        upgradeRequired: true,
+        plan: "FREE",
+      } as never);
+      await runHabitPresenceSweep(AT_0910);
+      expect(canUseQuitHabits).toHaveBeenCalledTimes(1);
+      expect(db.habitEvent.findMany).not.toHaveBeenCalled();
+    });
+
+    it("does not check the plan when no milestone or check-in is due", async () => {
+      person([quit()]);
+      await runHabitPresenceSweep(AT_1810); // evening: no milestone, check-in off
+      expect(canUseQuitHabits).not.toHaveBeenCalled();
+    });
+
+    it("does not check the plan for a person with no QUIT habit", async () => {
+      person([habit({ at: "09:00" })]);
+      await runHabitPresenceSweep(AT_0910);
+      expect(canUseQuitHabits).not.toHaveBeenCalled();
+    });
+
+    it("checks the plan for the check-in count when QUIT habits exist", async () => {
+      person([habit({ at: null }), quit()]);
+      setSettings({ habitCheckin: true });
+      await runHabitPresenceSweep(new Date("2026-11-04T20:05:00Z"));
+      expect(canUseQuitHabits).toHaveBeenCalledTimes(1);
+      expect(jest.mocked(deliverPush).mock.calls[0][1]).toMatchObject({
+        body: "2 habits are still open today.",
+      });
+    });
+
     it("does not count QUIT habits in a Free account's check-in", async () => {
       person([habit({ at: null }), quit()]);
       setSettings({ habitCheckin: true });
@@ -597,6 +639,38 @@ describe("runHabitPresenceSweep", () => {
     );
     expect(result.pushed).toBe(2);
     expect(logger.error).toHaveBeenCalled();
+  });
+
+  it("logs a warning and stops when the page cap is hit", async () => {
+    const full = Array.from({ length: 200 }, (_, i) => ({
+      id: `p${String(i).padStart(3, "0")}`,
+      pushSubscriptions: [{ id: "s" }],
+      nativePushTokens: [],
+      habits: [],
+    }));
+    db.user.findMany.mockResolvedValue(full);
+    const result = await runHabitPresenceSweep(AT_1810);
+    expect(db.user.findMany).toHaveBeenCalledTimes(500);
+    expect(result.users).toBe(500 * 200);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("page cap"),
+      { pages: 500, users: 500 * 200 },
+      expect.any(String)
+    );
+  });
+
+  it("catches and logs a prune failure without failing the sweep", async () => {
+    person([habit()]);
+    db.habitPush.deleteMany.mockRejectedValue(new Error("db down"));
+    const result = await runHabitPresenceSweep(
+      new Date("2026-11-04T17:05:00Z")
+    );
+    expect(result.pushed).toBe(1);
+    expect(logger.error).toHaveBeenCalledWith(
+      "Habit presence prune failed",
+      { error: "db down" },
+      expect.any(String)
+    );
   });
 
   it("prunes dedup rows older than 30 days once an hour", async () => {
