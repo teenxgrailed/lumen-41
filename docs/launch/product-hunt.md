@@ -1,4 +1,4 @@
-# Product Hunt, 18.11.2026
+# Product Hunt, 17.11.2026
 
 Draft, 2026-11-04. Not submitted. Character counts were checked in code.
 
@@ -47,7 +47,7 @@ Alternatives:
 >
 > And your data isn't locked in. There's a personal API token, webhooks and an MCP connector, so Claude, ChatGPT, Cursor or your own scripts can read and change your plan. The free Needt Plugin adds /needt to Claude. If you run AI agents, Needt Agents gives them one shared board where they wait for your tap before anything risky.
 >
-> Pricing: a Free plan, 14 days of Pro with no card, then $7/month or $59/year. `[OWNER: PH-day offer? e.g. Lifetime $149 for the first 300, only if checkout is live on 18.11]`
+> Pricing: a Free plan, 14 days of Pro with no card, then $7/month or $59/year. `[OWNER: PH-day offer? e.g. Lifetime $149 for the first 300, only if checkout is live on 17.11]`
 >
 > Needt is made by one person, so every comment here gets read and answered by me. What's the one thing that breaks your plan most often?
 
@@ -82,7 +82,7 @@ then Ask, then breadth.
 
 ## Before launch day
 
-- `[OWNER: is Creem checkout live by 18.11?]` If not, the comment and description must not
+- `[OWNER: is Creem checkout live by 17.11?]` If not, the comment and description must not
   mention paying or Lifetime.
 - `[OWNER: hunter, or self-hunt?]`
 - `[OWNER: launch time; PH days start 00:01 PT = 09:01 CET]`
