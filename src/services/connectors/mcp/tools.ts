@@ -54,6 +54,13 @@ import {
   quitReadGate,
   recordHabitEvent,
 } from "@/services/habits/quit-service";
+import { liveTableErrorStatus } from "@/services/live-tables/live-table-errors";
+import {
+  appendLiveTableRows,
+  createLiveTable,
+  getLiveTable,
+  updateLiveTableRow,
+} from "@/services/live-tables/live-table-service";
 import {
   getMoodboard,
   listMoodboards,
@@ -118,6 +125,14 @@ import {
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
+import {
+  LIVE_TABLE_MAX_COLUMNS,
+  LIVE_TABLE_MAX_ROWS_PER_APPEND,
+  type LiveTableView,
+  liveTableCellInput,
+  liveTableColumnInput,
+  liveTableRowInput,
+} from "@/lib/live-tables/schema";
 import { effectiveSubscriptionPlan } from "@/lib/entitlements";
 import {
   GOAL_AREAS,
@@ -813,6 +828,40 @@ export const MCP_TOOLS: McpTool[] = [
     },
   }),
   defineTool({
+    name: "needt_get_table",
+    description:
+      "Read a live table back: its columns (with dropdown options) and every row with its id and cells keyed by column name. Use it to check what you wrote. Table ids are in the page's needtLiveTable blocks (needt_get type page) and in needt_create_table's answer.",
+    annotations: {
+      title: "Get table",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    input: z.object({ id: z.string().min(1).describe("Table id.") }),
+    async invoke(ctx, args) {
+      const access = await readAccess(ctx);
+      if ("error" in access) return access.error;
+      try {
+        const table = await getLiveTable(
+          mcpPageActor(ctx, access.workspace),
+          args.id
+        );
+        return toolResult({
+          ...liveTableSummary(table),
+          rows: table.rows.map((row) => ({
+            id: row.id,
+            cells: Object.fromEntries(
+              table.columns.map((column) => [column.name, row.cells[column.id]])
+            ),
+          })),
+        });
+      } catch (error) {
+        return liveTableToolError(error);
+      }
+    },
+  }),
+  defineTool({
     name: "needt_create_task",
     description: `Create a task, with its subtasks in the same call. Needt runs the scheduler immediately and returns the task with its scheduled blocks and subtasks. By default the scheduler picks the time; give start to place the task at a time yourself and pin it there, or autoSchedule: false to keep it off the calendar. ${SUBTASK_GUIDANCE} Subtasks are plain titles (or { title, done }) and keep the order you give. Put the task in a project with projectId (from needt_list type project).`,
     annotations: {
@@ -1066,6 +1115,27 @@ function pageSummary(
     blockCount: written.blocks.length,
     appendedBlocks,
   };
+}
+
+function liveTableSummary(table: LiveTableView) {
+  return {
+    id: table.id,
+    pageId: table.pageId,
+    title: table.title,
+    columns: table.columns.map(({ name, type, options }) => ({
+      name,
+      type,
+      ...(options ? { options } : {}),
+    })),
+    rowCount: table.rows.length,
+    exportUrl: `/api/live-tables/${table.id}/export`,
+  };
+}
+
+function liveTableToolError(error: unknown): McpToolResult {
+  const known = liveTableErrorStatus(error);
+  if (known) return toolError(known);
+  throw error;
 }
 
 const WRITE_TOOLS: McpTool[] = [
@@ -1547,6 +1617,146 @@ const WRITE_TOOLS: McpTool[] = [
       },
     },
     ["docs-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_create_table",
+      description:
+        "Create a live table on a page: typed columns (text, number, select = dropdown with options, checkbox, date as YYYY-MM-DD, url) and optional first rows. Leave pageId out to put it on a new page (works even while the person has other pages open); a page that is open for live editing refuses a new block. The person sees the header first and every row arrive as you add it, so for a visible build create the table with its columns, then add rows with needt_add_table_rows a few at a time. The table downloads as .xlsx from the page.",
+      annotations: {
+        title: "Create table",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+      input: z.object({
+        title: z.string().min(1).max(240).describe("Table title."),
+        columns: z
+          .array(liveTableColumnInput)
+          .min(1)
+          .max(LIVE_TABLE_MAX_COLUMNS),
+        rows: z
+          .array(liveTableRowInput)
+          .max(LIVE_TABLE_MAX_ROWS_PER_APPEND)
+          .optional()
+          .describe(
+            "First rows: each a list of values in column order, or an object keyed by column name."
+          ),
+        pageId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Put the table at the end of this page."),
+        pageTitle: z
+          .string()
+          .max(240)
+          .optional()
+          .describe("Title of the new page when pageId is left out."),
+        parentId: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Parent page for the new page."),
+      }),
+      async invoke(ctx, args) {
+        const access = await writeAccess(ctx);
+        if ("error" in access) return access.error;
+        try {
+          const table = await createLiveTable(
+            mcpPageActor(ctx, access.workspace),
+            { ...args, createdBy: PageAuthor.AI }
+          );
+          return toolResult(liveTableSummary(table));
+        } catch (error) {
+          return liveTableToolError(error);
+        }
+      },
+    },
+    ["docs-updated", "tables-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_add_table_rows",
+      description:
+        "Append rows to a live table (from needt_create_table). Each row is a list of values in column order or an object keyed by column name; dropdown values must be one of the column's options. The open page shows each new row as it arrives. Answers with the row count and the ids of the new rows.",
+      annotations: {
+        title: "Add table rows",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+      input: z.object({
+        tableId: z.string().min(1),
+        rows: z
+          .array(liveTableRowInput)
+          .min(1)
+          .max(LIVE_TABLE_MAX_ROWS_PER_APPEND),
+      }),
+      async invoke(ctx, args) {
+        const access = await writeAccess(ctx);
+        if ("error" in access) return access.error;
+        try {
+          const before = new Set(
+            (
+              await getLiveTable(
+                mcpPageActor(ctx, access.workspace),
+                args.tableId
+              )
+            ).rows.map((row) => row.id)
+          );
+          const table = await appendLiveTableRows(
+            mcpPageActor(ctx, access.workspace),
+            args.tableId,
+            args.rows
+          );
+          return toolResult({
+            ...liveTableSummary(table),
+            addedRowIds: table.rows
+              .filter((row) => !before.has(row.id))
+              .map((row) => row.id),
+          });
+        } catch (error) {
+          return liveTableToolError(error);
+        }
+      },
+    },
+    ["tables-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_update_table_row",
+      description:
+        "Change cells of one row in a live table. cells is an object keyed by column name (or id); cells not named keep their value, null empties a cell.",
+      annotations: {
+        title: "Update table row",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      input: z.object({
+        tableId: z.string().min(1),
+        rowId: z.string().min(1),
+        cells: z.record(z.string(), liveTableCellInput),
+      }),
+      async invoke(ctx, args) {
+        const access = await writeAccess(ctx);
+        if ("error" in access) return access.error;
+        try {
+          const table = await updateLiveTableRow(
+            mcpPageActor(ctx, access.workspace),
+            args.tableId,
+            args.rowId,
+            args.cells
+          );
+          const row = table.rows.find((candidate) => candidate.id === args.rowId);
+          return toolResult({ ...liveTableSummary(table), row });
+        } catch (error) {
+          return liveTableToolError(error);
+        }
+      },
+    },
+    ["tables-updated"]
   ),
   defineTool(
     {

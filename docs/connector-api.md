@@ -191,6 +191,10 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_bulk` | `needt.write` | Up to 100 operations (`task.update`, `task.complete`, `project.update`, ...) in one transaction, one write, one undo. See Bulk changes |
 | `needt_create_project` | `needt.write` | Create a project: `name`, `description`, `color`, `icon` |
 | `needt_update_project` | `needt.write` | Change a project (`name`, `description`, `color`, `icon`, `archived`); only the fields given change |
+| `needt_create_table` | `needt.write` | Live table on a page (or a new page without `pageId`): typed `columns` and optional first `rows`. See Live tables |
+| `needt_add_table_rows` | `needt.write` | Append rows to a live table; answers `rowCount` and `addedRowIds`. See Live tables |
+| `needt_update_table_row` | `needt.write` | Set cells of one row by column name; others are kept. See Live tables |
+| `needt_get_table` | `needt.read` | Columns and every row (cells keyed by column name) of a live table |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -710,6 +714,43 @@ It answers the signed-in session, like the rest of `/api/pages/*`.
   live (try again once the editor has saved).
 - Home's **End day** uses it to put a note for tomorrow into tomorrow's daily
   note ("Daily note · 2 September 2026").
+
+## Live tables
+
+A table stored beside a page and shown on it as a block. Claude builds it
+through MCP (`needt_create_table`, then `needt_add_table_rows` a few rows at a
+time); the open page shows the header first and each row as it arrives, so
+the build is visible. The rows are not part of the page document, so they can
+be written while the page is open; only placing the table block needs the page
+closed (or no `pageId`, which makes a new page).
+
+```
+POST /api/live-tables
+{ "title": "iPhone Vocal Mics", "pageId": "optional",
+  "columns": [
+    { "name": "Model" },
+    { "name": "Price", "type": "number" },
+    { "name": "Status", "type": "select", "options": ["Брать", "Не брать"] }
+  ],
+  "rows": [["Shure MV88+", 149, "Брать"]] }
+
+GET    /api/live-tables/:id
+POST   /api/live-tables/:id/rows          { "rows": [ [...] | { "Model": "..." } ] }
+PATCH  /api/live-tables/:id/rows/:rowId   { "cells": { "Status": "Не брать" } }
+DELETE /api/live-tables/:id/rows/:rowId
+GET    /api/live-tables/:id/export        (.xlsx)
+```
+
+- Column types: `text`, `number`, `select` (dropdown; `options` required, a
+  value must be one of them, matched case-insensitively), `checkbox`, `date`
+  (`YYYY-MM-DD`), `url` (http/https). Up to 30 columns, 1000 rows, 200 rows per
+  call. A row is a list in column order or an object keyed by column name.
+- Access follows the page: reading needs the page, writing needs edit rights.
+  `400` for a value the column refuses (the message names the options), `403`
+  for a page you can read but not edit, `404` otherwise, `409` when placing a
+  table on a page that is open for live editing.
+- The .xlsx keeps the header (bold, filled, frozen), numbers, dates and yes/no
+  as typed cells, links as hyperlinks and dropdowns as list validation.
 
 ## Daily highlight
 

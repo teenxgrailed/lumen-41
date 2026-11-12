@@ -73,6 +73,11 @@ export function useRealtimeSync(): void {
       void queryClient.invalidateQueries({ queryKey: qk.docs() });
     };
 
+    // Rows written over MCP or the API: every open live table refetches.
+    const refreshTables = () => {
+      void queryClient.invalidateQueries({ queryKey: ["live-table"] });
+    };
+
     // A Focus session reached its planned end (the worker also sent a push).
     // Every open device refreshes its Focus UI; the notice is silent and only
     // shown while the "Focus ended" setting is on.
@@ -103,6 +108,7 @@ export function useRealtimeSync(): void {
       eventSource.addEventListener("calendar-updated", refreshCalendar);
       eventSource.addEventListener("tasks-updated", refreshTasks);
       eventSource.addEventListener("docs-updated", refreshDocs);
+      eventSource.addEventListener("tables-updated", refreshTables);
       eventSource.addEventListener("focus-ended", onFocusEnded);
       eventSource.onopen = () => {
         reconnectDelayMs = INITIAL_REALTIME_RECONNECT_DELAY_MS;

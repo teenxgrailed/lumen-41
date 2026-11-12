@@ -287,6 +287,13 @@ function nodeRows(node: Record<string, unknown>): PagePreviewBlock[] {
       return tableRows(node);
     case "needtPageBlock":
       return specialRows(node);
+    case "needtLiveTable": {
+      const title =
+        isObject(node.attrs) && typeof node.attrs.title === "string"
+          ? node.attrs.title
+          : "";
+      return [row("p", title || "Table")];
+    }
     case "needtCallout": {
       const text = textOf(node);
       return text ? [row("callout", text)] : [];

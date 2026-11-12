@@ -1930,6 +1930,7 @@ model Page {
   assets                PageAsset[]
   comments              PageComment[]
   forms                 PageForm[]
+  liveTables            LiveTable[]
   accessGrants          PageAccessGrant[]
   collaborationState    PageCollaborationState?
   collaborationSessions PageCollaborationSession[]
@@ -2175,6 +2176,38 @@ model DatabaseView {
   updatedAt  DateTime         @updatedAt
 
   @@index([databaseId, position])
+}
+
+/// A table Claude (or a person, through the API) builds row by row and that a
+/// page shows as a `needtLiveTable` block. Kept out of the page document so
+/// rows can be appended while the page is open for live editing.
+model LiveTable {
+  id        String         @id @default(cuid())
+  pageId    String
+  page      Page           @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  title     String         @default("Table")
+  /// `LiveTableColumn[]` (src/lib/live-tables/schema.ts): id, name, type and,
+  /// for `select`, the dropdown options.
+  columns   Json
+  createdBy PageAuthor     @default(HUMAN)
+  rows      LiveTableRow[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([pageId])
+}
+
+model LiveTableRow {
+  id        String    @id @default(cuid())
+  tableId   String
+  table     LiveTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  position  Float     @default(0)
+  /// Column id -> value; the column type decides the value's shape.
+  cells     Json
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([tableId, position])
 }
 
 model PageRevision {
@@ -3438,6 +3471,7 @@ enum PageBlockType {
   FORM
   LEAD
   TASK_REF
+  LIVE_TABLE
 }
 
 enum DatabasePropertyType {

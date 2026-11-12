@@ -58,6 +58,9 @@ export function zodToJsonSchema(schema: z.ZodType): JsonSchema {
   if (schema instanceof z.ZodBoolean) {
     return withDescription(schema, { type: "boolean" });
   }
+  if (schema instanceof z.ZodNull) {
+    return withDescription(schema, { type: "null" });
+  }
   if (schema instanceof z.ZodEnum) {
     return withDescription(schema, {
       type: "string",

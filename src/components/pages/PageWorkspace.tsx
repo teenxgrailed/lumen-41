@@ -112,6 +112,7 @@ import {
   containerBlockJson,
 } from "@/components/pages/blocks/templates";
 import { useDocHeadSlots } from "@/components/pages/doc-head-slot";
+import { LiveTableEditorNode } from "@/components/pages/live-table/live-table-extension";
 import { pageColorMarks } from "@/components/pages/marks";
 import {
   PageAutosave,
@@ -970,6 +971,7 @@ export function PageWorkspace({
       ...pageContainerBlocks,
       ...pageColorMarks,
       PageBlockNode,
+      LiveTableEditorNode,
       Collaboration.configure({ document: collaborationDocument }),
       CollaborationCaret.configure({
         provider: collaborationProvider,
