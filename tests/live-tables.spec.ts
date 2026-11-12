@@ -76,9 +76,9 @@ test("Live tables: header first, rows arrive while open, dropdown edits, .xlsx e
 
   await page.goto(`/pages/${table.pageId}`, { timeout: 300_000 });
   const block = page.locator(`[data-needt-live-table="${table.id}"]`).first();
-  await expect(
-    block.getByRole("columnheader", { name: "Status" })
-  ).toBeVisible({ timeout: 120_000 });
+  await expect(block.getByRole("columnheader", { name: "Status" })).toBeVisible(
+    { timeout: 120_000 }
+  );
   await expect(block.locator("tbody tr")).toHaveCount(0);
   await expect(block.locator("thead tr")).toHaveAttribute("data-arriving", "");
   await shot(page, "01-header");
@@ -101,8 +101,12 @@ test("Live tables: header first, rows arrive while open, dropdown edits, .xlsx e
 
   // The dropdown cell is a picker with the column's options.
   const statusCell = block.locator("tbody tr").nth(1).locator("td").nth(2);
-  await statusCell.getByRole("button").or(statusCell.getByRole("combobox")).first().click();
-  await page.getByRole("option", { name: "Брать" }).click();
+  await statusCell
+    .getByRole("button")
+    .or(statusCell.getByRole("combobox"))
+    .first()
+    .click();
+  await page.getByRole("option", { name: "Брать", exact: true }).click();
   await expect
     .poll(async () => {
       const read = await api(page, user, "GET", `/api/live-tables/${table.id}`);
@@ -111,13 +115,10 @@ test("Live tables: header first, rows arrive while open, dropdown edits, .xlsx e
     .toBe("Брать");
 
   // A bad dropdown value is refused by the API with the options named.
-  const refused = await page.request.post(
-    `/api/live-tables/${table.id}/rows`,
-    {
-      data: { rows: [["X", 1, "Maybe"]] },
-      headers: { "x-workspace-id": user.workspaceId },
-    }
-  );
+  const refused = await page.request.post(`/api/live-tables/${table.id}/rows`, {
+    data: { rows: [["X", 1, "Maybe"]] },
+    headers: { "x-workspace-id": user.workspaceId },
+  });
   expect(refused.status()).toBe(400);
   expect((await refused.json()).error).toContain("one of the options");
 
