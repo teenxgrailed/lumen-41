@@ -7,7 +7,7 @@ counts as 23). Media paths are in this repo.
 
 ## Launch thread (8 posts)
 
-Post on Product Hunt day (18.11) once the PH page is live. `[OWNER: PH link]` goes into post 8.
+Post on Product Hunt day (17.11) once the PH page is live. `[OWNER: PH link]` goes into post 8.
 
 **1/**
 
