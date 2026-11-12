@@ -24,9 +24,9 @@ for c in cards:
     shots=''
     for s,kind in c['shots']:
         if kind=='wide':
-            shots+=f'<div class="wide" style="height:var(--wideh)"><img src="img/{s}.png"></div>'
+            shots+=f'<div class="wide" style="height:var(--wideh){";width:620px" if n>1 else ""}"><img src="img/{s}.png"></div>'
         else:
-            w=480 if n==1 else 285
+            w=480 if n==1 else (250 if any(k=="wide" for _,k in c["shots"]) else 285)
             shots+=f'<div class="phone" style="width:{w}px"><img src="img/{s}.png"></div>'
     doc=f'''<!doctype html><html><head><meta charset="utf-8"><style>{CSS}</style></head>
 <body style="--subtop:var(--st,380px);--stagetop:var(--gt,560px)"><div class="sky"></div>
@@ -38,7 +38,7 @@ for c in cards:
 <script>
 const h=document.querySelector('h1'),p=document.querySelector('p.sub'),st=document.getElementById('stage');
 document.fonts.ready.then(()=>{{p.style.top=(h.offsetTop+h.offsetHeight+30)+'px';st.style.top=(p.offsetTop+p.offsetHeight+50)+'px';
-const avail=st.clientHeight;document.querySelectorAll('.wide').forEach(w=>{{const i=w.querySelector('img');const r=i.naturalHeight/i.naturalWidth;w.style.height=Math.min(avail,900*r)+'px'}});
+const avail=st.clientHeight;document.querySelectorAll('.wide').forEach(w=>{{const i=w.querySelector('img');const r=i.naturalHeight/i.naturalWidth;w.style.height=Math.min(avail,w.offsetWidth*r)+'px'}});
 document.querySelectorAll('.phone').forEach(ph=>{{const i=ph.querySelector('img');const r=i.naturalHeight/i.naturalWidth;const maxW=(avail-24)/r+24;if(ph.offsetWidth>maxW)ph.style.width=maxW+'px'}});
 document.body.dataset.ready=1}});
 </script></body></html>'''

@@ -1,6 +1,6 @@
 # Pinterest pack (2026-11-12)
 
-Eight 1000×1500 pins built from the current product. Nothing here has been
+Nine 1000×1500 pins built from the current product. Nothing here has been
 published. Packs 66–70 stay on hold and nothing older was removed.
 
 Every pin links to `https://needt.app/`. Footer on each pin: "needt.app · Free to start".
@@ -15,6 +15,7 @@ Every pin links to `https://needt.app/`. Footer on each pin: "needt.app · Free 
 | `pins/06-works-with.jpg` | Works with the apps you already use | Needt works with Google Calendar, Outlook, iCloud and Google Tasks and brings them into one place. Free to start at needt.app. | Needt Connections screen listing Google Calendar, Google Tasks, Outlook Calendar and Apple iCloud. | `/connections`, desktop |
 | `pins/07-week-phone.jpg` | Your week, at a glance | Meetings and planned tasks on one calendar on your phone, with what is next always on top. Free to start at needt.app. | Needt calendar on a phone: week strip, next meeting card and the next task. | `/calendar`, phone |
 | `pins/08-phone-trio.jpg` | Needt, on your phone | Today, your AI agents and your connections in one place on every screen. Free to start at needt.app. | Three phone screens of Needt: Agents, Today and Connections. | `/agents`, `/today`, `/connections`, phone |
+| `pins/09-start-free.jpg` | Try Needt free | Needt has a free plan, plus 14 days of Pro. Add a card only if you keep Pro. Tasks, calendar, docs and your AI agents in one place at needt.app. | The Needt landing page on desktop and on a phone: "Everything you're working on, in one place." | https://needt.app/ (desktop and phone), live 2026-11-12 |
 
 ## How it was made
 

@@ -1,10 +1,122 @@
 [
- {"id":"01-one-place","a":"Everything you’re working on,","b":"in one place.","sub":"Tasks, calendar, docs and your AI agents. Move a meeting and the rest of your day reshuffles.","shots":[["calendar-desk","wide"]]},
- {"id":"02-day-planned","a":"Your day,","b":"already planned.","sub":"Needt fits your tasks between your meetings and suggests one highlight for the day.","shots":[["today-phone","phone"]]},
- {"id":"03-tasks-find-time","a":"Tasks that find","b":"their own time.","sub":"Give a task a length and a due date. Needt puts it on today’s schedule for you.","shots":[["today-desk","wide"]]},
- {"id":"04-agents-team","a":"Your AI agents,","b":"one team.","sub":"Connect any agent with its own token. See who is working, who is idle and what each one holds.","shots":[["agents-desk","wide"]]},
- {"id":"05-agents-map","a":"See every agent","b":"at work.","sub":"The Agents map shows which agent holds which task, and what is waiting on you.","shots":[["map-poster","wide"]]},
- {"id":"06-works-with","a":"Works with the apps","b":"you already use.","sub":"Google Calendar, Outlook, iCloud and Google Tasks sync into one place.","shots":[["connections-desk","wide"]]},
- {"id":"07-week-phone","a":"Your week,","b":"at a glance.","sub":"Meetings and planned tasks on one calendar, with what is next always on top.","shots":[["calendar-phone","phone"]]},
- {"id":"08-phone-trio","a":"Needt,","b":"on your phone.","sub":"Today, your agents and your connections, in the same place on every screen.","shots":[["agents-phone","phone"],["today-phone","phone"],["connections-phone","phone"]]}
+ {
+  "id": "01-one-place",
+  "a": "Everything you’re working on,",
+  "b": "in one place.",
+  "sub": "Tasks, calendar, docs and your AI agents. Move a meeting and the rest of your day reshuffles.",
+  "shots": [
+   [
+    "calendar-desk",
+    "wide"
+   ]
+  ]
+ },
+ {
+  "id": "02-day-planned",
+  "a": "Your day,",
+  "b": "already planned.",
+  "sub": "Needt fits your tasks between your meetings and suggests one highlight for the day.",
+  "shots": [
+   [
+    "today-phone",
+    "phone"
+   ]
+  ]
+ },
+ {
+  "id": "03-tasks-find-time",
+  "a": "Tasks that find",
+  "b": "their own time.",
+  "sub": "Give a task a length and a due date. Needt puts it on today’s schedule for you.",
+  "shots": [
+   [
+    "today-desk",
+    "wide"
+   ]
+  ]
+ },
+ {
+  "id": "04-agents-team",
+  "a": "Your AI agents,",
+  "b": "one team.",
+  "sub": "Connect any agent with its own token. See who is working, who is idle and what each one holds.",
+  "shots": [
+   [
+    "agents-desk",
+    "wide"
+   ]
+  ]
+ },
+ {
+  "id": "05-agents-map",
+  "a": "See every agent",
+  "b": "at work.",
+  "sub": "The Agents map shows which agent holds which task, and what is waiting on you.",
+  "shots": [
+   [
+    "map-poster",
+    "wide"
+   ]
+  ]
+ },
+ {
+  "id": "06-works-with",
+  "a": "Works with the apps",
+  "b": "you already use.",
+  "sub": "Google Calendar, Outlook, iCloud and Google Tasks sync into one place.",
+  "shots": [
+   [
+    "connections-desk",
+    "wide"
+   ]
+  ]
+ },
+ {
+  "id": "07-week-phone",
+  "a": "Your week,",
+  "b": "at a glance.",
+  "sub": "Meetings and planned tasks on one calendar, with what is next always on top.",
+  "shots": [
+   [
+    "calendar-phone",
+    "phone"
+   ]
+  ]
+ },
+ {
+  "id": "08-phone-trio",
+  "a": "Needt,",
+  "b": "on your phone.",
+  "sub": "Today, your agents and your connections, in the same place on every screen.",
+  "shots": [
+   [
+    "agents-phone",
+    "phone"
+   ],
+   [
+    "today-phone",
+    "phone"
+   ],
+   [
+    "connections-phone",
+    "phone"
+   ]
+  ]
+ },
+ {
+  "id": "09-start-free",
+  "a": "Try Needt",
+  "b": "free.",
+  "sub": "A free plan, plus 14 days of Pro. Add a card only if you keep Pro.",
+  "shots": [
+   [
+    "land-desk",
+    "wide"
+   ],
+   [
+    "land-phone",
+    "phone"
+   ]
+  ]
+ }
 ]
