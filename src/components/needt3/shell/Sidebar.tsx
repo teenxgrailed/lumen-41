@@ -738,7 +738,10 @@ export function Sidebar() {
         if (!id) return null;
         const open = `/projects/${encodeURIComponent(id)}`;
         const groups: CtxMenu = [
-          [{ label: "Open", run: () => router.push(open) }],
+          [
+            { label: "Open", run: () => router.push(open) },
+            { label: "Roadmap", run: () => router.push(`${open}/roadmap`) },
+          ],
           [
             { label: "New Task", run: () => setComposerOpen(true) },
             {

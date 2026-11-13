@@ -9,6 +9,7 @@ import {
   LuEllipsis,
   LuPencil,
   LuPlus,
+  LuRoute,
   LuTrash2,
 } from "react-icons/lu";
 
@@ -332,6 +333,17 @@ function ProjectPageView({
       <div className="ptk-ph-row">
         <PtkTile p={p} big />
         <h1 className="pk-title ptk-ph-name">{p.name}</h1>
+        <button
+          type="button"
+          className="ptk-round"
+          aria-label="Roadmap"
+          onClick={() =>
+            router.push(`/projects/${encodeURIComponent(p.id)}/roadmap`)
+          }
+          data-ptk-roadmap
+        >
+          <LuRoute size={19} aria-hidden />
+        </button>
         <button
           type="button"
           className="ptk-round"

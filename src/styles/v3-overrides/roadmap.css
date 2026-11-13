@@ -1,0 +1,106 @@
+/* Design v3 — the roadmap (Projects → a project → Roadmap, Agents → Roadmap).
+ *
+ * A metro map: the project's tasks are stations on a vertical line in board
+ * order (roadmap/RoadmapMap.tsx, lib/needt3/roadmap.ts). The track and the
+ * marks are drawn in one SVG in a left gutter; the rows are plain buttons on
+ * the ground beside it, one fixed height each (--rm-row) so the two always
+ * line up — a title is cut with an ellipsis rather than wrapped.
+ *
+ * Colour is a mark (PORT.md §0.6): the project's hue is the line and the
+ * station marks only. The track still to travel is that hue at 35 %. Rows
+ * have no fill and no card; hover is the --fill-2 wash every list row uses.
+ * Greys are text colours from the ladder. Blocked is a state, not an alarm:
+ * grey ring and cross, the same rule the project flow follows. The current
+ * station breathes once every 2.4 s; reduced motion stops it.
+ * Type: 13px titles, 12px meta, nothing else (rule 2).
+ */
+
+.needt-v3 .rm-page { max-width: 820px; display: flex; flex-direction: column; gap: 12px; }
+.needt-v3 .rm-heading { margin: 4px 0 0; }
+.needt-v3 .rm-back-name { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.needt-v3 .rm-summary { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font: var(--type-meta); color: var(--text-secondary); min-width: 0; }
+.needt-v3 .rm-summary > span { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .rm-summary-k { color: var(--text-tertiary); margin-right: 4px; }
+
+/* ---- the map ----------------------------------------------------------- */
+.needt-v3 .rm-map { position: relative; min-width: 0; }
+.needt-v3 .rm-track { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.needt-v3 .rm-stations { list-style: none; margin: 0; padding: 0; }
+.needt-v3 .rm-row { height: var(--rm-row); }
+.needt-v3 .rm-station {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  padding: 0 10px 0 var(--rm-gutter);
+  border: 0; border-radius: var(--radius-lg);
+  background: transparent; text-align: left; color: var(--text-primary);
+  cursor: default; min-width: 0;
+  transition: background-color var(--transition-hover);
+}
+.needt-v3 .rm-station:hover { background: var(--fill-2); }
+.needt-v3 .rm-station:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+.needt-v3 .rm-title { font: var(--type-ui-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .rm-station.is-done .rm-title { color: var(--text-tertiary); }
+.needt-v3 .rm-station.is-blocked .rm-title { color: var(--text-secondary); }
+.needt-v3 .rm-meta { display: flex; align-items: center; gap: 0 6px; min-width: 0; font: var(--type-meta); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; }
+.needt-v3 .rm-meta > span { flex: none; }
+.needt-v3 .rm-meta > span:first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.needt-v3 .rm-meta > span + span::before { content: "·"; margin-right: 6px; color: var(--text-muted); }
+.needt-v3 .rm-station.is-current .rm-state,
+.needt-v3 .rm-station.is-up .rm-state { color: var(--text-secondary); font-weight: var(--weight-medium); }
+
+/* the agent on a milestone's hub item (Agents → Roadmap) */
+.needt-v3 .rm-meta > .rm-agent { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; display: inline-flex; align-items: center; gap: 5px; color: var(--text-secondary); }
+.needt-v3 .rm-agent-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); }
+.needt-v3 .rm-agent.is-claimed .rm-agent-dot,
+.needt-v3 .rm-agent.is-in_progress .rm-agent-dot { background: var(--success, var(--rm-hue)); }
+.needt-v3 .rm-agent.is-needs_owner .rm-agent-dot,
+.needt-v3 .rm-agent.is-failed .rm-agent-dot { background: var(--destructive); }
+
+/* track */
+.needt-v3 .rm-edge { fill: none; stroke: color-mix(in oklab, var(--rm-hue) 35%, transparent); stroke-width: 3; stroke-linecap: round; }
+.needt-v3 .rm-edge.is-travelled { stroke: var(--rm-hue); }
+.needt-v3 .rm-edge.is-wait { stroke-width: 1.5; stroke-dasharray: 3 4; }
+
+/* marks */
+.needt-v3 .rm-mark .rm-ring { fill: var(--background); stroke-width: 2; }
+.needt-v3 .rm-mark.is-done .rm-dot { fill: var(--rm-hue); }
+.needt-v3 .rm-mark.is-done .rm-tick { fill: none; stroke: var(--background); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.needt-v3 .rm-mark.is-current .rm-ring { stroke: var(--rm-hue); stroke-width: 2.5; }
+.needt-v3 .rm-mark.is-current .rm-dot { fill: var(--rm-hue); }
+.needt-v3 .rm-mark.is-current .rm-pulse { fill: none; stroke: var(--rm-hue); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; animation: rm-pulse 2.4s var(--ease-default) infinite; }
+.needt-v3 .rm-mark.is-next .rm-ring { stroke: var(--text-muted); }
+.needt-v3 .rm-mark.is-next.is-up .rm-ring { stroke: var(--rm-hue); }
+.needt-v3 .rm-mark.is-blocked .rm-ring { stroke: var(--text-muted); }
+.needt-v3 .rm-mark.is-blocked .rm-cross { stroke: var(--text-tertiary); stroke-width: 1.6; stroke-linecap: round; }
+
+@keyframes rm-pulse {
+  0% { opacity: 0.55; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(1.9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .rm-mark.is-current .rm-pulse { animation: none; }
+}
+
+/* ---- phone face -------------------------------------------------------- */
+.needt-v3 .rm-page.is-phone { gap: 10px; padding: 0 4px; }
+.needt-v3 .rm-page.is-phone .rm-station { border-radius: 12px; }
+.needt-v3 .rm-page.is-phone .rm-station:hover { background: transparent; }
+.needt-v3 .rm-page.is-phone .rm-station:active { background: var(--fill-2); }
+
+/* ---- Agents → Roadmap (on the night ground, agents-night.css) ---------- */
+.needt-v3 .rm-agents { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.needt-v3 .rm-pick { flex-wrap: wrap; }
+.needt-v3 .rm-card { padding: 14px 12px 12px; border-radius: var(--radius-xl); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.needt-v3 .rm-card-head { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 4px; }
+.needt-v3 .rm-card-title { flex: 1; min-width: 0; margin: 0; font: var(--type-ui-medium); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .rm-card-actions { flex: none; display: inline-flex; gap: 4px; }
+.needt-v3 .rm-card .rm-summary { padding: 0 4px; }
+.needt-v3 .rm-loading { min-height: 160px; }
+@media (max-width: 600px) {
+  .needt-v3 .rm-card-head { flex-wrap: wrap; }
+  .needt-v3 .rm-card-actions { width: 100%; }
+}
+
+/* board order only, no wait between the two: a thinner track */
+.needt-v3 .rm-edge.is-seq { stroke-width: 2; }
