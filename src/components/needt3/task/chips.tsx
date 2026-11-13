@@ -3,6 +3,8 @@ import Link from "next/link";
 import { FiFileText, FiMail, FiMessageSquare } from "react-icons/fi";
 import { LuClockAlert, LuPin } from "react-icons/lu";
 
+import { chf } from "@/lib/needt3/progress";
+
 import type { TaskView } from "./view";
 
 export function SourceChip({
@@ -108,9 +110,34 @@ export function DueChip({ view }: { view: TaskView }) {
   );
 }
 
+/**
+ * The money pair (plan 11 T-4): what came in, in the success ink, and the
+ * asking amount beside it, quieter. With nothing received the asking amount
+ * stands alone. A task with no amount shows no slot at all.
+ */
 export function TaskValue({ view }: { view: TaskView }) {
-  return view.value ? (
-    <span className="tk-value">CHF {view.value.toLocaleString("de-CH")}</span>
+  const { value, earned } = view;
+  if (earned != null)
+    return (
+      <span className="tk-money" data-tk-money="">
+        <span className="tk-value" title="Received">
+          {chf(earned)}
+        </span>
+        {value ? (
+          <span className="tk-money-listed" title="Listed">
+            {chf(value)}
+          </span>
+        ) : null}
+      </span>
+    );
+  return value ? (
+    <span
+      className="tk-money tk-money-ask"
+      title="Listed — worth this when it sells"
+      data-tk-money=""
+    >
+      {chf(value)}
+    </span>
   ) : null;
 }
 

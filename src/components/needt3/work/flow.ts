@@ -12,6 +12,7 @@
  */
 import { blockerOf } from "@/lib/needt3/derive";
 import type { V3Task, V3TaskPart } from "@/lib/needt3/map";
+import { isCounter } from "@/lib/needt3/progress";
 import { tickClosesTask } from "@/lib/needt3/steps";
 
 export { tickClosesTask };
@@ -34,7 +35,8 @@ export function flowSteps(
   t: Pick<V3Task, "entry" | "parts" | "done">
 ): FlowSteps | null {
   const parts = t.parts ?? [];
-  if (!parts.length) return null;
+  // A counter (plan 11 T-1) is one row with its 0/3, not a chain of steps.
+  if (!parts.length || isCounter(parts)) return null;
   const done = parts.filter((p) => p.done).length;
   return {
     entry: t.entry?.trim() || null,

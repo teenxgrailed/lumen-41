@@ -152,6 +152,8 @@ export interface ApiTask {
   earnedCents?: number | null;
   globalStage?: string | null;
   previousScheduledStart?: string | null;
+  /** Moves to a later day by the person (plan 11 T-2). */
+  moveCount?: number;
   trashedAt?: string | null;
   originKind?: string | null;
   originId?: string | null;
@@ -321,6 +323,8 @@ export interface V3Task {
   Stage: V3StageId | null;
   /** "YYYY-MM-DDTHH:mm", local — where the scheduler moved it from. */
   movedFrom: string | null;
+  /** How many times the person moved it to a later day (plan 11 T-2). */
+  moveCount?: number;
   trashedAt: string | null;
   source: V3TaskSource | null;
   /** RRULE text of the series (`Task.recurrenceRule`), null when it does not repeat. */
@@ -384,6 +388,7 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
     earned: fromCents(row.earnedCents),
     Stage: stageFromDb(row.globalStage),
     movedFrom: isoToStamp(row.previousScheduledStart, tz),
+    moveCount: row.moveCount ?? 0,
     trashedAt: row.trashedAt ?? null,
     source: isOrigin(row.originKind)
       ? {
@@ -422,6 +427,7 @@ export type V3TaskPatch = Partial<
     | "updatedAt"
     | "completedAt"
     | "movedFrom"
+    | "moveCount"
     | "parts"
     | "waits"
     | "attachments"

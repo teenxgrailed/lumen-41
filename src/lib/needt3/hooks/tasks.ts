@@ -15,9 +15,11 @@ import {
   type V3Task,
   type V3TaskPart,
   type V3TaskPatch,
+  partFromApi,
   taskFromApi,
   taskPatchToApi,
 } from "@/lib/needt3/map";
+import { clampCount, countedParts, partCount } from "@/lib/needt3/progress";
 import { type TaskFilter, qk } from "@/lib/needt3/query-keys";
 import { serialByKey } from "@/lib/needt3/serial";
 import { tickClosesTask } from "@/lib/needt3/steps";
@@ -371,6 +373,69 @@ export function useTaskParts() {
       }),
     remove: (taskId: string, partId: string) =>
       m.mutateAsync({ op: "remove", taskId, partId }),
+  };
+}
+
+type CountVars = {
+  taskId: string;
+  target: number;
+  done: number;
+  prev: { target: number; done: number };
+};
+
+/**
+ * A task's counter (plan 11 T-1): `0/3` is three unnamed parts. `set` writes
+ * the target and how many are done through `PUT /api/tasks/:id/count`; its
+ * undo writes the previous pair back. `target: 0` removes the counter.
+ */
+export function useTaskCount() {
+  const qc = useQueryClient();
+  const m = useUndoableMutation<CountVars, { target: number; done: number }>({
+    scope: [TASKS, TASK_ONE],
+    label: "change the count",
+    inverse: (_qc, vars) => ({
+      taskId: vars.taskId,
+      target: vars.prev.target,
+      done: vars.prev.done,
+      prev: { target: vars.target, done: vars.done },
+    }),
+    optimistic: (qc, vars) =>
+      patchTaskCaches(qc, vars.taskId, (t) => ({
+        ...t,
+        parts: countedParts(t.parts ?? [], vars.target, vars.done, () =>
+          tempId("part")
+        ),
+      })),
+    request: async (vars) => {
+      const res = await sendJson<{
+        target: number;
+        done: number;
+        parts: ApiTaskPart[];
+      }>(`/api/tasks/${vars.taskId}/count`, "PUT", {
+        target: vars.target,
+        done: vars.done,
+      });
+      // Real ids at once: a tap before the refetch must not tick a pending id.
+      patchTaskCaches(qc, vars.taskId, (t) => ({
+        ...t,
+        parts: [...res.parts]
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          .map(partFromApi),
+      }));
+      return res;
+    },
+  });
+  return {
+    ...m,
+    set: (taskId: string, target: number, done?: number) => {
+      const cur = partCount(cachedTask(qc, taskId)?.parts);
+      const next = clampCount(target, done ?? cur.done);
+      return m.mutateAsync({
+        taskId,
+        ...next,
+        prev: { target: cur.total, done: cur.done },
+      });
+    },
   };
 }
 

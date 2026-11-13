@@ -127,7 +127,28 @@ export function planRecurringCompletion(
 }
 
 /** Records the completed occurrence as its own immutable task row. */
-export function upsertRecurringOccurrence(
+export async function upsertRecurringOccurrence(
+  transaction: Prisma.TransactionClient,
+  task: Task & { tags: { id: string }[] },
+  completion: RecurringCompletion,
+  userId: string
+) {
+  const occurrence = await upsertOccurrenceRow(
+    transaction,
+    task,
+    completion,
+    userId
+  );
+  // A repeating counter (plan 11 T-1) starts each occurrence at 0/N: its
+  // unnamed parts are unticked. Named steps are left as they are.
+  await transaction.taskPart.updateMany({
+    where: { taskId: task.id, title: "", done: true },
+    data: { done: false },
+  });
+  return occurrence;
+}
+
+function upsertOccurrenceRow(
   transaction: Prisma.TransactionClient,
   task: Task & { tags: { id: string }[] },
   completion: RecurringCompletion,
