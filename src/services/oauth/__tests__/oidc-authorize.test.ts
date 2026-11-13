@@ -12,6 +12,10 @@ import crypto from "crypto";
 import { getEmailVerificationStatus } from "@/lib/auth/email-verification-access";
 import { prisma } from "@/lib/prisma";
 
+// The consent page's v3 scope pulls in CSS and next/font; neither runs in Node.
+jest.mock("@/components/needt3/states/PublicScope", () => ({
+  PublicScope: ({ children }: { children: unknown }) => children,
+}));
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     oAuthClient: { findUnique: jest.fn(), upsert: jest.fn() },

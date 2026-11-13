@@ -16,6 +16,11 @@ import {
   isUnfilled,
 } from "../operator";
 
+// The page's v3 scope pulls in CSS and next/font; neither runs in Node.
+jest.mock("@/components/needt3/states/PublicScope", () => ({
+  PublicScope: ({ children }: { children: unknown }) => children,
+}));
+
 const PAGES = {
   privacy: PrivacyPage,
   terms: TermsPage,

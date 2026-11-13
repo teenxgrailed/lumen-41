@@ -4,6 +4,11 @@ import { GET as logoutGet } from "@/app/oauth/logout/route";
 import SigningOutPage from "@/app/oauth/logout/signing-out/page";
 import { resolvePostLogoutTarget } from "@/services/oauth/logout";
 
+// The page's v3 scope pulls in CSS and next/font; neither runs in Node.
+jest.mock("@/components/needt3/states/PublicScope", () => ({
+  PublicScope: ({ children }: { children: unknown }) => children,
+}));
+
 jest.mock("@/lib/prisma", () => ({ prisma: {} }));
 // The sign-out button itself is a client component; only its props matter here.
 jest.mock("@/app/oauth/logout/signing-out/SignOutAndReturn", () => ({

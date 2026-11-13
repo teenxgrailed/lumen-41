@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-import { Activity, AlertTriangle, CheckCircle2, Clock3 } from "lucide-react";
+import {
+  LuActivity,
+  LuCircleCheck,
+  LuClock3,
+  LuTriangleAlert,
+} from "react-icons/lu";
 
-import { AdminPage } from "@/components/admin/kit";
-import { Button } from "@/components/ui/button";
+import { AdminNote, AdminPage } from "@/components/admin/kit";
 
 interface OperationsSnapshot {
   queues: Array<{
@@ -42,10 +46,11 @@ interface ServiceReadiness {
 
 function serviceState(entry: ServiceReadiness) {
   if (!entry.configured)
-    return { label: "Not configured", tone: "bg-amber-500" };
-  if (entry.healthy === false) return { label: "Down", tone: "bg-red-500" };
-  if (entry.healthy === true) return { label: "Alive", tone: "bg-emerald-500" };
-  return { label: "Configured", tone: "bg-emerald-500" };
+    return { label: "Not configured", tone: "var(--text-tertiary)" };
+  if (entry.healthy === false)
+    return { label: "Down", tone: "var(--destructive)" };
+  if (entry.healthy === true) return { label: "Alive", tone: "var(--success)" };
+  return { label: "Configured", tone: "var(--success)" };
 }
 
 function ServicesSection({ services }: { services: ServiceReadiness[] }) {
@@ -76,51 +81,40 @@ function ServicesSection({ services }: { services: ServiceReadiness[] }) {
   };
 
   return (
-    <section className="admin-card p-4">
+    <section className="admin-card">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-[13px] font-medium">Services</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-[12px]"
+        <h2 className="admin-section-title">Services</h2>
+        <button
+          type="button"
+          className="nx-btn nx-btn-secondary nx-btn-sm"
           disabled={sending}
           onClick={() => void sendTestEvent()}
         >
           {sending ? "Sending…" : "Send test event"}
-        </Button>
+        </button>
       </div>
-      {sentryResult && (
-        <p className="mt-2 text-[12px] text-[var(--text-secondary)]">
-          {sentryResult}
-        </p>
-      )}
-      <ul className="mt-3 divide-y divide-[var(--border-subtle)]">
+      {sentryResult && <p className="admin-note mt-2">{sentryResult}</p>}
+      <div className="admin-rows" role="list">
         {services.map((entry) => {
           const state = serviceState(entry);
           return (
-            <li
-              key={entry.service}
-              className="flex items-start justify-between gap-4 py-2.5"
-            >
-              <div className="min-w-0">
-                <p className="text-[13px]">{entry.service}</p>
-                {entry.detail && (
-                  <p className="mt-0.5 text-[12px] text-[var(--text-muted)]">
-                    {entry.detail}
-                  </p>
-                )}
+            <div key={entry.service} className="admin-row" role="listitem">
+              <div className="admin-row-text">
+                <span className="admin-row-title">{entry.service}</span>
+                {entry.detail && <p className="admin-meta">{entry.detail}</p>}
               </div>
-              <span className="flex shrink-0 items-center gap-2 text-[12px] text-[var(--text-secondary)]">
+              <span className="admin-row-control admin-meta">
                 <span
                   aria-hidden
-                  className={`h-1.5 w-1.5 rounded-full ${state.tone}`}
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ background: state.tone }}
                 />
                 {state.label}
               </span>
-            </li>
+            </div>
           );
         })}
-      </ul>
+      </div>
     </section>
   );
 }
@@ -156,13 +150,21 @@ export default function OperationsPage() {
       title="Operations"
       lead="Queues, cron jobs and service readiness. Refreshes every 15 seconds."
       actions={
-        <Button variant="outline" onClick={() => void load()}>
+        <button
+          type="button"
+          className="nx-btn nx-btn-secondary"
+          onClick={() => void load()}
+        >
           Refresh
-        </Button>
+        </button>
       }
     >
       <div className="admin-stack">
-        {error && <div className="admin-card p-4 text-sm">{error}</div>}
+        {error && (
+          <div className="admin-card">
+            <AdminNote tone="danger">{error}</AdminNote>
+          </div>
+        )}
         {snapshot && (
           <>
             {snapshot.services && (
@@ -173,49 +175,57 @@ export default function OperationsPage() {
                 const warning =
                   queue.waiting > 100 || queue.oldestWaitingAgeMs > 120_000;
                 return (
-                  <article key={queue.name} className="admin-card p-4">
+                  <article key={queue.name} className="admin-card">
                     <div className="flex items-center justify-between">
-                      <h2 className="font-medium">{queue.name}</h2>
+                      <h2 className="admin-section-title">{queue.name}</h2>
                       {warning ? (
-                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        <LuTriangleAlert
+                          size={16}
+                          aria-hidden
+                          style={{ color: "var(--text-tertiary)" }}
+                        />
                       ) : (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <LuCircleCheck
+                          size={16}
+                          aria-hidden
+                          style={{ color: "var(--success)" }}
+                        />
                       )}
                     </div>
-                    <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
-                      <div>
-                        <dt className="text-[var(--text-muted)]">Waiting</dt>
-                        <dd className="mt-1 text-lg">{queue.waiting}</dd>
+                    <dl
+                      className="admin-facts mt-4"
+                      style={{ gridTemplateColumns: "repeat(3, 1fr)" }}
+                    >
+                      <div className="admin-fact">
+                        <dt className="admin-meta">Waiting</dt>
+                        <dd className="admin-fact-value">{queue.waiting}</dd>
                       </div>
-                      <div>
-                        <dt className="text-[var(--text-muted)]">Active</dt>
-                        <dd className="mt-1 text-lg">{queue.active}</dd>
+                      <div className="admin-fact">
+                        <dt className="admin-meta">Active</dt>
+                        <dd className="admin-fact-value">{queue.active}</dd>
                       </div>
-                      <div>
-                        <dt className="text-[var(--text-muted)]">Failed</dt>
-                        <dd className="mt-1 text-lg">{queue.failed}</dd>
+                      <div className="admin-fact">
+                        <dt className="admin-meta">Failed</dt>
+                        <dd className="admin-fact-value">{queue.failed}</dd>
                       </div>
                     </dl>
-                    <p className="mt-3 flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                      <Clock3 className="h-3.5 w-3.5" />
+                    <p className="admin-meta mt-3 flex items-center gap-2">
+                      <LuClock3 size={14} aria-hidden />
                       Oldest wait {Math.round(queue.oldestWaitingAgeMs / 1000)}s
                     </p>
                   </article>
                 );
               })}
             </section>
-            <section className="admin-card p-4">
-              <h2 className="flex items-center gap-2 font-medium">
-                <Activity className="h-4 w-4" /> Cron health
+            <section className="admin-card">
+              <h2 className="admin-section-title flex items-center gap-2">
+                <LuActivity size={16} aria-hidden /> Cron health
               </h2>
-              <div className="mt-4 divide-y divide-[var(--border-subtle)]">
+              <div className="admin-rows">
                 {snapshot.cronStates.map((cron) => (
-                  <div
-                    key={cron.id}
-                    className="flex items-center justify-between gap-4 py-3 text-sm"
-                  >
-                    <span>{cron.id}</span>
-                    <span className="text-right text-[var(--text-secondary)]">
+                  <div key={cron.id} className="admin-row">
+                    <span className="admin-row-title">{cron.id}</span>
+                    <span className="admin-meta text-right">
                       {cron.lastSucceededAt
                         ? new Date(cron.lastSucceededAt).toLocaleString()
                         : "Never succeeded"}

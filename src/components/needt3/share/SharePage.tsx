@@ -4,8 +4,8 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { NeedtPicker } from "@/components/ui/needt-picker";
+import { SSelect } from "@/components/needt3/settings/kit";
+import { Segmented } from "@/components/needt3/shell/Segmented";
 
 import {
   useAddBoardItem,
@@ -219,41 +219,41 @@ function Sheet() {
   return (
     <div className="flex min-h-[60dvh] items-end justify-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-10 sm:items-center">
       <main
-        className="w-full max-w-[460px] rounded-2xl border border-[var(--border-subtle)] p-4 text-[var(--text-primary)]"
+        className="w-full max-w-[460px] p-4 text-[var(--text-primary)]"
+        style={{
+          borderRadius: 16,
+          background: "var(--surface-raised)",
+          boxShadow: "var(--shadow-ring)",
+        }}
         data-share-sheet=""
       >
-        <h1 className="text-[15px] font-semibold">Save to Needt</h1>
-        <div className="mt-3 flex gap-1.5" role="tablist" aria-label="Save as">
-          {kinds.map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="tab"
-              aria-selected={k === kind}
-              onClick={() => setPicked(k)}
-              className={
-                "h-9 flex-1 rounded-[var(--control-radius)] border text-[13px] " +
-                (k === kind
-                  ? "border-[var(--text-primary)] font-medium"
-                  : "border-[var(--border-subtle)] text-[var(--text-secondary)]")
-              }
-            >
-              {KIND_LABEL[k]}
-            </button>
-          ))}
+        <h1 style={{ font: "var(--type-ui-medium)" }}>Save to Needt</h1>
+        <div className="mt-3">
+          <Segmented
+            value={kind}
+            options={kinds.map((k) => ({ id: k, label: KIND_LABEL[k] }))}
+            onChange={setPicked}
+            label="Save as"
+          />
         </div>
 
-        <label className="mt-3 block text-[12px] text-[var(--text-muted)]">
+        <label
+          className="mt-3 block text-[12px]"
+          style={{ color: "var(--text-tertiary)" }}
+        >
           Title
           <input
             value={name}
             onChange={(e) => setTitle(e.target.value)}
-            className="mt-1 h-10 w-full rounded-[var(--control-radius)] border border-[var(--border-subtle)] bg-transparent px-3 text-[13px] text-[var(--text-primary)]"
+            className="nt-input mt-1"
           />
         </label>
 
         {share.text || share.url || files.length ? (
-          <p className="mt-2 line-clamp-3 break-words text-[12px] leading-5 text-[var(--text-secondary)]">
+          <p
+            className="mt-2 line-clamp-3 break-words text-[12px] leading-5"
+            style={{ color: "var(--text-secondary)" }}
+          >
             {[
               share.text,
               share.url,
@@ -266,63 +266,74 @@ function Sheet() {
           </p>
         ) : null}
         {kind === "task" && files.length ? (
-          <p className="mt-1 text-[12px] text-[var(--text-muted)]">
+          <p
+            className="mt-1 text-[12px]"
+            style={{ color: "var(--text-tertiary)" }}
+          >
             A task keeps text and a link, not files. Pick Doc or Moodboard item
             to keep them.
           </p>
         ) : null}
 
         {kind === "board" ? (
-          <label className="mt-3 block text-[12px] text-[var(--text-muted)]">
+          <div
+            className="mt-3 text-[12px]"
+            style={{ color: "var(--text-tertiary)" }}
+          >
             Moodboard
-            <NeedtPicker
-              value={boardId || NEW_BOARD}
-              options={[
-                { value: NEW_BOARD, label: "New moodboard" },
-                ...boards.map((b) => ({
-                  value: b.id,
-                  label: b.title || "Untitled",
-                })),
-              ]}
-              onValueChange={(v) => setBoardId(v)}
-              ariaLabel="Moodboard"
-              triggerVariant="field"
-              className="mt-1 w-full"
-            />
-          </label>
+            <div className="mt-1">
+              <SSelect
+                value={boardId || NEW_BOARD}
+                options={[
+                  [NEW_BOARD, "New moodboard"],
+                  ...boards.map((b) => [b.id, b.title || "Untitled"] as const),
+                ]}
+                onChange={(v) => setBoardId(v)}
+                label="Moodboard"
+                width="100%"
+                align="start"
+              />
+            </div>
+          </div>
         ) : null}
 
-        <label className="mt-3 block text-[12px] text-[var(--text-muted)]">
+        <div
+          className="mt-3 text-[12px]"
+          style={{ color: "var(--text-tertiary)" }}
+        >
           Project
-          <NeedtPicker
-            value={projectId || NO_PROJECT}
-            options={[
-              { value: NO_PROJECT, label: "No project" },
-              ...projects.map((p) => ({ value: p.id, label: p.name })),
-            ]}
-            onValueChange={(v) => setProjectId(v === NO_PROJECT ? "" : v)}
-            ariaLabel="Project"
-            triggerVariant="field"
-            className="mt-1 w-full"
-          />
-        </label>
+          <div className="mt-1">
+            <SSelect
+              value={projectId || NO_PROJECT}
+              options={[
+                [NO_PROJECT, "No project"],
+                ...projects.map((p) => [p.id, p.name] as const),
+              ]}
+              onChange={(v) => setProjectId(v === NO_PROJECT ? "" : v)}
+              label="Project"
+              width="100%"
+              align="start"
+            />
+          </div>
+        </div>
 
         <div className="mt-4 flex justify-end gap-2">
-          <Button
+          <button
             type="button"
-            variant="ghost"
+            className="nx-btn nx-btn-text"
             disabled={busy}
             onClick={() => void done("/today")}
           >
             Cancel
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
+            className="nx-btn nx-btn-primary"
             disabled={busy || !name.trim()}
             onClick={() => void save()}
           >
             {busy ? "Saving…" : "Save"}
-          </Button>
+          </button>
         </div>
       </main>
     </div>

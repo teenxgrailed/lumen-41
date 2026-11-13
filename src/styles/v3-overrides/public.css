@@ -1,0 +1,474 @@
+/* Public pages outside the signed-in frame (PublicScope): booking, a shared
+   moodboard, legal text, dead links, the OAuth hand-off cards. Ring-first
+   elevation, the 13/12 chrome scale, greys from the text ladder only. */
+.needt-v3.pub-scope {
+  min-height: 100dvh;
+  background: var(--background);
+  color: var(--text-primary);
+  font: var(--type-ui);
+}
+.needt-v3 .pub-page {
+  margin: 0 auto;
+  max-width: 1040px;
+  padding: 56px 24px 72px;
+}
+.needt-v3 .pub-page.is-narrow {
+  max-width: 720px;
+}
+.needt-v3 .pub-center {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+}
+.needt-v3 .pub-card {
+  border-radius: 16px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  padding: 24px;
+}
+.needt-v3 .pub-card.is-small {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+}
+.needt-v3 .pub-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--type-meta-medium);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pub-title {
+  margin: 8px 0 0;
+  font: var(--type-page-title);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.needt-v3 .pub-card-title {
+  margin: 0;
+  font: var(--type-card-title);
+  color: var(--text-primary);
+}
+.needt-v3 .pub-lead {
+  margin: 6px 0 0;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+}
+.needt-v3 .pub-meta {
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pub-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+.needt-v3 .pub-error {
+  font: var(--type-meta);
+  color: var(--destructive);
+}
+.needt-v3 .pub-version {
+  display: inline-block;
+  margin-top: 32px;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+.needt-v3 .pub-version:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.needt-v3 .pub-icon {
+  display: block;
+  margin: 0 auto 12px;
+  color: var(--text-tertiary);
+}
+.needt-v3 .pub-block {
+  width: 100%;
+  height: 40px;
+}
+.needt-v3 .pub-done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  font: var(--type-ui);
+  color: var(--text-primary);
+}
+.needt-v3 .pub-error {
+  margin: 12px 0 0;
+}
+.needt-v3 .pub-spin {
+  animation: pub-spin 0.9s linear infinite;
+}
+@keyframes pub-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .pub-spin {
+    animation: none;
+  }
+}
+
+/* Legal documents (LegalDocument): document type, mirroring the in-app page
+   editor (24/30, 20/26, 16/24 headings, 16/24 body). */
+.needt-v3 .pub-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-bottom: 20px;
+  font: var(--type-ui);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pub-nav a {
+  color: inherit;
+  text-decoration: none;
+}
+.needt-v3 .pub-nav a:hover {
+  color: var(--text-primary);
+}
+.needt-v3 .pub-card.is-doc {
+  padding: 40px 48px;
+  font: var(--type-body);
+  line-height: 24px;
+  color: var(--text-primary);
+}
+@media (max-width: 640px) {
+  .needt-v3 .pub-card.is-doc {
+    padding: 24px 20px;
+  }
+}
+.needt-v3 .pub-doc :is(h1, h2, h3) {
+  margin: 0;
+  color: var(--text-primary);
+}
+.needt-v3 .pub-doc h1 {
+  font-size: var(--text-h1);
+  line-height: 30px;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-display);
+}
+.needt-v3 .pub-doc h2 {
+  margin-top: 40px;
+  scroll-margin-top: 24px;
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: var(--weight-semibold);
+}
+.needt-v3 .pub-doc h3 {
+  margin-top: 24px;
+  scroll-margin-top: 24px;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: var(--weight-semibold);
+}
+.needt-v3 .pub-doc :is(h1, h2, h3) + * {
+  margin-top: 14px;
+}
+.needt-v3 .pub-doc p {
+  margin: 16px 0 0;
+}
+.needt-v3 .pub-doc ul {
+  margin: 16px 0 0;
+  padding-left: 27px;
+  list-style: disc;
+}
+.needt-v3 .pub-doc li + li {
+  margin-top: 8px;
+}
+.needt-v3 .pub-doc strong {
+  font-weight: var(--weight-semibold);
+}
+.needt-v3 .pub-doc a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--text-quaternary);
+}
+.needt-v3 .pub-doc a:hover {
+  text-decoration-color: var(--text-primary);
+}
+.needt-v3 .pub-doc code {
+  border-radius: 6px;
+  background: var(--fill-4);
+  padding: 1px 5px;
+  font: 400 0.9em var(--font-mono);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .pub-doc blockquote {
+  margin: 16px 0 0;
+  padding-left: 16px;
+  box-shadow: inset 2px 0 0 var(--fill-6);
+  color: var(--text-secondary);
+}
+.needt-v3 .pub-doc hr {
+  margin: 40px 0 0;
+  border: 0;
+  height: 1px;
+  background: var(--fill-5);
+}
+.needt-v3 .pub-doc .pub-table-wrap {
+  margin-top: 16px;
+  overflow-x: auto;
+}
+.needt-v3 .pub-doc table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  text-align: left;
+  font: var(--type-ui);
+}
+.needt-v3 .pub-doc th {
+  padding: 8px 16px 8px 0;
+  vertical-align: bottom;
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  box-shadow: inset 0 -1px 0 var(--fill-6);
+}
+.needt-v3 .pub-doc td {
+  padding: 8px 16px 8px 0;
+  vertical-align: top;
+  color: var(--text-secondary);
+  box-shadow: inset 0 -1px 0 var(--fill-5);
+}
+
+/* Shared moodboard (b/[id]/[token]): the wall's tiles, radius 16, in CSS
+   columns so the server page stays a server component. */
+.needt-v3 .pub-wall {
+  column-width: 240px;
+  column-gap: 12px;
+  margin-top: 24px;
+}
+.needt-v3 .pub-tile {
+  margin: 0 0 12px;
+  break-inside: avoid;
+}
+.needt-v3 .pub-tile-img {
+  display: block;
+  width: 100%;
+  border-radius: 16px;
+  background: var(--surface-raised);
+}
+.needt-v3 .pub-swatch {
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--fill-5);
+}
+.needt-v3 .pub-note {
+  margin: 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  font: var(--type-ui);
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.needt-v3 .pub-link {
+  display: block;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  color: inherit;
+  text-decoration: none;
+}
+.needt-v3 .pub-link img {
+  display: block;
+  width: 100%;
+}
+.needt-v3 .pub-link-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px 12px;
+}
+.needt-v3 .pub-link-title {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .pub-tile-cap {
+  margin-top: 6px;
+  padding: 0 4px;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pub-empty {
+  margin-top: 24px;
+  font: var(--type-ui);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pub-nav .font-semibold {
+  color: var(--text-primary);
+}
+
+/* Public booking page (/book/[slug]): slot picker card + details card. A
+   chosen slot is the Selected state (inset text ring), never a filled chip. */
+.needt-v3 .pub-book-header {
+  max-width: 640px;
+  margin-bottom: 32px;
+}
+.needt-v3 .pub-book-duration {
+  margin-top: 12px;
+}
+.needt-v3 .pub-book-grid {
+  display: grid;
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 1024px) {
+  .needt-v3 .pub-book-grid {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+.needt-v3 .pub-book-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .pub-book-loading {
+  display: block;
+  margin: 64px auto;
+  color: var(--text-tertiary);
+}
+.needt-v3 .pub-book-days {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.needt-v3 .pub-book-day {
+  margin: 0 0 8px;
+  font: var(--type-meta-medium);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pub-book-slots {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (min-width: 640px) {
+  .needt-v3 .pub-book-slots {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.needt-v3 .pub-book-slot {
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .pub-book-empty {
+  margin: 0;
+  padding: 48px 0;
+  text-align: center;
+}
+.needt-v3 .pub-book-aside .pub-error {
+  margin: 0;
+}
+.needt-v3 .pub-book-submit {
+  width: 100%;
+}
+.needt-v3 .pub-book-done {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 32px;
+  text-align: center;
+}
+.needt-v3 .pub-book-done-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: var(--fill-3);
+  box-shadow: var(--shadow-ring);
+  color: var(--text-primary);
+}
+.needt-v3 .pub-book-done-title {
+  margin-top: 16px;
+}
+
+/* OAuth consent (/oauth/authorize): one card, plain POST form. Native
+   checkboxes stay (the form is server-rendered); their tick is a grey mark,
+   not the accent. */
+.needt-v3 .pub-oauth-card {
+  width: 100%;
+  max-width: 448px;
+}
+.needt-v3 .pub-oauth-host {
+  margin: 4px 0 0;
+}
+.needt-v3 .pub-oauth-note {
+  margin: 12px 0 0;
+}
+.needt-v3 .pub-oauth-caution {
+  margin: 8px 0 0;
+}
+.needt-v3 .pub-oauth-strong {
+  font: var(--type-ui-medium);
+  font-size: inherit;
+  color: var(--text-primary);
+}
+.needt-v3 .pub-oauth-form {
+  margin-top: 20px;
+}
+.needt-v3 .pub-oauth-scopes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.needt-v3 .pub-oauth-legend {
+  display: block;
+  margin-bottom: 6px;
+  padding: 0;
+  font: var(--type-meta-medium);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pub-oauth-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font: var(--type-ui);
+  color: var(--text-primary);
+}
+.needt-v3 .pub-oauth-box {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin: 1px 0 0;
+  accent-color: var(--text-primary);
+}
+.needt-v3 .pub-oauth-hint {
+  display: block;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pub-oauth-workspace {
+  margin-top: 20px;
+}
+.needt-v3 .pub-oauth-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+/* Touch target: the old slot buttons were 44px tall; keep that on phones. */
+@media (max-width: 640px) {
+  .needt-v3 .pub-book-slot {
+    min-height: 44px;
+  }
+}

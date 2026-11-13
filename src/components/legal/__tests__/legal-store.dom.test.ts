@@ -21,6 +21,19 @@ import { termsMarkdown } from "@/lib/legal/documents/terms";
 import { LegalDocument } from "../LegalDocument";
 import { STORE_PLANS_NOTICE } from "../WebOnly";
 
+jest.mock("@/lib/needt3/fonts", () => ({ V3_FONT_CLASSES: "" }));
+jest.mock("@/styles/v3-entry.css", () => ({}), { virtual: true });
+
+// jsdom has no matchMedia; PublicScope reads the OS colour scheme with it.
+Object.defineProperty(window, "matchMedia", {
+  configurable: true,
+  value: () => ({
+    matches: false,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }),
+});
+
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
