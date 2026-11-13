@@ -20,6 +20,16 @@ physical deletion.
 - Every new view has a workspace scope. Personal views are visible only to the
   creator; workspace views are readable by members and writable by Editors or
   Owners. Archiving is recoverable and no query can name another workspace.
+- The Tasks screen saves its list as a `TASKS` / `list` view
+  (`src/lib/needt3/saved-task-views.ts` maps it both ways):
+  - `filters`: `{ field: "list", operator: "is", value: "inbox" | "today" |
+    "upcoming" | "all" }`; `{ field: "projectId", operator: "eq", value: id }`
+    or `{ field: "projectId", operator: "is", value: null }` for No project;
+    `{ field: "completed", operator: "is", value: "hide" | "today" | "always" }`.
+  - `sort`: `{ field: "scheduledStart" | "priority" | "dueDate" }`, led by
+    `{ field: "overdue", direction: "desc" }` when overdue tasks come first.
+  - `groupBy`: `"date"` (the screen's day sections), `"project"` or `"priority"`.
+  - Anything else a client stores is kept as is and read as the default.
 
 ## Project health
 

@@ -24,9 +24,14 @@ import {
   useSettings,
   useTimeZone,
 } from "@/lib/needt3/hooks/settings";
-import { useTaskView } from "@/lib/needt3/hooks/task-view";
+import { useSetTaskView, useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
+import {
+  type TaskViewState,
+  resolveProject,
+  taskViewState,
+} from "@/lib/needt3/saved-task-views";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -46,6 +51,7 @@ import { MiniCard, ProjectCard } from "./ProjectCards";
 import { askDeleteProject } from "./ProjectDeleteHost";
 import { ProjectPage } from "./ProjectPage";
 import { ProjectSheet } from "./ProjectSheet";
+import { SavedViewsMenu } from "./SavedViewsMenu";
 import {
   NO_PROJECT,
   type ProjectFilter,
@@ -131,6 +137,7 @@ function WorkScreenContent({
   const settings = useSettings();
   const setPref = useSetPref();
   const taskView = useTaskView();
+  const setTaskView = useSetTaskView();
   const setComposerOpen = useNeedt3Ui((s) => s.setComposerOpen);
   const { params, setParam } = useTaskParam();
 
@@ -171,6 +178,26 @@ function WorkScreenContent({
     if (params.get("new")) setParam("new", null);
   };
   const openTask = (id: string) => setParam("task", id);
+
+  // Saved views: the list as it is drawn now, and putting a saved one back.
+  const projectIds = projects.map((p) => p.id);
+  const viewState = taskViewState(tab, pf, taskView);
+  const applyView = (v: TaskViewState) => {
+    setTab(v.tab);
+    setPf(resolveProject(v.project, projectIds));
+    if (
+      v.sort !== taskView.sort ||
+      v.group !== taskView.group ||
+      v.completed !== taskView.completed ||
+      v.overdueFirst !== taskView.overdueFirst
+    )
+      void setTaskView({
+        sort: v.sort,
+        group: v.group,
+        completed: v.completed,
+        overdueFirst: v.overdueFirst,
+      });
+  };
 
   const m = workModel({
     tasks,
@@ -345,6 +372,13 @@ function WorkScreenContent({
               label,
               count: m.counts[id],
             }))}
+          />
+        )}
+        {isProjects ? null : (
+          <SavedViewsMenu
+            current={viewState}
+            projectIds={projectIds}
+            onApply={applyView}
           />
         )}
         {isProjects ? null : <TaskViewGear scope="tasks" />}

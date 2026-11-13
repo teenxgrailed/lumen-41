@@ -15,7 +15,8 @@ export const savedViewInputSchema = z.object({
   type: z.enum(["table", "board", "list", "timeline", "calendar", "gallery"]),
   boardId: z.string().min(1).nullable().optional(),
   groupBy: z
-    .enum(["status", "priority", "project", "assignee", "stage"])
+    // "date" is the Tasks screen's own day sections (prefs.taskView.group)
+    .enum(["status", "priority", "project", "assignee", "stage", "date"])
     .nullable()
     .optional(),
   filters: z
@@ -29,6 +30,10 @@ export const savedViewInputSchema = z.object({
           "tagId",
           "due",
           "archived",
+          // Tasks screen: which list (inbox | today | upcoming | all)
+          "list",
+          // Tasks screen: completed tasks (hide | today | always)
+          "completed",
         ]),
         operator: z.enum([
           "eq",
@@ -61,6 +66,9 @@ export const savedViewInputSchema = z.object({
           "position",
           "name",
           "title",
+          "scheduledStart",
+          // "overdue" desc = overdue tasks first, in a list of their own
+          "overdue",
         ]),
         direction: z.enum(["asc", "desc"]),
       })
