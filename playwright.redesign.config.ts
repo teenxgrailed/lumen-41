@@ -6,7 +6,7 @@ import base from "./playwright.config";
 
 export default defineConfig({
   ...base,
-  testMatch: ["redesign-shots.spec.ts"],
+  testMatch: (process.env.REDESIGN_SPECS ?? "redesign-shots.spec.ts").split(","),
   reporter: "line",
   retries: 0,
   webServer: undefined,

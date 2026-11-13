@@ -3,7 +3,7 @@ id: 20261113-claude-redesign-remaining
 owner: claude
 branch: feat/redesign-remaining
 status: active
-updated: 2026-11-13T02:00:00Z
+updated: 2026-11-13T03:30:00Z
 objective: Move the pages still on the old shadcn UI to needt3, with before/after screenshots, and propose simplifications for overloaded screens
 ---
 
@@ -19,7 +19,7 @@ objective: Move the pages still on the old shadcn UI to needt3, with before/afte
 
 ## Working state
 
-- Files currently dirty or expected to change: FEATURE.md, docs/redesign-shots/, tests/redesign-shots.spec.ts, playwright.redesign.config.ts.
+- Files currently dirty or expected to change: none (all committed).
 - Foreign changes that must remain untouched: .brief.md (task brief, untracked).
 
 ## Verification
