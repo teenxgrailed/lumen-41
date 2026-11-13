@@ -253,6 +253,7 @@ model User {
   habitEvents                  HabitEvent[]
   personalBlocks               PersonalBlock[]
   goals                        Goal[]
+  charts                       Chart[]
   goalCheckIns                 GoalCheckIn[]
   weeklyFocusTargets           WeeklyFocusTarget[]
   meetingNoteProposals         MeetingNoteProposal[]      @relation("MeetingNoteProposalCreator")
@@ -300,6 +301,7 @@ model Workspace {
   habits               Habit[]
   personalBlocks       PersonalBlock[]
   goals                Goal[]
+  charts               Chart[]
   dailyHighlights      DailyHighlight[]
   weekFocuses          WeekFocus[]
   weeklyFocusTargets   WeeklyFocusTarget[]
@@ -667,6 +669,7 @@ model Project {
   position   Float       @default(0)
   pages      Page[]
   moodboards Moodboard[]
+  charts     Chart[]
 
   // Soft delete: a trashed project leaves every list and sits in Trash until
   // it is restored. Archive (status) is a different, quieter state.
@@ -1165,6 +1168,7 @@ model Habit {
   updatedAt                DateTime               @updatedAt
   color                    String? // Own colour; null = the project's.
   icon                     String?
+  charts                   Chart[]
 
   @@index([workspaceId, archivedAt, isActive])
   @@index([userId, archivedAt])
@@ -1296,6 +1300,33 @@ model HabitPush {
 
   @@unique([userId, scope, kind, dayKey])
   @@index([userId, kind, createdAt])
+  @@index([habitId])
+}
+
+/// A chart block on a project or on Home (projectId null). It stores only
+/// what to measure; the series is derived from tasks, habit completions and
+/// time entries on every read (src/lib/charts.ts, ops `chart.*`).
+model Chart {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  metric      String // task_progress | habit_streak | time_spent
+  habitId     String? // habit_streak only; null = every habit in scope
+  habit       Habit?    @relation(fields: [habitId], references: [id], onDelete: SetNull)
+  style       String    @default("line") // line | bar
+  rangeDays   Int       @default(30)
+  position    Float     @default(0)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, projectId, archivedAt])
+  @@index([userId])
   @@index([habitId])
 }
 

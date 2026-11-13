@@ -81,10 +81,12 @@ async function currentVersion(
                 ? await tx.personalBlock.findUnique({ where: { id }, select })
                 : model === "goal"
                   ? await tx.goal.findUnique({ where: { id }, select })
-                  : await tx.scheduledBlock.findUnique({
-                      where: { id },
-                      select,
-                    });
+                  : model === "chart"
+                    ? await tx.chart.findUnique({ where: { id }, select })
+                    : await tx.scheduledBlock.findUnique({
+                        where: { id },
+                        select,
+                      });
   return row?.updatedAt.toISOString() ?? null;
 }
 

@@ -62,6 +62,7 @@ import type { DayBand } from "@/lib/personal-time-days";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { ChartsSection } from "../charts/Charts";
 import { type PeekAnchor, PersonalPeek } from "../personal/PersonalPeek";
 import { PersonalDay } from "../personal/PersonalQuickAdd";
 import { Segmented } from "../shell/Segmented";
@@ -699,6 +700,16 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       </HaScope>
     ),
     inbox: inboxTile,
+    charts: (
+      <HaScope>
+        <div className="ha-card" data-ha-charts="">
+          <div className="ha-dk-card-t">
+            <span>Charts</span>
+          </div>
+          <ChartsSection place={{ home: true }} hue="var(--accent)" />
+        </div>
+      </HaScope>
+    ),
   };
   const rail = shownRailTiles(blocks).filter((id) => railTiles[id]);
 

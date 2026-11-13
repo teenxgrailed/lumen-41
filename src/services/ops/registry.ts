@@ -13,6 +13,7 @@ import { OpError } from "./errors";
 import { toJson } from "./helpers";
 import { zodToJsonSchema } from "./json-schema";
 import { createBatchOps } from "./ops/batch";
+import { chartOps } from "./ops/charts";
 import { eventPageOps } from "./ops/events-pages";
 import { goalOps } from "./ops/goals";
 import { mailHabitOps } from "./ops/mail-habits";
@@ -51,6 +52,7 @@ for (const op of [
   ...personalOps,
   ...starterOps,
   ...goalOps,
+  ...chartOps,
 ] as OpDefinition[]) {
   if (registry.has(op.name)) throw new Error(`Duplicate op ${op.name}`);
   registry.set(op.name, op);

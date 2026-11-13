@@ -1,0 +1,1 @@
+- Charts: put a chart on a project or on Home — progress over time, habit streaks or time spent, as a line or bars over 7 to 90 days. Charts are readable and writable through `/api/charts` and the MCP tools `needt_create_chart` and `needt_update_chart`.

@@ -18,6 +18,7 @@ export const RAIL_TILES = [
   "week",
   "schedule",
   "inbox",
+  "charts",
 ] as const;
 export type RailTile = (typeof RAIL_TILES)[number];
 
@@ -29,6 +30,7 @@ export const HOME_BLOCK_IDS = [
   "week",
   "schedule",
   "inbox",
+  "charts",
   "weather",
 ] as const;
 export type HomeBlockId = (typeof HOME_BLOCK_IDS)[number];
@@ -41,8 +43,10 @@ export interface HomeBlocks {
   week: boolean;
   schedule: boolean;
   inbox: boolean;
+  /** Chart blocks placed on Home (`/api/charts?home=true`). */
+  charts: boolean;
   weather: boolean;
-  /** The rail's tiles, top to bottom (always all five, each once). */
+  /** The rail's tiles, top to bottom (always all six, each once). */
   order: RailTile[];
 }
 
@@ -53,6 +57,7 @@ export const DEFAULT_HOME_BLOCKS: HomeBlocks = {
   week: true,
   schedule: true,
   inbox: true,
+  charts: true,
   weather: true,
   order: [...RAIL_TILES],
 };
@@ -65,6 +70,7 @@ export const HOME_BLOCK_LABEL: Record<HomeBlockId, string> = {
   week: "This week",
   schedule: "Schedule",
   inbox: "Inbox",
+  charts: "Charts",
   weather: "Weather",
 };
 
@@ -95,6 +101,7 @@ export function readHomeBlocks(stored: unknown): HomeBlocks {
     week: flag("week"),
     schedule: flag("schedule"),
     inbox: flag("inbox"),
+    charts: flag("charts"),
     weather: flag("weather"),
     order: readOrder(o.order),
   };

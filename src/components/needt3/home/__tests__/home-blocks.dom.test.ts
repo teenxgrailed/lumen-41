@@ -61,6 +61,7 @@ describe("HomeBlocksForm", () => {
       "week",
       "schedule",
       "inbox",
+      "charts",
     ]);
     for (const i of host.querySelectorAll("input[role=switch]"))
       expect((i as HTMLInputElement).checked).toBe(true);
@@ -85,7 +86,7 @@ describe("HomeBlocksForm", () => {
     const down = (id: string) =>
       host.querySelector(`[data-hb-down="${id}"]`) as HTMLButtonElement;
     expect(up("todayBar").disabled).toBe(true);
-    expect(down("inbox").disabled).toBe(true);
+    expect(down("charts").disabled).toBe(true);
     act(() => up("habits").click());
     expect(changes[0].order?.[0]).toBe("habits");
     act(() => down("todayBar").click());

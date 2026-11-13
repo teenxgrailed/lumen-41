@@ -46,6 +46,7 @@ describe("collectAccountExport", () => {
     for (const key of [
       "goals",
       "goalCheckIns",
+      "charts",
       "personalBlocks",
       "closedDays",
       "dailyHighlights",

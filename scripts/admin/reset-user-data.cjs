@@ -173,6 +173,9 @@ function buildPlan(userId, workspaceId) {
     // Recurrence instances point at their master with ON DELETE RESTRICT.
     ["Task", "task", T, { unlink: { recurrenceMasterId: null } }],
 
+    // Charts (before projects and habits; they only point at them)
+    ["Chart", "chart", any(ws, uid)],
+
     // Projects and templates
     ["ProjectHealthUpdate", "projectHealthUpdate", any(ws, { project: P })],
     ["ProjectStage", "projectStage", { project: P }],
