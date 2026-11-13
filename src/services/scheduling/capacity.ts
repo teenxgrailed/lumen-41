@@ -17,6 +17,7 @@ import {
 } from "@/lib/date-utils";
 import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
+import { activeProjectTaskWhere } from "@/lib/projects/archive";
 import { type WeekHours } from "@/lib/work-week";
 import { loadWeekHours } from "@/lib/work-week-server";
 
@@ -136,18 +137,40 @@ export async function getScheduleCapacity(
     prisma.task.findMany({
       where: {
         ...workspaceDataScopeWhere(workspace, userId),
+        // Your load: what the scheduler plans for you, not the workspace's.
+        assigneeId: userId,
         isArchived: false,
+        trashedAt: null,
         status: { not: "completed" },
         OR: [{ isAutoScheduled: true }, { autoScheduled: true }],
+        AND: [activeProjectTaskWhere],
       },
       select: {
         estimatedMinutes: true,
         duration: true,
         scheduledStart: true,
         scheduledEnd: true,
+        scheduledBlocks: { select: { start: true, end: true } },
       },
     }),
   ]);
+  // Tasks with a fixed time (pinned, dragged, made with a start) are planned
+  // load too: the scheduler treats them as busy, so capacity does as well.
+  const fixedTasks = await prisma.task.findMany({
+    where: {
+      ...workspaceDataScopeWhere(workspace, userId),
+      assigneeId: userId,
+      isArchived: false,
+      trashedAt: null,
+      status: { not: "completed" },
+      AND: [activeProjectTaskWhere],
+      isAutoScheduled: false,
+      autoScheduled: false,
+      scheduledStart: { not: null, lt: rangeEnd },
+      scheduledEnd: { not: null, gt: rangeStart },
+    },
+    select: { scheduledStart: true, scheduledEnd: true },
+  });
 
   // An event that echoes a task block we pushed is the task, not busy time.
   const events = eventRows.filter(
@@ -165,10 +188,16 @@ export async function getScheduleCapacity(
     start: event.start,
     end: event.end,
   }));
+  // A task split into blocks occupies each block, not just its first one.
   const taskWindows = tasks.flatMap((task) =>
-    task.scheduledStart && task.scheduledEnd
-      ? [{ start: task.scheduledStart, end: task.scheduledEnd }]
-      : []
+    task.scheduledBlocks?.length
+      ? task.scheduledBlocks.map((block) => ({
+          start: block.start,
+          end: block.end,
+        }))
+      : task.scheduledStart && task.scheduledEnd
+        ? [{ start: task.scheduledStart, end: task.scheduledEnd }]
+        : []
   );
   const calendarBusyMinutes = windows.reduce(
     (sum, window) => sum + occupiedMinutes(window, eventWindows),
@@ -188,6 +217,19 @@ export async function getScheduleCapacity(
     0
   );
   const availableMinutes = Math.max(0, workingMinutes - occupiedTotalMinutes);
+  const fixedWindows = (fixedTasks ?? []).flatMap((task) =>
+    task.scheduledStart && task.scheduledEnd
+      ? [{ start: task.scheduledStart, end: task.scheduledEnd }]
+      : []
+  );
+  const dayList = capacityByDay({
+    rangeStart,
+    days,
+    timeZone,
+    windows,
+    meetings: eventWindows,
+    tasks: [...taskWindows, ...fixedWindows],
+  });
 
   return {
     range: { start: rangeStart.toISOString(), end: rangeEnd.toISOString() },
@@ -203,6 +245,74 @@ export async function getScheduleCapacity(
     utilization: workingMinutes
       ? Math.min(1, occupiedTotalMinutes / workingMinutes)
       : 1,
+    days: dayList,
     privacy: "Calendar event titles and details are excluded.",
   };
+}
+
+export interface CapacityDay {
+  /** "YYYY-MM-DD" in the person's zone. */
+  date: string;
+  /** Minutes inside work hours. */
+  workingMinutes: number;
+  /** Calendar events and personal time inside work hours. */
+  meetingMinutes: number;
+  /** Task blocks that day, auto-scheduled and fixed, in or out of hours. */
+  taskMinutes: number;
+  /** Task minutes that fall outside work hours. */
+  outsideHoursMinutes: number;
+  /** Work minutes nothing occupies. */
+  freeMinutes: number;
+  /** meetingMinutes + taskMinutes: the day's planned load. */
+  plannedMinutes: number;
+  /** plannedMinutes past workingMinutes. */
+  overMinutes: number;
+}
+
+/**
+ * Planned load against available hours for each day of the range. Pure, so
+ * the what-if preview can run it on a staged schedule as well.
+ */
+export function capacityByDay(args: {
+  rangeStart: Date;
+  days: number;
+  timeZone: string;
+  windows: Window[];
+  meetings: Window[];
+  tasks: Window[];
+}): CapacityDay[] {
+  return Array.from({ length: args.days }, (_, offset) => {
+    const start = addCalendarDays(args.rangeStart, offset, args.timeZone);
+    const end = addCalendarDays(args.rangeStart, offset + 1, args.timeZone);
+    const day = { start, end };
+    const work = args.windows.filter((w) => w.start < end && w.end > start);
+    const workingMinutes = work.reduce(
+      (sum, w) => sum + differenceInMinutes(w.end, w.start),
+      0
+    );
+    const meetingMinutes = work.reduce(
+      (sum, w) => sum + occupiedMinutes(w, args.meetings),
+      0
+    );
+    const taskMinutes = occupiedMinutes(day, args.tasks);
+    const taskInHours = work.reduce(
+      (sum, w) => sum + occupiedMinutes(w, args.tasks),
+      0
+    );
+    const occupied = work.reduce(
+      (sum, w) => sum + occupiedMinutes(w, [...args.meetings, ...args.tasks]),
+      0
+    );
+    const plannedMinutes = meetingMinutes + taskMinutes;
+    return {
+      date: formatInTimeZone(start, args.timeZone, "yyyy-MM-dd"),
+      workingMinutes,
+      meetingMinutes,
+      taskMinutes,
+      outsideHoursMinutes: Math.max(0, taskMinutes - taskInHours),
+      freeMinutes: Math.max(0, workingMinutes - occupied),
+      plannedMinutes,
+      overMinutes: Math.max(0, plannedMinutes - workingMinutes),
+    };
+  });
 }

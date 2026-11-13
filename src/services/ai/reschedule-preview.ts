@@ -3,6 +3,7 @@ import {
   blockingEventWhere,
   resolveBusyFeedIds,
 } from "@/services/scheduling/busy-feeds";
+import { occupiedMinutes } from "@/services/scheduling/capacity";
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 
@@ -10,7 +11,13 @@ import {
   type WorkspaceAccess,
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
-import { addCalendarDays, newDate } from "@/lib/date-utils";
+import {
+  addCalendarDays,
+  formatInTimeZone,
+  newDate,
+  startOfDayInTimeZone,
+} from "@/lib/date-utils";
+import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
@@ -135,6 +142,7 @@ async function computeStagedSnapshot(
 ): Promise<{
   snapshot: ScheduleSnapshot;
   unscheduled: Array<{ taskId: string; title: string; reason: string }>;
+  atRisk: Array<{ taskId: string; title: string; deadline: string }>;
 }> {
   const now = newDate();
   const [legacy, preferences, energyWindows, sourceTasks] = await Promise.all([
@@ -355,8 +363,19 @@ async function computeStagedSnapshot(
         .map((task) => task.id)
     );
 
+    // The pass ran on staged copies: report its findings by the real ids.
+    const original = (stagedId: string) =>
+      originalIdByStaged.get(stagedId) ?? stagedId;
     return {
-      unscheduled: scheduleResult.unscheduled,
+      unscheduled: scheduleResult.unscheduled.map((item) => ({
+        ...item,
+        taskId: original(item.taskId),
+      })),
+      atRisk: (scheduleResult.atRisk ?? []).map((item) => ({
+        taskId: original(item.taskId),
+        title: item.title,
+        deadline: item.deadline.toISOString(),
+      })),
       snapshot: {
         tasks: before.tasks.map((task) => {
           const staged = stagedByOriginal.get(task.id);
@@ -529,6 +548,63 @@ export async function restoreSnapshot(
   }
 }
 
+const PREVIEW_LOAD_DAYS = 7;
+
+export type PreviewLoadDay = {
+  /** "YYYY-MM-DD" in the person's zone. */
+  date: string;
+  beforeMinutes: number;
+  afterMinutes: number;
+};
+
+/** A snapshot's task time as windows: its blocks, else the task's own span. */
+function snapshotWindows(snapshot: ScheduleSnapshot) {
+  const withBlocks = new Set(snapshot.blocks.map((block) => block.taskId));
+  return [
+    ...snapshot.blocks.map((block) => ({
+      start: newDate(block.start),
+      end: newDate(block.end),
+    })),
+    ...snapshot.tasks.flatMap((task) =>
+      !withBlocks.has(task.id) && task.scheduledStart && task.scheduledEnd
+        ? [
+            {
+              start: newDate(task.scheduledStart),
+              end: newDate(task.scheduledEnd),
+            },
+          ]
+        : []
+    ),
+  ];
+}
+
+/**
+ * Task minutes per day before and after a preview, so the person sees how
+ * the load of each day would change before they apply it.
+ */
+export function taskLoadByDay(
+  before: ScheduleSnapshot,
+  after: ScheduleSnapshot,
+  timeZone: string,
+  now: Date,
+  days: number
+): PreviewLoadDay[] {
+  const start = startOfDayInTimeZone(now, timeZone);
+  const beforeWindows = snapshotWindows(before);
+  const afterWindows = snapshotWindows(after);
+  return Array.from({ length: days }, (_, offset) => {
+    const day = {
+      start: addCalendarDays(start, offset, timeZone),
+      end: addCalendarDays(start, offset + 1, timeZone),
+    };
+    return {
+      date: formatInTimeZone(day.start, timeZone, "yyyy-MM-dd"),
+      beforeMinutes: occupiedMinutes(day, beforeWindows),
+      afterMinutes: occupiedMinutes(day, afterWindows),
+    };
+  });
+}
+
 export function diffScheduleSnapshots(
   before: ScheduleSnapshot,
   after: ScheduleSnapshot
@@ -612,6 +688,10 @@ export async function createReschedulePreview(
   const contextVersion = await captureContextVersion(userId);
   const staged = await computeStagedSnapshot(userId, workspace, before);
   const changes = diffScheduleSnapshots(before, staged.snapshot);
+  const userSettings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { timeZone: true },
+  });
   logger.info(
     "Created schedule preview",
     { userId, changes: changes.length },
@@ -620,6 +700,15 @@ export async function createReschedulePreview(
   return {
     changes,
     unscheduled: staged.unscheduled,
+    atRisk: staged.atRisk,
+    timeZone: normalizeUserTimeZone(userSettings?.timeZone),
+    load: taskLoadByDay(
+      before,
+      staged.snapshot,
+      normalizeUserTimeZone(userSettings?.timeZone),
+      newDate(),
+      PREVIEW_LOAD_DAYS
+    ),
     previewToken: encodeToken(
       "preview",
       userId,
