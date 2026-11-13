@@ -9,6 +9,7 @@ import { BlockFlash } from "@/components/documents/BlockFlash";
 import { BlockIdentity } from "@/components/documents/BlockIdentity";
 import { PageBlockNode } from "@/components/pages/PageBlockNode";
 import { pageContainerBlocks } from "@/components/pages/blocks";
+import { LiveTableNode } from "@/components/pages/blocks/live-table";
 import { pageColorMarks } from "@/components/pages/marks";
 import { NeedtTaskItem } from "@/components/pages/task-items/task-item-extension";
 
@@ -36,6 +37,7 @@ export const pageEditorExtensions = [
   ...pageContainerBlocks,
   ...pageColorMarks,
   PageBlockNode,
+  LiveTableNode,
 ];
 
 export const pageEditorSchema = getSchema(pageEditorExtensions);

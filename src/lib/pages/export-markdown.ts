@@ -318,6 +318,9 @@ function block(input: JSONContent, origin?: string): string {
         .join("\n\n");
     case "needtPageBlock":
       return special(node, origin);
+    case "needtLiveTable":
+      // Rows live beside the document; the table itself exports as .xlsx.
+      return `**Table:** ${escapeInline(str(node.attrs?.title) || "Table")}`;
     default:
       return inline(node.content, origin);
   }
