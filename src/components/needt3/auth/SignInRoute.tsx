@@ -97,6 +97,7 @@ export function V3SignInRoute({
   initialUi = "desktop",
   uiForced = false,
   startRecover = false,
+  startSignup = false,
 }: {
   callbackUrl?: string;
   error?: string;
@@ -104,6 +105,8 @@ export function V3SignInRoute({
   autoProvider?: string;
   /** Open on "Forgot your password?" (/auth/reset-password without a token). */
   startRecover?: boolean;
+  /** Open on Create account (`?mode=signup`, the "Try it free" links). */
+  startSignup?: boolean;
   /** The server's pick for the first render (`phoneUiFrom`). */
   initialUi?: PhoneUi;
   /** The `needt-ui` cookie pinned a side: the width never overrides it. */
@@ -117,7 +120,7 @@ export function V3SignInRoute({
   /* An OAuth return that would have made an account without the 16+ / Terms
      box lands here in sign-up, where the box is. */
   const [mode, setMode] = React.useState<AuthMode>(
-    error === "AgeConfirmRequired" ? "signup" : "login"
+    error === "AgeConfirmRequired" || startSignup ? "signup" : "login"
   );
   const [ageChecked, setAgeChecked] = React.useState(false);
   const age = React.useMemo(

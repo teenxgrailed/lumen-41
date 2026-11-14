@@ -151,6 +151,27 @@ describe.each([
   });
 });
 
+describe("opening on Create account", () => {
+  const switchLabel = () =>
+    Array.from(host.querySelectorAll("button")).map((b) => b.textContent);
+
+  it("opens on sign-in by default", async () => {
+    await mount();
+    expect(switchLabel()).toContain("New to Needt? Create one");
+    expect(switchLabel()).not.toContain("Create the account");
+  });
+
+  it("opens on Create account for ?mode=signup", async () => {
+    await act(async () => {
+      root.render(
+        h(V3SignInRoute, { callbackUrl: "/calendar", startSignup: true })
+      );
+    });
+    expect(switchLabel()).toContain("Create the account");
+    expect(switchLabel()).toContain("Already have an account? Sign in");
+  });
+});
+
 describe("configuredSignInProviders", () => {
   it("keeps our order and drops ids we do not know", () => {
     expect(

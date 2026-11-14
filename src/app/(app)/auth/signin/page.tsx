@@ -27,6 +27,8 @@ export default async function SignInPage({
     provider?: string;
     /** "student": needt.app/students; opens Plan with the student price. */
     plan?: string;
+    /** "signup": the "Try it free" links on needt.app open Create account. */
+    mode?: string;
   }>;
 }) {
   // Check if user is already signed in
@@ -50,6 +52,7 @@ export default async function SignInPage({
       callbackUrl={callbackUrl}
       error={error}
       autoProvider={isSignInProviderId(provider) ? provider : undefined}
+      startSignup={params.mode === "signup"}
       {...await requestPhoneUi()}
     />
   );

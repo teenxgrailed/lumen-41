@@ -1,0 +1,1 @@
+- Sign-in: `/auth/signin?mode=signup` opens straight on Create account, so "Try it free" no longer lands on "Welcome back".
