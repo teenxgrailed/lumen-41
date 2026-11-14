@@ -294,7 +294,7 @@ so the folder also opens from disk (`site.js` rewrites folder links to `index.ht
 - **Plugin page and `plugin/needt.plugin`:** taken from the export (v0.14.0, ten skills, `npx skills add`). The page now shows Claude Directory and ChatGPT · Codex as "in review" (not listed).
 - **Branch facts kept (the export did not have them):** `/privacy/` and `/terms/` are 301s to use.needt.app and every legal link points there; the trial note says "Add a card only if you keep Pro" (#394); MCP address `https://mcp.needt.app/mcp`; renewal and cancel lines on Pricing (#469); Terms 16+ and DMCA; refund and deletion wording, self-hosted badges, skip link, `--ink-3` alpha, "Just for fun" captions (#521); Umami Do Not Track (#523); 16px notify input (#486); header More panel markup (#456); Updates rows (students "Coming soon", 28 Oct reminders); `/students/` stays "coming soon"; `/press/`.
 - **Not taken from the export:** `_to_delete/`, `.DS_Store`, `assets/feat/f-plan.webp` (unused), the export's `privacy/` and `terms/` folders.
-- **Cache:** `styles.css?v=57`, `pages.css?v=31`, `site.js?v=50`, `app.js?v=49`.
+- **Cache:** `styles.css?v=57`, `pages.css?v=32`, `site.js?v=50`, `app.js?v=49`.
 
 ## v41 (03.11.26)
 - **Hero shows both devices** on desktop and phones: the iPhone with the tour video stands in front of the live Mac window (the phone moved into `.stage` by `lp/feat.py`). The separate `#sync` section is removed. The video now loads on desktop too.
