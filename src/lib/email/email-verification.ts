@@ -11,8 +11,9 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
   runTrialTransaction,
-  startTrialForVerifiedUser,
+  startTrialWithOutcome,
 } from "@/lib/trials/trial-service";
+import { sendUmamiTrialStarted } from "@/lib/umami-server";
 
 import { EmailService } from "./email-service";
 import { getEmailVerificationTemplate } from "./templates/email-verification";
@@ -150,7 +151,7 @@ export async function confirmEmailVerification(input: {
         ...(replacePassword ? { sessionVersion: { increment: 1 } } : {}),
       },
     });
-    const grant = await startTrialForVerifiedUser(tx, {
+    const started = await startTrialWithOutcome(tx, {
       userId: user.id,
       email: user.email,
       now,
@@ -158,7 +159,8 @@ export async function confirmEmailVerification(input: {
     await tx.verificationToken.deleteMany({ where: { identifier: email } });
     return {
       status: "verified" as const,
-      trial: Boolean(grant),
+      trial: Boolean(started.grant),
+      trialCreated: started.created,
       userId: user.id,
       sessionsRevoked: replacePassword,
     };
@@ -168,6 +170,9 @@ export async function confirmEmailVerification(input: {
     await revokeConnectorTokens(result.userId);
     await revokeNamedPersonalTokens(result.userId);
     await Promise.all(revokeDelegatedTokens(result.userId));
+  }
+  if (result.status === "verified" && result.trialCreated) {
+    void sendUmamiTrialStarted("email_confirm");
   }
   if (result.status === "verified") {
     await sendWelcomeEmail({

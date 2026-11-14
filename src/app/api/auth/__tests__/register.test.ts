@@ -9,6 +9,7 @@ import { replaceUnprovenPassword } from "@/lib/auth/unproven-password";
 import { sendEmailVerification } from "@/lib/email/email-verification";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
+import { sendUmamiSignupCompleted } from "@/lib/umami-server";
 
 jest.mock("@/lib/auth/public-signup", () => ({
   isPublicSignupEnabled: jest.fn(),
@@ -35,6 +36,9 @@ jest.mock("@/lib/prisma", () => ({
 jest.mock("@/lib/auth/unproven-password", () => ({
   ...jest.requireActual("@/lib/auth/unproven-password"),
   replaceUnprovenPassword: jest.fn(),
+}));
+jest.mock("@/lib/umami-server", () => ({
+  sendUmamiSignupCompleted: jest.fn(),
 }));
 jest.mock("bcryptjs", () => ({ hash: jest.fn() }));
 jest.mock("@/lib/feature-flags", () => ({ isFeatureEnabled: jest.fn() }));
@@ -116,6 +120,30 @@ describe("public registration", () => {
 
     expect(response.status).toBe(400);
     expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it("reports signup_completed once, with the utm cookie tags", async () => {
+    jest.mocked(isPublicSignupEnabled).mockResolvedValue(true);
+    jest.mocked(hash).mockResolvedValue("password-hash" as never);
+    jest
+      .mocked(prisma.user.create)
+      .mockResolvedValue({ id: "user-1" } as never);
+    const request = registrationRequest({
+      email: "user@example.com",
+      password: "secure-password",
+    });
+    request.headers.set(
+      "cookie",
+      `needt_utm=${encodeURIComponent("utm_source=newsletter&utm_medium=email")}`
+    );
+
+    await POST(request);
+
+    expect(sendUmamiSignupCompleted).toHaveBeenCalledTimes(1);
+    expect(sendUmamiSignupCompleted).toHaveBeenCalledWith("credentials", {
+      utm_source: "newsletter",
+      utm_medium: "email",
+    });
   });
 
   it("creates a credentials account and default user settings", async () => {

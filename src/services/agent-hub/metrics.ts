@@ -15,5 +15,7 @@ export type HubMetric =
 /** Fire and forget: a failed event never reaches the hub call. */
 export function trackHub(metric: HubMetric): void {
   const { name, ...data } = metric;
-  void sendUmamiEvent(name, data);
+  /* The app website, not the landing one: hub activity is product-internal
+     and must not mix into the acquisition funnel. */
+  void sendUmamiEvent(name, data, "app");
 }

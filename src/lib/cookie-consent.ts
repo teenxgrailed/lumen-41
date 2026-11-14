@@ -15,6 +15,8 @@ export const CONSENT_MAX_AGE_SECONDS = 180 * 24 * 60 * 60;
 export const UMAMI_SCRIPT_SRC = "https://stats.needt.app/script.js";
 /** Dispatched on `window` to reopen the banner (Settings → Privacy). */
 export const COOKIE_SETTINGS_EVENT = "needt:cookie-settings";
+/** Dispatched on `window` after a choice is saved. */
+export const CONSENT_CHANGED_EVENT = "needt:consent-changed";
 
 export function parseConsent(cookieHeader: string): ConsentChoice | null {
   for (const part of cookieHeader.split(";")) {
@@ -58,6 +60,7 @@ export function writeConsent(choice: ConsentChoice): void {
     window.location.hostname,
     window.location.protocol === "https:"
   );
+  window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
 }
 
 /** Umami's own switch: with this set its script records nothing. */

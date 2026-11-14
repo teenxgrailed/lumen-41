@@ -92,9 +92,9 @@ afterEach(() => {
   host.remove();
 });
 
-const mount = () =>
+const mount = (props: { startMode?: "signup" } = {}) =>
   act(async () => {
-    root.render(h(V3SignInRoute, { callbackUrl: "/calendar" }));
+    root.render(h(V3SignInRoute, { callbackUrl: "/calendar", ...props }));
   });
 const swap = (narrow: boolean) =>
   act(() => {
@@ -362,5 +362,19 @@ describe("opened from /auth/reset-password without a token", () => {
       );
     });
     expect(q('[data-auth-screen="login"]')).not.toBeNull();
+  });
+});
+
+describe("the first mode", () => {
+  it("opens on sign-in by default", async () => {
+    signup = { ok: true, body: { enabled: true } };
+    await mount();
+    expect(q('[data-auth-screen="login"]')).not.toBeNull();
+  });
+  it("opens on create-account with ?mode=signup", async () => {
+    signup = { ok: true, body: { enabled: true } };
+    await mount({ startMode: "signup" });
+    expect(q('[data-auth-screen="signup"]')).not.toBeNull();
+    expect(q('[data-auth-screen="login"]')).toBeNull();
   });
 });
