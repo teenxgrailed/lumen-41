@@ -59,9 +59,10 @@ export const SANDBOX_ACCOUNTS = "sandbox_accounts";
 /**
  * The agent hub: handoffs and notes between agents (`needt_agent_*` and
  * `needt_memory_*` MCP tools, `/api/connect/agent-hub/*`, the Agents screen).
- * Off for everybody; turned on for one account with a per-user override
- * (`scripts/admin/set-flag-override.cjs` or the admin feature-flags API),
- * never by hard-coding an account.
+ * On for everybody since migration 20261103200000_agent_hub_for_everyone. A
+ * per-user override (`scripts/admin/set-flag-override.cjs` or the admin
+ * feature-flags API) can still switch it off for one account; never
+ * hard-code an account.
  */
 export const AGENT_HUB = "agent_hub";
 

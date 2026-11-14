@@ -13,7 +13,7 @@ this protocol.
    once an agent has a profile, registering through the same token under a
    different `name` or `kind` answers `TOKEN_IN_USE` ("This token already
    belongs to agent <name>. Create a separate token for each agent in
-   Settings > Connections."). The same client registering again is fine.
+   Connections (use.needt.app/connections)."). The same client registering again is fine.
 2. `needt_agent_inbox`. It returns work assigned to you, work you already hold
    (resume it), unassigned work matching your skills, and work whose lease
    expired. It never claims anything. Items still waiting on an unfinished
