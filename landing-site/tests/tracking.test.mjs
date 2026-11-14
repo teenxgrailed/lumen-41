@@ -157,3 +157,11 @@ test("static .js-signup hrefs point at sign-in, never at # or pricing", () => {
     }
   }
 });
+
+test("login links stay plain, including 'Log in to the Needt app' (14.11.2026)", () => {
+  const m = read("consent.js").match(/var LOGIN_TEXT = (\/.*\/i);/);
+  assert.ok(m, "LOGIN_TEXT found");
+  const re = new RegExp(m[1].slice(1, -2), "i");
+  for (const t of ["Log in", "Login", "Sign in", "Log in to the Needt app", " log in "]) assert.ok(re.test(t), t);
+  for (const t of ["Try it free", "Sign up", "Start free"]) assert.ok(!re.test(t), t);
+});
