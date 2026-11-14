@@ -6,9 +6,15 @@ import {
   cleanEmailCode,
   consumeEmailCode,
   discardEmailCodes,
+  generateEmailCode,
+  hashEmailCode,
   issueEmailCode,
   normalizeCodeEmail,
 } from "@/lib/auth/email-code";
+import {
+  isEmailCodeLocked,
+  recordWrongEmailCode,
+} from "@/lib/auth/email-code-lock";
 import { newAccountDefaults } from "@/lib/auth/new-account";
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
 import { areSignupsOpen } from "@/lib/auth/signups";
@@ -62,17 +68,26 @@ export async function sendLoginCode(
 ): Promise<"sent" | "skipped"> {
   const email = normalizeCodeEmail(rawEmail);
   const user = await findUserByEmail(email);
+  let skip: string | null = null;
   if (user) {
     if (!user.isActive || user.sandboxKind) {
-      logger.info(
-        "Login code not sent: account may not use codes",
-        {},
-        LOG_SOURCE
-      );
-      return "skipped";
+      skip = "account may not use codes";
     }
   } else if (!(await areSignupsOpen()) || !(await isPublicSignupEnabled())) {
-    logger.info("Login code not sent: sign-up is closed", {}, LOG_SOURCE);
+    skip = "sign-up is closed";
+  }
+  if (!skip && (await isEmailCodeLocked(email))) {
+    skip = "too many wrong codes today";
+  }
+  if (skip) {
+    /* Best effort against a timing oracle: the same HMAC and a database read
+       the real path does, so a refusal is not much quicker than a send. */
+    hashEmailCode(email, generateEmailCode());
+    await prisma.emailLoginCode.findFirst({
+      where: { email },
+      select: { id: true },
+    });
+    logger.info(`Login code not sent: ${skip}`, {}, LOG_SOURCE);
     return "skipped";
   }
 
@@ -120,7 +135,9 @@ export async function authorizeEmailCode(input: {
   const code = cleanEmailCode(input.code);
   if (!email || !code) return null;
 
+  if (await isEmailCodeLocked(email)) return null;
   const checked = await checkEmailCode(email, code);
+  if (checked.status === "wrong") await recordWrongEmailCode(email);
   if (checked.status !== "ok") return null;
 
   const existing = await findUserByEmail(email);
@@ -138,37 +155,7 @@ export async function authorizeEmailCode(input: {
   if (!(await consumeEmailCode(checked.id))) return null;
 
   const now = newDate();
-  if (existing) {
-    if (isUnprovenPasswordAccount(existing)) {
-      /* Whoever registered this address with a password never proved the
-         inbox; the code does, so that password is wiped and every earlier
-         session ends (unproven-password.ts). */
-      await claimUnconfirmedAccountByProvider({
-        userId: existing.id,
-        provider: EMAIL_CODE_PROVIDER,
-        now,
-      });
-    }
-    if (!existing.emailVerified) {
-      await markEmailVerifiedAndStartTrial({
-        userId: existing.id,
-        email: existing.email ?? email,
-        now,
-      });
-    }
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: { lastAuthenticatedAt: now },
-      select: { id: true },
-    });
-    return {
-      id: existing.id,
-      email: existing.email,
-      name: existing.name,
-      role: existing.role,
-      isNew: false,
-    };
-  }
+  if (existing) return signInExisting(existing, email, now);
 
   let created: {
     id: string;
@@ -193,16 +180,12 @@ export async function authorizeEmailCode(input: {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
-      /* The address was taken between the lookup and the insert: sign in. */
+      /* The address was taken between the lookup and the insert. Whoever won
+         made the account some other way, so this is a sign-in to an existing
+         account and gets the full existing-account treatment. */
       const winner = await findUserByEmail(email);
       if (!winner || !winner.isActive || winner.sandboxKind) return null;
-      return {
-        id: winner.id,
-        email: winner.email,
-        name: winner.name,
-        role: winner.role,
-        isNew: false,
-      };
+      return signInExisting(winner, email, now);
     }
     throw error;
   }
@@ -214,4 +197,43 @@ export async function authorizeEmailCode(input: {
   /* Once per account: only the branch that created the row gets here. */
   void sendUmamiSignupCompleted(EMAIL_CODE_PROVIDER, await requestUtm());
   return { ...created, isNew: true };
+}
+
+type ExistingUser = NonNullable<Awaited<ReturnType<typeof findUserByEmail>>>;
+
+/** A right code for an account that exists: confirm it, start its trial. */
+async function signInExisting(
+  existing: ExistingUser,
+  email: string,
+  now: Date
+): Promise<EmailCodeUser> {
+  if (isUnprovenPasswordAccount(existing)) {
+    /* Whoever registered this address with a password never proved the
+       inbox; the code does, so that password is wiped and every earlier
+       session ends (unproven-password.ts). */
+    await claimUnconfirmedAccountByProvider({
+      userId: existing.id,
+      provider: EMAIL_CODE_PROVIDER,
+      now,
+    });
+  }
+  if (!existing.emailVerified) {
+    await markEmailVerifiedAndStartTrial({
+      userId: existing.id,
+      email: existing.email ?? email,
+      now,
+    });
+  }
+  await prisma.user.update({
+    where: { id: existing.id },
+    data: { lastAuthenticatedAt: now },
+    select: { id: true },
+  });
+  return {
+    id: existing.id,
+    email: existing.email,
+    name: existing.name,
+    role: existing.role,
+    isNew: false,
+  };
 }

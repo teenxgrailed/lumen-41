@@ -115,7 +115,10 @@ email + password form; `?mode=signup` keeps the sign-up copy and the 16+ box.
   ones for that address.
 - **Limits.** Send: 1 per 60 s and 5 per hour per address, 10 per hour per IP
   (`/api/auth/email-code/request`). Verify: 20 per 15 minutes per IP, 10 per
-  15 minutes per address (`callback/email-code`).
+  15 minutes per address (`callback/email-code`). Daily: at most 10 codes per
+  address per 24 h, and after 20 wrong codes in 24 h the address is locked for
+  code sign-in until the day is up (Redis, `email-code-lock.ts`; fails closed;
+  same generic answers, password sign-in untouched).
 - **Same answer for everyone.** The request route never says whether the
   address has an account. Nothing is mailed to a sandbox or deactivated
   account, or to a new address while sign-ups are closed (`signups_open` off or

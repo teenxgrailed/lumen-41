@@ -172,7 +172,7 @@ describe("checkEmailCode", () => {
   it("refuses a wrong code and counts the try", async () => {
     const { code } = await issueEmailCode(EMAIL, NOW);
     const wrong = code === "000000" ? "000001" : "000000";
-    expect((await checkEmailCode(EMAIL, wrong, NOW)).status).toBe("invalid");
+    expect((await checkEmailCode(EMAIL, wrong, NOW)).status).toBe("wrong");
     expect(rows[0].attempts).toBe(1);
   });
 
@@ -180,7 +180,7 @@ describe("checkEmailCode", () => {
     const { code } = await issueEmailCode(EMAIL, NOW);
     const wrong = code === "000000" ? "000001" : "000000";
     for (let i = 0; i < EMAIL_CODE_MAX_ATTEMPTS; i += 1) {
-      expect((await checkEmailCode(EMAIL, wrong, NOW)).status).toBe("invalid");
+      expect((await checkEmailCode(EMAIL, wrong, NOW)).status).toBe("wrong");
     }
     expect(rows).toHaveLength(0);
     expect((await checkEmailCode(EMAIL, code, NOW)).status).toBe("invalid");

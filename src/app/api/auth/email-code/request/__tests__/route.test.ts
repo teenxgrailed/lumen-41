@@ -78,6 +78,7 @@ describe("POST /api/auth/email-code/request", () => {
       "email-code:ip:10",
       "email-code:account-resend:1",
       "email-code:account:5",
+      "email-code:account-day:10",
     ]);
     expect(jest.mocked(accountRule).mock.calls[0]).toEqual([
       "a@example.com",

@@ -87,6 +87,8 @@ export async function discardEmailCodes(email: string): Promise<void> {
 
 export type EmailCodeCheck =
   | { status: "ok"; id: string }
+  /* A live code, and this was not it: counted toward the daily lock. */
+  | { status: "wrong" }
   | { status: "invalid" };
 
 /**
@@ -125,7 +127,7 @@ export async function checkEmailCode(
     await prisma.emailLoginCode.deleteMany({
       where: { id: live.id, attempts: { gte: EMAIL_CODE_MAX_ATTEMPTS } },
     });
-    return { status: "invalid" };
+    return { status: "wrong" };
   }
   await prisma.emailLoginCode.updateMany({
     where: { id: live.id, attempts: { gt: 0 } },

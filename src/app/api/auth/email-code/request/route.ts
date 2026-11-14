@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
         EMAIL_CODE_RESEND_SECONDS
       ),
       accountRule(email, "email-code:account", 5, 60 * 60),
+      accountRule(email, "email-code:account-day", 10, 24 * 60 * 60),
     ],
     { route: request.nextUrl.pathname }
   );

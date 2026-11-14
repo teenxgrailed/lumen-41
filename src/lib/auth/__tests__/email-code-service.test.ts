@@ -8,6 +8,10 @@ import {
   issueEmailCode,
 } from "@/lib/auth/email-code";
 import {
+  isEmailCodeLocked,
+  recordWrongEmailCode,
+} from "@/lib/auth/email-code-lock";
+import {
   AGE_CONFIRM_REQUIRED_ERROR,
   authorizeEmailCode,
   sendLoginCode,
@@ -23,6 +27,7 @@ import { sendUmamiSignupCompleted } from "@/lib/umami-server";
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+    emailLoginCode: { findFirst: jest.fn() },
   },
 }));
 jest.mock("@/lib/attribution-server", () => ({
@@ -34,6 +39,10 @@ jest.mock("@/lib/auth/email-code", () => ({
   checkEmailCode: jest.fn(),
   consumeEmailCode: jest.fn(),
   discardEmailCodes: jest.fn(),
+}));
+jest.mock("@/lib/auth/email-code-lock", () => ({
+  isEmailCodeLocked: jest.fn(),
+  recordWrongEmailCode: jest.fn(),
 }));
 jest.mock("@/lib/auth/signups", () => ({ areSignupsOpen: jest.fn() }));
 jest.mock("@/lib/auth/public-signup", () => ({
@@ -75,6 +84,7 @@ const baseUser = {
 beforeEach(() => {
   jest.resetAllMocks();
   jest.mocked(requestUtm).mockResolvedValue({ utm_source: "x" });
+  jest.mocked(isEmailCodeLocked).mockResolvedValue(false);
   jest.mocked(areSignupsOpen).mockResolvedValue(true);
   jest.mocked(isPublicSignupEnabled).mockResolvedValue(true);
   jest.mocked(issueEmailCode).mockResolvedValue({
@@ -123,6 +133,20 @@ describe("sendLoginCode", () => {
     expect(EmailService.sendEmail).not.toHaveBeenCalled();
   });
 
+  it("sends nothing to an address locked for the day", async () => {
+    findFirst.mockResolvedValue(baseUser as never);
+    jest.mocked(isEmailCodeLocked).mockResolvedValue(true);
+    expect(await sendLoginCode(EMAIL)).toBe("skipped");
+    expect(issueEmailCode).not.toHaveBeenCalled();
+  });
+
+  it("does the same lookups on a refusal as on a send (timing)", async () => {
+    findFirst.mockResolvedValue(null);
+    jest.mocked(areSignupsOpen).mockResolvedValue(false);
+    await sendLoginCode(EMAIL);
+    expect(prisma.emailLoginCode.findFirst).toHaveBeenCalledTimes(1);
+  });
+
   it("drops the code when the mail cannot be sent", async () => {
     findFirst.mockResolvedValue(baseUser as never);
     jest.mocked(EmailService.sendEmail).mockRejectedValue(new Error("down"));
@@ -166,6 +190,26 @@ describe("authorizeEmailCode: sign-in", () => {
     expect(
       await authorizeEmailCode({ email: EMAIL, code: "123456" })
     ).toBeNull();
+    expect(consumeEmailCode).not.toHaveBeenCalled();
+  });
+
+  it("counts a wrong code toward the daily lock, but not a missing one", async () => {
+    jest.mocked(checkEmailCode).mockResolvedValue({ status: "wrong" });
+    await authorizeEmailCode({ email: EMAIL, code: "123456" });
+    expect(recordWrongEmailCode).toHaveBeenCalledWith(EMAIL);
+    jest.mocked(recordWrongEmailCode).mockClear();
+    jest.mocked(checkEmailCode).mockResolvedValue({ status: "invalid" });
+    await authorizeEmailCode({ email: EMAIL, code: "123456" });
+    expect(recordWrongEmailCode).not.toHaveBeenCalled();
+  });
+
+  it("refuses a locked address, even with the right code", async () => {
+    jest.mocked(isEmailCodeLocked).mockResolvedValue(true);
+    findFirst.mockResolvedValue(baseUser as never);
+    expect(
+      await authorizeEmailCode({ email: EMAIL, code: "123456" })
+    ).toBeNull();
+    expect(checkEmailCode).not.toHaveBeenCalled();
     expect(consumeEmailCode).not.toHaveBeenCalled();
   });
 
@@ -259,18 +303,39 @@ describe("authorizeEmailCode: sign-up", () => {
     ).resolves.toMatchObject({ isNew: false });
   });
 
-  it("signs in the winner when two codes race to create one address", async () => {
+  it("gives the winner of a create race the full existing-account treatment", async () => {
+    const raced = () =>
+      create.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError("dup", {
+          code: "P2002",
+          clientVersion: "x",
+        })
+      );
+    /* A password account nobody confirmed: wiped, confirmed, trial. */
+    findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      ...baseUser,
+      emailVerified: null,
+      accounts: [{ provider: "credentials", id_token: "hash" }],
+    } as never);
+    raced();
+    const user = await authorizeEmailCode(input);
+    expect(user).toMatchObject({ id: "u1", isNew: false });
+    expect(claimUnconfirmedAccountByProvider).toHaveBeenCalledTimes(1);
+    expect(markEmailVerifiedAndStartTrial).toHaveBeenCalledTimes(1);
+    expect(sendUmamiSignupCompleted).not.toHaveBeenCalled();
+    expect(update.mock.calls[0][0].data).toHaveProperty("lastAuthenticatedAt");
+  });
+
+  it("refuses a create-race winner that may not use codes", async () => {
     findFirst
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(baseUser as never);
+      .mockResolvedValueOnce({ ...baseUser, sandboxKind: "demo" } as never);
     create.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError("dup", {
         code: "P2002",
         clientVersion: "x",
       })
     );
-    const user = await authorizeEmailCode(input);
-    expect(user).toMatchObject({ id: "u1", isNew: false });
-    expect(sendUmamiSignupCompleted).not.toHaveBeenCalled();
+    expect(await authorizeEmailCode(input)).toBeNull();
   });
 });
