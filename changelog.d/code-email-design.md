@@ -1,0 +1,1 @@
+- The sign-in code email is cleaner: a big monospace code, one line of expiry, no remote images, and proper light and dark colours.
