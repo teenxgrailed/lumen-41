@@ -25,6 +25,7 @@ import {
   partsCreateData,
   subtaskListSchema,
 } from "@/services/tasks/subtasks";
+import { isMoveLater } from "@/services/tasks/task-moves";
 import {
   hasPlacement,
   placementFields,
@@ -617,10 +618,22 @@ export const taskUpdate = defineOp({
     const previousTagIds = task.tags.map((tag) => tag.id);
     // The frozen block replaces every block of the task, so undo puts them all back.
     const blocks = frozen ? await snapshotBlocks(ctx, task.id) : undefined;
+    const movedLater = isMoveLater(
+      task,
+      {
+        ...("dueDate" in data && { dueDate: data.dueDate as Date | null }),
+        ...("scheduledStart" in data && {
+          scheduledStart: data.scheduledStart as Date | null,
+        }),
+      },
+      await userTimeZone(ctx.tx, ctx.userId)
+    );
     const updated = await ctx.tx.task.update({
       where: { id: task.id },
       data: {
         ...data,
+        // Plan 11 T-2: a move to a later day counts toward asking for a way in.
+        ...(movedLater && { moveCount: { increment: 1 } }),
         ...(input.tagIds
           ? { tags: { set: input.tagIds.map((id) => ({ id })) } }
           : {}),
@@ -984,9 +997,24 @@ export const taskMoveToDay = defineOp({
       data.dueDate = startOfZonedDay(input.date, timeZone);
     }
 
+    // Plan 11 T-2: moving to a later day counts toward asking for a way in.
+    const movedLater = isMoveLater(
+      task,
+      {
+        ...("dueDate" in data && { dueDate: data.dueDate as Date }),
+        ...("scheduledStart" in data && {
+          scheduledStart: data.scheduledStart as Date,
+        }),
+      },
+      timeZone
+    );
     const updated = await ctx.tx.task.update({
       where: { id: task.id },
-      data: { ...data, ...activity(ctx, "UPDATED", task.workspaceId) },
+      data: {
+        ...data,
+        ...(movedLater && { moveCount: { increment: 1 } }),
+        ...activity(ctx, "UPDATED", task.workspaceId),
+      },
       include: taskInclude,
     });
     if (shiftMs && blocks.length) {

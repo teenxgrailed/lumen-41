@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
-import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
+import {
+  rescheduleRemindersSoon,
+  userTimeZone,
+} from "@/services/reminders/reminders";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
 import { hasForeignTagIds } from "@/services/tasks/labels";
@@ -18,6 +21,7 @@ import {
   isForeignDependency,
   parseTaskUpdate,
 } from "@/services/tasks/task-input";
+import { isMoveLater } from "@/services/tasks/task-moves";
 import { writeFrozenPlacement } from "@/services/tasks/task-placement";
 import { deleteTaskForever } from "@/services/tasks/trash";
 import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
@@ -405,6 +409,20 @@ export async function PUT(
     if (claim.response) return claim.response;
     offlineRecordId = claim.recordId;
 
+    // Plan 11 T-2: a move to a later day by the person counts toward asking
+    // for a way in. A completion (and a repeat's advance) is not a move.
+    const movesDate =
+      "dueDate" in updates ||
+      "scheduledStart" in updates ||
+      "postponedUntil" in updates;
+    const movedLater =
+      !recurringCompletion &&
+      movesDate &&
+      isMoveLater(
+        task,
+        updates,
+        await userTimeZone(userId).catch(() => "UTC")
+      );
     const taskUpdate: Prisma.TaskUpdateArgs = {
       where: {
         id: id,
@@ -412,6 +430,7 @@ export async function PUT(
       },
       data: {
         ...updates,
+        ...(movedLater && { moveCount: { increment: 1 } }),
         ...(requestedAssigneeId !== undefined && {
           assigneeId: requestedAssigneeId,
         }),

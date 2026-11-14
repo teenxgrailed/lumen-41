@@ -23,14 +23,17 @@ import {
   LuCheck,
   LuCircleCheck,
   LuClock,
+  LuCoins,
   LuCopy,
   LuEllipsis,
   LuFileText,
   LuFlag,
   LuFolder,
   LuGripVertical,
+  LuHash,
   LuHourglass,
   LuLink,
+  LuMinus,
   LuPaperclip,
   LuPin,
   LuPinOff,
@@ -81,11 +84,19 @@ import {
 import {
   useCreateTask,
   useTask,
+  useTaskCount,
   useTaskParts,
+  useTickStep,
   useTrashTask,
   useUpdateTask,
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Task, V3TaskPatch } from "@/lib/needt3/map";
+import {
+  COUNT_MAX,
+  isCounter,
+  needsWayIn,
+  parseAmount,
+} from "@/lib/needt3/progress";
 import { qk } from "@/lib/needt3/query-keys";
 import {
   type CustomRepeat,
@@ -260,6 +271,15 @@ export function TaskDialog({
   const [title, setTitle] = useState(t.title);
   const [notes, setNotes] = useState(t.notes ?? "");
   const [entry, setEntry] = useState(t.entry ?? "");
+  const counts = useTaskCount();
+  const tickStep = useTickStep();
+  /* Plan 11 T-4: the two amounts, as typed; shown once the task has one. */
+  const [listed, setListed] = useState(t.value == null ? "" : String(t.value));
+  const [received, setReceived] = useState(
+    t.earned == null ? "" : String(t.earned)
+  );
+  const [moneyOpen, setMoneyOpen] = useState(false);
+  const entryRef = useRef<HTMLInputElement>(null);
   const [pop, setPop] = useState<Pop | null>(null);
   const [menu, setMenu] = useState(false);
   const [q, setQ] = useState("");
@@ -426,6 +446,11 @@ export function TaskDialog({
   const closed = tparts.filter((p) => p.done).length;
   const firstOpen = tparts.find((p) => !p.done);
   const wayIn = entry.trim() || firstOpen?.title || null;
+  /* Plan 11 T-1: unnamed parts are a counter, edited as one number. */
+  const counter = isCounter(tparts);
+  /* Plan 11 T-2: moved to a later day twice and still no way in. */
+  const askWayIn = needsWayIn({ ...t, entry });
+  const hasMoney = moneyOpen || t.value != null || t.earned != null;
   const schedDefault = isSchedDefault(t);
   const inProgress =
     !t.done && (t.status === "in_progress" || t.Stage === "doing");
@@ -542,6 +567,20 @@ export function TaskDialog({
     setEntry(v);
     later({ entry: v.trim() ? v : null });
   };
+  /** An amount as typed: "" clears it, anything else must be a number ≥ 0. */
+  const amount = parseAmount;
+  const editListed = (v: string) => {
+    setListed(v);
+    const n = amount(v);
+    if (n !== undefined) later({ value: n });
+  };
+  const editReceived = (v: string) => {
+    setReceived(v);
+    const n = amount(v);
+    if (n !== undefined) later({ earned: n });
+  };
+  const setCount = (target: number, done?: number) =>
+    void counts.set(t.id, target, done).catch(() => undefined);
   const setDate = (day: string | null) => {
     setPop(null);
     emit(datePatch(t, day, today));
@@ -1313,6 +1352,33 @@ export function TaskDialog({
       inProgress ? "Mark as to do" : "Mark in progress",
       act.progress,
     ]);
+  if (!t.done && !tparts.length)
+    menuItems.push([
+      <LuHash key="i" size={14} aria-hidden />,
+      "Count it",
+      () => {
+        setMenu(false);
+        setCount(3, 0);
+      },
+    ]);
+  if (!t.done)
+    menuItems.push([
+      <LuArrowRight key="i" size={14} aria-hidden />,
+      "Give me a way in",
+      () => {
+        setMenu(false);
+        entryRef.current?.focus();
+      },
+    ]);
+  if (!hasMoney)
+    menuItems.push([
+      <LuCoins key="i" size={14} aria-hidden />,
+      "Add an amount",
+      () => {
+        setMenu(false);
+        setMoneyOpen(true);
+      },
+    ]);
   menuItems.push([
     <LuLink key="i" size={14} aria-hidden />,
     "Copy link",
@@ -1652,7 +1718,118 @@ export function TaskDialog({
                 onBlur={flush}
               />
 
-              <section className="tdc-subs" aria-label="Subtasks">
+              {counter ? (
+                <div className="tdc-step tdc-count" data-tdc-count="">
+                  <span className="tdc-step-arrow" aria-hidden="true">
+                    <PartsRing done={closed} total={tparts.length} />
+                  </span>
+                  <span className="tdc-step-label">Count</span>
+                  <span className="tdc-count-val" aria-live="polite">
+                    {closed} of
+                  </span>
+                  <input
+                    className="tdc-count-target"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={COUNT_MAX}
+                    defaultValue={tparts.length}
+                    key={tparts.length}
+                    aria-label="Count to"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                    }}
+                    onBlur={(e) => {
+                      const n = Math.floor(Number(e.currentTarget.value));
+                      if (n >= 1 && n !== tparts.length) setCount(n);
+                      else e.currentTarget.value = String(tparts.length);
+                    }}
+                  />
+                  <span className="tdc-count-btns">
+                    <button
+                      type="button"
+                      className="tdc-icon-btn"
+                      aria-label="Count one less"
+                      disabled={closed === 0 || t.done}
+                      onClick={() => setCount(tparts.length, closed - 1)}
+                    >
+                      <LuMinus size={13} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      className="tdc-icon-btn"
+                      aria-label="Count one more"
+                      disabled={closed >= tparts.length || t.done}
+                      onClick={() => {
+                        const next = tparts.find((p) => !p.done);
+                        if (!next) return;
+                        // The last one closes the task, the same as its last step.
+                        if (closed + 1 === tparts.length)
+                          void tickStep.tick(t, next).catch(() => undefined);
+                        else setCount(tparts.length, closed + 1);
+                      }}
+                    >
+                      <LuPlus size={13} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      className="tdc-icon-btn"
+                      aria-label="Stop counting"
+                      title="Stop counting"
+                      onClick={() => setCount(0)}
+                    >
+                      <LuX size={13} aria-hidden />
+                    </button>
+                  </span>
+                </div>
+              ) : null}
+
+              {hasMoney ? (
+                <section className="tdc-money" aria-label="Amount">
+                  <label className="tdc-step" data-tdc-money="listed">
+                    <span className="tdc-step-arrow" aria-hidden="true">
+                      <LuCoins size={14} />
+                    </span>
+                    <span className="tdc-step-label">Listed</span>
+                    <input
+                      className="tdc-step-input tdc-money-input"
+                      inputMode="decimal"
+                      value={listed}
+                      placeholder="What you are asking"
+                      aria-label="Listed, in CHF"
+                      onChange={(e) => editListed(e.target.value)}
+                      onBlur={flush}
+                    />
+                    <span className="tdc-step-cost">CHF</span>
+                  </label>
+                  <label className="tdc-step" data-tdc-money="received">
+                    <span className="tdc-step-arrow" aria-hidden="true">
+                      <LuCheck size={14} />
+                    </span>
+                    <span className="tdc-step-label">Received</span>
+                    <input
+                      className="tdc-step-input tdc-money-input"
+                      inputMode="decimal"
+                      value={received}
+                      placeholder={
+                        t.done && t.earned == null
+                          ? "Sold — how much came in?"
+                          : "What actually came in"
+                      }
+                      aria-label="Received, in CHF"
+                      onChange={(e) => editReceived(e.target.value)}
+                      onBlur={flush}
+                    />
+                    <span className="tdc-step-cost">CHF</span>
+                  </label>
+                </section>
+              ) : null}
+
+              <section
+                className="tdc-subs"
+                aria-label="Subtasks"
+                hidden={counter}
+              >
                 {tparts.length ? (
                   <div className="tdc-subs-head">
                     <span className="tdc-label">Subtasks</span>
@@ -1759,7 +1936,11 @@ export function TaskDialog({
                 </label>
               </section>
 
-              <div className="tdc-step" data-tdc-step="">
+              <div
+                className={`tdc-step${askWayIn ? " is-asking" : ""}`}
+                data-tdc-step=""
+                data-way-in={askWayIn ? "" : undefined}
+              >
                 <span className="tdc-step-arrow" aria-hidden="true">
                   <LuArrowRight size={14} />
                 </span>
@@ -1767,12 +1948,15 @@ export function TaskDialog({
                   First step
                 </label>
                 <input
+                  ref={entryRef}
                   id="tdc-entry"
                   className="tdc-step-input"
                   value={entry}
                   placeholder={
-                    firstOpen?.title ||
-                    "The smallest thing that counts as starting"
+                    askWayIn
+                      ? `Moved ${t.moveCount} times. What would take two minutes?`
+                      : firstOpen?.title ||
+                        "The smallest thing that counts as starting"
                   }
                   aria-label="First step"
                   onChange={(e) => editEntry(e.target.value)}

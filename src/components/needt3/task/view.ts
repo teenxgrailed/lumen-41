@@ -103,6 +103,8 @@ export function taskView(
       ? { done: partsDone, total: parts.length, open: parts.length - partsDone }
       : null,
     value: event ? null : task.value || null,
+    /** What came in (plan 11 T-4); null when nothing has. */
+    earned: event ? null : (task.earned ?? null),
     entry: event ? null : task.entry || null,
     source: event ? null : task.source,
   };

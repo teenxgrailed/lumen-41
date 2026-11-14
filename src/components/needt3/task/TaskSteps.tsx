@@ -8,6 +8,7 @@ import { useStepsOpen } from "@/lib/needt3/hooks/steps-open";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTaskParts, useToggleTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
+import { isCounter } from "@/lib/needt3/progress";
 import {
   type StepItem,
   nextStep,
@@ -38,6 +39,11 @@ export interface StepsState {
   expanded: boolean;
   /** There is something to fold: "next" mode with steps. */
   canFold: boolean;
+  /**
+   * The task is a counter (plan 11 T-1): its parts are unnamed, so the row
+   * shows only `1/3` and a tap on it counts one more.
+   */
+  counter: boolean;
   toggle: () => void;
   tick: (item: StepItem) => void;
 }
@@ -97,8 +103,10 @@ export function useTaskSteps(
   );
   if (!task || !items.length) return null;
   const real = items.filter((s) => s.part);
+  const counter = isCounter(parts);
   return {
-    mode,
+    mode: counter ? "count" : mode,
+    counter,
     task: {
       id: task.id,
       title: task.title,
@@ -108,16 +116,55 @@ export function useTaskSteps(
     items,
     next: nextStep(items, task.done),
     count: { done: real.filter((s) => s.done).length, total: real.length },
-    expanded: mode === "all" || (mode === "next" && open),
-    canFold: mode === "next",
+    expanded: !counter && (mode === "all" || (mode === "next" && open)),
+    canFold: !counter && mode === "next",
     toggle: () => setOpen(!open),
     tick,
   };
 }
 
-/** The 0/3 badge; in "next" mode it is also the tap that folds the list. */
+/**
+ * The 0/3 badge; in "next" mode it is also the tap that folds the list, and
+ * on a counter it is the tap that counts one more (the last one closes the
+ * task, with one Undo for both).
+ */
 export function StepsCount({ steps }: { steps: StepsState }) {
   const { done, total } = steps.count;
+  if (steps.counter) {
+    const next = steps.items.find((s) => s.part && !s.done);
+    const ring = (
+      <>
+        <PartRing done={done} total={total} />
+        {done}/{total}
+      </>
+    );
+    if (!next || steps.task.done)
+      return (
+        <span
+          className="tk-count"
+          title={`${done} of ${total} done`}
+          data-steps-count=""
+        >
+          {ring}
+        </span>
+      );
+    return (
+      <button
+        type="button"
+        className="tk-count tk-count-btn"
+        title="Count one more"
+        aria-label={`${done} of ${total} done, count one more`}
+        data-count-inc=""
+        onClick={(event) => {
+          event.stopPropagation();
+          steps.tick(next);
+        }}
+        onKeyDown={(event) => event.stopPropagation()}
+      >
+        {ring}
+      </button>
+    );
+  }
   const inner = (
     <>
       <PartRing done={done} total={total} />

@@ -810,7 +810,10 @@ export const goalConvertFromTask = defineOp({
             userId: task.userId ?? ctx.userId,
             workspaceId,
             assigneeId: task.assigneeId ?? ctx.userId,
-            title: part.title,
+            // A counter's parts are unnamed (plan 11 T-1): name them by place.
+            title:
+              part.title.trim() ||
+              `${task.title} ${parts.indexOf(part) + 1}/${parts.length}`,
             status: part.done ? "completed" : "todo",
             completedAt: part.done ? newDate() : null,
             priorityLevel: task.priorityLevel,

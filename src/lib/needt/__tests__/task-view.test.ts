@@ -101,6 +101,7 @@ const baseRow: NeedtTaskRow = {
   noSlot: false,
   lastTouchedAt: null,
   previousScheduledStart: null,
+  moveCount: 0,
   valueCents: null,
   earnedCents: null,
   globalStage: null,
