@@ -14,6 +14,12 @@ import { ageConfirmationGate } from "@/lib/auth/age-confirmation";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { authenticateUser } from "@/lib/auth/credentials-provider";
 import { withEncryptedAccountTokens } from "@/lib/auth/encrypting-adapter";
+import {
+  ONE_TAP_PROVIDER_ID,
+  OneTapError,
+  type OneTapUser,
+  signInWithGoogleCredential,
+} from "@/lib/auth/google-one-tap";
 import { touchLastActive } from "@/lib/auth/last-active";
 import {
   enforceSessionVersion,
@@ -100,6 +106,32 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
   /* Third-party sign-in: only the providers that are configured. */
   providers.unshift(...buildSignInProviders(providerConfig));
 
+  /* Google One Tap hands the page an ID token instead of a redirect; this
+     provider verifies it server-side and signs in by the same rules as the
+     Google button. Only when Google itself is configured. */
+  if (isProviderConfigured("google", providerConfig)) {
+    providers.push(
+      CredentialsProvider({
+        id: ONE_TAP_PROVIDER_ID,
+        name: "Google One Tap",
+        credentials: { credential: { label: "Credential", type: "text" } },
+        async authorize(credentials) {
+          try {
+            return await signInWithGoogleCredential(credentials?.credential);
+          } catch (error) {
+            if (error instanceof OneTapError) throw error;
+            logger.error(
+              "Google One Tap sign-in failed",
+              { error: error instanceof Error ? error.message : "Unknown" },
+              LOG_SOURCE
+            );
+            return null;
+          }
+        },
+      })
+    );
+  }
+
   return {
     adapter: withCaseInsensitiveEmailLookup(
       withEncryptedAccountTokens(
@@ -112,6 +144,8 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
     providers,
     callbacks: {
       async signIn({ user, account, profile }) {
+        /* One Tap ran every gate inside `authorize` (google-one-tap.ts). */
+        if (account?.provider === ONE_TAP_PROVIDER_ID) return true;
         /* A provider identity joins an existing account only on an email
            the provider verified (account-linking.ts); X never joins. */
         const link = await accountLinkingGate({
@@ -176,9 +210,21 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
         // copied into the JWT: the session callback would hand them to the
         // browser via /api/auth/session, and nothing in Needt uses them.
         if (account) {
+          /* One Tap is a credentials sign-in that behaves as Google OAuth:
+             same stamp, same new-account steps, same trial. */
+          const oneTap =
+            account.provider === ONE_TAP_PROVIDER_ID
+              ? (user as unknown as OneTapUser)
+              : null;
+          const providerId = oneTap ? "google" : account.provider;
+          const oauthLike = account.type === "oauth" || !!oneTap;
+          const isNew = oneTap ? oneTap.oneTapNew : isNewUser;
+          const claims = oneTap
+            ? { email: oneTap.oneTapEmail, email_verified: true }
+            : (profile as Record<string, unknown> | undefined);
           token.expiresAt = account.expires_at;
-          token.provider = account.provider;
-          if (account.type === "oauth" && user?.id) {
+          token.provider = providerId;
+          if (oauthLike && user?.id) {
             /* Fresh proof of identity for account re-authentication. By id:
                an X account may have no email at all. */
             await prisma.user.updateMany({
@@ -186,7 +232,7 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
               data: { lastAuthenticatedAt: newDate() },
             });
           }
-          if (account.type === "oauth" && user?.id && isNewUser) {
+          if (oauthLike && user?.id && isNew) {
             /* The signIn callback let this account be created only with the
                confirmation cookie; record when it was given. */
             await prisma.user.updateMany({
@@ -195,16 +241,13 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
             });
             /* isNewUser is true only on the sign-in that created the row,
                so this is once per account. */
-            void sendUmamiSignupCompleted(account.provider, await requestUtm());
+            void sendUmamiSignupCompleted(providerId, await requestUtm());
           }
-          if (account.type === "oauth" && user?.id && user.email) {
+          if (oauthLike && user?.id && user.email) {
             /* Confirmed only when the provider itself vouches for this very
                address (email_verified and the like). Otherwise the person
                confirms by mail like everyone else. */
-            const vouched = verifiedProviderEmail(
-              account.provider,
-              profile as Record<string, unknown> | undefined
-            );
+            const vouched = verifiedProviderEmail(providerId, claims);
             if (vouched && vouched === normalizeEmail(user.email)) {
               await markEmailVerifiedAndStartTrial({
                 userId: user.id,

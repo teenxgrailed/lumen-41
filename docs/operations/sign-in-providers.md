@@ -77,6 +77,20 @@ Already set up for the calendar connection; sign-in reuses the same client.
 
 Env fallback: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
 
+### Google One Tap
+
+The sign-in and sign-up page also shows Google One Tap (Google Identity
+Services) whenever Google is configured; no extra setting or env var. The page
+reads the public client id from `GET /api/auth/google-client`, Google returns
+an ID token, and the `google-onetap` NextAuth provider verifies it server-side
+(`src/lib/auth/google-id-token.ts`: signature against Google's keys, issuer,
+audience = our client id, expiry, `email_verified`) before signing in by the
+same rules as the button (`src/lib/auth/google-one-tap.ts`).
+
+In the same OAuth client, under **Authorized JavaScript origins**, add
+`https://use.needt.app` (and `http://localhost:3000` for local work). Without
+it Google shows no prompt; the "Continue with Google" button keeps working.
+
 ## Apple (main)
 
 Needs a paid Apple Developer account. Apple does not allow `localhost`; test

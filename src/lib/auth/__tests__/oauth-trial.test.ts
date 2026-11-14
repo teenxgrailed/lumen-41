@@ -137,4 +137,60 @@ describe("OAuth trial activation", () => {
       utm_source: "newsletter",
     });
   });
+
+  it("Google One Tap fires signup_completed and the trial like the Google button", async () => {
+    jest.mocked(sendUmamiSignupCompleted).mockClear();
+    jest.mocked(markEmailVerifiedAndStartTrial).mockClear();
+    jest.mocked(prisma.userSettings.upsert).mockResolvedValue({} as never);
+    const options = await getAuthOptions();
+    const jwt = options.callbacks?.jwt as NonNullable<
+      NonNullable<typeof options.callbacks>["jwt"]
+    >;
+    const call = (oneTapNew: boolean) =>
+      jwt({
+        token: {},
+        user: {
+          id: "db-user-4",
+          email: "tap@example.com",
+          role: "user",
+          oneTapNew,
+          oneTapEmail: "tap@example.com",
+        },
+        account: {
+          provider: "google-onetap",
+          type: "credentials",
+          providerAccountId: "db-user-4",
+        },
+        trigger: "signIn",
+      } as never);
+    const returning = await call(false);
+    expect(sendUmamiSignupCompleted).not.toHaveBeenCalled();
+    expect(returning.provider).toBe("google");
+    await call(true);
+    expect(sendUmamiSignupCompleted).toHaveBeenCalledWith("google", {
+      utm_source: "newsletter",
+    });
+    expect(markEmailVerifiedAndStartTrial).toHaveBeenCalledWith({
+      userId: "db-user-4",
+      email: "tap@example.com",
+    });
+  });
+
+  it("registers the One Tap provider only when Google is configured", async () => {
+    const has = async () =>
+      (await getAuthOptions()).providers.some(
+        /* NextAuth keeps a credentials provider's custom id under `options`. */
+        (p) =>
+          (p as { options?: { id?: string } }).options?.id === "google-onetap"
+      );
+    expect(await has()).toBe(false);
+    process.env.GOOGLE_CLIENT_ID = "id.apps.googleusercontent.com";
+    process.env.GOOGLE_CLIENT_SECRET = "secret";
+    try {
+      expect(await has()).toBe(true);
+    } finally {
+      delete process.env.GOOGLE_CLIENT_ID;
+      delete process.env.GOOGLE_CLIENT_SECRET;
+    }
+  });
 });
