@@ -54,13 +54,29 @@ const conflict: FirstReplanState = {
 let host: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
+  jest.useFakeTimers({
+    now: new Date("2026-11-18T08:00:00Z"),
+    doNotFake: [
+      "setTimeout",
+      "clearTimeout",
+      "setInterval",
+      "clearInterval",
+      "setImmediate",
+      "clearImmediate",
+      "queueMicrotask",
+      "nextTick",
+    ],
+  });
   jest.clearAllMocks();
   flow.step = { kind: "idle" };
   demo = conflict;
   host = document.createElement("div");
   root = createRoot(host);
 });
-afterEach(() => act(() => root.unmount()));
+afterEach(() => {
+  jest.useRealTimers();
+  act(() => root.unmount());
+});
 const mount = () => act(async () => root.render(h(FirstReplanCard)));
 const press = (key: string) =>
   act(async () => {
@@ -100,6 +116,12 @@ it("shows where the task goes and keeps it only on Keep", async () => {
   expect(flow.keep).toHaveBeenCalledWith("tok");
   await press("not-now");
   expect(flow.notNow).toHaveBeenCalledTimes(1);
+});
+
+it("names the day when the demo waits for another one", async () => {
+  jest.setSystemTime(new Date("2026-11-14T22:00:00Z"));
+  await mount();
+  expect(host.textContent).toContain("Wed 10:00");
 });
 
 it("after Keep offers Undo and removing the demo", async () => {

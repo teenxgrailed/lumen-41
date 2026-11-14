@@ -22,7 +22,17 @@ export function FirstReplanCard() {
   const data = demo.data;
   if (!data) return null;
 
-  const t = (iso: string) => formatInTimeZone(new Date(iso), tz, "HH:mm");
+  // "10:30" today, "Mon 10:00" when the demo waits for another day (a signup
+  // on a weekend evening gets Monday morning).
+  const today = formatInTimeZone(new Date(), tz, "yyyy-MM-dd");
+  const t = (iso: string) => {
+    const d = new Date(iso);
+    return formatInTimeZone(
+      d,
+      tz,
+      formatInTimeZone(d, tz, "yyyy-MM-dd") === today ? "HH:mm" : "EEE HH:mm"
+    );
+  };
   const { step } = flow;
   const busy = step.kind === "previewing" || step.kind === "applying";
 
