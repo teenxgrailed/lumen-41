@@ -12,6 +12,7 @@ import { authorizationServerMetadata } from "@/services/oauth/http";
 import { loadSigningKey, resetSigningKeyCache } from "@/services/oauth/oidc";
 import crypto from "crypto";
 
+import { isFeatureEnabled } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/prisma", () => {
@@ -40,6 +41,14 @@ jest.mock("@/lib/prisma", () => {
 jest.mock("@/lib/security/rate-limit", () => ({
   ...jest.requireActual("@/lib/security/rate-limit"),
   enforceRateLimits: jest.fn().mockResolvedValue(null),
+}));
+
+// Needt Pro -> Budget (`budget_pro_access`) is off unless a test turns it on.
+jest.mock("@/lib/feature-flags", () => ({
+  isFeatureEnabled: jest.fn().mockResolvedValue(false),
+}));
+jest.mock("@/lib/entitlements", () => ({
+  getPlan: jest.fn().mockResolvedValue("PRO"),
 }));
 
 const ISSUER = "https://use.needt.app";
@@ -322,6 +331,24 @@ describe("userinfo", () => {
       name: "Maksym",
     });
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("sends needt_plan only while budget_pro_access is on", async () => {
+    const tokens = await exchange();
+    if (!("id_token" in tokens)) throw new Error("no id_token");
+    expect(decode(tokens.id_token).payload.needt_plan).toBeUndefined();
+
+    jest.mocked(isFeatureEnabled).mockResolvedValue(true);
+    try {
+      const again = await exchange();
+      if (!("id_token" in again)) throw new Error("no id_token");
+      expect(decode(again.id_token).payload.needt_plan).toBe("pro");
+      (prisma.oAuthToken.findUnique as jest.Mock).mockResolvedValue(stored());
+      const body = await (await userinfo(again.access_token)).json();
+      expect(body.needt_plan).toBe("pro");
+    } finally {
+      jest.mocked(isFeatureEnabled).mockResolvedValue(false);
+    }
   });
 
   it("userinfo rejects an mcp access token", async () => {

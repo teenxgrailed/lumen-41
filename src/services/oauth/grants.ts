@@ -340,6 +340,7 @@ export async function exchangeAuthorizationCode(input: {
       email: asked.includes("email") ? claims.email : null,
       emailVerified: claims.email_verified,
       name: asked.includes("profile") ? claims.name : null,
+      needtPlan: claims.needt_plan,
     });
     return { ...outcome.oidc, id_token };
   }
