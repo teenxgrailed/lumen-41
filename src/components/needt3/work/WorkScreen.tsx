@@ -58,28 +58,41 @@ import {
   workModel,
 } from "./model";
 import { Capped, Fold, PageAddButton, Seg2, WkEmpty } from "./parts";
+import { setOpenTask, useOpenTask } from "./taskParam";
 import { type WorkState, useWorkState } from "./useWorkState";
 
 const EMPTY_TASKS: V3Task[] = [];
 const EMPTY_PROJECTS: V3Project[] = [];
 
-/** The task dialog opens over the current screen at `?task=<id>`. */
+/** Keys other than `task` still go through the router. */
 function useTaskParam() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const setParam = useCallback(
     (key: string, value: string | null) => {
-      const next = new URLSearchParams(params.toString());
+      // the live URL, not the hook's snapshot: a ?task= written by the
+      // dialog store may not have reached useSearchParams yet
+      const next = new URLSearchParams(window.location.search);
       if (value) next.set(key, value);
       else next.delete(key);
       const q = next.toString();
       router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
     },
-    [params, pathname, router]
+    [pathname, router]
   );
   return { params, setParam };
 }
+
+/**
+ * The task window at `?task=<id>`. It is its own component on its own store
+ * (taskParam.ts), so opening it renders the dialog and not the list.
+ */
+function TaskDialogSlot() {
+  const taskId = useOpenTask();
+  return <TaskDialogHost taskId={taskId} onClose={closeTask} />;
+}
+const closeTask = () => setOpenTask(null);
 
 /**
  * Tasks and Projects ($P/work.jsx WorkScreen): one component, two places.
@@ -170,7 +183,7 @@ function WorkScreenContent({
     state.stopEdit();
     if (params.get("new")) setParam("new", null);
   };
-  const openTask = (id: string) => setParam("task", id);
+  const openTask = setOpenTask;
 
   const m = workModel({
     tasks,
@@ -499,10 +512,7 @@ function WorkScreenContent({
           ) : null}
         </div>
       </StScreen>
-      <TaskDialogHost
-        taskId={params.get("task")}
-        onClose={() => setParam("task", null)}
-      />
+      <TaskDialogSlot />
     </div>
   );
   return <CompletionScope value={completion}>{content}</CompletionScope>;

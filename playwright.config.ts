@@ -24,7 +24,7 @@ const productionServerCommand = `${JSON.stringify(
  */
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: ["**/visual/**"],
+  testIgnore: ["**/visual/**", "**/perf/**"],
   globalSetup: "./tests/e2e/global-setup.ts",
   /* Keep the shared local database and web-server fixture deterministic. */
   fullyParallel: true,

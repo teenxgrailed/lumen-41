@@ -58,6 +58,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "auth/desktop/exchange/route.ts":
     "desktop sign-in handoff: single-use 60 s code bound to a PKCE verifier, same-origin JSON with a header, rate limited",
   "auth/public-signup/route.ts": "signup availability probe",
+  "auth/google-client/route.ts":
+    "Google One Tap bootstrap: the public OAuth client id (it is in every Google redirect URL) and a random nonce bound to this browser by a signed cookie; no secret, no account data",
   "auth/reset-password/request/route.ts": "rate limited, no account oracle",
   "auth/reset-password/reset/route.ts": "single-use token, rate limited",
   "auth/email-verification/confirm/route.ts": "single-use token",

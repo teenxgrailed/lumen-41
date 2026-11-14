@@ -3,8 +3,8 @@
 import {
   appendFileSync,
   existsSync,
-  readdirSync,
   readFileSync,
+  readdirSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
@@ -56,9 +56,26 @@ for (const r of rows) {
       `- ${r.project} / ${r.screen}: interaction not driven (${r.reason})`
     );
 }
+// Task window open (tests/perf/task-modal.perf.spec.ts): perf/modal/*.json.
+const modalDir = path.join(dir, "modal");
+const modalRows = existsSync(modalDir)
+  ? readdirSync(modalDir)
+      .filter((f) => f.endsWith(".json"))
+      .sort()
+      .map((f) => JSON.parse(readFileSync(path.join(modalDir, f), "utf8")))
+  : [];
+const modalLines = modalRows.map((r) =>
+  r.status !== "ok"
+    ? `| ${r.project} | unreachable: ${r.reason} | | | | | | |`
+    : `| ${r.project} (${r.browser}) | ${v(r.cold.visibleMs)} | ${v(r.warm.visibleMsMedian)} | ${v(r.warm.visibleMsMax)} | ${v(r.warm.maxGapMsMedian)} | ${v(r.warm.slowFramesMedian)} | ${v(r.warm.longTasksTotal)} / ${v(r.warm.longTaskMsTotal)} | ${v(r.warm.longFramesTotal)} |`
+);
+const modalMd = modalRows.length
+  ? `\n## Task window open (40 Today rows, task with 4 steps)\n\nClick to first frame with the card on screen, ms. Warm = runs 2..8. Long frames = rAF gaps over 50 ms (WebKit has no longtask API).\n\n| project | cold ms | warm median ms | warm max ms | max frame gap ms | frames over 20 ms | long tasks / ms | long frames |\n|---|---|---|---|---|---|---|---|\n${modalLines.join("\n")}\n`
+  : "";
 const md =
   `# Needt perf baseline\n\nCPU throttle: 4x phone, 2x desktop (Chromium only). Frame times in ms from a rAF recorder; script/layout/style are CDP Performance.getMetrics deltas. n/a = not measurable on that engine or not reached.\n\n${head}\n${lines.join("\n")}\n` +
-  (notes.length ? `\n## Not reached\n\n${notes.join("\n")}\n` : "");
+  (notes.length ? `\n## Not reached\n\n${notes.join("\n")}\n` : "") +
+  modalMd;
 writeFileSync(path.join(dir, "summary.md"), md);
 if (process.env.GITHUB_STEP_SUMMARY)
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);

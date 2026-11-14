@@ -21,6 +21,15 @@ on:
           - full
           - lite
 
+      scenario:
+        description: "all = every screen; task-modal = only the task window open (desktop Chromium + desktop WebKit)"
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - task-modal
+
 concurrency:
   group: needt-perf-${{ inputs.ref || github.sha }}
   cancel-in-progress: false
@@ -97,9 +106,12 @@ jobs:
         run: npm run build
       - name: Run perf baseline
         env:
+          PERF_SCENARIO: ${{ inputs.scenario }}
           PERF_TRACE: ${{ inputs.trace == 'full' && '1' || inputs.trace == 'lite' && 'lite' || '0' }}
         run: |
-          if [ "$PERF_TRACE" != "0" ]; then
+          if [ "$PERF_SCENARIO" = "task-modal" ]; then
+            npx playwright test --config=playwright.perf.config.ts --project=desktop-chromium --project=desktop-webkit task-modal
+          elif [ "$PERF_TRACE" != "0" ]; then
             npx playwright test --config=playwright.perf.config.ts --project=iphone13-chromium -g "phone-every-place"
           else
             npx playwright test --config=playwright.perf.config.ts
