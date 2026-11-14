@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 
-import { utmFromCookieHeader } from "@/lib/attribution";
+import { consentedUtmFromCookieHeader } from "@/lib/attribution";
 import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
 import { passwordSchema } from "@/lib/auth/password-schema";
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
     /* Once per account: only the branch that created the row gets here. */
     void sendUmamiSignupCompleted(
       "credentials",
-      utmFromCookieHeader(request.headers.get("cookie"))
+      consentedUtmFromCookieHeader(request.headers.get("cookie"))
     );
     try {
       await sendEmailVerification({

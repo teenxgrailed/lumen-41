@@ -1,5 +1,7 @@
 import {
   UTM_COOKIE,
+  consentedUtmFromCookieHeader,
+  expiredUtmCookie,
   serializeUtm,
   utmCookie,
   utmFromCookieHeader,
@@ -49,5 +51,38 @@ describe("the cookie", () => {
   it("reads nothing from a missing or malformed cookie", () => {
     expect(utmFromCookieHeader(null)).toEqual({});
     expect(utmFromCookieHeader(`${UTM_COOKIE}=%E0%A4%A`)).toEqual({});
+  });
+});
+
+describe("an address is never kept as a tag", () => {
+  it.each([
+    "jane@example.com",
+    "jane%40example.com",
+    "utm@x.io",
+    "jane.doe+news@gmail.com",
+  ])("drops %s", (value) => {
+    expect(utmFromSearch(`?utm_content=${value}&utm_source=news`)).toEqual({
+      utm_source: "news",
+    });
+    expect(serializeUtm({ utm_content: decodeURIComponent(value) })).toBeNull();
+  });
+});
+
+describe("consent", () => {
+  const utm = `${UTM_COOKIE}=${encodeURIComponent("utm_source=news")}`;
+
+  it("gives tags only while analytics is accepted", () => {
+    expect(
+      consentedUtmFromCookieHeader(`needt_consent=accepted; ${utm}`)
+    ).toEqual({ utm_source: "news" });
+    expect(
+      consentedUtmFromCookieHeader(`needt_consent=declined; ${utm}`)
+    ).toEqual({});
+    expect(consentedUtmFromCookieHeader(utm)).toEqual({});
+    expect(consentedUtmFromCookieHeader(null)).toEqual({});
+  });
+
+  it("can expire the cookie", () => {
+    expect(expiredUtmCookie(true)).toMatch(/^needt_utm=; Max-Age=0; Path=\//);
   });
 });

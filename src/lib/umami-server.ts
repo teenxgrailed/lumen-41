@@ -25,7 +25,8 @@ export function purchasePlan(
  * Which Umami website a server-side event belongs to. `landing` is the
  * needt.app site (`UMAMI_LANDING_WEBSITE_ID`): the acquisition funnel, from
  * the first visit to `purchase`. `app` is the use.needt.app site
- * (`NEXT_PUBLIC_UMAMI_WEBSITE_ID`, the id the browser tracker already uses):
+ * (`NEXT_PUBLIC_UMAMI_WEBSITE_ID`, the id the browser tracker already uses;
+ * Next inlines it at build time, so the build arg decides whether these are sent):
  * product-internal events such as the Agents hub, which must not mix into the
  * funnel.
  */

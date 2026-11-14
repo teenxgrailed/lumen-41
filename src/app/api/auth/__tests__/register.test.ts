@@ -134,7 +134,7 @@ describe("public registration", () => {
     });
     request.headers.set(
       "cookie",
-      `needt_utm=${encodeURIComponent("utm_source=newsletter&utm_medium=email")}`
+      `needt_consent=accepted; needt_utm=${encodeURIComponent("utm_source=newsletter&utm_medium=email")}`
     );
 
     await POST(request);
@@ -144,6 +144,26 @@ describe("public registration", () => {
       utm_source: "newsletter",
       utm_medium: "email",
     });
+  });
+
+  it("sends no utm tags once analytics consent is withdrawn", async () => {
+    jest.mocked(isPublicSignupEnabled).mockResolvedValue(true);
+    jest.mocked(hash).mockResolvedValue("password-hash" as never);
+    jest
+      .mocked(prisma.user.create)
+      .mockResolvedValue({ id: "user-1" } as never);
+    const request = registrationRequest({
+      email: "user@example.com",
+      password: "secure-password",
+    });
+    request.headers.set(
+      "cookie",
+      `needt_consent=declined; needt_utm=${encodeURIComponent("utm_source=newsletter")}`
+    );
+
+    await POST(request);
+
+    expect(sendUmamiSignupCompleted).toHaveBeenCalledWith("credentials", {});
   });
 
   it("creates a credentials account and default user settings", async () => {

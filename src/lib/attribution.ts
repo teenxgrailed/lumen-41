@@ -9,6 +9,7 @@
  * `cookie-consent.ts`); without consent nothing is kept and the event simply
  * carries no tags. A tag holds a campaign label, never a person.
  */
+import { parseConsent } from "@/lib/cookie-consent";
 
 export const UTM_KEYS = [
   "utm_source",
@@ -27,12 +28,15 @@ export const UTM_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 const MAX_VALUE_LENGTH = 100;
 /** Letters, digits and the punctuation campaign names use. No markup. */
-const SAFE_VALUE = /^[\p{L}\p{N} _.:+/@-]+$/u;
+const SAFE_VALUE = /^[\p{L}\p{N} _.:+/-]+$/u;
+/** Some mail tools fill a tag with the subscriber's address: never keep one. */
+const LOOKS_LIKE_EMAIL = /\S+(@|%40)\S+/;
 
 function cleanValue(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const value = raw.trim().slice(0, MAX_VALUE_LENGTH);
-  return value && SAFE_VALUE.test(value) ? value : null;
+  if (!value || LOOKS_LIKE_EMAIL.test(value)) return null;
+  return SAFE_VALUE.test(value) ? value : null;
 }
 
 /** The UTM tags in a query string (`?utm_source=x`), cleaned. */
@@ -83,4 +87,27 @@ export function utmFromCookieHeader(cookieHeader: string | null): UtmTags {
     }
   }
   return {};
+}
+
+/** The Set-Cookie string that removes the cookie (consent withdrawn). */
+export function expiredUtmCookie(secure: boolean): string {
+  return [
+    `${UTM_COOKIE}=`,
+    "Max-Age=0",
+    "Path=/",
+    "SameSite=Lax",
+    ...(secure ? ["Secure"] : []),
+  ].join("; ");
+}
+
+/**
+ * The tags in a `Cookie` header, but only while the visitor's analytics
+ * choice in the same header is "accepted". Anything else gives no tags, even
+ * when an old `needt_utm` cookie is still there.
+ */
+export function consentedUtmFromCookieHeader(
+  cookieHeader: string | null
+): UtmTags {
+  if (!cookieHeader || parseConsent(cookieHeader) !== "accepted") return {};
+  return utmFromCookieHeader(cookieHeader);
 }
