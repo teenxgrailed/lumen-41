@@ -46,7 +46,11 @@ test("Sign-in wears the design and still signs you in", async ({ page }) => {
     page.getByText("Sign in — your day is where you left it.")
   ).toBeVisible();
 
-  /* v3 asks for the address first; the password arrives under it. */
+  /* v3 leads with a mailed code; the password form sits behind "Use
+     password", and there it asks for the address first, the password under it. */
+  await expect(page.getByRole("button", { name: "Send code" })).toBeVisible();
+  const usePassword = page.getByRole("button", { name: "Use password" });
+  await usePassword.click();
   const email = page.getByPlaceholder("you@example.com");
   const password = page.getByPlaceholder("Password", { exact: true });
   const next = page.getByRole("button", { name: "Continue" });
@@ -68,6 +72,7 @@ test("Sign-in wears the design and still signs you in", async ({ page }) => {
   );
 
   await page.goto("/auth/signin");
+  await usePassword.click();
   await email.fill(VISUAL_TEST_EMAIL);
   await next.click();
   await password.fill(VISUAL_TEST_PASSWORD);
@@ -99,6 +104,8 @@ test("Sign-up offers itself only where it is allowed", async ({ page }) => {
   );
   await page.goto("/auth/signin");
   await page.getByRole("button", { name: "Create one" }).click();
+  // Sign-up leads with the code too; the password form is behind the link.
+  await page.getByRole("button", { name: "Use password" }).click();
 
   await page.getByPlaceholder("you@example.com").fill("new@example.com");
   await page.getByRole("button", { name: "Continue" }).click();

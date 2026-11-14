@@ -61,6 +61,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "auth/google-client/route.ts":
     "Google One Tap bootstrap: the public OAuth client id (it is in every Google redirect URL) and a random nonce bound to this browser by a signed cookie; no secret, no account data",
   "auth/reset-password/request/route.ts": "rate limited, no account oracle",
+  "auth/email-code/request/route.ts":
+    "mails a sign-in code; rate limited per IP and address, same answer for every address",
   "auth/reset-password/reset/route.ts": "single-use token, rate limited",
   "auth/email-verification/confirm/route.ts": "single-use token",
   "account/export/download/route.ts": "single-use hashed token, expires",

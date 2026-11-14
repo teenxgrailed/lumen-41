@@ -3354,6 +3354,21 @@ model PasswordReset {
   @@index([userId])
 }
 
+/// A six-digit sign-in code mailed to an address (passwordless sign-in).
+/// Only an HMAC of the code is stored; see src/lib/auth/email-code.ts.
+model EmailLoginCode {
+  id         String    @id @default(cuid())
+  email      String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt])
+  @@index([expiresAt])
+}
+
 /// What kind of app-provisioned account this is; see User.sandboxKind.
 enum SandboxKind {
   reviewer

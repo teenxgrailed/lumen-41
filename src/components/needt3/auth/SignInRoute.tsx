@@ -52,6 +52,7 @@ import {
   AuthScreen,
 } from "./AuthScreen";
 import { IosSignIn } from "./IosSignIn";
+import type { EmailCodeApi } from "./email-code-logic";
 import { fetchPublicSignup, signupFlags } from "./public-signup-state";
 import { useAuthSteps } from "./use-auth-fields";
 import { useGoogleOneTap } from "./use-google-one-tap";
@@ -423,6 +424,65 @@ export function V3SignInRoute({
       .catch(() => notify.error("Could not record the confirmation"));
   }, [ageChecked, oneTap]);
 
+  /* Sign in with a mailed code (email-code-service.ts): the main path under
+     the providers; "Use password" opens the old email + password form. */
+  const [usePassword, setUsePassword] = React.useState(false);
+  const emailCode = React.useMemo<EmailCodeApi>(
+    () => ({
+      usePassword,
+      setUsePassword,
+      send: async (email) => {
+        try {
+          const response = await fetch("/api/auth/email-code/request", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          if (response.ok) return "sent";
+          if (response.status === 429) return "limited";
+          if (response.status === 400) return "invalid";
+          return "network";
+        } catch (e) {
+          void logger.error(
+            "Email code request failed",
+            { error: message(e) },
+            LOG_SOURCE
+          );
+          return "network";
+        }
+      },
+      verify: async ({ email, code, ageConfirmed }) => {
+        try {
+          const result = await signIn("email-code", {
+            email,
+            code,
+            ageConfirmed: ageConfirmed ? "true" : "false",
+            ...browserLocale(),
+            redirect: false,
+            callbackUrl: safeCallbackUrl,
+          });
+          if (result?.error === "AgeConfirmRequired") return "age";
+          if (result?.error) return "wrong";
+          /* The server says whether this sign-in made the account. */
+          const session = await getSession().catch(() => null);
+          newAccount.current = session?.newAccount === true;
+          dest.current = newAccount.current
+            ? ONBOARDING_RESUME_PATH
+            : safeCallbackUrl;
+          return "ok";
+        } catch (e) {
+          void logger.error(
+            "Email code sign in failed",
+            { error: message(e) },
+            LOG_SOURCE
+          );
+          return "network";
+        }
+      },
+    }),
+    [usePassword, safeCallbackUrl]
+  );
+
   /* Opened by the iOS app's sign-in sheet with `?provider=`: go straight to
      that provider once it is known to be configured. Not after an error, so a
      refusal does not loop. */
@@ -460,6 +520,7 @@ export function V3SignInRoute({
         onSubmit={submit}
         onRecover={recover}
         providers={configured}
+        emailCode={emailCode}
         age={age}
         providerBusy={providerBusy}
         onProvider={startProvider}

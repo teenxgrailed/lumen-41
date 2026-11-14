@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { consentedUtmFromCookieHeader } from "@/lib/attribution";
 import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
+import { newAccountDefaults } from "@/lib/auth/new-account";
 import { passwordSchema } from "@/lib/auth/password-schema";
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
 import {
@@ -21,7 +22,6 @@ import {
 import { newDate } from "@/lib/date-utils";
 import { sendEmailVerification } from "@/lib/email/email-verification";
 import { logger } from "@/lib/logger";
-import { signupLocaleSettings } from "@/lib/needt3/locale-defaults";
 import { SETUP_PATH, onboardingEntryPath } from "@/lib/onboarding/entry";
 import { prisma } from "@/lib/prisma";
 import { publicRequestUrl } from "@/lib/public-url";
@@ -176,21 +176,7 @@ export async function POST(request: NextRequest) {
             id_token: passwordHash,
           },
         },
-        userSettings: {
-          create: {
-            theme: "dark",
-            timeZone: "UTC",
-            ...signupLocaleSettings(parsed.data),
-          },
-        },
-        autoScheduleSettings: {
-          create: {
-            workDays: "[1,2,3,4,5]",
-            workHourStart: 9,
-            workHourEnd: 17,
-            bufferMinutes: 15,
-          },
-        },
+        ...newAccountDefaults(parsed.data),
       },
       select: { id: true },
     });

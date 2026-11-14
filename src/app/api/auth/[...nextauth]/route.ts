@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { classifyCredentialAttempt } from "@/lib/auth/credential-attempt";
 import { credentialsEmail } from "@/lib/auth/credentials-email";
+import { EMAIL_CODE_PROVIDER } from "@/lib/auth/email-code-service";
 import { ONE_TAP_PROVIDER_ID } from "@/lib/auth/google-one-tap";
 import {
   allOneTapNonceCookies,
@@ -114,6 +115,25 @@ export async function POST(request: NextRequest, context: AuthRouteContext) {
       await clearCredentialFailures(email);
     }
     return response;
+  }
+  if (request.nextUrl.pathname.endsWith(`/callback/${EMAIL_CODE_PROVIDER}`)) {
+    /* Six digits are guessable, so the per-address cap is the tight one; the
+       code itself also dies after five wrong tries (email-code.ts). */
+    const email = await credentialsEmail(request);
+    const limited = await enforceRateLimits(
+      [
+        ipRule(request, "emailcode-verify:ip", 20, 15 * 60),
+        accountRule(
+          email || "missing",
+          "emailcode-verify:account",
+          10,
+          15 * 60
+        ),
+      ],
+      { route: request.nextUrl.pathname }
+    );
+    if (limited) return limited;
+    return handler(request, context);
   }
   if (request.nextUrl.pathname.endsWith(`/callback/${ONE_TAP_PROVIDER_ID}`)) {
     /* Each attempt verifies a JWT and queries the account tables. */

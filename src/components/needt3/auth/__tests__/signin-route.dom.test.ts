@@ -92,10 +92,16 @@ afterEach(() => {
   host.remove();
 });
 
-const mount = (props: { startMode?: "signup" } = {}) =>
-  act(async () => {
+const mount = async (props: { startMode?: "signup" } = {}) => {
+  await act(async () => {
     root.render(h(V3SignInRoute, { callbackUrl: "/calendar", ...props }));
   });
+  /* The code form is the main path; these tests are about the password form,
+     which sits behind "Use password". */
+  await act(async () => {
+    q<HTMLElement>("[data-auth-use-password]")?.click();
+  });
+};
 const swap = (narrow: boolean) =>
   act(() => {
     narrowListeners.forEach((fn) => fn({ matches: narrow }));

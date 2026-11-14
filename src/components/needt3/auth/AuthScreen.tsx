@@ -38,6 +38,7 @@ import {
 } from "../scenes";
 import { NeedtLockup } from "../wordmark";
 import { AgeConfirm, type AgeState, useAgeState } from "./AgeConfirm";
+import { EmailCodeBlock } from "./EmailCodeBlock";
 import {
   type AuthMode,
   MORE_SIGN_IN_WAYS_LABEL,
@@ -53,12 +54,14 @@ import {
   submitLabel,
   submitStep,
 } from "./auth-logic";
+import { CODE_TEXT, type EmailCodeApi } from "./email-code-logic";
 import {
   type AuthFields,
   type AuthSteps,
   useAuthFields,
   useAuthSteps,
 } from "./use-auth-fields";
+import { useEmailCodeFlow } from "./use-email-code-flow";
 
 export type { AuthMode } from "./auth-logic";
 
@@ -72,6 +75,15 @@ export interface AuthResult {
   /** The server did not answer: show "Couldn't sign in" with a Retry. */
   readonly network?: boolean;
 }
+
+/** What the code form gets when the host offers no code sign-in (hooks run
+    unconditionally, so the flow always needs an API). */
+export const NO_EMAIL_CODE: EmailCodeApi = {
+  send: async () => "network",
+  verify: async () => "network",
+  usePassword: true,
+  setUsePassword: () => undefined,
+};
 
 export interface AuthProvider {
   readonly id: string;
@@ -114,6 +126,8 @@ export interface AuthScreenProps {
   fields?: AuthFields;
   /** The host owns the flow's steps too (recovery, refusal, ...). */
   steps?: AuthSteps;
+  /** Sign in with a mailed code. Absent: the email + password form only. */
+  emailCode?: EmailCodeApi;
 }
 
 export function Eye({
@@ -147,6 +161,9 @@ export function Field({
   trailing,
   label,
   autoComplete,
+  inputMode,
+  maxLength,
+  name,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -158,6 +175,9 @@ export function Field({
   trailing?: React.ReactNode;
   label?: string;
   autoComplete?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  maxLength?: number;
+  name?: string;
 }) {
   const [focus, setFocus] = React.useState(false);
   return (
@@ -169,6 +189,9 @@ export function Field({
         aria-label={label || placeholder}
         aria-invalid={invalid || undefined}
         autoComplete={autoComplete}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        name={name}
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocus(true)}
@@ -330,6 +353,7 @@ export function AuthScreen({
   fields,
   steps,
   age: ageProp,
+  emailCode,
 }: AuthScreenProps) {
   const signup = mode !== "login";
   const store = useStoreDistribution();
@@ -370,6 +394,18 @@ export function AuthScreen({
   const mProblem = mailProblem({ mail, touched });
   const mText = mailProblemText(mProblem);
   const offline = !online;
+  const codeApi = emailCode ?? NO_EMAIL_CODE;
+  const codeMode = !!emailCode && !emailCode.usePassword;
+  const codeFlow = useEmailCodeFlow({
+    api: codeApi,
+    mail,
+    signup,
+    ageOk: () => ageOk(),
+    ageConfirmed: age.checked,
+    onNeedAge: () => onMode("signup"),
+    onDone,
+    offline,
+  });
 
   React.useEffect(() => {
     if (recover !== "sent" || resendIn <= 0) return undefined;
@@ -720,79 +756,102 @@ export function AuthScreen({
         </>
       ) : null}
 
-      <div className="auth-signin-col-4">
-        <Field
-          value={mail}
-          label="Email"
-          placeholder="you@example.com"
-          autoComplete="email"
-          invalid={!!mProblem || refused?.reason === "taken"}
-          onChange={(v) => {
-            setRefused(null);
-            setMail(v);
-          }}
-          onEnter={submit}
+      {codeMode ? (
+        <EmailCodeBlock
+          flow={codeFlow}
+          mail={mail}
+          setMail={setMail}
+          signup={signup}
+          offline={offline}
+          onUsePassword={() => emailCode?.setUsePassword(true)}
         />
-        {mText ? <span className="auth-error-text">{mText}</span> : null}
-        {withPass ? (
-          <div key="pw" className="nx-swap auth-stack-6">
-            <Field
-              value={pass}
-              type={show ? "text" : "password"}
-              label="Password"
-              placeholder={signup ? "At least 8 characters" : "Password"}
-              autoComplete={signup ? "new-password" : "current-password"}
-              autoFocus
-              invalid={short || refused?.reason === "wrong"}
-              onEnter={submit}
-              onChange={(v) => {
-                setRefused(null);
-                setPass(v);
-              }}
-              trailing={<Eye shown={show} onToggle={() => setShow(!show)} />}
-            />
-            <span className="auth-pass-row">
-              <span
-                className="auth-signin-text-3"
-                style={{
-                  color: short ? "var(--destructive)" : "var(--text-tertiary)",
+      ) : (
+        <div className="auth-signin-col-4">
+          <Field
+            value={mail}
+            label="Email"
+            placeholder="you@example.com"
+            autoComplete="email"
+            invalid={!!mProblem || refused?.reason === "taken"}
+            onChange={(v) => {
+              setRefused(null);
+              setMail(v);
+            }}
+            onEnter={submit}
+          />
+          {mText ? <span className="auth-error-text">{mText}</span> : null}
+          {withPass ? (
+            <div key="pw" className="nx-swap auth-stack-6">
+              <Field
+                value={pass}
+                type={show ? "text" : "password"}
+                label="Password"
+                placeholder={signup ? "At least 8 characters" : "Password"}
+                autoComplete={signup ? "new-password" : "current-password"}
+                autoFocus
+                invalid={short || refused?.reason === "wrong"}
+                onEnter={submit}
+                onChange={(v) => {
+                  setRefused(null);
+                  setPass(v);
                 }}
-              >
-                {short
-                  ? "Use at least 8 characters."
-                  : "At least 8 characters."}
-              </span>
-              {signup ? null : onRecover ? (
-                <button
-                  type="button"
-                  className="ax-link auth-forgot"
-                  data-auth-forgot
-                  onClick={openRecover}
+                trailing={<Eye shown={show} onToggle={() => setShow(!show)} />}
+              />
+              <span className="auth-pass-row">
+                <span
+                  className="auth-signin-text-3"
+                  style={{
+                    color: short
+                      ? "var(--destructive)"
+                      : "var(--text-tertiary)",
+                  }}
                 >
-                  Forgot password?
-                </button>
-              ) : null}
+                  {short
+                    ? "Use at least 8 characters."
+                    : "At least 8 characters."}
+                </span>
+                {signup ? null : onRecover ? (
+                  <button
+                    type="button"
+                    className="ax-link auth-forgot"
+                    data-auth-forgot
+                    onClick={openRecover}
+                  >
+                    Forgot password?
+                  </button>
+                ) : null}
+              </span>
+            </div>
+          ) : null}
+          {refusal ? (
+            <span className="refusal auth-signin-row-3" role="alert">
+              <LuCircleAlert size={13} />
+              {refusal}
             </span>
-          </div>
-        ) : null}
-        {refusal ? (
-          <span className="refusal auth-signin-row-3" role="alert">
-            <LuCircleAlert size={13} />
-            {refusal}
-          </span>
-        ) : null}
-        {!signup && withPass ? aside : null}
-        {netRow}
-        <button
-          type="button"
-          onClick={submit}
-          disabled={offline || busy}
-          className="nx-btn nx-btn-primary axs-go auth-signin-btn"
-          data-auth-submit
-        >
-          {submitLabel(mode, withPass, busy)}
-        </button>
-      </div>
+          ) : null}
+          {!signup && withPass ? aside : null}
+          {netRow}
+          <button
+            type="button"
+            onClick={submit}
+            disabled={offline || busy}
+            className="nx-btn nx-btn-primary axs-go auth-signin-btn"
+            data-auth-submit
+          >
+            {submitLabel(mode, withPass, busy)}
+          </button>
+          {emailCode ? (
+            <button
+              type="button"
+              className="ax-link auth-forgot"
+              data-auth-use-code
+              onClick={() => emailCode.setUsePassword(false)}
+            >
+              {CODE_TEXT.useCode}
+            </button>
+          ) : null}
+        </div>
+      )}
     </div>,
     <>
       {allowSignup || signup ? (
