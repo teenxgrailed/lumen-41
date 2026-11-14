@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
 import { authSecret } from "@/lib/auth/auth-secret";
+import { currentAuthRequest } from "@/lib/auth/request-context";
 import { isExistingOAuthUser } from "@/lib/auth/signups";
 import { logger } from "@/lib/logger";
 
@@ -49,13 +50,46 @@ export function verifyAgeToken(
   return Number(expiry) > Math.floor(nowMs / 1000);
 }
 
-/** The signed cookie of the current request, valid and unexpired. */
+/** A Set-Cookie header value that expires the age cookie. */
+export function expireAgeCookie(): string {
+  const secure = process.env.NODE_ENV === "production";
+  return `${AGE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; ${
+    secure ? "Secure; SameSite=None" : "SameSite=Lax"
+  }`;
+}
+
+/**
+ * The signed cookie of the current request, valid and unexpired. The NextAuth
+ * route handler passes the cookie in through `runWithAuthRequest`; reading it
+ * through `next/headers` is only the fallback for a caller outside that
+ * handler. A failed read is logged, never silent: it used to read as "no
+ * cookie" and refuse every Google sign-up.
+ */
 export async function hasAgeConfirmation(nowMs: number): Promise<boolean> {
+  const context = currentAuthRequest();
+  if (context) {
+    const ok = verifyAgeToken(context.ageToken, nowMs);
+    if (!ok) {
+      /* Presence only, never the value: tells "the browser did not send it"
+         from "it arrived and did not verify". */
+      logger.warn(
+        "Age confirmation cookie not accepted",
+        { present: Boolean(context.ageToken) },
+        LOG_SOURCE
+      );
+    }
+    return ok;
+  }
   try {
     const { cookies } = await import("next/headers");
     const jar = await cookies();
     return verifyAgeToken(jar.get(AGE_COOKIE)?.value, nowMs);
-  } catch {
+  } catch (error) {
+    logger.warn(
+      "Could not read the age confirmation cookie",
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      LOG_SOURCE
+    );
     return false;
   }
 }

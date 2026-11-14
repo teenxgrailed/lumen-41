@@ -168,6 +168,20 @@ export function V3SignInRoute({
     setIosApp(isIosApp());
   }, []);
   const [providerBusy, setProviderBusy] = React.useState<string | null>(null);
+  /* Back from the provider (or restored from the back/forward cache): the
+     page may come back exactly as it was left, its button still "Opening…".
+     A button that was busy on the way out must be usable again. */
+  React.useEffect(() => {
+    const reset = (event: PageTransitionEvent) => {
+      if (event.persisted) setProviderBusy(null);
+    };
+    window.addEventListener("pageshow", reset);
+    return () => window.removeEventListener("pageshow", reset);
+  }, []);
+  /* An OAuth error in the address is a finished attempt, never a busy one. */
+  React.useEffect(() => {
+    if (error) setProviderBusy(null);
+  }, [error]);
   const [resending, setResending] = React.useState(false);
   /** The address last typed, so "resend" has something to send to. */
   const typed = React.useRef("");
