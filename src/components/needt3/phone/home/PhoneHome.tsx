@@ -38,6 +38,7 @@ import { useStartFocus } from "../../focus/useFocusController";
 import { EndDayNudge } from "../../home/EndDayNudge";
 import { OnboardingResumeBanner } from "../../home/OnboardingResumeBanner";
 import { ReviewCard } from "../../home/ReviewCard";
+import { FirstReplanCard } from "../../home/FirstReplanCard";
 import { SampleBanner } from "../../home/SampleBanner";
 import { StatsCard, StatsSheet } from "../../home/Stats";
 import { briefFactsOf, doneTodayCount } from "../../home/brief";
@@ -422,6 +423,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       <PhoneState query={tasksQuery} screen="today" />
       <OnboardingResumeBanner />
       <SampleBanner />
+      <FirstReplanCard />
       {ready && review.show ? (
         <ReviewCard phone onStart={review.start} onLater={review.later} />
       ) : null}

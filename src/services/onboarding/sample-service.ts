@@ -72,7 +72,7 @@ export function shiftDay(today: string, offset: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function validZone(zone: string | null | undefined): string {
+export function validZone(zone: string | null | undefined): string {
   if (!zone) return "UTC";
   try {
     formatInTimeZone(newDate(), zone, "yyyy-MM-dd");

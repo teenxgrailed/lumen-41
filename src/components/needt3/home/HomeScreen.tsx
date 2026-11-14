@@ -82,6 +82,7 @@ import {
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
+import { FirstReplanCard } from "./FirstReplanCard";
 import { OnboardingResumeBanner } from "./OnboardingResumeBanner";
 import { ReviewCard } from "./ReviewCard";
 import { SampleBanner } from "./SampleBanner";
@@ -779,6 +780,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <OnboardingResumeBanner />
           <SampleBanner />
+          <FirstReplanCard />
           {review.show ? (
             <ReviewCard onStart={review.start} onLater={review.later} />
           ) : null}

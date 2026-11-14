@@ -90,6 +90,15 @@ export const HABITS_QUIT = "habits_quit";
  */
 export const AI_CHATGPT_PLAN = "ai_chatgpt_plan";
 
+/**
+ * The first replan, in the first two minutes: a new account's sample day gets
+ * one demo meeting on top of one demo task, and Today offers to replan it
+ * (preview, then Keep). Off for everybody; per-user rollout and overrides
+ * apply (`isFeatureEnabled`). Reads and seeds only for accounts the flag is on
+ * for, so turning it off hides the card and stops new demos.
+ */
+export const FIRST_REPLAN_ONBOARDING = "first_replan_onboarding";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -104,6 +113,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [HABITS_QUIT]: "QUIT habits and habit presence (Pro).",
   [AI_CHATGPT_PLAN]:
     "Needt AI on the person's own ChatGPT plan (needs OPENAI_SIWC_CLIENT_ID).",
+  [FIRST_REPLAN_ONBOARDING]:
+    "Demo meeting on a new account's Today, with a first replan and Keep.",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

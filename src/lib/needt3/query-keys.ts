@@ -43,6 +43,8 @@ export const qk = {
   memories: () => [V3, "memories"] as const,
   /** Whether first-run examples are still on the account (`GET /api/onboarding/sample`). */
   sample: () => [V3, "sample"] as const,
+  /** The first-replan demo on Today (`GET /api/onboarding/first-replan`). */
+  firstReplan: () => [V3, "first-replan"] as const,
   project: (id: string) => [V3, "project", id] as const,
 
   events: (range?: DateRange) =>
