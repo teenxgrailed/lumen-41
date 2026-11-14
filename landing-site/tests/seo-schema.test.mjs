@@ -22,7 +22,7 @@ for (const file of ["index.html", "index-b.html"]) {
     assert.ok(site, "WebSite block present");
     assert.equal(site.name, "Needt");
     assert.equal(site.url, "https://needt.app/");
-    assert.deepEqual(site.alternateName, ["Needt app", "needt.app"]);
+    assert.deepEqual(site.alternateName, ["Needt app", "Needt App", "needtapp", "needt.app"]);
     assert.equal(site.publisher["@id"], "https://needt.app/#org");
     assert.ok(out.some((d) => d["@type"] === "SoftwareApplication"));
   });
@@ -45,6 +45,7 @@ for (const file of ["index.html", "index-b.html"]) {
   test(`${file}: plain what-is-Needt line`, () => {
     const { html } = blocks(file);
     assert.match(html, /<meta name="description" content="Needt is an AI day planner/);
+    assert.match(html, /<meta name="description" content="[^"]*Needt app[^"]*"/);
     assert.match(html, /<meta property="og:description" content="Needt is an AI day planner/);
     assert.match(html, /<p class="lead[^>]*>Needt is an AI day planner/);
   });

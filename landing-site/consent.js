@@ -149,7 +149,7 @@
      because other scripts set some hrefs late. */
   var UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
   var SIGNIN = /^https:\/\/use\.needt\.app\/auth\/signin(?:[?#]|$)/;
-  var LOGIN_TEXT = /^\s*(log\s?in|sign\s?in)\s*$/i;
+  var LOGIN_TEXT = /^\s*(log\s?in|sign\s?in)\b/i;
 
   /* The tags of this visit: the address first, else what the first page of the
      visit kept (the hero "Try it free" goes to /pricing/ before sign-up, and
