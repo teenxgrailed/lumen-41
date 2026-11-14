@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -69,12 +70,39 @@ interface Overview {
   graph?: MapGraph | null;
 }
 
-type Tab = "map" | "agents" | "tasks" | "chat" | "activity" | "memory";
+/**
+ * Roadmap loads on first open: it brings the person's tasks, projects and the
+ * task dialog, which the rest of the hub never needs.
+ */
+const RoadmapTab = dynamic(
+  () => import("./RoadmapTab").then((m) => m.RoadmapTab),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="rm-loading"
+        role="status"
+        aria-busy="true"
+        aria-label="Loading roadmap"
+      />
+    ),
+  }
+);
+
+type Tab =
+  | "map"
+  | "agents"
+  | "tasks"
+  | "roadmap"
+  | "chat"
+  | "activity"
+  | "memory";
 
 const TABS: readonly [Tab, string][] = [
   ["map", "Map"],
   ["agents", "Agents"],
   ["tasks", "Tasks"],
+  ["roadmap", "Roadmap"],
   ["chat", "Chat"],
   ["activity", "Activity"],
   ["memory", "Memory"],
@@ -238,13 +266,15 @@ function Chip({
  * The Agents screen: the agent hub, kept apart from the person's own tasks,
  * on one night ground in both themes (owner, 05.11.26). A centred hero
  * (eyebrow, display title, one line, a status pill with real counts), the
- * tabs on a pill that sticks with each tab's filters, and six tabs:
+ * tabs on a pill that sticks with each tab's filters, and seven tabs:
  *
  *  - Map (the default): the live constellation of sources, agents and their
  *    work, redrawn from a new seed on every visit (`?seed=` pins one);
  *  - Agents: one card per agent, a card to connect a new one, webhooks and
  *    what agents hold right now;
  *  - Tasks: hub items in three groups, filters, search, one row geometry;
+ *  - Roadmap: a project's tasks as a metro map, with the agent on each
+ *    milestone's linked hub item (roadmap/RoadmapMap.tsx);
  *  - Messages: threads and the open conversation;
  *  - Activity: the feed by day with this week's counts;
  *  - Memory: what the assistant learned about you, and agents' notes.
@@ -772,6 +802,8 @@ export function AgentsScreen() {
         onReset={() => setFilters(NO_FILTERS)}
       />
     );
+  else if (tab === "roadmap")
+    content = <RoadmapTab items={items} onOpenChat={() => setTab("chat")} />;
   else if (tab === "chat")
     content = (
       <ChatTab

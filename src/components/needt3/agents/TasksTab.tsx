@@ -96,6 +96,9 @@ export interface HubItemRow {
   events?: HubEvent[];
   updatedAt: string;
   createdAt?: string;
+  /** The person's task / project this item works on, when it names one. */
+  taskId?: string | null;
+  projectId?: string | null;
   /** When it is due (a post time, a deadline), when the brief set one. */
   due?: string | null;
 }
