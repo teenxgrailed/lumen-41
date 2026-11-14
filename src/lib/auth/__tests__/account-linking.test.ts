@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
-    account: { findUnique: jest.fn() },
+    account: { findUnique: jest.fn(), findFirst: jest.fn() },
     user: { findMany: jest.fn(), findFirst: jest.fn() },
   },
 }));
@@ -32,7 +32,13 @@ const OWNER = {
 
 /** A raw profile in which the provider vouches for `email`. */
 const VERIFIED: Record<string, Record<string, unknown>> = {
-  google: { sub: "g", email: "ann@example.com", email_verified: true },
+  // a Workspace token (`hd`): Google owns the mailbox
+  google: {
+    sub: "g",
+    email: "ann@example.com",
+    email_verified: true,
+    hd: "example.com",
+  },
   apple: { sub: "a", email: "ann@example.com", email_verified: "true" },
   github: {
     id: 1,
@@ -156,6 +162,54 @@ describe("accountLinkingGate and an account nobody has confirmed", () => {
       })
     ).resolves.toBe(true);
     expect(claimUnconfirmedAccountByProvider).not.toHaveBeenCalled();
+  });
+});
+
+describe("accountLinkingGate and Google's authority over an address", () => {
+  const join = (profile: Record<string, unknown>) =>
+    accountLinkingGate({
+      provider: "google",
+      providerAccountId: "g-new",
+      profile,
+    });
+  const GMAIL_OWNER = {
+    id: "user-1",
+    email: "ann@gmail.com",
+    emailVerified: new Date(),
+  };
+
+  it("joins a @gmail.com address without hd", async () => {
+    owners.mockResolvedValue([GMAIL_OWNER] as never);
+    await expect(
+      join({ sub: "g", email: "ann@gmail.com", email_verified: true })
+    ).resolves.toBe(true);
+  });
+
+  it("refuses another domain without hd, even with email_verified", async () => {
+    owners.mockResolvedValue([OWNER] as never);
+    await expect(
+      join({ sub: "g", email: "ann@example.com", email_verified: true })
+    ).resolves.toBe(LINK_REFUSED_REDIRECT);
+    expect(claimUnconfirmedAccountByProvider).not.toHaveBeenCalled();
+  });
+
+  it("refuses when the account already has a different Google identity", async () => {
+    owners.mockResolvedValue([GMAIL_OWNER] as never);
+    jest
+      .mocked(prisma.account.findFirst)
+      .mockResolvedValueOnce({ id: "a" } as never);
+    await expect(
+      join({ sub: "g", email: "ann@gmail.com", email_verified: true })
+    ).resolves.toBe(LINK_REFUSED_REDIRECT);
+    expect(prisma.account.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user-1",
+          provider: "google",
+          providerAccountId: { not: "g-new" },
+        },
+      })
+    );
   });
 });
 

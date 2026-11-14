@@ -87,6 +87,13 @@ an ID token, and the `google-onetap` NextAuth provider verifies it server-side
 audience = our client id, expiry, `email_verified`) before signing in by the
 same rules as the button (`src/lib/auth/google-one-tap.ts`).
 
+The token must carry a nonce the server issued (`/api/auth/google-client` sets
+it in a signed httpOnly cookie; a success clears it), so a captured token
+cannot be replayed. Linking an existing account by email (button and One Tap)
+needs the address to be @gmail.com / @googlemail.com or the token to carry `hd`
+(Workspace), and is refused when the account already has another Google
+identity linked.
+
 In the same OAuth client, under **Authorized JavaScript origins**, add
 `https://use.needt.app` (and `http://localhost:3000` for local work). Without
 it Google shows no prompt; the "Continue with Google" button keeps working.

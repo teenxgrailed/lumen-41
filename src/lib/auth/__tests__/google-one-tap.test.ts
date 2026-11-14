@@ -52,6 +52,7 @@ function credential(claims: Record<string, unknown> = {}) {
     sub: "g-1",
     email: "new@example.com",
     email_verified: true,
+    nonce: "n1",
     iat: NOW_S - 5,
     exp: NOW_S + 600,
     ...claims,
@@ -63,8 +64,8 @@ function credential(claims: Record<string, unknown> = {}) {
   return `${header}.${payload}.${sig}`;
 }
 
-const run = (token: string) =>
-  signInWithGoogleCredential(token, { keys, nowMs: NOW_MS });
+const run = (token: string, nonce: string | null = "n1") =>
+  signInWithGoogleCredential(token, { keys, nowMs: NOW_MS, nonce });
 
 const dbUser = {
   id: "u1",
@@ -178,6 +179,28 @@ describe("signInWithGoogleCredential", () => {
       code: "AccessDenied",
     });
     expect(prisma.account.create).not.toHaveBeenCalled();
+    /* Refused before the gate: it would have wiped a password / sessions. */
+    expect(accountLinkingGate).not.toHaveBeenCalled();
+  });
+
+  it("refuses a token whose nonce is not this browser's cookie nonce", async () => {
+    await expect(run(credential(), "another")).rejects.toMatchObject({
+      code: "CredentialsSignin",
+    });
+    await expect(run(credential(), null)).rejects.toMatchObject({
+      code: "CredentialsSignin",
+    });
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it("returns when Google issued the token, and passes hd to the gate", async () => {
+    const user = await run(credential({ hd: "corp.example" }));
+    expect(user.oneTapAuthAt).toBe((NOW_S - 5) * 1000);
+    expect(accountLinkingGate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        profile: expect.objectContaining({ hd: "corp.example" }),
+      })
+    );
   });
 
   it.each([

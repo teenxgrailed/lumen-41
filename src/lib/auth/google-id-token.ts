@@ -21,6 +21,7 @@ export type GoogleIdTokenFailure =
   | "audience"
   | "expired"
   | "not-yet-valid"
+  | "nonce"
   | "email-unverified"
   | "incomplete";
 
@@ -39,23 +40,45 @@ export interface GoogleIdentity {
   email: string;
   name: string | null;
   picture: string | null;
+  /** Workspace domain: present only when Google owns the address's domain. */
+  hd: string | null;
+  /** When Google issued the token (ms); the moment the person proved it. */
+  issuedAtMs: number;
 }
 
 type Jwk = JsonWebKey & { kid?: string };
-export type GoogleKeySource = () => Promise<readonly Jwk[]>;
+/** `force`: the cache has no key with the token's id; fetch again. */
+export type GoogleKeySource = (options?: {
+  force?: boolean;
+}) => Promise<readonly Jwk[]>;
+
+const CERTS_TIMEOUT_MS = 3000;
+/** A forced refetch (rotated key) happens at most this often. */
+const FORCED_REFETCH_MIN_INTERVAL_MS = 60_000;
 
 let certsCache: { keys: readonly Jwk[]; expiresAt: number } | null = null;
+let lastForcedFetchAt = 0;
 
 /** Test hook: forget the cached Google signing keys. */
 export function resetGoogleCertsCache() {
   certsCache = null;
+  lastForcedFetchAt = 0;
 }
 
 /** Google's current signing keys, cached for as long as Google says. */
-export const fetchGoogleKeys: GoogleKeySource = async () => {
+export const fetchGoogleKeys: GoogleKeySource = async (options) => {
   const now = newDate().getTime();
-  if (certsCache && certsCache.expiresAt > now) return certsCache.keys;
-  const response = await fetch(GOOGLE_CERTS_URL, { cache: "no-store" });
+  const forced =
+    options?.force === true &&
+    now - lastForcedFetchAt >= FORCED_REFETCH_MIN_INTERVAL_MS;
+  if (certsCache && certsCache.expiresAt > now && !forced) {
+    return certsCache.keys;
+  }
+  if (forced) lastForcedFetchAt = now;
+  const response = await fetch(GOOGLE_CERTS_URL, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(CERTS_TIMEOUT_MS),
+  });
   if (!response.ok) throw new Error(`Google certs answered ${response.status}`);
   const body = (await response.json()) as { keys?: Jwk[] };
   const keys = Array.isArray(body.keys) ? body.keys : [];
@@ -92,6 +115,8 @@ export async function verifyGoogleIdToken(
     clientId: string;
     keys?: GoogleKeySource;
     nowMs?: number;
+    /** The nonce this page asked Google to put in the token. */
+    nonce: string;
   }
 ): Promise<GoogleIdentity> {
   if (typeof credential !== "string" || credential.length > 8192) {
@@ -104,8 +129,11 @@ export async function verifyGoogleIdToken(
   if (!header || !claims) throw new GoogleIdTokenError("malformed");
   if (header.alg !== "RS256") throw new GoogleIdTokenError("algorithm");
 
-  const keys = await (options.keys ?? fetchGoogleKeys)();
-  const jwk = keys.find((key) => key.kid && key.kid === header.kid);
+  const source = options.keys ?? fetchGoogleKeys;
+  const find = (list: readonly Jwk[]) =>
+    list.find((key) => key.kid && key.kid === header.kid);
+  /* A key Google rotated in since the cache was filled: look once more. */
+  const jwk = find(await source()) ?? find(await source({ force: true }));
   if (!jwk) throw new GoogleIdTokenError("unknown-key");
 
   const signatureOk = verifySignature(
@@ -137,6 +165,13 @@ export async function verifyGoogleIdToken(
   ) {
     throw new GoogleIdTokenError("not-yet-valid");
   }
+  if (
+    !options.nonce ||
+    typeof claims.nonce !== "string" ||
+    claims.nonce !== options.nonce
+  ) {
+    throw new GoogleIdTokenError("nonce");
+  }
   const verified = claims.email_verified;
   if (verified !== true && verified !== "true") {
     throw new GoogleIdTokenError("email-unverified");
@@ -151,5 +186,8 @@ export async function verifyGoogleIdToken(
     email,
     name: typeof claims.name === "string" ? claims.name : null,
     picture: typeof claims.picture === "string" ? claims.picture : null,
+    hd: typeof claims.hd === "string" && claims.hd ? claims.hd : null,
+    issuedAtMs:
+      typeof claims.iat === "number" ? claims.iat * 1000 : nowSeconds * 1000,
   };
 }

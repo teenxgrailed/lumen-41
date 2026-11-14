@@ -155,6 +155,7 @@ describe("OAuth trial activation", () => {
           role: "user",
           oneTapNew,
           oneTapEmail: "tap@example.com",
+          oneTapAuthAt: Date.UTC(2026, 10, 14, 10, 0, 0),
         },
         account: {
           provider: "google-onetap",
@@ -164,6 +165,12 @@ describe("OAuth trial activation", () => {
         trigger: "signIn",
       } as never);
     const returning = await call(false);
+    /* The re-authentication stamp is when Google issued the token. */
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { id: "db-user-4" },
+      data: { lastAuthenticatedAt: new Date(Date.UTC(2026, 10, 14, 10, 0, 0)) },
+    });
+    expect(returning.freshAccountAt).toBeUndefined();
     expect(sendUmamiSignupCompleted).not.toHaveBeenCalled();
     expect(returning.provider).toBe("google");
     await call(true);

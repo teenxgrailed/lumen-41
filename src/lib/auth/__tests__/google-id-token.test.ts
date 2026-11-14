@@ -29,6 +29,7 @@ function token(
     sub: "google-sub-1",
     email: "Person@Example.com",
     email_verified: true,
+    nonce: "n1",
     name: "Person",
     iat: NOW_S - 10,
     exp: NOW_S + 3000,
@@ -46,6 +47,7 @@ const verify = (credential: unknown) =>
     clientId: CLIENT_ID,
     keys,
     nowMs: NOW_MS,
+    nonce: "n1",
   });
 
 async function reasonOf(credential: unknown): Promise<GoogleIdTokenFailure> {
@@ -65,6 +67,8 @@ describe("verifyGoogleIdToken", () => {
       email: "person@example.com",
       name: "Person",
       picture: null,
+      hd: null,
+      issuedAtMs: (NOW_S - 10) * 1000,
     });
   });
 
@@ -82,6 +86,35 @@ describe("verifyGoogleIdToken", () => {
 
   it("refuses an expired token", async () => {
     expect(await reasonOf(token({ exp: NOW_S - 600 }))).toBe("expired");
+  });
+
+  it("refuses a token without our nonce, or with another one", async () => {
+    expect(await reasonOf(token({ nonce: "someone-elses" }))).toBe("nonce");
+    expect(await reasonOf(token({ nonce: undefined }))).toBe("nonce");
+    await expect(
+      verifyGoogleIdToken(token(), {
+        clientId: CLIENT_ID,
+        keys,
+        nowMs: NOW_MS,
+        nonce: "",
+      })
+    ).rejects.toMatchObject({ reason: "nonce" });
+  });
+
+  it("reports hd, and asks for the keys again once on an unknown kid", async () => {
+    const source = jest
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([jwk]);
+    await expect(
+      verifyGoogleIdToken(token({ hd: "corp.example" }), {
+        clientId: CLIENT_ID,
+        keys: source,
+        nowMs: NOW_MS,
+        nonce: "n1",
+      })
+    ).resolves.toMatchObject({ hd: "corp.example" });
+    expect(source).toHaveBeenNthCalledWith(2, { force: true });
   });
 
   it("refuses an address Google has not verified", async () => {

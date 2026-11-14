@@ -4,6 +4,8 @@ import { NextRequest } from "next/server";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { classifyCredentialAttempt } from "@/lib/auth/credential-attempt";
 import { credentialsEmail } from "@/lib/auth/credentials-email";
+import { ONE_TAP_PROVIDER_ID } from "@/lib/auth/google-one-tap";
+import { ONE_TAP_NONCE_COOKIE } from "@/lib/auth/google-one-tap-nonce";
 import { newDate } from "@/lib/date-utils";
 import {
   accountRule,
@@ -17,6 +19,8 @@ import {
 declare module "next-auth" {
   interface Session {
     expiresAt?: number;
+    /** True briefly after a One Tap sign-in created the account. */
+    newAccount?: boolean;
     user?: {
       id?: string;
       name?: string;
@@ -37,6 +41,8 @@ declare module "next-auth/jwt" {
     sessionVersion?: number;
     /** Epoch ms of the last database check of sessionVersion. */
     sessionVersionCheckedAt?: number;
+    /** Epoch ms a One Tap sign-in created this account (see session callback). */
+    freshAccountAt?: number;
   }
 }
 
@@ -102,6 +108,29 @@ export async function POST(request: NextRequest, context: AuthRouteContext) {
       await recordCredentialFailure(email);
     } else if (verdict === "succeeded") {
       await clearCredentialFailures(email);
+    }
+    return response;
+  }
+  if (request.nextUrl.pathname.endsWith(`/callback/${ONE_TAP_PROVIDER_ID}`)) {
+    /* Each attempt verifies a JWT and queries the account tables. */
+    const limited = await enforceRateLimits(
+      [ipRule(request, "onetap:ip", 20, 15 * 60)],
+      { route: request.nextUrl.pathname }
+    );
+    if (limited) return limited;
+    const response = await handler(request, context);
+    /* The nonce is single use: a success clears it. A refusal keeps it, so
+       the age confirmation can retry with the same token. */
+    const outcome = `${response.headers.get("location") ?? ""}${
+      response.headers.get("content-type")?.includes("application/json")
+        ? await response.clone().text()
+        : ""
+    }`;
+    if (response.status < 400 && !outcome.includes("error=")) {
+      response.headers.append(
+        "set-cookie",
+        `${ONE_TAP_NONCE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`
+      );
     }
     return response;
   }

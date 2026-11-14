@@ -6,7 +6,12 @@
    switch, password recovery and confirmation resend. Only the face is new. */
 import * as React from "react";
 
-import { type ClientSafeProvider, getProviders, signIn } from "next-auth/react";
+import {
+  type ClientSafeProvider,
+  getProviders,
+  getSession,
+  signIn,
+} from "next-auth/react";
 
 import type { IconType } from "react-icons";
 
@@ -371,10 +376,6 @@ export function V3SignInRoute({
   const pendingCredential = React.useRef<string | null>(null);
   const oneTap = React.useCallback(
     async (credential: string) => {
-      newAccount.current = mode === "signup";
-      dest.current = newAccount.current
-        ? ONBOARDING_RESUME_PATH
-        : safeCallbackUrl;
       setOneTapError(null);
       setProviderBusy("google");
       try {
@@ -385,6 +386,13 @@ export function V3SignInRoute({
         });
         if (!result?.error) {
           pendingCredential.current = null;
+          /* The server says whether this sign-in made the account; the
+             page's own mode proves nothing. */
+          const session = await getSession().catch(() => null);
+          newAccount.current = session?.newAccount === true;
+          dest.current = newAccount.current
+            ? ONBOARDING_RESUME_PATH
+            : safeCallbackUrl;
           leave();
           return;
         }
@@ -403,7 +411,7 @@ export function V3SignInRoute({
       }
       setProviderBusy(null);
     },
-    [mode, safeCallbackUrl, leave]
+    [safeCallbackUrl, leave]
   );
   useGoogleOneTap({ enabled: !iosApp, onCredential: oneTap });
   React.useEffect(() => {

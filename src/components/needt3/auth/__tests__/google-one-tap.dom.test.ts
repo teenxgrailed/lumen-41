@@ -57,7 +57,7 @@ afterEach(() => {
 
 describe("Google One Tap script", () => {
   it("is not loaded when Google is not configured", async () => {
-    answer({ clientId: null });
+    answer({ clientId: null, nonce: null });
     await mount();
     expect(script()).toBeNull();
   });
@@ -76,7 +76,7 @@ describe("Google One Tap script", () => {
   });
 
   it("loads once configured, prompts, and hands the credential over", async () => {
-    answer({ clientId: "id.apps.googleusercontent.com" });
+    answer({ clientId: "id.apps.googleusercontent.com", nonce: "nn" });
     const gsi = {
       initialize: jest.fn(),
       prompt: jest.fn(),
@@ -91,6 +91,7 @@ describe("Google One Tap script", () => {
     expect(gsi.initialize).toHaveBeenCalledWith(
       expect.objectContaining({
         client_id: "id.apps.googleusercontent.com",
+        nonce: "nn",
         auto_select: false,
       })
     );

@@ -63,6 +63,7 @@ export const SESSION_UPDATE_AGE_SECONDS = 24 * 60 * 60;
  * `/setup` per user from the `onboarding_v3` flag.
  */
 export const NEW_ACCOUNT_PATH = ONBOARDING_RESUME_PATH;
+const NEW_ACCOUNT_WINDOW_MS = 2 * 60 * 1000;
 
 // Create a function to get the auth options with the credentials
 export async function getAuthOptions(): Promise<NextAuthOptions> {
@@ -229,8 +230,19 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
                an X account may have no email at all. */
             await prisma.user.updateMany({
               where: { id: user.id },
-              data: { lastAuthenticatedAt: newDate() },
+              /* One Tap: when Google issued the token, so a captured token
+                 cannot be replayed into a "fresh" re-authentication. */
+              data: {
+                lastAuthenticatedAt: oneTap
+                  ? newDate(oneTap.oneTapAuthAt)
+                  : newDate(),
+              },
             });
+          }
+          if (oneTap?.oneTapNew) {
+            /* The page asks the session for this once, right after sign-in,
+               to send a brand-new account to onboarding. */
+            token.freshAccountAt = newDate().getTime();
           }
           if (oauthLike && user?.id && isNew) {
             /* The signIn callback let this account be created only with the
@@ -286,6 +298,10 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
           ...session,
           expiresAt: token.expiresAt,
           provider: token.provider,
+          /* True for two minutes after a One Tap sign-in created the account. */
+          newAccount:
+            typeof token.freshAccountAt === "number" &&
+            newDate().getTime() - token.freshAccountAt < NEW_ACCOUNT_WINDOW_MS,
         };
       },
     },

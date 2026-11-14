@@ -22,6 +22,7 @@ interface GsiId {
     callback: (response: { credential?: string }) => void;
     auto_select?: boolean;
     cancel_on_tap_outside?: boolean;
+    nonce?: string;
     use_fedcm_for_prompt?: boolean;
     itp_support?: boolean;
   }): void;
@@ -37,16 +38,29 @@ declare global {
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** The configured client id, or null (also when the question cannot be had). */
-export async function fetchGoogleClientId(): Promise<string | null> {
+/**
+ * The configured client id and this browser's nonce (the server also leaves
+ * it in a signed cookie), or null when Google is not configured or the
+ * question cannot be had.
+ */
+export async function fetchGoogleOneTapConfig(): Promise<{
+  clientId: string;
+  nonce: string;
+} | null> {
   try {
     const response = await fetch(GOOGLE_CLIENT_ENDPOINT, {
       cache: "no-store",
     });
     if (!response.ok) return null;
-    const data = (await response.json()) as { clientId?: unknown };
-    return typeof data.clientId === "string" && data.clientId
-      ? data.clientId
+    const data = (await response.json()) as {
+      clientId?: unknown;
+      nonce?: unknown;
+    };
+    return typeof data.clientId === "string" &&
+      data.clientId &&
+      typeof data.nonce === "string" &&
+      data.nonce
+      ? { clientId: data.clientId, nonce: data.nonce }
       : null;
   } catch (e) {
     void logger.warn(
@@ -100,8 +114,8 @@ export function useGoogleOneTap({
     if (!enabled) return;
     let cancelled = false;
     void (async () => {
-      const clientId = await fetchGoogleClientId();
-      if (!clientId || cancelled) return;
+      const config = await fetchGoogleOneTapConfig();
+      if (!config || cancelled) return;
       try {
         await loadGsiScript();
       } catch (e) {
@@ -115,7 +129,8 @@ export function useGoogleOneTap({
       const gsi = window.google?.accounts?.id;
       if (!gsi || cancelled) return;
       gsi.initialize({
-        client_id: clientId,
+        client_id: config.clientId,
+        nonce: config.nonce,
         callback: ({ credential }) => {
           if (credential) handler.current(credential);
         },
