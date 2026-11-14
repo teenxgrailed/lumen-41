@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { WorkspaceRole } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import {
   feedBatchUpdateSchema,
@@ -89,6 +90,10 @@ export async function POST(request: NextRequest) {
         userId,
       },
     });
+    /* A calendar subscribed by address (iCal/ICS) is a connected calendar. */
+    if (created.type === "LOCAL" && created.url) {
+      recordActivation("calendar_connected", userId, { provider: "ics" });
+    }
     return NextResponse.json(created);
   } catch (error) {
     logger.error(

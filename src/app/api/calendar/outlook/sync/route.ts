@@ -81,12 +81,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    recordActivation(
-      "calendar_connected",
-      userId,
-      { provider: "outlook" },
-      { once: true }
-    );
+    recordActivation("calendar_connected", userId, { provider: "outlook" });
 
     // Sync events for this calendar
     const client = await getOutlookClient(accountId, userId);

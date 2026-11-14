@@ -161,12 +161,9 @@ export async function GET(request: NextRequest) {
           },
         }));
       if (!existingFeed) {
-        recordActivation(
-          "calendar_connected",
-          auth.userId,
-          { provider: "google" },
-          { once: true }
-        );
+        recordActivation("calendar_connected", auth.userId, {
+          provider: "google",
+        });
       }
       feedIds.push(feed.id);
     }
@@ -242,12 +239,7 @@ export async function POST(request: NextRequest) {
         userId: auth.userId,
       },
     });
-    recordActivation(
-      "calendar_connected",
-      auth.userId,
-      { provider: "google" },
-      { once: true }
-    );
+    recordActivation("calendar_connected", auth.userId, { provider: "google" });
 
     await syncGoogleCalendar(feed, { forceFullSync: true });
     await registerCalendarWebhookBestEffort(feed.id, "GOOGLE");

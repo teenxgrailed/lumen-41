@@ -218,12 +218,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    recordActivation(
-      "calendar_connected",
-      userId,
-      { provider: "caldav" },
-      { once: true }
-    );
+    recordActivation("calendar_connected", userId, { provider: "caldav" });
 
     // Sync events for this calendar
     const caldavService = new CalDAVCalendarService(account);

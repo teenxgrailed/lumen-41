@@ -11,7 +11,7 @@ import {
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: { findUnique: jest.fn() },
-    activationEvent: { findFirst: jest.fn(), create: jest.fn() },
+    activationEvent: { createMany: jest.fn(), create: jest.fn() },
   },
 }));
 jest.mock("@/lib/umami-server", () => ({ sendUmamiEvent: jest.fn() }));
@@ -21,7 +21,7 @@ jest.mock("@/lib/logger", () => ({
 
 const db = prisma as unknown as {
   user: { findUnique: jest.Mock };
-  activationEvent: { findFirst: jest.Mock; create: jest.Mock };
+  activationEvent: { createMany: jest.Mock; create: jest.Mock };
 };
 const send = sendUmamiEvent as jest.Mock;
 
@@ -30,7 +30,7 @@ const flush = () => new Promise((resolve) => setImmediate(resolve));
 beforeEach(() => {
   jest.clearAllMocks();
   db.user.findUnique.mockResolvedValue({ role: "user", sandboxKind: null });
-  db.activationEvent.findFirst.mockResolvedValue(null);
+  db.activationEvent.createMany.mockResolvedValue({ count: 1 });
   db.activationEvent.create.mockResolvedValue({});
 });
 
@@ -95,11 +95,42 @@ describe("recordActivation", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("with once, records only the first occurrence", async () => {
-    db.activationEvent.findFirst.mockResolvedValue({ id: "x" });
-    recordActivation("calendar_connected", "u", {}, { once: true });
+  it("once-events insert through the unique key and send only when they won", async () => {
+    recordActivation("calendar_connected", "u", { provider: "google" });
     await flush();
-    expect(db.activationEvent.create).not.toHaveBeenCalled();
+    expect(db.activationEvent.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          userId: "u",
+          name: "calendar_connected",
+          onceKey: "calendar_connected",
+        },
+      ],
+      skipDuplicates: true,
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+
+    send.mockClear();
+    db.activationEvent.createMany.mockResolvedValue({ count: 0 });
+    recordActivation("calendar_connected", "u", { provider: "google" });
+    recordActivation("account_created", "u");
+    await flush();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("repeatable events set no onceKey", async () => {
+    recordActivation("task_created", "u");
+    await flush();
+    expect(db.activationEvent.createMany).not.toHaveBeenCalled();
+    expect(db.activationEvent.create).toHaveBeenCalledWith({
+      data: { userId: "u", name: "task_created" },
+    });
+  });
+
+  it("sends the pseudonym as the Umami distinct id", async () => {
+    recordActivation("keep_applied", "u");
+    await flush();
+    expect(send.mock.calls[0][3]).toBe(pseudonymousId("u"));
   });
 
   it("never throws or rejects when the database fails", async () => {

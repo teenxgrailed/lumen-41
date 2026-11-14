@@ -221,12 +221,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      recordActivation(
-        "calendar_connected",
-        userId,
-        { provider: "caldav" },
-        { once: true }
-      );
+      recordActivation("calendar_connected", userId, { provider: "caldav" });
 
       logger.info(
         `Successfully added CalDAV calendar: ${newCalendar.id}`,

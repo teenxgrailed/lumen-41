@@ -437,7 +437,6 @@ export const taskCreate = defineOp({
       },
       include: taskInclude,
     });
-    recordActivation("task_created", ctx.userId, { source: ctx.actor });
     // Same default reminders as POST /api/tasks.
     await ctx.tx.taskReminder.createMany({
       data: defaultTaskReminderRows(
@@ -464,6 +463,9 @@ export const taskCreate = defineOp({
           ? [() => schedulePushTaskBlock(ctx.userId, task.id)]
           : []),
         publishTasksUpdated(ctx.userId),
+        /* After commit: an op that throws and rolls back records nothing. */
+        () =>
+          recordActivation("task_created", ctx.userId, { source: ctx.actor }),
       ],
     };
   },

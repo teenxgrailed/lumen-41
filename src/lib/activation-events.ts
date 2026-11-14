@@ -20,7 +20,16 @@ export const ACTIVATION_EVENTS = [
   "replan_shown",
   "keep_applied",
   "undo_applied",
+  /* "Fill it": the scheduler placed tasks in one click, no preview shown and
+     no Keep pressed. Counted apart so it never inflates keep_applied. */
+  "fill_applied",
 ] as const;
+
+/** Events that count once per account; a unique index enforces it. */
+const ONCE_EVENTS: ReadonlySet<ActivationEventName> = new Set([
+  "account_created",
+  "calendar_connected",
+]);
 
 export type ActivationEventName = (typeof ACTIVATION_EVENTS)[number];
 
@@ -59,53 +68,55 @@ export function buildActivationPayload(
 async function record(
   name: ActivationEventName,
   userId: string,
-  props: ActivationProps,
-  once: boolean
+  props: ActivationProps
 ): Promise<void> {
+  const once = ONCE_EVENTS.has(name);
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true, sandboxKind: true },
   });
   /* Reviewer and demo logins are not people trying the product. */
   if (!user || user.sandboxKind) return;
+  const uid = pseudonymousId(userId);
   if (once) {
-    const seen = await prisma.activationEvent.findFirst({
-      where: { userId, name },
-      select: { id: true },
+    /* The unique (userId, onceKey) index decides: only the insert that wins
+       sends the Umami event, so parallel calls cannot double count. */
+    const { count } = await prisma.activationEvent.createMany({
+      data: [{ userId, name, onceKey: name }],
+      skipDuplicates: true,
     });
-    if (seen) return;
+    if (count !== 1) return;
+  } else {
+    await prisma.activationEvent.create({ data: { userId, name } });
   }
-  await prisma.activationEvent.create({ data: { userId, name } });
   await sendUmamiEvent(
     name,
     buildActivationPayload(userId, isFounderRole(user.role), props),
-    "app"
+    "app",
+    uid
   );
 }
 
 /**
  * Record one activation event. Fire and forget: callers do not await it, and
  * a failure is only logged, so analytics can never break the action.
- * `once` keeps a single row per account (calendar_connected: the first
- * connection counts, later ones do not).
+ * account_created and calendar_connected keep a single row per account
+ * (the first one counts, race-proof through a unique index).
  */
 export function recordActivation(
   name: ActivationEventName,
   userId: string | null | undefined,
-  props: ActivationProps = {},
-  options: { once?: boolean } = {}
+  props: ActivationProps = {}
 ): void {
   if (!userId) return;
-  void record(name, userId, props, options.once ?? false).catch(
-    (error: unknown) => {
-      logger.warn(
-        "Activation event failed",
-        {
-          name,
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-        LOG_SOURCE
-      );
-    }
-  );
+  void record(name, userId, props).catch((error: unknown) => {
+    logger.warn(
+      "Activation event failed",
+      {
+        name,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      LOG_SOURCE
+    );
+  });
 }

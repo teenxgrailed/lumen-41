@@ -87,12 +87,7 @@ export async function addCalDAVFeeds(
         syncToken: cal.syncToken ? String(cal.syncToken) : null,
       },
     });
-    recordActivation(
-      "calendar_connected",
-      userId,
-      { provider: "caldav" },
-      { once: true }
-    );
+    recordActivation("calendar_connected", userId, { provider: "caldav" });
     have.add(cal.url);
     added.push({ id: feed.id, url: cal.url });
   }
