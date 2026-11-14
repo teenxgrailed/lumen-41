@@ -151,6 +151,38 @@
   var SIGNIN = /^https:\/\/use\.needt\.app\/auth\/signin(?:[?#]|$)/;
   var LOGIN_TEXT = /^\s*(log\s?in|sign\s?in)\s*$/i;
 
+  /* The tags of this visit: the address first, else what the first page of the
+     visit kept (the hero "Try it free" goes to /pricing/ before sign-up, and
+     the tags must survive that hop). Kept per tab, never when declined. */
+  var STORE_KEY = "needt_utm";
+
+  function utmTags() {
+    var here = new URLSearchParams(location.search);
+    var tags = {};
+    var found = false;
+    for (var i = 0; i < UTM_KEYS.length; i++) {
+      var v = here.get(UTM_KEYS[i]);
+      if (v) {
+        tags[UTM_KEYS[i]] = v;
+        found = true;
+      }
+    }
+    if (found) {
+      if (read() !== "declined") {
+        try {
+          sessionStorage.setItem(STORE_KEY, JSON.stringify(tags));
+        } catch (e) {}
+      }
+      return tags;
+    }
+    try {
+      var kept = JSON.parse(sessionStorage.getItem(STORE_KEY) || "{}");
+      return kept && typeof kept === "object" ? kept : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
   function signupUrl(href, asLogin) {
     if (!SIGNIN.test(href || "")) return href;
     var u;
@@ -160,9 +192,9 @@
       return href;
     }
     if (!asLogin && !u.searchParams.has("mode")) u.searchParams.set("mode", "signup");
-    var here = new URLSearchParams(location.search);
+    var here = utmTags();
     for (var i = 0; i < UTM_KEYS.length; i++) {
-      var v = here.get(UTM_KEYS[i]);
+      var v = here[UTM_KEYS[i]];
       if (v && !u.searchParams.has(UTM_KEYS[i])) u.searchParams.set(UTM_KEYS[i], v);
     }
     return u.toString();
@@ -189,6 +221,7 @@
       true
     );
   });
+  utmTags(); /* keep this visit's tags before any link is followed */
   document.addEventListener("DOMContentLoaded", decorateAll);
   window.addEventListener("load", decorateAll);
 

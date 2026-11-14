@@ -21,7 +21,7 @@ function htmlFiles(dir) {
 }
 
 /** consent.js in a fake browser: a cookie jar, a page address, a recording Umami. */
-function browser({ cookie = "", search = "" } = {}) {
+function browser({ cookie = "", search = "", store = new Map() } = {}) {
   const calls = [];
   const listeners = {};
   const doc = {
@@ -49,7 +49,8 @@ function browser({ cookie = "", search = "" } = {}) {
     umami: undefined,
   };
   win.window = win;
-  const ctx = vm.createContext({ ...win, document: doc, URL, URLSearchParams, requestAnimationFrame: (f) => f() });
+  const sessionStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)) };
+  const ctx = vm.createContext({ ...win, sessionStorage, document: doc, URL, URLSearchParams, requestAnimationFrame: (f) => f() });
   ctx.window = ctx;
   doc.currentScript = { getAttribute: () => "site-id" };
   vm.runInContext(read("consent.js"), ctx, { filename: "consent.js" });
@@ -104,4 +105,25 @@ test("home_view is sent from app.js for every page marked data-home, and no page
     assert.match(read(home), /<html[^>]* data-home="[ab]"/, home);
     assert.match(read(home), /<script src="app\.js\?v=\d+" defer><\/script>/, home);
   }
+});
+
+test("utm tags survive landing -> pricing -> sign-in (the hero button goes through /pricing/)", () => {
+  const tab = new Map(); // one tab's sessionStorage
+  browser({ search: "?utm_source=newsletter&utm_campaign=launch", store: tab });
+  const pricing = browser({ search: "", store: tab });
+  const url = new URL(pricing.ctx.NeedtConsent.signupUrl("https://use.needt.app/auth/signin"));
+  assert.equal(url.searchParams.get("mode"), "signup");
+  assert.equal(url.searchParams.get("utm_source"), "newsletter");
+  assert.equal(url.searchParams.get("utm_campaign"), "launch");
+});
+
+test("a tag in the address wins over a kept one, and a declined visitor keeps nothing", () => {
+  const tab = new Map();
+  browser({ search: "?utm_source=old", store: tab });
+  const now = browser({ search: "?utm_source=new", store: tab });
+  assert.equal(new URL(now.ctx.NeedtConsent.signupUrl("https://use.needt.app/auth/signin")).searchParams.get("utm_source"), "new");
+
+  const declinedTab = new Map();
+  browser({ cookie: "needt_consent=declined", search: "?utm_source=x", store: declinedTab });
+  assert.equal(declinedTab.size, 0);
 });
