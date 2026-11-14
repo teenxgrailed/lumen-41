@@ -24,6 +24,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The Coolify secrets live in the production environment (as for docker-publish).
+    environment: production
     env:
       COOLIFY_API_URL: ${{ secrets.COOLIFY_API_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
