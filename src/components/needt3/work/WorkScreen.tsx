@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { LuChevronLeft, LuX } from "react-icons/lu";
 
@@ -65,23 +65,42 @@ const EMPTY_TASKS: V3Task[] = [];
 const EMPTY_PROJECTS: V3Project[] = [];
 
 /**
- * The task dialog opens over the current screen at `?task=<id>`. The query is
- * written with `history.replaceState` (Next syncs `useSearchParams` from it
- * at once): `router.replace` to a new query on this force-dynamic layout
- * waits for a server round trip, which is the lag between click and window.
- * `setParam` reads the live URL, so its identity never changes.
+ * The task dialog opens over the current screen at `?task=<id>`. The open id
+ * is local state, so the window mounts in the click's own render; the URL
+ * follows through `history.replaceState`. Going through `router.replace` for
+ * this query waits for a server round trip on the force-dynamic layout, which
+ * is the lag between click and window. A `?task=` that arrives from outside
+ * (Home, Calendar, a link) is taken from `useSearchParams` as before.
+ * Other keys (`new`, `rename`) keep using the router.
  */
 function useTaskParam() {
+  const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
-  const setParam = useCallback((key: string, value: string | null) => {
-    const { pathname, search, hash } = window.location;
-    window.history.replaceState(
-      window.history.state,
-      "",
-      withParam(pathname + search + hash, key, value)
-    );
-  }, []);
-  return { params, setParam };
+  const fromUrl = params.get("task");
+  const [taskId, setTaskId] = useState<string | null>(fromUrl);
+  useEffect(() => setTaskId(fromUrl), [fromUrl]);
+  const setParam = useCallback(
+    (key: string, value: string | null) => {
+      if (key === "task") {
+        setTaskId(value);
+        const { pathname: p, search, hash } = window.location;
+        window.history.replaceState(
+          window.history.state,
+          "",
+          withParam(p + search + hash, key, value)
+        );
+        return;
+      }
+      const next = new URLSearchParams(params.toString());
+      if (value) next.set(key, value);
+      else next.delete(key);
+      const q = next.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
+    },
+    [params, pathname, router]
+  );
+  return { params, setParam, taskId };
 }
 
 /**
@@ -135,7 +154,7 @@ function WorkScreenContent({
   const setPref = useSetPref();
   const taskView = useTaskView();
   const setComposerOpen = useNeedt3Ui((s) => s.setComposerOpen);
-  const { params, setParam } = useTaskParam();
+  const { params, setParam, taskId } = useTaskParam();
 
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
@@ -502,10 +521,7 @@ function WorkScreenContent({
           ) : null}
         </div>
       </StScreen>
-      <TaskDialogHost
-        taskId={params.get("task")}
-        onClose={() => setParam("task", null)}
-      />
+      <TaskDialogHost taskId={taskId} onClose={() => setParam("task", null)} />
     </div>
   );
   return <CompletionScope value={completion}>{content}</CompletionScope>;
