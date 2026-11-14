@@ -7,6 +7,10 @@ import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 
 import {
+  type ActivationEventName,
+  recordActivation,
+} from "@/lib/activation-events";
+import {
   type WorkspaceAccess,
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
@@ -604,9 +608,28 @@ function decodeToken(
   return value;
 }
 
+/** `chat`: a preview card is shown and Keep applies it. `fill`: one click, nothing shown. */
+export type ReschedulePreviewVia = "chat" | "fill";
+export type ReschedulePreviewOptions = { via?: ReschedulePreviewVia };
+
+/**
+ * The activation event one step of the flow counts as, or null. A preview is
+ * a replan the person was shown only from the chat card; "Fill it" places in
+ * one click with nothing shown, so it is `fill_applied` and never Keep.
+ */
+export function replanActivationEvent(
+  step: "preview" | "apply" | "undo",
+  via: ReschedulePreviewVia = "chat"
+): ActivationEventName | null {
+  if (via === "fill") return step === "apply" ? "fill_applied" : null;
+  if (step === "preview") return "replan_shown";
+  return step === "apply" ? "keep_applied" : "undo_applied";
+}
+
 export async function createReschedulePreview(
   userId: string,
-  workspace: WorkspaceAccess
+  workspace: WorkspaceAccess,
+  options: ReschedulePreviewOptions = {}
 ) {
   const before = await captureSnapshot(userId, workspace);
   const contextVersion = await captureContextVersion(userId);
@@ -617,6 +640,9 @@ export async function createReschedulePreview(
     { userId, changes: changes.length },
     LOG_SOURCE
   );
+  /* A proposal the person is shown; an empty one is not a replan. */
+  const shown = replanActivationEvent("preview", options.via);
+  if (changes.length > 0 && shown) recordActivation(shown, userId);
   return {
     changes,
     unscheduled: staged.unscheduled,
@@ -634,7 +660,8 @@ export async function createReschedulePreview(
 export async function applyReschedulePreview(
   userId: string,
   workspace: WorkspaceAccess,
-  token: string
+  token: string,
+  options: ReschedulePreviewOptions = {}
 ) {
   const value = decodeToken(token, userId, workspace.workspaceId, "preview");
   const [current, contextVersion] = await Promise.all([
@@ -651,6 +678,10 @@ export async function applyReschedulePreview(
   const applied = await captureSnapshot(userId, workspace);
   await publishScheduleChange(userId);
   logger.info("Applied schedule preview", { userId }, LOG_SOURCE);
+  /* From the chat card, applying is the person pressing Keep. "Fill it"
+     shows no preview, so it is its own event and never counts as Keep. */
+  const kept = replanActivationEvent("apply", options.via);
+  if (kept) recordActivation(kept, userId);
   return {
     changes: diffScheduleSnapshots(value.before, applied),
     undoToken: encodeToken(
@@ -667,7 +698,8 @@ export async function applyReschedulePreview(
 export async function undoReschedulePreview(
   userId: string,
   workspace: WorkspaceAccess,
-  token: string
+  token: string,
+  options: ReschedulePreviewOptions = {}
 ) {
   const value = decodeToken(token, userId, workspace.workspaceId, "undo");
   const [current, contextVersion] = await Promise.all([
@@ -683,6 +715,8 @@ export async function undoReschedulePreview(
   await restoreSnapshot(userId, workspace, value.before);
   await publishScheduleChange(userId);
   logger.info("Undid schedule preview", { userId }, LOG_SOURCE);
+  const undone = replanActivationEvent("undo", options.via);
+  if (undone) recordActivation(undone, userId);
   return { changes: diffScheduleSnapshots(value.after, value.before) };
 }
 

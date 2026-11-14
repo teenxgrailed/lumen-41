@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 
+import { recordActivation } from "@/lib/activation-events";
 import { consentedUtmFromCookieHeader } from "@/lib/attribution";
 import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
 import { newAccountDefaults } from "@/lib/auth/new-account";
@@ -187,6 +188,7 @@ export async function POST(request: NextRequest) {
       LOG_SOURCE
     );
     /* Once per account: only the branch that created the row gets here. */
+    recordActivation("account_created", user.id, { method: "credentials" });
     void sendUmamiSignupCompleted(
       "credentials",
       consentedUtmFromCookieHeader(request.headers.get("cookie"))
