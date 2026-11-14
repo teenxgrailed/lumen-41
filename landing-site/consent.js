@@ -49,6 +49,13 @@
     s.setAttribute("data-website-id", umamiId);
     s.setAttribute("data-do-not-track", "true");
     s.setAttribute("data-needt-umami", "");
+    /* Pages that report something on load (home_view) wait for this: after a
+       first-visit "Accept" the window load event has long passed. */
+    s.onload = function () {
+      try {
+        document.dispatchEvent(new Event("needt:analytics"));
+      } catch (e) {}
+    };
     document.head.appendChild(s);
   }
 

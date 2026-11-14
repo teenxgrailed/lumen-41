@@ -27,7 +27,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   const ROOT = new URL(".", (document.querySelector('link[href*="styles.css"]') || {}).href || location.href);
   const onPricing = /\/pricing\/(index\.html)?$/.test(location.pathname);
   $$(".js-signup").forEach((a) => (a.href = onPricing ? "#trial" : new URL("pricing/", ROOT).href));
-  $$(".js-trial").forEach((a) => (a.href = window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin"));
+  $$(".js-trial").forEach((a) => (a.href = window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin?mode=signup"));
   $$('a[aria-disabled="true"]').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
   /* Opened from disk (file://), folder links would show a directory listing. */
   if (location.protocol === "file:") $$("a[href]").forEach((a) => {
@@ -504,7 +504,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     const where = a.closest(".nav, .mobile-menu, .m-cta") ? "nav" : a.closest("footer") ? "footer" : "body";
     const p = plan(h);
     if (p) return send("checkout_click", { plan: p, where });
-    if (a.classList.contains("js-trial")) return send("trial_click", { where });
+    if (a.classList.contains("js-trial")) return send("trial_click", { where, cta: (a.textContent || "").trim().slice(0, 40) });
     if (a.classList.contains("js-signup")) return send("try_free_click", { where });
     if (a.hasAttribute("data-dx-want")) return send("want_app_click", { app: (a.closest("[data-dx-soon]") || {}).dataset?.dxSoon || "" });
     if (/^https:\/\/use\.needt\.app\/?(auth|$)/.test(h)) return send("open_web_app", { where });
