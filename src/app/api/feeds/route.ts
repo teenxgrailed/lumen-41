@@ -7,6 +7,7 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import {
   feedBatchUpdateSchema,
   feedCreateSchema,
+  isIcsSubscription,
 } from "@/lib/calendar-feed-input";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
       },
     });
     /* A calendar subscribed by address (iCal/ICS) is a connected calendar. */
-    if (created.type === "LOCAL" && created.url) {
+    if (isIcsSubscription(created)) {
       recordActivation("calendar_connected", userId, { provider: "ics" });
     }
     return NextResponse.json(created);

@@ -9,7 +9,7 @@ import { APPLE_LINKS } from "./terms";
 
 /** The Privacy Notice, as Markdown. Rendered by `src/app/privacy/page.tsx`. */
 export function privacyMarkdown(): string {
-  /* Last changed 14 November 2026: product events (Section 2). The Terms and
+  /* Last changed 14 November 2026: product events (Section 3). The Terms and
      the subprocessor list keep the shared LEGAL_EFFECTIVE_DATE. */
   const date = formatLegalDate("2026-11-14");
   return `# Needt Privacy Notice
@@ -39,7 +39,7 @@ Needt is run by an individual entrepreneur (FOP) registered in Ukraine, not a co
 ## 2. The short version
 
 - Needt keeps the things you put in it, and copies of the calendars, task lists and mailboxes you choose to connect, in **our own database on a server in Helsinki, Finland (EU)**.
-- We do not sell your data, we show no ads, and we use no advertising or tracking cookies. The only analytics is a cookieless, self-hosted Umami on needt.app and in the app, plus a few product events about your account (Section 2).
+- We do not sell your data, we show no ads, and we use no advertising or tracking cookies. The only analytics is a cookieless, self-hosted Umami on needt.app and in the app, plus a few product events about your account (Section 3).
 - When you use the AI assistant, the text needed to answer your request is sent to an AI model through OpenRouter, restricted to hosts in the United States and the EU that do not keep or train on it (Section 6).
 - Payments are handled by **Creem** (on the website) or by **Apple** (App Store purchases in the iOS app), each as the seller. We never see your card number.
 - You can export your data and delete your account from Settings. Deletion takes effect after a 7-day grace period.
@@ -127,7 +127,7 @@ If you send a bug report from inside Needt, we store what you wrote, any file yo
 
 The only analytics script is **Umami**, self-hosted on our own server at stats.needt.app. It sets no cookies, keeps no personal profile, and counts aggregate page views (page address, referrer, browser, operating system, device type and country, derived from the request). The page-view counter does not collect your name, email or account, does not follow you across sites, and honours your browser's Do Not Track setting; Do Not Track applies to this counter only, because the product events below are recorded on our server and are not affected by it. It runs on needt.app and can run in the app. Fonts are served from our own server.
 
-**Product events.** In the app we also record a few events about how your account uses Needt: account created, calendar connected, task created, and a suggested replan shown, kept or undone, with the time. They are stored in our database with your account and sent to our own Umami under a pseudonymous ID, never your name or email. We use them only to see whether Needt works for new people. Legal basis: legitimate interest (Art. 6(1)(f) GDPR). No cookies, nothing read from your device; deleted with your account.
+**Product events.** In the app we also record a few events about how your account uses Needt: account created, calendar connected, task created, a suggested replan shown, kept or undone, and a Fill it placement applied, with the time. They are stored in our database with your account and sent to our own Umami under a pseudonymous ID, never your name or email. We use them only to see whether Needt works for new people. Legal basis: legitimate interest (Art. 6(1)(f) GDPR). No cookies, nothing read from your device. The database copy is deleted with your account; the pseudonymous copy in our Umami carries no name or email and is not deleted automatically with your account.
 
 ---
 
@@ -144,6 +144,7 @@ The only analytics script is **Umami**, self-hosted on our own server at stats.n
 | Push notifications | Consent, which you give in your browser or in iOS and can withdraw in Settings |
 | Security: rate limits, re-authentication, logs, error monitoring | Legitimate interest in a secure and working service |
 | Fix bugs you report | Legitimate interest; contract |
+| Product events: a few events about how your account uses Needt, to see whether Needt works for new people | Legitimate interest (Art. 6(1)(f)) |
 | Run the waitlist and invite you | Consent; you can withdraw it at any time |
 | Comply with the law and defend legal claims | Legal obligation; legitimate interest |
 
@@ -292,7 +293,7 @@ No system is perfectly secure. If a personal-data breach is likely to put you at
 
 ## 11. Cookies and storage on your device
 
-We use only what is needed to run Needt: no advertising or cross-site tracking cookies, no cookies for analytics, and so no cookie banner. Our self-hosted Umami counter (stats.needt.app, Section 2) sets no cookie and stores nothing on your device, and the product events (Section 2) are recorded on our server and set no cookie either.
+We use only what is needed to run Needt: no advertising or cross-site tracking cookies, no cookies for analytics, and so no cookie banner. Our self-hosted Umami counter (stats.needt.app, Section 2) sets no cookie and stores nothing on your device, and the product events (Section 3) are recorded on our server and set no cookie either.
 
 | Name | Type | Purpose | Lifetime |
 | --- | --- | --- | --- |
