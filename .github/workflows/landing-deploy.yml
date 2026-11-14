@@ -1,0 +1,63 @@
+name: Deploy landing
+
+# needt.app is built by Coolify from the `landing` branch, but Coolify has no
+# webhook for it: every merge used to need a manual deploy, and on 14.11.2026
+# four merged fixes sat undeployed for hours. This asks Coolify to deploy the
+# landing app after every push to `landing` that touches the site.
+
+on:
+  push:
+    branches: [landing]
+    paths:
+      - "landing-site/**"
+      - "docker/landing/**"
+  workflow_dispatch:
+
+concurrency:
+  group: landing-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COOLIFY_API_URL: ${{ secrets.COOLIFY_API_URL }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+      # Not a secret: the Coolify application id of needt-landing.
+      LANDING_UUID: rpashunrbtvg4ykgbv0ljjsj
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          sparse-checkout: landing-site/index.html
+          sparse-checkout-cone-mode: false
+      - name: Ask Coolify to deploy needt.app
+        run: |
+          set -euo pipefail
+          : "${COOLIFY_API_URL:?COOLIFY_API_URL is required}"
+          : "${COOLIFY_TOKEN:?COOLIFY_API_TOKEN is required}"
+          api="${COOLIFY_API_URL%/}/api/v1"
+          code=$(curl --silent --show-error --max-time 60 --output /tmp/deploy.json --write-out '%{http_code}' \
+            --header "Authorization: Bearer $COOLIFY_TOKEN" \
+            "$api/deploy?uuid=$LANDING_UUID&force=false")
+          echo "Coolify answered HTTP $code"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "::error::Coolify refused the landing deploy (HTTP $code)"
+            exit 1
+          fi
+      - name: Wait for needt.app to serve this commit's app.js
+        run: |
+          set -euo pipefail
+          want=$(grep -oE 'app\.js\?v=[0-9]+' landing-site/index.html | head -1 || true)
+          if [ -z "$want" ]; then echo "No app.js version in index.html; skipping the check"; exit 0; fi
+          for i in $(seq 1 40); do
+            live=$(curl --silent --max-time 20 https://needt.app/ | grep -oE 'app\.js\?v=[0-9]+' | head -1 || true)
+            if [ "$live" = "$want" ]; then echo "needt.app serves $live"; exit 0; fi
+            sleep 15
+          done
+          echo "::warning::needt.app still serves '$live', expected '$want' (the deploy may still be running)"
+        shell: bash
+        working-directory: ${{ github.workspace }}
