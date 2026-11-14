@@ -12,7 +12,7 @@ What exists in the repo (checked 14.11.26 on origin/main `1273b403`):
 | MCP Apps | `openspec/changes/add-mcp-app-widgets/` | Same `ui://needt/...` mechanism; module rendering must reuse it, not fork it. |
 | Script API | `docs/connector-api.md`, `src/app/api/connect/*`, scopes `needt.read` / `needt.write` | Personal tokens act with the owner's scopes. |
 | Habit | `prisma/schema.prisma` `model Habit` (l.1132), `HabitCompletion` (l.1302) | `kind BUILD|QUIT`, `at`, `daysOfWeek`, `quota`. |
-| Streak maths | `src/lib/needt3/derive.ts` `streak()` (l.362), `src/lib/needt3/habits.ts` | "Closed days in a row up to yesterday"; today stays open. Learn must use it, not a second counter. |
+| Streak maths | `src/lib/needt3/derive.ts` `streak()` (l.362) | "Closed days in a row up to yesterday"; today stays open. Learn must use it, not a second counter. |
 | Scheduler | `src/services/scheduling/` (`engine.ts`, `TaskSchedulingService.ts`, `TimeSlotManager.ts`, `SlotScorer.ts`) | Places tasks and habits; `entitlement-selection.ts` decides what a plan may schedule. |
 | Plans | `src/lib/plan-limits.ts` (`PLAN_LIMITS`, FREE `habits: 3`, `aiAgent: false`), `src/lib/entitlements.ts` (`getPlan`, `canUseAiAgent`) | No `isPro` helper: Pro is `getPlan(userId)` plus a limits field. |
 | AI metering | `model AiUsage` (`actionCount`, `yearMonth`), `src/services/ai/usage.ts` | Metered in actions; Free has no AI (owner 16.10). |
