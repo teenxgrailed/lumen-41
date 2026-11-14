@@ -71,13 +71,15 @@ function useTaskParam() {
   const params = useSearchParams();
   const setParam = useCallback(
     (key: string, value: string | null) => {
-      const next = new URLSearchParams(params.toString());
+      // the live URL, not the hook's snapshot: a ?task= written by the
+      // dialog store may not have reached useSearchParams yet
+      const next = new URLSearchParams(window.location.search);
       if (value) next.set(key, value);
       else next.delete(key);
       const q = next.toString();
       router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
     },
-    [params, pathname, router]
+    [pathname, router]
   );
   return { params, setParam };
 }

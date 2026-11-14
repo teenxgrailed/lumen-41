@@ -106,9 +106,10 @@ jobs:
         run: npm run build
       - name: Run perf baseline
         env:
+          PERF_SCENARIO: ${{ inputs.scenario }}
           PERF_TRACE: ${{ inputs.trace == 'full' && '1' || inputs.trace == 'lite' && 'lite' || '0' }}
         run: |
-          if [ "${{ inputs.scenario }}" = "task-modal" ]; then
+          if [ "$PERF_SCENARIO" = "task-modal" ]; then
             npx playwright test --config=playwright.perf.config.ts --project=desktop-chromium --project=desktop-webkit task-modal
           elif [ "$PERF_TRACE" != "0" ]; then
             npx playwright test --config=playwright.perf.config.ts --project=iphone13-chromium -g "phone-every-place"

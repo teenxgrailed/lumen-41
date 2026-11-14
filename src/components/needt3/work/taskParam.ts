@@ -40,7 +40,10 @@ export function setOpenTask(id: string | null) {
   if (typeof window === "undefined") return;
   const { pathname, search, hash } = window.location;
   window.history.replaceState(
-    window.history.state,
+    // null: Next's patched replaceState fills in its own router state and
+    // syncs useSearchParams without a server request. Passing the current
+    // window.history.state back in kept stale internals.
+    null,
     "",
     withParam(pathname + search + hash, "task", id)
   );
