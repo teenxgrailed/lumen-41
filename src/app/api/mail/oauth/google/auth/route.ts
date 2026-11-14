@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Auth } from "googleapis";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
-import { getGoogleCredentials } from "@/lib/auth";
+import { getGoogleMailCredentials } from "@/lib/auth";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { canAddMailbox } from "@/lib/entitlements";
-import { createGoogleOAuthClient } from "@/lib/google";
+import { createGoogleMailOAuthClient } from "@/lib/google";
 import {
   createMailOAuthSession,
   setMailOAuthCookies,
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         { status: 403 }
       );
     }
-    const credentials = await getGoogleCredentials();
+    const credentials = await getGoogleMailCredentials();
     if (!credentials.clientId || !credentials.clientSecret) {
       return NextResponse.json(
         { error: "Gmail isn't available yet." },
@@ -34,7 +34,9 @@ export async function GET(request: NextRequest) {
       );
     }
     const redirectUrl = `${process.env.NEXTAUTH_URL}/api/mail/oauth/google/callback`;
-    const oauth2Client = await createGoogleOAuthClient({ redirectUrl });
+    const { oauth2Client } = await createGoogleMailOAuthClient({
+      redirectUrl,
+    });
     const session = createMailOAuthSession();
     const response = NextResponse.redirect(
       oauth2Client.generateAuthUrl({

@@ -3,6 +3,7 @@ import type {
   HubMessage,
   HubMessageReceipt,
   HubThread,
+  Prisma,
 } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
@@ -289,6 +290,8 @@ export async function sendMessage(scope: HubScope, input: MessageSendInput) {
   }
 
   const message = await prisma.hubMessage.create({
+    /* Asserted: depending on check order TS resolves Prisma's checked/unchecked
+       XOR differently and narrows `toAny` to `false` (seen 14.11). */
     data: {
       threadId: thread.id,
       userId: scope.userId,
@@ -302,7 +305,7 @@ export async function sendMessage(scope: HubScope, input: MessageSendInput) {
       body,
       importance: input.importance ?? "normal",
       ackRequired: input.ackRequired ?? false,
-    },
+    } as Prisma.HubMessageUncheckedCreateInput,
   });
   await prisma.hubThread.update({
     where: { id: thread.id },

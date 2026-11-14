@@ -144,7 +144,7 @@ async function revokeGoogleGrants(
 ) {
   const tokens: string[] = [];
   const connected = await prisma.connectedAccount.findMany({
-    where: { userId, provider: "GOOGLE" },
+    where: { userId, provider: { in: ["GOOGLE", "GOOGLE_MAIL"] } },
     select: { id: true, email: true },
   });
   for (const account of connected) {

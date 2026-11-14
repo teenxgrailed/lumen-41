@@ -5,7 +5,10 @@ import {
   openConnectedAccountTokens,
   sealConnectedAccountTokens,
 } from "@/lib/connected-account-secrets";
-import { createGoogleOAuthClient } from "@/lib/google";
+import {
+  createGoogleMailOAuthClient,
+  createGoogleOAuthClient,
+} from "@/lib/google";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -14,7 +17,14 @@ import { MICROSOFT_GRAPH_AUTH_ENDPOINTS } from "./outlook";
 
 const LOG_SOURCE = "TokenManager";
 
-export type Provider = "GOOGLE" | "OUTLOOK" | "CALDAV";
+export type Provider = "GOOGLE" | "GOOGLE_MAIL" | "OUTLOOK" | "CALDAV";
+
+/**
+ * Mail's own Google client issues a different grant than the main client, so it
+ * gets its own row: sharing the calendar row would overwrite that refresh
+ * token with one the main client cannot use.
+ */
+export const GOOGLE_MAIL_PROVIDER: Provider = "GOOGLE_MAIL";
 
 interface TokenInfo {
   accessToken: string;
@@ -86,9 +96,27 @@ export class TokenManager {
       return null;
     }
 
-    const oauth2Client = await createGoogleOAuthClient({
-      redirectUrl: `${process.env.NEXTAUTH_URL}/api/auth/callback/google`,
-    });
+    // A refresh token only works with the client that issued it. Null means
+    // the main client (every grant before Mail got its own).
+    let oauth2Client;
+    if (account.oauthClient === "mail") {
+      const mail = await createGoogleMailOAuthClient({
+        redirectUrl: `${process.env.NEXTAUTH_URL}/api/mail/oauth/google/callback`,
+      });
+      if (mail.client !== "mail") {
+        await logger.error(
+          "Mail account was issued by the mail Google client, but GOOGLE_MAIL_CLIENT_ID/SECRET are unset",
+          { accountId },
+          LOG_SOURCE
+        );
+        return null;
+      }
+      oauth2Client = mail.oauth2Client;
+    } else {
+      oauth2Client = await createGoogleOAuthClient({
+        redirectUrl: `${process.env.NEXTAUTH_URL}/api/auth/callback/google`,
+      });
+    }
 
     oauth2Client.setCredentials({
       refresh_token: account.refreshToken,
@@ -136,7 +164,8 @@ export class TokenManager {
       refreshToken?: string;
       expiresAt: Date;
     },
-    userId: string
+    userId: string,
+    options?: { oauthClient?: "main" | "mail" }
   ): Promise<string> {
     // Upsert one OAuth account per (userId, provider, email). We can't use a
     // named composite unique input here because the ConnectedAccount uniqueness
@@ -152,6 +181,13 @@ export class TokenManager {
       refreshToken: tokens.refreshToken,
       expiresAt: tokens.expiresAt,
     });
+    // Recorded for Google only; absent keeps whatever the row already says.
+    if (
+      options?.oauthClient &&
+      (provider === "GOOGLE" || provider === GOOGLE_MAIL_PROVIDER)
+    ) {
+      Object.assign(data, { oauthClient: options.oauthClient });
+    }
 
     const existing = await prisma.connectedAccount.findFirst({
       where: { userId, provider, email },
