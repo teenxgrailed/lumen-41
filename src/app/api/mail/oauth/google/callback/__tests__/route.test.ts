@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { calendarOAuthStateCookieValue } from "@/lib/calendar-oauth";
-import { createGoogleOAuthClient } from "@/lib/google";
+import { createGoogleMailOAuthClient } from "@/lib/google";
 import { createOAuthMailAccount } from "@/lib/mail-db";
 import {
   createMailOAuthSession,
@@ -24,7 +24,7 @@ jest.mock("@/lib/auth/api-auth", () => ({
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock("@/lib/google", () => ({ createGoogleOAuthClient: jest.fn() }));
+jest.mock("@/lib/google", () => ({ createGoogleMailOAuthClient: jest.fn() }));
 jest.mock("googleapis", () => ({
   google: {
     oauth2: jest.fn(() => ({
@@ -42,10 +42,10 @@ jest.mock("@/lib/queue/enqueue", () => ({
   enqueueMailSync: jest.fn(),
   ensureMailSyncSchedule: jest.fn(),
 }));
+const storeTokens = jest.fn(async () => "ref-1");
 jest.mock("@/lib/token-manager", () => ({
-  TokenManager: {
-    getInstance: () => ({ storeTokens: jest.fn(async () => "ref-1") }),
-  },
+  GOOGLE_MAIL_PROVIDER: "GOOGLE_MAIL",
+  TokenManager: { getInstance: () => ({ storeTokens }) },
 }));
 
 const CALLBACK = "http://0.0.0.0:3000/api/mail/oauth/google/callback";
@@ -106,9 +106,10 @@ describe("google mail OAuth callback", () => {
           "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/gmail.readonly",
       },
     });
-    (createGoogleOAuthClient as jest.Mock).mockResolvedValue({
-      getToken,
-      setCredentials: jest.fn(),
+    storeTokens.mockClear();
+    (createGoogleMailOAuthClient as jest.Mock).mockResolvedValue({
+      client: "mail",
+      oauth2Client: { getToken, setCredentials: jest.fn() },
     });
     (createOAuthMailAccount as jest.Mock).mockClear();
   });
@@ -191,6 +192,38 @@ describe("google mail OAuth callback", () => {
       "https://use.needt.app/mail?connected=gmail"
     );
     expectCookiesCleared(res);
+  });
+
+  it("records the mail client as the issuer, on its own connection row", async () => {
+    const { session, cookies } = boundCookies();
+    await call(
+      callbackRequest({ query: { code: "c", state: session.state }, cookies })
+    );
+    expect(storeTokens).toHaveBeenCalledWith(
+      "GOOGLE_MAIL",
+      "me@example.com",
+      expect.objectContaining({ accessToken: "at", refreshToken: "rt" }),
+      "user-1",
+      { oauthClient: "mail" }
+    );
+  });
+
+  it("records the main client when Mail falls back to it", async () => {
+    (createGoogleMailOAuthClient as jest.Mock).mockResolvedValue({
+      client: "main",
+      oauth2Client: { getToken, setCredentials: jest.fn() },
+    });
+    const { session, cookies } = boundCookies();
+    await call(
+      callbackRequest({ query: { code: "c", state: session.state }, cookies })
+    );
+    expect(storeTokens).toHaveBeenCalledWith(
+      "GOOGLE",
+      "me@example.com",
+      expect.anything(),
+      "user-1",
+      { oauthClient: "main" }
+    );
   });
 
   it("redirects to NEXTAUTH_URL, not the container address, when the provider sends no code", async () => {

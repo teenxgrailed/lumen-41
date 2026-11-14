@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
     const accounts = await prisma.connectedAccount.findMany({
       where: {
         userId,
+        // Mail's own Google grant is a mailbox, not a calendar account.
+        provider: { not: "GOOGLE_MAIL" },
       },
       include: {
         calendars: {

@@ -24,22 +24,29 @@ jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock("@/lib/auth", () => ({
-  getGoogleCredentials: async () => ({
+  getGoogleMailCredentials: async () => ({
     clientId: "client-id",
     clientSecret: "client-secret",
+    client: "mail",
   }),
 }));
 jest.mock("@/lib/entitlements", () => ({
   canAddMailbox: jest.fn(async () => ({ allowed: true })),
 }));
 jest.mock("@/lib/google", () => ({
-  createGoogleOAuthClient: async () => ({
-    generateAuthUrl: (options: Record<string, unknown>) => {
-      const params = new URLSearchParams();
-      for (const [key, value] of Object.entries(options)) {
-        params.set(key, Array.isArray(value) ? value.join(" ") : String(value));
-      }
-      return `https://accounts.example/auth?${params}`;
+  createGoogleMailOAuthClient: async () => ({
+    client: "mail",
+    oauth2Client: {
+      generateAuthUrl: (options: Record<string, unknown>) => {
+        const params = new URLSearchParams();
+        for (const [key, value] of Object.entries(options)) {
+          params.set(
+            key,
+            Array.isArray(value) ? value.join(" ") : String(value)
+          );
+        }
+        return `https://accounts.example/auth?${params}`;
+      },
     },
   }),
 }));

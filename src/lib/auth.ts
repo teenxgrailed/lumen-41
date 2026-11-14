@@ -1,5 +1,8 @@
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { openSystemSettingsSecrets } from "@/lib/system-settings-secrets";
+
+const LOG_SOURCE = "AuthCredentials";
 
 export async function getGoogleCredentials() {
   if (!process.env.DATABASE_URL) {
@@ -28,6 +31,38 @@ export async function getGoogleCredentials() {
     clientId: process.env.GOOGLE_CLIENT_ID!,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
   };
+}
+
+export type GoogleOAuthClientId = "main" | "mail";
+
+let warnedMailFallback = false;
+
+/**
+ * Credentials for Mail's own Google OAuth client. Gmail's restricted scope
+ * lives in a separate Google Cloud project so it cannot block verification of
+ * the main app. `client` says which one is returned: until the owner sets
+ * GOOGLE_MAIL_CLIENT_ID/SECRET this falls back to the main client, so nothing
+ * breaks, and warns once.
+ */
+export async function getGoogleMailCredentials(): Promise<{
+  clientId: string;
+  clientSecret: string;
+  client: GoogleOAuthClientId;
+}> {
+  const clientId = process.env.GOOGLE_MAIL_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_MAIL_CLIENT_SECRET;
+  if (clientId && clientSecret) {
+    return { clientId, clientSecret, client: "mail" };
+  }
+  if (!warnedMailFallback) {
+    warnedMailFallback = true;
+    await logger.warn(
+      "GOOGLE_MAIL_CLIENT_ID/SECRET are unset; Mail uses the main Google client",
+      undefined,
+      LOG_SOURCE
+    );
+  }
+  return { ...(await getGoogleCredentials()), client: "main" };
 }
 
 export async function getOutlookCredentials() {
