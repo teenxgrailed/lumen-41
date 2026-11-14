@@ -315,7 +315,8 @@ export function ChatTab({
       className={
         "ag-chat2" +
         (started ? " is-started" : "") +
-        (showPending ? " has-pending" : "")
+        (showPending ? " has-pending" : "") +
+        (showPending && pendingOpen ? " is-pending-open" : "")
       }
       data-ag-chat=""
     >

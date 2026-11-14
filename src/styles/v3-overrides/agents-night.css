@@ -2253,11 +2253,25 @@
   flex-direction: column;
   gap: 10px;
 }
+/* Open, the tray takes the column between the header and the input; the
+   conversation steps back behind it instead of showing through. */
+.needt-v3 .ag-pending[data-open] {
+  top: 168px;
+  justify-content: flex-end;
+}
+.needt-v3 .ag-cmsgs {
+  transition: opacity 0.25s var(--ag-ease);
+}
+.needt-v3 .ag-chat2.is-pending-open .ag-cmsgs {
+  opacity: 0.08;
+  pointer-events: none;
+}
 .needt-v3 .ag-pending-list {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-height: min(60vh, calc(100vh - 360px));
+  flex: 0 1 auto;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;
   padding: 2px;
@@ -3621,6 +3635,9 @@
 }
 .needt-v3[data-ui="phone"] .ag-pending {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 208px);
+}
+.needt-v3[data-ui="phone"] .ag-pending[data-open] {
+  top: 150px;
 }
 .needt-v3[data-ui="phone"] .ag-chat2.has-pending .ag-cmsgs {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 258px);
