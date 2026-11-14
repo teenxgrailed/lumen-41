@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   applyResendEvent,
-  verifySvixSignature,
+  checkSvixSignature,
 } from "@/lib/email/resend-webhook";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -32,14 +32,23 @@ export async function POST(request: NextRequest) {
 
   const body = await request.text();
   const id = request.headers.get("svix-id");
-  const valid = verifySvixSignature({
+  const verdict = checkSvixSignature({
     secret,
     id,
     timestamp: request.headers.get("svix-timestamp"),
     signature: request.headers.get("svix-signature"),
     body,
   });
-  if (!valid || !id) {
+  if (!verdict.ok || !id) {
+    /* Reason and clock skew only: never the secret, signature or body. */
+    logger.warn(
+      "Resend webhook rejected",
+      {
+        reason: verdict.ok ? "missing_headers" : verdict.reason,
+        skewSeconds: verdict.ok ? null : verdict.skewSeconds,
+      },
+      LOG_SOURCE
+    );
     return NextResponse.json({ error: "invalid_signature" }, { status: 400 });
   }
 

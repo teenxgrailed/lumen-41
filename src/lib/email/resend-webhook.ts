@@ -15,26 +15,42 @@ const LOG_SOURCE = "ResendWebhook";
 /** Svix signatures older than this are refused. */
 export const WEBHOOK_TOLERANCE_SECONDS = 5 * 60;
 
-/**
- * Verifies a Svix-signed webhook (what Resend sends): HMAC-SHA256 over
- * `${svix-id}.${svix-timestamp}.${raw body}` with the base64 secret that
- * follows `whsec_`, compared against every `v1,<signature>` in the header.
- * The body must be the raw text, not re-serialised JSON.
- */
-export function verifySvixSignature(input: {
+export type SvixRejection = "missing_headers" | "stale_timestamp" | "no_match";
+
+export type SvixVerification =
+  | { ok: true }
+  | { ok: false; reason: SvixRejection; skewSeconds: number | null };
+
+type SvixInput = {
   secret: string;
   id: string | null;
   timestamp: string | null;
   signature: string | null;
   body: string;
   nowSeconds?: number;
-}): boolean {
+};
+
+/**
+ * Verifies a Svix-signed webhook (what Resend sends): HMAC-SHA256 over
+ * `${svix-id}.${svix-timestamp}.${raw body}` with the base64 secret that
+ * follows `whsec_`, compared against every `v1,<signature>` in the header.
+ * The body must be the raw text, not re-serialised JSON. A refusal carries a
+ * reason (never the secret, signature or body) and the clock skew in seconds.
+ */
+export function checkSvixSignature(input: SvixInput): SvixVerification {
   const { secret, id, timestamp, signature, body } = input;
-  if (!secret || !id || !timestamp || !signature) return false;
+  if (!secret || !id || !timestamp || !signature) {
+    return { ok: false, reason: "missing_headers", skewSeconds: null };
+  }
   const sentAt = Number(timestamp);
-  if (!Number.isFinite(sentAt)) return false;
+  if (!Number.isFinite(sentAt)) {
+    return { ok: false, reason: "missing_headers", skewSeconds: null };
+  }
   const now = input.nowSeconds ?? Math.floor(newDate().getTime() / 1000);
-  if (Math.abs(now - sentAt) > WEBHOOK_TOLERANCE_SECONDS) return false;
+  const skewSeconds = Math.round(now - sentAt);
+  if (Math.abs(skewSeconds) > WEBHOOK_TOLERANCE_SECONDS) {
+    return { ok: false, reason: "stale_timestamp", skewSeconds };
+  }
 
   const raw = secret.startsWith("whsec_") ? secret.slice(6) : secret;
   const key = Buffer.from(raw, "base64");
@@ -47,10 +63,14 @@ export function verifySvixSignature(input: {
     if (version !== "v1" || !value) continue;
     const given = Buffer.from(value, "base64");
     if (given.length === expected.length && timingSafeEqual(given, expected)) {
-      return true;
+      return { ok: true };
     }
   }
-  return false;
+  return { ok: false, reason: "no_match", skewSeconds };
+}
+
+export function verifySvixSignature(input: SvixInput): boolean {
+  return checkSvixSignature(input).ok;
 }
 
 type ResendEvent = {
