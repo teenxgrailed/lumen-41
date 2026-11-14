@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { LuChevronLeft, LuX } from "react-icons/lu";
 
@@ -58,26 +58,29 @@ import {
   workModel,
 } from "./model";
 import { Capped, Fold, PageAddButton, Seg2, WkEmpty } from "./parts";
+import { withParam } from "./taskParam";
 import { type WorkState, useWorkState } from "./useWorkState";
 
 const EMPTY_TASKS: V3Task[] = [];
 const EMPTY_PROJECTS: V3Project[] = [];
 
-/** The task dialog opens over the current screen at `?task=<id>`. */
+/**
+ * The task dialog opens over the current screen at `?task=<id>`. The query is
+ * written with `history.replaceState` (Next syncs `useSearchParams` from it
+ * at once): `router.replace` to a new query on this force-dynamic layout
+ * waits for a server round trip, which is the lag between click and window.
+ * `setParam` reads the live URL, so its identity never changes.
+ */
 function useTaskParam() {
-  const router = useRouter();
-  const pathname = usePathname();
   const params = useSearchParams();
-  const setParam = useCallback(
-    (key: string, value: string | null) => {
-      const next = new URLSearchParams(params.toString());
-      if (value) next.set(key, value);
-      else next.delete(key);
-      const q = next.toString();
-      router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
-    },
-    [params, pathname, router]
-  );
+  const setParam = useCallback((key: string, value: string | null) => {
+    const { pathname, search, hash } = window.location;
+    window.history.replaceState(
+      window.history.state,
+      "",
+      withParam(pathname + search + hash, key, value)
+    );
+  }, []);
   return { params, setParam };
 }
 
