@@ -35,12 +35,15 @@ const PROMO_LINES = [
   "The same Needt account, no second sign-in",
 ] as const;
 
-/** The side Needt is wearing, as the boot script sets it on <html>. */
+/** The v3 scope: it carries the side being worn (`data-theme`). */
+const scope = () =>
+  typeof document === "undefined"
+    ? null
+    : document.querySelector<HTMLElement>(".needt-v3");
+
+/** The side Needt is wearing, from the v3 scope as the desktop bridge reads it. */
 function readTheme(): "light" | "dark" {
-  if (typeof document === "undefined") return "light";
-  return document.documentElement.getAttribute("data-theme") === "dark"
-    ? "dark"
-    : "light";
+  return scope()?.dataset.theme === "dark" ? "dark" : "light";
 }
 
 export function BudgetScreen() {
@@ -49,14 +52,30 @@ export function BudgetScreen() {
   const setPref = useSetPref();
   const pro = plan.data ? isPro(plan.data.kind) : undefined;
   const promoSeen = promoSeenFrom(settings.data?.prefs, !!settings.data);
-  // Opened in this visit: the stored flag may still be on its way.
+  // The view is settled once per visit: storing the flag below must not
+  // swap the intro for Budget under the person's eyes.
   const [opened, setOpened] = useState(false);
-  const view = opened ? "app" : budgetView({ pro, promoSeen });
+  const [first, setFirst] = useState<"intro" | "app" | null>(null);
+  const settled = budgetView({ pro, promoSeen });
+  useEffect(() => {
+    if (first === null && (settled === "intro" || settled === "app"))
+      setFirst(settled);
+  }, [first, settled]);
+  const view =
+    opened || first === "app" ? "app" : first === "intro" ? "intro" : settled;
 
-  const open = useCallback(() => {
-    setOpened(true);
-    void setPref(BUDGET_PROMO_PREF, true);
-  }, [setPref]);
+  // The intro counts as seen once it is shown, not only once Open is pressed:
+  // leaving after five seconds must not bring it back next time.
+  const setPrefRef = useRef(setPref);
+  setPrefRef.current = setPref;
+  const stored = useRef(false);
+  useEffect(() => {
+    if (view !== "intro" || stored.current) return;
+    stored.current = true;
+    void setPrefRef.current(BUDGET_PROMO_PREF, true);
+  }, [view]);
+
+  const open = useCallback(() => setOpened(true), []);
 
   return (
     <div
@@ -100,11 +119,14 @@ function BudgetPromo({
   trial: boolean;
 }) {
   const store = useStoreDistribution();
+  // One timer per intro, whatever re-renders around it.
+  const onOpenRef = useRef(onOpen);
+  onOpenRef.current = onOpen;
   useEffect(() => {
     if (locked) return;
-    const t = window.setTimeout(onOpen, BUDGET_PROMO_MS);
+    const t = window.setTimeout(() => onOpenRef.current(), BUDGET_PROMO_MS);
     return () => window.clearTimeout(t);
-  }, [locked, onOpen]);
+  }, [locked]);
 
   return (
     <GlassCard
@@ -187,17 +209,21 @@ function BudgetFrame() {
   // frame is not reloaded and keeps its place.
   const [src] = useState(() => budgetFrameSrc(readTheme()));
 
-  useEffect(() => {
-    const html = document.documentElement;
-    const send = () =>
+  const send = useCallback(
+    () =>
       frame.current?.contentWindow?.postMessage(
         budgetThemeMessage(readTheme()),
         BUDGET_ORIGIN
-      );
+      ),
+    []
+  );
+  useEffect(() => {
+    const el = scope();
+    if (!el) return undefined;
     const watch = new MutationObserver(send);
-    watch.observe(html, { attributes: true, attributeFilter: ["data-theme"] });
+    watch.observe(el, { attributes: true, attributeFilter: ["data-theme"] });
     return () => watch.disconnect();
-  }, []);
+  }, [send]);
 
   return (
     <iframe
@@ -206,6 +232,9 @@ function BudgetFrame() {
       src={src}
       title="Needt Budget"
       data-bd-frame=""
+      // A change made before Budget was ready reaches it on load.
+      onLoad={send}
+      referrerPolicy="strict-origin"
       // Budget's own pages: forms, its sign-in through Needt, file pickers.
       allow="clipboard-write"
     />

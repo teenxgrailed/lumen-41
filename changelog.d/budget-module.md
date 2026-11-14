@@ -1,1 +1,0 @@
-- Needt Budget can live in the sidebar as its own place (behind the `budget_module` flag): Pro opens Budget inside Needt, Free sees what it is and how to get it.

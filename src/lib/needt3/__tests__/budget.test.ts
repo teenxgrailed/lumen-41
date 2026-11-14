@@ -37,10 +37,14 @@ describe("budgetNavItem", () => {
     ).toBeNull();
   });
 
-  it("never shows a PRO pill before the plan is known", () => {
+  it("waits for the plan and the settings before showing anything", () => {
+    expect(budgetNavItem({ enabled: true, pro: undefined, prefs: {} })).toBe(
+      null
+    );
+    expect(budgetNavItem({ enabled: true, pro: true, prefs: null })).toBe(null);
     expect(
-      budgetNavItem({ enabled: true, pro: undefined, prefs: null })?.locked
-    ).toBe(false);
+      budgetNavItem({ enabled: true, pro: false, prefs: null })?.locked
+    ).toBe(true);
   });
 });
 

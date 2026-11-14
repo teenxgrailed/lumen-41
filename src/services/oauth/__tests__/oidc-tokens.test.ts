@@ -9,7 +9,11 @@ import {
   resolveAccessToken,
 } from "@/services/oauth/grants";
 import { authorizationServerMetadata } from "@/services/oauth/http";
-import { loadSigningKey, resetSigningKeyCache } from "@/services/oauth/oidc";
+import {
+  identityClaims,
+  loadSigningKey,
+  resetSigningKeyCache,
+} from "@/services/oauth/oidc";
 import crypto from "crypto";
 
 import { isFeatureEnabled } from "@/lib/feature-flags";
@@ -346,6 +350,9 @@ describe("userinfo", () => {
       (prisma.oAuthToken.findUnique as jest.Mock).mockResolvedValue(stored());
       const body = await (await userinfo(again.access_token)).json();
       expect(body.needt_plan).toBe("pro");
+      // Another client never learns the plan, flag or not.
+      const other = await identityClaims("user-1", "some-mcp-client");
+      expect(other?.needt_plan).toBeUndefined();
     } finally {
       jest.mocked(isFeatureEnabled).mockResolvedValue(false);
     }

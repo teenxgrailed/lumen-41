@@ -5,4 +5,4 @@
 - [x] **B3 - Screen**: promo (Free, Pro first visit, 10 s, Open), frame with theme, account-stored seen flag, CSP `frame-src`.
 - [ ] **B4 - Budget embed mode** (budget-tracker, Needt-budget chat): frame-ancestors, `embed=1`, theme, SSO start in embed.
 - [ ] **B5 - Owner decision**: does Needt Pro grant Budget access.
-- [ ] **B6 - Rollout**: per-user override for the owner, check on production, then wider.
+- [ ] **B6 - Rollout**: per-user override for the owner, check on production, then wider; add the changelog fragment with the rollout, not before.

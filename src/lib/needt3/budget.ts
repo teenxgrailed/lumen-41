@@ -35,20 +35,20 @@ export interface BudgetNavItem {
 }
 
 /**
- * The item to draw, or null. `pro` is undefined until the plan has loaded:
- * the row then follows the switch, without a pill, so it never flashes a
- * PRO pill at someone who has paid.
+ * The item to draw, or null. `pro` is undefined until the plan has loaded
+ * and `prefs` until settings have: the row waits for both, so it never
+ * flashes a PRO pill at someone who has paid, nor shows a row they hid.
  */
 export function budgetNavItem(args: {
   enabled: boolean;
   pro: boolean | undefined;
   prefs: Record<string, unknown> | null | undefined;
 }): BudgetNavItem | null {
-  if (!args.enabled) return null;
+  if (!args.enabled || args.pro === undefined) return null;
   const item = { href: BUDGET_HREF, label: "Budget" };
   // Free cannot hide it: the row is how Budget is found.
   if (args.pro === false) return { ...item, locked: true };
-  if (args.prefs?.[BUDGET_SIDEBAR_PREF] === false) return null;
+  if (!args.prefs || args.prefs[BUDGET_SIDEBAR_PREF] === false) return null;
   return { ...item, locked: false };
 }
 

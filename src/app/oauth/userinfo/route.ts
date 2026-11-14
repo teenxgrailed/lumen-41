@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
   if (!match) return invalidToken();
   const token = await resolveUserinfoToken(match[1]);
   if (!token) return invalidToken();
-  const claims = await identityClaims(token.userId);
+  const claims = await identityClaims(token.userId, token.clientId);
   if (!claims) return invalidToken();
   return NextResponse.json(claimsForScope(claims, token.scope), {
     headers: NO_STORE,

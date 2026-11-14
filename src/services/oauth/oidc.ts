@@ -189,9 +189,17 @@ export interface IdentityClaims {
   needt_plan?: "pro" | "free";
 }
 
-/** Who a Needt user is, as OpenID Connect says it. null when they are gone. */
+/** The one client `needt_plan` is for (`budget_pro_access`). */
+const BUDGET_CLIENT_ID = "needt-budget";
+
+/**
+ * Who a Needt user is, as OpenID Connect says it. null when they are gone.
+ * `clientId` is the public client id the claims are for: only Needt Budget
+ * ever learns the plan, never another client.
+ */
 export async function identityClaims(
-  userId: string
+  userId: string,
+  clientId?: string
 ): Promise<IdentityClaims | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -204,7 +212,10 @@ export async function identityClaims(
     email_verified: user.email != null && user.emailVerified != null,
     name: user.name,
   };
-  if (await isFeatureEnabled(BUDGET_PRO_ACCESS, user.id))
+  if (
+    clientId === BUDGET_CLIENT_ID &&
+    (await isFeatureEnabled(BUDGET_PRO_ACCESS, user.id))
+  )
     claims.needt_plan = (await getPlan(user.id)) === "FREE" ? "free" : "pro";
   return claims;
 }
@@ -284,6 +295,7 @@ export async function resolveUserinfoToken(token: string) {
       resource: true,
       revokedAt: true,
       expiresAt: true,
+      client: { select: { clientId: true } },
     },
   });
   if (
@@ -296,7 +308,11 @@ export async function resolveUserinfoToken(token: string) {
   ) {
     return null;
   }
-  return { userId: stored.userId, scope: stored.scope };
+  return {
+    userId: stored.userId,
+    scope: stored.scope,
+    clientId: stored.client?.clientId,
+  };
 }
 
 /** OpenID Connect Discovery 1.0 document for the issuer. */
