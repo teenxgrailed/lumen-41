@@ -5,6 +5,7 @@ import {
 } from "@/app/api/calendar/caldav/utils";
 import type { ConnectedAccount } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import { CalDAVCalendarService } from "@/lib/caldav-calendar";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -86,6 +87,12 @@ export async function addCalDAVFeeds(
         syncToken: cal.syncToken ? String(cal.syncToken) : null,
       },
     });
+    recordActivation(
+      "calendar_connected",
+      userId,
+      { provider: "caldav" },
+      { once: true }
+    );
     have.add(cal.url);
     added.push({ id: feed.id, url: cal.url });
   }

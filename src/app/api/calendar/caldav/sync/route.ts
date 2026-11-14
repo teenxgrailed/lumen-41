@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { recordActivation } from "@/lib/activation-events";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { CalDAVCalendarService } from "@/lib/caldav-calendar";
 import { newDate } from "@/lib/date-utils";
@@ -216,6 +217,13 @@ export async function POST(request: NextRequest) {
         userId,
       },
     });
+
+    recordActivation(
+      "calendar_connected",
+      userId,
+      { provider: "caldav" },
+      { once: true }
+    );
 
     // Sync events for this calendar
     const caldavService = new CalDAVCalendarService(account);

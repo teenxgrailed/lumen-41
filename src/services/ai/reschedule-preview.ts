@@ -6,6 +6,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 
+import { recordActivation } from "@/lib/activation-events";
 import {
   type WorkspaceAccess,
   workspaceDataScopeWhere,
@@ -617,6 +618,8 @@ export async function createReschedulePreview(
     { userId, changes: changes.length },
     LOG_SOURCE
   );
+  /* A proposal the person is shown; an empty one is not a replan. */
+  if (changes.length > 0) recordActivation("replan_shown", userId);
   return {
     changes,
     unscheduled: staged.unscheduled,
@@ -651,6 +654,8 @@ export async function applyReschedulePreview(
   const applied = await captureSnapshot(userId, workspace);
   await publishScheduleChange(userId);
   logger.info("Applied schedule preview", { userId }, LOG_SOURCE);
+  /* Applying the preview is the person pressing Keep. */
+  recordActivation("keep_applied", userId);
   return {
     changes: diffScheduleSnapshots(value.before, applied),
     undoToken: encodeToken(
@@ -683,6 +688,7 @@ export async function undoReschedulePreview(
   await restoreSnapshot(userId, workspace, value.before);
   await publishScheduleChange(userId);
   logger.info("Undid schedule preview", { userId }, LOG_SOURCE);
+  recordActivation("undo_applied", userId);
   return { changes: diffScheduleSnapshots(value.after, value.before) };
 }
 

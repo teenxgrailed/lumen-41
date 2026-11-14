@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { recordActivation } from "@/lib/activation-events";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { registerCalendarWebhookBestEffort } from "@/lib/calendar-webhooks/register";
 import { newDate } from "@/lib/date-utils";
@@ -79,6 +80,13 @@ export async function POST(req: NextRequest) {
         userId,
       },
     });
+
+    recordActivation(
+      "calendar_connected",
+      userId,
+      { provider: "outlook" },
+      { once: true }
+    );
 
     // Sync events for this calendar
     const client = await getOutlookClient(accountId, userId);

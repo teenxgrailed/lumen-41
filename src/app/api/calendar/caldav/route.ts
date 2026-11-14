@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { formatISO } from "date-fns";
 
+import { recordActivation } from "@/lib/activation-events";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { CalDAVCalendarService } from "@/lib/caldav-calendar";
 import { newDate } from "@/lib/date-utils";
@@ -219,6 +220,13 @@ export async function POST(request: NextRequest) {
           syncToken: calendar.syncToken ? String(calendar.syncToken) : null,
         },
       });
+
+      recordActivation(
+        "calendar_connected",
+        userId,
+        { provider: "caldav" },
+        { once: true }
+      );
 
       logger.info(
         `Successfully added CalDAV calendar: ${newCalendar.id}`,

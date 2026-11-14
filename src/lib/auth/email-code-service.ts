@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import { requestUtm } from "@/lib/attribution-server";
 import {
   checkEmailCode,
@@ -195,6 +196,9 @@ export async function authorizeEmailCode(input: {
     now,
   });
   /* Once per account: only the branch that created the row gets here. */
+  recordActivation("account_created", created.id, {
+    method: EMAIL_CODE_PROVIDER,
+  });
   void sendUmamiSignupCompleted(EMAIL_CODE_PROVIDER, await requestUtm());
   return { ...created, isNew: true };
 }
