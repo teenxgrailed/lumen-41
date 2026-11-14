@@ -10,9 +10,9 @@ import { act, createElement as h, useState } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
+import { PhoneAuth } from "../../phone/auth";
 import { AuthScreen } from "../AuthScreen";
 import type { EmailCodeApi } from "../email-code-logic";
-import { PhoneAuth } from "../../phone/auth";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -222,9 +222,9 @@ describe.each([["desktop"], ["phone"]] as const)("the %s face", (face) => {
     expect(q("[data-auth-send-code]")).not.toBeNull();
   });
 
-  it("hides 'Use password' on the sign-up tab", async () => {
+  it("keeps the sign-up copy and 'Use password' on the sign-up tab", async () => {
     await mount({ face, mode: "signup" });
-    expect(q("[data-auth-use-password]")).toBeNull();
+    expect(q("[data-auth-use-password]")).not.toBeNull();
     expect(host.textContent).toContain("Create your");
   });
 

@@ -763,9 +763,7 @@ export function AuthScreen({
           setMail={setMail}
           signup={signup}
           offline={offline}
-          onUsePassword={
-            signup ? undefined : () => emailCode?.setUsePassword(true)
-          }
+          onUsePassword={() => emailCode?.setUsePassword(true)}
         />
       ) : (
         <div className="auth-signin-col-4">

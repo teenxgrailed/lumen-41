@@ -13,6 +13,11 @@ import {
 import { ageConfirmationGate } from "@/lib/auth/age-confirmation";
 import { authSecret } from "@/lib/auth/auth-secret";
 import { authenticateUser } from "@/lib/auth/credentials-provider";
+import {
+  AGE_CONFIRM_REQUIRED_ERROR,
+  EMAIL_CODE_PROVIDER,
+  authorizeEmailCode,
+} from "@/lib/auth/email-code-service";
 import { withEncryptedAccountTokens } from "@/lib/auth/encrypting-adapter";
 import {
   ONE_TAP_PROVIDER_ID,
@@ -133,6 +138,52 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
     );
   }
 
+  /* Sign in with a code mailed to the address (email-code-service.ts). The
+     code proves the inbox, so the service confirms the address, starts the
+     trial and fires signup_completed itself; this provider only hands the
+     session its user. A new-account sign-in without the 16+ box throws
+     `AgeConfirmRequired`, which NextAuth returns as the error. */
+  providers.push(
+    CredentialsProvider({
+      id: EMAIL_CODE_PROVIDER,
+      name: "Email code",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        code: { label: "Code", type: "text" },
+        ageConfirmed: { label: "Age confirmed", type: "text" },
+        timeZone: { label: "Time zone", type: "text" },
+        locale: { label: "Locale", type: "text" },
+      },
+      async authorize(credentials) {
+        try {
+          const user = await authorizeEmailCode({ ...credentials });
+          return user
+            ? ({
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                emailCodeNew: user.isNew,
+              } as never)
+            : null;
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            error.message === AGE_CONFIRM_REQUIRED_ERROR
+          ) {
+            throw error;
+          }
+          logger.error(
+            "Email code sign-in failed",
+            { error: error instanceof Error ? error.message : "Unknown" },
+            LOG_SOURCE
+          );
+          return null;
+        }
+      },
+    })
+  );
+
   return {
     adapter: withCaseInsensitiveEmailLookup(
       withEncryptedAccountTokens(
@@ -147,6 +198,8 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
       async signIn({ user, account, profile }) {
         /* One Tap ran every gate inside `authorize` (google-one-tap.ts). */
         if (account?.provider === ONE_TAP_PROVIDER_ID) return true;
+        /* So does the email code (email-code-service.ts). */
+        if (account?.provider === EMAIL_CODE_PROVIDER) return true;
         /* A provider identity joins an existing account only on an email
            the provider verified (account-linking.ts); X never joins. */
         const link = await accountLinkingGate({
@@ -238,6 +291,12 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
                   : newDate(),
               },
             });
+          }
+          if (
+            account.provider === EMAIL_CODE_PROVIDER &&
+            (user as unknown as { emailCodeNew?: boolean }).emailCodeNew
+          ) {
+            token.freshAccountAt = newDate().getTime();
           }
           if (oneTap?.oneTapNew) {
             /* The page asks the session for this once, right after sign-in,

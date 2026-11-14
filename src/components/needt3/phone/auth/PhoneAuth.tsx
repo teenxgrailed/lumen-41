@@ -486,9 +486,7 @@ export function PhoneAuth({
                 setMail={setMail}
                 signup={signup}
                 offline={offline}
-                onUsePassword={
-                  signup ? undefined : () => emailCode?.setUsePassword(true)
-                }
+                onUsePassword={() => emailCode?.setUsePassword(true)}
               />
             ) : (
               <>

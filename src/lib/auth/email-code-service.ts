@@ -109,8 +109,8 @@ export interface EmailCodeUser {
  * spent, so the person can tick the box and use the same code.
  */
 export async function authorizeEmailCode(input: {
-  email: unknown;
-  code: unknown;
+  email?: unknown;
+  code?: unknown;
   ageConfirmed?: unknown;
   timeZone?: unknown;
   locale?: unknown;
