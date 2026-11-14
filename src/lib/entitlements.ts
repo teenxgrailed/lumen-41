@@ -346,17 +346,16 @@ export async function canUseQuitHabits(userId: string) {
   };
 }
 
-/** Plans the agent hub is for once it is opened beyond its owner-only trial. */
+/** Plans the agent hub is for (the flag is on for everyone since migration 20261103200000_agent_hub_for_everyone). */
 export const AGENT_HUB_PLANS: readonly SubscriptionPlan[] = [
   SubscriptionPlan.PRO,
   SubscriptionPlan.LIFETIME,
 ];
 
 /**
- * Whether the agent hub also needs a plan. Off while `agent_hub` is an
- * owner-only override: the flag alone decides, and the owner's own plan does
- * not matter. When the flag is opened to everyone, turn this on (Pro and
- * Lifetime then keep it, Free loses it) without touching a call site.
+ * Whether the agent hub also needs a plan. Off: the flag alone decides and
+ * the plan does not matter. Turn this on to restrict the hub to Pro and
+ * Lifetime (Free loses it) without touching a call site.
  */
 export const AGENT_HUB_REQUIRES_PLAN = false;
 

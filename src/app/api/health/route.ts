@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { isDraining } from "@/lib/drain";
 import { isBuildShaAllowed, resolveBuildSha } from "@/lib/health/build-sha";
+import { getAgentHubFlag } from "@/lib/health/flags";
 import { getMigrationStatus } from "@/lib/health/migrations";
 import { readWorkerReleaseBuildSha } from "@/lib/health/worker-release";
 
@@ -46,9 +47,10 @@ export async function GET() {
   }
 
   try {
-    const [{ pending }, workerBuildSha] = await Promise.all([
+    const [{ pending }, workerBuildSha, agentHub] = await Promise.all([
       getMigrationStatus(),
       getWorkerBuildSha(buildSha),
+      getAgentHubFlag(),
     ]);
 
     if (pending.length > 0) {
@@ -69,6 +71,7 @@ export async function GET() {
       db: "ok",
       buildSha,
       workerBuildSha,
+      flags: { agent_hub: agentHub },
       latencyMs: Date.now() - startedAt,
     });
   } catch {
