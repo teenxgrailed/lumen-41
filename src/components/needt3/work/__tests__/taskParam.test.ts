@@ -1,4 +1,22 @@
-import { withParam } from "../taskParam";
+/** @jest-environment jsdom */
+import { setOpenTask, withParam } from "../taskParam";
+
+jest.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+describe("setOpenTask", () => {
+  it("writes ?task= with replaceState, never a router navigation", () => {
+    window.history.replaceState(null, "", "/tasks?tab=today");
+    const spy = jest.spyOn(window.history, "replaceState");
+    setOpenTask("t1");
+    expect(window.location.search).toBe("?tab=today&task=t1");
+    setOpenTask(null);
+    expect(window.location.search).toBe("?tab=today");
+    expect(spy).toHaveBeenCalledTimes(2);
+    spy.mockRestore();
+  });
+});
 
 describe("withParam", () => {
   it("adds the param and keeps the others", () => {

@@ -58,40 +58,19 @@ import {
   workModel,
 } from "./model";
 import { Capped, Fold, PageAddButton, Seg2, WkEmpty } from "./parts";
-import { withParam } from "./taskParam";
+import { setOpenTask, useOpenTask } from "./taskParam";
 import { type WorkState, useWorkState } from "./useWorkState";
 
 const EMPTY_TASKS: V3Task[] = [];
 const EMPTY_PROJECTS: V3Project[] = [];
 
-/**
- * The task dialog opens over the current screen at `?task=<id>`. The open id
- * is local state, so the window mounts in the click's own render; the URL
- * follows through `history.replaceState`. Going through `router.replace` for
- * this query waits for a server round trip on the force-dynamic layout, which
- * is the lag between click and window. A `?task=` that arrives from outside
- * (Home, Calendar, a link) is taken from `useSearchParams` as before.
- * Other keys (`new`, `rename`) keep using the router.
- */
+/** Keys other than `task` still go through the router. */
 function useTaskParam() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const fromUrl = params.get("task");
-  const [taskId, setTaskId] = useState<string | null>(fromUrl);
-  useEffect(() => setTaskId(fromUrl), [fromUrl]);
   const setParam = useCallback(
     (key: string, value: string | null) => {
-      if (key === "task") {
-        setTaskId(value);
-        const { pathname: p, search, hash } = window.location;
-        window.history.replaceState(
-          window.history.state,
-          "",
-          withParam(p + search + hash, key, value)
-        );
-        return;
-      }
       const next = new URLSearchParams(params.toString());
       if (value) next.set(key, value);
       else next.delete(key);
@@ -100,8 +79,18 @@ function useTaskParam() {
     },
     [params, pathname, router]
   );
-  return { params, setParam, taskId };
+  return { params, setParam };
 }
+
+/**
+ * The task window at `?task=<id>`. It is its own component on its own store
+ * (taskParam.ts), so opening it renders the dialog and not the list.
+ */
+function TaskDialogSlot() {
+  const taskId = useOpenTask();
+  return <TaskDialogHost taskId={taskId} onClose={closeTask} />;
+}
+const closeTask = () => setOpenTask(null);
 
 /**
  * Tasks and Projects ($P/work.jsx WorkScreen): one component, two places.
@@ -154,7 +143,7 @@ function WorkScreenContent({
   const setPref = useSetPref();
   const taskView = useTaskView();
   const setComposerOpen = useNeedt3Ui((s) => s.setComposerOpen);
-  const { params, setParam, taskId } = useTaskParam();
+  const { params, setParam } = useTaskParam();
 
   const createProject = useCreateProject();
   const updateProject = useUpdateProject();
@@ -192,7 +181,7 @@ function WorkScreenContent({
     state.stopEdit();
     if (params.get("new")) setParam("new", null);
   };
-  const openTask = (id: string) => setParam("task", id);
+  const openTask = setOpenTask;
 
   const m = workModel({
     tasks,
@@ -521,7 +510,7 @@ function WorkScreenContent({
           ) : null}
         </div>
       </StScreen>
-      <TaskDialogHost taskId={taskId} onClose={() => setParam("task", null)} />
+      <TaskDialogSlot />
     </div>
   );
   return <CompletionScope value={completion}>{content}</CompletionScope>;
