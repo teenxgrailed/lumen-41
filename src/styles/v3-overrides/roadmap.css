@@ -89,7 +89,10 @@
 .needt-v3 .rm-page.is-phone .rm-station:active { background: var(--fill-2); }
 
 /* ---- Agents → Roadmap (on the night ground, agents-night.css) ---------- */
-.needt-v3 .rm-agents { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* One reading column, as wide as Chat's, not the whole night ground: the
+   map is a list, and a 1000px card left two thirds of it empty. */
+.needt-v3 .rm-agents { display: flex; flex-direction: column; gap: 12px; min-width: 0; width: 100%; max-width: 760px; margin: 0 auto; }
+.needt-v3 .rm-card-head > .rm-summary { flex: 1; min-width: 0; padding: 0; }
 .needt-v3 .rm-pick { flex-wrap: wrap; }
 .needt-v3 .rm-card { padding: 14px 12px 12px; border-radius: var(--radius-xl); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .needt-v3 .rm-card-head { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 0 4px; }

@@ -119,7 +119,13 @@ export function RoadmapTab({
       ) : null}
       <div className="ag-glass rm-card">
         <div className="rm-card-head">
-          <h2 className="rm-card-title">{project.name}</h2>
+          {/* With the picker above, the pressed chip already names the
+              project: the head carries Now / Next instead of the name again. */}
+          {choices.length > 1 ? (
+            <RoadmapSummary roadmap={roadmap} />
+          ) : (
+            <h2 className="rm-card-title">{project.name}</h2>
+          )}
           <span className="rm-card-actions">
             <AgBtn tone="text" onClick={onOpenChat}>
               Change in Chat
@@ -132,7 +138,7 @@ export function RoadmapTab({
             </Link>
           </span>
         </div>
-        <RoadmapSummary roadmap={roadmap} />
+        {choices.length > 1 ? null : <RoadmapSummary roadmap={roadmap} />}
         <RoadmapMap
           roadmap={roadmap}
           hue={projectHue(project)}
