@@ -595,6 +595,25 @@ describe("Agents screen", () => {
     expect(selected()).toBe("chat");
   });
 
+  it("keeps what agents wait on in one line above the input, not in the stream", async () => {
+    await mount("tab=chat");
+    const bar = host.querySelector<HTMLButtonElement>("[data-ag-pending-bar]");
+    expect(bar).not.toBeNull();
+    expect(bar!.textContent).toContain("Pick a cover image");
+    expect(bar!.getAttribute("aria-expanded")).toBe("false");
+    const list = () =>
+      host.querySelector<HTMLElement>("[data-ag-pending-list]")!;
+    expect(list().hidden).toBe(true);
+    expect(
+      host.querySelector("[data-ag-chat-stream] [data-ag-pending-list]")
+    ).toBeNull();
+
+    await click(bar);
+    expect(bar!.getAttribute("aria-expanded")).toBe("true");
+    expect(list().hidden).toBe(false);
+    expect(bar!.textContent).toContain("Hide");
+  });
+
   it("sends the line to Needt AI, and to the thread when one is open", async () => {
     await mount("tab=chat");
     const input = () =>
