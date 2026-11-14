@@ -35,7 +35,7 @@ import { useOnline } from "@/lib/needt3/use-online";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { AgeConfirm, useAgeState } from "../../auth/AgeConfirm";
-import type { AuthScreenProps } from "../../auth/AuthScreen";
+import { type AuthScreenProps, NO_EMAIL_CODE } from "../../auth/AuthScreen";
 import {
   MIN_PASSWORD,
   MORE_SIGN_IN_WAYS_LABEL,
@@ -52,7 +52,10 @@ import {
   showWaitlist,
   splitSignInProviders,
 } from "../../auth/auth-logic";
+import { CODE_TEXT } from "../../auth/email-code-logic";
 import { useAuthFields, useAuthSteps } from "../../auth/use-auth-fields";
+import { useEmailCodeFlow } from "../../auth/use-email-code-flow";
+import { PhoneEmailCode } from "./PhoneEmailCode";
 import {
   MaBrand,
   MaButton,
@@ -94,6 +97,7 @@ export function PhoneAuth({
   fields,
   steps,
   age: ageProp,
+  emailCode,
 }: PhoneAuthProps) {
   const signup = mode !== "login";
   const store = useStoreDistribution();
@@ -102,6 +106,17 @@ export function PhoneAuth({
   const online = useOnline();
   const offline = !online;
   const { mail, pass, setMail, setPass } = useAuthFields(fields, seed);
+  const codeMode = !!emailCode && !emailCode.usePassword;
+  const codeFlow = useEmailCodeFlow({
+    api: emailCode ?? NO_EMAIL_CODE,
+    mail,
+    signup,
+    ageOk: () => ageOk(),
+    ageConfirmed: age.checked,
+    onNeedAge: () => onMode("signup"),
+    onDone,
+    offline,
+  });
   const { touched, setTouched, refused, setRefused, recover, setRecover } =
     useAuthSteps(steps);
   const [busy, setBusy] = React.useState(false);
@@ -399,6 +414,11 @@ export function PhoneAuth({
             noValidate
             onSubmit={(e) => {
               e.preventDefault();
+              if (codeMode) {
+                if (codeFlow.step === "code") void codeFlow.verify();
+                else void codeFlow.send();
+                return;
+              }
               submit();
             }}
           >
@@ -459,84 +479,109 @@ export function PhoneAuth({
                 </span>
               </>
             ) : null}
-            <MaField
-              label="Email"
-              error={!!mProblem || refused?.reason === "taken"}
-              hint={mText}
-            >
-              <MaInput
-                label="Email"
-                type="email"
-                inputMode="email"
-                value={mail}
-                onChange={(v) => {
-                  setRefused(null);
-                  setMail(v);
-                }}
-                placeholder="Email"
-                icon={LuMail}
-                autoComplete="email"
-                enterKeyHint="next"
-                invalid={!!mProblem || refused?.reason === "taken"}
+            {codeMode ? (
+              <PhoneEmailCode
+                flow={codeFlow}
+                mail={mail}
+                setMail={setMail}
+                signup={signup}
+                offline={offline}
+                onUsePassword={
+                  signup ? undefined : () => emailCode?.setUsePassword(true)
+                }
               />
-            </MaField>
-            <MaField
-              label="Password"
-              error={short || wrongPair}
-              hint={
-                short
-                  ? "Use at least 8 characters."
-                  : signup
-                    ? `${MIN_PASSWORD} characters or more.`
-                    : null
-              }
-            >
-              <MaInput
-                label="Password"
-                type="password"
-                value={pass}
-                onChange={(v) => {
-                  setRefused(null);
-                  setPass(v);
-                }}
-                placeholder="Password"
-                icon={LuLock}
-                autoComplete={signup ? "new-password" : "current-password"}
-                enterKeyHint="go"
-                invalid={short || wrongPair}
-              />
-            </MaField>
-            {signup || !onRecover ? null : (
-              <button
-                type="button"
-                className="mau-link mau-forgot"
-                data-auth-forgot
-                onClick={openRecover}
-              >
-                <LuLockOpen size={14} aria-hidden />
-                Forgot password?
-              </button>
+            ) : (
+              <>
+                <MaField
+                  label="Email"
+                  error={!!mProblem || refused?.reason === "taken"}
+                  hint={mText}
+                >
+                  <MaInput
+                    label="Email"
+                    type="email"
+                    inputMode="email"
+                    value={mail}
+                    onChange={(v) => {
+                      setRefused(null);
+                      setMail(v);
+                    }}
+                    placeholder="Email"
+                    icon={LuMail}
+                    autoComplete="email"
+                    enterKeyHint="next"
+                    invalid={!!mProblem || refused?.reason === "taken"}
+                  />
+                </MaField>
+                <MaField
+                  label="Password"
+                  error={short || wrongPair}
+                  hint={
+                    short
+                      ? "Use at least 8 characters."
+                      : signup
+                        ? `${MIN_PASSWORD} characters or more.`
+                        : null
+                  }
+                >
+                  <MaInput
+                    label="Password"
+                    type="password"
+                    value={pass}
+                    onChange={(v) => {
+                      setRefused(null);
+                      setPass(v);
+                    }}
+                    placeholder="Password"
+                    icon={LuLock}
+                    autoComplete={signup ? "new-password" : "current-password"}
+                    enterKeyHint="go"
+                    invalid={short || wrongPair}
+                  />
+                </MaField>
+                {signup || !onRecover ? null : (
+                  <button
+                    type="button"
+                    className="mau-link mau-forgot"
+                    data-auth-forgot
+                    onClick={openRecover}
+                  >
+                    <LuLockOpen size={14} aria-hidden />
+                    Forgot password?
+                  </button>
+                )}
+                {refusal ? (
+                  <MaNote tone="attention" icon={LuCircleAlert}>
+                    {refusal}
+                  </MaNote>
+                ) : null}
+                {!signup ? aside : null}
+                {netRow}
+                <MaButton
+                  primary
+                  type="submit"
+                  disabled={offline || busy}
+                  data-auth-submit
+                >
+                  {signup ? (
+                    <LuUser size={16} aria-hidden />
+                  ) : (
+                    <LuArrowRight size={16} aria-hidden />
+                  )}
+                  {phoneSubmitLabel(mode, busy)}
+                </MaButton>
+                {emailCode ? (
+                  <button
+                    type="button"
+                    className="mau-link mau-forgot"
+                    data-auth-use-code
+                    onClick={() => emailCode.setUsePassword(false)}
+                  >
+                    {CODE_TEXT.useCode}
+                  </button>
+                ) : null}
+              </>
             )}
-            {refusal ? (
-              <MaNote tone="attention" icon={LuCircleAlert}>
-                {refusal}
-              </MaNote>
-            ) : null}
-            {!signup ? aside : null}
-            {netRow}
-            <MaButton
-              primary
-              type="submit"
-              disabled={offline || busy}
-              data-auth-submit
-            >
-              {signup ? (
-                <LuUser size={16} aria-hidden />
-              ) : (
-                <LuArrowRight size={16} aria-hidden />
-              )}
-              {phoneSubmitLabel(mode, busy)}
-            </MaButton>
           </form>
         </MaPaper>
 
