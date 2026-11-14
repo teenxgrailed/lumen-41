@@ -136,6 +136,8 @@ test.describe("clean-database first run", () => {
       /* Every sign-up confirms 16+ and the Terms first; without the tick the
          form does not submit. */
       await page.getByRole("checkbox", { name: /16 or older/ }).check();
+      /* The code is the main path now; this walk uses the password form. */
+      await page.getByRole("button", { name: "Use password" }).click();
       await page.getByRole("textbox", { name: "Email" }).fill(email);
       await page
         .getByRole("textbox", { name: "Password", exact: true })
