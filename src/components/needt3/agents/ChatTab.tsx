@@ -293,17 +293,18 @@ export function ChatTab({
   const pendingCount = alerts.length + waiting.length + unread.length;
   const pendingLead =
     alerts[0]?.what ?? waiting[0]?.title ?? unread[0]?.subject ?? "";
-  const pendingWord = alerts.length
-    ? "needs you"
-    : waiting.length
-      ? "waiting"
-      : "new";
+  const pendingWord = "waiting";
   const pendingAction = alerts.length
     ? (alerts[0]?.action ?? "Open")
     : waiting.length
       ? "Answer"
       : "Open";
   const showPending = !open && pendingCount > 0;
+  /* A tray left open must not greet the next item already expanded (and the
+     conversation dimmed behind it). */
+  useEffect(() => {
+    if (!showPending) setPendingOpen(false);
+  }, [showPending]);
 
   const who = (item: HubItemRow) =>
     item.assignee && item.assignee !== "any"
@@ -499,8 +500,9 @@ export function ChatTab({
                   }).catch(() => undefined);
                 }}
                 onAnswer={() => {
+                  /* The tray stays open: the question stays in view while
+                     the answer is typed below it. */
                   setReplyTo(item);
-                  setPendingOpen(false);
                   input.current?.focus();
                 }}
                 onOpen={() => onOpenItem(item.id)}
@@ -545,6 +547,12 @@ export function ChatTab({
             aria-controls="ag-pending-list"
             data-ag-pending-bar=""
             onClick={() => setPendingOpen(!pendingOpen)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && pendingOpen) {
+                e.stopPropagation();
+                setPendingOpen(false);
+              }
+            }}
           >
             <i
               aria-hidden="true"
