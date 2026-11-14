@@ -7,6 +7,7 @@ import {
   hashLegacyTrialEmailKeys,
   normalizeTrialEmail,
   startTrialForVerifiedUser,
+  startTrialWithOutcome,
   trialEmailKey,
   trialEmailLookupKeys,
 } from "@/lib/trials/trial-service";
@@ -92,9 +93,7 @@ describe("trial email key", () => {
     expect(keys).toContain(
       createHmac(
         "sha256",
-        createHmac("sha256", secret)
-          .update("needt:trial-email-key:v1")
-          .digest()
+        createHmac("sha256", secret).update("needt:trial-email-key:v1").digest()
       )
         .update("a+1@outlook.com")
         .digest("hex")
@@ -133,6 +132,27 @@ describe("trial email key", () => {
     expect(JSON.stringify(tx.trialGrant.createMany.mock.calls)).not.toContain(
       "person@example.com"
     );
+  });
+
+  it("says a trial was created only by the call that wrote it", async () => {
+    const written = transaction();
+    written.trialGrant.findUnique.mockResolvedValue({ id: "g1", userId: "u1" });
+    await expect(
+      startTrialWithOutcome(written as never, {
+        userId: "u1",
+        email: "person@example.com",
+      })
+    ).resolves.toMatchObject({ created: true });
+
+    const reread = transaction();
+    reread.trialGrant.findFirst.mockResolvedValue({ id: "g1", userId: "u1" });
+    await expect(
+      startTrialWithOutcome(reread as never, {
+        userId: "u1",
+        email: "person@example.com",
+      })
+    ).resolves.toEqual({ grant: { id: "g1", userId: "u1" }, created: false });
+    expect(reread.trialGrant.createMany).not.toHaveBeenCalled();
   });
 
   it("still spends the trial for an address granted before hashing", async () => {

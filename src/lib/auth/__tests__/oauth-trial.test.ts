@@ -1,6 +1,7 @@
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { prisma } from "@/lib/prisma";
 import { markEmailVerifiedAndStartTrial } from "@/lib/trials/trial-service";
+import { sendUmamiSignupCompleted } from "@/lib/umami-server";
 
 jest.mock("@auth/prisma-adapter", () => ({
   PrismaAdapter: jest.fn(() => ({})),
@@ -27,6 +28,12 @@ jest.mock("@/lib/prisma", () => ({
     },
     systemSettings: { findFirst: jest.fn().mockResolvedValue(null) },
   },
+}));
+jest.mock("@/lib/umami-server", () => ({
+  sendUmamiSignupCompleted: jest.fn(),
+}));
+jest.mock("@/lib/attribution-server", () => ({
+  requestUtm: jest.fn().mockResolvedValue({ utm_source: "newsletter" }),
 }));
 jest.mock("@/lib/trials/trial-service", () => ({
   markEmailVerifiedAndStartTrial: jest.fn(),
@@ -102,5 +109,32 @@ describe("OAuth trial activation", () => {
       } as never);
     }
     expect(markEmailVerifiedAndStartTrial).not.toHaveBeenCalled();
+  });
+
+  it("reports signup_completed for a new account only, with the utm tags", async () => {
+    jest.mocked(sendUmamiSignupCompleted).mockClear();
+    jest.mocked(prisma.userSettings.upsert).mockResolvedValue({} as never);
+    const options = await getAuthOptions();
+    const jwt = options.callbacks?.jwt as NonNullable<
+      NonNullable<typeof options.callbacks>["jwt"]
+    >;
+    const base = {
+      token: {},
+      user: { id: "db-user-3", email: "o@example.com", role: "user" },
+      account: {
+        provider: "google",
+        type: "oauth",
+        providerAccountId: "google-3",
+      },
+      profile: undefined,
+      trigger: "signIn",
+    };
+    await jwt({ ...base, isNewUser: false } as never);
+    expect(sendUmamiSignupCompleted).not.toHaveBeenCalled();
+    await jwt({ ...base, isNewUser: true } as never);
+    expect(sendUmamiSignupCompleted).toHaveBeenCalledTimes(1);
+    expect(sendUmamiSignupCompleted).toHaveBeenCalledWith("google", {
+      utm_source: "newsletter",
+    });
   });
 });

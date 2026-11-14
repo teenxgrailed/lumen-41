@@ -2,6 +2,8 @@ import {
   purchasePlan,
   sendUmamiEvent,
   sendUmamiPurchase,
+  sendUmamiSignupCompleted,
+  sendUmamiTrialStarted,
 } from "@/lib/umami-server";
 
 const fetchMock = jest.fn();
@@ -17,6 +19,7 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env.UMAMI_HOST;
   delete process.env.UMAMI_LANDING_WEBSITE_ID;
+  delete process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
 });
 
 describe("purchasePlan", () => {
@@ -83,5 +86,48 @@ describe("sendUmamiEvent", () => {
       name: "hub_item_completed",
       data: { itemId: "i1", outcome: "done" },
     });
+  });
+});
+
+describe("signup_completed and trial_started", () => {
+  const body = () => JSON.parse(fetchMock.mock.calls[0][1].body).payload;
+
+  it("sends the method and only the utm tags, on the landing site", async () => {
+    await sendUmamiSignupCompleted("google", {
+      utm_source: "newsletter",
+      utm_campaign: "launch",
+    });
+    expect(body()).toEqual({
+      website: "site-id-1",
+      hostname: "needt.app",
+      url: "/",
+      name: "signup_completed",
+      data: {
+        method: "google",
+        utm_source: "newsletter",
+        utm_campaign: "launch",
+      },
+    });
+  });
+
+  it("sends the source of a trial", async () => {
+    await sendUmamiTrialStarted("email_confirm");
+    expect(body().name).toBe("trial_started");
+    expect(body().data).toEqual({ source: "email_confirm" });
+  });
+});
+
+describe("the app website", () => {
+  it("goes to the app id and hostname, never the landing one", async () => {
+    process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID = "app-id-2";
+    await sendUmamiEvent("hub_item_created", { itemId: "i1" }, "app");
+    const payload = JSON.parse(fetchMock.mock.calls[0][1].body).payload;
+    expect(payload.website).toBe("app-id-2");
+    expect(payload.hostname).toBe("use.needt.app");
+  });
+
+  it("is skipped, not redirected to landing, when the app id is missing", async () => {
+    await sendUmamiEvent("hub_item_created", { itemId: "i1" }, "app");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

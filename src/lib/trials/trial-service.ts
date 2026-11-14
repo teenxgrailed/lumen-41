@@ -5,6 +5,7 @@ import { NEEDT_PRICING } from "@/lib/creem/config";
 import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { sendUmamiTrialStarted } from "@/lib/umami-server";
 
 const LOG_SOURCE = "TrialService";
 
@@ -94,9 +95,7 @@ function hashTrialAddress(address: string): string {
   const derivedKey = createHmac("sha256", secret)
     .update("needt:trial-email-key:v1")
     .digest();
-  return createHmac("sha256", derivedKey)
-    .update(address)
-    .digest("hex");
+  return createHmac("sha256", derivedKey).update(address).digest("hex");
 }
 
 /**
@@ -140,6 +139,18 @@ export async function startTrialForVerifiedUser(
   tx: TrialTransaction,
   input: { userId: string; email: string; now?: Date }
 ) {
+  return (await startTrialWithOutcome(tx, input)).grant;
+}
+
+/**
+ * `startTrialForVerifiedUser`, plus whether this very call wrote the grant.
+ * Only a new grant is a trial that started; re-reading one is not (the
+ * `trial_started` event fires on `created` only, once per user).
+ */
+export async function startTrialWithOutcome(
+  tx: TrialTransaction,
+  input: { userId: string; email: string; now?: Date }
+) {
   const now = input.now ?? newDate();
   const emailKey = trialEmailKey(input.email);
   /* A grant made before keys were hashed holds the normalized address until
@@ -157,9 +168,14 @@ export async function startTrialForVerifiedUser(
   const existing = await tx.trialGrant.findFirst({
     where: { emailKey: { in: trialEmailLookupKeys(input.email) } },
   });
-  if (existing) return existing.userId === input.userId ? existing : null;
+  if (existing) {
+    return {
+      grant: existing.userId === input.userId ? existing : null,
+      created: false,
+    };
+  }
 
-  await tx.trialGrant.createMany({
+  const written = await tx.trialGrant.createMany({
     data: {
       emailKey,
       userId: input.userId,
@@ -170,7 +186,8 @@ export async function startTrialForVerifiedUser(
   });
 
   const grant = await tx.trialGrant.findUnique({ where: { emailKey } });
-  return grant?.userId === input.userId ? grant : null;
+  const mine = grant?.userId === input.userId ? grant : null;
+  return { grant: mine, created: Boolean(mine) && (written?.count ?? 0) > 0 };
 }
 
 /**
@@ -227,18 +244,23 @@ export async function markEmailVerifiedAndStartTrial(input: {
   email: string;
   now?: Date;
 }) {
-  return runTrialTransaction(async (tx) => {
+  const result = await runTrialTransaction(async (tx) => {
     const user = await tx.user.update({
       where: { id: input.userId },
       data: { emailVerified: input.now ?? newDate() },
       select: { id: true, email: true, emailVerified: true },
     });
     if (!user.email) return { user, trial: null };
-    const trial = await startTrialForVerifiedUser(tx, {
+    const started = await startTrialWithOutcome(tx, {
       userId: user.id,
       email: user.email,
       now: input.now,
     });
-    return { user, trial };
+    return { user, trial: started.grant, created: started.created };
   });
+  /* After the commit, so a rolled-back grant is never counted. */
+  if ("created" in result && result.created) {
+    void sendUmamiTrialStarted("oauth");
+  }
+  return { user: result.user, trial: result.trial };
 }

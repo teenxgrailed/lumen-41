@@ -282,6 +282,12 @@ UMAMI_LANDING_WEBSITE_ID=""
   one server-side `purchase` event `{ plan: pro_year | pro_month | lifetime }`
   to `POST {UMAMI_HOST}/api/send`, so the landing funnel ends in a payment. No
   personal data is sent; a missing value skips it, a failure is only logged.
+  The same two values carry `signup_completed { method, utm_* }` (one account
+  created) and `trial_started { source }` (one trial grant written). Agents-hub
+  events (`agent_registered`, `hub_item_*`, `escalation_answered`) go to the
+  app site instead, `NEXT_PUBLIC_UMAMI_WEBSITE_ID`. Next inlines it at build
+  time (the Docker build arg), so the build decides: without it these events
+  are skipped, never sent to the landing site.
 
 - `NEEDT_HEARTBEAT_URL` is read by the worker. When set, the worker sends a
   `GET` to it on start and on every release-heartbeat tick, so an external

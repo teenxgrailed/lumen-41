@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 
 import { PrismaAdapter } from "@auth/prisma-adapter";
 
+import { requestUtm } from "@/lib/attribution-server";
 import {
   accountLinkingGate,
   normalizeEmail,
@@ -30,6 +31,7 @@ import { logger } from "@/lib/logger";
 import { ONBOARDING_RESUME_PATH } from "@/lib/onboarding/paths";
 import { prisma } from "@/lib/prisma";
 import { markEmailVerifiedAndStartTrial } from "@/lib/trials/trial-service";
+import { sendUmamiSignupCompleted } from "@/lib/umami-server";
 
 // Define a type for our user with role
 interface UserWithRole {
@@ -191,6 +193,9 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
               where: { id: user.id, ageConfirmedAt: null },
               data: { ageConfirmedAt: newDate() },
             });
+            /* isNewUser is true only on the sign-in that created the row,
+               so this is once per account. */
+            void sendUmamiSignupCompleted(account.provider, await requestUtm());
           }
           if (account.type === "oauth" && user?.id && user.email) {
             /* Confirmed only when the provider itself vouches for this very

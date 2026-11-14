@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 
+import { consentedUtmFromCookieHeader } from "@/lib/attribution";
 import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
 import { passwordSchema } from "@/lib/auth/password-schema";
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
@@ -29,6 +30,7 @@ import {
   enforceRateLimits,
   ipRule,
 } from "@/lib/security/rate-limit";
+import { sendUmamiSignupCompleted } from "@/lib/umami-server";
 
 const LOG_SOURCE = "RegisterAPI";
 
@@ -197,6 +199,11 @@ export async function POST(request: NextRequest) {
       "User registered successfully",
       { userId: user.id },
       LOG_SOURCE
+    );
+    /* Once per account: only the branch that created the row gets here. */
+    void sendUmamiSignupCompleted(
+      "credentials",
+      consentedUtmFromCookieHeader(request.headers.get("cookie"))
     );
     try {
       await sendEmailVerification({

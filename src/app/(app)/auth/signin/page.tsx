@@ -27,6 +27,8 @@ export default async function SignInPage({
     provider?: string;
     /** "student": needt.app/students; opens Plan with the student price. */
     plan?: string;
+    /** "signup": the needt.app sign-up links open the create-account form. */
+    mode?: string;
   }>;
 }) {
   // Check if user is already signed in
@@ -49,6 +51,7 @@ export default async function SignInPage({
     <V3SignInRoute
       callbackUrl={callbackUrl}
       error={error}
+      startMode={params.mode === "signup" ? "signup" : undefined}
       autoProvider={isSignInProviderId(provider) ? provider : undefined}
       {...await requestPhoneUi()}
     />

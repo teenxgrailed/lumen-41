@@ -2,14 +2,14 @@ import Script from "next/script";
 
 import "@excalidraw/excalidraw/index.css";
 
+import { AttributionCapture } from "@/components/consent/AttributionCapture";
 import { CookieConsent } from "@/components/consent/CookieConsent";
+import "@/components/consent/cookie-consent.css";
 import { AmbientBackdrop } from "@/components/liquid";
 import { Providers } from "@/components/providers";
 
 import { CHUNK_RELOAD_SCRIPT } from "@/lib/pwa/chunk-reload";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-init";
-
-import "@/components/consent/cookie-consent.css";
 
 import "./globals.css";
 import {
@@ -82,6 +82,7 @@ export default function RootLayout({
       </head>
       <body className="flex h-full flex-col bg-[var(--surface-canvas)] antialiased">
         <CookieConsent umamiWebsiteId={UMAMI_WEBSITE_ID} />
+        <AttributionCapture />
         <AmbientBackdrop />
         <div className="relative z-10 flex min-h-full flex-col">
           <Providers>{children}</Providers>

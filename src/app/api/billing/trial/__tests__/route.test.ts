@@ -5,8 +5,9 @@ import { POST } from "@/app/api/billing/trial/route";
 import { prisma } from "@/lib/prisma";
 import {
   runTrialTransaction,
-  startTrialForVerifiedUser,
+  startTrialWithOutcome,
 } from "@/lib/trials/trial-service";
+import { sendUmamiTrialStarted } from "@/lib/umami-server";
 
 jest.mock("@/lib/auth/api-auth", () => ({
   authenticateRequest: jest.fn().mockResolvedValue({ userId: "user_1" }),
@@ -22,9 +23,12 @@ jest.mock("@/lib/security/rate-limit", () => ({
   enforceRateLimits: jest.fn().mockResolvedValue(null),
   ipRule: jest.fn(),
 }));
+jest.mock("@/lib/umami-server", () => ({
+  sendUmamiTrialStarted: jest.fn(),
+}));
 jest.mock("@/lib/trials/trial-service", () => ({
   runTrialTransaction: jest.fn(),
-  startTrialForVerifiedUser: jest.fn(),
+  startTrialWithOutcome: jest.fn(),
 }));
 
 const request = () =>
@@ -44,8 +48,9 @@ describe("POST /api/billing/trial", () => {
   });
 
   it("starts the trial through the one trial service", async () => {
-    (startTrialForVerifiedUser as jest.Mock).mockResolvedValue({
-      endsAt: future,
+    (startTrialWithOutcome as jest.Mock).mockResolvedValue({
+      grant: { endsAt: future },
+      created: true,
     });
     const res = (await POST(request()))!;
     expect(res.status).toBe(200);
@@ -53,10 +58,21 @@ describe("POST /api/billing/trial", () => {
       started: true,
       trialEndsAt: future.toISOString(),
     });
-    expect(startTrialForVerifiedUser).toHaveBeenCalledWith(
+    expect(startTrialWithOutcome).toHaveBeenCalledWith(
       {},
       expect.objectContaining({ userId: "user_1", email: "me@example.test" })
     );
+    expect(sendUmamiTrialStarted).toHaveBeenCalledWith("paywall");
+  });
+
+  it("does not count a trial that was only read back", async () => {
+    (startTrialWithOutcome as jest.Mock).mockResolvedValue({
+      grant: { endsAt: future },
+      created: false,
+    });
+    const res = (await POST(request()))!;
+    expect(res.status).toBe(200);
+    expect(sendUmamiTrialStarted).not.toHaveBeenCalled();
   });
 
   it("needs a confirmed address", async () => {
@@ -66,26 +82,30 @@ describe("POST /api/billing/trial", () => {
     });
     const res = (await POST(request()))!;
     expect(res.status).toBe(400);
-    expect(startTrialForVerifiedUser).not.toHaveBeenCalled();
+    expect(startTrialWithOutcome).not.toHaveBeenCalled();
   });
 
   it("refuses an address that has had its trial", async () => {
-    (startTrialForVerifiedUser as jest.Mock).mockResolvedValue(null);
+    (startTrialWithOutcome as jest.Mock).mockResolvedValue({
+      grant: null,
+      created: false,
+    });
     const res = (await POST(request()))!;
     expect(res.status).toBe(409);
     expect((await res.json()).code).toBe("TRIAL_USED");
   });
 
   it("does not restart a trial that has run out", async () => {
-    (startTrialForVerifiedUser as jest.Mock).mockResolvedValue({
-      endsAt: past,
+    (startTrialWithOutcome as jest.Mock).mockResolvedValue({
+      grant: { endsAt: past },
+      created: false,
     });
     const res = (await POST(request()))!;
     expect(res.status).toBe(409);
   });
 
   it("says so, without detail, when the service fails", async () => {
-    (startTrialForVerifiedUser as jest.Mock).mockRejectedValue(
+    (startTrialWithOutcome as jest.Mock).mockRejectedValue(
       new Error("db down")
     );
     const res = (await POST(request()))!;
