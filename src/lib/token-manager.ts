@@ -70,7 +70,7 @@ export class TokenManager {
   }
 
   async getValidAccessToken(
-    provider: Extract<Provider, "GOOGLE" | "OUTLOOK">,
+    provider: Extract<Provider, "GOOGLE" | "GOOGLE_MAIL" | "OUTLOOK">,
     accountId: string,
     userId: string
   ): Promise<string | null> {
@@ -80,7 +80,7 @@ export class TokenManager {
       return tokens.accessToken;
     }
     const refreshed =
-      provider === "GOOGLE"
+      provider === "GOOGLE" || provider === GOOGLE_MAIL_PROVIDER
         ? await this.refreshGoogleTokens(accountId, userId)
         : await this.refreshOutlookTokens(accountId, userId);
     return refreshed?.accessToken ?? null;

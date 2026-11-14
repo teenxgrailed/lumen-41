@@ -9,8 +9,8 @@ import type {
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
-import { pushOwnerAlert } from "./alerts";
 import { findAgentByRef } from "./agents";
+import { pushOwnerAlert } from "./alerts";
 import {
   MESSAGES_DEFAULT_LIMIT,
   MESSAGES_MAX_LIMIT,
@@ -93,9 +93,7 @@ export function messageView(
         name: names.get(id) ?? "agent",
       })),
       ...(message.toOwner ? [{ kind: "owner" }] : []),
-      ...(message.toAny
-        ? [{ kind: "any", skills: message.anySkills }]
-        : []),
+      ...(message.toAny ? [{ kind: "any", skills: message.anySkills }] : []),
     ],
     body: message.body,
     importance: message.importance,
@@ -305,6 +303,7 @@ export async function sendMessage(scope: HubScope, input: MessageSendInput) {
       body,
       importance: input.importance ?? "normal",
       ackRequired: input.ackRequired ?? false,
+      //todo remove the cast when TS resolves the XOR consistently; the assertion disables excess-property checks.
     } as Prisma.HubMessageUncheckedCreateInput,
   });
   await prisma.hubThread.update({
@@ -529,9 +528,7 @@ export async function readThread(scope: AgentScope, threadId: string) {
         unreadIds.includes(row.id)
           ? {
               ...row,
-              receipts: [
-                { agentId: agent.id, readAt: newDate(), ackAt: null },
-              ],
+              receipts: [{ agentId: agent.id, readAt: newDate(), ackAt: null }],
             }
           : row,
         names,
@@ -567,8 +564,8 @@ export async function listThreadsForOwner(key: WorkspaceKey) {
               from:
                 last.fromKind === "owner"
                   ? "You"
-                  : ((last.fromAgentId && names.get(last.fromAgentId)) ||
-                    "agent"),
+                  : (last.fromAgentId && names.get(last.fromAgentId)) ||
+                    "agent",
               text: oneLine(last.body, 140),
               importance: last.importance,
             }

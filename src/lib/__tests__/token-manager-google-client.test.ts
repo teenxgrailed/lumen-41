@@ -106,6 +106,30 @@ describe("refreshing Google tokens uses the client that issued them", () => {
   });
 });
 
+describe("getValidAccessToken accepts a mail grant", () => {
+  it("refreshes a GOOGLE_MAIL row with the client that issued it", async () => {
+    jest.clearAllMocks();
+    mockPrisma.connectedAccount.update.mockImplementation(
+      async ({ data }: { data: Record<string, unknown> }) => ({
+        id: "acc-1",
+        ...data,
+      })
+    );
+    (createGoogleMailOAuthClient as jest.Mock).mockResolvedValue({
+      client: "mail",
+      oauth2Client: client("from-mail"),
+    });
+    mockPrisma.connectedAccount.findUnique.mockResolvedValue(row("mail"));
+    const token = await TokenManager.getInstance().getValidAccessToken(
+      "GOOGLE_MAIL",
+      "acc-1",
+      "u1"
+    );
+    expect(token).toBe("from-mail");
+    expect(createGoogleOAuthClient).not.toHaveBeenCalled();
+  });
+});
+
 describe("storeTokens records the issuing client", () => {
   beforeEach(() => {
     jest.clearAllMocks();

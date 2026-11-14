@@ -1,10 +1,13 @@
+import { revokeGoogleConnectionOnDisconnect } from "@/services/account/account-external-access";
 import { MailAccountStatus, MailProvider, Prisma } from "@prisma/client";
 
 import { publicMailAccountSelect } from "@/lib/api/public-records";
 import { newDate } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
 import { MailMessageSyncInput } from "@/lib/mail/types";
 import { prisma } from "@/lib/prisma";
 
+const LOG_SOURCE = "MailDb";
 const MAIL_RETENTION_DAYS = 90;
 const MAIL_MESSAGE_CAP = 2_000; //todo make this configurable per account.
 
@@ -51,20 +54,74 @@ export async function createOAuthMailAccount(options: {
   address: string;
   connectionRef: string;
 }) {
-  return prisma.mailAccount.upsert({
-    where: {
-      userId_provider_address: {
-        userId: options.userId,
-        provider: options.provider,
-        address: options.address,
-      },
+  const where = {
+    userId_provider_address: {
+      userId: options.userId,
+      provider: options.provider,
+      address: options.address,
     },
+  };
+  const previous = await prisma.mailAccount.findUnique({
+    where,
+    select: { connectionRef: true },
+  });
+  const account = await prisma.mailAccount.upsert({
+    where,
     update: {
       connectionRef: options.connectionRef,
       status: MailAccountStatus.ACTIVE,
     },
     create: options,
   });
+  if (
+    options.provider === "GMAIL" &&
+    previous?.connectionRef &&
+    previous.connectionRef !== options.connectionRef
+  ) {
+    await retireReplacedGoogleConnection(
+      options.userId,
+      account.id,
+      previous.connectionRef
+    );
+  }
+  return account;
+}
+
+/**
+ * A reconnected Gmail mailbox can land on a different connection row (the
+ * mail Google client issues its own, the old one came from the main client).
+ * The old row is revoked and deleted once nothing else uses it; a calendar
+ * feed, task provider or another mailbox keeps it alive. Never throws: the
+ * reconnect has already succeeded.
+ */
+async function retireReplacedGoogleConnection(
+  userId: string,
+  mailAccountId: string,
+  oldConnectionRef: string
+) {
+  try {
+    const [calendars, otherMailboxes, taskProviders] = await Promise.all([
+      prisma.calendarFeed.count({ where: { accountId: oldConnectionRef } }),
+      prisma.mailAccount.count({
+        where: { connectionRef: oldConnectionRef, NOT: { id: mailAccountId } },
+      }),
+      prisma.taskProvider.count({ where: { accountId: oldConnectionRef } }),
+    ]);
+    if (calendars > 0 || otherMailboxes > 0 || taskProviders > 0) return;
+    await revokeGoogleConnectionOnDisconnect(userId, oldConnectionRef);
+    await prisma.connectedAccount.deleteMany({
+      where: { id: oldConnectionRef, userId },
+    });
+  } catch (error) {
+    await logger.warn(
+      "Could not retire the replaced Google connection after reconnect",
+      {
+        mailAccountId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
+  }
 }
 
 export async function listMailFocusedSplits(userId: string) {
