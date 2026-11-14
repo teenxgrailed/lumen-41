@@ -88,6 +88,11 @@ describe("verifyGoogleIdToken", () => {
     expect(await reasonOf(token({ exp: NOW_S - 600 }))).toBe("expired");
   });
 
+  it("refuses a token without iat (it becomes the re-authentication stamp)", async () => {
+    expect(await reasonOf(token({ iat: undefined }))).toBe("incomplete");
+    expect(await reasonOf(token({ iat: "soon" }))).toBe("incomplete");
+  });
+
   it("refuses a token without our nonce, or with another one", async () => {
     expect(await reasonOf(token({ nonce: "someone-elses" }))).toBe("nonce");
     expect(await reasonOf(token({ nonce: undefined }))).toBe("nonce");

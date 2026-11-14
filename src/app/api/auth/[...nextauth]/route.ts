@@ -5,7 +5,11 @@ import { getAuthOptions } from "@/lib/auth/auth-options";
 import { classifyCredentialAttempt } from "@/lib/auth/credential-attempt";
 import { credentialsEmail } from "@/lib/auth/credentials-email";
 import { ONE_TAP_PROVIDER_ID } from "@/lib/auth/google-one-tap";
-import { ONE_TAP_NONCE_COOKIE } from "@/lib/auth/google-one-tap-nonce";
+import {
+  oneTapNonceCookieName,
+  unverifiedTokenNonce,
+} from "@/lib/auth/google-one-tap-nonce";
+import { signInSucceeded } from "@/lib/auth/sign-in-outcome";
 import { newDate } from "@/lib/date-utils";
 import {
   accountRule,
@@ -77,6 +81,21 @@ async function getHandler(): Promise<AuthHandler> {
   }
 }
 
+/** The `credential` field of a One Tap callback, read the way NextAuth reads it. */
+async function oneTapCredential(request: Request): Promise<unknown> {
+  const type = request.headers.get("content-type") ?? "";
+  const clone = request.clone();
+  if (type.includes("application/json")) {
+    return ((await clone.json().catch(() => null)) as { credential?: unknown })
+      ?.credential;
+  }
+  if (type.includes("application/x-www-form-urlencoded")) {
+    return Object.fromEntries(new URLSearchParams(await clone.text()))
+      .credential;
+  }
+  return undefined;
+}
+
 export async function GET(request: NextRequest, context: AuthRouteContext) {
   const handler = await getHandler();
   return handler(request, context);
@@ -118,18 +137,21 @@ export async function POST(request: NextRequest, context: AuthRouteContext) {
       { route: request.nextUrl.pathname }
     );
     if (limited) return limited;
+    const nonce = unverifiedTokenNonce(await oneTapCredential(request));
     const response = await handler(request, context);
-    /* The nonce is single use: a success clears it. A refusal keeps it, so
-       the age confirmation can retry with the same token. */
-    const outcome = `${response.headers.get("location") ?? ""}${
-      response.headers.get("content-type")?.includes("application/json")
+    /* The nonce is single use: a success clears its cookie. A refusal keeps
+       it, so the age confirmation can retry with the same token. */
+    const succeeded = signInSucceeded({
+      status: response.status,
+      location: response.headers.get("location"),
+      body: response.headers.get("content-type")?.includes("application/json")
         ? await response.clone().text()
-        : ""
-    }`;
-    if (response.status < 400 && !outcome.includes("error=")) {
+        : null,
+    });
+    if (succeeded && nonce) {
       response.headers.append(
         "set-cookie",
-        `${ONE_TAP_NONCE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`
+        `${oneTapNonceCookieName(nonce)}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`
       );
     }
     return response;

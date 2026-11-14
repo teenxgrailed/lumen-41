@@ -102,4 +102,30 @@ describe("Google One Tap script", () => {
     expect(gsi.cancel).toHaveBeenCalled();
     root = createRoot(host);
   });
+
+  it("asks for the nonce again right before prompt(), and uses that one", async () => {
+    let n = 0;
+    (globalThis as { fetch?: unknown }).fetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        clientId: "id.apps.googleusercontent.com",
+        nonce: `nonce-${++n}`,
+      }),
+    }));
+    const gsi = {
+      initialize: jest.fn(),
+      prompt: jest.fn(),
+      cancel: jest.fn(),
+    };
+    await mount();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    (window as { google?: unknown }).google = { accounts: { id: gsi } };
+    await act(async () => {
+      script()!.dispatchEvent(new Event("load"));
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(gsi.initialize).toHaveBeenCalledWith(
+      expect.objectContaining({ nonce: "nonce-2" })
+    );
+  });
 });

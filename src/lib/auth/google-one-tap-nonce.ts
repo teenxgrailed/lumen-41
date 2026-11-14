@@ -1,4 +1,9 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 
 import { authSecret } from "@/lib/auth/auth-secret";
 
@@ -8,9 +13,41 @@ import { authSecret } from "@/lib/auth/auth-secret";
  * sign-in accepts the token only with the same nonce from a signed, httpOnly,
  * short-lived cookie. A token captured elsewhere cannot be replayed (the
  * attacker has no cookie), and the cookie is cleared by the first success.
+ *
+ * One cookie per nonce (the name carries a hash of the nonce), so a second
+ * tab, or React StrictMode's double effect, cannot overwrite the cookie of the
+ * nonce another prompt already holds. The cookie outlives the ID token (Google
+ * issues them for about an hour), so a tap on an old prompt still works.
  */
 export const ONE_TAP_NONCE_COOKIE = "needt_onetap_nonce";
-export const ONE_TAP_NONCE_TTL_SECONDS = 30 * 60;
+export const ONE_TAP_NONCE_TTL_SECONDS = 75 * 60;
+
+/** The cookie that holds the proof for one nonce. */
+export function oneTapNonceCookieName(nonce: string): string {
+  return `${ONE_TAP_NONCE_COOKIE}_${createHash("sha256")
+    .update(nonce)
+    .digest("hex")
+    .slice(0, 16)}`;
+}
+
+/**
+ * The nonce claim of an ID token, read WITHOUT verifying it: only to pick the
+ * cookie to look in. Trust comes from the signed cookie and the token's
+ * signature, never from this.
+ */
+export function unverifiedTokenNonce(credential: unknown): string | null {
+  if (typeof credential !== "string" || credential.length > 8192) return null;
+  const payload = credential.split(".")[1];
+  if (!payload) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString());
+    return typeof claims?.nonce === "string" && claims.nonce
+      ? claims.nonce
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 function signature(nonce: string, expiry: string): string {
   return createHmac("sha256", authSecret())
@@ -46,12 +83,18 @@ export function readOneTapNonce(
   return Number(expiry) > Math.floor(nowMs / 1000) ? nonce : null;
 }
 
-/** The current request's nonce cookie, valid and unexpired. */
-export async function currentOneTapNonce(nowMs: number) {
+/** The nonce cookie of the current request that belongs to this credential. */
+export async function currentOneTapNonce(nowMs: number, credential: unknown) {
+  const claimed = unverifiedTokenNonce(credential);
+  if (!claimed) return null;
   try {
     const { cookies } = await import("next/headers");
     const jar = await cookies();
-    return readOneTapNonce(jar.get(ONE_TAP_NONCE_COOKIE)?.value, nowMs);
+    const proven = readOneTapNonce(
+      jar.get(oneTapNonceCookieName(claimed))?.value,
+      nowMs
+    );
+    return proven === claimed ? proven : null;
   } catch {
     return null;
   }

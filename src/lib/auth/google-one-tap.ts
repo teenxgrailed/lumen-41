@@ -86,7 +86,10 @@ export async function signInWithGoogleCredential(
     const nonce =
       deps.nonce !== undefined
         ? deps.nonce
-        : await currentOneTapNonce(deps.nowMs ?? newDate().getTime());
+        : await currentOneTapNonce(
+            deps.nowMs ?? newDate().getTime(),
+            credential
+          );
     identity = await verifyGoogleIdToken(credential, {
       clientId,
       keys: deps.keys,

@@ -159,10 +159,12 @@ export async function verifyGoogleIdToken(
   ) {
     throw new GoogleIdTokenError("expired");
   }
-  if (
-    typeof claims.iat === "number" &&
-    claims.iat - CLOCK_TOLERANCE_SECONDS > nowSeconds
-  ) {
+  /* `iat` becomes the re-authentication stamp, so a token without it is not
+     accepted (Google always sends it). */
+  if (typeof claims.iat !== "number" || !Number.isFinite(claims.iat)) {
+    throw new GoogleIdTokenError("incomplete");
+  }
+  if (claims.iat - CLOCK_TOLERANCE_SECONDS > nowSeconds) {
     throw new GoogleIdTokenError("not-yet-valid");
   }
   if (
@@ -187,7 +189,6 @@ export async function verifyGoogleIdToken(
     name: typeof claims.name === "string" ? claims.name : null,
     picture: typeof claims.picture === "string" ? claims.picture : null,
     hd: typeof claims.hd === "string" && claims.hd ? claims.hd : null,
-    issuedAtMs:
-      typeof claims.iat === "number" ? claims.iat * 1000 : nowSeconds * 1000,
+    issuedAtMs: claims.iat * 1000,
   };
 }
