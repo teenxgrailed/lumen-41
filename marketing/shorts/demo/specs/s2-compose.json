@@ -1,0 +1,21 @@
+{
+ "segments": [
+  {"dir": "/home/max/shorts-scratch/compose", "from": ["plus", -0.8], "to": ["enter", 3.2]}
+ ],
+ "captions": [
+  {"t": 0.0, "end": 2.3, "text": "One sentence. That is the whole form."},
+  {"t": 2.3, "end": 3.7, "text": "Type it like you would say it."},
+  {"t": 3.7, "end": 5.8, "text": "today → date. 8pm → time. 20 min → length.", "hl": ["today", "8pm", "20", "min"]},
+  {"t": 5.8, "end": 7.4, "text": "No pickers. No fields."},
+  {"t": 7.4, "end": 10.6, "text": "Add. It is on today at 20:00.", "hl": ["20:00"]}
+ ],
+ "sfx": [
+  {"t": 0.8, "file": "click_003.wav"},
+  {"t": 3.76, "file": "rollover2.wav", "gain": -5},
+  {"t": 4.2, "file": "rollover2.wav", "gain": -5},
+  {"t": 7.43, "file": "click_003.wav"},
+  {"t": 8.0, "file": "drop_002.wav", "gain": -4},
+  {"t": 10.63, "file": "bong_001.wav", "gain": -3}
+ ],
+ "end": {"line": "It plans the day. You just show up.", "url": "use.needt.app", "seconds": 2.4}
+}

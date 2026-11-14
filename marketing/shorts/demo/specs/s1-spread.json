@@ -1,0 +1,21 @@
+{
+ "segments": [
+  {"dir": "/home/max/shorts-scratch/spread", "from": ["tap", -2.6], "to": ["tap", 5.0]},
+  {"dir": "/home/max/shorts-scratch/upcoming", "from": ["tap", -0.4], "to": ["tap", 3.6]}
+ ],
+ "captions": [
+  {"t": 0.0, "end": 2.5, "text": "I ignored 9 tasks for a week.", "hl": ["9"]},
+  {"t": 2.5, "end": 3.4, "text": "One tap."},
+  {"t": 3.4, "end": 5.8, "text": "Needt finds a day with room for each one."},
+  {"t": 5.8, "end": 7.6, "text": "Today: clear again."},
+  {"t": 7.6, "end": 11.6, "text": "Monday: 4. Tuesday: 5. Zero overdue.", "hl": ["4", "5"]}
+ ],
+ "sfx": [
+  {"t": 2.6, "file": "click_003.wav"},
+  {"t": 3.0, "file": "drop_002.wav", "gain": -4},
+  {"t": 5.8, "file": "impactSoft_medium_001.wav", "gain": -6},
+  {"t": 8.0, "file": "rollover2.wav", "gain": -4},
+  {"t": 11.6, "file": "bong_001.wav", "gain": -3}
+ ],
+ "end": {"line": "It plans the day. You just show up.", "url": "use.needt.app", "seconds": 2.4}
+}

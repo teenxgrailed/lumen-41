@@ -1,0 +1,18 @@
+{
+ "segments": [
+  {"dir": "/home/max/shorts-scratch/map", "from": ["", 0], "to": ["", 12.95]}
+ ],
+ "captions": [
+  {"t": 0.0, "end": 2.8, "text": "5 AI agents. 15 jobs. One screen.", "hl": ["5", "15"]},
+  {"t": 2.8, "end": 5.8, "text": "Each light is an agent or a job.", "hl": ["agent", "job"]},
+  {"t": 5.8, "end": 9.4, "text": "Who is working. Who is done. Who is waiting on you.", "hl": ["you."]},
+  {"t": 9.4, "end": 12.95, "text": "All your AI agents. One map in Needt.", "hl": ["one", "map"]}
+ ],
+ "sfx": [
+  {"t": 0.05, "file": "impactSoft_medium_001.wav", "gain": -5},
+  {"t": 5.8, "file": "rollover2.wav", "gain": -6},
+  {"t": 9.4, "file": "rollover2.wav", "gain": -6},
+  {"t": 12.95, "file": "bong_001.wav", "gain": -3}
+ ],
+ "end": {"line": "Agents Map: see every agent at work.", "url": "use.needt.app", "seconds": 2.4}
+}
