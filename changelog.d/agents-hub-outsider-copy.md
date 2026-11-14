@@ -1,0 +1,1 @@
+- Agents hub: the copyable agent prompt no longer points at a repo-only doc and names the Connections page for separate tokens. /api/health now reports the global agent_hub flag state.
