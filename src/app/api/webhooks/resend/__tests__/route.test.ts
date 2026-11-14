@@ -80,6 +80,40 @@ describe("Resend webhook", () => {
     expect(prisma.emailSuppression.upsert).not.toHaveBeenCalled();
   });
 
+  it("logs why a signature was refused, without the secret", async () => {
+    await POST(
+      signed(bounce("Permanent"), { secret: Buffer.from("another-secret") })
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Resend webhook signature refused",
+      expect.objectContaining({ reason: "mismatch", secretHasPrefix: true }),
+      expect.any(String)
+    );
+    const logged = JSON.stringify(jest.mocked(logger.warn).mock.calls);
+    expect(logged).not.toContain(SECRET_BYTES.toString("base64"));
+  });
+
+  it("accepts a correctly signed event and logs it", async () => {
+    const response = await POST(signed(bounce("Permanent"), { id: "msg_ok" }));
+    expect(response.status).toBe(200);
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(
+      "Resend event accepted",
+      { id: "msg_ok", type: "email.bounced" },
+      expect.any(String)
+    );
+  });
+
+  it("names a stale timestamp as the reason", async () => {
+    const old = Math.floor(Date.now() / 1000) - 6 * 60;
+    await POST(signed(bounce("Permanent"), { timestamp: old }));
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Resend webhook signature refused",
+      expect.objectContaining({ reason: "stale_timestamp" }),
+      expect.any(String)
+    );
+  });
+
   it("refuses a timestamp older than five minutes", async () => {
     const old = Math.floor(Date.now() / 1000) - 6 * 60;
     const response = await POST(

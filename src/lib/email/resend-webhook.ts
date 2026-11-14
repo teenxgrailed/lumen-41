@@ -15,29 +15,45 @@ const LOG_SOURCE = "ResendWebhook";
 /** Svix signatures older than this are refused. */
 export const WEBHOOK_TOLERANCE_SECONDS = 5 * 60;
 
-/**
- * Verifies a Svix-signed webhook (what Resend sends): HMAC-SHA256 over
- * `${svix-id}.${svix-timestamp}.${raw body}` with the base64 secret that
- * follows `whsec_`, compared against every `v1,<signature>` in the header.
- * The body must be the raw text, not re-serialised JSON.
- */
-export function verifySvixSignature(input: {
+/** Why a Svix signature was refused; logged so a failing endpoint can be diagnosed. */
+export type SvixSignatureProblem =
+  | "missing_headers"
+  | "bad_timestamp"
+  | "stale_timestamp"
+  | "secret_format"
+  | "mismatch";
+
+type SvixInput = {
   secret: string;
   id: string | null;
   timestamp: string | null;
   signature: string | null;
   body: string;
   nowSeconds?: number;
-}): boolean {
+};
+
+/**
+ * Checks a Svix-signed webhook (what Resend sends): HMAC-SHA256 over
+ * `${svix-id}.${svix-timestamp}.${raw body}` with the base64 secret that
+ * follows `whsec_`, compared against every `v1,<signature>` in the header.
+ * The body must be the raw text, not re-serialised JSON. Returns null when the
+ * signature is valid, otherwise the reason it is not.
+ */
+export function svixSignatureProblem(
+  input: SvixInput
+): SvixSignatureProblem | null {
   const { secret, id, timestamp, signature, body } = input;
-  if (!secret || !id || !timestamp || !signature) return false;
+  if (!id || !timestamp || !signature) return "missing_headers";
   const sentAt = Number(timestamp);
-  if (!Number.isFinite(sentAt)) return false;
+  if (!Number.isFinite(sentAt)) return "bad_timestamp";
   const now = input.nowSeconds ?? Math.floor(newDate().getTime() / 1000);
-  if (Math.abs(now - sentAt) > WEBHOOK_TOLERANCE_SECONDS) return false;
+  if (Math.abs(now - sentAt) > WEBHOOK_TOLERANCE_SECONDS) {
+    return "stale_timestamp";
+  }
 
   const raw = secret.startsWith("whsec_") ? secret.slice(6) : secret;
   const key = Buffer.from(raw, "base64");
+  if (!raw || key.length === 0) return "secret_format";
   const expected = createHmac("sha256", key)
     .update(`${id}.${timestamp}.${body}`)
     .digest();
@@ -47,10 +63,16 @@ export function verifySvixSignature(input: {
     if (version !== "v1" || !value) continue;
     const given = Buffer.from(value, "base64");
     if (given.length === expected.length && timingSafeEqual(given, expected)) {
-      return true;
+      return null;
     }
   }
-  return false;
+  return "mismatch";
+}
+
+/** True when the Svix signature is valid; see {@link svixSignatureProblem}. */
+export function verifySvixSignature(input: SvixInput): boolean {
+  if (!input.secret) return false;
+  return svixSignatureProblem(input) === null;
 }
 
 type ResendEvent = {

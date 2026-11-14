@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   applyResendEvent,
-  verifySvixSignature,
+  svixSignatureProblem,
 } from "@/lib/email/resend-webhook";
+import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -32,14 +33,32 @@ export async function POST(request: NextRequest) {
 
   const body = await request.text();
   const id = request.headers.get("svix-id");
-  const valid = verifySvixSignature({
+  const timestamp = request.headers.get("svix-timestamp");
+  const problem = svixSignatureProblem({
     secret,
     id,
-    timestamp: request.headers.get("svix-timestamp"),
+    timestamp,
     signature: request.headers.get("svix-signature"),
     body,
   });
-  if (!valid || !id) {
+  if (problem || !id) {
+    /* Never the secret itself: only its shape, so a mismatch between the
+       Coolify value and the Resend endpoint secret can be told from a
+       transport fault (stale clock, stripped headers). */
+    const sentAt = Number(timestamp);
+    logger.warn(
+      "Resend webhook signature refused",
+      {
+        reason: problem ?? "missing_headers",
+        svixId: id,
+        skewSeconds: Number.isFinite(sentAt)
+          ? Math.round(newDate().getTime() / 1000 - sentAt)
+          : null,
+        secretHasPrefix: secret.startsWith("whsec_"),
+        bodyBytes: Buffer.byteLength(body),
+      },
+      LOG_SOURCE
+    );
     return NextResponse.json({ error: "invalid_signature" }, { status: 400 });
   }
 
