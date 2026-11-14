@@ -9,6 +9,8 @@
  * - *.sentry.io: the browser SDK's envelopes (instrumentation-client.ts).
  * - NEXT_PUBLIC_COLLABORATION_URL: the page and moodboard collaboration socket.
  * - Google, Microsoft and Apple sign-in, and Creem checkout, as form targets.
+ * - accounts.google.com/gsi/*: Google One Tap's script, prompt frame, calls
+ *   and stylesheet (src/components/needt3/auth/use-google-one-tap.ts).
  * Fonts come from next/font, which serves them from 'self'. Images and media
  * are open to any https source because pages, boards and avatars embed them.
  *
@@ -21,6 +23,11 @@ export const CSP_REPORT_PATH = "/api/csp-report";
 
 export const UMAMI_ORIGIN = "https://stats.needt.app";
 export const SENTRY_ORIGIN = "https://*.sentry.io";
+/* Google One Tap (Google Identity Services): the loader script, its prompt
+   iframe, its token and status calls, and its stylesheet. */
+export const GSI_SCRIPT = "https://accounts.google.com/gsi/client";
+export const GSI_PATH = "https://accounts.google.com/gsi/";
+export const GSI_STYLE = "https://accounts.google.com/gsi/style";
 
 const SIGN_IN_ORIGINS = [
   "https://accounts.google.com",
@@ -70,8 +77,9 @@ export function contentSecurityPolicy(
       // React Refresh evaluates code in development only.
       ...(dev ? ["'unsafe-eval'"] : []),
       UMAMI_ORIGIN,
+      GSI_SCRIPT,
     ],
-    "style-src": ["'self'", "'unsafe-inline'"],
+    "style-src": ["'self'", "'unsafe-inline'", GSI_STYLE],
     "img-src": ["'self'", "data:", "blob:", "https:"],
     "media-src": ["'self'", "data:", "blob:", "https:"],
     "font-src": ["'self'", "data:"],
@@ -79,12 +87,13 @@ export function contentSecurityPolicy(
       "'self'",
       UMAMI_ORIGIN,
       SENTRY_ORIGIN,
+      GSI_PATH,
       ...(collab ? [collab] : []),
       // The dev server's hot-reload socket.
       ...(dev ? ["ws:"] : []),
     ],
     "worker-src": ["'self'", "blob:"],
-    "frame-src": ["'self'"],
+    "frame-src": ["'self'", GSI_PATH],
     "manifest-src": ["'self'"],
     "report-uri": [CSP_REPORT_PATH],
   };

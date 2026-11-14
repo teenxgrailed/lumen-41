@@ -23,6 +23,8 @@ describe("contentSecurityPolicy", () => {
       "'self'",
       "https://stats.needt.app",
       "https://*.sentry.io",
+      // Google One Tap's token and status calls.
+      "https://accounts.google.com/gsi/",
       "wss://collab.needt.app",
     ]);
     expect(d["form-action"]).toContain("https://accounts.google.com");

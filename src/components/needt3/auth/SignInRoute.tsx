@@ -6,7 +6,12 @@
    switch, password recovery and confirmation resend. Only the face is new. */
 import * as React from "react";
 
-import { type ClientSafeProvider, getProviders, signIn } from "next-auth/react";
+import {
+  type ClientSafeProvider,
+  getProviders,
+  getSession,
+  signIn,
+} from "next-auth/react";
 
 import type { IconType } from "react-icons";
 
@@ -49,6 +54,7 @@ import {
 import { IosSignIn } from "./IosSignIn";
 import { fetchPublicSignup, signupFlags } from "./public-signup-state";
 import { useAuthSteps } from "./use-auth-fields";
+import { useGoogleOneTap } from "./use-google-one-tap";
 
 const LOG_SOURCE = "needt3-signin";
 
@@ -363,6 +369,60 @@ export function V3SignInRoute({
     [safeCallbackUrl, ageChecked]
   );
 
+  /* Google One Tap: the ID token Google hands over is traded for a session by
+     the `google-onetap` provider. A would-be new account without the 16+ box
+     ticked waits here; ticking it sends the same token again. */
+  const [oneTapError, setOneTapError] = React.useState<string | null>(null);
+  const pendingCredential = React.useRef<string | null>(null);
+  const oneTap = React.useCallback(
+    async (credential: string) => {
+      setOneTapError(null);
+      setProviderBusy("google");
+      try {
+        const result = await signIn("google-onetap", {
+          credential,
+          redirect: false,
+          callbackUrl: safeCallbackUrl,
+        });
+        if (!result?.error) {
+          pendingCredential.current = null;
+          /* The server says whether this sign-in made the account; the
+             page's own mode proves nothing. */
+          const session = await getSession().catch(() => null);
+          newAccount.current = session?.newAccount === true;
+          dest.current = newAccount.current
+            ? ONBOARDING_RESUME_PATH
+            : safeCallbackUrl;
+          leave();
+          return;
+        }
+        if (result.error === "AgeConfirmRequired") {
+          pendingCredential.current = credential;
+          setMode("signup");
+        }
+        setOneTapError(result.error);
+      } catch (e) {
+        void logger.error(
+          "Google One Tap sign in failed",
+          { error: message(e) },
+          LOG_SOURCE
+        );
+        notify.error("Could not continue with that account");
+      }
+      setProviderBusy(null);
+    },
+    [safeCallbackUrl, leave]
+  );
+  useGoogleOneTap({ enabled: !iosApp, onCredential: oneTap });
+  React.useEffect(() => {
+    const credential = pendingCredential.current;
+    if (!ageChecked || !credential) return;
+    pendingCredential.current = null;
+    void confirmAge()
+      .then(() => oneTap(credential))
+      .catch(() => notify.error("Could not record the confirmation"));
+  }, [ageChecked, oneTap]);
+
   /* Opened by the iOS app's sign-in sheet with `?provider=`: go straight to
      that provider once it is known to be configured. Not after an error, so a
      refusal does not loop. */
@@ -403,7 +463,7 @@ export function V3SignInRoute({
         age={age}
         providerBusy={providerBusy}
         onProvider={startProvider}
-        notice={oauthErrorMessage(error, store) || null}
+        notice={oauthErrorMessage(oneTapError ?? error, store) || null}
         {...signupFlags(allowSignup)}
         aside={
           <button

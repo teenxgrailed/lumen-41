@@ -75,6 +75,19 @@ export function verifiedProviderEmail(
   }
 }
 
+/**
+ * Whether Google is the authority for this address, so it may JOIN an account
+ * that already holds it. Google's own verification guide: `email_verified`
+ * says the address was verified once, when that Google account was made;
+ * only for @gmail.com / @googlemail.com, or a Workspace token (`hd`), is
+ * Google the owner of the mailbox now. Any other domain's address may since
+ * have changed hands. A brand-new account is unaffected.
+ */
+export function googleMayJoinByEmail(email: string, profile: Profile): boolean {
+  if (/@(gmail|googlemail)\.com$/i.test(email)) return true;
+  return typeof profile?.hd === "string" && profile.hd.length > 0;
+}
+
 /** Whatever address the provider sent, verified or not. */
 export function rawProviderEmail(provider: string, profile: Profile) {
   if (!profile) return null;
@@ -139,6 +152,29 @@ export async function accountLinkingGate(input: {
       owners.length === 1 &&
       normalizeEmail(owners[0].email) === verified
     ) {
+      if (provider === "google") {
+        /* Not Google's mailbox to vouch for, or the account already belongs
+           to a different Google identity: a second sub on the same address
+           is how an address that changed hands would take it over. */
+        const otherGoogle = await prisma.account.findFirst({
+          where: {
+            userId: owners[0].id,
+            provider: "google",
+            ...(providerAccountId
+              ? { providerAccountId: { not: providerAccountId } }
+              : {}),
+          },
+          select: { id: true },
+        });
+        if (!googleMayJoinByEmail(verified, profile) || otherGoogle) {
+          logger.info(
+            "Refused a Google sign-in that would join an account without Google owning the address, or over another Google identity",
+            { userId: owners[0].id },
+            LOG_SOURCE
+          );
+          return LINK_REFUSED_REDIRECT;
+        }
+      }
       logger.info(
         "Linking a sign-in provider to an existing account by verified email",
         { provider, userId: owners[0].id },
