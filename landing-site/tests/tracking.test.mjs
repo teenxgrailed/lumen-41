@@ -127,3 +127,33 @@ test("a tag in the address wins over a kept one, and a declined visitor keeps no
   browser({ cookie: "needt_consent=declined", search: "?utm_source=x", store: declinedTab });
   assert.equal(declinedTab.size, 0);
 });
+
+test("every .js-signup and .js-trial link goes to use.needt.app/auth/signin?mode=signup, with utm tags (14.11.2026)", () => {
+  for (const f of ["app.js", "site.js"]) {
+    const src = read(f);
+    assert.doesNotMatch(src, /new URL\("pricing\/", ROOT\)/, `${f}: Try it free must not open Pricing`);
+    const lines = src.split("\n").filter((l) => /const signupHref =|\$\$\("\.js-signup, \.js-trial"\)/.test(l));
+    assert.equal(lines.length, 2, `${f}: signupHref and the .js-signup/.js-trial line`);
+    for (const search of ["", "?utm_source=newsletter"]) {
+      const b = browser({ search });
+      const links = [{ href: "#" }, { href: "pricing/" }];
+      const run = new Function("window", "$$", lines.join("\n"));
+      run(b.ctx, () => links);
+      for (const a of links) {
+        const u = new URL(a.href);
+        assert.equal(u.origin + u.pathname, "https://use.needt.app/auth/signin", f);
+        assert.equal(u.searchParams.get("mode"), "signup", f);
+        if (search) assert.equal(u.searchParams.get("utm_source"), "newsletter", f);
+      }
+    }
+  }
+});
+
+test("static .js-signup hrefs point at sign-in, never at # or pricing", () => {
+  for (const p of htmlFiles(root)) {
+    const s = readFileSync(p, "utf8");
+    for (const m of s.matchAll(/<a [^>]*class="[^"]*js-signup[^"]*"[^>]*>/g)) {
+      assert.match(m[0], /href="https:\/\/use\.needt\.app\/auth\/signin"/, `${p}: ${m[0]}`);
+    }
+  }
+});
