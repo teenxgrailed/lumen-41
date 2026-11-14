@@ -10,6 +10,7 @@ import * as React from "react";
 
 import type { IconType } from "react-icons";
 
+import { AuthGroundSlot } from "../../auth/AuthGround";
 import { PwDateCard, PxSky } from "../../scenes";
 import { NeedtLockup } from "../../wordmark";
 import { PkGlyph, PkHueTile, pkCx } from "../kit";
@@ -179,6 +180,7 @@ export function MaScene({
     >
       <PxSky variant={variant} fps={15} parked={parked}>
         <div className="mau-stage">
+          <AuthGroundSlot />
           {children}
           <div className="mau-band" aria-hidden="true">
             <span className="mau-band-blur is-1" />

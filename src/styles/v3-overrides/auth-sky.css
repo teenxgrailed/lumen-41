@@ -293,3 +293,27 @@
     font-size: 16px;
   }
 }
+
+/* The digit sphere (DigitSphere.tsx): a layer on the sky, under the collage
+   and the card. Decoration: no pointer events, faded out before the form on
+   a narrow screen where the sphere is only a band above it. */
+.needt-v3 .auth-digit-sphere {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  z-index: 0;
+}
+@media (max-width: 699px) {
+  .needt-v3 .auth-digit-sphere {
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 38%,
+      transparent 56%
+    );
+    mask-image: linear-gradient(to bottom, #000 0, #000 38%, transparent 56%);
+  }
+}

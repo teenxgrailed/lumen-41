@@ -1,18 +1,28 @@
 "use client";
 
-import { type PropsWithChildren, useEffect, useState } from "react";
+import {
+  type PropsWithChildren,
+  type ReactNode,
+  useEffect,
+  useState,
+} from "react";
 
 // One entry, so the vendored CSS always loads before the port's overrides.
 import "@/styles/v3-entry.css";
 
 import { V3_FONT_CLASSES } from "@/lib/needt3/fonts";
 
+import { AuthGroundContext } from "./AuthGround";
+
 /**
  * The `.needt-v3` scope for a screen that renders without the signed-in frame
  * (sign-in is visible to people who have no session, so `V3Root` is not there).
  * Follows the operating system's light / dark; there is no stored choice yet.
  */
-export function AuthScope({ children }: PropsWithChildren) {
+export function AuthScope({
+  children,
+  ground = null,
+}: PropsWithChildren<{ ground?: ReactNode }>) {
   const [dark, setDark] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -32,7 +42,9 @@ export function AuthScope({ children }: PropsWithChildren) {
       }}
       suppressHydrationWarning
     >
-      {children}
+      <AuthGroundContext.Provider value={ground}>
+        {children}
+      </AuthGroundContext.Provider>
     </div>
   );
 }
