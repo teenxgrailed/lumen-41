@@ -38,6 +38,7 @@ import {
 } from "../scenes";
 import { NeedtLockup } from "../wordmark";
 import { AgeConfirm, type AgeState, useAgeState } from "./AgeConfirm";
+import { AuthGroundSlot } from "./AuthGround";
 import {
   type AuthMode,
   MORE_SIGN_IN_WAYS_LABEL,
@@ -289,6 +290,7 @@ export function AuthFrame({
       style={{ position: "fixed", inset: 0, zIndex: 950 }}
     >
       <PxSky variant={variant}>
+        <AuthGroundSlot />
         <Collage />
         <div className="scroll-inner auth-signin-abs">
           <div className="auth-signin-col">

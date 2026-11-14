@@ -46,6 +46,7 @@ import {
   type AuthResult,
   AuthScreen,
 } from "./AuthScreen";
+import { DigitSphere } from "./DigitSphere";
 import { IosSignIn } from "./IosSignIn";
 import { fetchPublicSignup, signupFlags } from "./public-signup-state";
 import { useAuthSteps } from "./use-auth-fields";
@@ -390,7 +391,7 @@ export function V3SignInRoute({
   const Screen = ui === "phone" ? PhoneAuth : AuthScreen;
 
   return (
-    <AuthScope>
+    <AuthScope ground={<DigitSphere />}>
       <Screen
         mode={mode}
         onMode={setMode}
