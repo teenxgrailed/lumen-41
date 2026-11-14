@@ -22,7 +22,7 @@
 <link rel="stylesheet" href="styles.css?v=63">
 <link rel="canonical" href="https://needt.app/">
 <link rel="stylesheet" href="consent.css?v=1">
-<script src="consent.js?v=1" data-umami-id="__UMAMI_SITE_ID__" defer></script>
+<script src="consent.js?v=2" data-umami-id="__UMAMI_SITE_ID__" defer></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","@id":"https://needt.app/#org","name":"Needt","url":"https://needt.app/","logo":"https://needt.app/icon-512.png","email":"hello@needt.app","sameAs":["https://x.com/needtapp","https://instagram.com/needtapp","https://github.com/teenxgrailed/needt-plugin","https://slashdot.org/software/p/Needt","https://www.capterra.com/p/10271718/Needt/","https://www.getapp.com/all-software/a/needt/","https://www.softwareadvice.com/product/779072-Needt/"]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","@id":"https://needt.app/#app","name":"Needt","url":"https://needt.app/","applicationCategory":"ProductivityApplication","applicationSubCategory":"AI planner","operatingSystem":"Web, iOS, Android, macOS, Windows","description":"AI planner that keeps tasks, calendar and docs in one place and plans your day around your meetings.","image":"https://needt.app/assets/og-home.png","publisher":{"@id":"https://needt.app/#org"},"offers":[{"@type":"Offer","name":"Free","price":"0","priceCurrency":"USD","url":"https://needt.app/pricing/","availability":"https://schema.org/InStock"},{"@type":"Offer","name":"Pro, monthly","price":"7","priceCurrency":"USD","url":"https://needt.app/pricing/","availability":"https://schema.org/InStock","priceSpecification":{"@type":"UnitPriceSpecification","price":"7","priceCurrency":"USD","unitCode":"MON","referenceQuantity":{"@type":"QuantitativeValue","value":1,"unitCode":"MON"}}},{"@type":"Offer","name":"Pro, yearly","price":"59","priceCurrency":"USD","url":"https://needt.app/pricing/","availability":"https://schema.org/InStock","priceSpecification":{"@type":"UnitPriceSpecification","price":"59","priceCurrency":"USD","unitCode":"ANN","referenceQuantity":{"@type":"QuantitativeValue","value":1,"unitCode":"ANN"}}},{"@type":"Offer","name":"Lifetime","price":"149","priceCurrency":"USD","url":"https://needt.app/pricing/","availability":"https://schema.org/InStock"}]}</script>
 </head>
@@ -525,10 +525,6 @@
 <a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro</span></a>
 <script src="vendor/sky.js?v=29" defer></script>
 <script src="map-sec.js?v=2" defer></script>
-<script src="app.js?v=51" defer></script>
-<script>/* A/B test (v46): report the variant once Umami has loaded, and on every "Try it free" click */
-(function(){var v=document.documentElement.dataset.home||"a";
-addEventListener("load",function(){if(window.umami&&window.NeedtConsent&&NeedtConsent.allowed())umami.track("home_view",{variant:v});});
-document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest(".js-signup");if(a&&window.umami&&window.NeedtConsent&&NeedtConsent.allowed())umami.track("signup_click",{variant:v,where:a.closest(".hero")?"hero":a.closest("header")?"nav":"page"});},true);})();</script>
+<script src="app.js?v=52" defer></script>
 </body>
 </html>

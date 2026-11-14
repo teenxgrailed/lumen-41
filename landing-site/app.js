@@ -27,7 +27,8 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   const ROOT = new URL(".", (document.querySelector('link[href*="styles.css"]') || {}).href || location.href);
   const onPricing = /\/pricing\/(index\.html)?$/.test(location.pathname);
   $$(".js-signup").forEach((a) => (a.href = onPricing ? "#trial" : new URL("pricing/", ROOT).href));
-  $$(".js-trial").forEach((a) => (a.href = window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin"));
+  const signupHref = (u) => (window.NeedtConsent && window.NeedtConsent.signupUrl ? window.NeedtConsent.signupUrl(u) : u);
+  $$(".js-trial").forEach((a) => (a.href = signupHref(window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin")));
   $$('a[aria-disabled="true"]').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
   /* Opened from disk (file://), folder links would show a directory listing. */
   if (location.protocol === "file:") $$("a[href]").forEach((a) => {
@@ -495,7 +496,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     props.page = location.pathname;
     try { (window.dataLayer = window.dataLayer || []).push({ event: ev, ...props }); } catch (_) {}
     try { if (window.plausible) window.plausible(ev, { props }); } catch (_) {}
-    try { if (window.umami && window.umami.track && window.NeedtConsent && window.NeedtConsent.allowed()) window.umami.track(ev, props); } catch (_) {}
+    try { if (window.NeedtConsent && window.NeedtConsent.track) window.NeedtConsent.track(ev, props); } catch (_) {}
   });
   const plan = (h) => /checkout=lifetime/.test(h) ? "lifetime" : /checkout=pro-month/.test(h) ? "pro_month" : /checkout=pro/.test(h) ? "pro_year" : null;
   document.addEventListener("click", (e) => {
@@ -511,6 +512,16 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     if (/budget\.needt\.app/.test(h)) return send("budget_click", { where });
     if (/needt\.plugin$/.test(h)) return send("plugin_download", { where });
   }, true);
+  /* Every home page variant carries <html data-home="...">: report the view and
+     each "Try it free" click with the variant, from here, so a new variant needs no copy. */
+  const variant = document.documentElement.dataset.home;
+  if (variant) {
+    send("home_view", { variant });
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest && e.target.closest(".js-signup"); if (!a) return;
+      send("signup_click", { variant, where: a.closest(".hero") ? "hero" : a.closest("header") ? "nav" : "page" });
+    }, true);
+  }
   document.addEventListener("submit", (e) => {
     const f = e.target; if (f.matches && f.matches("[data-dx-notify]")) send("notify_submit", { app: (f.closest("[data-dx-soon]") || {}).dataset?.dxSoon || "" });
   }, true);
