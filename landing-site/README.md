@@ -25,6 +25,8 @@ so the folder also opens from disk (`site.js` rewrites folder links to `index.ht
 - Sign-up target: `window.NEEDT_SIGNUP` (inline in each page) → `https://use.needt.app/auth/signin`.
 - Analytics + consent: every `<head>` loads `consent.js` (`data-umami-id="__UMAMI_SITE_ID__"`) and `consent.css`. Umami is injected only after the visitor accepts (cookie `needt_consent`, `.needt.app`, 180 days); enabling it needs `stats.needt.app`
   in `script-src` and `connect-src`.
+- Events: always through `NeedtConsent.track(name, data)` (queues until Umami is loaded and accepted; dropped when declined). `home_view` and `signup_click` come from `app.js` for any page with `<html data-home="…">`. One name per event, snake_case (`want_app_click`).
+- Links to `use.needt.app/auth/signin` get `?mode=signup` (not "Log in" links) and the visit's `utm_*` tags, in `consent.js`. Test: `node --test landing-site/tests/`.
 - Inline `<script>` (NEEDT_SIGNUP, JSON-LD on posts) relies on `'unsafe-inline'` in the current CSP.
 
 ## Facts the copy depends on (re-check before changing)

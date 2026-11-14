@@ -27,7 +27,8 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   const ROOT = new URL(".", (document.querySelector('link[href*="styles.css"]') || {}).href || location.href);
   const onPricing = /\/pricing\/(index\.html)?$/.test(location.pathname);
   $$(".js-signup").forEach((a) => (a.href = onPricing ? "#trial" : new URL("pricing/", ROOT).href));
-  $$(".js-trial").forEach((a) => (a.href = window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin"));
+  const signupHref = (u) => (window.NeedtConsent && window.NeedtConsent.signupUrl ? window.NeedtConsent.signupUrl(u) : u);
+  $$(".js-trial").forEach((a) => (a.href = signupHref(window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin")));
   $$('a[aria-disabled="true"]').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
   /* Opened from disk (file://), a folder link shows a directory listing:
      point those links at the folder's index.html. On the server nothing changes. */
@@ -151,7 +152,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     const note = $(".pw-cta p"); if (note) note.textContent = pl.dataset.plan === "free"
       ? "Free stays free — and your account starts with 14 days of Pro as a gift."
       : "Secure checkout. You sign in (or create your account) first, then pay. Cancel any time in Settings → Billing. Refund within 14 days of any payment, any plan, no reason needed.";
-    if (pl.dataset.plan === "free") { go.href = window.NEEDT_SIGNUP || APP + "/auth/signin"; go.textContent = "Start free"; }
+    if (pl.dataset.plan === "free") { go.href = signupHref(window.NEEDT_SIGNUP || APP + "/auth/signin"); go.textContent = "Start free"; }
     else if (pl.dataset.plan === "lifetime") { go.href = APP + "/settings?section=billing&checkout=lifetime"; go.textContent = "Buy Lifetime — $149 once"; }
     else { const v = (bill && bill.dataset.billing) || "year"; go.href = APP + "/settings?section=billing&checkout=pro-" + v; go.textContent = v === "year" ? "Buy Pro — $59 / year" : "Buy Pro — $7 / month"; }
   };
@@ -180,7 +181,6 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
         try { localStorage.setItem("needt.dl.boost", String(boost)); } catch (e) {}
         show(); box.classList.remove("bump"); void box.offsetWidth; box.classList.add("bump");
         $("[data-dx-label]", box).textContent = "You’re on the list"; form.hidden = false;
-        try { window.umami && window.NeedtConsent && window.NeedtConsent.allowed() && window.umami.track("want-app", { app: btn.textContent.trim() }); } catch (e) {}
       });
       form.addEventListener("submit", async (e) => {
         e.preventDefault(); const msg = $("[data-dx-msg]", form), email = form.email.value.trim(); msg.textContent = "Saving…";
@@ -279,7 +279,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     props.page = location.pathname;
     try { (window.dataLayer = window.dataLayer || []).push({ event: ev, ...props }); } catch (_) {}
     try { if (window.plausible) window.plausible(ev, { props }); } catch (_) {}
-    try { if (window.umami && window.umami.track && window.NeedtConsent && window.NeedtConsent.allowed()) window.umami.track(ev, props); } catch (_) {}
+    try { if (window.NeedtConsent && window.NeedtConsent.track) window.NeedtConsent.track(ev, props); } catch (_) {}
   });
   const plan = (h) => /checkout=lifetime/.test(h) ? "lifetime" : /checkout=pro-month/.test(h) ? "pro_month" : /checkout=pro/.test(h) ? "pro_year" : null;
   document.addEventListener("click", (e) => {

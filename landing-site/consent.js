@@ -40,11 +40,42 @@
     } catch (e) {}
   }
 
+  /* Events wait here until Umami is loaded and the visitor accepted. A first-time
+     visitor answers the banner after the page load, so a bare umami.track() at
+     "load" lost that visit; a queued event is sent the moment both are true.
+     A declined visitor drops everything. */
+  var queue = [];
+
+  function flush() {
+    if (read() === "declined") {
+      queue = [];
+      return;
+    }
+    if (read() !== "accepted") return;
+    if (!(window.umami && typeof window.umami.track === "function")) return;
+    while (queue.length) {
+      var e = queue.shift();
+      try {
+        window.umami.track(e[0], e[1]);
+      } catch (err) {}
+    }
+  }
+
+  function track(name, data) {
+    if (read() === "declined") return;
+    if (queue.length < 20) queue.push([name, data]);
+    flush();
+  }
+
   function loadAnalytics() {
     if (!umamiId || umamiId.indexOf("__") === 0) return; /* ID not set at deploy yet */
-    if (document.querySelector("script[data-needt-umami]")) return;
+    if (document.querySelector("script[data-needt-umami]")) {
+      flush();
+      return;
+    }
     var s = document.createElement("script");
     s.defer = true;
+    s.onload = flush;
     s.src = UMAMI_SRC;
     s.setAttribute("data-website-id", umamiId);
     s.setAttribute("data-do-not-track", "true");
@@ -67,6 +98,7 @@
       loadAnalytics();
     } else {
       setUmamiDisabled(true);
+      queue = [];
     }
     close();
   }
@@ -110,8 +142,95 @@
     if (focus) el.focus();
   }
 
+  /* Sign-up links into the app. The app opens on the create-account form
+     (?mode=signup) and keeps the campaign tags of this visit (utm_*), so
+     the server can attach them to signup_completed. A "Log in" link keeps its
+     plain address. Rewritten when the page is ready and again at click time,
+     because other scripts set some hrefs late. */
+  var UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"];
+  var SIGNIN = /^https:\/\/use\.needt\.app\/auth\/signin(?:[?#]|$)/;
+  var LOGIN_TEXT = /^\s*(log\s?in|sign\s?in)\s*$/i;
+
+  /* The tags of this visit: the address first, else what the first page of the
+     visit kept (the hero "Try it free" goes to /pricing/ before sign-up, and
+     the tags must survive that hop). Kept per tab, never when declined. */
+  var STORE_KEY = "needt_utm";
+
+  function utmTags() {
+    var here = new URLSearchParams(location.search);
+    var tags = {};
+    var found = false;
+    for (var i = 0; i < UTM_KEYS.length; i++) {
+      var v = here.get(UTM_KEYS[i]);
+      if (v) {
+        tags[UTM_KEYS[i]] = v;
+        found = true;
+      }
+    }
+    if (found) {
+      if (read() !== "declined") {
+        try {
+          sessionStorage.setItem(STORE_KEY, JSON.stringify(tags));
+        } catch (e) {}
+      }
+      return tags;
+    }
+    try {
+      var kept = JSON.parse(sessionStorage.getItem(STORE_KEY) || "{}");
+      return kept && typeof kept === "object" ? kept : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function signupUrl(href, asLogin) {
+    if (!SIGNIN.test(href || "")) return href;
+    var u;
+    try {
+      u = new URL(href);
+    } catch (e) {
+      return href;
+    }
+    if (!asLogin && !u.searchParams.has("mode")) u.searchParams.set("mode", "signup");
+    var here = utmTags();
+    for (var i = 0; i < UTM_KEYS.length; i++) {
+      var v = here[UTM_KEYS[i]];
+      if (v && !u.searchParams.has(UTM_KEYS[i])) u.searchParams.set(UTM_KEYS[i], v);
+    }
+    return u.toString();
+  }
+
+  function decorate(a) {
+    var h = a && a.getAttribute && a.getAttribute("href");
+    if (!h || !SIGNIN.test(h)) return;
+    var next = signupUrl(h, LOGIN_TEXT.test(a.textContent || ""));
+    if (next !== h) a.setAttribute("href", next);
+  }
+
+  function decorateAll() {
+    var list = document.querySelectorAll('a[href^="https://use.needt.app/auth/signin"]');
+    for (var i = 0; i < list.length; i++) decorate(list[i]);
+  }
+
+  ["click", "auxclick", "contextmenu", "touchstart", "focusin"].forEach(function (type) {
+    document.addEventListener(
+      type,
+      function (e) {
+        decorate(e.target && e.target.closest && e.target.closest("a"));
+      },
+      true
+    );
+  });
+  utmTags(); /* keep this visit's tags before any link is followed */
+  document.addEventListener("DOMContentLoaded", decorateAll);
+  window.addEventListener("load", decorateAll);
+
   window.NeedtConsent = {
     get: read,
+    track: track,
+    signupUrl: function (href) {
+      return signupUrl(href, false);
+    },
     allowed: function () {
       return read() === "accepted";
     },
