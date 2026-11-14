@@ -90,6 +90,21 @@ export const HABITS_QUIT = "habits_quit";
  */
 export const AI_CHATGPT_PLAN = "ai_chatgpt_plan";
 
+/**
+ * Needt Budget as a place in the sidebar and the phone menu (`/budget`, a
+ * frame on budget.needt.app; openspec `add-budget-module`). Off for everybody;
+ * Free sees a locked row and a promo, Pro sees Budget.
+ */
+export const BUDGET_MODULE = "budget_module";
+
+/**
+ * Needt Pro opens Needt Budget: the `needt_plan` claim ("pro" | "free") in the
+ * id_token and userinfo Needt gives Budget, which Budget maps to its own
+ * access. Off for everybody until the owner decides the tariff; without it
+ * the claim is not sent and Budget keeps its own billing.
+ */
+export const BUDGET_PRO_ACCESS = "budget_pro_access";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -104,6 +119,9 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [HABITS_QUIT]: "QUIT habits and habit presence (Pro).",
   [AI_CHATGPT_PLAN]:
     "Needt AI on the person's own ChatGPT plan (needs OPENAI_SIWC_CLIENT_ID).",
+  [BUDGET_MODULE]: "Needt Budget as a place in the sidebar (frame).",
+  [BUDGET_PRO_ACCESS]:
+    "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

@@ -39,6 +39,11 @@ export interface MenuCounts {
    * exists for them, with the alerts they have not opened.
    */
   agents?: { unread: number };
+  /**
+   * Present only while the Budget place is shown: `locked` on Free (a grey
+   * row that says Pro).
+   */
+  budget?: { locked: boolean };
 }
 
 export interface MenuStatus {
@@ -118,6 +123,8 @@ export function menuStatus(id: MenuPlaceId, c: MenuCounts = {}): MenuStatus {
             alert: true,
           }
         : sub;
+    case "budget":
+      return c.budget?.locked ? { text: "Pro" } : sub;
     default:
       // ask, templates, shared, trash, settings: what the place is for
       return sub;

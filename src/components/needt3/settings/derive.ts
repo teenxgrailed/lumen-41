@@ -653,6 +653,8 @@ export const PREF_DEFAULTS = {
   city: "",
   offline: true,
   usage: true,
+  /** Pro keeps Needt Budget in the sidebar (`BUDGET_SIDEBAR_PREF`). */
+  budgetInSidebar: true,
   ...DESKTOP_PREF_DEFAULTS,
 } as const;
 

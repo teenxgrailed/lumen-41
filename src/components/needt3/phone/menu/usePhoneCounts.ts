@@ -3,16 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { budgetNavItem } from "@/lib/needt3/budget";
 import { useAgentHubNav } from "@/lib/needt3/hooks/agent-hub";
 import { useBoards } from "@/lib/needt3/hooks/boards";
+import { useBudgetNav } from "@/lib/needt3/hooks/budget";
 import { useConnections } from "@/lib/needt3/hooks/connections";
 import { useDocs } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import { useCheckins, useHabits } from "@/lib/needt3/hooks/habits";
 import { useMail } from "@/lib/needt3/hooks/mail";
+import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
-import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { isPro } from "@/lib/needt3/paywall";
 
 import { buildMenuCounts } from "./counts";
 import type { MenuCounts } from "./status";
@@ -57,6 +61,15 @@ export function usePhoneCounts(): MenuCounts {
   const checkins = useCheckins();
   const connections = useConnections();
   const agentHub = useAgentHubNav();
+  const budgetNav = useBudgetNav();
+  const plan = usePlan();
+  const settings = useSettings();
+  const budget = budgetNavItem({
+    enabled: budgetNav.enabled,
+    pro: plan.data ? isPro(plan.data.kind) : undefined,
+    prefs: settings.data?.prefs,
+  });
+  const budgetLocked = budget ? budget.locked : null;
 
   const docEditedMs = useMemo(() => {
     const m = new Map<string, number>();
@@ -82,6 +95,7 @@ export function usePhoneCounts(): MenuCounts {
         connections: connections.data,
       }),
       ...(agentHub.enabled ? { agents: { unread: agentHub.unread } } : {}),
+      ...(budgetLocked === null ? {} : { budget: { locked: budgetLocked } }),
     }),
     [
       now,
@@ -97,6 +111,7 @@ export function usePhoneCounts(): MenuCounts {
       connections.data,
       agentHub.enabled,
       agentHub.unread,
+      budgetLocked,
     ]
   );
 }

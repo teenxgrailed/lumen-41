@@ -26,23 +26,28 @@ import {
   LuFolder,
   LuPlus,
   LuTarget,
+  LuWallet,
 } from "react-icons/lu";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { budgetNavItem, isBudgetPath } from "@/lib/needt3/budget";
 import { clockOf } from "@/lib/needt3/focus";
 import { useAgentHubNav } from "@/lib/needt3/hooks/agent-hub";
+import { useBudgetNav } from "@/lib/needt3/hooks/budget";
 import { useConnections } from "@/lib/needt3/hooks/connections";
 import { useCreateDoc, useDocs, useUpdateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import { useMail } from "@/lib/needt3/hooks/mail";
 import { useQuickPersonal } from "@/lib/needt3/hooks/personal";
+import { usePlan } from "@/lib/needt3/hooks/plan";
 import {
   useArchiveProject,
   useProjects,
   useUpdateProject,
 } from "@/lib/needt3/hooks/projects";
-import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { isPro } from "@/lib/needt3/paywall";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -55,7 +60,7 @@ import { useOpenDocId } from "../document/open-doc";
 import { useFocusRun } from "../focus/useFocusController";
 import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
-import { PromoCard } from "../paywall";
+import { ProBadge, PromoCard } from "../paywall";
 import { personalMenuItems } from "../personal/menu-items";
 import { ProjectDeleteHost, askDeleteProject } from "../work/ProjectDeleteHost";
 import { PROJECT_SWATCHES } from "../work/model";
@@ -634,6 +639,14 @@ export function Sidebar() {
   const archiveProject = useArchiveProject();
   const connections = useConnections();
   const agentsItem = agentsNavItem(useAgentHubNav());
+  const budgetNav = useBudgetNav();
+  const plan = usePlan();
+  const settings = useSettings();
+  const budgetItem = budgetNavItem({
+    enabled: budgetNav.enabled,
+    pro: plan.data ? isPro(plan.data.kind) : undefined,
+    prefs: settings.data?.prefs,
+  });
   const showMail = tiles.some((p) => p.id === "mail");
   const showCal = tiles.some((p) => p.id === "calendar");
   const mail = useMail("inbox");
@@ -947,6 +960,29 @@ export function Sidebar() {
               current={isAgentsPath(pathname)}
               icon={<LuBot size={16} />}
               trailing={agentsItem.badge}
+            />
+          </div>
+        ) : null}
+
+        {/* Budget: a place of its own while the budget_module flag is on.
+            Free sees it grey with a PRO pill and cannot hide it; Pro hides
+            it in Settings -> General. */}
+        {budgetItem ? (
+          <div
+            className={
+              "sb-tile shell-sidebar-sb-budget" +
+              (budgetItem.locked ? " is-locked" : "")
+            }
+            data-sb-budget={budgetItem.locked ? "locked" : ""}
+          >
+            <SbRow
+              href={budgetItem.href}
+              label={budgetItem.label}
+              current={isBudgetPath(pathname)}
+              icon={<LuWallet size={16} />}
+              trailing={
+                budgetItem.locked ? <ProBadge size="sm" title="Pro" /> : null
+              }
             />
           </div>
         ) : null}

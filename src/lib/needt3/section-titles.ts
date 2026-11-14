@@ -36,6 +36,7 @@ export const SECTION_TITLES = {
   system: "System settings",
   connectApp: "Connect an app",
   agents: "Agents",
+  budget: "Budget",
   notFound: "Not found",
 } as const;
 
