@@ -1,7 +1,10 @@
 import {
+  ONE_TAP_NONCE_COOKIE,
   ONE_TAP_NONCE_TTL_SECONDS,
   issueOneTapNonce,
+  oneTapNonceCookieName,
   readOneTapNonce,
+  unverifiedTokenNonce,
 } from "@/lib/auth/google-one-tap-nonce";
 
 jest.mock("@/lib/auth/auth-secret", () => ({
@@ -33,5 +36,33 @@ describe("the One Tap nonce cookie", () => {
     expect(readOneTapNonce(`${nonce}.${expiry}.bad`, NOW)).toBeNull();
     expect(readOneTapNonce("garbage", NOW)).toBeNull();
     expect(readOneTapNonce(undefined, NOW)).toBeNull();
+  });
+});
+
+describe("one cookie per nonce", () => {
+  it("names the cookie after the nonce, so two prompts never share one", () => {
+    const a = issueOneTapNonce(NOW).nonce;
+    const b = issueOneTapNonce(NOW).nonce;
+    expect(oneTapNonceCookieName(a)).toMatch(
+      new RegExp(`^${ONE_TAP_NONCE_COOKIE}_[0-9a-f]{16}$`)
+    );
+    expect(oneTapNonceCookieName(a)).toBe(oneTapNonceCookieName(a));
+    expect(oneTapNonceCookieName(a)).not.toBe(oneTapNonceCookieName(b));
+  });
+
+  it("outlives the ID token (about an hour)", () => {
+    expect(ONE_TAP_NONCE_TTL_SECONDS).toBeGreaterThan(60 * 60);
+  });
+
+  it("reads the nonce claim of a token without trusting it", () => {
+    const payload = Buffer.from(JSON.stringify({ nonce: "abc" })).toString(
+      "base64url"
+    );
+    expect(unverifiedTokenNonce(`h.${payload}.s`)).toBe("abc");
+    expect(unverifiedTokenNonce("garbage")).toBeNull();
+    expect(unverifiedTokenNonce("h.!!!.s")).toBeNull();
+    expect(unverifiedTokenNonce(42)).toBeNull();
+    const none = Buffer.from("{}").toString("base64url");
+    expect(unverifiedTokenNonce(`h.${none}.s`)).toBeNull();
   });
 });

@@ -5,7 +5,11 @@ import { getAuthOptions } from "@/lib/auth/auth-options";
 import { classifyCredentialAttempt } from "@/lib/auth/credential-attempt";
 import { credentialsEmail } from "@/lib/auth/credentials-email";
 import { ONE_TAP_PROVIDER_ID } from "@/lib/auth/google-one-tap";
-import { ONE_TAP_NONCE_COOKIE } from "@/lib/auth/google-one-tap-nonce";
+import {
+  allOneTapNonceCookies,
+  expireOneTapNonceCookie,
+} from "@/lib/auth/google-one-tap-nonce";
+import { signInSucceeded } from "@/lib/auth/sign-in-outcome";
 import { newDate } from "@/lib/date-utils";
 import {
   accountRule,
@@ -119,18 +123,21 @@ export async function POST(request: NextRequest, context: AuthRouteContext) {
     );
     if (limited) return limited;
     const response = await handler(request, context);
-    /* The nonce is single use: a success clears it. A refusal keeps it, so
-       the age confirmation can retry with the same token. */
-    const outcome = `${response.headers.get("location") ?? ""}${
-      response.headers.get("content-type")?.includes("application/json")
+    /* The nonce is single use: a success clears its cookie. A refusal keeps
+       it, so the age confirmation can retry with the same token. */
+    const succeeded = signInSucceeded({
+      status: response.status,
+      location: response.headers.get("location"),
+      body: response.headers.get("content-type")?.includes("application/json")
         ? await response.clone().text()
-        : ""
-    }`;
-    if (response.status < 400 && !outcome.includes("error=")) {
-      response.headers.append(
-        "set-cookie",
-        `${ONE_TAP_NONCE_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`
-      );
+        : null,
+    });
+    if (succeeded) {
+      /* Done with One Tap: every nonce cookie of this browser goes, not only
+         this one, so abandoned prompts leave nothing behind. */
+      for (const name of allOneTapNonceCookies(request.cookies.getAll())) {
+        response.headers.append("set-cookie", expireOneTapNonceCookie(name));
+      }
     }
     return response;
   }

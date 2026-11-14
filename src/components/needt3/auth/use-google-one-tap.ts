@@ -114,8 +114,8 @@ export function useGoogleOneTap({
     if (!enabled) return;
     let cancelled = false;
     void (async () => {
-      const config = await fetchGoogleOneTapConfig();
-      if (!config || cancelled) return;
+      /* Is Google configured at all? Nothing is loaded from Google if not. */
+      if (!(await fetchGoogleOneTapConfig()) || cancelled) return;
       try {
         await loadGsiScript();
       } catch (e) {
@@ -126,6 +126,12 @@ export function useGoogleOneTap({
         );
         return;
       }
+      if (cancelled) return;
+      /* The nonce (and its cookie) is asked for again right before
+         prompt(), so a slow script load or another tab cannot leave this
+         prompt holding a stale one. */
+      const config = await fetchGoogleOneTapConfig();
+      if (!config || cancelled) return;
       const gsi = window.google?.accounts?.id;
       if (!gsi || cancelled) return;
       gsi.initialize({
