@@ -6,8 +6,8 @@ import { classifyCredentialAttempt } from "@/lib/auth/credential-attempt";
 import { credentialsEmail } from "@/lib/auth/credentials-email";
 import { ONE_TAP_PROVIDER_ID } from "@/lib/auth/google-one-tap";
 import {
-  oneTapNonceCookieName,
-  unverifiedTokenNonce,
+  allOneTapNonceCookies,
+  expireOneTapNonceCookie,
 } from "@/lib/auth/google-one-tap-nonce";
 import { signInSucceeded } from "@/lib/auth/sign-in-outcome";
 import { newDate } from "@/lib/date-utils";
@@ -81,21 +81,6 @@ async function getHandler(): Promise<AuthHandler> {
   }
 }
 
-/** The `credential` field of a One Tap callback, read the way NextAuth reads it. */
-async function oneTapCredential(request: Request): Promise<unknown> {
-  const type = request.headers.get("content-type") ?? "";
-  const clone = request.clone();
-  if (type.includes("application/json")) {
-    return ((await clone.json().catch(() => null)) as { credential?: unknown })
-      ?.credential;
-  }
-  if (type.includes("application/x-www-form-urlencoded")) {
-    return Object.fromEntries(new URLSearchParams(await clone.text()))
-      .credential;
-  }
-  return undefined;
-}
-
 export async function GET(request: NextRequest, context: AuthRouteContext) {
   const handler = await getHandler();
   return handler(request, context);
@@ -137,7 +122,6 @@ export async function POST(request: NextRequest, context: AuthRouteContext) {
       { route: request.nextUrl.pathname }
     );
     if (limited) return limited;
-    const nonce = unverifiedTokenNonce(await oneTapCredential(request));
     const response = await handler(request, context);
     /* The nonce is single use: a success clears its cookie. A refusal keeps
        it, so the age confirmation can retry with the same token. */
@@ -148,11 +132,12 @@ export async function POST(request: NextRequest, context: AuthRouteContext) {
         ? await response.clone().text()
         : null,
     });
-    if (succeeded && nonce) {
-      response.headers.append(
-        "set-cookie",
-        `${oneTapNonceCookieName(nonce)}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`
-      );
+    if (succeeded) {
+      /* Done with One Tap: every nonce cookie of this browser goes, not only
+         this one, so abandoned prompts leave nothing behind. */
+      for (const name of allOneTapNonceCookies(request.cookies.getAll())) {
+        response.headers.append("set-cookie", expireOneTapNonceCookie(name));
+      }
     }
     return response;
   }

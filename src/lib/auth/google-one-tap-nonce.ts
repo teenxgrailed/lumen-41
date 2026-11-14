@@ -99,3 +99,45 @@ export async function currentOneTapNonce(nowMs: number, credential: unknown) {
     return null;
   }
 }
+
+/** How many nonce cookies one browser keeps: the one just issued and the one
+    before it (a second tab, or a prompt that is still open). */
+export const ONE_TAP_NONCE_COOKIES_KEPT = 2;
+
+type JarCookie = { name: string; value: string };
+
+function isNonceCookie(name: string): boolean {
+  return name.startsWith(`${ONE_TAP_NONCE_COOKIE}_`);
+}
+
+/** Expiry (seconds) written in a cookie value, 0 when unreadable. Only used to
+    order cookies, never to trust one. */
+function cookieExpiry(value: string): number {
+  const expiry = Number(value.split(".")[1]);
+  return Number.isFinite(expiry) ? expiry : 0;
+}
+
+/**
+ * Names of the nonce cookies to expire when `issuedName` has just been
+ * issued: every one except the newest `ONE_TAP_NONCE_COOKIES_KEPT - 1` others
+ * (newest by the expiry in the value), so the jar never grows past the cap.
+ */
+export function staleOneTapNonceCookies(
+  jar: JarCookie[],
+  issuedName: string
+): string[] {
+  const others = jar
+    .filter((c) => isNonceCookie(c.name) && c.name !== issuedName)
+    .sort((a, b) => cookieExpiry(b.value) - cookieExpiry(a.value));
+  return others.slice(ONE_TAP_NONCE_COOKIES_KEPT - 1).map((c) => c.name);
+}
+
+/** Every nonce cookie in the jar: all of them go on a successful sign-in. */
+export function allOneTapNonceCookies(jar: JarCookie[]): string[] {
+  return jar.filter((c) => isNonceCookie(c.name)).map((c) => c.name);
+}
+
+/** A Set-Cookie header value that expires a nonce cookie. */
+export function expireOneTapNonceCookie(name: string): string {
+  return `${name}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`;
+}

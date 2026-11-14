@@ -31,10 +31,10 @@ const credential = `h.${Buffer.from(JSON.stringify({ nonce: NONCE })).toString(
   "base64url"
 )}.s`;
 
-function tapRequest() {
+function tapRequest(cookie = `${oneTapNonceCookieName(NONCE)}=v.1.s`) {
   return new NextRequest("http://localhost/api/auth/callback/google-onetap", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", cookie },
     body: JSON.stringify({ credential }),
   });
 }
@@ -62,6 +62,29 @@ describe("POST /api/auth/callback/google-onetap", () => {
     );
     const response = await POST(tapRequest(), context);
     expect(cleared(response)).toBe(true);
+  });
+
+  it("clears every nonce cookie of the browser after a sign-in, not only its own", async () => {
+    handler.mockResolvedValue(
+      NextResponse.json({ url: "http://localhost/calendar" })
+    );
+    const response = await POST(
+      tapRequest(
+        `${oneTapNonceCookieName(NONCE)}=v.1.s; needt_onetap_nonce_aaaa=v.2.s; needt_onetap_nonce_bbbb=v.3.s; other=keep`
+      ),
+      context
+    );
+    const names = response.headers
+      .getSetCookie()
+      .filter((c: string) => c.includes("Max-Age=0"))
+      .map((c: string) => c.split("=")[0]);
+    expect(names.sort()).toEqual(
+      [
+        oneTapNonceCookieName(NONCE),
+        "needt_onetap_nonce_aaaa",
+        "needt_onetap_nonce_bbbb",
+      ].sort()
+    );
   });
 
   it("clears it for a redirect whose callbackUrl contains error=", async () => {

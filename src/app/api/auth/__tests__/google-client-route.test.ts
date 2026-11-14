@@ -31,6 +31,7 @@ const request = () =>
   new NextRequest("http://localhost/api/auth/google-client");
 
 beforeEach(() => {
+  jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
   jest.resetAllMocks();
   resetGoogleClientCache();
   jest.mocked(enforceRateLimits).mockResolvedValue(null);
@@ -40,11 +41,9 @@ beforeEach(() => {
       (_r, namespace, limit) =>
         ({ identifier: "ip", namespace, limit }) as never
     );
-  jest
-    .mocked(readSignInProviderConfig)
-    .mockResolvedValue({
-      google: { clientId: "id.apps", clientSecret: "x" },
-    } as never);
+  jest.mocked(readSignInProviderConfig).mockResolvedValue({
+    google: { clientId: "id.apps", clientSecret: "x" },
+  } as never);
   jest.mocked(isProviderConfigured).mockReturnValue(true);
 });
 
@@ -74,6 +73,30 @@ describe("GET /api/auth/google-client", () => {
     expect(first.cookies.get(oneTapNonceCookieName(b))).toBeUndefined();
   });
 
+  it("keeps at most two nonce cookies in the browser, however often it is asked", async () => {
+    /* A browser jar: Set-Cookie with Max-Age=0 removes, anything else stores. */
+    const jar = new Map<string, string>();
+    for (let i = 0; i < 50; i += 1) {
+      const header = [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
+      const response = await GET(
+        new NextRequest("http://localhost/api/auth/google-client", {
+          headers: header ? { cookie: header } : {},
+        })
+      );
+      for (const line of response.headers.getSetCookie()) {
+        const [pair] = line.split(";");
+        const eq = pair.indexOf("=");
+        const name = pair.slice(0, eq);
+        if (line.includes("Max-Age=0")) jar.delete(name);
+        else jar.set(name, pair.slice(eq + 1));
+      }
+      expect(jar.size).toBeLessThanOrEqual(2);
+      /* Each issue is a fresh expiry second so "newest" is well defined. */
+      jest.setSystemTime(Date.now() + 1000);
+    }
+    expect(jar.size).toBe(2);
+  });
+
   it("reads the Google config once within a few seconds", async () => {
     await GET(request());
     await GET(request());
@@ -87,4 +110,8 @@ describe("GET /api/auth/google-client", () => {
     expect(await response.json()).toEqual({ clientId: null, nonce: null });
     expect(response.headers.getSetCookie()).toHaveLength(0);
   });
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });

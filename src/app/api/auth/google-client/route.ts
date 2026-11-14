@@ -4,6 +4,7 @@ import {
   ONE_TAP_NONCE_TTL_SECONDS,
   issueOneTapNonce,
   oneTapNonceCookieName,
+  staleOneTapNonceCookies,
 } from "@/lib/auth/google-one-tap-nonce";
 import {
   isProviderConfigured,
@@ -59,6 +60,20 @@ export async function GET(request: NextRequest) {
     }
     const { nonce, cookie } = issueOneTapNonce(newDate().getTime());
     const response = NextResponse.json({ clientId, nonce });
+    const issuedName = oneTapNonceCookieName(nonce);
+    /* Cap the jar: keep this nonce and the newest other one, expire the rest. */
+    for (const name of staleOneTapNonceCookies(
+      request.cookies.getAll(),
+      issuedName
+    )) {
+      /* Through the cookie jar: a later cookies.set rewrites raw headers. */
+      response.cookies.set(name, "", {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 0,
+      });
+    }
     response.cookies.set(oneTapNonceCookieName(nonce), cookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
