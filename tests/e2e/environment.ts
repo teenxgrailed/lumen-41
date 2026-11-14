@@ -12,11 +12,17 @@ const localE2eEnvironment = {
   NEXTAUTH_SECRET: "needt-e2e-only-secret-not-valid-outside-tests",
   RATE_LIMIT_HASH_SECRET: "needt-e2e-rate-limit-hash-secret",
   COLLABORATION_DISABLED: "1",
-  /* oauth-age-confirm.spec.ts: a mock Google (src/lib/auth/e2e-oauth.ts) and
-     open sign-up; both ignored by a production server outside CI. */
-  NEEDT_E2E_OAUTH_URL: "http://127.0.0.1:4599",
-  NEEDT_SIGNUPS_OPEN: "1",
 } as const;
+
+/**
+ * oauth-age-confirm.spec.ts: a mock Google (src/lib/auth/e2e-oauth.ts) and
+ * open sign-up. Called by the e2e config only: the visual, style and perf
+ * suites must not grow a Google button.
+ */
+export function configureOAuthMockEnvironment() {
+  process.env.NEEDT_E2E_OAUTH_URL = "http://127.0.0.1:4599";
+  process.env.NEEDT_SIGNUPS_OPEN = "1";
+}
 
 const localCreemEnvironment = {
   CREEM_API_KEY: "creem_test_key_for_local_e2e_only",

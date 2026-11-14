@@ -4,6 +4,8 @@ import { type Server, createServer } from "node:http";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
+import { consentCookieFor } from "../helpers/consent";
+
 /**
  * Google sign-up and the 16+ confirmation, through the real button, the real
  * /api/auth/age-confirm, the real NextAuth callback route and the real
@@ -12,6 +14,21 @@ import { prisma } from "@/lib/prisma";
  * `google` provider at the mock identity provider started below.
  */
 const PORT = 4599;
+
+/**
+ * NextAuth builds the callback address from NEXTAUTH_URL, so the browser has to
+ * start on that very origin or its state cookie never comes back (localhost
+ * and 127.0.0.1 are different hosts).
+ */
+const ORIGIN = process.env.NEXTAUTH_URL ?? "http://127.0.0.1:3000";
+
+async function openSignIn(
+  page: import("@playwright/test").Page,
+  query: string
+) {
+  await page.context().addCookies([consentCookieFor(ORIGIN)]);
+  await page.goto(`${ORIGIN}/auth/signin${query}`);
+}
 
 type MockProfile = { sub: string; email: string; name: string };
 
@@ -122,7 +139,7 @@ test("a Google sign-up with the 16+ box ticked creates the account", async ({
     name: "New Person",
   });
 
-  await page.goto("/auth/signin?mode=signup");
+  await openSignIn(page, "?mode=signup");
   await page.locator("[data-auth-age] input[type=checkbox]").check();
   const ageConfirm = page.waitForResponse(
     (r) => r.url().includes("/api/auth/age-confirm") && r.status() === 200
@@ -146,7 +163,7 @@ test("Google sign-up without the confirmation is refused, then works once ticked
   await routeToProfile(page, { sub: `g-${stamp()}`, email, name: "Refused" });
 
   /* Straight to the provider without the box: no cookie, no account. */
-  await page.goto("/auth/signin");
+  await openSignIn(page, "");
   await page.locator('button[data-provider="google"]').click();
   await expect(page).toHaveURL(/error=AgeConfirmRequired/);
   expect(await prisma.user.count({ where: { email } })).toBe(0);
@@ -181,7 +198,7 @@ test("an existing Google account is never blocked, in sign-up mode or without th
   await routeToProfile(page, { sub, email, name: "Existing" });
 
   /* Sign-up mode with the box ticked. */
-  await page.goto("/auth/signin?mode=signup");
+  await openSignIn(page, "?mode=signup");
   await page.locator("[data-auth-age] input[type=checkbox]").check();
   await page.locator('button[data-provider="google"]').click();
   await expect.poll(async () => !!(await sessionCookie(page))).toBe(true);
@@ -201,7 +218,7 @@ test("an existing Google account signs in on the sign-in page without ever confi
   });
   await routeToProfile(page, { sub, email, name: "Returning" });
 
-  await page.goto("/auth/signin");
+  await openSignIn(page, "");
   await page.locator('button[data-provider="google"]').click();
   await expect.poll(async () => !!(await sessionCookie(page))).toBe(true);
   expect(page.url()).not.toContain("error=");

@@ -1,9 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 
-import { configureE2eEnvironment } from "./tests/e2e/environment";
+import {
+  configureE2eEnvironment,
+  configureOAuthMockEnvironment,
+} from "./tests/e2e/environment";
 import { declinedConsentStorageState } from "./tests/helpers/consent";
 
 configureE2eEnvironment();
+configureOAuthMockEnvironment();
 
 const testBaseUrl = process.env.TEST_BASE_URL || "http://localhost:3000";
 const useProductionServer = process.env.NEEDT_E2E_PRODUCTION_SERVER === "1";
