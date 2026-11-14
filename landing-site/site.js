@@ -22,13 +22,11 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-  /* "Try it free" opens Pricing (v18): people see the plans, take the 14-day
-     gift or buy Pro right away. The gift buttons (.js-trial) go to sign-up. */
-  const ROOT = new URL(".", (document.querySelector('link[href*="styles.css"]') || {}).href || location.href);
-  const onPricing = /\/pricing\/(index\.html)?$/.test(location.pathname);
-  $$(".js-signup").forEach((a) => (a.href = onPricing ? "#trial" : new URL("pricing/", ROOT).href));
+  /* "Try it free" goes straight to sign-up (owner decision 14.11.2026, reverses v18,
+     which sent it to Pricing). Same target as the 14-day gift buttons (.js-trial),
+     also on /pricing/. The sign-up helper adds ?mode=signup and stored utm_*. */
   const signupHref = (u) => (window.NeedtConsent && window.NeedtConsent.signupUrl ? window.NeedtConsent.signupUrl(u) : u);
-  $$(".js-trial").forEach((a) => (a.href = signupHref(window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin")));
+  $$(".js-signup, .js-trial").forEach((a) => (a.href = signupHref(window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin")));
   $$('a[aria-disabled="true"]').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
   /* Opened from disk (file://), a folder link shows a directory listing:
      point those links at the folder's index.html. On the server nothing changes. */
