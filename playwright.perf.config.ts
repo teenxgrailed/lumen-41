@@ -69,6 +69,16 @@ export default defineConfig({
       },
     },
     {
+      // Safari's engine on a desktop viewport, for the task window only: no
+      // CDP, so no CPU throttle. The screens spec stays on the other three.
+      name: "desktop-webkit",
+      testMatch: "**/task-modal.perf.spec.ts",
+      use: {
+        ...devices["Desktop Safari"],
+        viewport: { width: 1440, height: 900 },
+      },
+    },
+    {
       name: "iphone13-webkit",
       use: { ...devices["iPhone 13"], defaultBrowserType: "webkit" },
     },
