@@ -29,10 +29,14 @@ export function purchasePlan(
  */
 export async function sendUmamiEvent(
   name: string,
-  data: Record<string, string | number | boolean>
+  data: Record<string, string | number | boolean>,
+  options: { website?: string } = {}
 ): Promise<void> {
   const host = process.env.UMAMI_HOST?.trim().replace(/\/+$/, "");
-  const website = process.env.UMAMI_LANDING_WEBSITE_ID?.trim();
+  const website =
+    "website" in options
+      ? options.website?.trim()
+      : process.env.UMAMI_LANDING_WEBSITE_ID?.trim();
   if (!host || !website) return;
   try {
     const response = await fetch(`${host}/api/send`, {
@@ -78,4 +82,37 @@ export async function sendUmamiEvent(
 /** The `purchase` event: carries the plan and nothing about the person. */
 export function sendUmamiPurchase(plan: PurchasePlan): Promise<void> {
   return sendUmamiEvent("purchase", { plan });
+}
+
+/** How an account was created, for the `signup_completed` event. */
+export type SignupMethod = "email" | "google" | "azure-ad" | "apple" | "other";
+
+function signupMethod(provider: string): SignupMethod {
+  if (provider === "credentials" || provider === "email") return "email";
+  if (
+    provider === "google" ||
+    provider === "azure-ad" ||
+    provider === "apple"
+  ) {
+    return provider;
+  }
+  return "other";
+}
+
+/**
+ * `signup_completed`: an account now exists. Sent after the row is written,
+ * so it counts real sign-ups rather than clicks on the sign-up button.
+ */
+export function sendUmamiSignupCompleted(provider: string): Promise<void> {
+  return sendUmamiEvent("signup_completed", {
+    method: signupMethod(provider),
+  });
+}
+
+/** Where a trial grant was made, for the `trial_started` event. */
+export type TrialSource = "email_confirm" | "oauth" | "billing";
+
+/** `trial_started`: a new trial grant was written for this account. */
+export function sendUmamiTrialStarted(source: TrialSource): Promise<void> {
+  return sendUmamiEvent("trial_started", { source });
 }

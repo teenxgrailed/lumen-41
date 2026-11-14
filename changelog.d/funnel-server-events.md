@@ -1,0 +1,1 @@
+- Analytics: sign-ups and trial starts are counted on the server after they really happen (`signup_completed`, `trial_started`); Agents hub events no longer land in the needt.app site stats.

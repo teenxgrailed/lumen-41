@@ -222,23 +222,38 @@ export async function hashLegacyTrialEmailKeys(batchSize = 500) {
   return rewritten;
 }
 
+/**
+ * True when `grant` was written by the call that passed `now`, not found from
+ * an earlier start (the grant's `startedAt` is exactly that call's `now`).
+ */
+export function isNewTrialGrant(
+  grant: { startedAt: Date } | null | undefined,
+  now: Date
+): boolean {
+  return (
+    grant?.startedAt instanceof Date &&
+    grant.startedAt.getTime() === now.getTime()
+  );
+}
+
 export async function markEmailVerifiedAndStartTrial(input: {
   userId: string;
   email: string;
   now?: Date;
 }) {
+  const now = input.now ?? newDate();
   return runTrialTransaction(async (tx) => {
     const user = await tx.user.update({
       where: { id: input.userId },
-      data: { emailVerified: input.now ?? newDate() },
+      data: { emailVerified: now },
       select: { id: true, email: true, emailVerified: true },
     });
-    if (!user.email) return { user, trial: null };
+    if (!user.email) return { user, trial: null, trialStarted: false };
     const trial = await startTrialForVerifiedUser(tx, {
       userId: user.id,
       email: user.email,
-      now: input.now,
+      now,
     });
-    return { user, trial };
+    return { user, trial, trialStarted: isNewTrialGrant(trial, now) };
   });
 }

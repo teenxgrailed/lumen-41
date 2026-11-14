@@ -2,6 +2,8 @@ import {
   purchasePlan,
   sendUmamiEvent,
   sendUmamiPurchase,
+  sendUmamiSignupCompleted,
+  sendUmamiTrialStarted,
 } from "@/lib/umami-server";
 
 const fetchMock = jest.fn();
@@ -83,5 +85,40 @@ describe("sendUmamiEvent", () => {
       name: "hub_item_completed",
       data: { itemId: "i1", outcome: "done" },
     });
+  });
+});
+
+describe("funnel events", () => {
+  const sent = () => JSON.parse(fetchMock.mock.calls[0][1].body).payload;
+
+  it("names the sign-up method, never the person", async () => {
+    await sendUmamiSignupCompleted("credentials");
+    expect(sent()).toMatchObject({
+      website: "site-id-1",
+      name: "signup_completed",
+      data: { method: "email" },
+    });
+  });
+
+  it("folds unknown providers into other", async () => {
+    await sendUmamiSignupCompleted("github");
+    expect(sent().data).toEqual({ method: "other" });
+  });
+
+  it("sends trial_started with its source", async () => {
+    await sendUmamiTrialStarted("oauth");
+    expect(sent()).toMatchObject({
+      name: "trial_started",
+      data: { source: "oauth" },
+    });
+  });
+
+  it("sends nothing when an explicit website is empty", async () => {
+    await sendUmamiEvent(
+      "agent_registered",
+      { kind: "x" },
+      { website: undefined }
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

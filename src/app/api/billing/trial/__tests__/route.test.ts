@@ -25,6 +25,7 @@ jest.mock("@/lib/security/rate-limit", () => ({
 jest.mock("@/lib/trials/trial-service", () => ({
   runTrialTransaction: jest.fn(),
   startTrialForVerifiedUser: jest.fn(),
+  isNewTrialGrant: jest.fn().mockReturnValue(false),
 }));
 
 const request = () =>

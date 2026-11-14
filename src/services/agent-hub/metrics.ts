@@ -12,8 +12,14 @@ export type HubMetric =
   | { name: "hub_item_completed"; itemId: string; outcome: "done" | "failed" }
   | { name: "escalation_answered"; itemId: string };
 
-/** Fire and forget: a failed event never reaches the hub call. */
+/**
+ * Fire and forget: a failed event never reaches the hub call. Hub events go to
+ * their own Umami website (`UMAMI_HUB_WEBSITE_ID`) so they stay out of the
+ * needt.app funnel; without that id they are not sent at all.
+ */
 export function trackHub(metric: HubMetric): void {
   const { name, ...data } = metric;
-  void sendUmamiEvent(name, data);
+  void sendUmamiEvent(name, data, {
+    website: process.env.UMAMI_HUB_WEBSITE_ID,
+  });
 }

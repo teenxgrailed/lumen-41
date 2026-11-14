@@ -20,6 +20,7 @@ import {
 import { newDate } from "@/lib/date-utils";
 import { sendEmailVerification } from "@/lib/email/email-verification";
 import { logger } from "@/lib/logger";
+import { sendUmamiSignupCompleted } from "@/lib/umami-server";
 import { signupLocaleSettings } from "@/lib/needt3/locale-defaults";
 import { SETUP_PATH, onboardingEntryPath } from "@/lib/onboarding/entry";
 import { prisma } from "@/lib/prisma";
@@ -192,6 +193,8 @@ export async function POST(request: NextRequest) {
       },
       select: { id: true },
     });
+
+    void sendUmamiSignupCompleted("credentials");
 
     logger.info(
       "User registered successfully",

@@ -27,6 +27,10 @@ import {
 import { oauthSignInGate } from "@/lib/auth/signups";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
+import {
+  sendUmamiSignupCompleted,
+  sendUmamiTrialStarted,
+} from "@/lib/umami-server";
 import { ONBOARDING_RESUME_PATH } from "@/lib/onboarding/paths";
 import { prisma } from "@/lib/prisma";
 import { markEmailVerifiedAndStartTrial } from "@/lib/trials/trial-service";
@@ -191,6 +195,7 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
               where: { id: user.id, ageConfirmedAt: null },
               data: { ageConfirmedAt: newDate() },
             });
+            void sendUmamiSignupCompleted(account.provider);
           }
           if (account.type === "oauth" && user?.id && user.email) {
             /* Confirmed only when the provider itself vouches for this very
@@ -201,10 +206,11 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
               profile as Record<string, unknown> | undefined
             );
             if (vouched && vouched === normalizeEmail(user.email)) {
-              await markEmailVerifiedAndStartTrial({
+              const started = await markEmailVerifiedAndStartTrial({
                 userId: user.id,
                 email: user.email,
               });
+              if (started.trialStarted) void sendUmamiTrialStarted("oauth");
             }
             await prisma.userSettings.upsert({
               where: { userId: user.id },

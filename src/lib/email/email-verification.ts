@@ -8,9 +8,11 @@ import { forgetSessionState } from "@/lib/auth/session-version";
 import { isUnprovenPasswordAccount } from "@/lib/auth/unproven-password";
 import { addHours, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
+import { sendUmamiTrialStarted } from "@/lib/umami-server";
 import { prisma } from "@/lib/prisma";
 import {
   runTrialTransaction,
+  isNewTrialGrant,
   startTrialForVerifiedUser,
 } from "@/lib/trials/trial-service";
 
@@ -159,6 +161,7 @@ export async function confirmEmailVerification(input: {
     return {
       status: "verified" as const,
       trial: Boolean(grant),
+      trialStarted: isNewTrialGrant(grant, now),
       userId: user.id,
       sessionsRevoked: replacePassword,
     };
@@ -168,6 +171,9 @@ export async function confirmEmailVerification(input: {
     await revokeConnectorTokens(result.userId);
     await revokeNamedPersonalTokens(result.userId);
     await Promise.all(revokeDelegatedTokens(result.userId));
+  }
+  if (result.status === "verified" && result.trialStarted) {
+    void sendUmamiTrialStarted("email_confirm");
   }
   if (result.status === "verified") {
     await sendWelcomeEmail({

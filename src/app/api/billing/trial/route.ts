@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
+import { sendUmamiTrialStarted } from "@/lib/umami-server";
 import { prisma } from "@/lib/prisma";
 import {
   accountRule,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/security/rate-limit";
 import {
   runTrialTransaction,
+  isNewTrialGrant,
   startTrialForVerifiedUser,
 } from "@/lib/trials/trial-service";
 
@@ -65,6 +67,8 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
+
+    if (isNewTrialGrant(grant, now)) void sendUmamiTrialStarted("billing");
 
     return NextResponse.json({
       started: true,
