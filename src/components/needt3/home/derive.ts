@@ -411,6 +411,30 @@ export function weekAhead(
   });
 }
 
+/**
+ * The server's count of each day, where it has one: work hours from the real
+ * work schedule (several ranges, overrides), blocking events and personal
+ * time inside them, and every task block that day. Days the server did not
+ * send keep the estimate made here from Settings.
+ */
+export function withServerLoad(
+  days: readonly WeekDay[],
+  server:
+    | readonly {
+        date: string;
+        workingMinutes: number;
+        plannedMinutes: number;
+      }[]
+    | undefined
+): WeekDay[] {
+  if (!server?.length) return days.slice();
+  const byDate = new Map(server.map((d) => [d.date, d]));
+  return days.map((d) => {
+    const s = byDate.get(d.date);
+    return s ? { ...d, cap: s.workingMinutes, planned: s.plannedMinutes } : d;
+  });
+}
+
 export interface WeekTotals {
   tasks: number;
   done: number;

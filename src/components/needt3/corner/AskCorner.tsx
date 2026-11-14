@@ -51,10 +51,10 @@ import {
 import { newDate } from "@/lib/date-utils";
 import { isSwiftShellWindow } from "@/lib/desktop";
 import {
-  useFillFreeTime,
   useIncomingNudges,
   useMarkNudgesRead,
 } from "@/lib/needt3/hooks/nudges";
+import { useSchedulePreview } from "@/lib/needt3/hooks/schedule-insight";
 import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -63,6 +63,7 @@ import { useExit } from "../ctx/useExit";
 import { agentBusy } from "../cursor/hand";
 import { AiOrb } from "../orb/AiOrb";
 import { openPaywall, usePaywallStore } from "../paywall/store";
+import { SchedulePreviewSheet } from "../schedule/SchedulePreviewSheet";
 import { useShellApi } from "../shell/ShellContext";
 import { useAsk } from "./AskProvider";
 import { PANEL_EXIT_MS } from "./ChatDockSlot";
@@ -144,7 +145,8 @@ function Corner() {
   /* ---- the nudge tip ---- */
   const incoming = useIncomingNudges(true);
   const markRead = useMarkNudgesRead();
-  const fillFreeTime = useFillFreeTime();
+  // "Fill it" shows where things would go first; nothing moves until Apply.
+  const fillPreview = useSchedulePreview();
   const [tip, setTip] = React.useState<TipNote | null>(null);
   const [tipShown, tipLeaving] = useExit(tip !== null, 200);
   const lastNote = React.useRef<TipNote | null>(null);
@@ -239,7 +241,7 @@ function Corner() {
   };
   const actTip = (note: TipNote) => {
     closeTip(note);
-    if (note.act.kind === "fill") void fillFreeTime();
+    if (note.act.kind === "fill") void fillPreview.open();
     else router.push(note.act.href);
   };
 
@@ -460,6 +462,11 @@ function Corner() {
         </div>
       </div>
       {panelShown && dock ? createPortal(panelFrame, dock) : null}
+      <SchedulePreviewSheet
+        state={fillPreview.state}
+        onApply={() => void fillPreview.apply()}
+        onClose={fillPreview.close}
+      />
     </div>
   );
 }

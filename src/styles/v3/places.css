@@ -262,3 +262,12 @@
 .needt-v3 .mb-comments.is-phone .mb-comment-body { font: 400 16px/24px var(--font-sans); color: var(--v2p-ink); }
 /* The reference sheet scrolls when comments make it long; the picture keeps its size. */
 .needt-v3 .pl-detail-col > * { flex-shrink: 0; }
+
+/* Plan preview (what-if before a replan). */
+.needt-v3 .sp-group { display: flex; flex-direction: column; gap: 4px; }
+.needt-v3 .sp-head { font: var(--type-meta-medium); color: var(--text-secondary); }
+.needt-v3 .sp-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.needt-v3 .sp-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 28px; padding: 4px 0; }
+.needt-v3 .sp-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--type-ui); color: var(--text-primary); }
+.needt-v3 .sp-move { flex: none; max-width: 60%; text-align: right; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .sp-row.is-risk .sp-move { color: var(--destructive); }

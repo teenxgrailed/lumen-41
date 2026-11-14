@@ -226,3 +226,4 @@
 @media (max-width: 700px) {
   .needt-v3 .hd-sample { margin: 0 0 12px; }
 }
+.needt-v3 .hd-load-links { display: inline-flex; gap: 12px; }

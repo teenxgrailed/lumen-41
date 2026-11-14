@@ -502,3 +502,10 @@
 .needt-v3 .tdc-check,
 .needt-v3 .tdc-icon-btn { transition: none; }
 }
+
+/* Why this time? — rows under Placement, the deciding one reads stronger. */
+.needt-v3 .tdc-why { display: flex; flex-direction: column; gap: 6px; }
+.needt-v3 .tdc-why-list { display: flex; flex-direction: column; gap: 6px; animation: v3-tdc-pop 160ms var(--nx-ease) both; }
+.needt-v3 .tdc-why-row { align-items: baseline; flex-wrap: nowrap; }
+.needt-v3 .tdc-why-text { min-width: 0; flex: 1; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .tdc-why-row.is-decisive .tdc-why-text { color: var(--text-secondary); }

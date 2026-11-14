@@ -48,6 +48,10 @@ import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
+import {
+  useCapacity,
+  useSchedulePreview,
+} from "@/lib/needt3/hooks/schedule-insight";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
@@ -64,6 +68,7 @@ import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { type PeekAnchor, PersonalPeek } from "../personal/PersonalPeek";
 import { PersonalDay } from "../personal/PersonalQuickAdd";
+import { SchedulePreviewSheet } from "../schedule/SchedulePreviewSheet";
 import { Segmented } from "../shell/Segmented";
 import {
   StarterGameSlot,
@@ -103,6 +108,7 @@ import {
   splitHome,
   weekAhead,
   weekTotals,
+  withServerLoad,
 } from "./derive";
 import { energyDay } from "./energy-day";
 import { freeMinutesLeft, hourOfClock, pickFinishNext } from "./finish";
@@ -267,7 +273,14 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const habitsKept = haHabits.filter((h) => h.done).length;
 
   const cap = capacityFrom(settings.data?.prefs);
-  const week = weekAhead(allTasks, events.data ?? [], today, cap);
+  // Week load counts what the server counts (real work schedule, blocking
+  // events, task blocks); 8 days = today and the seven after it.
+  const serverCap = useCapacity(8, !!pro);
+  const week = withServerLoad(
+    weekAhead(allTasks, events.data ?? [], today, cap),
+    serverCap.data?.days
+  );
+  const replan = useSchedulePreview();
   const totals = weekTotals(week);
   const weekOpen = week.reduce(
     (s, w) => s + w.tasks.filter((t) => !t.done).length,
@@ -1031,7 +1044,13 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                         cap={cap}
                         pro={pro}
                         onCalendar={() => router.push("/calendar")}
+                        onReplan={() => void replan.open()}
                         onUpgrade={upgradeWeek}
+                      />
+                      <SchedulePreviewSheet
+                        state={replan.state}
+                        onApply={() => void replan.apply()}
+                        onClose={replan.close}
                       />
                       {blocks.inbox ? inboxTile : null}
                     </>

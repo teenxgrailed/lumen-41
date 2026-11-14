@@ -131,6 +131,7 @@ import {
   tdProvider,
   timePatch,
 } from "./TaskDialogModel";
+import { WhyThisTime } from "./WhyThisTime";
 
 const TEXT_SAVE_MS = 450;
 const SCHED_PREF = "needt3.taskSchedOpen";
@@ -1562,6 +1563,9 @@ export function TaskDialog({
                     </span>
                     <span className="tdc-srow-hint">{placementHint(t)}</span>
                   </div>
+                  {t.auto && !t.isFixed && (t.scheduledStart || t.noSlot) ? (
+                    <WhyThisTime taskId={t.id} />
+                  ) : null}
                   <div className="tdc-srow">
                     <span className="tdc-srow-label">Min. work block</span>
                     <span className="tdc-pills">
