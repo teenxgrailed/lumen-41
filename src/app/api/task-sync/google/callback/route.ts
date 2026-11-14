@@ -5,7 +5,7 @@ import { google } from "googleapis";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { newDate } from "@/lib/date-utils";
 import { createGoogleOAuthClient } from "@/lib/google";
-import { GOOGLE_TASKS_SCOPES } from "@/lib/google-oauth-scopes";
+import { hasGoogleTasksReadAccess } from "@/lib/google-oauth-scopes";
 import { logger } from "@/lib/logger";
 import { buildGoogleTasksRedirectUrl } from "@/lib/oauth-redirects";
 import { prisma } from "@/lib/prisma";
@@ -79,7 +79,7 @@ async function connectGoogleTasks(
     // Google's granular consent lets the person untick the Tasks box. Without
     // the scope there is nothing to sync, so say so instead of connecting.
     const granted = (tokens.scope ?? "").split(/\s+/);
-    if (!GOOGLE_TASKS_SCOPES.every((scope) => granted.includes(scope))) {
+    if (!hasGoogleTasksReadAccess(granted)) {
       return connectionsRedirect(request, "scope_missing");
     }
 

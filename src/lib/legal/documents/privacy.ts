@@ -160,7 +160,7 @@ Needt's use and transfer to any other app of information received from Google AP
 | Sign in with Google | \`openid\`, \`email\`, \`profile\` | To create and sign in to your account |
 | Connect Google Calendar | \`https://www.googleapis.com/auth/calendar\`, \`https://www.googleapis.com/auth/calendar.events\`, \`https://www.googleapis.com/auth/userinfo.email\` | To list your calendars, sync their events, and create or change the events you manage in Needt |
 | Connect Gmail | \`https://www.googleapis.com/auth/gmail.readonly\`, \`https://www.googleapis.com/auth/userinfo.email\` | To show your mail in Needt. Needt never sends, changes or deletes anything in your mailbox; read and archived marks are kept in Needt only |
-| Connect Google Tasks | \`https://www.googleapis.com/auth/tasks\` | To bring the task lists you choose into Needt and keep them in step: a task you complete, rename or re-date in Needt is changed in Google Tasks too, and a task you create in a synced list is added there |
+| Connect Google Tasks | \`https://www.googleapis.com/auth/tasks.readonly\` | To import the task lists you choose from Google Tasks into Needt. The import is one way: Needt only reads, and never changes, adds or deletes anything in Google Tasks |
 
 **Gmail availability.** Google requires an app that reads Gmail to pass its verification and an annual security assessment before anyone can connect a mailbox. Until Needt has completed both, connecting Gmail is limited to accounts we have added as testers.
 
