@@ -636,7 +636,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
       <HaAllDone
         {...haAllDoneOf({
           count: day.length,
-          focusMinutes: homeStats.week?.days.find((d) => d.date === today)
+          focusMinutes: homeStats.week?.days?.find((d) => d.date === today)
             ?.focusMinutes,
           open: {
             late: lateOpen.length,
