@@ -1,0 +1,49 @@
+name: Email shots
+
+# Every email as a picture for design review: 600 and 390 px wide, light and dark.
+# Run by hand (Actions > Email shots > Run workflow). It renders the templates with
+# fixed sample data (scripts/render-emails.ts) and screenshots them in headless
+# Chromium. Nothing is sent and no secrets are used. The PNGs land in the artifact
+# `email-shots-<ref>`.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or SHA to render
+        required: false
+        default: main
+        type: string
+
+concurrency:
+  group: needt-email-shots-${{ inputs.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Render the emails
+        run: npx tsx scripts/render-emails.ts "$RUNNER_TEMP/emails"
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Screenshot them
+        run: node scripts/email-shots.mjs "$RUNNER_TEMP/emails" "$RUNNER_TEMP/shots"
+      - name: Upload the pictures
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: email-shots-${{ inputs.ref }}
+          path: ${{ runner.temp }}/shots
+          if-no-files-found: error
