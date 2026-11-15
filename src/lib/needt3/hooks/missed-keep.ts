@@ -14,6 +14,10 @@ const LOG_SOURCE = "v3-missed-keep";
 const API = "/api/tasks/reschedule-preview";
 /** The scoped replan takes at most this many ids. */
 const MAX_IDS = 100;
+/* The API knows "chat" (the chat preview card, counted as a replan) and "fill".
+   Home is not the chat card, so it uses "fill": it never counts as replan_shown /
+   keep_applied. //todo a dedicated "home_missed" value (server, after #728). */
+const VIA = "fill";
 
 /**
  * Keep for "N tasks from earlier today": the scoped replan of the reschedule
@@ -73,7 +77,7 @@ export function useMissedKeep() {
   const undo = useCallback(
     async (token: string) => {
       try {
-        await sendJson(API, "POST", { action: "undo", token });
+        await sendJson(API, "POST", { action: "undo", token, via: VIA });
         void refresh();
         notify.success("Put back");
       } catch (error) {
@@ -95,6 +99,7 @@ export function useMissedKeep() {
     try {
       const reply = await sendJson<PreviewReply>(API, "POST", {
         action: "preview",
+        via: VIA,
         taskIds: taskIds.slice(0, MAX_IDS),
       });
       const changes = reply.changes ?? [];
@@ -131,6 +136,7 @@ export function useMissedKeep() {
       const applied = await sendJson<ApplyReply>(API, "POST", {
         action: "apply",
         token,
+        via: VIA,
       });
       setStep({ kind: "idle" });
       void refresh();

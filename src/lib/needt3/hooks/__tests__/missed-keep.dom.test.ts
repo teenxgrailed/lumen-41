@@ -90,6 +90,7 @@ describe("useMissedKeep", () => {
     expect(send.mock.calls[0][0]).toBe("/api/tasks/reschedule-preview");
     const body = calls()[0] as { action: string; taskIds: string[] };
     expect(body.action).toBe("preview");
+    expect((body as { via?: string }).via).toBe("fill");
     expect(body.taskIds).toHaveLength(100);
     expect(flow().step).toMatchObject({
       kind: "preview",
@@ -105,13 +106,13 @@ describe("useMissedKeep", () => {
       .mockResolvedValueOnce({ changes: [] });
     await act(async () => flow().preview(["a", "b", "c"]));
     await act(async () => flow().keep());
-    expect(calls()[1]).toEqual({ action: "apply", token: "p1" });
+    expect(calls()[1]).toEqual({ action: "apply", token: "p1", via: "fill" });
     expect(flow().step.kind).toBe("idle");
     const [text, opts] = notice.success.mock.calls[0];
     expect(text).toBe("Moved 2 tasks");
     expect(opts.action.label).toBe("Undo");
     await act(async () => opts.action.onClick());
-    expect(calls()[2]).toEqual({ action: "undo", token: "u1" });
+    expect(calls()[2]).toEqual({ action: "undo", token: "u1", via: "fill" });
     expect(notice.success).toHaveBeenLastCalledWith("Put back");
   });
 

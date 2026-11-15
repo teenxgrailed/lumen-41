@@ -546,7 +546,9 @@ describe("Keep for tasks from earlier today (scoped replan)", () => {
       mount(screen, ui);
       click(q("[data-hv2-missed-go]"));
       await flush();
-      expect(posts()).toEqual([{ action: "preview", taskIds: ["am"] }]);
+      expect(posts()).toEqual([
+        { action: "preview", via: "fill", taskIds: ["am"] },
+      ]);
       const prev = q("[data-hv2-missed-prev]");
       expect(prev.textContent).toContain("Standup notes");
       expect(prev.textContent).toContain("Today 15:00");
@@ -565,7 +567,7 @@ describe("Keep for tasks from earlier today (scoped replan)", () => {
       await flush();
       click(q("[data-hv2-missed-keep]"));
       await flush();
-      expect(posts()[1]).toEqual({ action: "apply", token: "p1" });
+      expect(posts()[1]).toEqual({ action: "apply", token: "p1", via: "fill" });
       expect(mockNotify.success).toHaveBeenCalledTimes(1);
       const [text, opts] = mockNotify.success.mock.calls[0];
       expect(text).toBe("Moved 1 task");
@@ -573,7 +575,7 @@ describe("Keep for tasks from earlier today (scoped replan)", () => {
       expect(host.querySelector("[data-hv2-missed-prev]")).toBeNull();
       opts.action.onClick();
       await flush();
-      expect(posts()[2]).toEqual({ action: "undo", token: "u1" });
+      expect(posts()[2]).toEqual({ action: "undo", token: "u1", via: "fill" });
       expect(mockNotify.success).toHaveBeenLastCalledWith("Put back");
     });
 
