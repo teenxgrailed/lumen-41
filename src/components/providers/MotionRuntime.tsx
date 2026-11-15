@@ -17,6 +17,7 @@ import {
   instantTransition,
   resolveMotionPolicy,
 } from "@/lib/motion";
+import { subscribePageActivity } from "@/lib/needt3/page-activity";
 
 export const MOTION_PREFERENCE_EVENT = "needt:motion-preference";
 const MotionPreferenceContext = createContext(false);
@@ -70,6 +71,10 @@ export function MotionRuntime({ children }: PropsWithChildren) {
       window.removeEventListener(MOTION_PREFERENCE_EVENT, syncPreference);
     };
   }, []);
+
+  // The shared idle/visibility state keeps `data-needt-idle` on <html> current
+  // for the whole app (CSS animations pause on it); see page-activity.ts.
+  useEffect(() => subscribePageActivity(() => undefined), []);
 
   const policy = resolveMotionPolicy({
     animationsEnabled,

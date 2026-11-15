@@ -39,6 +39,7 @@ import {
   useFocusSession,
   useFocusStats,
 } from "@/lib/needt3/hooks/focus";
+import { visibleInterval } from "@/lib/needt3/page-activity";
 import {
   useSetPref,
   useSettings,
@@ -77,8 +78,9 @@ export function useFocusRun() {
     void pausedAt;
     setNowMs(newDate().getTime());
     if (!ticking) return undefined;
-    const t = window.setInterval(() => setNowMs(newDate().getTime()), 1000);
-    return () => window.clearInterval(t);
+    // Seconds are shown, so it ticks while the tab is visible and not at all
+    // while it is hidden (it reads the clock once on the way back).
+    return visibleInterval(() => setNowMs(newDate().getTime()), 1000);
   }, [ticking, id, pausedAt]);
   const run = useMemo(
     () => (session ? runOf(session, nowMs) : null),
