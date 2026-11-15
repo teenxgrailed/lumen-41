@@ -136,6 +136,13 @@ export const HABITS_CARDS_V1 = "habits_cards_v1";
  */
 export const HABIT_EVENING_PUSH = "habit_evening_push";
 
+/**
+ * Home ("Today") in three blocks: one Now card, the day list, overdue as one
+ * row, and the right rail in the project-card frame. Off for everybody; with
+ * it off the current Home renders unchanged, so rollback is one switch.
+ */
+export const HOME_V2 = "home_v2";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -155,6 +162,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BUDGET_MODULE]: "Needt Budget as a place in the sidebar (frame).",
   [HABITS_CARDS_V1]: "Habit card stack, month grid and goal cards.",
   [HABIT_EVENING_PUSH]: "20:00 push with the habits still open today.",
+  [HOME_V2]:
+    "Home in three blocks: Now card, day list, overdue row, framed rail.",
   [BUDGET_PRO_ACCESS]:
     "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",
 };

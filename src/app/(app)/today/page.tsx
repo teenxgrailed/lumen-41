@@ -6,6 +6,7 @@ import { HomeScreen } from "@/components/needt3/home/HomeScreen";
 import { OnboardingResumeProvider } from "@/components/needt3/home/OnboardingResumeBanner";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
+import { homeV2Enabled } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
 import { sectionMetadata } from "@/lib/needt3/section-titles";
 import {
@@ -40,16 +41,34 @@ async function guardFor(userId: string | undefined): Promise<TodayGuard> {
   }
 }
 
+/** The three-block Home (`home_v2`); a failed read is the current Home. */
+async function homeV2For(userId: string | undefined): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    return await homeV2Enabled(userId);
+  } catch (error) {
+    logger.warn(
+      "home_v2 flag read failed, using the current Home",
+      { error: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+    return false;
+  }
+}
+
 export default async function TodayPage() {
   const session = await getServerSession(await getAuthOptions());
-  const guard = await guardFor(session?.user?.id);
+  const [guard, v2] = await Promise.all([
+    guardFor(session?.user?.id),
+    homeV2For(session?.user?.id),
+  ]);
   // Once: the resolver leaves a cookie, and the next visit gets the banner.
   if (guard.kind === "redirect") redirect(guard.to);
   return (
     <OnboardingResumeProvider
       href={guard.kind === "banner" ? guard.href : null}
     >
-      <HomeScreen />
+      <HomeScreen v2={v2} />
     </OnboardingResumeProvider>
   );
 }

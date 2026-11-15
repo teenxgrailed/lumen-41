@@ -74,6 +74,12 @@ export function homeView(
     view?: TaskViewSettings;
     /** The day's highlight, drawn on its own card: out of the plate and rows. */
     lift?: string | null;
+    /**
+     * false: the nearest task is NOT lifted out of the rows. Home v2 draws a
+     * different card (`pickNow`) and removes that task itself, so the old
+     * pick (overdue-first) must not vanish from the rows.
+     */
+    plate?: boolean;
     /** Order the day's untimed tasks by weight for the hour (default order only). */
     energy?: { nowHour: number; hours: EnergyHours };
   } = {}
@@ -102,8 +108,11 @@ export function homeView(
   const next = nextUp(sec, { skipped: opts.skipped, busy });
   const nu = next.nu;
   // the nearest task is on the plate, so not again in the rows
+  const plated = opts.plate !== false;
   const notNu = (l: readonly V3Task[]) =>
-    openOf(l).filter((t) => (!nu || t.id !== nu.id) && t.id !== lift);
+    openOf(l).filter(
+      (t) => (!plated || !nu || t.id !== nu.id) && t.id !== lift
+    );
   const lateRows = notNu(sec.late);
   const inboxRows = notNu(sec.inbox);
   const tomorrowRows = openOf(sec.next);
