@@ -35,4 +35,47 @@ describe("folder.css", () => {
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*--nx-lift: 0px[\s\S]*transition: none/
     );
   });
+
+  const rule = (sel: string) => {
+    let found: postcss.Rule | undefined;
+    postcss.parse(css).walkRules((r) => {
+      if (r.selector === sel && !found) found = r;
+    });
+    return found;
+  };
+  const decl = (sel: string, prop: string) => {
+    let v: string | undefined;
+    rule(sel)?.walkDecls(prop, (d) => {
+      v = d.value;
+    });
+    return v;
+  };
+
+  it("stacks back 0 < sheets 1-3 < front wall 4 < sticker 5, isolated", () => {
+    expect(decl(".nx-folder-art", "isolation")).toBe("isolate");
+    expect(decl(".nx-folder-back", "z-index")).toBeUndefined();
+    expect(decl(".nx-folder-front", "z-index")).toBe("4");
+    expect(decl(".nx-folder-sticker", "z-index")).toBe("5");
+  });
+
+  it("keeps the folder link out of the app's accent underline", () => {
+    for (const sel of [".needt-v3 .nx-folder", ".needt-v3 .nx-folder:hover"]) {
+      const sels = postcss
+        .parse(css)
+        .nodes.filter((n): n is postcss.Rule => n.type === "rule")
+        .find((r) => r.selectors.includes(sel));
+      expect(sels).toBeDefined();
+      expect(sels?.toString()).toMatch(/text-decoration:\s*none/);
+      expect(sels?.toString()).toMatch(/color:\s*inherit/);
+    }
+  });
+
+  it("focuses with the app's shadow-focus only, and blurs the front only", () => {
+    expect(decl(".nx-folder:focus-visible", "box-shadow")).toBe(
+      "var(--shadow-focus)"
+    );
+    expect(decl(".nx-folder", "outline")).toBe("none");
+    expect(decl(".nx-folder-back", "backdrop-filter")).toBeUndefined();
+    expect(decl(".nx-folder-front", "backdrop-filter")).toBeDefined();
+  });
 });

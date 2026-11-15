@@ -90,13 +90,14 @@ describe("ProjectsGrid", () => {
     expect(folders).toHaveLength(2);
     const first = folders[0];
     expect(first.getAttribute("href")).toBe("/projects/p1");
-    expect(first.getAttribute("aria-label")).toBe("Open Operations");
+    expect(first.getAttribute("aria-label")).toBe("Open Operations, 4 open");
     expect(first.querySelector("[data-folder-count]")?.textContent).toBe("4");
     // three sheets, the soonest in front
     expect(first.querySelectorAll("[data-folder-peek]")).toHaveLength(3);
     expect(first.querySelector(".nx-folder-peek-title")?.textContent).toBe(
       "Task b"
     );
+    expect((folders[1] as HTMLElement).style.animationDelay).toBe("40ms");
     // a project with no tasks is an empty folder with a zero
     const empty = folders[1];
     expect(empty.querySelectorAll("[data-folder-peek]")).toHaveLength(0);

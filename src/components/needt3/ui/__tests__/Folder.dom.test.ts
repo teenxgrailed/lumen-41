@@ -95,6 +95,29 @@ describe("Folder", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it("takes a text count and no sticker", () => {
+    render({ count: "83 photos", sticker: undefined });
+    expect(host.querySelector("[data-folder-count]")?.textContent).toBe(
+      "83 photos"
+    );
+    expect(host.querySelector(".nx-folder-sticker")).toBeNull();
+  });
+
+  it("is a plain non-focusable div with neither href nor onClick", () => {
+    render({ href: undefined });
+    expect(host.querySelector("a, button")).toBeNull();
+    const d = host.querySelector(".nx-folder") as HTMLElement;
+    expect(d.tagName).toBe("DIV");
+    expect(d.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("applies an inline style next to the hue", () => {
+    render({ hue: "red", style: { animationDelay: "80ms" } });
+    const a = host.querySelector("a") as HTMLElement;
+    expect(a.style.animationDelay).toBe("80ms");
+    expect(a.style.getPropertyValue("--nx-folder-hue")).toBe("red");
+  });
+
   it("passes data attributes to the root", () => {
     render({ extra: { "data-ctx": "project", "data-ctx-id": "p1" } });
     const a = host.querySelector("a") as HTMLElement;

@@ -1,29 +1,37 @@
 /**
  * Folder: a matte, frosted folder with up to three sheets of paper sticking
  * out of the top, a sticker on the front wall, and its label and count under
- * it. The whole folder is ONE link (`href`) or ONE button (`onClick`).
+ * it. The whole folder is ONE link (`href`) or ONE button (`onClick`); with
+ * neither it is a plain, non-focusable div (a static illustration).
  *
  * Pure CSS (src/styles/v3-overrides/folder.css, class prefix `nx-folder`), no
- * images, light and dark through the ladder tokens. Reused by Projects, Docs,
- * Budget and the landing page, so the API stays this small:
+ * images, light and dark through tokens. Reused by Projects, Docs, Budget and
+ * the landing page, so the API stays this small:
  *
- *   label      string       Under the folder; ellipsised, never wraps.
- *   count      number?      A pill next to the label. Omit it for no pill.
- *   sticker    ReactNode    Sits on the front wall (an icon, an emoji, a mark).
- *   hue        string?      Any CSS colour. A tint on the frosted panels and
- *                           the sticker ring, never a solid fill (PORT.md 0.3).
- *   peeks      Peek[]       0 to 3 sheets, `{ key, title, meta? }`, the first
- *                           one in front and the only one that prints its
- *                           title and meta (the others show a paper edge).
- *                           More than 3 are ignored. None: an empty folder.
- *   href       string?      Renders a Next link. Wins over `onClick`.
- *   onClick    () => void   Renders a button.
- *   ariaLabel  string       The accessible name ("Open Operations").
- *   className  string?      Extra classes on the root.
- *   extra      data-*       Extra data attributes on the root (context menus).
+ *   label      string          Under the folder; ellipsised, never wraps.
+ *   count      number|string?  A pill next to the label ("4", "83 photos").
+ *                              Omit it for no pill; 0 is shown.
+ *   sticker    ReactNode?      Sits on the front wall (icon, emoji, mark).
+ *   hue        string?         Any CSS colour. A tint on the panels and the
+ *                              sticker ring, never a solid fill (PORT.md 0.3).
+ *   peeks      Peek[]          0 to 3 sheets, `{ key, title, meta? }`, the
+ *                              first one in front and the only one that prints
+ *                              its title and meta (the others show a paper
+ *                              edge). More than 3 are ignored. None: empty.
+ *   href       string?         Renders a Next link. Wins over `onClick`.
+ *   onClick    () => void      Renders a button.
+ *   ariaLabel  string          The accessible name ("Open Operations, 4 open").
+ *   className  string?         Extra classes on the root.
+ *   style      CSSProperties?  Extra inline style (an entry `animationDelay`).
+ *   extra      data-*          Extra data attributes on the root.
+ *
+ * Tokens the host must define (the needt-ds-tokens set): --surface-raised,
+ * --fill-4, --fill-5, --fill-6, --text-primary, --text-secondary,
+ * --text-tertiary, --text-muted, --shadow-ring, --shadow-focus,
+ * --transition-hover, --font-sans. `--accent` is not used.
  *
  * Hover and keyboard focus lift the sheets a few pixels; under
- * `prefers-reduced-motion` they do not move. Focus draws the accent ring.
+ * `prefers-reduced-motion` they do not move. Focus draws `--shadow-focus`.
  */
 import type { CSSProperties, ReactNode } from "react";
 
@@ -37,14 +45,15 @@ export interface FolderPeek {
 
 export interface FolderProps {
   label: string;
-  count?: number;
-  sticker: ReactNode;
+  count?: number | string;
+  sticker?: ReactNode;
   hue?: string;
   peeks: readonly FolderPeek[];
   href?: string;
   onClick?: () => void;
   ariaLabel: string;
   className?: string;
+  style?: CSSProperties;
   extra?: Record<`data-${string}`, string>;
 }
 
@@ -75,12 +84,16 @@ export function Folder({
   onClick,
   ariaLabel,
   className,
+  style: extraStyle,
   extra,
 }: FolderProps) {
   const shown = peeks.slice(0, FOLDER_MAX_PEEKS);
   const fan = FAN[shown.length] ?? [];
   const cls = `nx-folder${className ? ` ${className}` : ""}`;
-  const style = hue ? ({ "--nx-folder-hue": hue } as CSSProperties) : undefined;
+  const style = {
+    ...(hue ? { "--nx-folder-hue": hue } : null),
+    ...extraStyle,
+  } as CSSProperties;
   const body = (
     <>
       <span className="nx-folder-art" aria-hidden="true">
@@ -113,7 +126,7 @@ export function Folder({
           </span>
         ))}
         <span className="nx-folder-front" />
-        <span className="nx-folder-sticker">{sticker}</span>
+        {sticker ? <span className="nx-folder-sticker">{sticker}</span> : null}
       </span>
       <span className="nx-folder-foot">
         <span className="nx-folder-label" title={label}>
@@ -139,16 +152,28 @@ export function Folder({
         {body}
       </Link>
     );
+  if (onClick)
+    return (
+      <button
+        type="button"
+        className={cls}
+        style={style}
+        aria-label={ariaLabel}
+        onClick={onClick}
+        {...extra}
+      >
+        {body}
+      </button>
+    );
   return (
-    <button
-      type="button"
+    <div
+      role="img"
       className={cls}
       style={style}
       aria-label={ariaLabel}
-      onClick={onClick}
       {...extra}
     >
       {body}
-    </button>
+    </div>
   );
 }

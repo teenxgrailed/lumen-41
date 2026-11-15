@@ -1,6 +1,6 @@
 import type { V3Task } from "@/lib/needt3/map";
 
-import { nextTasks, peekMeta, projectStats } from "../model";
+import { folderOpen, nextTasks, peekMeta } from "../model";
 
 const base: V3Task = {
   id: "t",
@@ -88,16 +88,39 @@ describe("nextTasks (the sheets in a project folder)", () => {
     expect(nextTasks("p3", tasks, TODAY)).toEqual([]);
   });
 
-  it("counts the same open tasks the folder shows as its count", () => {
+  it("counts what it shows: no-slot and trashed tasks are in neither", () => {
     const tasks = [
       t("a", { dueDate: TODAY }),
       t("b"),
       t("c", { done: true }),
+      t("noslot", { noSlot: true }),
+      t("trashed", { trashedAt: "2026-11-01T10:00:00Z" }),
       t("d"),
       t("e"),
     ];
-    expect(projectStats("p1", tasks, TODAY).open).toBe(4);
-    expect(nextTasks("p1", tasks, TODAY, 10)).toHaveLength(4);
+    expect(folderOpen("p1", tasks).map((x) => x.id)).toEqual([
+      "a",
+      "b",
+      "d",
+      "e",
+    ]);
+    const shown = nextTasks("p1", tasks, TODAY, 10).map((x) => x.id);
+    expect(shown).toHaveLength(4);
+    expect(shown).not.toContain("noslot");
+    expect(shown).not.toContain("trashed");
+  });
+
+  it("breaks a same-day tie by the hour on that day, then title", () => {
+    const tasks = [
+      t("b-late", { dueDate: TODAY, scheduledStart: "2026-11-15T16:00" }),
+      t("a-early", { dueDate: TODAY, scheduledStart: "2026-11-15T08:00" }),
+      t("c-anytime", { dueDate: TODAY }),
+    ];
+    expect(nextTasks("p1", tasks, TODAY).map((x) => x.id)).toEqual([
+      "a-early",
+      "b-late",
+      "c-anytime",
+    ]);
   });
 });
 
