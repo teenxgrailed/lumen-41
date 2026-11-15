@@ -177,13 +177,18 @@ export function freeGapAfter(input: {
   zone: string;
   hours?: DemoHours | null;
   busy: Interval[];
+  /** How long the slot is; the demo task's 60 minutes when left out. */
+  minutes?: number;
+  /** The gap kept after `after`; the scheduler's buffer when left out. */
+  bufferMinutes?: number;
 }): { start: Date; end: Date } | null {
   const { after, now, zone, hours, busy } = input;
+  const minutes = input.minutes ?? TASK_MINUTES;
   const win = demoWindow(hours);
   const step = 15 * 60_000;
-  const length = TASK_MINUTES * 60_000;
+  const length = minutes * 60_000;
   const from = Math.max(
-    after.getTime() + BUFFER_MINUTES * 60_000,
+    after.getTime() + (input.bufferMinutes ?? BUFFER_MINUTES) * 60_000,
     now.getTime()
   );
   let at = Math.ceil(from / step) * step;
@@ -197,7 +202,7 @@ export function freeGapAfter(input: {
     const minute = Number(hh) * 60 + Number(mm);
     if (!win.days.includes(newDate(`${day}T12:00:00.000Z`).getUTCDay()))
       continue;
-    if (minute < win.earliest || minute + TASK_MINUTES > win.end) continue;
+    if (minute < win.earliest || minute + minutes > win.end) continue;
     const slot = { start: new Date(at), end: new Date(at + length) };
     if (!busy.some((b) => overlaps(slot, b))) return slot;
   }

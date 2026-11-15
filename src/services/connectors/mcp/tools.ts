@@ -20,6 +20,7 @@ import {
   GET as remindersGet,
   POST as remindersPost,
 } from "@/app/api/connect/reminders/route";
+import { POST as reschedulePreviewPost } from "@/app/api/connect/reschedule-preview/route";
 import { POST as reschedulePost } from "@/app/api/connect/reschedule/route";
 import {
   GET as scheduleGet,
@@ -950,6 +951,39 @@ export const MCP_TOOLS: McpTool[] = [
             args
           )
         : callRoute(ctx, reschedulePost, "/api/connect/reschedule", "POST"),
+  }),
+  defineTool({
+    name: "needt_reschedule_preview",
+    description:
+      "Preview, keep or undo a re-plan of just the tasks you name (missed or overlapping ones go into the first free gap from now, inside working hours, around every other task and event; pinned tasks never move). action: preview with taskIds (up to 100) returns changes (each with a reason: missed or overlaps), skipped ids with why, unscheduled ones and a previewToken; nothing changes yet. action: apply with that token moves exactly those tasks and returns an undoToken; action: undo with it puts exactly those tasks back. Tokens last 15 minutes and are refused if the tasks or calendar changed meanwhile.",
+    annotations: {
+      title: "Preview a re-plan",
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+    input: z.object({
+      action: z.enum(["preview", "apply", "undo"]),
+      taskIds: z
+        .array(z.string().min(1))
+        .min(1)
+        .max(100)
+        .optional()
+        .describe("preview only: the tasks to re-plan. Leave out for all."),
+      token: z
+        .string()
+        .min(1)
+        .optional()
+        .describe("apply: the previewToken. undo: the undoToken."),
+    }),
+    invoke: (ctx, args) =>
+      callRoute(
+        ctx,
+        reschedulePreviewPost,
+        "/api/connect/reschedule-preview",
+        "POST",
+        args
+      ),
   }),
   defineTool({
     name: "needt_control",
