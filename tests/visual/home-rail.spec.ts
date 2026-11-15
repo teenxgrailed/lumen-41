@@ -1,5 +1,8 @@
 import { type Page, expect, test } from "@playwright/test";
 
+import { prisma } from "@/lib/prisma";
+
+import { VISUAL_TEST_EMAIL } from "./fixtures";
 import { signInVisualUser } from "./helpers";
 
 /* Desktop Home on a wide window: the content runs from the sidebar to the
@@ -24,6 +27,28 @@ async function openHome(page: Page, width: number) {
   });
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
   await signInVisualUser(page);
+  // one Inbox task (no date, no time), so the rail holds Today, Schedule and
+  // Inbox: Home v2 no longer draws the habits and week tiles
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { email: VISUAL_TEST_EMAIL },
+    select: { id: true },
+  });
+  const workspace = await prisma.workspace.findUniqueOrThrow({
+    where: { personalOwnerId: user.id },
+    select: { id: true },
+  });
+  await prisma.task.upsert({
+    where: { id: "visual-rail-inbox-0" },
+    update: {},
+    create: {
+      id: "visual-rail-inbox-0",
+      userId: user.id,
+      workspaceId: workspace.id,
+      title: "Sort the receipts",
+      status: "todo",
+      isAutoScheduled: false,
+    },
+  });
   await page.goto("/today");
   await page.addStyleTag({
     content:
@@ -66,9 +91,7 @@ for (const width of [1440, 2000]) {
     });
 
     expect(boxes.rail.width).toBeCloseTo(360, 0);
-    // Home v2 drops the habits and week tiles: Today and Schedule always stay
-    // (the seed has no inbox task), so two equal tiles is the floor.
-    expect(boxes.tiles.length).toBeGreaterThanOrEqual(2);
+    expect(boxes.tiles.length).toBeGreaterThanOrEqual(3);
     for (const t of boxes.tiles) {
       expect(t.width).toBeCloseTo(boxes.rail.width, 0);
       expect(t.left).toBeCloseTo(boxes.rail.left, 0);
