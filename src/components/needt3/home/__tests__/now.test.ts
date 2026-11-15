@@ -447,3 +447,40 @@ describe("the day's highlight is the Now card", () => {
     expect(p?.canSkip).toBe(false);
   });
 });
+
+describe("Skip keeps cycling", () => {
+  it("two candidates skipped three times: the card alternates, it never sticks", () => {
+    const a = task();
+    const b = task();
+    const input = {
+      ...base,
+      schedule: [],
+      dayOpen: [a, b],
+      lateOpen: [],
+      nowHour: 10,
+    };
+    // the screens' onSkip: after a wrap the list starts again from this key
+    let skipped: string[] = [];
+    const seen: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const p = pickNow({ ...input, skipped })!;
+      seen.push(p.task!.id);
+      skipped = p.wrapped ? [p.skipKey] : [...skipped, p.skipKey];
+    }
+    expect(seen).toEqual([a.id, b.id, a.id, b.id]);
+  });
+
+  it("a highlight's Skip only counts events that can still be picked", () => {
+    const hl2 = task({ scheduledStart: at(16) });
+    const past = item(null, 8, 30, "Standup");
+    const p = pickNow({
+      ...base,
+      schedule: [past],
+      dayOpen: [hl2],
+      lateOpen: [],
+      nowHour: 13,
+      highlight: hl2,
+    });
+    expect(p?.canSkip).toBe(false);
+  });
+});

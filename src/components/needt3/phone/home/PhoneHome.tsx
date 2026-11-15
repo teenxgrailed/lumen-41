@@ -438,14 +438,27 @@ export function PhoneHome({
         nowHour,
         today,
         skipped,
-        highlight: hlTask && !hlTask.done ? hlTask : null,
+        // a highlight just ticked keeps the card while its strike plays
+        highlight: hlTask
+          ? hlTask.done &&
+            (X.phase[hlTask.id] === "check" || X.phase[hlTask.id] === "done")
+            ? { ...hlTask, done: false }
+            : hlTask
+          : null,
       })
     : null;
   const nowTask = nowPick?.task ?? null;
   // v2: the task on the Now card is not repeated in the rows. Only that one
   // (not the old overdue-first pick) leaves them.
+  // Only the task whose card is actually drawn leaves them: not on a closed
+  // day, not while a first-replan hint holds the card back, not with the
+  // Next-up block switched off.
+  const shownNow =
+    v2 && ready && !v.dayClosed && blocks.nextUp && !firstReplanHold
+      ? nowTask
+      : null;
   const hide = (l: readonly V3Task[]) =>
-    nowTask ? l.filter((t) => t.id !== nowTask.id) : l;
+    shownNow ? l.filter((t) => t.id !== shownNow.id) : l;
   const lateRows = v2 ? hide(v.lateRows) : v.lateRows;
   const inboxRows = v2 ? hide(v.inboxRows) : v.inboxRows;
   const dayParts = v2
@@ -468,7 +481,12 @@ export function PhoneHome({
       }}
       onSkip={
         nowPick.canSkip
-          ? () => setSkipped([...skipped, nowPick.skipKey])
+          ? () =>
+              setSkipped(
+                nowPick.wrapped
+                  ? [nowPick.skipKey]
+                  : [...skipped, nowPick.skipKey]
+              )
           : undefined
       }
       actions={
@@ -507,7 +525,12 @@ export function PhoneHome({
       )}
       onSkip={
         nowPick.canSkip
-          ? () => setSkipped([...skipped, nowPick.skipKey])
+          ? () =>
+              setSkipped(
+                nowPick.wrapped
+                  ? [nowPick.skipKey]
+                  : [...skipped, nowPick.skipKey]
+              )
           : undefined
       }
       onStart={() => void startFocus(nowTask)}
@@ -576,7 +599,7 @@ export function PhoneHome({
       <PhoneState query={tasksQuery} screen="today" />
       <OnboardingResumeBanner />
       <SampleBanner />
-      {v2 ? null : <FirstReplanCard />}
+      <FirstReplanCard />
       {ready && !v2 ? aux : null}
       {ready ? (
         <div className="ha-phone ha-ph-stack" data-ha-stack="">
@@ -650,12 +673,7 @@ export function PhoneHome({
               onOpen={() => openTask(nu)}
             />
           ) : null}
-          {v2 ? (
-            <>
-              <FirstReplanCard />
-              {aux}
-            </>
-          ) : null}
+          {v2 ? aux : null}
           <HaBrief
             lines={haBrief.lines}
             note={haBrief.note}

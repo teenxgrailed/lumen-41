@@ -41,6 +41,8 @@ export interface NowPick {
   canSkip: boolean;
   /** What Skip stores: the task id, or the event's day-scoped key. */
   skipKey: string;
+  /** Every candidate had been skipped, so the pick came round again. */
+  wrapped?: boolean;
 }
 
 interface Slot {
@@ -55,7 +57,10 @@ export function pickNow(o: PickNowInput): NowPick | null {
   // starts again from the first (a skipped list never leaves it empty).
   const first = pickOnce(o);
   if (first || !o.skipped?.length) return first;
-  return pickOnce({ ...o, skipped: [] });
+  // `wrapped`: the stored skipped list is spent, so the next Skip must start
+  // a new list instead of appending to it (or Skip would stick on this pick).
+  const again = pickOnce({ ...o, skipped: [] });
+  return again && { ...again, wrapped: true };
 }
 
 /** The key Skip stores for an event: scoped to the day, so it expires with it. */
@@ -90,7 +95,7 @@ function pickOnce(o: PickNowInput): NowPick | null {
       canSkip:
         o.dayOpen.some((t) => t.id !== hl.id) ||
         o.lateOpen.some((t) => t.id !== hl.id) ||
-        o.schedule.some((i) => i.event),
+        o.schedule.some((i) => i.event && i.at + i.len / 60 > o.nowHour),
       skipKey: hl.id,
     };
   }

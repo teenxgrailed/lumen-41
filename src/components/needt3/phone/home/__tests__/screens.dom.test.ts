@@ -43,6 +43,12 @@ jest.mock("@/lib/needt3/hooks/tasks", () => ({
   useCreateTask: () => ({ mutateAsync }),
 }));
 
+let mockHint: string | null = null;
+jest.mock("@/lib/needt3/hooks/first-replan", () => ({
+  ...jest.requireActual("@/lib/needt3/hooks/first-replan"),
+  useFirstReplanHints: () => ({ current: mockHint, goTo: jest.fn() }),
+}));
+
 const push = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
@@ -369,6 +375,32 @@ describe("Home v2 on the phone", () => {
     click(q("[data-ha-skip]"));
     expect(q(".ha-hl .ha-kicker").textContent).toBe("Now");
     expect(q(".ha-hl-title").textContent).toContain("Planning");
+  });
+
+  it("a first-replan hold draws no Now card and no task leaves the rows", () => {
+    mockHint = "sample";
+    try {
+      seedHomeEvents([]);
+      mount(PhoneHomeV2);
+      expect(host.querySelector(".ha-hl")).toBeNull();
+      expect(rows()).toEqual(["am", "pm", "inbox"]);
+      expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    } finally {
+      mockHint = null;
+    }
+  });
+
+  it("a closed day keeps every overdue task in the one row, count included", () => {
+    seedHomeEvents([]);
+    client.setQueryData(qk.tasks({}), [
+      task("late", { dueDate: "2026-09-01", title: "Pay the invoice" }),
+      task("d", { done: true, scheduledStart: `${TODAY}T09:00` }),
+    ]);
+    mount(PhoneHomeV2);
+    expect(host.querySelector("[data-ha-hl]")).toBeNull();
+    expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    click(q("[data-hv2-late-toggle]"));
+    expect(rows()).toContain("late");
   });
 
   it("asks for no highlight suggestion (no AI action) while v2 is on", async () => {

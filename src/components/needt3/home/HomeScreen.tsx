@@ -670,7 +670,12 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
         nowHour,
         today,
         skipped,
-        highlight: hlTask && !hlTask.done ? hlTask : null,
+        // a highlight just ticked keeps the card while its strike plays
+        highlight: hlTask
+          ? hlTask.done && stays(hlTask)
+            ? { ...hlTask, done: false }
+            : hlTask
+          : null,
       })
     : null;
   const nowTask = nowPick?.task ?? null;
@@ -691,7 +696,10 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
         }}
         onSkip={
           nowPick.canSkip
-            ? () => setSkipped((sk) => [...sk, nowPick.skipKey])
+            ? () =>
+                setSkipped((sk) =>
+                  nowPick.wrapped ? [nowPick.skipKey] : [...sk, nowPick.skipKey]
+                )
             : undefined
         }
         actions={
@@ -741,7 +749,10 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
         )}
         onSkip={
           nowPick.canSkip
-            ? () => setSkipped((sk) => [...sk, nowPick.skipKey])
+            ? () =>
+                setSkipped((sk) =>
+                  nowPick.wrapped ? [nowPick.skipKey] : [...sk, nowPick.skipKey]
+                )
             : undefined
         }
         onStart={() => void startFocusOn(nowTask)}
@@ -1017,6 +1028,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
             <div className="hd-col">
               {v2day ? (
                 <>
+                  <FirstReplanCard />
                   {!firstReplanHold && (blocks.nextUp || closedDay) ? (
                     <div
                       className="hd-cards ha-cards"
@@ -1027,10 +1039,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
                       {closedDay ? allDoneNode : nowNode}
                     </div>
                   ) : null}
-                  <div className="hv2-aux">
-                    <FirstReplanCard />
-                    {aux}
-                  </div>
+                  <div className="hv2-aux">{aux}</div>
                 </>
               ) : !firstReplanHold &&
                 (blocks.nextUp || (tab === "day" && closedDay)) ? (
