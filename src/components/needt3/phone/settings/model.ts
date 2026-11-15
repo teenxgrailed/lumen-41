@@ -141,6 +141,16 @@ export const PILL_PLACES: readonly MenuPlaceId[] = [
   "ask",
 ];
 
+/**
+ * What the Menu page counts as in the pill: the saved or half-filled list,
+ * minus any id that has no row on the page. Such an id (a leftover spelling in
+ * the saved list) held a slot nobody could see or untick, so the page read
+ * "the pill holds three" beside two ticks.
+ */
+export function pillSlots(slots: readonly MenuPlaceId[]): MenuPlaceId[] {
+  return slots.filter((id) => PILL_PLACES.includes(id));
+}
+
 export interface SlotMove {
   slots: MenuPlaceId[];
   /** The pill is full again: write it. Never while a slot is empty. */

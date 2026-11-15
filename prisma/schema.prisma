@@ -105,6 +105,11 @@ model User {
   // a directory reviewer now, a public demo later. Null for every real person.
   // A sandbox account is locked down (src/lib/sandbox) and wiped nightly.
   sandboxKind                  SandboxKind?
+  // Marks an account that is ours (the owner, test addresses, bots), so Admin
+  // statistics can leave it out. Additive and false by default; the Admin
+  // Overview also treats admins, sandbox accounts and a fixed set of address
+  // patterns as internal without this flag (src/services/admin/internal-accounts.ts).
+  internal                     Boolean                    @default(false)
   // When the person confirmed at sign-up that they are 16 or older and accept
   // the Terms and Privacy Policy (audit record). Null for accounts made before
   // the confirmation existed, and for app-provisioned sandbox accounts.
