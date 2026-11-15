@@ -111,6 +111,8 @@ export const qk = {
   /** Whether the Agents item shows, and its unread count (`GET /api/agent-hub/badge`). */
   agentHubNav: () => [V3, "agent-hub-nav"] as const,
   budgetNav: () => [V3, "budget-nav"] as const,
+  /** Whether the 20:00 habit push exists for this account (`GET /api/habits/evening-push`). */
+  habitEveningPush: () => [V3, "habit-evening-push"] as const,
   settings: () => [V3, "settings"] as const,
   /** The changelog feed and what is unseen (`GET /api/whats-new`). */
   whatsNew: () => [V3, "whats-new"] as const,

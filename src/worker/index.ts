@@ -22,6 +22,7 @@ import {
 } from "@/services/email-lifecycle/engine";
 import { deliverFocusEnded } from "@/services/focus/focus-end-notification";
 import { expireProGifts } from "@/services/gifts/gifts";
+import { runHabitEveningPush } from "@/services/habits/evening-push";
 import { runHabitPresenceSweep } from "@/services/habits/presence-sweep";
 import {
   processImportRun,
@@ -286,6 +287,10 @@ async function processReminder(job: Job<ReminderJobData>) {
   }
   if (job.data.kind === "habits") {
     await runHabitPresenceSweep();
+    return;
+  }
+  if (job.data.kind === "habit-evening") {
+    await runHabitEveningPush();
     return;
   }
   const reminderIds = await findDueReminderIds();
@@ -609,6 +614,13 @@ export async function start(): Promise<void> {
     "habit-presence-sweep",
     { every: 5 * 60_000 },
     { name: "sweep-habit-presence", data: { kind: "habits" } }
+  );
+  // Every 5 minutes: each person's 20:00 is a different instant, and the
+  // sweep itself decides who is inside the window. Flag off = one row read.
+  await getReminderQueue().upsertJobScheduler(
+    "habit-evening-push-sweep",
+    { every: 5 * 60_000 },
+    { name: "sweep-habit-evening", data: { kind: "habit-evening" } }
   );
   await getNudgeQueue().upsertJobScheduler(
     "proactive-nudge-sweep",

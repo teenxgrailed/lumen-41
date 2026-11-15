@@ -25,6 +25,10 @@ import { HabitsRoute } from "../HabitsRoute";
 
 const mockToggle = jest.fn();
 const mockToggleDay = jest.fn();
+const mockToggleDayAsync = jest.fn(async () => ({
+  result: undefined,
+  undo: async () => undefined,
+}));
 const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 const mockArchive = jest.fn();
@@ -51,7 +55,10 @@ jest.mock("@/lib/needt3/hooks/habits", () => ({
   // the desktop screen's "Last four months" read; nothing to draw from here
   useCheckinHistory: () => query(undefined),
   useToggleHabitToday: () => ({ mutate: mockToggle }),
-  useToggleHabitDay: () => ({ mutate: mockToggleDay }),
+  useToggleHabitDay: () => ({
+    mutate: mockToggleDay,
+    mutateAsync: mockToggleDayAsync,
+  }),
   useCreateHabit: () => ({ mutateAsync: mockCreate }),
   useUpdateHabit: () => ({ mutateAsync: mockUpdate }),
   useArchiveHabit: () => ({ mutateAsync: mockArchive }),
@@ -102,13 +109,17 @@ let host: HTMLDivElement;
 let root: Root;
 
 let client: QueryClient;
-const render = (ui: "phone" | "desktop") =>
+const render = (ui: "phone" | "desktop", cards?: boolean) =>
   act(() =>
     root.render(
       h(
         QueryClientProvider,
         { client },
-        h(PhoneUiProvider, { value: ui }, h(HabitsRoute))
+        h(
+          PhoneUiProvider,
+          { value: ui },
+          h(HabitsRoute, cards === undefined ? {} : { cards })
+        )
       )
     )
   );
@@ -150,6 +161,7 @@ beforeEach(() => {
   client = new QueryClient();
   mockToggle.mockReset();
   mockToggleDay.mockReset();
+  mockToggleDayAsync.mockClear();
   mockCreate.mockReset();
   mockUpdate.mockReset();
   mockArchive.mockReset();
@@ -454,5 +466,46 @@ describe("saving", () => {
     expect(doc<HTMLButtonElement>("[data-phb-create]")?.disabled).toBe(true);
     click(doc("[data-phb-create]"));
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+});
+
+/* `habits_cards_v1`: the page reads the flag on the server and passes `cards`.
+   Off (or absent) is the screens as they were; on swaps Today and the history
+   for the card stack and month grid on both faces. */
+describe("the card screens flag", () => {
+  it.each(["phone", "desktop"] as const)(
+    "off: the %s face draws no cards",
+    (ui) => {
+      render(ui);
+      expect(q("[data-hc-panel]")).toBeNull();
+      render(ui, false);
+      expect(q("[data-hc-panel]")).toBeNull();
+    }
+  );
+
+  it.each(["phone", "desktop"] as const)(
+    "on: the %s face draws the stack, the month grid and the list",
+    (ui) => {
+      render(ui, true);
+      expect(q("[data-hc-panel]")).not.toBeNull();
+      expect(q("[data-hc-stack]")).not.toBeNull();
+      expect(q("[data-hc-grid]")).not.toBeNull();
+      expect(host.querySelectorAll("[data-hc-row]")).toHaveLength(2);
+    }
+  );
+
+  it("a tick from the stack writes once, pinned to its day", () => {
+    render("desktop", true);
+    click(q("[data-hc-done]"));
+    expect(mockToggleDayAsync).toHaveBeenCalledTimes(1);
+    expect(mockToggleDayAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "a", done: true })
+    );
+  });
+
+  it("the new-habit sheet still opens with the cards on", () => {
+    render("desktop", true);
+    click(q("[data-page-add]"));
+    expect(doc('input[name="habit-name"]')).not.toBeNull();
   });
 });

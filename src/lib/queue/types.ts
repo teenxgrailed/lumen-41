@@ -57,7 +57,9 @@ export type ReminderJobData =
   | { kind: "digest" }
   | { kind: "activity" }
   /** Habit pushes: reminders, evening check-in, QUIT milestones, re-engage. */
-  | { kind: "habits" };
+  | { kind: "habits" }
+  /** The 20:00 "habits left today" push (flag `habit_evening_push`). */
+  | { kind: "habit-evening" };
 
 /** A delayed job per running Focus session, due at its planned end. */
 export interface FocusJobData {

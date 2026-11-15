@@ -231,3 +231,28 @@ describe("Project goals", () => {
     expect(renderToStaticMarkup(h(ProjectGoalsView, { goals: [] }))).toBe("");
   });
 });
+
+describe("Goal cards (habits_cards_v1)", () => {
+  const cards = {
+    nextSteps: { g1: { id: "t1", title: "Open the account" } },
+    today: "2026-11-15",
+  };
+
+  it("off: the list as before, with no cards", () => {
+    const out = render({ goals: [goal()] });
+    expect(out).toContain("data-gl-list");
+    expect(out).toContain('data-gl-goal="g1"');
+    expect(out).not.toContain("data-gl-cards");
+    expect(out).not.toContain("data-gl-card=");
+  });
+
+  it("on: each goal is a card with its next step, deadline and progress", () => {
+    const out = render({ goals: [goal()], cards });
+    expect(out).toContain("data-gl-cards");
+    expect(out).toContain('data-gl-card="g1"');
+    expect(out).toContain("Open the account");
+    expect(out).toContain("by 31 Dec 2026");
+    expect(out).toContain("1 000 / 2 500 CHF");
+    expect(out).not.toContain("data-gl-list");
+  });
+});
