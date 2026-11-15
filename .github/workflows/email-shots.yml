@@ -4,8 +4,14 @@ name: Email shots
 # Run by hand (Actions > Email shots > Run workflow). It renders the templates with
 # fixed sample data (scripts/render-emails.ts) and screenshots them in headless
 # Chromium. Nothing is sent and no secrets are used. The PNGs land in the artifact
-# `email-shots-<ref>`.
+# `email-shots-<run number>`.
 on:
+  pull_request:
+    paths:
+      - src/lib/email/**
+      - scripts/render-emails.ts
+      - scripts/email-shots.mjs
+      - .github/workflows/email-shots.yml
   workflow_dispatch:
     inputs:
       ref:
@@ -15,7 +21,7 @@ on:
         type: string
 
 concurrency:
-  group: needt-email-shots-${{ inputs.ref }}
+  group: needt-email-shots-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -28,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
@@ -44,6 +50,6 @@ jobs:
       - name: Upload the pictures
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: email-shots-${{ inputs.ref }}
+          name: email-shots-${{ github.run_number }}
           path: ${{ runner.temp }}/shots
           if-no-files-found: error
