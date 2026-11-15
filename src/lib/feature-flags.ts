@@ -6,6 +6,7 @@ import {
   AGENT_HUB,
   AI_CHATGPT_PLAN,
   BUDGET_MODULE,
+  FOLDERS_V1,
   HABITS_QUIT,
   HOME_V2,
 } from "@/lib/feature-flags-keys";
@@ -68,6 +69,19 @@ export async function budgetModuleEnabled(userId: string) {
 /** Home in three blocks (`HOME_V2`) is on for this account. */
 export async function homeV2Enabled(userId: string) {
   return isFeatureEnabled(HOME_V2, userId);
+}
+
+/**
+ * Projects as folders (`FOLDERS_V1`). Fails closed: no user, or a flag read
+ * that throws, is off, and Projects keeps its cards.
+ */
+export async function foldersV1Enabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return await isFeatureEnabled(FOLDERS_V1, userId);
+  } catch {
+    return false;
+  }
 }
 
 /**

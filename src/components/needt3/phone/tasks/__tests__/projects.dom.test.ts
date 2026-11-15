@@ -145,11 +145,21 @@ afterEach(() => {
 });
 
 // the screen takes the controller from above, as WorkScreen gives it
-function Harness({ projectId }: { projectId: string | null }) {
-  return h(PhoneProjects, { projectId, state: useWorkState("all") });
+function Harness({
+  projectId,
+  folders,
+}: {
+  projectId: string | null;
+  folders: boolean;
+}) {
+  return h(PhoneProjects, {
+    projectId,
+    folders,
+    state: useWorkState("all"),
+  });
 }
 
-function mount(projectId: string | null = null) {
+function mount(projectId: string | null = null, folders = false) {
   const qc = new QueryClient({
     defaultOptions: { queries: { staleTime: Infinity, retry: false } },
   });
@@ -157,7 +167,7 @@ function mount(projectId: string | null = null) {
   qc.setQueryData(qk.projects(), [OPS, LAB]);
   act(() =>
     root.render(
-      h(QueryClientProvider, { client: qc }, h(Harness, { projectId }))
+      h(QueryClientProvider, { client: qc }, h(Harness, { projectId, folders }))
     )
   );
 }
@@ -191,6 +201,33 @@ describe("PhoneProjects: the list", () => {
     );
     act(() => q<HTMLElement>(`[data-ptk-project="p-ops"]`).click());
     expect(push).toHaveBeenCalledWith("/projects/p-ops");
+  });
+});
+
+describe("PhoneProjects: folders_v1", () => {
+  it("is two columns of folders: link, count, caption", () => {
+    mount(null, true);
+    const list = q(".ptk-plist");
+    expect(list.classList.contains("is-folders")).toBe(true);
+    expect(host.querySelector("[data-ptk-project]")).toBeNull();
+    const links = host.querySelectorAll<HTMLAnchorElement>("a.nx-folder");
+    expect(links).toHaveLength(2);
+    expect(links[0].getAttribute("href")).toBe("/projects/p-ops");
+    expect(links[1].getAttribute("href")).toBe("/projects/p-lab");
+    expect(links[0].querySelector("[data-folder-count]")?.textContent).toBe(
+      "2"
+    );
+    expect(links[0].getAttribute("aria-label")).toBe("Open Operations, 2 open");
+    expect(links[1].querySelector(".nx-folder-caption")?.textContent).toBe(
+      "Next: Task d"
+    );
+  });
+
+  it("keeps the rows with the flag off", () => {
+    mount(null, false);
+    expect(q(".ptk-plist").classList.contains("is-folders")).toBe(false);
+    expect(host.querySelectorAll("[data-ptk-project]")).toHaveLength(2);
+    expect(host.querySelector(".nx-folder")).toBeNull();
   });
 });
 
