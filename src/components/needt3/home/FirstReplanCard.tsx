@@ -4,6 +4,7 @@ import { addCalendarDays, formatInTimeZone, newDate } from "@/lib/date-utils";
 import {
   useFirstReplan,
   useFirstReplanDemo,
+  useFirstReplanHints,
   useReportCardShown,
 } from "@/lib/needt3/hooks/first-replan";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
@@ -24,8 +25,12 @@ export function FirstReplanCard() {
   const tz = useTimeZone();
   const flow = useFirstReplan(demo.data);
   const data = demo.data;
+  const { current } = useFirstReplanHints();
   useReportCardShown(Boolean(data?.conflict));
-  if (!data) return null;
+  // The card is the first hint and the "Replanned" card the second; after
+  // that it steps aside for the next one.
+  // Once the whole sequence is over (current is null) it stays away.
+  if (!data || (current !== "card" && current !== "replanned")) return null;
 
   // "Today 10:30", "Tomorrow 10:00", "Mon 10:00": the day is always said, so a
   // move never reads as a change of hour alone.
@@ -80,6 +85,15 @@ export function FirstReplanCard() {
           onClick={() => void flow.remove()}
         >
           Remove the demo
+        </button>
+        <button
+          type="button"
+          className="br-dismiss"
+          data-fr="close"
+          aria-label="Close"
+          onClick={flow.close}
+        >
+          &times;
         </button>
       </>
     );

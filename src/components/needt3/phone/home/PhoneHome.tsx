@@ -13,7 +13,10 @@ import { useSchedule } from "@/lib/needt3/hooks/account";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useEvents } from "@/lib/needt3/hooks/events";
-import { useFirstReplanHold } from "@/lib/needt3/hooks/first-replan";
+import {
+  useAdvanceReview,
+  useFirstReplanHints,
+} from "@/lib/needt3/hooks/first-replan";
 import {
   useCheckins,
   useHabits,
@@ -167,7 +170,8 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   );
   // One hint at a time: the first-replan card is answered before the
   // suggested highlight shows up.
-  const firstReplanHold = useFirstReplanHold();
+  const hint = useFirstReplanHints().current;
+  const firstReplanHold = hint !== null;
   const highlight = useHighlight(today);
   const setHighlight = useSetHighlight(today);
   const hlTask = highlightTask(all, highlight.data?.taskId);
@@ -207,6 +211,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     projects: projects ?? [],
     streak: dayStreak(all, today).n,
   });
+  useAdvanceReview(review.show, true);
   const calendarItems = scheduleItems([], events.data ?? [], today);
   const personal = usePersonalDay(today);
   const [band, setBand] = useState<DayBand | null>(null);
@@ -428,7 +433,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       <OnboardingResumeBanner />
       <SampleBanner />
       <FirstReplanCard />
-      {ready && review.show && !firstReplanHold ? (
+      {ready && review.show && (hint === null || hint === "review") ? (
         <ReviewCard phone onStart={review.start} onLater={review.later} />
       ) : null}
       {ready && nudge.show && !firstReplanHold ? (

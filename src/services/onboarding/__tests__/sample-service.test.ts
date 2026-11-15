@@ -203,6 +203,17 @@ describe.each(SAMPLE_USES)("the %s sample day", (use: SampleUse) => {
     );
   });
 
+  it("leaves out the overdue task, and nothing else, for the first-replan demo day", async () => {
+    const { db, t } = makeDb();
+    const res = await seed(db, [use], { skipOverdue: true });
+    const today = new Date("2026-10-19T00:00:00Z");
+    expect(
+      t.tasks.filter((r) => r.dueDate && (r.dueDate as Date) < today)
+    ).toHaveLength(0);
+    expect(t.tasks).toHaveLength(SAMPLE_DAYS[use].tasks.length - 1);
+    expect(res.counts.tasks).toBe(t.tasks.length);
+  });
+
   it("writes a Start here document that names the three gestures", async () => {
     const { db, t } = makeDb();
     await seed(db, [use]);

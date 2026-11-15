@@ -30,6 +30,15 @@ const bodySchema = z
   })
   .strict();
 
+/** Whether the first-replan demo is on for this account; never throws. */
+async function demoEnabled(userId: string): Promise<boolean> {
+  try {
+    return Boolean(await isFeatureEnabled(FIRST_REPLAN_ONBOARDING, userId));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The first-replan demo rides on a freshly created sample day, for accounts
  * the `first_replan_onboarding` flag is on for. It never fails the sample day.
@@ -39,9 +48,6 @@ async function seedDemoWhenOn(
   timeZone: string | undefined
 ) {
   try {
-    if (!(await isFeatureEnabled(FIRST_REPLAN_ONBOARDING, input.userId))) {
-      return;
-    }
     await seedFirstReplanDemo({
       userId: input.userId,
       workspaceId: input.workspaceId,
@@ -79,13 +85,17 @@ export async function seedSampleResponse(input: {
     );
   }
   try {
+    const demoOn = await demoEnabled(input.userId);
     const result = await seedSampleData({
       userId: input.userId,
       workspaceId: input.workspaceId,
       uses: parsed.data.uses,
       timeZone: parsed.data.timeZone,
+      skipOverdue: demoOn,
     });
-    if (result.created) await seedDemoWhenOn(input, parsed.data.timeZone);
+    if (result.created && demoOn) {
+      await seedDemoWhenOn(input, parsed.data.timeZone);
+    }
     return NextResponse.json(result, { status: result.created ? 201 : 200 });
   } catch (error) {
     logger.error(

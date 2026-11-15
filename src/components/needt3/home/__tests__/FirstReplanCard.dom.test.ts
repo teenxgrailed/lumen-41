@@ -26,12 +26,15 @@ const flow = {
   undo: jest.fn(),
   remove: jest.fn(),
   notNow: jest.fn(),
+  close: jest.fn(),
 };
+let current: string | null = "card";
 let demo: FirstReplanState | null | undefined;
 
 jest.mock("@/lib/needt3/hooks/first-replan", () => ({
   useFirstReplanDemo: () => ({ data: demo }),
   useFirstReplan: () => flow,
+  useFirstReplanHints: () => ({ current }),
   useReportCardShown: (shown: boolean) => reportShown(shown),
 }));
 jest.mock("@/lib/needt3/hooks/settings", () => ({
@@ -72,6 +75,7 @@ beforeEach(() => {
   });
   jest.clearAllMocks();
   flow.step = { kind: "idle" };
+  current = "card";
   demo = conflict;
   host = document.createElement("div");
   root = createRoot(host);
@@ -183,4 +187,20 @@ it("after Keep offers Undo and removing the demo", async () => {
   expect(flow.remove).toHaveBeenCalledTimes(1);
   // After Keep, removing is not a skip.
   expect(flow.remove).toHaveBeenCalledWith();
+});
+
+it("the Replanned card has a close button that hands over to the next hint", async () => {
+  flow.step = { kind: "kept", undoToken: "undo-tok" };
+  current = "replanned";
+  await mount();
+  await press("close");
+  expect(flow.close).toHaveBeenCalledTimes(1);
+});
+
+it("steps aside once a later hint has its turn", async () => {
+  for (const next of ["sample", "review", null]) {
+    current = next;
+    await mount();
+    expect(host.querySelector("[data-hd-first-replan]")).toBeNull();
+  }
 });

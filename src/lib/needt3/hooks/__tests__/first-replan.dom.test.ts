@@ -2,9 +2,11 @@
  * @jest-environment jsdom
  *
  * The first-replan flow: a proposed move is only offered when the task lands
- * after the meeting and after now; Keep slides the row and only then lets the
- * other hints (sample-day note, suggested highlight) appear; Not now and Skip
- * release them at once; Skip is the one removal that is counted as skipping.
+ * after the meeting and after now; Keep slides the row and only then shows the
+ * "Replanned" card; the hints then come strictly one at a time (Replanned,
+ * sample day, Sunday review) and the stage survives a reload; Not now and Skip
+ * go straight to the sample-day note; Skip is the one removal that is counted
+ * as skipping.
  */
 import { act, createElement as h } from "react";
 
@@ -15,7 +17,11 @@ import type { FirstReplanState } from "@/lib/onboarding/first-replan";
 
 import { useFirstReplanGate } from "@/store/first-replan";
 
-import { useFirstReplan, useFirstReplanHold } from "../first-replan";
+import {
+  useAdvanceReview,
+  useFirstReplan,
+  useFirstReplanHints,
+} from "../first-replan";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -68,16 +74,19 @@ const demo: FirstReplanState = {
 
 const api: {
   flow?: ReturnType<typeof useFirstReplan>;
-  hold?: boolean;
+  current?: ReturnType<typeof useFirstReplanHints>["current"];
 } = {};
+const review = { shown: false };
 function Probe() {
   api.flow = useFirstReplan(demo);
-  api.hold = useFirstReplanHold();
+  api.current = useFirstReplanHints().current;
+  useAdvanceReview(review.shown, true);
   return null;
 }
 
 let host: HTMLDivElement;
 let root: Root;
+let client: QueryClient;
 beforeEach(async () => {
   jest.useFakeTimers({
     now: new Date("2026-11-18T10:00:00Z"),
@@ -87,9 +96,11 @@ beforeEach(async () => {
   reduced.on = false;
   demoReply = { demo };
   useFirstReplanGate.getState().reset();
+  review.shown = false;
+  window.localStorage.clear();
   window.requestAnimationFrame = (cb: FrameRequestCallback) =>
     window.setTimeout(() => cb(0), 0) as unknown as number;
-  const client = new QueryClient();
+  client = new QueryClient();
   host = document.createElement("div");
   root = createRoot(host);
   await act(async () => {
@@ -119,7 +130,7 @@ const preview = (toStart: string | null) =>
   });
 
 it("holds the other hints while the demo overlaps and nothing is answered", () => {
-  expect(api.hold).toBe(true);
+  expect(api.current).toBe("card");
 });
 
 it("offers a move that lands after the meeting and after now", async () => {
@@ -170,13 +181,14 @@ it("on Keep slides the row, then lets the other hints in", async () => {
   });
   expect(flipRow).toHaveBeenCalledWith("task", 120);
   expect(api.flow!.step).toEqual({ kind: "kept", undoToken: "undo" });
-  // The row is still on its way: the hints keep waiting, even though the
-  // demo no longer overlaps.
-  expect(api.hold).toBe(true);
+  // The row is still on its way: the card stays the only block, even though
+  // the demo no longer overlaps.
+  expect(api.current).toBe("card");
   await act(async () => {
     await jest.advanceTimersByTimeAsync(260);
   });
-  expect(api.hold).toBe(false);
+  // Then only the "Replanned" card, nothing after it yet.
+  expect(api.current).toBe("replanned");
 });
 
 it("with reduced motion nothing is animated and the hints come at once", async () => {
@@ -192,12 +204,12 @@ it("with reduced motion nothing is animated and the hints come at once", async (
     await jest.advanceTimersByTimeAsync(10);
     await kept;
   });
-  expect(api.hold).toBe(false);
+  expect(api.current).toBe("replanned");
 });
 
-it("Not now lets the other hints in", async () => {
+it("Not now goes straight to the sample-day note", async () => {
   await act(async () => api.flow!.notNow());
-  expect(api.hold).toBe(false);
+  expect(api.current).toBe("sample");
 });
 
 it("Skip removes the demo, is counted as a skip, and lets the hints in", async () => {
@@ -209,7 +221,7 @@ it("Skip removes the demo, is counted as a skip, and lets the hints in", async (
     "/api/onboarding/first-replan?reason=skip",
     "DELETE"
   );
-  expect(api.hold).toBe(false);
+  expect(api.current).toBe("sample");
 });
 
 it("removing the demo after Keep is not a skip", async () => {
@@ -218,4 +230,80 @@ it("removing the demo after Keep is not a skip", async () => {
     await api.flow!.remove();
   });
   expect(send).toHaveBeenCalledWith("/api/onboarding/first-replan", "DELETE");
+});
+
+const flush = () =>
+  act(async () => {
+    await jest.advanceTimersByTimeAsync(10);
+  });
+
+it("shows the hints strictly one at a time: Replanned, sample day, Sunday review, then the rest", async () => {
+  const seen: (string | null)[] = [];
+  const note = () => seen.push(api.current ?? null);
+  preview("2026-11-18T11:45:00.000Z");
+  await act(async () => {
+    await api.flow!.replan();
+  });
+  reduced.on = true;
+  flipRow.mockReturnValue(false);
+  send.mockResolvedValueOnce({ undoToken: "undo" });
+  await act(async () => {
+    const kept = api.flow!.keep("tok");
+    await jest.advanceTimersByTimeAsync(10);
+    await kept;
+  });
+  note(); // replanned
+  review.shown = true; // it is Sunday
+  await act(async () => api.flow!.close()); // close the Replanned card
+  await flush();
+  note(); // sample day
+  expect(useFirstReplanGate.getState().stage).toBe("sample");
+  await act(async () => useFirstReplanGate.getState().goTo("review"));
+  await flush();
+  note(); // review, still on screen
+  review.shown = false; // the person closed it
+  await act(async () => {
+    root.render(
+      h(QueryClientProvider, { client: new QueryClient() }, h(Probe))
+    );
+  });
+  await flush();
+  note(); // nothing is held any more
+  expect(seen).toEqual(["replanned", "sample", "review", null]);
+});
+
+it("skips the review step when there is no review today", async () => {
+  review.shown = false;
+  await act(async () => useFirstReplanGate.getState().goTo("review"));
+  await flush();
+  expect(api.current).toBeNull();
+  expect(useFirstReplanGate.getState().stage).toBe("done");
+});
+
+it("keeps the stage across a reload and starts over for a different demo", async () => {
+  await act(async () => useFirstReplanGate.getState().goTo("sample"));
+  await flush();
+  const stored = JSON.parse(
+    window.localStorage.getItem("needt-first-replan-hints") ?? "{}"
+  );
+  expect(stored.state).toMatchObject({ taskId: "task", stage: "sample" });
+  // Same browser, another account's demo: back to the card.
+  demoReply = { demo: { ...demo, task: { ...demo.task, id: "other" } } };
+  await act(async () => {
+    await client.invalidateQueries();
+  });
+  await flush();
+  expect(useFirstReplanGate.getState()).toMatchObject({
+    taskId: "other",
+    stage: "card",
+  });
+});
+
+it("Undo puts the card back and holds everything else", async () => {
+  send.mockResolvedValueOnce({});
+  await act(async () => useFirstReplanGate.getState().goTo("replanned"));
+  await act(async () => {
+    await api.flow!.undo("undo-tok");
+  });
+  expect(useFirstReplanGate.getState().stage).toBe("card");
 });
