@@ -1,0 +1,74 @@
+/* The loading screen (NeedtLoading): the word "Needt" in the display face,
+ * grey, filled with the full text colour from the left by progress. Nothing
+ * else on it.
+ *
+ * The grey is the one text colour at a ladder alpha (--text-disabled), the
+ * fill is --text-primary; no accent. It appears after 150 ms so a quick load
+ * never flashes it (the delay the route skeleton had). The fallbacks after the
+ * commas are for the one place it can draw outside the v3 scope. */
+.nl-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: nl-in 160ms ease-out 150ms backwards;
+}
+.nl-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--background, #fcfdfe);
+  border-radius: inherit;
+}
+.nl-fixed {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  background: var(--background, #fcfdfe);
+}
+.nl-word {
+  position: relative;
+  display: inline-block;
+  font-family: var(--font-v3-exposure), Georgia, serif;
+  font-size: 44px;
+  line-height: 1;
+  white-space: pre;
+  user-select: none;
+}
+.nl-base {
+  color: var(--text-disabled, rgba(26, 28, 30, 0.25));
+}
+.nl-fill {
+  position: absolute;
+  inset: 0;
+  color: var(--text-primary, #1a1c1e);
+  clip-path: inset(0 var(--nl-inset, 100%) 0 0);
+  transition: clip-path 240ms linear;
+}
+@keyframes nl-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* Reduced motion: a still word. No fade, no fill, no transition; the delay of
+ * the fade is gone too, so the word is simply there while loading lasts. */
+.nl-still,
+.nl-still .nl-fill {
+  animation: none;
+  transition: none;
+}
+.nl-still .nl-fill {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nl-root {
+    animation: none;
+  }
+  .nl-fill {
+    transition: none;
+  }
+}
