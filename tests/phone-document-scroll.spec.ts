@@ -85,7 +85,9 @@ async function phone(
         workspaceId: user.workspaceId,
         title: `Row ${i + 1}`,
         status: "todo",
-        dueDate: new Date(),
+        // due at the slot, in the seeded Zurich day: new Date() fell on the
+        // previous UTC day between 00:00 and 01:00 Zurich and showed as overdue
+        dueDate: start,
         scheduledStart: start,
         scheduledEnd: new Date(start.getTime() + 30 * 60 * 1000),
         estimatedMinutes: 30,
