@@ -396,22 +396,45 @@
   font: var(--type-meta);
   color: var(--text-quaternary);
 }
+/* standing: red is only for a goal at risk; on track stays quiet (no mark) */
 .needt-v3 .gl-card-risk {
   text-align: right;
-  color: var(--text-secondary);
+  white-space: nowrap;
 }
-.needt-v3 .gl-card-risk::before {
+.needt-v3 .gl-card-risk.is-ok {
+  color: var(--text-quaternary);
+}
+.needt-v3 .gl-card-risk.is-risk {
+  color: var(--destructive);
+}
+.needt-v3 .gl-card-risk.is-risk::before {
   content: "";
   display: inline-block;
   width: 6px;
   height: 6px;
   margin-right: 6px;
   border-radius: 3px;
-  background: var(--text-muted);
-}
-.needt-v3 .gl-card-risk.is-late::before,
-.needt-v3 .gl-card-risk.is-behind::before {
   background: var(--destructive);
+}
+/* the next step's action sits at the line's right end, on the row's geometry */
+.needt-v3 .gl-card-next {
+  align-items: center;
+}
+.needt-v3 .gl-card-next-text {
+  flex: 1;
+}
+.needt-v3 .gl-card-act {
+  flex: none;
+  margin: -4px -6px -4px 0;
+}
+.needt-v3 .gl-card-next-when {
+  flex: none;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.needt-v3 .gl-card-plan {
+  align-self: flex-start;
 }
 
 @media (prefers-reduced-motion: reduce) {

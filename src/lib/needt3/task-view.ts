@@ -196,6 +196,16 @@ export function comparatorFor(sort: TaskSort) {
   };
 }
 
+/**
+ * The order inside Overdue, whatever the sort: the oldest due day first (12 Nov
+ * above 13 Nov), then the chosen sort breaks ties. Sorting by hour first would
+ * put a timed task from yesterday above an untimed one from last week.
+ */
+export const overdueOrder =
+  (sort: TaskSort) =>
+  <T extends Orderable>(a: T, b: T): number =>
+    dayKey(a).localeCompare(dayKey(b)) || comparatorFor(sort)(a, b);
+
 /** A sorted copy. */
 export const sortTasks = <T extends Orderable>(
   list: readonly T[],
@@ -299,7 +309,7 @@ export function overdueOnTop<T extends Orderable & Pick<V3Task, "done">>(
       key: "overdue",
       title: "Overdue",
       tone: "late" as const,
-      tasks: sortTasks(lateTasks, sort),
+      tasks: lateTasks.slice().sort(overdueOrder(sort)),
     },
     ...rest,
   ];

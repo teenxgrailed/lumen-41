@@ -24,6 +24,7 @@ import {
   comparatorFor,
   groupTasks,
   overdueOnTop,
+  overdueOrder,
   showsTask,
 } from "@/lib/needt3/task-view";
 
@@ -54,6 +55,22 @@ type WorkTask = Pick<
 
 /** Open and due before today (`@/lib/needt3/task-day`, the one rule). */
 export const isOverdue = (t: WorkTask, today: string) => overdue(t, today);
+
+/**
+ * A row drops its due date on the Tasks "Today" tab when it is due today: the
+ * tab already says so, and "15 Nov" on every line is noise (Home's `hideDue`).
+ * Overdue rows keep theirs: the date is the news there.
+ */
+export const hidesDue = (
+  tab: WorkTab,
+  projectsOnly: boolean,
+  t: Pick<V3Task, "dueDate">,
+  today: string
+) => !projectsOnly && tab === "today" && t.dueDate === today;
+
+/** The Overdue section carries "Move to today" (desktop Tasks, not Projects). */
+export const hasMoveToToday = (sectionKey: string, projectsOnly: boolean) =>
+  sectionKey === "overdue" && !projectsOnly;
 
 /** Today's order: timed ones by the hour of their block today, untimed last. */
 export const byTimeOn =
@@ -214,11 +231,13 @@ export function workModel(opts: {
     );
   }
   const order = (key: string) =>
-    view.sort === "time"
-      ? key === "today"
-        ? byTimeOn(today)
-        : byTime
-      : comparatorFor(view.sort);
+    key === "overdue"
+      ? overdueOrder(view.sort)
+      : view.sort === "time"
+        ? key === "today"
+          ? byTimeOn(today)
+          : byTime
+        : comparatorFor(view.sort);
   sections = sections
     .map((s) => ({
       ...s,

@@ -26,7 +26,8 @@ test.describe("Goals", () => {
     await page.goto("/goals");
     await expect(page.getByRole("heading", { name: "Goals" })).toBeVisible();
 
-    await page.getByRole("button", { name: "New goal" }).first().click();
+    // "+ New goal" ends the header row (the round + before the title also opens it)
+    await page.locator("[data-gl-new]").click();
     const sheet = page.locator("[data-gl-sheet]");
     await sheet.locator('input[name="goal-title"]').fill("Run 10k");
     await sheet.getByRole("button", { name: "Health" }).click();

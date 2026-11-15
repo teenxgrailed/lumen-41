@@ -13,6 +13,7 @@ import {
 } from "@/components/needt3/task/useCompletion";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { moveOverdue } from "@/lib/needt3/day";
 import {
   useArchiveProject,
   useCreateProject,
@@ -25,7 +26,7 @@ import {
   useTimeZone,
 } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
 
@@ -52,6 +53,8 @@ import {
   type ProjectFilter,
   WK_EMPTY,
   type WorkTab,
+  hasMoveToToday,
+  hidesDue,
   isOverdue,
   projectHue,
   projectsSorted,
@@ -153,6 +156,7 @@ function WorkScreenContent({
   const tz = useTimeZone();
   const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
   const tasksQ = useTasks();
+  const updateTask = useUpdateTask();
   const projectsQ = useProjects();
   const settings = useSettings();
   const setPref = useSetPref();
@@ -284,6 +288,32 @@ function WorkScreenContent({
       .catch(() => undefined);
   };
 
+  /** The shown overdue tasks onto today (Home's action); one Undo puts all back. */
+  const moveToToday = async (list: readonly V3Task[]) => {
+    const r = moveOverdue(list, today);
+    if (!r) return;
+    // each move stands alone: a failure (reported and rolled back by the
+    // mutation) must not take the others' Undo with it
+    const settled = await Promise.allSettled(
+      r.moves.map((mv) =>
+        updateTask.mutateAsync({ id: mv.id, patch: mv.patch })
+      )
+    );
+    const moved = settled.flatMap((x) =>
+      x.status === "fulfilled" ? [x.value] : []
+    );
+    if (!moved.length) return;
+    notify.success(
+      `${moved.length} ${moved.length === 1 ? "task" : "tasks"} moved to today`,
+      {
+        action: {
+          label: "Undo",
+          onClick: () => void Promise.allSettled(moved.map((d) => d.undo())),
+        },
+      }
+    );
+  };
+
   const row = (t: V3Task) => (
     <Task
       key={t.id}
@@ -291,6 +321,9 @@ function WorkScreenContent({
       task={t}
       today={today}
       late={isOverdue(t, today)}
+      // On Today every open row but the overdue ones is due today, so the date
+      // would repeat on each line (#721's rule, as on Home)
+      hideDue={hidesDue(tab, isProjects, t, today)}
       onOpen={openTask}
       hideProject={!!m.filter}
     />
@@ -475,6 +508,18 @@ function WorkScreenContent({
                   count={s.tasks.length}
                   open={!fold[s.key]}
                   onToggle={flip(s.key)}
+                  action={
+                    hasMoveToToday(s.key, isProjects) ? (
+                      <button
+                        type="button"
+                        className="nx-btn nx-btn-secondary nx-btn-sm"
+                        data-wk-move-today=""
+                        onClick={() => void moveToToday(s.tasks)}
+                      >
+                        Move to today
+                      </button>
+                    ) : undefined
+                  }
                 >
                   <div className="wk-list">
                     <Capped list={s.tasks} render={row} />

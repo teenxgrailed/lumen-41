@@ -22,7 +22,9 @@ import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 
 import { nextStep } from "../habits/cards/model";
+import { useSpread } from "../home/useSpread";
 import { EMPTY_GOAL_FORM, type GoalFormValues, GoalsView } from "./GoalsView";
+import { inNextWeek } from "./standing";
 
 function numberOrUndefined(value: string) {
   const trimmed = value.trim().replace(/\s/g, "").replace(",", ".");
@@ -42,6 +44,7 @@ const CARD_DETAILS_MAX = 24;
 function useGoalCards(on: boolean, goals: readonly GoalView[] | undefined) {
   const tz = useTimeZone();
   const projects = useProjects();
+  const taskList = useTasks();
   const ids = on
     ? (goals ?? [])
         .filter((g) => g.status === "active")
@@ -50,10 +53,24 @@ function useGoalCards(on: boolean, goals: readonly GoalView[] | undefined) {
     : [];
   const details = useGoalDetails(ids);
   if (!on || !goals) return undefined;
+  const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
+  const day = new Map(
+    (taskList.data ?? []).map((t) => [t.id, t.scheduledStart?.slice(0, 10)])
+  );
   const nextSteps: Record<string, { id: string; title: string } | null> = {};
+  const stepDays: Record<string, string | null> = {};
+  const planned: Record<string, boolean> = {};
   ids.forEach((id, i) => {
     const data = details[i]?.data;
-    if (data) nextSteps[id] = nextStep(data.tasks);
+    if (!data) return;
+    const step = nextStep(data.tasks);
+    nextSteps[id] = step;
+    if (!taskList.data) return;
+    if (step) stepDays[step.id] = day.get(step.id) ?? null;
+    // something open and placed in the next 7 days, whichever task it is
+    planned[id] = data.tasks.some(
+      (t) => t.status !== "completed" && inNextWeek(day.get(t.id), today)
+    );
   });
   const color = new Map(
     (projects.data ?? []).map((p) => [p.id, p.color] as const)
@@ -63,11 +80,7 @@ function useGoalCards(on: boolean, goals: readonly GoalView[] | undefined) {
     const hue = g.projectIds.map((id) => color.get(id)).find(Boolean);
     if (hue) hues[g.id] = hue;
   }
-  return {
-    nextSteps,
-    hues,
-    today: formatInTimeZone(newDate(), tz, "yyyy-MM-dd"),
-  };
+  return { nextSteps, hues, today, stepDays, planned };
 }
 
 /** The sheet's text fields as a `goal.create` body. */
@@ -108,6 +121,8 @@ export function GoalsScreen({ cards = false }: { cards?: boolean }) {
   const tasks = useTasks();
   const [form, setForm] = useState<GoalFormValues | null>(null);
   const cardData = useGoalCards(cards, goals.data);
+  // Schedule on a card = Spread for that one task: the first day with room
+  const spreader = useSpread();
 
   const select = (id: string | null) =>
     router.replace(
@@ -188,6 +203,8 @@ export function GoalsScreen({ cards = false }: { cards?: boolean }) {
         if (selectedId) linkTask.mutate({ goalId: selectedId, taskId });
       }}
       cards={cardData}
+      scheduling={spreader.busy}
+      onSchedule={(taskId) => void spreader.spread([taskId])}
       onToggleTask={(task) => {
         if (!selectedId) return;
         setTask.mutate({

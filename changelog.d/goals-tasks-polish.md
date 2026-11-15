@@ -1,0 +1,2 @@
+- Goals: goals at risk (a deadline within 30 days and progress behind the time gone) come first with "At risk · Nd left", the others say "On track"; each card shows its next step with a Schedule action, and "Plan a task" when nothing is planned for the next 7 days. "+ New goal" sits at the right end of the header, the "never scheduled" line is gone and the screen is 920px wide.
+- Tasks: Overdue lists the oldest day first (12 Nov above 13 Nov) whatever the sort, has "Move to today" beside its header, and rows due today on the Today tab no longer repeat their date.

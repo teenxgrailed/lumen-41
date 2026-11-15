@@ -94,7 +94,13 @@ export interface GoalsViewProps {
    * `habits_cards_v1`: goals as cards, with their next step and risk hint.
    * Absent = the list as before.
    */
-  cards?: Pick<GoalCardsProps, "nextSteps" | "hues" | "today">;
+  cards?: Pick<
+    GoalCardsProps,
+    "nextSteps" | "hues" | "today" | "stepDays" | "planned"
+  >;
+  /** Cards: place a goal's next step; `scheduling` is true while it runs. */
+  onSchedule?: (taskId: string) => void;
+  scheduling?: boolean;
 }
 
 function dayLabel(iso: string | null) {
@@ -658,7 +664,7 @@ export function GoalsView(props: GoalsViewProps) {
   const list = goals ?? [];
   const active = list.filter((g) => g.status === "active").length;
   const meta = pro ? (
-    `${active} active ${active === 1 ? "goal" : "goals"} · never scheduled`
+    `${active} active ${active === 1 ? "goal" : "goals"}`
   ) : (
     <ProBadge locked feature="Goals" />
   );
@@ -677,6 +683,17 @@ export function GoalsView(props: GoalsViewProps) {
         </button>
         <h1 className="pl-place-header-text">Goals</h1>
         <span className="pl-place-header-text-2">{meta}</span>
+        {pro ? (
+          <button
+            type="button"
+            className="nx-btn nx-btn-secondary nx-btn-sm gl-new"
+            data-gl-new=""
+            onClick={props.onNew}
+          >
+            <LuPlus size={14} aria-hidden />
+            New goal
+          </button>
+        ) : null}
       </header>
       {props.loading && !goals ? null : !list.length ? (
         pro ? (
@@ -723,6 +740,14 @@ export function GoalsView(props: GoalsViewProps) {
               nextSteps={props.cards.nextSteps}
               hues={props.cards.hues}
               today={props.cards.today}
+              stepDays={props.cards.stepDays}
+              planned={props.cards.planned}
+              busy={props.scheduling}
+              onSchedule={props.onSchedule}
+              onPlan={(id) => {
+                // the goal's own panel is where its tasks are added
+                if (id !== selectedId) props.onSelect(id);
+              }}
               onSelect={(id) => props.onSelect(id === selectedId ? null : id)}
             />
           ) : (
