@@ -160,6 +160,7 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `fullTime`, `subtasks` (ordered), `dependsOnId`, `originPageId` (the page it came from) and `goalId`, so a task and its steps arrive in one call; `start` places and pins it, `autoSchedule: false` keeps the scheduler off it. See Place and pin |
 | `needt_schedule`             | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                                                                                                                                                   |
 | `needt_reschedule`           | `needt.write`                                  | `POST /api/connect/reschedule`; with `taskIds` or `scope` (today, overdue) and optional `days` it runs `task.spread` instead                                                                                                                                                                                  |
+| `needt_reschedule_preview`   | `needt.write`                                  | `POST /api/connect/reschedule-preview`: `action` preview (with `taskIds`, up to 100: re-plan only those), apply or undo (with `token`). See Reschedule |
 | `needt_control`              | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                                                                                                                                                     |
 | `needt_update_task`          | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, goalId, entry, fullTime, dependsOnId, originPageId, and placement (`start`, `pinned`, `autoSchedule`); other fields are refused. Same body as `PATCH /api/connect/tasks/:id`                                       |
 | `needt_add_subtasks`         | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                                                                                                                                               |
@@ -655,6 +656,73 @@ Response:
 curl -X POST http://localhost:3000/api/connect/reschedule \
   -H "Authorization: Bearer needt_REPLACE_ME"
 ```
+
+### Re-plan only some tasks (preview, keep, undo)
+
+```
+POST /api/connect/reschedule-preview        (needs needt.write)
+```
+
+The same three steps as the app's `POST /api/tasks/reschedule-preview`
+(session auth), with a bearer token. MCP: `needt_reschedule_preview`.
+
+```bash
+# 1. Preview: nothing changes yet
+curl -X POST http://localhost:3000/api/connect/reschedule-preview \
+  -H "Authorization: Bearer $NEEDT_TOKEN" -H "Content-Type: application/json" \
+  -d '{ "action": "preview", "taskIds": ["TASK_A", "TASK_B"] }'
+# -> {
+#   "changes": [{
+#     "taskId": "TASK_A", "title": "Write the brief",
+#     "fromStart": "2026-11-18T07:30:00.000Z", "fromEnd": "2026-11-18T08:30:00.000Z",
+#     "toStart": "2026-11-18T12:15:00.000Z",   "toEnd": "2026-11-18T13:15:00.000Z",
+#     "reason": "missed", "explanation": "Missed at 08:30", "score": 1
+#   }],
+#   "skipped": [{ "taskId": "TASK_B", "reason": "pinned", "explanation": "Pinned in place; left where it is." }],
+#   "unscheduled": [],
+#   "previewToken": "…"
+# }
+
+# 2. Keep: moves exactly the tasks in `changes`
+curl -X POST … -d '{ "action": "apply", "token": "<previewToken>" }'
+# -> { "changes": [ … ], "undoToken": "…" }
+
+# 3. Undo: puts exactly those tasks back
+curl -X POST … -d '{ "action": "undo", "token": "<undoToken>" }'
+```
+
+- `taskIds` (1 to 100, optional). Left out, `preview` re-plans the whole
+  schedule as before. Given, only those tasks can move.
+- Which tasks move: your own open tasks (assigned to you, or yours and
+  unassigned) whose slot has ended (`reason: "missed"`) or that sit on another
+  block or event (`reason: "overlaps"`). They go into the first free gap
+  **from now** inside the default work schedule (its days and ranges, minus
+  flexible-hours overrides), their own estimate long (30 minutes without one),
+  on the quarter hour, never before their `availableFrom`, start date or
+  `postponedUntil`, in the order they were first scheduled. Every other task
+  block (pinned or auto), calendar event, personal-time block and the blocks of
+  tasks that stay are busy time, with the scheduler's 15 minute buffer. The
+  result is the same for the same schedule and clock.
+- Ids that cannot move are not an error. They come back in `skipped` with a
+  `reason`: `not_found` (unknown, in another workspace, a teammate's task,
+  archived or trashed), `completed`, `pinned` (`scheduleLocked` or frozen),
+  `split` (more than one block, or a block pinned by hand), `blocked` (waits on
+  an unfinished task), `own_hours` (follows its own work schedule),
+  `not_scheduled` (no slot to replace), `not_missed`. A task with no gap in the
+  next three weeks is listed in `unscheduled` and stays.
+- The tokens are bound to the set: `apply` writes only the tasks in `changes`
+  and `undo` only the same tasks. Changes to other tasks in between do not
+  matter; a change to one of these tasks or to the calendar, or another task
+  now sitting in a target slot (a second preview kept first), answers `409
+  SCHEDULE_PREVIEW_STALE`. Tokens last 15 minutes. `apply` and `undo` send the
+  `schedule.changed` webhook.
+- `via` (optional, all three steps): `chat` (default), `home_missed` (the
+  Home "tasks from earlier today" card) or `fill` (placed in one click). `chat`
+  and `home_missed` are the same flow for the metrics: preview, Keep and Undo
+  record `replan_shown`, `keep_applied` and `undo_applied`, and
+  `home_missed` adds `source: home_missed` to them, so the funnel counts a Home
+  Keep. `fill` records only `fill_applied` and never counts as Keep.
+- Limit: 20 requests a minute per account.
 
 ## Export a page
 
