@@ -25,6 +25,10 @@ import { HabitsRoute } from "../HabitsRoute";
 
 const mockToggle = jest.fn();
 const mockToggleDay = jest.fn();
+const mockToggleDayAsync = jest.fn(async () => ({
+  result: undefined,
+  undo: async () => undefined,
+}));
 const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 const mockArchive = jest.fn();
@@ -51,7 +55,10 @@ jest.mock("@/lib/needt3/hooks/habits", () => ({
   // the desktop screen's "Last four months" read; nothing to draw from here
   useCheckinHistory: () => query(undefined),
   useToggleHabitToday: () => ({ mutate: mockToggle }),
-  useToggleHabitDay: () => ({ mutate: mockToggleDay }),
+  useToggleHabitDay: () => ({
+    mutate: mockToggleDay,
+    mutateAsync: mockToggleDayAsync,
+  }),
   useCreateHabit: () => ({ mutateAsync: mockCreate }),
   useUpdateHabit: () => ({ mutateAsync: mockUpdate }),
   useArchiveHabit: () => ({ mutateAsync: mockArchive }),
@@ -154,6 +161,7 @@ beforeEach(() => {
   client = new QueryClient();
   mockToggle.mockReset();
   mockToggleDay.mockReset();
+  mockToggleDayAsync.mockClear();
   mockCreate.mockReset();
   mockUpdate.mockReset();
   mockArchive.mockReset();
@@ -486,10 +494,13 @@ describe("the card screens flag", () => {
     }
   );
 
-  it("a tick from the stack writes once", () => {
+  it("a tick from the stack writes once, pinned to its day", () => {
     render("desktop", true);
     click(q("[data-hc-done]"));
-    expect(mockToggle).toHaveBeenCalledTimes(1);
+    expect(mockToggleDayAsync).toHaveBeenCalledTimes(1);
+    expect(mockToggleDayAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "a", done: true })
+    );
   });
 
   it("the new-habit sheet still opens with the cards on", () => {

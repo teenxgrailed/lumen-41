@@ -12,17 +12,48 @@ import { habitCard, monthRows } from "../derive";
 /* ---------- today's stack ---------- */
 
 /**
- * The habits still to do today, in list order: not kept, and not resting (a
- * `perWeek` habit whose week is already met is not due). Kept habits leave the
- * stack; they stay in the "All habits" list, where they can be unmarked.
+ * The habits still to do today, in list order: they run today (`daysOfWeek`,
+ * 0 = Sunday, empty = every day), are not kept, are not a first-run example,
+ * and are not resting (a `perWeek` habit whose week is already met). It is the
+ * same count the 20:00 push uses (`openHabitCount`), so the screen and the push
+ * agree. Kept habits leave the stack; they stay in the "All habits" list.
  */
 export function habitStack<
-  H extends Pick<V3Habit, "id" | "title" | "schedule">,
+  H extends Pick<V3Habit, "id" | "title" | "schedule"> &
+    Partial<Pick<V3Habit, "daysOfWeek" | "isSample">>,
 >(list: readonly H[], checkins: readonly Checkin[], today: string): H[] {
+  const weekday = new Date(`${today}T00:00:00Z`).getUTCDay();
   return list.filter((h) => {
+    if (h.isSample) return false;
+    if (h.daysOfWeek?.length && !h.daysOfWeek.includes(weekday)) return false;
     const card = habitCard(h, checkins, today);
     return !card.on && !card.rest;
   });
+}
+
+/**
+ * The colour a habit gets when it has none of its own (and no project colour):
+ * a fixed pastel by its place in the list, so a habit keeps its colour while
+ * the list around it stays put. Pink, yellow, cyan, green, violet, orange.
+ */
+export const PASTELS = [
+  "#ec6aa5",
+  "#e8b923",
+  "#3ab8d8",
+  "#4cba6b",
+  "#8b6fe0",
+  "#f08a3c",
+] as const;
+
+export function pastelAt(index: number): string {
+  return PASTELS[((index % PASTELS.length) + PASTELS.length) % PASTELS.length];
+}
+
+/** The round chip's glyph: the habit's own short icon, else its first letter. */
+export function chipGlyph(h: { title: string; icon?: string | null }): string {
+  const icon = h.icon?.trim();
+  if (icon && [...icon].length <= 2) return icon;
+  return ([...h.title.trim()][0] ?? "·").toUpperCase();
 }
 
 /* ---------- the month grid ---------- */

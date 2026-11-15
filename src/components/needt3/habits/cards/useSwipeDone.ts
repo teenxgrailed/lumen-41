@@ -14,6 +14,8 @@ export const SWIPE_DONE_AT = 96;
 /** Past this and a short flick counts too. */
 export const FLICK_AT = 40;
 const FLICK_PX_PER_MS = 0.5;
+/** Held still this long before release, and the speed is gone: not a flick. */
+export const FLICK_STALE_MS = 80;
 /** Matches `.hc-card.is-leaving` in habit-cards.css. */
 export const LEAVE_MS = 180;
 
@@ -90,6 +92,8 @@ export function useSwipeDone(onDone: () => void) {
       stop.current = null;
       card.classList.remove("is-dragging");
       if (kind !== "swipe") return;
+      // The speed is that of the last move; a hold before letting go ends it.
+      if (performance.now() - lastT > FLICK_STALE_MS) speed = 0;
       const commit =
         reason === "up" &&
         (x >= SWIPE_DONE_AT || (x >= FLICK_AT && speed >= FLICK_PX_PER_MS));

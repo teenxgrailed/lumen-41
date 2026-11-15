@@ -737,7 +737,21 @@ export function PhoneHabits({
               ) : null}
               {list.length && cards ? (
                 <>
-                  <HabitCardsPanel ctl={ctl} />
+                  <HabitCardsPanel
+                    ctl={ctl}
+                    past={list.map((h) => (
+                      <HabitHistory
+                        key={h.id}
+                        h={h}
+                        hue={hueOf(h, projects)}
+                        checkins={ctl.history}
+                        today={today}
+                        window={ctl.historyReady ? HISTORY_DAYS : HABIT_WINDOW}
+                        onTick={ctl.tick}
+                        onTickDay={ctl.tickDay}
+                      />
+                    ))}
+                  />
                   <PkSection
                     title={t.PhbHabits.time_left}
                     className="phb-sec is-left"

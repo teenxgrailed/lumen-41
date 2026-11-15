@@ -17,7 +17,8 @@ import { notify } from "@/lib/notifications";
 import { GoalCards } from "../../../goals/GoalCards";
 import type { HabitsController } from "../../useHabitsController";
 import { HabitCardsPanel, HabitMonthGrid, HabitStack } from "../HabitCards";
-import { LEAVE_MS } from "../useSwipeDone";
+import { PASTELS } from "../model";
+import { FLICK_STALE_MS, LEAVE_MS } from "../useSwipeDone";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -41,7 +42,11 @@ const habit = (id: string, title: string) => ({
 let host: HTMLDivElement;
 let root: Root;
 let reduce = false;
-const tick = jest.fn();
+const undoFn = jest.fn(async () => undefined);
+const setDay = jest.fn<
+  Promise<{ result: undefined; undo: typeof undoFn }>,
+  [{ id: string }, string, boolean]
+>(async () => ({ result: undefined, undo: undoFn }));
 
 function fakeCtl(over: Partial<HabitsController> = {}): HabitsController {
   const list = [habit("a", "Read"), habit("b", "Stretch"), habit("c", "Walk")];
@@ -56,7 +61,7 @@ function fakeCtl(over: Partial<HabitsController> = {}): HabitsController {
     history: [],
     projects: [],
     kept: 0,
-    tick,
+    setDay,
     openEdit: jest.fn(),
     archive: jest.fn(),
     ...over,
@@ -88,6 +93,15 @@ function slowClock() {
   jest.spyOn(performance, "now").mockImplementation(() => (t += 400));
 }
 
+/** Runs `fn` in act, then lets the promises it started finish. */
+async function settle(fn: () => void) {
+  await act(async () => {
+    fn();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 const q = <T extends Element>(sel: string) => host.querySelector<T>(sel)!;
 const topCard = () => q<HTMLElement>("[data-hc-card].is-top");
 
@@ -100,7 +114,8 @@ const drag = (el: Element, from: [number, number], to: [number, number]) => {
 beforeEach(() => {
   jest.useFakeTimers();
   reduce = false;
-  tick.mockClear();
+  setDay.mockClear();
+  undoFn.mockClear();
   (notify.success as jest.Mock).mockClear();
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
@@ -126,28 +141,65 @@ afterEach(() => {
 const mount = (node: ReturnType<typeof h>) => act(() => root.render(node));
 
 describe("the stack", () => {
-  it("shows the first habit on top, two edges behind it, and a count", () => {
+  it("lays every open habit out as one overlapping column, front card last", () => {
     mount(h(HabitStack, { ctl: fakeCtl() }));
     expect(q("[data-hc-stack]").getAttribute("data-hc-stack")).toBe("3");
-    expect(host.querySelectorAll("[data-hc-card]")).toHaveLength(3);
+    const ids = [...host.querySelectorAll("[data-hc-card]")].map((n) =>
+      n.getAttribute("data-hc-card")
+    );
+    // the first habit is the front: last in the column, fully open
+    expect(ids).toEqual(["c", "b", "a"]);
     expect(topCard().textContent).toContain("Read");
     expect(topCard().getAttribute("tabindex")).toBe("0");
-    // only the top card can be acted on
     expect(
       host.querySelectorAll("[data-hc-card]:not(.is-top)[inert]")
     ).toHaveLength(2);
   });
 
-  it("a kept habit leaves the stack", () => {
+  it("every card has a round chip, a title, a meta line and a check circle", () => {
+    mount(h(HabitStack, { ctl: fakeCtl() }));
+    for (const card of host.querySelectorAll("[data-hc-card]")) {
+      expect(card.querySelector(".hc-chip")).not.toBeNull();
+      expect(card.querySelector(".hc-card-title")).not.toBeNull();
+      expect(card.querySelector(".hc-card-meta")).not.toBeNull();
+      expect(card.querySelector(".hc-check")).not.toBeNull();
+    }
+    expect(topCard().querySelector(".hc-chip")!.textContent).toBe("R");
+  });
+
+  it("a habit with no colour gets a fixed pastel by its place in the list", () => {
+    const bare = (id: string, title: string) => ({
+      ...habit(id, title),
+      color: null,
+    });
+    const list = [bare("a", "Read"), bare("b", "Stretch")];
+    mount(h(HabitStack, { ctl: fakeCtl({ list, shown: list } as never) }));
+    const hue = (id: string) =>
+      (
+        host.querySelector(`[data-hc-card="${id}"]`) as HTMLElement
+      ).style.getPropertyValue("--hue");
+    expect(hue("a")).toBe(PASTELS[0]);
+    expect(hue("b")).toBe(PASTELS[1]);
+  });
+
+  it("a kept habit leaves the open cards and shows above them, checked", () => {
     const ctl = fakeCtl({
       checkins: [{ habitId: "a", date: TODAY, done: true }],
     });
     mount(h(HabitStack, { ctl }));
     expect(host.querySelector('[data-hc-card="a"]')).toBeNull();
     expect(topCard().textContent).toContain("Stretch");
+    const kept = q('[data-hc-kept="a"]');
+    expect(kept.querySelector(".hc-check.is-done")).not.toBeNull();
+    expect(kept.hasAttribute("inert")).toBe(true);
+    // above the open cards in the column
+    const order = [...host.querySelectorAll(".hc-card")].map(
+      (n) => n.getAttribute("data-hc-kept") ?? n.getAttribute("data-hc-card")
+    );
+    expect(order).toEqual(["a", "c", "b"]);
   });
 
-  it("says so when nothing is left", () => {
+  it("says so when nothing is left, and still shows what was kept", () => {
     const ctl = fakeCtl({
       checkins: ["a", "b", "c"].map((habitId) => ({
         habitId,
@@ -156,13 +208,14 @@ describe("the stack", () => {
       })),
     });
     mount(h(HabitStack, { ctl }));
-    expect(q("[data-hc-clear]").textContent).toBe("All done for today.");
+    expect(q("[data-hc-clear]").textContent).toBe("Nothing left for today.");
     expect(host.querySelector("[data-hc-card]")).toBeNull();
+    expect(host.querySelectorAll("[data-hc-kept]")).toHaveLength(3);
   });
 });
 
 describe("swipe right is done", () => {
-  it("a long swipe marks the habit done after the card leaves, with an Undo", () => {
+  it("a long swipe marks the habit done after the card leaves, with an Undo", async () => {
     slowClock();
     mount(h(HabitStack, { ctl: fakeCtl() }));
     const card = topCard();
@@ -170,43 +223,95 @@ describe("swipe right is done", () => {
     // flying out: nothing is written until it has gone
     expect(card.classList.contains("is-leaving")).toBe(true);
     expect(card.style.transform).toContain("translate3d(120%");
-    expect(tick).not.toHaveBeenCalled();
-    act(() => {
+    expect(setDay).not.toHaveBeenCalled();
+    await settle(() => {
       jest.advanceTimersByTime(LEAVE_MS + 5);
     });
-    expect(tick).toHaveBeenCalledTimes(1);
-    expect(tick.mock.calls[0][0].id).toBe("a");
-    expect(tick.mock.calls[0][1]).toBe(true);
+    expect(setDay).toHaveBeenCalledTimes(1);
+    expect(setDay.mock.calls[0][0]).toMatchObject({ id: "a" });
+    expect(setDay.mock.calls[0][1]).toBe(TODAY);
+    expect(setDay.mock.calls[0][2]).toBe(true);
     expect(notify.success).toHaveBeenCalledTimes(1);
     const [message, options] = (notify.success as jest.Mock).mock.calls[0];
     expect(message).toBe("Read done");
     expect(options.action.label).toBe("Undo");
   });
 
-  it("Undo marks it not done again", () => {
+  it("the notice comes only after the write lands, never when it fails", async () => {
+    slowClock();
+    let fail!: (e: Error) => void;
+    setDay.mockImplementationOnce(
+      () => new Promise((_res, rej) => (fail = rej)) as never
+    );
+    mount(h(HabitStack, { ctl: fakeCtl() }));
+    drag(topCard(), [20, 30], [180, 30]);
+    await settle(() => {
+      jest.advanceTimersByTime(LEAVE_MS + 5);
+    });
+    expect(setDay).toHaveBeenCalledTimes(1);
+    expect(notify.success).not.toHaveBeenCalled(); // still in flight
+    await settle(() => fail(new Error("offline")));
+    expect(notify.success).not.toHaveBeenCalled();
+  });
+
+  it("Undo is the undo the write returned, pinned to its date", async () => {
     slowClock();
     mount(h(HabitStack, { ctl: fakeCtl() }));
     drag(topCard(), [20, 30], [180, 30]);
-    act(() => {
+    await settle(() => {
       jest.advanceTimersByTime(LEAVE_MS + 5);
     });
     const { action } = (notify.success as jest.Mock).mock.calls[0][1];
-    tick.mockClear();
-    act(() => action.onClick());
-    expect(tick).toHaveBeenCalledTimes(1);
-    expect(tick.mock.calls[0][0].id).toBe("a");
-    expect(tick.mock.calls[0][1]).toBe(false);
+    setDay.mockClear();
+    await settle(() => action.onClick());
+    expect(undoFn).toHaveBeenCalledTimes(1);
+    // no second write of its own: it cannot race the first or follow "today"
+    expect(setDay).not.toHaveBeenCalled();
   });
 
-  it("a flick counts even when it is short", () => {
+  it("the date is the one the swipe was made on, even if today rolls over", async () => {
+    slowClock();
+    const ctl = fakeCtl();
+    mount(h(HabitStack, { ctl }));
+    drag(topCard(), [20, 30], [180, 30]);
+    (ctl as { today: string }).today = "2026-11-16"; // midnight passes mid-flight
+    await settle(() => {
+      jest.advanceTimersByTime(LEAVE_MS + 5);
+    });
+    expect(setDay.mock.calls[0][1]).toBe("2026-11-16"); // read at write time
+    const { action } = (notify.success as jest.Mock).mock.calls[0][1];
+    (ctl as { today: string }).today = "2026-11-17";
+    await settle(() => action.onClick());
+    expect(undoFn).toHaveBeenCalledTimes(1);
+    expect(setDay).toHaveBeenCalledTimes(1);
+  });
+
+  it("a release after a hold is not a flick: the speed has decayed", () => {
+    let t = 1000;
+    jest.spyOn(performance, "now").mockImplementation(() => t);
+    mount(h(HabitStack, { ctl: fakeCtl() }));
+    const card = topCard();
+    fire(card, "pointerdown", { x: 20, y: 30 });
+    t += 10;
+    fire(window, "pointermove", { x: 80, y: 30 }); // 60px in 10ms: fast
+    t += FLICK_STALE_MS + 20; // then held still
+    fire(window, "pointerup", { x: 80, y: 30 });
+    act(() => {
+      jest.advanceTimersByTime(LEAVE_MS + 5);
+    });
+    expect(setDay).not.toHaveBeenCalled();
+    expect(card.style.transform).toBe("");
+  });
+
+  it("a flick counts even when it is short", async () => {
     let t = 1000;
     jest.spyOn(performance, "now").mockImplementation(() => (t += 10));
     mount(h(HabitStack, { ctl: fakeCtl() }));
     drag(topCard(), [20, 30], [80, 30]); // 60px in ~10ms
-    act(() => {
+    await settle(() => {
       jest.advanceTimersByTime(LEAVE_MS + 5);
     });
-    expect(tick).toHaveBeenCalledTimes(1);
+    expect(setDay).toHaveBeenCalledTimes(1);
   });
 
   it("a short, slow pull goes home and writes nothing", () => {
@@ -218,7 +323,7 @@ describe("swipe right is done", () => {
       jest.advanceTimersByTime(LEAVE_MS + 5);
     });
     expect(card.style.transform).toBe("");
-    expect(tick).not.toHaveBeenCalled();
+    expect(setDay).not.toHaveBeenCalled();
     expect(notify.success).not.toHaveBeenCalled();
   });
 
@@ -230,7 +335,7 @@ describe("swipe right is done", () => {
     act(() => {
       jest.advanceTimersByTime(LEAVE_MS + 5);
     });
-    expect(tick).not.toHaveBeenCalled();
+    expect(setDay).not.toHaveBeenCalled();
     expect(card.style.transform).toBe("");
   });
 
@@ -243,7 +348,7 @@ describe("swipe right is done", () => {
       jest.advanceTimersByTime(LEAVE_MS + 5);
     });
     expect(card.style.transform).toBe("");
-    expect(tick).not.toHaveBeenCalled();
+    expect(setDay).not.toHaveBeenCalled();
   });
 
   it("a cancelled pointer commits nothing", () => {
@@ -256,11 +361,11 @@ describe("swipe right is done", () => {
     act(() => {
       jest.advanceTimersByTime(LEAVE_MS + 5);
     });
-    expect(tick).not.toHaveBeenCalled();
+    expect(setDay).not.toHaveBeenCalled();
     expect(card.style.transform).toBe("");
   });
 
-  it("works with a mouse too: the same pointer events", () => {
+  it("works with a mouse too: the same pointer events", async () => {
     slowClock();
     mount(h(HabitStack, { ctl: fakeCtl() }));
     const card = topCard();
@@ -271,13 +376,13 @@ describe("swipe right is done", () => {
     });
     fire(window, "pointermove", { x: 200, y: 31 });
     fire(window, "pointerup", { x: 200, y: 31 });
-    act(() => {
+    await settle(() => {
       jest.advanceTimersByTime(LEAVE_MS + 5);
     });
-    expect(tick).toHaveBeenCalledTimes(1);
+    expect(setDay).toHaveBeenCalledTimes(1);
   });
 
-  it("under reduced motion the card does not tilt or fly: it is simply done", () => {
+  it("under reduced motion the card does not tilt or fly: it is simply done", async () => {
     reduce = true;
     slowClock();
     mount(h(HabitStack, { ctl: fakeCtl() }));
@@ -286,44 +391,56 @@ describe("swipe right is done", () => {
     fire(window, "pointermove", { x: 150, y: 30 });
     // it follows the pointer, flat: no rotation
     expect(card.style.transform).not.toContain("rotate");
-    fire(window, "pointerup", { x: 150, y: 30 });
+    await settle(() => fire(window, "pointerup", { x: 150, y: 30 }));
     expect(card.classList.contains("is-leaving")).toBe(false);
-    expect(tick).toHaveBeenCalledTimes(1); // no wait for an exit
+    expect(setDay).toHaveBeenCalledTimes(1); // no wait for an exit
   });
 });
 
 describe("without a swipe", () => {
-  it("the Done button on the top card does the same", () => {
+  it("the check circle on the front card does the same", async () => {
     mount(h(HabitStack, { ctl: fakeCtl() }));
-    act(() => q<HTMLButtonElement>("[data-hc-done]").click());
+    await settle(() => q<HTMLButtonElement>("[data-hc-done]").click());
     expect(q("[data-hc-done]").getAttribute("data-hc-done")).toBe("a");
-    expect(tick).toHaveBeenCalledWith(
+    expect(setDay).toHaveBeenCalledWith(
       expect.objectContaining({ id: "a" }),
+      TODAY,
       true
     );
     expect((notify.success as jest.Mock).mock.calls[0][0]).toBe("Read done");
   });
 
-  it("only the top card has a Done button", () => {
+  it("only the front card has a check button", () => {
     mount(h(HabitStack, { ctl: fakeCtl() }));
     expect(host.querySelectorAll("[data-hc-done]")).toHaveLength(1);
   });
 
-  it("Enter and ArrowRight on the focused card mark it done", () => {
+  it("a double press writes once", async () => {
+    mount(h(HabitStack, { ctl: fakeCtl() }));
+    const btn = q<HTMLButtonElement>("[data-hc-done]");
+    await settle(() => {
+      btn.click();
+      btn.click();
+    });
+    expect(setDay).toHaveBeenCalledTimes(1);
+    expect(notify.success).toHaveBeenCalledTimes(1);
+  });
+
+  it("Enter and ArrowRight on the focused card mark it done", async () => {
     mount(h(HabitStack, { ctl: fakeCtl() }));
     const card = topCard();
-    act(() => {
+    await settle(() => {
       card.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
       );
     });
-    expect(tick).toHaveBeenCalledTimes(1);
-    act(() => {
+    expect(setDay).toHaveBeenCalledTimes(1);
+    await settle(() => {
       card.dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
       );
     });
-    expect(tick).toHaveBeenCalledTimes(2);
+    expect(setDay).toHaveBeenCalledTimes(2);
   });
 
   it("Enter on the Edit button edits; it does not mark done", () => {
@@ -336,8 +453,60 @@ describe("without a swipe", () => {
       );
       edit.click();
     });
-    expect(tick).not.toHaveBeenCalled();
+    expect(setDay).not.toHaveBeenCalled();
     expect(ctl.openEdit).toHaveBeenCalled();
+  });
+
+  it("after a keyboard Done, focus moves to the next front card", async () => {
+    const ctl = fakeCtl();
+    mount(h(HabitStack, { ctl }));
+    const card = topCard();
+    act(() => card.focus());
+    await settle(() => {
+      card.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+      );
+    });
+    // the screen re-renders with "a" kept
+    const next = fakeCtl({
+      checkins: [{ habitId: "a", date: TODAY, done: true }],
+    });
+    mount(h(HabitStack, { ctl: next }));
+    expect(document.activeElement).toBe(topCard());
+    expect(topCard().textContent).toContain("Stretch");
+  });
+
+  it("after the last one, focus goes to the all-done line", async () => {
+    const one = [habit("a", "Read")];
+    mount(h(HabitStack, { ctl: fakeCtl({ list: one, shown: one } as never) }));
+    const card = topCard();
+    act(() => card.focus());
+    await settle(() => {
+      card.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+      );
+    });
+    mount(
+      h(HabitStack, {
+        ctl: fakeCtl({
+          list: one,
+          shown: one,
+          checkins: [{ habitId: "a", date: TODAY, done: true }],
+        } as never),
+      })
+    );
+    expect(document.activeElement).toBe(q("[data-hc-clear]"));
+  });
+
+  it("a click on the list's Done, with Undo for a kept habit", async () => {
+    mount(h(HabitCardsPanel, { ctl: fakeCtl() }));
+    const row = q<HTMLButtonElement>('[data-hc-toggle="b"]');
+    await settle(() => row.click());
+    expect(setDay).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "b" }),
+      TODAY,
+      true
+    );
   });
 });
 
@@ -372,7 +541,7 @@ describe("the month grid", () => {
     expect(q(".is-today").getAttribute("data-hc-day")).toBe(TODAY);
   });
 
-  it("is part of the panel, under the stack", () => {
+  it("is part of the panel, beside the stack", () => {
     mount(h(HabitCardsPanel, { ctl: fakeCtl() }));
     const panel = q("[data-hc-panel]");
     expect(panel.querySelector("[data-hc-stack]")).not.toBeNull();

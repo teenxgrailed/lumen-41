@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { qk } from "@/lib/needt3/query-keys";
 
 import { fetchJson } from "./core";
-import { usePushNotifications } from "./push";
 import { useSetPref, useSettings } from "./settings";
 
 /**
@@ -13,20 +12,27 @@ import { useSetPref, useSettings } from "./settings";
  * `habit_evening_push` flag, read on the server). A failed read counts as off,
  * so the switch never shows for a push that will not be sent.
  */
-export function useHabitEveningPushFlag(): boolean {
+export function useHabitEveningPush() {
   const query = useQuery({
     queryKey: qk.habitEveningPush(),
-    queryFn: () => fetchJson<{ enabled: boolean }>("/api/habits/evening-push"),
+    queryFn: () =>
+      fetchJson<{ enabled: boolean; hasSubscription: boolean }>(
+        "/api/habits/evening-push"
+      ),
     staleTime: 5 * 60_000,
     retry: false,
   });
-  return query.data?.enabled === true;
+  return {
+    enabled: query.data?.enabled === true,
+    /** Any device on the account, not only this one. */
+    hasSubscription: query.data?.hasSubscription === true,
+  };
 }
 
 /**
  * What the switch shows: the stored choice, or, when the person never chose,
- * the default the server applies: on only where a push device is subscribed
- * (`eveningEnabled` in src/services/habits/evening-push.ts).
+ * the default the server applies: on only where the account has a push device
+ * subscribed (`hasSubscription` from the route; `eveningEnabled` on the server).
  */
 export function eveningSwitchValue(
   prefs: Record<string, unknown> | null | undefined,
@@ -43,13 +49,12 @@ export function eveningSwitchValue(
  * ever written (a person who never touches it keeps "default").
  */
 export function useEveningPushSwitch() {
-  const flag = useHabitEveningPushFlag();
+  const flag = useHabitEveningPush();
   const settings = useSettings();
   const setPref = useSetPref();
-  const push = usePushNotifications();
   return {
-    show: flag,
-    on: eveningSwitchValue(settings.data?.prefs, push.state === "on"),
+    show: flag.enabled,
+    on: eveningSwitchValue(settings.data?.prefs, flag.hasSubscription),
     disabled: !settings.data,
     set: (value: boolean) => setPref("habitEveningPush", value),
   };

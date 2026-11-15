@@ -42,42 +42,45 @@
   background: var(--hue, var(--text-muted));
 }
 
-/* ── the stack ── */
+/* ── the stack: an overlapping column, each card peeking above the next ──
+ * Every card is tinted by its habit's hue (about 26% over the raised
+ * surface), never the hue itself. The front card is the last, fully open. */
 .needt-v3 .hc-stack {
-  display: grid;
-  padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
   max-width: 520px;
+  padding-bottom: 4px;
 }
 .needt-v3 .hc-card {
-  grid-area: 1 / 1;
+  --hc-card-h: 76px;
+  --hc-peek: 52px;
+  position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  min-height: 72px;
+  box-sizing: border-box;
+  min-height: var(--hc-card-h);
   padding: 14px 16px;
   border-radius: var(--radius-xl);
   background: color-mix(
     in srgb,
-    var(--hue, transparent) 14%,
+    var(--hue, var(--text-muted)) 26%,
     var(--surface-raised)
   );
   box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--hue, var(--text-primary)) 22%, transparent);
+    color-mix(in srgb, var(--hue, var(--text-primary)) 32%, transparent);
   color: var(--text-primary);
-  transform: translateY(calc(var(--i, 0) * 10px))
-    scale(calc(1 - var(--i, 0) * 0.04));
-  transform-origin: 50% 100%;
-  z-index: calc(10 - var(--i, 0));
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
 }
+.needt-v3 .hc-card + .hc-card {
+  margin-top: calc(var(--hc-peek) - var(--hc-card-h));
+}
 .needt-v3 .hc-card.is-top {
   pointer-events: auto;
   cursor: grab;
-  transform: none;
-  transform-origin: 50% 50%;
   transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .needt-v3 .hc-card.is-top:focus-visible {
@@ -91,9 +94,50 @@
 .needt-v3 .hc-card.is-leaving {
   transition: transform 0.18s ease-in;
 }
-/* the cards behind show their edge only, not their content */
-.needt-v3 .hc-card:not(.is-top) > * {
-  visibility: hidden;
+/* the round icon chip: a deeper tint of the same hue */
+.needt-v3 .hc-chip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(
+    in srgb,
+    var(--hue, var(--text-muted)) 40%,
+    var(--surface-raised)
+  );
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+/* the check circle: a mark, so it may be solid once done */
+.needt-v3 .hc-check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--text-muted);
+  color: var(--background);
+}
+.needt-v3 button.hc-check {
+  cursor: pointer;
+}
+.needt-v3 button.hc-check:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.needt-v3 .hc-check.is-done {
+  background: var(--text-primary);
+  box-shadow: none;
+}
+.needt-v3 .hc-card.is-top .nx-btn {
+  margin-top: 2px;
 }
 .needt-v3 .hc-card-main {
   display: flex;
@@ -101,6 +145,7 @@
   gap: 2px;
   min-width: 0;
   flex: 1;
+  padding-top: 2px;
 }
 .needt-v3 .hc-card-title {
   font: var(--type-ui-medium);
@@ -121,14 +166,16 @@
   gap: 4px;
 }
 .needt-v3 .hc-clear {
-  margin: 0;
+  margin: 12px 0 0;
   font: var(--type-ui);
   color: var(--text-tertiary);
 }
 
-/* ── the month grid ── */
+/* ── the month grid: a green ladder at three tints ── */
 .needt-v3 .hc-month {
-  max-width: 520px;
+  width: 100%;
+  max-width: 400px;
+  min-width: 0;
 }
 .needt-v3 .hc-month-head {
   display: flex;
@@ -153,13 +200,18 @@
   width: 8px;
   height: 8px;
   margin-right: 5px;
-  border-radius: 2px;
+  border-radius: 50%;
   background: var(--fill-5);
   vertical-align: baseline;
 }
-.needt-v3 .hc-legend-item[data-level="2"]::before,
+.needt-v3 .hc-legend-item[data-level="1"]::before {
+  background: color-mix(in srgb, var(--success) 20%, transparent);
+}
+.needt-v3 .hc-legend-item[data-level="2"]::before {
+  background: color-mix(in srgb, var(--success) 40%, transparent);
+}
 .needt-v3 .hc-legend-item[data-level="3"]::before {
-  background: var(--fill-accent);
+  background: color-mix(in srgb, var(--success) 65%, transparent);
 }
 .needt-v3 .hc-grid {
   display: grid;
@@ -185,30 +237,44 @@
 .needt-v3 .hc-day.is-lead {
   background: none;
 }
+/* a day that has not come: plain text */
 .needt-v3 .hc-day[data-level="ahead"] {
   background: none;
-  color: var(--text-disabled);
+  color: var(--text-muted);
 }
 .needt-v3 .hc-day[data-level="1"] {
-  background: var(--fill-5);
+  background: color-mix(in srgb, var(--success) 20%, transparent);
   color: var(--text-secondary);
 }
-.needt-v3 .hc-day[data-level="2"],
-.needt-v3 .hc-day[data-level="3"] {
-  background: var(--fill-accent);
-  color: var(--accent);
+.needt-v3 .hc-day[data-level="2"] {
+  background: color-mix(in srgb, var(--success) 40%, transparent);
+  color: var(--text-primary);
 }
-.needt-v3 .hc-day[data-level="3"]::after {
-  content: "";
-  position: absolute;
-  bottom: 18%;
-  width: 4px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--accent);
+.needt-v3 .hc-day[data-level="3"] {
+  background: color-mix(in srgb, var(--success) 65%, transparent);
+  color: var(--text-primary);
 }
 .needt-v3 .hc-day.is-today {
-  box-shadow: inset 0 0 0 1px var(--text-primary);
+  box-shadow: inset 0 0 0 1.5px var(--text-primary);
+}
+
+/* ── stack and grid side by side once there is room ── */
+.needt-v3 .hc-panel {
+  container-type: inline-size;
+}
+.needt-v3 .hc-top {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+@container (min-width: 820px) {
+  .needt-v3 .hc-top {
+    display: grid;
+    grid-template-columns: minmax(0, 520px) minmax(0, 400px);
+    column-gap: 48px;
+    align-items: start;
+  }
 }
 
 /* ── all habits ── */
@@ -341,4 +407,22 @@
   .needt-v3 .hc-card.is-leaving {
     transition: none;
   }
+}
+
+/* ── Edit past days: the face's own per-habit editor, folded away ── */
+.needt-v3 .hc-past {
+  max-width: 520px;
+}
+.needt-v3 .hc-past-sum {
+  display: inline-block;
+  cursor: pointer;
+  font: var(--type-ui);
+  color: var(--text-tertiary);
+}
+.needt-v3 .hc-past-sum:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.needt-v3 .hc-past[open] > .hc-past-sum {
+  margin-bottom: 12px;
 }

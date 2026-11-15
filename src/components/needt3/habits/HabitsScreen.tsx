@@ -730,7 +730,19 @@ export function HabitsScreen({
             ) : null}
             {list.length && cards ? (
               <>
-                <HabitCardsPanel ctl={ctl} />
+                <HabitCardsPanel
+                  ctl={ctl}
+                  past={
+                    <HabitMonths
+                      list={list}
+                      projects={projects}
+                      checkins={history.data ?? checkins}
+                      today={today}
+                      onTick={ctl.tick}
+                      onTickDay={ctl.tickDay}
+                    />
+                  }
+                />
                 <div className="pl-habits-grid">
                   <div className="pl-habits-side">
                     <section className="nx-swap pl-habits-left">

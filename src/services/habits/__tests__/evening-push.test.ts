@@ -10,6 +10,7 @@ import {
   inEveningWindow,
   openHabitCount,
   runHabitEveningPush,
+  zonesInEveningWindow,
 } from "../evening-push";
 import { localClock } from "../presence";
 
@@ -18,7 +19,7 @@ jest.mock("@/lib/prisma", () => ({
     featureFlag: { findUnique: jest.fn() },
     user: { findMany: jest.fn() },
     notificationSettings: { findMany: jest.fn() },
-    userSettings: { findMany: jest.fn() },
+    userSettings: { findMany: jest.fn(), groupBy: jest.fn() },
     habit: { findMany: jest.fn() },
     habitPush: { createMany: jest.fn(), delete: jest.fn() },
   },
@@ -42,7 +43,7 @@ const db = prisma as unknown as {
   featureFlag: { findUnique: jest.Mock };
   user: { findMany: jest.Mock };
   notificationSettings: { findMany: jest.Mock };
-  userSettings: { findMany: jest.Mock };
+  userSettings: { findMany: jest.Mock; groupBy: jest.Mock };
   habit: { findMany: jest.Mock };
   habitPush: { createMany: jest.Mock; delete: jest.Mock };
 };
@@ -89,6 +90,9 @@ function setup({
   db.notificationSettings.findMany.mockResolvedValue(
     notification ? [{ userId: "u1", ...notification }] : []
   );
+  db.userSettings.groupBy.mockResolvedValue([
+    { timeZone: zone ?? "Europe/Zurich" },
+  ]);
   db.userSettings.findMany.mockResolvedValue([
     { userId: "u1", timeZone: zone, prefs },
   ]);
@@ -219,6 +223,48 @@ describe("the push", () => {
     setup({ notification: { digest: true } });
     await runHabitEveningPush(AT_2005_ZURICH);
     expect(deliver).not.toHaveBeenCalled();
+  });
+});
+
+describe("who is loaded", () => {
+  it("only people in a zone where it is 20:00-20:29 now, and not already sent today", async () => {
+    setup();
+    await runHabitEveningPush(AT_2005_ZURICH);
+    const where = db.user.findMany.mock.calls[0][0].where;
+    expect(where.userSettings).toEqual({
+      is: { timeZone: { in: ["Europe/Zurich"] } },
+    });
+    expect(where.HabitPush.none.kind).toBe(EVENING_KIND);
+    expect(where.HabitPush.none.createdAt.gte).toBeInstanceOf(Date);
+  });
+
+  it("nobody is read when no stored zone is in the window", async () => {
+    setup({ zone: "America/New_York" });
+    const out = await runHabitEveningPush(AT_2005_ZURICH);
+    expect(out).toEqual({ users: 0, pushed: 0 });
+    expect(db.user.findMany).not.toHaveBeenCalled();
+  });
+
+  it("picks the zones in the window, aliases included", () => {
+    const zones = [
+      "Europe/Zurich",
+      "Europe/Kiev",
+      "America/New_York",
+      "Asia/Tokyo",
+      "UTC",
+    ];
+    // 19:05Z: 20:05 Zurich, 21:05 Kyiv, 14:05 New York, 04:05 Tokyo, 19:05 UTC
+    expect(zonesInEveningWindow(zones, AT_2005_ZURICH)).toEqual([
+      "Europe/Zurich",
+    ]);
+    // 18:10Z: 19:10 Zurich, 20:10 Kyiv
+    expect(
+      zonesInEveningWindow(zones, new Date("2026-11-16T18:10:00Z"))
+    ).toEqual(["Europe/Kiev"]);
+    // 20:10Z: 20:10 UTC
+    expect(
+      zonesInEveningWindow(zones, new Date("2026-11-16T20:10:00Z"))
+    ).toEqual(["UTC"]);
   });
 });
 

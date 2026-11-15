@@ -1,12 +1,15 @@
 import type { GoalView } from "@/lib/goals";
 
 import {
+  PASTELS,
   cellLabel,
+  chipGlyph,
   dayLevel,
   goalRisk,
   habitStack,
   monthGrid,
   nextStep,
+  pastelAt,
 } from "../model";
 
 const TODAY = "2026-11-15"; // a Sunday
@@ -19,6 +22,41 @@ const done = (habitId: string, date: string) => ({
   habitId,
   date,
   done: true,
+});
+
+describe("habitStack agrees with the 20:00 push", () => {
+  it("skips a habit that does not run on today's weekday (0 = Sunday)", () => {
+    const mon = { ...habit("mon"), daysOfWeek: [1] };
+    const sun = { ...habit("sun"), daysOfWeek: [0] };
+    const every = { ...habit("every"), daysOfWeek: [] };
+    expect(habitStack([mon, sun, every], [], TODAY).map((h) => h.id)).toEqual([
+      "sun",
+      "every",
+    ]);
+  });
+
+  it("leaves out a first-run example", () => {
+    const sample = { ...habit("ex"), isSample: true };
+    expect(
+      habitStack([sample, habit("a")], [], TODAY).map((h) => h.id)
+    ).toEqual(["a"]);
+  });
+});
+
+describe("pastels and chip glyphs", () => {
+  it("cycles the six pastels by index, and never goes out of range", () => {
+    expect(PASTELS).toHaveLength(6);
+    expect(pastelAt(0)).toBe(PASTELS[0]);
+    expect(pastelAt(6)).toBe(PASTELS[0]);
+    expect(pastelAt(7)).toBe(PASTELS[1]);
+    expect(pastelAt(-1)).toBe(PASTELS[5]);
+  });
+
+  it("uses a short icon, else the first letter", () => {
+    expect(chipGlyph({ title: "read", icon: null })).toBe("R");
+    expect(chipGlyph({ title: "read", icon: "📚" })).toBe("📚");
+    expect(chipGlyph({ title: "read", icon: "book-open" })).toBe("R");
+  });
 });
 
 describe("habitStack", () => {

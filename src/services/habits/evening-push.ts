@@ -281,6 +281,30 @@ async function sweepPage(people: Person[], flag: FlagState, now: Date) {
   return pushed;
 }
 
+/** The zones (of those given) where it is 20:00-20:29 right now. */
+export function zonesInEveningWindow(
+  zones: readonly string[],
+  now: Date
+): string[] {
+  return zones.filter((zone) => inEveningWindow(localClock(now, zone)));
+}
+
+/**
+ * The stored zones that are inside the window now. Read from the zones people
+ * actually saved (a handful of distinct values), not from a list of every
+ * zone, so an alias such as "Europe/Kiev" is never missed.
+ */
+async function dueZones(now: Date): Promise<string[]> {
+  const rows = await prisma.userSettings.groupBy({ by: ["timeZone"] });
+  return zonesInEveningWindow(
+    rows.map((row) => row.timeZone).filter(Boolean),
+    now
+  );
+}
+
+/** An evening row younger than this means today's push is already sent. */
+const SENT_RECENTLY_MS = 20 * 3_600_000;
+
 /**
  * The sweep the worker runs every few minutes. With the flag off for
  * everybody it reads one row and returns; no person is loaded.
@@ -289,6 +313,9 @@ export async function runHabitEveningPush(now = newDate()) {
   if (!pushConfigured()) return { users: 0, pushed: 0 };
   const flag = await loadFlag();
   if (!flag) return { users: 0, pushed: 0 };
+  // Nobody's clock is inside the window: no person is read at all.
+  const zones = await dueZones(now);
+  if (zones.length === 0) return { users: 0, pushed: 0 };
   // Disabled for everybody except the overrides: only they can be reached.
   const onlyIds = flag.enabled
     ? null
@@ -309,6 +336,14 @@ export async function runHabitEveningPush(now = newDate()) {
     const rows = await prisma.user.findMany({
       where: {
         ...(onlyIds ? { id: { in: onlyIds } } : {}),
+        userSettings: { is: { timeZone: { in: zones } } },
+        // Today's push already went out: not loaded again by later sweeps.
+        HabitPush: {
+          none: {
+            kind: EVENING_KIND,
+            createdAt: { gte: newDate(now.getTime() - SENT_RECENTLY_MS) },
+          },
+        },
         habits: {
           some: {
             archivedAt: null,
