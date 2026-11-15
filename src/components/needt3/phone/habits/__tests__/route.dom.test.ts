@@ -102,13 +102,17 @@ let host: HTMLDivElement;
 let root: Root;
 
 let client: QueryClient;
-const render = (ui: "phone" | "desktop") =>
+const render = (ui: "phone" | "desktop", cards?: boolean) =>
   act(() =>
     root.render(
       h(
         QueryClientProvider,
         { client },
-        h(PhoneUiProvider, { value: ui }, h(HabitsRoute))
+        h(
+          PhoneUiProvider,
+          { value: ui },
+          h(HabitsRoute, cards === undefined ? {} : { cards })
+        )
       )
     )
   );
@@ -454,5 +458,43 @@ describe("saving", () => {
     expect(doc<HTMLButtonElement>("[data-phb-create]")?.disabled).toBe(true);
     click(doc("[data-phb-create]"));
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+});
+
+/* `habits_cards_v1`: the page reads the flag on the server and passes `cards`.
+   Off (or absent) is the screens as they were; on swaps Today and the history
+   for the card stack and month grid on both faces. */
+describe("the card screens flag", () => {
+  it.each(["phone", "desktop"] as const)(
+    "off: the %s face draws no cards",
+    (ui) => {
+      render(ui);
+      expect(q("[data-hc-panel]")).toBeNull();
+      render(ui, false);
+      expect(q("[data-hc-panel]")).toBeNull();
+    }
+  );
+
+  it.each(["phone", "desktop"] as const)(
+    "on: the %s face draws the stack, the month grid and the list",
+    (ui) => {
+      render(ui, true);
+      expect(q("[data-hc-panel]")).not.toBeNull();
+      expect(q("[data-hc-stack]")).not.toBeNull();
+      expect(q("[data-hc-grid]")).not.toBeNull();
+      expect(host.querySelectorAll("[data-hc-row]")).toHaveLength(2);
+    }
+  );
+
+  it("a tick from the stack writes once", () => {
+    render("desktop", true);
+    click(q("[data-hc-done]"));
+    expect(mockToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("the new-habit sheet still opens with the cards on", () => {
+    render("desktop", true);
+    click(q("[data-page-add]"));
+    expect(doc('input[name="habit-name"]')).not.toBeNull();
   });
 });

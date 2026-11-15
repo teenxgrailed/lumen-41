@@ -6,7 +6,9 @@ import {
   AGENT_HUB,
   AI_CHATGPT_PLAN,
   BUDGET_MODULE,
+  HABITS_CARDS_V1,
   HABITS_QUIT,
+  HABIT_EVENING_PUSH,
 } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
 
@@ -62,6 +64,24 @@ export async function agentHubEnabled(userId: string) {
  */
 export async function budgetModuleEnabled(userId: string) {
   return isFeatureEnabled(BUDGET_MODULE, userId);
+}
+
+/**
+ * The Habits and Goals card screens (`HABITS_CARDS_V1`). Fails closed: a
+ * missing session or a failed read is "off", so the old screens draw.
+ */
+export async function habitsCardsEnabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return await isFeatureEnabled(HABITS_CARDS_V1, userId);
+  } catch {
+    return false;
+  }
+}
+
+/** The 20:00 habit push is on for this account (`HABIT_EVENING_PUSH`). */
+export async function habitEveningPushEnabled(userId: string) {
+  return isFeatureEnabled(HABIT_EVENING_PUSH, userId);
 }
 
 /**

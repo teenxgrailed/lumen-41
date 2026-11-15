@@ -17,6 +17,7 @@ import type { V3Habit, V3Project } from "@/lib/needt3/map";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { HabitCardsPanel } from "../../habits/cards/HabitCards";
 import {
   MONTH_SHORT,
   PER_WEEK_CHOICES,
@@ -564,7 +565,10 @@ function HabitSheet({
 export function PhoneHabits({
   ctl,
   quit: shared,
+  cards = false,
 }: {
+  /** `habits_cards_v1`: the card stack and month grid replace Today and the history. */
+  cards?: boolean;
   ctl: HabitsController;
   /** The route's Quit state, shared with the desktop face. */
   quit?: QuitController;
@@ -731,7 +735,20 @@ export function PhoneHabits({
                   </div>
                 </PkSection>
               ) : null}
-              {list.length ? (
+              {list.length && cards ? (
+                <>
+                  <HabitCardsPanel ctl={ctl} />
+                  <PkSection
+                    title={t.PhbHabits.time_left}
+                    className="phb-sec is-left"
+                  >
+                    <TimeLeft tz={ctl.tz} />
+                  </PkSection>
+                  <p className="phb-foot">
+                    {t.PhbHabits.a_missed_day_stays_empty_nothing_carries}
+                  </p>
+                </>
+              ) : list.length ? (
                 <>
                   <PkSection
                     title={t.PhbHabits.today}

@@ -1,0 +1,344 @@
+/* Habit cards, the month grid, and goal cards (flag `habits_cards_v1`).
+ *
+ * PORT.md §0: every grey is the text colour at a ladder alpha (--text-* and
+ * --fill-* only), chrome type is 13px (--type-ui) and 12px (--type-meta),
+ * the accent is never a solid fill on a surface (day cells use --fill-accent
+ * at 12%, and the strongest day carries a small accent mark), colour is a tint
+ * and a mark: a card is the raised surface with a wash of its hue, never the
+ * hue itself. No shadow, no card on a card. Motion: only the card that moves,
+ * and none of it under prefers-reduced-motion (PORT.md §6).
+ */
+.needt-v3 .hc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-bottom: 32px;
+  min-width: 0;
+}
+.needt-v3 .hc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.needt-v3 .hc-head-title {
+  margin: 0;
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .hc-head-count {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the mark: a solid dot is correct on a mark */
+.needt-v3 .hc-mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--hue, var(--text-muted));
+}
+
+/* ── the stack ── */
+.needt-v3 .hc-stack {
+  display: grid;
+  padding-bottom: 20px;
+  max-width: 520px;
+}
+.needt-v3 .hc-card {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 14px 16px;
+  border-radius: var(--radius-xl);
+  background: color-mix(
+    in srgb,
+    var(--hue, transparent) 14%,
+    var(--surface-raised)
+  );
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--hue, var(--text-primary)) 22%, transparent);
+  color: var(--text-primary);
+  transform: translateY(calc(var(--i, 0) * 10px))
+    scale(calc(1 - var(--i, 0) * 0.04));
+  transform-origin: 50% 100%;
+  z-index: calc(10 - var(--i, 0));
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+.needt-v3 .hc-card.is-top {
+  pointer-events: auto;
+  cursor: grab;
+  transform: none;
+  transform-origin: 50% 50%;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.needt-v3 .hc-card.is-top:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.needt-v3 .hc-card.is-dragging {
+  cursor: grabbing;
+  transition: none;
+}
+.needt-v3 .hc-card.is-leaving {
+  transition: transform 0.18s ease-in;
+}
+/* the cards behind show their edge only, not their content */
+.needt-v3 .hc-card:not(.is-top) > * {
+  visibility: hidden;
+}
+.needt-v3 .hc-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.needt-v3 .hc-card-title {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .hc-card-meta {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .hc-card-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.needt-v3 .hc-clear {
+  margin: 0;
+  font: var(--type-ui);
+  color: var(--text-tertiary);
+}
+
+/* ── the month grid ── */
+.needt-v3 .hc-month {
+  max-width: 520px;
+}
+.needt-v3 .hc-month-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.needt-v3 .hc-month-name {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .hc-legend {
+  display: flex;
+  gap: 12px;
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.needt-v3 .hc-legend-item::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 2px;
+  background: var(--fill-5);
+  vertical-align: baseline;
+}
+.needt-v3 .hc-legend-item[data-level="2"]::before,
+.needt-v3 .hc-legend-item[data-level="3"]::before {
+  background: var(--fill-accent);
+}
+.needt-v3 .hc-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.needt-v3 .hc-weekday {
+  text-align: center;
+  font: var(--type-meta);
+  color: var(--text-muted);
+}
+.needt-v3 .hc-day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  font: var(--type-meta);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-quaternary);
+  background: var(--fill-2);
+}
+.needt-v3 .hc-day.is-lead {
+  background: none;
+}
+.needt-v3 .hc-day[data-level="ahead"] {
+  background: none;
+  color: var(--text-disabled);
+}
+.needt-v3 .hc-day[data-level="1"] {
+  background: var(--fill-5);
+  color: var(--text-secondary);
+}
+.needt-v3 .hc-day[data-level="2"],
+.needt-v3 .hc-day[data-level="3"] {
+  background: var(--fill-accent);
+  color: var(--accent);
+}
+.needt-v3 .hc-day[data-level="3"]::after {
+  content: "";
+  position: absolute;
+  bottom: 18%;
+  width: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.needt-v3 .hc-day.is-today {
+  box-shadow: inset 0 0 0 1px var(--text-primary);
+}
+
+/* ── all habits ── */
+.needt-v3 .hc-all {
+  max-width: 520px;
+}
+.needt-v3 .hc-all-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.needt-v3 .hc-all-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 0;
+  box-shadow: inset 0 -1px 0 var(--fill-5);
+}
+
+/* ── goal cards ── */
+.needt-v3 .gl-cards-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.needt-v3 .gl-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.needt-v3 .gl-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: color-mix(
+    in srgb,
+    var(--hue, transparent) 14%,
+    var(--surface-raised)
+  );
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--hue, var(--text-primary)) 22%, transparent);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.needt-v3 .gl-card.is-on {
+  box-shadow: inset 0 0 0 1px var(--text-primary);
+}
+.needt-v3 .gl-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.needt-v3 .gl-card-title {
+  flex: 1;
+  min-width: 0;
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .gl-card-progress {
+  flex: none;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.needt-v3 .gl-card-meta {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.needt-v3 .gl-card-next {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  font: var(--type-ui);
+}
+.needt-v3 .gl-card-next-label {
+  flex: none;
+  font: var(--type-meta);
+  color: var(--text-muted);
+  line-height: inherit;
+}
+.needt-v3 .gl-card-next-text {
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .gl-card-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.needt-v3 .gl-card-risk {
+  text-align: right;
+  color: var(--text-secondary);
+}
+.needt-v3 .gl-card-risk::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 3px;
+  background: var(--text-muted);
+}
+.needt-v3 .gl-card-risk.is-late::before,
+.needt-v3 .gl-card-risk.is-behind::before {
+  background: var(--destructive);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .hc-card,
+  .needt-v3 .hc-card.is-top,
+  .needt-v3 .hc-card.is-leaving {
+    transition: none;
+  }
+}

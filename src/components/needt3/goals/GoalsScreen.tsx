@@ -7,15 +7,21 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useIsPro } from "@/components/needt3/paywall/Pro";
 import { openPaywall } from "@/components/needt3/paywall/store";
 
+import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import type { GoalView } from "@/lib/goals";
 import {
   type GoalDraft,
   goalRequests,
   useGoal,
+  useGoalDetails,
   useGoalWrite,
   useGoals,
 } from "@/lib/needt3/hooks/goals";
+import { useProjects } from "@/lib/needt3/hooks/projects";
+import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 
+import { nextStep } from "../habits/cards/model";
 import { EMPTY_GOAL_FORM, type GoalFormValues, GoalsView } from "./GoalsView";
 
 function numberOrUndefined(value: string) {
@@ -23,6 +29,45 @@ function numberOrUndefined(value: string) {
   if (!trimmed) return undefined;
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/** Goal cards read at most this many goals' tasks (one request each). */
+const CARD_DETAILS_MAX = 24;
+
+/**
+ * What the goal cards need beyond the goals: each active goal's next step
+ * (read from its linked tasks), its project's colour, and today. Nothing is
+ * read while the cards are off.
+ */
+function useGoalCards(on: boolean, goals: readonly GoalView[] | undefined) {
+  const tz = useTimeZone();
+  const projects = useProjects();
+  const ids = on
+    ? (goals ?? [])
+        .filter((g) => g.status === "active")
+        .slice(0, CARD_DETAILS_MAX)
+        .map((g) => g.id)
+    : [];
+  const details = useGoalDetails(ids);
+  if (!on || !goals) return undefined;
+  const nextSteps: Record<string, { id: string; title: string } | null> = {};
+  ids.forEach((id, i) => {
+    const data = details[i]?.data;
+    if (data) nextSteps[id] = nextStep(data.tasks);
+  });
+  const color = new Map(
+    (projects.data ?? []).map((p) => [p.id, p.color] as const)
+  );
+  const hues: Record<string, string> = {};
+  for (const g of goals) {
+    const hue = g.projectIds.map((id) => color.get(id)).find(Boolean);
+    if (hue) hues[g.id] = hue;
+  }
+  return {
+    nextSteps,
+    hues,
+    today: formatInTimeZone(newDate(), tz, "yyyy-MM-dd"),
+  };
 }
 
 /** The sheet's text fields as a `goal.create` body. */
@@ -48,9 +93,10 @@ export function draftFromForm(form: GoalFormValues): GoalDraft {
 /**
  * Goals (`/goals`): the list with progress, one goal open beside it, and the
  * new-goal sheet. `?goal=<id>` opens one; `&checkin=1` (the weekly nudge's
- * link) puts the caret in its check-in.
+ * link) puts the caret in its check-in. `cards` is the `habits_cards_v1`
+ * flag (read on the server by the page): goals draw as cards.
  */
-export function GoalsScreen() {
+export function GoalsScreen({ cards = false }: { cards?: boolean }) {
   const pro = useIsPro();
   const router = useRouter();
   const pathname = usePathname();
@@ -61,6 +107,7 @@ export function GoalsScreen() {
   const detail = useGoal(selectedId);
   const tasks = useTasks();
   const [form, setForm] = useState<GoalFormValues | null>(null);
+  const cardData = useGoalCards(cards, goals.data);
 
   const select = (id: string | null) =>
     router.replace(
@@ -140,6 +187,7 @@ export function GoalsScreen() {
       onLinkTask={(taskId) => {
         if (selectedId) linkTask.mutate({ goalId: selectedId, taskId });
       }}
+      cards={cardData}
       onToggleTask={(task) => {
         if (!selectedId) return;
         setTask.mutate({

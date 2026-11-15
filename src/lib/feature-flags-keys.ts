@@ -121,6 +121,21 @@ export const BUDGET_MODULE = "budget_module";
  */
 export const BUDGET_PRO_ACCESS = "budget_pro_access";
 
+/**
+ * The Habits and Goals card screens: today's habits as a stack of cards you
+ * swipe done, a month grid under it, and goals as cards with their next step
+ * and a risk hint. Read on the server (the Habits and Goals pages); off or
+ * unreadable means the existing screens, unchanged.
+ */
+export const HABITS_CARDS_V1 = "habits_cards_v1";
+
+/**
+ * The 20:00 habit push ("3 habits left today"), sent in the person's own time
+ * zone only when habits are still open. Off for everybody until a FeatureFlag
+ * row turns it on; with it off the worker does no work for it.
+ */
+export const HABIT_EVENING_PUSH = "habit_evening_push";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -138,6 +153,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [FIRST_REPLAN_ONBOARDING]:
     "Demo meeting on a new account's Today, with a first replan and Keep.",
   [BUDGET_MODULE]: "Needt Budget as a place in the sidebar (frame).",
+  [HABITS_CARDS_V1]: "Habit card stack, month grid and goal cards.",
+  [HABIT_EVENING_PUSH]: "20:00 push with the habits still open today.",
   [BUDGET_PRO_ACCESS]:
     "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",
 };
