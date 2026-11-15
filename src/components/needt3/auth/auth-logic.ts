@@ -80,6 +80,17 @@ export function refusalText(
   return null;
 }
 
+/**
+ * Under a refused email + password. The refusal is the same for a wrong
+ * password, an unknown address and an account that never had a password (made
+ * with Google or a mailed code), because the server must not say which; so
+ * the way out is offered to everyone who sees it.
+ */
+export const WRONG_PAIR_HELP = {
+  lead: "Signed up with Google or a code?",
+  action: "Send me a code",
+} as const;
+
 /** The recovery link's resend countdown, "0:07". */
 export function resendClock(seconds: number): string {
   return "0:" + String(Math.max(0, seconds)).padStart(2, "0");
