@@ -34,7 +34,6 @@ import { logger } from "@/lib/logger";
 import { isIosApp, isStoreDistribution } from "@/lib/native";
 import { browserLocale } from "@/lib/needt3/locale-defaults";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
-import { notify } from "@/lib/notifications";
 import {
   ONBOARDING_RESUME_PATH,
   isOnboardingEntry,
@@ -183,6 +182,12 @@ export function V3SignInRoute({
     if (error) setProviderBusy(null);
   }, [error]);
   const [resending, setResending] = React.useState(false);
+  /* What this screen has to say that is not a refusal of the form: shown in
+     the screen's own notice line. The sign-in pages raise no toast (the
+     notice bridge drops them on /auth/*), so the answer lives here. */
+  const [localNotice, setLocalNotice] = React.useState<string | null>(null);
+  /* The answer to "Resend confirmation", under that button. */
+  const [resendNote, setResendNote] = React.useState<string | null>(null);
   /** The address last typed, so "resend" has something to send to. */
   const typed = React.useRef("");
   /** A new account goes on to setup; a returning one to where it was going. */
@@ -294,9 +299,6 @@ export function V3SignInRoute({
         });
         if (result?.error) {
           if (input.mode === "signup") {
-            notify.success("Account created", {
-              description: "Sign in with your new credentials.",
-            });
             setMode("login");
             return { ok: false, message: "Account created. Sign in below." };
           }
@@ -335,10 +337,11 @@ export function V3SignInRoute({
 
   const resend = React.useCallback(async () => {
     if (!typed.current) {
-      notify.error("Enter your email first");
+      setResendNote("Enter your email first.");
       return;
     }
     setResending(true);
+    setResendNote(null);
     try {
       const response = await fetch("/api/auth/email-verification/request", {
         method: "POST",
@@ -346,7 +349,7 @@ export function V3SignInRoute({
         body: JSON.stringify({ email: typed.current }),
       });
       if (!response.ok) throw new Error("Could not send verification email");
-      notify.success(
+      setResendNote(
         "If the account needs confirmation, an email is on its way."
       );
     } catch (e) {
@@ -355,7 +358,7 @@ export function V3SignInRoute({
         { error: message(e) },
         LOG_SOURCE
       );
-      notify.error("Could not send verification email");
+      setResendNote("Could not send the confirmation email. Try again.");
     } finally {
       setResending(false);
     }
@@ -377,7 +380,7 @@ export function V3SignInRoute({
             { provider: id, error: message(e) },
             LOG_SOURCE
           );
-          notify.error("Could not continue with that account");
+          setLocalNotice("Could not continue with that account.");
           setProviderBusy(null);
         });
     },
@@ -422,7 +425,7 @@ export function V3SignInRoute({
           { error: message(e) },
           LOG_SOURCE
         );
-        notify.error("Could not continue with that account");
+        setLocalNotice("Could not continue with that account.");
       }
       setProviderBusy(null);
     },
@@ -435,7 +438,7 @@ export function V3SignInRoute({
     pendingCredential.current = null;
     void confirmAge()
       .then(() => oneTap(credential))
-      .catch(() => notify.error("Could not record the confirmation"));
+      .catch(() => setLocalNotice("Could not record the confirmation."));
   }, [ageChecked, oneTap]);
 
   /* Sign in with a mailed code (email-code-service.ts): the main path under
@@ -543,17 +546,27 @@ export function V3SignInRoute({
         age={age}
         providerBusy={providerBusy}
         onProvider={startProvider}
-        notice={oauthErrorMessage(oneTapError ?? error, store) || null}
+        notice={
+          localNotice ??
+          (oauthErrorMessage(oneTapError ?? error, store) || null)
+        }
         {...signupFlags(allowSignup)}
         aside={
-          <button
-            type="button"
-            className="ax-link auth-forgot"
-            onClick={() => void resend()}
-            disabled={resending}
-          >
-            {resending ? "Sending…" : "Resend confirmation"}
-          </button>
+          <>
+            <button
+              type="button"
+              className="ax-link auth-forgot"
+              onClick={() => void resend()}
+              disabled={resending}
+            >
+              {resending ? "Sending…" : "Resend confirmation"}
+            </button>
+            {resendNote ? (
+              <p className="auth-recover-resend" role="status">
+                {resendNote}
+              </p>
+            ) : null}
+          </>
         }
       />
     </AuthScope>

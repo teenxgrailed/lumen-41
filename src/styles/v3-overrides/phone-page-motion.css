@@ -54,7 +54,7 @@
   > .pk-scroll:not(.pk-scroll .pk-scroll),
 .needt-v3[data-ui="phone"]
   .v2p-stage[data-pg]
-  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
+  > :is(:not(.pk-screen, .st-route-loading, .nl-root):not(:has(.pk-screen))) {
   position: relative;
   z-index: 2;
 }
@@ -67,7 +67,7 @@
   > .pk-scroll:not(.pk-scroll .pk-scroll),
 .needt-v3[data-ui="phone"]
   .v2p-stage:is([data-pg="forward"], [data-pg="back"])
-  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
+  > :is(:not(.pk-screen, .st-route-loading, .nl-root):not(:has(.pk-screen))) {
   background: var(--v2p-ground);
   box-sizing: border-box;
   min-height: 100dvh;
@@ -79,7 +79,7 @@
   > .pk-scroll:not(.pk-scroll .pk-scroll),
 .needt-v3[data-ui="phone"]
   .v2p-stage[data-pg="forward"]
-  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
+  > :is(:not(.pk-screen, .st-route-loading, .nl-root):not(:has(.pk-screen))) {
   animation: v3-pg-in-fwd var(--pg-slide) var(--pg-ease) backwards;
 }
 .needt-v3[data-ui="phone"]
@@ -88,7 +88,7 @@
   > .pk-scroll:not(.pk-scroll .pk-scroll),
 .needt-v3[data-ui="phone"]
   .v2p-stage[data-pg="back"]
-  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
+  > :is(:not(.pk-screen, .st-route-loading, .nl-root):not(:has(.pk-screen))) {
   animation: v3-pg-in-back var(--pg-slide) var(--pg-ease) backwards;
 }
 .needt-v3[data-ui="phone"]
@@ -97,7 +97,7 @@
   > .pk-scroll:not(.pk-scroll .pk-scroll),
 .needt-v3[data-ui="phone"]
   .v2p-stage[data-pg="rise"]
-  > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))) {
+  > :is(:not(.pk-screen, .st-route-loading, .nl-root):not(:has(.pk-screen))) {
   /* from the dock: the viewport's bottom edge, as the page starts at the top */
   transform-origin: 50% 100dvh;
   animation: v3-pg-in-rise var(--pg-rise) var(--pg-ease) backwards;
@@ -189,7 +189,7 @@
     > .pk-scroll:not(.pk-scroll .pk-scroll):not(#pg),
   .needt-v3[data-ui="phone"]
     .v2p-stage[data-pg]
-    > :is(:not(.pk-screen, .st-route-loading):not(:has(.pk-screen))):not(#pg) {
+    > :is(:not(.pk-screen, .st-route-loading, .nl-root):not(:has(.pk-screen))):not(#pg) {
     animation: v3-pg-in-fade var(--pg-fade) ease-out backwards !important;
   }
   .needt-v3[data-ui="phone"] .pk-pg-ghost[data-pg] > .pk-pg-sheet {

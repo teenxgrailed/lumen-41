@@ -5,12 +5,11 @@ import { useRef, useState } from "react";
 import { LuCheck } from "react-icons/lu";
 
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
-import { notify } from "@/lib/notifications";
 
 import { useMark } from "../../settings/SettingsContext";
 import { PkGlyph, pkCx } from "../kit";
 import { type MenuPlaceId, menuTilesFrom, menuWord } from "../menu/places";
-import { PILL_PLACES, PILL_SIZE, toggleSlot } from "./model";
+import { PILL_PLACES, PILL_SIZE, pillSlots, toggleSlot } from "./model";
 import { PsGroup, PsRow, usePs } from "./parts";
 
 const noop = () => undefined;
@@ -32,19 +31,26 @@ export function MenuPage() {
   const setPref = useSetPref();
   const { pill: draft, setPill: setDraft } = usePs();
   const [shake, setShake] = useState(0);
+  /* A fourth place was asked for. Said in the group's own hint and by the
+     shake, not in a toast: the toast landed over the rows being tapped. */
+  const [full, setFull] = useState(false);
   const pending = useRef(false);
   const ready = !!settings.data;
   const saved = menuTilesFrom(settings.data?.prefs);
-  const slots = draft ?? saved;
+  /* Only places that have a row here count as taken: a saved id with no row
+     (a leftover spelling) held a slot nobody could see or untick, so the pill
+     read "full" beside two ticks. */
+  const slots = pillSlots(draft ?? saved);
 
   const toggle = (id: MenuPlaceId) => {
     if (!ready || pending.current) return;
     const move = toggleSlot(slots, id);
     if (move.blocked) {
       setShake((n) => n + 1);
-      notify.info("The pill holds three — take one out first");
+      setFull(true);
       return;
     }
+    setFull(false);
     if (!move.save) {
       setDraft(move.slots);
       return;
@@ -66,9 +72,11 @@ export function MenuPage() {
       <PsGroup
         title="In the pill"
         hint={
-          left > 0
-            ? `Pick ${left} more — the pill always holds three.`
-            : "Everything else waits in the menu card, a swipe up from the pill."
+          full
+            ? "The pill holds three — take one out first."
+            : left > 0
+              ? `Pick ${left} more — the pill always holds three.`
+              : "Everything else waits in the menu card, a swipe up from the pill."
         }
       >
         <div

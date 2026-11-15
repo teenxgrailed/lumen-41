@@ -384,3 +384,58 @@ describe("the first mode", () => {
     expect(q('[data-auth-screen="login"]')).toBeNull();
   });
 });
+
+describe("a refused password", () => {
+  const refuse = async () => {
+    signIn.mockResolvedValue({ error: "CredentialsSignin" });
+    await mount();
+    type(q<HTMLInputElement>('input[type="email"]')!, "ana@x.ch");
+    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await submitForm();
+  };
+  const codeRequests = () =>
+    (fetch as jest.Mock).mock.calls.filter(
+      ([url]) => url === "/api/auth/email-code/request"
+    );
+
+  it.each([
+    ["phone", true],
+    ["desktop", false],
+  ] as const)(
+    "%s: says the way out and sends a code to the same address",
+    async (_face, narrow) => {
+      await refuse();
+      await swap(narrow);
+      // the same line for every refusal: it does not say which account it was
+      expect(host.textContent).toContain(
+        "That email and password do not match."
+      );
+      expect(host.textContent).toContain("Signed up with Google or a code?");
+      await act(async () => {
+        q<HTMLButtonElement>("[data-auth-wrong-code]")!.dispatchEvent(
+          new MouseEvent("click", { bubbles: true })
+        );
+      });
+      expect(codeRequests()).toHaveLength(1);
+      expect(JSON.parse(codeRequests()[0][1].body)).toEqual({
+        email: "ana@x.ch",
+      });
+      expect(q("[data-auth-code-step]")).not.toBeNull();
+      expect(q('input[type="password"]')).toBeNull();
+      expect(host.textContent).not.toContain("do not match");
+    }
+  );
+
+  it("shows the resend answer on the page, not in a toast", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { notify } = require("@/lib/notifications");
+    await mount();
+    await act(async () => {
+      for (const b of host.querySelectorAll<HTMLButtonElement>("button"))
+        if (b.textContent === "Resend confirmation") b.click();
+    });
+    expect(host.textContent).toContain("Enter your email first.");
+    expect(notify.error).not.toHaveBeenCalled();
+    expect(notify.success).not.toHaveBeenCalled();
+  });
+});

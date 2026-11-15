@@ -40,6 +40,7 @@ import {
   MIN_PASSWORD,
   MORE_SIGN_IN_WAYS_LABEL,
   WAITLIST,
+  WRONG_PAIR_HELP,
   formReady,
   mailProblem,
   mailProblemText,
@@ -54,7 +55,10 @@ import {
 } from "../../auth/auth-logic";
 import { CODE_TEXT } from "../../auth/email-code-logic";
 import { useAuthFields, useAuthSteps } from "../../auth/use-auth-fields";
-import { useEmailCodeFlow } from "../../auth/use-email-code-flow";
+import {
+  useCodeInstead,
+  useEmailCodeFlow,
+} from "../../auth/use-email-code-flow";
 import { PhoneEmailCode } from "./PhoneEmailCode";
 import {
   MaBrand,
@@ -119,6 +123,12 @@ export function PhoneAuth({
   });
   const { touched, setTouched, refused, setRefused, recover, setRecover } =
     useAuthSteps(steps);
+  const codeInstead = useCodeInstead({
+    codeMode,
+    flow: codeFlow,
+    setUsePassword: emailCode?.setUsePassword,
+    clearRefusal: () => setRefused(null),
+  });
   const [busy, setBusy] = React.useState(false);
   /* Google, Apple and GitHub show; the rest wait behind "More ways". */
   const [moreWays, setMoreWays] = React.useState(false);
@@ -552,6 +562,20 @@ export function PhoneAuth({
                   <MaNote tone="attention" icon={LuCircleAlert}>
                     {refusal}
                   </MaNote>
+                ) : null}
+                {wrongPair && emailCode && !signup ? (
+                  <span className="mau-resend" data-auth-wrong-help>
+                    {WRONG_PAIR_HELP.lead}{" "}
+                    <button
+                      type="button"
+                      className="mau-link"
+                      data-auth-wrong-code
+                      disabled={offline}
+                      onClick={codeInstead}
+                    >
+                      {WRONG_PAIR_HELP.action}
+                    </button>
+                  </span>
                 ) : null}
                 {!signup ? aside : null}
                 {netRow}

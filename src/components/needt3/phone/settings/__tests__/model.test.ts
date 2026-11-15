@@ -17,6 +17,7 @@ import {
   daySummary,
   escAction,
   isPsPage,
+  pillSlots,
   themeWord,
   toggleSlot,
 } from "../model";
@@ -46,6 +47,15 @@ describe("the pill's slots", () => {
   it("a tap on a place that is in leaves its slot and never saves a short list", () => {
     const m = toggleSlot(["home", "tasks", "docs"], "tasks");
     expect(m).toEqual({ slots: ["home", "docs"], save: false, blocked: false });
+  });
+
+  it("an id with no row on the page holds no slot", () => {
+    // "connections" is a place menu A can read but this page never lists
+    const saved = ["home", "connections", "ask"] as const;
+    expect(pillSlots(saved)).toEqual(["home", "ask"]);
+    const m = toggleSlot(pillSlots(saved), "docs");
+    expect(m.blocked).toBe(false);
+    expect(m.save).toBe(true);
   });
 
   it("offers nine places, none of them Settings, and the pill holds three", () => {

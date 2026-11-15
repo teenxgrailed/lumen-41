@@ -681,10 +681,11 @@ describe("the pill", () => {
     // a fourth is refused with a word, and writes nothing
     await tap(q('[data-ps-menu-place="tasks"]'));
     expect(settingsWrites()).toHaveLength(1);
-    expect(mockNotify).toHaveBeenCalledWith(
-      "info",
-      expect.stringContaining("three")
+    // ... in the page's own hint, not a toast over the rows
+    expect(host.textContent).toContain(
+      "The pill holds three — take one out first."
     );
+    expect(mockNotify).not.toHaveBeenCalled();
   });
 });
 
