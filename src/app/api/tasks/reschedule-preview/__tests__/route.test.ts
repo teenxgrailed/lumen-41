@@ -133,3 +133,30 @@ describe("reschedule-preview route: taskIds", () => {
     );
   });
 });
+
+describe("reschedule-preview route: home_missed", () => {
+  it("accepts via home_missed on all three steps and rejects unknown values", async () => {
+    await call({ action: "preview", via: "home_missed", taskIds: ["a"] });
+    await call({ action: "apply", token: "t", via: "home_missed" });
+    await call({ action: "undo", token: "t", via: "home_missed" });
+    expect(createReschedulePreview).toHaveBeenCalledWith(
+      "u1",
+      expect.anything(),
+      { via: "home_missed", taskIds: ["a"] }
+    );
+    expect(applyReschedulePreview).toHaveBeenCalledWith(
+      "u1",
+      expect.anything(),
+      "t",
+      { via: "home_missed" }
+    );
+    expect(undoReschedulePreview).toHaveBeenCalledWith(
+      "u1",
+      expect.anything(),
+      "t",
+      { via: "home_missed" }
+    );
+    const res = await call({ action: "preview", via: "nope" });
+    expect(res?.status).toBe(400);
+  });
+});

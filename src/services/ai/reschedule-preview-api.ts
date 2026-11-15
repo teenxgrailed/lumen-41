@@ -8,10 +8,10 @@ import {
   undoReschedulePreview,
 } from "./reschedule-preview";
 
-/* Who asked: the chat preview card (a preview is shown, Keep is pressed) or
-   "Fill it" (placed in one click, nothing shown). Only the first counts as a
-   replan in the activation metrics. */
-const via = z.enum(["chat", "fill"]).default("chat");
+/* Who asked: the chat preview card or the Home "missed tasks" card (a preview
+   is shown, Keep is pressed; Home adds `source: home_missed` to the same
+   events) or "Fill it" (placed in one click, nothing shown, never a Keep). */
+const via = z.enum(["chat", "fill", "home_missed"]).default("chat");
 
 /**
  * The one request shape of the reschedule preview, shared by the app route

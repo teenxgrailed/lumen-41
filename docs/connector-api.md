@@ -716,6 +716,12 @@ curl -X POST … -d '{ "action": "undo", "token": "<undoToken>" }'
   now sitting in a target slot (a second preview kept first), answers `409
   SCHEDULE_PREVIEW_STALE`. Tokens last 15 minutes. `apply` and `undo` send the
   `schedule.changed` webhook.
+- `via` (optional, all three steps): `chat` (default), `home_missed` (the
+  Home "tasks from earlier today" card) or `fill` (placed in one click). `chat`
+  and `home_missed` are the same flow for the metrics: preview, Keep and Undo
+  record `replan_shown`, `keep_applied` and `undo_applied`, and
+  `home_missed` adds `source: home_missed` to them, so the funnel counts a Home
+  Keep. `fill` records only `fill_applied` and never counts as Keep.
 - Limit: 20 requests a minute per account.
 
 ## Export a page

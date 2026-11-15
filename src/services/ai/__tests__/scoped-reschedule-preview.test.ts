@@ -2,6 +2,7 @@ import {
   SchedulePreviewConflictError,
   applyReschedulePreview,
   createReschedulePreview,
+  replanActivationEvent,
   undoReschedulePreview,
 } from "../reschedule-preview";
 
@@ -44,7 +45,18 @@ const state: {
   blocks: Block[];
   events: { start: Date; end: Date; updatedAt: Date; id: string }[];
   writes: string[];
-} = { tasks: [], blocks: [], events: [], writes: [] };
+  schedules: { id: string; updatedAt: Date; windows: unknown[] }[];
+  personal: { start: Date; end: Date }[];
+  locks: number;
+} = {
+  tasks: [],
+  blocks: [],
+  events: [],
+  writes: [],
+  schedules: [],
+  personal: [],
+  locks: 0,
+};
 
 jest.mock("@/lib/prisma", () => {
   const fake: Record<string, unknown> = {
@@ -104,8 +116,26 @@ jest.mock("@/lib/prisma", () => {
     },
     calendarEvent: { findMany: async () => state.events },
     workSchedule: {
-      findMany: async () => [],
-      findFirst: async () => ({ id: "default" }),
+      findMany: async () => state.schedules,
+      findFirst: async () =>
+        state.schedules[0] ? { ...state.schedules[0], isDefault: true } : null,
+      create: async ({
+        data,
+      }: {
+        data: { windows: { create: unknown[] } };
+      }) => {
+        const created = {
+          id: "ws1",
+          updatedAt: new Date("2026-11-18T09:07:00Z"),
+          windows: data.windows.create.map((w, i) => ({
+            ...(w as object),
+            id: `win${i}`,
+            sortOrder: 0,
+          })),
+        };
+        state.schedules.push(created);
+        return created;
+      },
     },
     userSettings: { findUnique: async () => ({ timeZone: "Europe/Zurich" }) },
     autoScheduleSettings: {
@@ -120,6 +150,10 @@ jest.mock("@/lib/prisma", () => {
     schedulingPreferences: { findUnique: async () => null },
     energyProfileWindow: { findMany: async () => [] },
     flexibleHoursOverride: { findMany: async () => [] },
+    $executeRaw: async () => {
+      state.locks += 1;
+      return 1;
+    },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(fake),
   };
   return { prisma: fake };
@@ -136,15 +170,7 @@ jest.mock("@/services/scheduling/TaskSchedulingService", () => ({
   scheduleAllTasksForUserDetailed: jest.fn(),
 }));
 jest.mock("@/services/personal-time/service", () => ({
-  personalBusyBlocks: async () => [],
-}));
-jest.mock("@/lib/work-week-server", () => ({
-  loadWeekHours: async () =>
-    Array.from({ length: 7 }, (_, day) => ({
-      day,
-      on: day >= 1 && day <= 5,
-      ranges: day >= 1 && day <= 5 ? [{ start: "09:00", end: "17:00" }] : [],
-    })),
+  personalBusyBlocks: async () => state.personal,
 }));
 jest.mock("@/lib/auth/workspace-auth", () => ({
   workspaceDataScopeWhere: () => ({}),
@@ -213,6 +239,21 @@ const snapshotOf = (id: string) => {
 beforeEach(() => {
   jest.useFakeTimers().setSystemTime(NOW);
   state.writes = [];
+  state.personal = [];
+  state.locks = 0;
+  state.schedules = [
+    {
+      id: "ws0",
+      updatedAt: new Date("2026-11-01T00:00:00Z"),
+      windows: [1, 2, 3, 4, 5].map((dayOfWeek) => ({
+        id: `w${dayOfWeek}`,
+        dayOfWeek,
+        startTime: "09:00",
+        endTime: "17:00",
+        sortOrder: 0,
+      })),
+    },
+  ];
   state.events = [
     // 12:15 to 13:15 Zurich
     {
@@ -434,5 +475,92 @@ describe("scoped reschedule preview: races and special tasks", () => {
     expect(
       new Date(change.toEnd!).getTime() - new Date(change.toStart!).getTime()
     ).toBe(30 * 60_000);
+  });
+});
+
+describe("scoped reschedule preview: first Keep, personal time, lock", () => {
+  it("keeps on the first try for a person with no work schedule yet", async () => {
+    state.schedules = [];
+    const p = await createReschedulePreview("u1", workspace, {
+      taskIds: ["missed-a"],
+    });
+    // the default schedule was created by the preview, before the context
+    // version was hashed, so Keep does not see it as a change
+    expect(state.schedules).toHaveLength(1);
+    expect(p.changes).toHaveLength(1);
+    await expect(
+      applyReschedulePreview("u1", workspace, p.previewToken)
+    ).resolves.toBeDefined();
+  });
+
+  it("does not skip tasks as own_hours when no schedule is marked default", async () => {
+    state.tasks[0].scheduleId = "ws0";
+    const p = await createReschedulePreview("u1", workspace, {
+      taskIds: ["missed-a"],
+    });
+    expect(p.changes.map((c) => c.taskId)).toEqual(["missed-a"]);
+  });
+
+  it("refuses to apply onto personal time added after the preview", async () => {
+    const p = await createReschedulePreview("u1", workspace, {
+      taskIds: ["missed-a"],
+    });
+    const start = d(p.changes[0].toStart!);
+    state.personal = [{ start, end: new Date(start.getTime() + 30 * 60_000) }];
+    await expect(
+      applyReschedulePreview("u1", workspace, p.previewToken)
+    ).rejects.toBeInstanceOf(SchedulePreviewConflictError);
+    expect(state.writes).toEqual([]);
+  });
+
+  it("checks and writes under one per-person lock", async () => {
+    const p = await createReschedulePreview("u1", workspace, {
+      taskIds: ["missed-a"],
+    });
+    await applyReschedulePreview("u1", workspace, p.previewToken);
+    expect(state.locks).toBe(1);
+    // the conflict path takes the lock too, and writes nothing
+    state.locks = 0;
+    const q = await createReschedulePreview("u1", workspace, {
+      taskIds: ["missed-b"],
+    });
+    state.tasks.find((t) => t.id === "later")!.scheduledStart = d(
+      q.changes[0].toStart!
+    );
+    state.tasks.find((t) => t.id === "later")!.scheduledEnd = d(
+      q.changes[0].toEnd!
+    );
+    state.writes = [];
+    await expect(
+      applyReschedulePreview("u1", workspace, q.previewToken)
+    ).rejects.toBeInstanceOf(SchedulePreviewConflictError);
+    expect(state.locks).toBe(1);
+    expect(state.writes).toEqual([]);
+  });
+});
+
+describe("home_missed", () => {
+  it("counts as Keep and Undo with a source, and Fill it still does not", async () => {
+    const { recordActivation } = jest.requireMock("@/lib/activation-events");
+    recordActivation.mockClear();
+    const p = await createReschedulePreview("u1", workspace, {
+      taskIds: ["missed-a"],
+      via: "home_missed",
+    });
+    const applied = await applyReschedulePreview(
+      "u1",
+      workspace,
+      p.previewToken,
+      { via: "home_missed" }
+    );
+    await undoReschedulePreview("u1", workspace, applied.undoToken, {
+      via: "home_missed",
+    });
+    expect(recordActivation.mock.calls).toEqual([
+      ["replan_shown", "u1", { source: "home_missed" }],
+      ["keep_applied", "u1", { source: "home_missed" }],
+      ["undo_applied", "u1", { source: "home_missed" }],
+    ]);
+    expect(replanActivationEvent("apply", "home_missed")).toBe("keep_applied");
   });
 });

@@ -111,6 +111,26 @@ describe("MCP: needt_reschedule_preview", () => {
     );
   });
 
+  it("offers home_missed as a via value", async () => {
+    const tool = listMcpTools().find(
+      (t) => t.name === "needt_reschedule_preview"
+    );
+    const via = (
+      tool!.inputSchema.properties as Record<string, { enum?: string[] }>
+    ).via;
+    expect(via.enum).toEqual(["chat", "fill", "home_missed"]);
+    await call("needt_reschedule_preview", {
+      action: "apply",
+      token: "p",
+      via: "home_missed",
+    });
+    expect(runReschedulePreviewAction).toHaveBeenLastCalledWith(
+      "user-1",
+      expect.anything(),
+      { action: "apply", token: "p", via: "home_missed" }
+    );
+  });
+
   it("applies with a token", async () => {
     await call("needt_reschedule_preview", { action: "apply", token: "p" });
     expect(runReschedulePreviewAction).toHaveBeenCalledWith(

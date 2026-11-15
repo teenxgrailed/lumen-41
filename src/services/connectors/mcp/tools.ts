@@ -976,10 +976,10 @@ export const MCP_TOOLS: McpTool[] = [
         .optional()
         .describe("apply: the previewToken. undo: the undoToken."),
       via: z
-        .enum(["chat", "fill"])
+        .enum(["chat", "fill", "home_missed"])
         .optional()
         .describe(
-          "chat (default): a preview card is shown and Keep applies it. fill: placed in one click, nothing shown; not counted as Keep."
+          "chat (default): a preview card is shown and Keep applies it. home_missed: the Home missed-tasks card; counts as Keep with source home_missed. fill: placed in one click, nothing shown; not counted as Keep."
         ),
     }),
     invoke: (ctx, args) =>

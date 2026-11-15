@@ -85,6 +85,19 @@ export type ScopedReplanResult = {
   unscheduled: Array<{ taskId: string; title: string; reason: string }>;
 };
 
+/**
+ * `Task.startDate` is a calendar date stored as midnight UTC. It means the
+ * start of that day in the person's zone, not 00:00 UTC (which is 01:00 or
+ * 02:00 in Zurich). Any other time of day is a real instant and stays.
+ */
+export function startDateFloor(date: Date | null, zone: string): Date | null {
+  if (!date) return null;
+  const iso = date.toISOString();
+  return iso.endsWith("T00:00:00.000Z")
+    ? fromZonedTime(`${iso.slice(0, 10)}T00:00:00`, zone)
+    : date;
+}
+
 export function overlaps(a: Interval, b: Interval): boolean {
   return a.start < b.end && b.start < a.end;
 }
@@ -103,7 +116,10 @@ export function overrideBusy(
     fromZonedTime(`${date}T${time}:00`, zone);
   return overrides.flatMap((o): Interval[] => {
     const dayStart = at(o.date, "00:00");
-    const dayEnd = new Date(at(o.date, "00:00").getTime() + 24 * 3_600_000);
+    // The next day's own start in the zone: a 23 or 25 hour day stays whole.
+    const next = new Date(`${o.date}T12:00:00.000Z`);
+    next.setUTCDate(next.getUTCDate() + 1);
+    const dayEnd = at(next.toISOString().slice(0, 10), "00:00");
     switch (o.kind) {
       case "BLOCK_WHOLE_DAY":
         return [{ start: dayStart, end: dayEnd }];

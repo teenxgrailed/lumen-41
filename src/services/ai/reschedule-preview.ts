@@ -8,6 +8,7 @@ import {
   type ScopedReplanSkipReason,
   overlaps,
   planScopedReplan,
+  startDateFloor,
 } from "@/services/scheduling/scoped-replan";
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
@@ -25,7 +26,8 @@ import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
-import { loadWeekHours } from "@/lib/work-week-server";
+import { ensureDefaultWorkSchedule } from "@/lib/work-schedules";
+import { windowsToWeek } from "@/lib/work-week";
 
 import { decryptSecret, encryptSecret } from "./encryption";
 
@@ -627,7 +629,7 @@ function decodeToken(
 }
 
 /** `chat`: a preview card is shown and Keep applies it. `fill`: one click, nothing shown. */
-export type ReschedulePreviewVia = "chat" | "fill";
+export type ReschedulePreviewVia = "chat" | "fill" | "home_missed";
 export type ReschedulePreviewOptions = {
   via?: ReschedulePreviewVia;
   /**
@@ -653,6 +655,18 @@ function onlyTasks(
  * a replan the person was shown only from the chat card; "Fill it" places in
  * one click with nothing shown, so it is `fill_applied` and never Keep.
  */
+/**
+ * Props on the activation events of a flow. The Home "missed tasks" card is a
+ * Keep like the chat card's, so it emits the same `replan_shown`,
+ * `keep_applied` and `undo_applied` (the admin funnel counts them as they
+ * are) and says where it came from in `source`.
+ */
+export function replanActivationProps(
+  via: ReschedulePreviewVia = "chat"
+): Record<string, string> {
+  return via === "home_missed" ? { source: via } : {};
+}
+
 export function replanActivationEvent(
   step: "preview" | "apply" | "undo",
   via: ReschedulePreviewVia = "chat"
@@ -686,7 +700,8 @@ export async function createReschedulePreview(
   );
   /* A proposal the person is shown; an empty one is not a replan. */
   const shown = replanActivationEvent("preview", options.via);
-  if (changes.length > 0 && shown) recordActivation(shown, userId);
+  if (changes.length > 0 && shown)
+    recordActivation(shown, userId, replanActivationProps(options.via));
   return {
     changes,
     unscheduled: staged.unscheduled,
@@ -730,7 +745,8 @@ export async function createTargetedReschedulePreview(
   };
   const changes = diffScheduleSnapshots(before, after);
   const shown = replanActivationEvent("preview", options.via);
-  if (changes.length > 0 && shown) recordActivation(shown, userId);
+  if (changes.length > 0 && shown)
+    recordActivation(shown, userId, replanActivationProps(options.via));
   return {
     changes,
     unscheduled: [],
@@ -774,23 +790,23 @@ export async function createScopedReschedulePreview(
   const now = newDate();
   const horizon = addCalendarDays(now, 22);
   const scope = workspaceDataScopeWhere(workspace, userId);
-  const [before, contextVersion, settings, hoursRow, defaultSchedule] =
-    await Promise.all([
-      captureSnapshot(userId, workspace),
-      captureContextVersion(userId),
-      prisma.userSettings.findUnique({
-        where: { userId },
-        select: { timeZone: true },
-      }),
-      prisma.autoScheduleSettings.findUnique({
-        where: { userId },
-        select: { excludedCalendars: true },
-      }),
-      prisma.workSchedule.findFirst({
-        where: { userId, isDefault: true },
-        select: { id: true },
-      }),
-    ]);
+  // First, so a person with no schedule yet gets their default one before the
+  // context version hashes the schedules; creating it later would make the
+  // first Keep look stale.
+  const defaultSchedule = await ensureDefaultWorkSchedule(prisma, userId);
+  const week = windowsToWeek(defaultSchedule.windows);
+  const [before, contextVersion, settings, hoursRow] = await Promise.all([
+    captureSnapshot(userId, workspace),
+    captureContextVersion(userId),
+    prisma.userSettings.findUnique({
+      where: { userId },
+      select: { timeZone: true },
+    }),
+    prisma.autoScheduleSettings.findUnique({
+      where: { userId },
+      select: { excludedCalendars: true },
+    }),
+  ]);
   const zone = normalizeUserTimeZone(settings?.timeZone);
   const today = new Date(
     `${formatInTimeZone(now, zone, "yyyy-MM-dd")}T00:00:00.000Z`
@@ -805,7 +821,7 @@ export async function createScopedReschedulePreview(
     userId,
     hoursRow?.excludedCalendars
   );
-  const [rows, blocks, events, personal, week, overrides] = await Promise.all([
+  const [rows, blocks, events, personal, overrides] = await Promise.all([
     prisma.task.findMany({
       where: {
         ...scope,
@@ -875,7 +891,6 @@ export async function createScopedReschedulePreview(
       select: { start: true, end: true },
     }),
     personalBusyBlocks(userId, now, horizon),
-    loadWeekHours(userId),
     prisma.flexibleHoursOverride.findMany({
       where: { userId, date: { gte: today, lt: horizon } },
       select: { date: true, kind: true, startTime: true, endTime: true },
@@ -887,7 +902,11 @@ export async function createScopedReschedulePreview(
   const plan = planScopedReplan({
     requestedIds: taskIds,
     tasks: rows.map((row) => {
-      const latest = [row.availableFrom, row.startDate, row.postponedUntil]
+      const latest = [
+        row.availableFrom,
+        startDateFloor(row.startDate, zone),
+        row.postponedUntil,
+      ]
         .filter((value): value is Date => value !== null)
         .reduce<Date | null>(
           (max, value) => (!max || value > max ? value : max),
@@ -979,7 +998,8 @@ export async function createScopedReschedulePreview(
     LOG_SOURCE
   );
   const shown = replanActivationEvent("preview", options.via);
-  if (changes.length > 0 && shown) recordActivation(shown, userId);
+  if (changes.length > 0 && shown)
+    recordActivation(shown, userId, replanActivationProps(options.via));
   return {
     changes,
     unscheduled: plan.unscheduled,
@@ -1009,7 +1029,8 @@ async function assertScopedSlotsFree(
   userId: string,
   workspace: WorkspaceAccess,
   value: ScheduleToken,
-  scope: Set<string>
+  scope: Set<string>,
+  client: SnapshotClient
 ) {
   const targets = value.after.tasks.flatMap((task) =>
     task.scheduledStart && task.scheduledEnd
@@ -1031,8 +1052,8 @@ async function assertScopedSlotsFree(
     trashedAt: null,
     status: { notIn: ["completed", "done"] },
   };
-  const [tasks, blocks] = await Promise.all([
-    prisma.task.findMany({
+  const [tasks, blocks, personal] = await Promise.all([
+    client.task.findMany({
       where: {
         ...outside,
         scheduledStart: { lt: to },
@@ -1040,7 +1061,7 @@ async function assertScopedSlotsFree(
       },
       select: { scheduledStart: true, scheduledEnd: true },
     }),
-    prisma.scheduledBlock.findMany({
+    client.scheduledBlock.findMany({
       where: {
         userId,
         taskId: { notIn: [...scope] },
@@ -1050,8 +1071,11 @@ async function assertScopedSlotsFree(
       },
       select: { start: true, end: true },
     }),
+    // Personal time (lunch, a walk) is never a place for a task either.
+    personalBusyBlocks(userId, from, to, client),
   ]);
   const taken = [
+    ...personal,
     ...tasks.flatMap((t) =>
       t.scheduledStart && t.scheduledEnd
         ? [{ start: t.scheduledStart, end: t.scheduledEnd }]
@@ -1085,8 +1109,17 @@ export async function applyReschedulePreview(
   ) {
     throw new SchedulePreviewConflictError();
   }
-  if (scope) await assertScopedSlotsFree(userId, workspace, value, scope);
-  await restoreSnapshot(userId, workspace, value.after);
+  if (scope) {
+    // Check and write under one per-person lock, so two Keeps cannot both
+    // pass the check and then both write the same slot.
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`scoped-replan:${userId}`}))`;
+      await assertScopedSlotsFree(userId, workspace, value, scope, tx);
+      await restoreSnapshot(userId, workspace, value.after, tx);
+    });
+  } else {
+    await restoreSnapshot(userId, workspace, value.after);
+  }
   const appliedAll = await captureSnapshot(userId, workspace);
   const applied = scope ? onlyTasks(appliedAll, scope) : appliedAll;
   await publishScheduleChange(userId);
@@ -1094,7 +1127,7 @@ export async function applyReschedulePreview(
   /* From the chat card, applying is the person pressing Keep. "Fill it"
      shows no preview, so it is its own event and never counts as Keep. */
   const kept = replanActivationEvent("apply", options.via);
-  if (kept) recordActivation(kept, userId);
+  if (kept) recordActivation(kept, userId, replanActivationProps(options.via));
   return {
     changes: diffScheduleSnapshots(value.before, applied),
     undoToken: encodeToken(
@@ -1132,7 +1165,8 @@ export async function undoReschedulePreview(
   await publishScheduleChange(userId);
   logger.info("Undid schedule preview", { userId }, LOG_SOURCE);
   const undone = replanActivationEvent("undo", options.via);
-  if (undone) recordActivation(undone, userId);
+  if (undone)
+    recordActivation(undone, userId, replanActivationProps(options.via));
   return { changes: diffScheduleSnapshots(value.after, value.before) };
 }
 

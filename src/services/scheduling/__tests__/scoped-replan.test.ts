@@ -1,6 +1,6 @@
 import { type WeekHours } from "@/lib/work-week";
 
-import { planScopedReplan } from "../scoped-replan";
+import { planScopedReplan, startDateFloor } from "../scoped-replan";
 
 jest.mock("@/lib/prisma", () => ({ prisma: {} }));
 
@@ -425,5 +425,42 @@ describe("planScopedReplan: split, blocked and not-yet tasks", () => {
       { taskId: "waits", reason: "blocked" },
       { taskId: "own", reason: "own_hours" },
     ]);
+  });
+});
+
+describe("planScopedReplan: zone-aware days", () => {
+  it("treats a startDate as the start of that day in the person's zone", () => {
+    // 2026-11-23 is stored as midnight UTC; in Zurich the day starts at 23:00Z
+    expect(
+      startDateFloor(d("2026-11-23T00:00:00.000Z"), ZONE)?.toISOString()
+    ).toBe("2026-11-22T23:00:00.000Z");
+    // a real instant stays as it is
+    expect(
+      startDateFloor(d("2026-11-23T10:30:00.000Z"), ZONE)?.toISOString()
+    ).toBe("2026-11-23T10:30:00.000Z");
+    expect(startDateFloor(null, ZONE)).toBeNull();
+  });
+
+  it("blocks all of a 25 hour day, not 24 hours of it", () => {
+    // 25.10.2026 is the day the clocks go back in Zurich. Sundays only,
+    // open nearly all day; the whole day is blocked.
+    const result = plan({
+      requestedIds: ["a"],
+      now: d("2026-10-24T12:00:00Z"),
+      week: week({ 0: [{ start: "00:00", end: "23:59" }] }),
+      overrides: [
+        {
+          date: "2026-10-25",
+          kind: "BLOCK_WHOLE_DAY",
+          startTime: null,
+          endTime: null,
+        },
+      ],
+      tasks: [task("a", "2026-10-24T07:00:00Z", "2026-10-24T08:00:00Z")],
+    });
+    // with a +24h end the last local hour of the 25th (22:00Z) stayed free
+    expect(result.moves[0].to.start.getTime()).toBeGreaterThanOrEqual(
+      d("2026-10-31T23:00:00Z").getTime()
+    );
   });
 });
