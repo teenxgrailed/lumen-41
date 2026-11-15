@@ -17,7 +17,7 @@ on:
       screens:
         description: "Comma list of name=path"
         required: false
-        default: "home=/today,tasks=/tasks,calendar=/calendar,goals=/goals,projects=/projects,budget=/budget,loading=/budget"
+        default: "home=/today,tasks=/tasks,calendar=/calendar,goals=/goals,projects=/projects,budget=/budget"
         type: string
       scheme:
         description: Colour scheme
@@ -27,6 +27,11 @@ on:
         options:
           - light
           - dark
+      rich:
+        description: Add the richer sample data (more projects, goals, tasks, habits)
+        required: false
+        default: true
+        type: boolean
       flags:
         description: "Feature flags to turn on for everyone in the throwaway database (comma list)"
         required: false
@@ -173,6 +178,14 @@ jobs:
           STORE_IDS_FILE: ${{ runner.temp }}/ids.json
         run: npx tsx .github/store-screenshots/seed.ts all
 
+      - name: Richer sample data (projects, goals, a full day, overdue, habits)
+        if: ${{ inputs.rich }}
+        working-directory: app
+        run: |
+          mkdir -p .github/design-shots
+          cp ../tools/.github/design-shots/seed-rich.ts .github/design-shots/seed-rich.ts
+          npx tsx .github/design-shots/seed-rich.ts
+
       - name: Shots
         working-directory: app
         env:
@@ -183,6 +196,7 @@ jobs:
           node ./design-shots.mjs "$RUNNER_TEMP/cookie.txt" "$RUNNER_TEMP/shots" "$SCREENS" "$SCHEME"
 
       - name: Artifact name
+        if: ${{ always() }}
         id: name
         env:
           REF: ${{ inputs.ref }}
