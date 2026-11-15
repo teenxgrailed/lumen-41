@@ -177,7 +177,7 @@ export function LearnLessonView({
       <BackTo href={back} label={topicTitle} />
       <header className="ln-head is-lesson">
         <span className="ln-head-meta">
-          {sample ? "Sample · " : ""}
+          {sample && lesson.source !== "Sample" ? "Sample · " : ""}
           {lessonSourceLine(lesson)}
         </span>
         <h1 className="ln-title is-lesson">{lesson.title}</h1>

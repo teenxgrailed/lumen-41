@@ -29,8 +29,14 @@
   gap: 16px;
   padding-bottom: 48px;
 }
+/* The phone has no shell gutter around a route: Learn keeps its own 16px
+   sides, starts under the status bar (--v3-top) and ends above the dock fog. */
 .needt-v3[data-ui="phone"] .ln-screen {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 112px);
+  padding: var(--v3-top, 52px) 16px
+    max(
+      calc(112px + var(--v3-dock-lift, 20px)),
+      calc(var(--ps-fog-h, 128px) + 16px)
+    );
 }
 
 /* ---------- header ---------- */
