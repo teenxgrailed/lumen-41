@@ -232,6 +232,19 @@ describe("safe reload", () => {
     gate.dispose();
   });
 
+  it("after a bfcache restore (pageshow persisted) a cancelled reload clears the word again", () => {
+    const { gate, onCancel } = setup();
+    gate.request();
+    gate.routeChanged();
+    window.dispatchEvent(new Event("pagehide"));
+    const show = new Event("pageshow");
+    Object.defineProperty(show, "persisted", { value: true });
+    window.dispatchEvent(show);
+    jest.advanceTimersByTime(COMMIT_MS + CANCEL_GRACE_MS);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    gate.dispose();
+  });
+
   it("reloads once, and not again within a minute", () => {
     const store = storage();
     const first = setup(store);
@@ -290,6 +303,27 @@ describe("safe reload", () => {
       setVisibility("visible");
       jest.advanceTimersByTime(60_000);
       expect(reload).not.toHaveBeenCalled();
+      gate.dispose();
+    });
+
+    it("hidden long, focus in an untouched field on return: no reload", () => {
+      const input = document.createElement("input");
+      document.body.appendChild(input);
+      const { gate, reload, onCommit } = setup();
+      hideDirty(gate);
+      setUnsavedWork("page:x", false);
+      input.focus();
+      now += BACKGROUND_RELOAD_MS;
+      setVisibility("visible");
+      jest.advanceTimersByTime(60_000);
+      expect(onCommit).not.toHaveBeenCalled();
+      expect(reload).not.toHaveBeenCalled();
+      // Same return with the focus elsewhere does reload (control).
+      input.blur();
+      setVisibility("hidden");
+      now += BACKGROUND_RELOAD_MS;
+      setVisibility("visible");
+      expect(onCommit).toHaveBeenCalledTimes(1);
       gate.dispose();
     });
 

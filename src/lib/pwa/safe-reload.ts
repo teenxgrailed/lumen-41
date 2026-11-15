@@ -192,13 +192,22 @@ export function createSafeReload(args: {
     const since = hiddenAt;
     hiddenAt = null;
     // Back after a long time away. A short look away reloads nothing.
-    if (since !== null && now() - since >= BACKGROUND_RELOAD_MS) attempt();
+    if (since === null || now() - since < BACKGROUND_RELOAD_MS) return;
+    // The cursor is in a field: the person is about to type, even if nothing
+    // was typed yet. Wait for the next route change instead.
+    if (isEditable(doc.activeElement)) return;
+    attempt();
+  };
+  const onPageShow = (event: PageTransitionEvent) => {
+    // Restored from the back/forward cache: the page is not leaving after all.
+    if (event.persisted) leaving = false;
   };
 
   doc.addEventListener("input", onInput, true);
   doc.addEventListener("visibilitychange", onVisibility);
   const win = doc.defaultView;
   win?.addEventListener("pagehide", onPageHide);
+  win?.addEventListener("pageshow", onPageShow);
 
   return {
     request() {
@@ -213,6 +222,7 @@ export function createSafeReload(args: {
       doc.removeEventListener("input", onInput, true);
       doc.removeEventListener("visibilitychange", onVisibility);
       win?.removeEventListener("pagehide", onPageHide);
+      win?.removeEventListener("pageshow", onPageShow);
       timers.forEach(clearTimeout);
       timers.clear();
     },
