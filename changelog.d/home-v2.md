@@ -1,0 +1,1 @@
+- Today has a new three-block layout behind a switch: one Now card with the next thing to do, the day list, all overdue work as a single "N overdue, Sort out" row, and the side panels in the project-card style with a progress ring. The Sunday review line now sits inside the column.

@@ -82,6 +82,7 @@ import {
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
+import { OverdueRow, RailFrame, dominant, ratio } from "./HomeV2";
 import { OnboardingResumeBanner } from "./OnboardingResumeBanner";
 import { ReviewCard } from "./ReviewCard";
 import { SampleBanner } from "./SampleBanner";
@@ -128,6 +129,7 @@ import {
 } from "./ha";
 import { useHaBrief } from "./ha/useHaBrief";
 import { highlightTask } from "./highlight";
+import { hhmm, nowKicker, pickNow } from "./now";
 import { anytimeOpen, lateMovable, spreadLeads } from "./spread";
 import { blockedMinutes, minutesAhead, timeLeft } from "./timeleft";
 import { useEndDayNudge } from "./useEndDayNudge";
@@ -149,7 +151,7 @@ const BACK_MS = 320;
 
 type Tab = HomeTab;
 
-function DesktopHome({ ctl }: { ctl: HomeController }) {
+function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
   const router = useRouter();
   const tz = useTimeZone();
   const reduced = useNeedtReducedMotion();
@@ -228,7 +230,9 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
   const highlight = useHighlight(today);
   const setHighlight = useSetHighlight(today);
   const hlTask = highlightTask(allTasks, highlight.data?.taskId);
-  const hlOpenId = hlTask && !hlTask.done ? hlTask.id : null;
+  // Home v2 has no separate highlight card, so nothing is lifted out of the
+  // lists; the flag off keeps the card and the lift as they were.
+  const hlOpenId = !v2 && hlTask && !hlTask.done ? hlTask.id : null;
   const shown = (t: V3Task) =>
     (!t.done || !!leaving[t.id]) && t.id !== hlOpenId;
   const lateOpen = late.filter((t) => !leaving[t.id]);
@@ -589,6 +593,182 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     settings.data?.weekStartDay ?? "monday"
   );
 
+  const v2day = v2 && tab === "day";
+  const aux = (
+    <>
+      {review.show ? (
+        <ReviewCard onStart={review.start} onLater={review.later} />
+      ) : null}
+      {nudge.show ? (
+        <EndDayNudge onEndDay={finish.show} onDismiss={nudge.dismiss} />
+      ) : null}
+      {haBrief.locked || haBrief.lines.length || haBrief.note ? (
+        <div className="ha-dk-pad ha-dk-brief">
+          <HaScope>
+            <HaBrief
+              lines={haBrief.lines.slice(0, 1)}
+              note={haBrief.note}
+              locked={haBrief.locked}
+              onClose={haBrief.dismiss}
+              onUpgrade={() => openPaywall("Morning brief")}
+            />
+          </HaScope>
+        </div>
+      ) : null}
+    </>
+  );
+  const allDoneNode = (
+    <HaScope>
+      <HaAllDone
+        {...haAllDoneOf({
+          count: day.length,
+          focusMinutes: homeStats.week?.days.find((d) => d.date === today)
+            ?.focusMinutes,
+          open: {
+            late: lateOpen.length,
+            inbox: inboxOpen.length,
+          },
+          picks: finishPicks,
+          freeMinutes: freeMinutesLeft(
+            cap,
+            today,
+            nowHour,
+            sched.filter((x) => x.event)
+          ),
+        })}
+        onPull={(id) => {
+          const p = finishPicks.find((x) => x.task.id === id);
+          if (p) void finish.doToday(p);
+        }}
+        onEndDay={finish.show}
+        onSeeTomorrow={seeTomorrow}
+        onUndo={undoLast}
+      />
+    </HaScope>
+  );
+
+  // HOME V2: the one Now card. The rule is `pickNow` (now.ts).
+  const nowPick = v2day
+    ? pickNow({
+        schedule: sched,
+        dayOpen: pickDay,
+        lateOpen: pickLate,
+        nowHour,
+        today,
+        skipped,
+      })
+    : null;
+  const nowTask = nowPick?.task ?? null;
+  const nowNode = !nowPick ? (
+    <NextUpNone closed={closedDay} />
+  ) : nowPick.event ? (
+    <HaScope>
+      <HaHighlight
+        state="nextup"
+        kicker={nowKicker(nowPick)}
+        card={{
+          id: nowPick.event.key,
+          title: nowPick.event.title,
+          time: hhmm(nowPick.event.at),
+          dur: dur(nowPick.event.len),
+          sub: "On your calendar",
+        }}
+        actions={
+          <button
+            type="button"
+            className="ha-btn is-primary is-lg"
+            data-hv2-open-calendar=""
+            onClick={() => router.push("/calendar")}
+          >
+            Open calendar
+          </button>
+        }
+      />
+    </HaScope>
+  ) : nowTask ? (
+    <HaScope>
+      <HaHighlight
+        state="nextup"
+        kicker={nowKicker(nowPick)}
+        late={nowPick.kind === "late"}
+        completing={leaving[nowTask.id] === "strike"}
+        card={haTaskCard(
+          nowTask,
+          today,
+          nowPick.kind === "late"
+            ? nextUpNote(
+                {
+                  task: nowTask,
+                  after: null,
+                  moreLate: Math.max(0, pickLate.length - 1),
+                  canSkip: true,
+                },
+                nowHour,
+                today
+              )
+            : hlSub(
+                nowTask,
+                dayOpen.length > 1
+                  ? `then ${dayOpen.length - 1} more today`
+                  : ""
+              )
+        )}
+        onSkip={
+          nowPick.canSkip
+            ? () =>
+                setSkipped((sk) =>
+                  skipNext(
+                    sk,
+                    {
+                      task: nowTask,
+                      after: null,
+                      moreLate: 0,
+                      canSkip: true,
+                    },
+                    [...lateOpen, ...dayOpen].filter((t) => !sk.includes(t.id))
+                      .length
+                  )
+                )
+            : undefined
+        }
+        onStart={() => void startFocusOn(nowTask)}
+        onDone={() => check(nowTask)}
+        onOpen={() => open(nowTask.id)}
+      />
+    </HaScope>
+  ) : null;
+
+  const lateActs = (
+    <span className="hd-late-acts">
+      {lateIds.length ? (
+        <button
+          type="button"
+          className={`nx-btn nx-btn-sm ${spreadFirst ? "nx-btn-secondary" : "nx-btn-text"} hd-spread`}
+          data-hd-spread=""
+          disabled={spreader.busy}
+          aria-busy={spreader.busy || undefined}
+          onClick={() => void spreader.spread(lateIds)}
+        >
+          Spread
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className={`nx-btn nx-btn-sm ${spreadFirst ? "nx-btn-text" : "nx-btn-secondary"} hd-move-today`}
+        onClick={() => void moveToToday()}
+      >
+        Move to today
+      </button>
+    </span>
+  );
+  const LATE_NOTE =
+    "Move to today puts them all on today. Spread gives each one the next day with room this week.";
+  const overdueRow = lateShown.length ? (
+    <OverdueRow count={lateShown.length} note={LATE_NOTE} actions={lateActs}>
+      <Capped list={lateShown} render={(t) => row(t, true)} />
+    </OverdueRow>
+  ) : null;
+
   const lateFold = lateShown.length ? (
     <Fold
       title="Overdue"
@@ -596,30 +776,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       count={lateShown.length}
       open={!fold.late}
       onToggle={flip("late")}
-      note="Move to today puts them all on today. Spread gives each one the next day with room this week."
-      action={
-        <span className="hd-late-acts">
-          {lateIds.length ? (
-            <button
-              type="button"
-              className={`nx-btn nx-btn-sm ${spreadFirst ? "nx-btn-secondary" : "nx-btn-text"} hd-spread`}
-              data-hd-spread=""
-              disabled={spreader.busy}
-              aria-busy={spreader.busy || undefined}
-              onClick={() => void spreader.spread(lateIds)}
-            >
-              Spread
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={`nx-btn nx-btn-sm ${spreadFirst ? "nx-btn-text" : "nx-btn-secondary"} hd-move-today`}
-            onClick={() => void moveToToday()}
-          >
-            Move to today
-          </button>
-        </span>
-      }
+      note={LATE_NOTE}
+      action={lateActs}
     >
       <Capped list={lateShown} render={(t) => row(t, true)} />
     </Fold>
@@ -700,7 +858,60 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     ),
     inbox: inboxTile,
   };
-  const rail = shownRailTiles(blocks).filter((id) => railTiles[id]);
+  // HOME V2: every rail panel wears the project-card frame of Tasks: a frame
+  // in the hue of the project that fills it most, a ring for its progress.
+  const railOut: Record<RailTile, ReactNode> = v2day
+    ? {
+        todayBar: railTiles.todayBar ? (
+          <RailFrame
+            label="today"
+            hue={hueOf(null)}
+            pct={ratio(stats.done, stats.total)}
+          >
+            {railTiles.todayBar}
+          </RailFrame>
+        ) : null,
+        habits: railTiles.habits ? (
+          <RailFrame
+            label="habits"
+            hue={hueOf(dominant(habits.map((h) => h.projectId)))}
+            pct={ratio(habitsKept, haHabits.length)}
+          >
+            {railTiles.habits}
+          </RailFrame>
+        ) : null,
+        week: weekCard ? (
+          <RailFrame
+            label="week"
+            hue={hueOf(
+              dominant(week.flatMap((w) => w.tasks.map((t) => t.projectId)))
+            )}
+            pct={ratio(totals.done, totals.tasks)}
+          >
+            {railTiles.week}
+          </RailFrame>
+        ) : null,
+        schedule: (
+          <RailFrame
+            label="schedule"
+            hue={hueOf(dominant(sched.map((x) => x.projectId)))}
+            pct={ratio(sched.filter((x) => x.done).length, sched.length)}
+          >
+            {railTiles.schedule}
+          </RailFrame>
+        ),
+        inbox: (
+          <RailFrame
+            label="inbox"
+            hue={hueOf(dominant(inboxOpen.map((t) => t.projectId)))}
+            pct={null}
+          >
+            {railTiles.inbox}
+          </RailFrame>
+        ),
+      }
+    : railTiles;
+  const rail = shownRailTiles(blocks).filter((id) => railOut[id]);
 
   return (
     <div className="hd-home hd-screen" data-v3-screen="home">
@@ -779,66 +990,35 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <OnboardingResumeBanner />
           <SampleBanner />
-          {review.show ? (
-            <ReviewCard onStart={review.start} onLater={review.later} />
-          ) : null}
-          {nudge.show ? (
-            <EndDayNudge onEndDay={finish.show} onDismiss={nudge.dismiss} />
-          ) : null}
-          {haBrief.locked || haBrief.lines.length || haBrief.note ? (
-            <div className="ha-dk-pad ha-dk-brief">
-              <HaScope>
-                <HaBrief
-                  lines={haBrief.lines.slice(0, 1)}
-                  note={haBrief.note}
-                  locked={haBrief.locked}
-                  onClose={haBrief.dismiss}
-                  onUpgrade={() => openPaywall("Morning brief")}
-                />
-              </HaScope>
-            </div>
-          ) : null}
+          {v2day ? null : aux}
           <div
             className="hd-body"
             data-hd-mode={tab}
             data-hd-rail={rail.length || tab === "week" ? "on" : "off"}
           >
             <div className="hd-col">
-              {blocks.nextUp || (tab === "day" && closedDay) ? (
+              {v2day ? (
+                <>
+                  {blocks.nextUp || closedDay ? (
+                    <div
+                      className="hd-cards ha-cards"
+                      data-hd-cards=""
+                      data-hd-mode={tab}
+                      data-hv2-now=""
+                    >
+                      {closedDay ? allDoneNode : nowNode}
+                    </div>
+                  ) : null}
+                  <div className="hv2-aux">{aux}</div>
+                </>
+              ) : blocks.nextUp || (tab === "day" && closedDay) ? (
                 <div
                   className="hd-cards ha-cards"
                   data-hd-cards=""
                   data-hd-mode={tab}
                 >
                   {tab === "day" && closedDay ? (
-                    <HaScope>
-                      <HaAllDone
-                        {...haAllDoneOf({
-                          count: day.length,
-                          focusMinutes: homeStats.week?.days.find(
-                            (d) => d.date === today
-                          )?.focusMinutes,
-                          open: {
-                            late: lateOpen.length,
-                            inbox: inboxOpen.length,
-                          },
-                          picks: finishPicks,
-                          freeMinutes: freeMinutesLeft(
-                            cap,
-                            today,
-                            nowHour,
-                            sched.filter((x) => x.event)
-                          ),
-                        })}
-                        onPull={(id) => {
-                          const p = finishPicks.find((x) => x.task.id === id);
-                          if (p) void finish.doToday(p);
-                        }}
-                        onEndDay={finish.show}
-                        onSeeTomorrow={seeTomorrow}
-                        onUndo={undoLast}
-                      />
-                    </HaScope>
+                    allDoneNode
                   ) : !blocks.nextUp ? null : tab === "day" &&
                     hlTask &&
                     !hlTask.done ? (
@@ -950,7 +1130,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                         <EmptyDay onNew={newTask} plan={planButton()} />
                       ) : null}
 
-                      {taskView.overdueFirst ? lateFold : null}
+                      {taskView.overdueFirst && !v2 ? lateFold : null}
 
                       {sections.map(([name, list]) => (
                         <Fold
@@ -976,7 +1156,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                         </Fold>
                       ))}
 
-                      {taskView.overdueFirst ? null : lateFold}
+                      {v2
+                        ? overdueRow
+                        : taskView.overdueFirst
+                          ? null
+                          : lateFold}
 
                       {!closedDay && state !== "empty" ? (
                         <button
@@ -1037,7 +1221,7 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
                     </>
                   ) : (
                     rail.map((id) => (
-                      <Fragment key={id}>{railTiles[id]}</Fragment>
+                      <Fragment key={id}>{railOut[id]}</Fragment>
                     ))
                   )}
                 </Fragment>
@@ -1073,6 +1257,8 @@ const EventIcon = () => <FiCalendar size={13} aria-hidden />;
  * otherwise. The phone's state lives in `HomeFaces`, above the switch, so
  * crossing the width loses none of it.
  */
-export function HomeScreen() {
-  return <HomeFaces desktop={(ctl) => <DesktopHome ctl={ctl} />} />;
+export function HomeScreen({ v2 = false }: { v2?: boolean }) {
+  return (
+    <HomeFaces v2={v2} desktop={(ctl) => <DesktopHome ctl={ctl} v2={v2} />} />
+  );
 }

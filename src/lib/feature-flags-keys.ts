@@ -106,6 +106,13 @@ export const BUDGET_MODULE = "budget_module";
  */
 export const BUDGET_PRO_ACCESS = "budget_pro_access";
 
+/**
+ * Home ("Today") in three blocks: one Now card, the day list, overdue as one
+ * row, and the right rail in the project-card frame. Off for everybody; with
+ * it off the current Home renders unchanged, so rollback is one switch.
+ */
+export const HOME_V2 = "home_v2";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -121,6 +128,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [AI_CHATGPT_PLAN]:
     "Needt AI on the person's own ChatGPT plan (needs OPENAI_SIWC_CLIENT_ID).",
   [BUDGET_MODULE]: "Needt Budget as a place in the sidebar (frame).",
+  [HOME_V2]:
+    "Home in three blocks: Now card, day list, overdue row, framed rail.",
   [BUDGET_PRO_ACCESS]:
     "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",
 };

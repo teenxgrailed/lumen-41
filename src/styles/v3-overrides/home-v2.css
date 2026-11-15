@@ -1,0 +1,111 @@
+/*
+ * HOME V2 (flag `home_v2`). Three blocks: the Now card, the day, one overdue
+ * row; the rail panels wear the project-card frame of Tasks (tasks.css
+ * `.wk-mcard`: a frame in the hue at 24%, a white plate, a ring). Every grey
+ * is a ladder token, the chrome type is 13px / 12px, the accent is never a
+ * fill. Nothing here applies without `.hv2-*`, so the flag off changes nothing.
+ */
+
+/* the Sunday review, the End day nudge and the brief: inside the column,
+   one line each, never a bar above the whole screen */
+.needt-v3 .hv2-aux {
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .hv2-aux:empty {
+  display: none;
+}
+.needt-v3 .hv2-aux .nd-card {
+  margin: 0 0 var(--space-8);
+  padding: 4px 4px 4px 12px;
+}
+.needt-v3 .hv2-aux .nd-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 400 13px/18px var(--font-sans);
+}
+.needt-v3 .hv2-aux .ha-dk-pad {
+  margin: 0 0 var(--space-8);
+}
+
+/* overdue as ONE row */
+.needt-v3 .hv2-late {
+  margin: var(--space-8) 0;
+}
+.needt-v3 .hv2-late-head {
+  display: flex;
+}
+.needt-v3 .hv2-late-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--fill-3);
+  cursor: pointer;
+  text-align: left;
+  font: 500 13px/18px var(--font-sans);
+  color: var(--text-primary);
+  transition: background-color var(--transition-hover);
+}
+.needt-v3 .hv2-late-main:hover {
+  background: var(--fill-4);
+}
+.needt-v3 .hv2-late-n {
+  color: var(--destructive);
+}
+.needt-v3 .hv2-late-go {
+  color: var(--text-secondary);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.needt-v3 .hv2-late-body {
+  padding: var(--space-8) 0 0;
+}
+.needt-v3 .hv2-late-acts {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-4);
+}
+.needt-v3 .hv2-late-note {
+  margin: 0 0 var(--space-8);
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-muted);
+}
+
+/* the rail panel in the project-card frame */
+.needt-v3 .hv2-frame {
+  padding: 5px;
+  border-radius: 16px;
+  box-shadow: var(--shadow-ring);
+}
+.needt-v3 .hv2-plate {
+  position: relative;
+  border-radius: 11px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  padding: var(--space-11) var(--space-16);
+}
+/* the plate is the only card: the panel inside gives up its own surface */
+.needt-v3 .hd-rail .hv2-plate .ha-card,
+.needt-v3 .hd-rail .hv2-plate .hd-panel {
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  border-radius: 0;
+}
+.needt-v3 .hv2-ring {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  display: inline-flex;
+}
+.needt-v3 .hv2-plate .ha-dk-card-t,
+.needt-v3 .hv2-plate .hd-inbox-head {
+  padding-right: 30px;
+}
