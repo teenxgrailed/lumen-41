@@ -1,0 +1,199 @@
+name: Design shots
+
+# Screens of the signed-in app for design review: desktop 1440x1000 and iPhone 390x844.
+# Run by hand (Actions > Design shots > Run workflow), once on main for "before" and
+# once on a PR branch for "after". The app runs on a throwaway Postgres/Redis/Next
+# server on the runner (the same CI-only secrets as store-screenshots.yml). It is signed
+# in as the CI Pro account with the sample planner the App Review demo account gets.
+# Nothing touches production. The PNGs land in the artifact `design-shots-<ref>`.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or SHA to shoot
+        required: false
+        default: main
+        type: string
+      screens:
+        description: "Comma list of name=path"
+        required: false
+        default: "home=/today,tasks=/tasks,calendar=/calendar,goals=/goals,projects=/projects,budget=/budget,loading=/budget"
+        type: string
+      scheme:
+        description: Colour scheme
+        required: false
+        default: light
+        type: choice
+        options:
+          - light
+          - dark
+      flags:
+        description: "Feature flags to turn on for everyone in the throwaway database (comma list)"
+        required: false
+        default: "budget_module"
+        type: string
+
+concurrency:
+  group: needt-design-shots-${{ inputs.ref }}-${{ inputs.scheme }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      CI: "true"
+      DATABASE_URL: postgresql://needt:needt@localhost:5432/needt_test
+      DIRECT_URL: postgresql://needt:needt@localhost:5432/needt_test
+      REDIS_URL: redis://localhost:6379
+      NEXTAUTH_URL: http://127.0.0.1:3000
+      NEXTAUTH_SECRET: needt-ci-only-secret-not-valid-outside-github-actions
+      RATE_LIMIT_HASH_SECRET: needt-ci-rate-limit-hash-secret
+      NODE_OPTIONS: --max-old-space-size=6144
+      PROBE_EMAIL: ci-pro@needt.local
+      PROBE_PASSWORD: Needt-ci-Password1
+    services:
+      postgres:
+        image: mirror.gcr.io/library/postgres:16-alpine
+        env:
+          POSTGRES_USER: needt
+          POSTGRES_PASSWORD: needt
+          POSTGRES_DB: needt_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U needt -d needt_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: mirror.gcr.io/library/redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      # The shooting scripts come from this workflow's own commit, the app from `ref`.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: tools
+          sparse-checkout: .github
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
+          path: app
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install and seed
+        working-directory: app
+        run: |
+          set -euo pipefail
+          npm ci --legacy-peer-deps
+          npx prisma generate
+          npx prisma migrate deploy
+          npx tsx prisma/ci-seed.ts
+          for attempt in 1 2 3; do
+            timeout 480 npx playwright install --with-deps chromium && exit 0
+            echo "playwright install attempt $attempt failed"
+          done
+          exit 1
+
+      - name: Feature flags
+        if: ${{ inputs.flags != '' }}
+        env:
+          FLAGS: ${{ inputs.flags }}
+        run: |
+          set -euo pipefail
+          for f in $(echo "$FLAGS" | tr ',' ' '); do
+            case "$f" in *[!a-z0-9_]*) echo "bad flag name: $f"; exit 1;; esac
+            PGPASSWORD=needt psql -h localhost -U needt -d needt_test -v ON_ERROR_STOP=1 -c \
+              "INSERT INTO \"FeatureFlag\" (key, enabled, \"rolloutPercentage\", \"updatedAt\") VALUES ('$f', true, 100, now())
+               ON CONFLICT (key) DO UPDATE SET enabled = true, \"rolloutPercentage\" = 100, \"updatedAt\" = now();"
+            echo "flag $f on"
+          done
+
+      - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: app/.next/cache
+          key: next-cache-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}-${{ inputs.ref }}
+          restore-keys: next-cache-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}-
+
+      - name: Build and start the web app
+        working-directory: app
+        run: |
+          set -euo pipefail
+          npm run build
+          nohup npx next start -H 127.0.0.1 -p 3000 > "$RUNNER_TEMP/next.log" 2>&1 < /dev/null &
+          disown
+          for i in $(seq 1 60); do
+            curl -fsS -o /dev/null http://127.0.0.1:3000/auth/signin && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/next.log"
+          exit 1
+
+      # What the sign-in form posts (same as store-screenshots.yml).
+      - name: Session
+        run: |
+          set -euo pipefail
+          HOST=http://127.0.0.1:3000
+          JAR="$RUNNER_TEMP/jar.txt"
+          curl -fsS -c "$JAR" -b "$JAR" -o "$RUNNER_TEMP/csrf.json" "$HOST/api/auth/csrf"
+          CSRF="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["csrfToken"])' "$RUNNER_TEMP/csrf.json")"
+          curl -sS -c "$JAR" -b "$JAR" -o /dev/null -w "callback %{http_code}\n" \
+            -X POST "$HOST/api/auth/callback/credentials" \
+            --data-urlencode "csrfToken=$CSRF" \
+            --data-urlencode "email=$PROBE_EMAIL" \
+            --data-urlencode "password=$PROBE_PASSWORD" \
+            --data-urlencode "callbackUrl=$HOST/today" \
+            --data-urlencode "json=true"
+          curl -fsS -b "$JAR" -o "$RUNNER_TEMP/session.json" "$HOST/api/auth/session"
+          python3 -c "import json,sys; u=(json.load(open(sys.argv[1])).get('user') or {}); print('session for', u.get('email')); sys.exit(0 if u.get('email')==sys.argv[2] else 1)" "$RUNNER_TEMP/session.json" "$PROBE_EMAIL"
+          awk -F'\t' '$6 ~ /^next-auth\.session-token/ {print $6"="$7}' "$JAR" | head -n 1 > "$RUNNER_TEMP/cookie.txt"
+          test -s "$RUNNER_TEMP/cookie.txt"
+          # The first signed-in API request creates the personal workspace the seeded rows belong to.
+          curl -fsS -b "$JAR" -o /dev/null -w "tasks %{http_code}\n" "$HOST/api/tasks"
+
+      - name: The sample planner (what the App Review demo account gets)
+        working-directory: app
+        env:
+          STORE_IDS_FILE: ${{ runner.temp }}/ids.json
+        run: npx tsx .github/store-screenshots/seed.ts all
+
+      - name: Shots
+        working-directory: app
+        env:
+          SCREENS: ${{ inputs.screens }}
+          SCHEME: ${{ inputs.scheme }}
+        run: |
+          cp ../tools/.github/design-shots/shots.mjs ./design-shots.mjs
+          node ./design-shots.mjs "$RUNNER_TEMP/cookie.txt" "$RUNNER_TEMP/shots" "$SCREENS" "$SCHEME"
+
+      - name: Artifact name
+        id: name
+        env:
+          REF: ${{ inputs.ref }}
+          SCHEME: ${{ inputs.scheme }}
+        run: echo "value=design-shots-$(echo "$REF" | tr -c 'A-Za-z0-9._-' '-' | cut -c1-60)-$SCHEME" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ always() }}
+        with:
+          name: ${{ steps.name.outputs.value }}
+          path: |
+            ${{ runner.temp }}/shots
+            ${{ runner.temp }}/next.log
+          retention-days: 14
