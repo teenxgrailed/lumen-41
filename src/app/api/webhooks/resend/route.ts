@@ -40,12 +40,18 @@ export async function POST(request: NextRequest) {
     body,
   });
   if (!verdict.ok || !id) {
-    /* Reason and clock skew only: never the secret, signature or body. */
-    logger.warn(
+    /* Error level so the reason is kept in the Log table: a warn line only
+       reached stdout and was lost on restart (15.11.2026). Reason, clock skew
+       and shapes only: never the secret, signature or body. */
+    const signature = request.headers.get("svix-signature");
+    logger.error(
       "Resend webhook rejected",
       {
         reason: verdict.ok ? "missing_headers" : verdict.reason,
         skewSeconds: verdict.ok ? null : verdict.skewSeconds,
+        svixTimestamp: request.headers.get("svix-timestamp"),
+        bodyLength: body.length,
+        signatureCount: signature ? signature.split(" ").length : 0,
       },
       LOG_SOURCE
     );
