@@ -10,6 +10,7 @@ import TwitterProvider from "next-auth/providers/twitter";
 import { createPrivateKey, sign } from "node:crypto";
 
 import { verifiedProviderEmail } from "@/lib/auth/account-linking";
+import { e2eOAuthBase } from "@/lib/auth/e2e-oauth";
 import type { SignInProviderId } from "@/lib/auth/sign-in-provider-ids";
 import { newDate } from "@/lib/date-utils";
 import { GOOGLE_SIGN_IN_SCOPES } from "@/lib/google-oauth-scopes";
@@ -367,7 +368,30 @@ export function buildSignInProviders(
   const providers: NextAuthOptions["providers"] = [];
   const on = (id: SignInProviderId) => isProviderConfigured(id, config);
 
-  if (on("google")) {
+  const e2eBase = e2eOAuthBase();
+  if (e2eBase) {
+    /* The end-to-end suite's mock identity provider (e2e-oauth.ts): plain
+       OAuth 2 with PKCE and state, a userinfo endpoint, no ID token. */
+    const google = GoogleProvider({
+      clientId: "e2e-client",
+      clientSecret: "e2e-secret",
+      allowDangerousEmailAccountLinking: true,
+    }) as AnyOAuth;
+    providers.push(
+      withVerifiedEmail("google", {
+        ...google,
+        wellKnown: undefined,
+        idToken: false,
+        checks: ["pkce", "state"],
+        authorization: {
+          url: `${e2eBase}/authorize`,
+          params: { scope: SIGN_IN_SCOPES.google },
+        },
+        token: `${e2eBase}/token`,
+        userinfo: `${e2eBase}/userinfo`,
+      } as AnyOAuth)
+    );
+  } else if (on("google")) {
     providers.push(
       withVerifiedEmail(
         "google",

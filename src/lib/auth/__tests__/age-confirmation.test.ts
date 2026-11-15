@@ -7,8 +7,13 @@ import {
   issueAgeToken,
   verifyAgeToken,
 } from "@/lib/auth/age-confirmation";
+import { runWithAuthRequest } from "@/lib/auth/request-context";
 import { isExistingOAuthUser } from "@/lib/auth/signups";
+import { logger } from "@/lib/logger";
 
+jest.mock("@/lib/logger", () => ({
+  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
 const mockJar = { get: jest.fn() };
 jest.mock("next/headers", () => ({
   cookies: jest.fn(async () => mockJar),
@@ -85,5 +90,43 @@ describe("ageConfirmationGate", () => {
     await expect(ageConfirmationGate(google)).resolves.toBe(
       AGE_CONFIRM_REDIRECT
     );
+  });
+
+  describe("with the request context the route handler sets", () => {
+    beforeEach(() => {
+      jest.mocked(isExistingOAuthUser).mockResolvedValue(false);
+    });
+
+    it("reads the cookie it passed in, even when next/headers throws", async () => {
+      jest.mocked(cookies).mockRejectedValue(new Error("no request scope"));
+      const ageToken = issueAgeToken(NOW);
+      await expect(
+        runWithAuthRequest({ ageToken }, () => ageConfirmationGate(google))
+      ).resolves.toBe(true);
+    });
+
+    it("trusts the context over next/headers: no token in it means refused", async () => {
+      mockJar.get.mockReturnValue({ value: issueAgeToken(NOW) });
+      await expect(
+        runWithAuthRequest({}, () => ageConfirmationGate(google))
+      ).resolves.toBe(AGE_CONFIRM_REDIRECT);
+    });
+
+    it("falls back to next/headers outside the route handler", async () => {
+      mockJar.get.mockReturnValue({ value: issueAgeToken(NOW) });
+      await expect(ageConfirmationGate(google)).resolves.toBe(true);
+    });
+
+    it("logs, instead of hiding, a failed fallback read", async () => {
+      jest.mocked(cookies).mockRejectedValue(new Error("no request scope"));
+      await expect(ageConfirmationGate(google)).resolves.toBe(
+        AGE_CONFIRM_REDIRECT
+      );
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Could not read the age confirmation cookie",
+        { error: "no request scope" },
+        "AgeConfirmation"
+      );
+    });
   });
 });
