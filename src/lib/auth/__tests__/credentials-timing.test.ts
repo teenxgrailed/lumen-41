@@ -1,9 +1,12 @@
-import { compare } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 
-import { DUMMY_HASH, authenticateUser } from "@/lib/auth/credentials-provider";
+import {
+  authenticateUser,
+  getDummyHash,
+} from "@/lib/auth/credentials-provider";
 import { prisma } from "@/lib/prisma";
 
-jest.mock("bcryptjs", () => ({ compare: jest.fn() }));
+jest.mock("bcryptjs", () => ({ compare: jest.fn(), hash: jest.fn() }));
 jest.mock("@/lib/prisma", () => ({
   prisma: { user: { findUnique: jest.fn(), update: jest.fn() } },
 }));
@@ -23,39 +26,44 @@ const find = (user: unknown) =>
 beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(compare).mockResolvedValue(false as never);
+  jest.mocked(hash).mockResolvedValue("fake-dummy" as never);
 });
 
 describe("authenticateUser timing", () => {
-  it("DUMMY_HASH is a cost-12 bcrypt hash", () => {
-    expect(DUMMY_HASH).toMatch(/^\$2[aby]\$12\$[./A-Za-z0-9]{53}$/);
+  it("builds the dummy hash once, at cost 12", async () => {
+    const first = await getDummyHash();
+    await getDummyHash();
+    expect(first).toBe("fake-dummy");
+    expect(hash).toHaveBeenCalledTimes(1);
+    expect(hash).toHaveBeenCalledWith(expect.any(String), 12);
   });
 
   it("compares once against the dummy hash for an unknown email", async () => {
     find(null);
     expect(await authenticateUser("a@x.test", "pw")).toBeNull();
     expect(compare).toHaveBeenCalledTimes(1);
-    expect(compare).toHaveBeenCalledWith("pw", DUMMY_HASH);
+    expect(compare).toHaveBeenCalledWith("pw", "fake-dummy");
   });
 
   it("compares once for an inactive user", async () => {
     find({ id: "u", isActive: false, accounts: account("real") });
     expect(await authenticateUser("a@x.test", "pw")).toBeNull();
     expect(compare).toHaveBeenCalledTimes(1);
-    expect(compare).toHaveBeenCalledWith("pw", DUMMY_HASH);
+    expect(compare).toHaveBeenCalledWith("pw", "fake-dummy");
   });
 
   it("compares once for a user with no credentials account", async () => {
     find({ id: "u", isActive: true, accounts: [] });
     expect(await authenticateUser("a@x.test", "pw")).toBeNull();
     expect(compare).toHaveBeenCalledTimes(1);
-    expect(compare).toHaveBeenCalledWith("pw", DUMMY_HASH);
+    expect(compare).toHaveBeenCalledWith("pw", "fake-dummy");
   });
 
   it("compares once for a passwordless account", async () => {
     find({ id: "u", isActive: true, accounts: account(null) });
     expect(await authenticateUser("a@x.test", "pw")).toBeNull();
     expect(compare).toHaveBeenCalledTimes(1);
-    expect(compare).toHaveBeenCalledWith("pw", DUMMY_HASH);
+    expect(compare).toHaveBeenCalledWith("pw", "fake-dummy");
   });
 
   it("compares once against the real hash for a wrong password", async () => {

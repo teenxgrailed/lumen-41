@@ -1,4 +1,5 @@
-import { compare } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
+import { randomBytes } from "crypto";
 
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -8,13 +9,16 @@ import { isPublicSignupEnabled } from "./public-signup";
 
 const LOG_SOURCE = "CredentialsProvider";
 
-/* Precomputed bcrypt hash at cost 12, the cost every real password hash is
-   written with (register, email-verification, sandbox). Compared against when
-   there is no usable account so a miss costs the same time as a wrong
-   password and response time does not reveal which emails have one. If the
-   write-side cost changes, regenerate this at the same cost. */
-export const DUMMY_HASH =
-  "$2a$12$BS4.gxZscgcBDDQ34YsEu.6XJFiyhxqIV3v9GkQEGvh2BO2hG.BcS";
+/* Cost every real password hash is written with (register, email-verification,
+   sandbox). The dummy hash uses the same cost so a miss takes as long as a
+   wrong password and response time does not reveal which emails have one. */
+export const DUMMY_HASH_COST = 12;
+
+let dummyHash: Promise<string> | undefined;
+/** Random bcrypt hash, computed once per process on first use. */
+export function getDummyHash(): Promise<string> {
+  return (dummyHash ??= hash(randomBytes(32).toString("hex"), DUMMY_HASH_COST));
+}
 
 /**
  * Authenticates a user with email and password
@@ -44,7 +48,7 @@ export async function authenticateUser(email: string, password: string) {
     // No user, inactive, or no password hash: still run one compare so every
     // path takes a bcrypt's worth of time.
     if (!user || !credentialsAccount || !credentialsAccount.id_token) {
-      await compare(password, DUMMY_HASH);
+      await compare(password, await getDummyHash());
       logger.warn("Authentication failed: No usable account", {}, LOG_SOURCE);
       return null;
     }
