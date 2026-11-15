@@ -173,4 +173,21 @@ describe("goalPlan", () => {
       goalPlan([{ id: "due", status: "completed" }], null, byId, TODAY).planned
     ).toBe(false);
   });
+
+  it("treats a step missing from the task list as unplaced", () => {
+    expect(goalPlan([open("gone")], { id: "gone" }, byId, TODAY)).toEqual({
+      stepDay: null,
+      planned: false,
+    });
+  });
+
+  it("shows an overdue step's day but does not count it as planned", () => {
+    const late = new Map([
+      ["old", { dueDate: "2026-11-10", scheduledStart: null, repeat: null }],
+    ]);
+    expect(goalPlan([open("old")], { id: "old" }, late, TODAY)).toEqual({
+      stepDay: "2026-11-10",
+      planned: false,
+    });
+  });
 });

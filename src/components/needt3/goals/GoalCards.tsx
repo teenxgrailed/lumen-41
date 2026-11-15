@@ -175,16 +175,23 @@ function GoalCard({
           <span
             className={`gl-card-risk ${standing.atRisk ? "is-risk" : "is-ok"}`}
             data-gl-risk={standing.atRisk ? "at-risk" : "on-track"}
-            aria-label={
-              standing.hint
-                ? `${standing.label}. ${standing.hint}`
-                : standing.label
+            // an at-risk goal shows its reason below; an on-track one only
+            // describes it (read out, not drawn)
+            aria-describedby={
+              !standing.atRisk && standing.hint
+                ? `gl-hint-${goal.id}`
+                : undefined
             }
           >
             {standing.label}
           </span>
         ) : null}
       </span>
+      {open && !standing.atRisk && standing.hint ? (
+        <span className="sr-only" id={`gl-hint-${goal.id}`}>
+          {standing.hint}
+        </span>
+      ) : null}
       {open && standing.atRisk && standing.hint ? (
         <span className="gl-card-hint" data-gl-hint={goal.id}>
           {standing.hint}
