@@ -160,6 +160,34 @@ describe("Ob3Flow", () => {
     expect(host.textContent).toMatch(/Opening your week/);
   });
 
+  it("back from checkout, the bar step has no way back to the card", async () => {
+    window.history.replaceState(null, "", "/start?billing=success&step=bar");
+    try {
+      await mount("bar");
+      expect(host.textContent).toMatch(/Your bottom bar/);
+      expect(host.querySelector(".ob3-back")).toBeNull();
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+      expect(host.textContent).toMatch(/Your bottom bar/);
+      const phases = Array.from(
+        host.querySelectorAll<HTMLButtonElement>(".ob3-ph")
+      );
+      expect(phases.every((b) => b.disabled)).toBe(true);
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("without a checkout, Escape on the bar step goes back", async () => {
+    await mount("bar");
+    expect(host.querySelector(".ob3-back")).not.toBeNull();
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(host.textContent).toMatch(/keep pro after/i);
+  });
+
   it("browser: the plan screen still shows plans and prices", async () => {
     await mount("plans");
     expect(host.textContent).toMatch(/keep pro after/i);

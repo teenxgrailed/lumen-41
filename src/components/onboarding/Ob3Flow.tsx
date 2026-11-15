@@ -222,6 +222,10 @@ export function Ob3Flow({
     | { state: "err"; msg: string }
   >({ state: "run" });
   const [commitTry, setCommitTry] = useState(0);
+  /* Back from checkout (`?billing=success`): the payment is in flight and
+     the webhook may not have landed, so the bar step offers no way back to
+     the plans and the card, where a second checkout could start. */
+  const [paid, setPaid] = useState(false);
   const mainRef = useRef<HTMLElement | null>(null);
 
   const step: Step3 = STEPS3[k];
@@ -237,8 +241,10 @@ export function Ob3Flow({
       setAcct(d.acct);
       if (d.giftEnd) setGiftEnd(new Date(d.giftEnd));
     }
-    const q = new URLSearchParams(window.location.search).get("acct");
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("acct");
     if (q === "apple" || q === "google") setAcct(q);
+    if (params.get("billing") === "success") setPaid(true);
     if (window.innerWidth >= 680) setView("list");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -268,6 +274,8 @@ export function Ob3Flow({
     [k]
   );
   const goTo = (s: Step3) => go(STEPS3.indexOf(s));
+  /** No way back from the bar step after a checkout. */
+  const noBack = paid && step === "bar";
   const next = () => go(k + 1);
   const back = () =>
     go(
@@ -522,7 +530,7 @@ export function Ob3Flow({
         !["thinking", "opening", "verify", "card", "account"].includes(step)
       )
         onCta();
-      if (e.key === "Escape" && k > 0 && step !== "opening") back();
+      if (e.key === "Escape" && k > 0 && step !== "opening" && !noBack) back();
     };
     window.addEventListener("keydown", kd);
     return () => window.removeEventListener("keydown", kd);
@@ -2028,7 +2036,7 @@ export function Ob3Flow({
                       at >= 0 && "is-now",
                       done && "is-done"
                     )}
-                    disabled={!done || step === "opening"}
+                    disabled={!done || step === "opening" || noBack}
                     onClick={() => done && goTo(ids[0])}
                   >
                     <span className="ob3-ph-t">
@@ -2079,7 +2087,9 @@ export function Ob3Flow({
           </main>
           <footer className={cx3("ob3-foot", !cta && !alt && "is-empty")}>
             {foot ? <span className="ob3-foot-info">{foot}</span> : null}
-            {k > 0 && !["thinking", "opening", "verify"].includes(step) ? (
+            {k > 0 &&
+            !noBack &&
+            !["thinking", "opening", "verify"].includes(step) ? (
               <button
                 type="button"
                 className="ob3-back"
