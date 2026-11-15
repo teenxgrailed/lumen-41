@@ -156,6 +156,7 @@ export function PhoneShell() {
   const tilesKey = float ? floatTiles : classicTiles;
   const tiles = useMemo(() => tilesKey.split(",") as MenuPlaceId[], [tilesKey]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuMoving, setMenuMoving] = useState(false);
   const [openRequest, setOpenRequest] = useState(0);
 
   const away = askOpen || covered;
@@ -223,7 +224,16 @@ export function PhoneShell() {
 
   /* While the menu moves, the screen under it gives up its own blur bands:
      exactly one backdrop-filter (the pill's glass) is live (motion.css P2). */
+  const floatRef = useRef(float);
+  useEffect(() => {
+    floatRef.current = float;
+    if (!float) setMenuMoving(false);
+  }, [float]);
   const onMoving = useCallback((moving: boolean) => {
+    /* The floating bar stays out (no blur) until the menu settles: one
+       render when it starts moving and one when it stops, never per frame,
+       and only while the floating bar is the dock. */
+    if (floatRef.current) setMenuMoving(moving);
     const host = document.querySelector("[data-v2p-host]");
     if (!host) return;
     if (moving) host.setAttribute("data-nva-moving", "");
@@ -276,6 +286,7 @@ export function PhoneShell() {
           places={tiles}
           screen={screen}
           open={menuOpen}
+          moving={menuMoving}
           away={away}
           morph={morph}
           focus={focusOn ? <FocusDockButton /> : null}

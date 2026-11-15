@@ -137,9 +137,12 @@ export function useOnboarding({
   );
   const count = ids.length;
 
-  const [i, setI] = React.useState(() =>
-    // a step this face does not show (or an unknown one) starts at the first
-    clampStep(stepIndex(startAt || "use", ids), ids.length)
+  /* The step on screen, by id: the list can grow under it (Import appears
+     once the importers load, before Bar on a phone), and an index would then
+     point at another step. A step this face does not show (or an unknown
+     one) starts at the first. */
+  const [cur, setCur] = React.useState<string>(
+    () => ids[clampStep(stepIndex(startAt || "use", ids), ids.length)]
   );
   const [dir, setDir] = React.useState<1 | -1>(1);
   /* In the order picked: the first one drives the sample day. */
@@ -152,7 +155,8 @@ export function useOnboarding({
   /* Steps the person actually stood on; only these are saved on the way out. */
   const visited = React.useRef(new Set<string>());
   const ready = !!settings.data;
-  const at = Math.min(i, count - 1);
+  const found = ids.indexOf(cur as (typeof ids)[number]);
+  const at = found >= 0 ? found : 0;
   const id = ids[at];
   const step = STEPS.find((s) => s[0] === id) ?? STEPS[0];
   visited.current.add(id);
@@ -228,7 +232,7 @@ export function useOnboarding({
       for (let k = at; k < to; k++)
         if (visited.current.has(ids[k])) await save(ids[k]);
     setDir(to > at ? 1 : -1);
-    setI(to);
+    setCur(ids[to]);
   }
 
   /** Whether Continue is allowed on the step on screen. */

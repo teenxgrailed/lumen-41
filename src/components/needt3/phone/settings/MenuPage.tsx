@@ -9,7 +9,7 @@ import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import { useMark } from "../../settings/SettingsContext";
 import { PkGlyph, pkCx } from "../kit";
 import { usePkSide } from "../kit/theme";
-import { BarStylePicker } from "../menu/BarStylePicker";
+import { BarStylePicker, saveBarStyle } from "../menu/BarStylePicker";
 import {
   BAR_PLACE_SLOTS,
   type BarStyle,
@@ -81,9 +81,7 @@ export function MenuPage() {
   const barStyle = barStyleFrom(settings.data?.prefs);
   const pickBar = (style: BarStyle) => {
     if (!ready || style === barStyle) return;
-    void setPref("barStyle", style)
-      .then((done) => done && mark())
-      .catch(noop);
+    void saveBarStyle(setPref, style, "settings").then((ok) => ok && mark());
   };
 
   const left = PILL_SIZE - slots.length;

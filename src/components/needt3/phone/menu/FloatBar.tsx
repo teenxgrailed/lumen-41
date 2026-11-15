@@ -16,6 +16,11 @@ export interface FloatBarProps {
   screen: MenuPlaceId | null;
   /** The menu card is open over the bar: the bar steps out. */
   open?: boolean;
+  /**
+   * The menu is moving (opening, or shrinking back into the pill): the bar
+   * stays out, with no blur of its own, until it settles (rule 12).
+   */
+  moving?: boolean;
   /** A full-screen layer is up (Ask, a place's cover): the bar steps out. */
   away?: boolean;
   /** The composer is growing out of the bar. */
@@ -67,6 +72,7 @@ export function FloatBar({
   places,
   screen,
   open,
+  moving,
   away,
   morph,
   focus,
@@ -76,7 +82,12 @@ export function FloatBar({
   preview,
 }: FloatBarProps) {
   const elsewhere = !screen || !places.includes(screen);
-  const hidden = !preview && !!(open || away || morph);
+  const hidden = !preview && !!(open || moving || away || morph);
+  /* The composer grows out of (and back into) this pill while the card is
+     at rest; while the card is open or moving, menu A's own glass is the
+     pill box (the same geometry, menu-a.ts nvaFloatPill). The bar only fades,
+     never moves, so its box is where it shows. */
+  const pillMark = !preview && !open && !moving ? "" : undefined;
   const className =
     "nfb " +
     (side === "dark" ? "is-dark" : "is-light") +
@@ -84,7 +95,7 @@ export function FloatBar({
     (hidden ? " is-out" : "");
 
   const pill = (
-    <span className="nfb-pill" data-nva-pill={preview ? undefined : ""}>
+    <span className="nfb-pill" data-nva-pill={pillMark}>
       {places.map((id) => {
         const on = screen === id;
         return (
@@ -139,6 +150,7 @@ export function FloatBar({
       className={className}
       aria-label="Places"
       data-bar-style="float"
+      data-nva-moving={moving ? "" : undefined}
       inert={hidden || undefined}
     >
       {focus ? <span className="nfb-focus">{focus}</span> : null}

@@ -235,7 +235,7 @@ describe("crossing 700px", () => {
     await click(go());
     // the phone's own last step: which bottom bar, written on tap
     expect(step()).toBe("bar");
-    expect(q('[data-bar-pick="classic"]')?.getAttribute("aria-checked")).toBe(
+    expect(q('[data-bar-pick="classic"]')?.getAttribute("aria-pressed")).toBe(
       "true"
     );
     await click(q('[data-bar-pick="float"]')!);

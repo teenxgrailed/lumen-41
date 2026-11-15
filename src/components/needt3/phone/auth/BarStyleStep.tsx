@@ -7,15 +7,13 @@
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 
 import { usePkSide } from "../kit/theme";
-import { BarStylePicker } from "../menu/BarStylePicker";
+import { BarStylePicker, saveBarStyle } from "../menu/BarStylePicker";
 import {
   BAR_PLACE_SLOTS,
   type BarStyle,
   barPlaces,
   barStyleFrom,
 } from "../menu/places";
-
-const noop = () => undefined;
 
 export function BarStyleStep() {
   const settings = useSettings();
@@ -24,7 +22,7 @@ export function BarStyleStep() {
   const prefs = settings.data?.prefs;
   const pick = (style: BarStyle) => {
     if (!settings.data || barStyleFrom(prefs) === style) return;
-    void setPref("barStyle", style).catch(noop);
+    void saveBarStyle(setPref, style, "onboarding");
   };
   return (
     <div className="mau-picks" data-ma-bar="">

@@ -12,7 +12,9 @@
  * still opens (from the bar's dot grid) and grows from the pill's place.
  */
 .needt-v3 .nfb {
-  --nfb-slot: 48px;
+  /* 48 px, smaller only on a narrow phone; menu-a.ts nvaFloatSlot is the same
+     formula, so the card grows out of this exact pill */
+  --nfb-slot: clamp(36px, calc((100vw - 40px) / 5.6), 48px);
   --nfb-pad: 6px;
   --nfb-ground: var(--v2p-plate);
   --nfb-on: var(--v2p-plate);
@@ -26,18 +28,19 @@
   gap: 10px;
   transform: translateX(-50%);
   pointer-events: none;
-  transition:
-    opacity 0.2s ease,
-    transform 0.32s cubic-bezier(0.2, 0.9, 0.25, 1);
+  transition: opacity 0.2s ease;
 }
 .needt-v3 .nfb.is-dark {
   --nfb-ground: var(--v2p-raise);
   --nfb-on: var(--v2p-raise-2);
   --nfb-alpha: 0.66;
 }
+/* Out (the card, a cover or the composer is up, and until the card has
+ * settled back): a fade only, never a move, so the pill's box stays where
+ * the composer and the card read it; and no blur of its own while out, so
+ * the card's glass is the one backdrop-filter while it moves (rule 12). */
 .needt-v3 .nfb.is-out {
   opacity: 0;
-  transform: translateX(-50%) translateY(12px);
 }
 .needt-v3 .nfb.is-out .nfb-pill {
   -webkit-backdrop-filter: none;
@@ -97,7 +100,9 @@
 .needt-v3 .nfb-slot.is-on {
   background: var(--nfb-on);
   color: var(--v2p-ink);
-  box-shadow: 0 1px 2px rgba(18, 16, 40, 0.08);
+  box-shadow:
+    inset 0 0 0 0.5px var(--v2p-line),
+    0 1px 2px rgba(18, 16, 40, 0.08);
 }
 .needt-v3 .nfb.is-dark .nfb-slot.is-on {
   box-shadow: inset 0 0 0 0.5px var(--v2p-line);
@@ -119,11 +124,26 @@
   outline-offset: 1px;
 }
 
+/* left of the pill, outside its box: the pill stays centred where menu A's
+ * geometry puts it */
 .needt-v3 .nfb-focus {
-  position: relative;
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
   width: 64px;
   height: 64px;
+  margin-top: -32px;
   pointer-events: auto;
+}
+
+/* No backdrop blur (older engines): the ground nearly solid, so the icons
+ * keep their contrast over the content. */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .needt-v3 .nfb {
+    --nfb-alpha: 0.92;
+  }
 }
 
 /* Menu A while the floating bar is the dock: at rest at the pill it draws
@@ -265,4 +285,18 @@
 /* Settings -> Menu: the picker inside the group card */
 .needt-v3 .ps-bar-style {
   padding: 10px;
+}
+
+/* a narrow phone (320): the two previews shrink so both fit side by side */
+@media (max-width: 339px) {
+  .needt-v3 .bsp {
+    gap: 8px;
+  }
+  .needt-v3 .bsp-stage {
+    height: 96px;
+  }
+  .needt-v3 .bsp-scale {
+    margin-top: 40px;
+    transform: scale(0.42);
+  }
 }

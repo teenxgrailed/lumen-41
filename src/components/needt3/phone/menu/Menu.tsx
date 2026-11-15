@@ -516,11 +516,17 @@ export function Menu(props: MenuProps) {
     if (propsRef.current.away || useNeedt3Ui.getState().composerOpen) return;
     const at = document.activeElement;
     if (at && at !== document.body && !R.root?.contains(at)) return;
-    // the floating bar's menu slot opened it; the dot grid is not drawn
+    // the floating bar's menu slot opened it; the dot grid is not drawn. The
+    // bar is inert until PhoneShell hears the menu settle (onMoving false),
+    // so focus waits two frames for that commit.
     if (propsRef.current.variant === "float")
-      document
-        .querySelector<HTMLElement>("[data-nfb-menu]")
-        ?.focus({ preventScroll: true });
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+          document
+            .querySelector<HTMLElement>("[data-nfb-menu]")
+            ?.focus({ preventScroll: true })
+        )
+      );
     else R.dots?.focus({ preventScroll: true });
   }, [R, S]);
   const rest = useCallback(() => {
@@ -627,11 +633,11 @@ export function Menu(props: MenuProps) {
   /* A focus session starts or ends: the same frame, the other dock row. */
   useLayoutEffect(() => {
     const g = S.g;
-    if (!g || g.focus === !!focusOn) return;
-    S.g = nvaGeom(g.fw, g.fh, !!focusOn);
+    if (!g || (g.focus === !!focusOn && g.float === float)) return;
+    S.g = nvaGeom(g.fw, g.fh, !!focusOn, float);
     sizeGlass(S.glassHid, true);
     paint();
-  }, [S, focusOn, paint, sizeGlass]);
+  }, [S, focusOn, float, paint, sizeGlass]);
 
   /* Size: the frame's screen box. One ResizeObserver, on the menu and its list. */
   useLayoutEffect(() => {
@@ -645,7 +651,8 @@ export function Menu(props: MenuProps) {
       const g = nvaGeom(
         el.clientWidth || r.width,
         (el.clientHeight || r.height) - sab + 2 * pkEdgeInset(el),
-        !!propsRef.current.focusOn
+        !!propsRef.current.focusOn,
+        propsRef.current.variant === "float"
       );
       S.g = g;
       el.style.setProperty("--nva-w", `${g.W}px`);

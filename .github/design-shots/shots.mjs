@@ -28,14 +28,19 @@ const screens = screenList.split(",").map((s) => s.trim()).filter(Boolean).map((
   const route = i < 0 ? "/" + name : s.slice(i + 1);
   if (!/^[a-z0-9_-]+$/i.test(name)) throw new Error(`bad screen name: ${name}`);
   if (!route.startsWith("/") || route.startsWith("//")) throw new Error(`route must start with one /: ${route}`);
-  // Options after "#", joined by "&": bar=classic|float sets the phone's bottom bar
-  // (prefs.barStyle) before the shot; chrome keeps the phone's fixed chrome (the dock)
-  // and shoots the viewport instead of unrolling the page.
-  const [pathPart, optPart = ""] = route.split("#");
-  const opts = new URLSearchParams(optPart);
+  // Shot options in the fragment, joined by "&": bar=classic|float sets the phone's
+  // bottom bar (prefs.barStyle) for this screen; chrome keeps the phone's fixed chrome
+  // (the dock) and shoots the viewport instead of unrolling the page. Any other
+  // fragment is a real #anchor of the route and stays on it.
+  const h = route.indexOf("#");
+  const frag = h < 0 ? "" : route.slice(h + 1);
+  const parts = frag ? frag.split("&") : [];
+  const isOpt = (p) => p === "chrome" || p.startsWith("bar=");
+  if (!parts.length || !parts.every(isOpt)) return { name, route, bar: null, chrome: false };
+  const opts = new URLSearchParams(frag);
   const bar = opts.get("bar");
   if (bar && bar !== "classic" && bar !== "float") throw new Error(`bad bar: ${bar}`);
-  return { name, route: pathPart, bar, chrome: opts.has("chrome") };
+  return { name, route: route.slice(0, h), bar, chrome: opts.has("chrome") };
 });
 
 const sizes = [
@@ -79,6 +84,7 @@ fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 let warned = 0;
 let signedOut = 0;
+let failed = 0;
 try {
   for (const size of sizes) {
     const ctx = await browser.newContext({ ...size.options, colorScheme: scheme, locale: "en-US", timezoneId: "Europe/Zurich" });
@@ -90,12 +96,12 @@ try {
       await route.fulfill({ response: res, json: { ...body, hostedAvailable: true } });
     });
     for (const s of screens) {
-      if (s.bar) {
-        const res = await ctx.request
-          .patch(HOST + "/api/user-settings", { data: { prefs: { barStyle: s.bar } } })
-          .catch((e) => ({ ok: () => false, status: () => e.message }));
-        if (!res.ok()) console.log("WARN bar style not set", s.name, res.status());
-      }
+      // The CI user is shared by every screen: each screen sets its own bar style, and
+      // one without #bar= removes it (null), so no screen inherits the last one's.
+      const res = await ctx.request
+        .patch(HOST + "/api/user-settings", { data: { prefs: { barStyle: s.bar ?? null } } })
+        .catch((e) => ({ ok: () => false, status: () => e.message }));
+      if (!res.ok()) { failed++; console.log("FAIL bar style not set", s.name, size.tag, res.status()); }
       const page = await ctx.newPage();
       const started = Date.now();
       await page.goto(HOST + s.route, { waitUntil: "domcontentloaded", timeout: 60_000 }).catch((e) => console.log("WARN goto", s.name, e.message));
@@ -138,3 +144,4 @@ try {
 }
 console.log(`done, ${warned} screen(s) never settled`);
 if (signedOut) { console.log(`${signedOut} shot(s) landed on the sign-in page: the session did not take`); process.exit(1); }
+if (failed) { console.log(`${failed} screen(s) could not set the bottom bar style: their shots show the wrong bar`); process.exit(1); }

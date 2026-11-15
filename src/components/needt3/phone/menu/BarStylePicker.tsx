@@ -2,6 +2,9 @@
 
 import { LuPlus } from "react-icons/lu";
 
+import { logger } from "@/lib/logger";
+import { notify } from "@/lib/notifications";
+
 import { Glyph } from "../../glyphs/Glyph";
 import type { PkSide } from "../kit/util";
 import { FloatBar } from "./FloatBar";
@@ -19,6 +22,37 @@ const SUB: Record<BarStyle, string> = {
 };
 
 const noop = () => undefined;
+
+const LOG_SOURCE = "BarStylePicker";
+
+/**
+ * Write `prefs.barStyle` through `useSetPref`'s setter. Resolves true once
+ * saved; a refused or failed write is logged and told to the person, and
+ * the bar on screen goes back with the settings cache.
+ */
+export async function saveBarStyle(
+  setPref: (key: string, value: unknown) => Promise<boolean | unknown>,
+  style: BarStyle,
+  where: "onboarding" | "settings"
+): Promise<boolean> {
+  try {
+    const done = await setPref("barStyle", style);
+    if (done === false) throw new Error("settings not loaded");
+    return true;
+  } catch (error) {
+    void logger.warn(
+      "Bottom bar style not saved",
+      {
+        where,
+        style,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
+    notify.error("Could not change the bottom bar. Try again in Settings.");
+    return false;
+  }
+}
 
 /** Menu A's resting pill and its +, drawn still (no springs, no card). */
 function ClassicPreview({
@@ -73,15 +107,14 @@ export function BarStylePicker({
   onChange: (style: BarStyle) => void;
 }) {
   return (
-    <div className="bsp" role="radiogroup" aria-label="Bottom bar">
+    <div className="bsp" role="group" aria-label="Bottom bar">
       {BAR_STYLES.map((style) => {
         const on = value === style;
         return (
           <button
             key={style}
             type="button"
-            role="radio"
-            aria-checked={on}
+            aria-pressed={on}
             disabled={disabled}
             className={"bsp-opt" + (on ? " is-on" : "")}
             data-bar-pick={style}

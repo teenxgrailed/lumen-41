@@ -104,6 +104,26 @@ describe("FloatBar", () => {
     expect(q(".nfb")?.classList.contains("is-out")).toBe(false);
   });
 
+  it("stays out, with no blur, until the menu has settled (rule 12)", () => {
+    bar({ moving: true });
+    expect(q(".nfb")?.classList.contains("is-out")).toBe(true);
+    expect(q(".nfb")?.hasAttribute("data-nva-moving")).toBe(true);
+    bar();
+    expect(q(".nfb")?.hasAttribute("data-nva-moving")).toBe(false);
+  });
+
+  it("marks its pill for the composer only while the card is at rest", () => {
+    bar();
+    expect(q(".nfb-pill")?.hasAttribute("data-nva-pill")).toBe(true);
+    // the composer is up: the pill keeps its mark, it grows back into it
+    bar({ morph: true });
+    expect(q(".nfb-pill")?.hasAttribute("data-nva-pill")).toBe(true);
+    bar({ open: true });
+    expect(q("[data-nva-pill]")).toBeNull();
+    bar({ moving: true });
+    expect(q("[data-nva-pill]")).toBeNull();
+  });
+
   it("wears the dark frost on the dark theme", () => {
     bar({ side: "dark" });
     expect(q(".nfb")?.classList.contains("is-dark")).toBe(true);
@@ -133,10 +153,10 @@ describe("BarStylePicker", () => {
       "classic",
       "float",
     ]);
-    expect(q('[data-bar-pick="float"]')?.getAttribute("aria-checked")).toBe(
+    expect(q('[data-bar-pick="float"]')?.getAttribute("aria-pressed")).toBe(
       "true"
     );
-    expect(q('[data-bar-pick="classic"]')?.getAttribute("aria-checked")).toBe(
+    expect(q('[data-bar-pick="classic"]')?.getAttribute("aria-pressed")).toBe(
       "false"
     );
   });
