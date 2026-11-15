@@ -109,10 +109,45 @@ describe("NeedtLoading", () => {
     expect(nodes()[1].hasAttribute("data-continued")).toBe(true);
   });
 
+  it("an icon that failed before hydration goes straight to the fallback", () => {
+    const proto = HTMLImageElement.prototype;
+    const complete = Object.getOwnPropertyDescriptor(proto, "complete");
+    const width = Object.getOwnPropertyDescriptor(proto, "naturalWidth");
+    Object.defineProperty(proto, "complete", {
+      configurable: true,
+      get: () => true,
+    });
+    Object.defineProperty(proto, "naturalWidth", {
+      configurable: true,
+      get: () => 0,
+    });
+    try {
+      useAppIcon.setState({ id: "sky" });
+      act(() => root.render(h(NeedtLoading, {})));
+      // chosen icon broken: the default icon is tried, and (also broken) the tile
+      expect(img()?.getAttribute("src") ?? "").toContain("/midnight/");
+    } finally {
+      if (complete) Object.defineProperty(proto, "complete", complete);
+      else delete (proto as unknown as Record<string, unknown>).complete;
+      if (width) Object.defineProperty(proto, "naturalWidth", width);
+      else delete (proto as unknown as Record<string, unknown>).naturalWidth;
+    }
+  });
+
+  it("a broken default icon goes straight to the tile", () => {
+    act(() => root.render(h(NeedtLoading, {})));
+    fire(img()!, "error");
+    expect(img()).toBeNull();
+    expect(host.querySelector(".nl-tile")).not.toBeNull();
+  });
+
   it("a Strict Mode remount of the same node is not a hand-over", () => {
     const { StrictMode } = jest.requireActual<typeof import("react")>("react");
     act(() => root.render(h(StrictMode, null, h(NeedtLoading, {}))));
     expect(nodes()[0].hasAttribute("data-continued")).toBe(false);
+    // a different node mounted right after is a hand-over
+    act(() => root.render(h("div", null, h(NeedtLoading, { key: "next" }))));
+    expect(nodes()[0].hasAttribute("data-continued")).toBe(true);
   });
 });
 
@@ -206,6 +241,36 @@ describe("the loading css", () => {
     expect(decl(find(dark, ".nl-host .nl-fixed"), "background")).toMatch(
       literal
     );
+  });
+
+  it("the fallback tile has a dark colour under the dark rules", () => {
+    const light = "rgba(26, 28, 30, 0.25)";
+    const darkTile = "rgba(249, 249, 249, 0.25)";
+    let media: AtRule | undefined;
+    sheet.walkAtRules("media", (a) => {
+      if (/prefers-color-scheme:\s*dark/.test(a.params)) media = a;
+    });
+    expect(decl(find(rules(media!), ".nl-host .nl-tile"), "background")).toBe(
+      darkTile
+    );
+    for (const t of ["dark", "dim"])
+      expect(
+        decl(
+          top.find((x) =>
+            x.selectors.includes(`html[data-theme="${t}"] .nl-host .nl-tile`)
+          ),
+          "background"
+        )
+      ).toBe(darkTile);
+    for (const t of ["light", "paper", "warm"])
+      expect(
+        decl(
+          top.find((x) =>
+            x.selectors.includes(`html[data-theme="${t}"] .nl-host .nl-tile`)
+          ),
+          "background"
+        )
+      ).toBe(light);
   });
 
   it("an explicit theme on <html> sets its own literal ground", () => {

@@ -51,6 +51,9 @@
   .nl-host .nl-fixed {
     background: #111214;
   }
+  .nl-host .nl-tile {
+    background: rgba(249, 249, 249, 0.25);
+  }
 }
 /* An explicit theme on <html> (ThemeProvider writes data-theme) beats the OS
  * preference above. */
@@ -66,6 +69,15 @@ html[data-theme="dark"] .nl-host .nl-fixed {
 }
 html[data-theme="dim"] .nl-host .nl-fixed {
   background: #1d1f22;
+}
+html[data-theme="light"] .nl-host .nl-tile,
+html[data-theme="paper"] .nl-host .nl-tile,
+html[data-theme="warm"] .nl-host .nl-tile {
+  background: rgba(26, 28, 30, 0.25);
+}
+html[data-theme="dark"] .nl-host .nl-tile,
+html[data-theme="dim"] .nl-host .nl-tile {
+  background: rgba(249, 249, 249, 0.25);
 }
 @keyframes nl-in {
   from {

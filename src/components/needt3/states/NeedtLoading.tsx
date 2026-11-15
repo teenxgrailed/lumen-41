@@ -6,6 +6,8 @@ import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
 import { DEFAULT_APP_ICON, appIconSrc } from "@/lib/needt3/app-icon";
 
+import { useAppIcon } from "@/store/app-icon";
+
 import { NeedtAppIcon } from "../wordmark/AppIcon";
 
 // Layout effect on the client (no empty frame when a second one takes over),
@@ -64,6 +66,12 @@ export function NeedtLoading({
   const [stage, setStage] = useState<0 | 1 | 2>(0);
   const [loaded, setLoaded] = useState(false);
 
+  // The default icon is no fallback for itself: straight to the tile.
+  const fail = () =>
+    setStage((s) =>
+      s === 0 && useAppIcon.getState().id !== DEFAULT_APP_ICON ? 1 : 2
+    );
+
   useSyncEffect(() => {
     const el = root.current;
     if (!el) return undefined;
@@ -73,15 +81,17 @@ export function NeedtLoading({
     mounted += 1;
     // An icon that was already in the HTML finished before React was listening.
     const img = el.querySelector("img");
-    if (img && img.complete && img.naturalWidth > 0) setLoaded(true);
+    if (img && img.complete) {
+      if (img.naturalWidth > 0) setLoaded(true);
+      // ...and one that failed before React was listening.
+      else fail();
+    }
     return () => {
       mounted = Math.max(0, mounted - 1);
       lastGone = performance.now();
       lastNode = el;
     };
   }, []);
-
-  const fail = () => setStage((s) => (s === 0 ? 1 : 2));
 
   return (
     <div
