@@ -32,7 +32,8 @@
 /* On the phone the kit's screen (PkScreen, LearnFrame) gives the top inset,
    the sides and the tail above the menu pill. */
 .needt-v3 .ln-phone .ln-screen {
-  padding: 0;
+  /* The kit's own header (.pk-head) starts 10px down; so does Learn's. */
+  padding: 10px 0 0;
 }
 
 /* ---------- header ---------- */
