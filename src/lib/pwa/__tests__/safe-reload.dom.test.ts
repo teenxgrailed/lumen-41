@@ -194,7 +194,7 @@ describe("safe reload", () => {
     gate.dispose();
   });
 
-  it("a cancelled reload clears the overlay and stays open for the next safe moment", () => {
+  it("a cancelled reload clears the overlay but does not reset the loop guard", () => {
     const { gate, reload, onCommit, onCancel } = setup();
     gate.request();
     gate.routeChanged();
@@ -205,8 +205,25 @@ describe("safe reload", () => {
     expect(onCancel).not.toHaveBeenCalled();
     jest.advanceTimersByTime(CANCEL_GRACE_MS);
     expect(onCancel).toHaveBeenCalledTimes(1);
+    // Still inside the minute: no second attempt.
+    gate.routeChanged();
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    // The minute has passed: the open request goes at the next safe moment.
+    now += 61_000;
     gate.routeChanged();
     expect(onCommit).toHaveBeenCalledTimes(2);
+    gate.dispose();
+  });
+
+  it("after pagehide a slow reload is not treated as cancelled", () => {
+    const { gate, reload, onCancel } = setup();
+    gate.request();
+    gate.routeChanged();
+    jest.advanceTimersByTime(COMMIT_MS);
+    expect(reload).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new Event("pagehide"));
+    jest.advanceTimersByTime(CANCEL_GRACE_MS * 5);
+    expect(onCancel).not.toHaveBeenCalled();
     gate.dispose();
   });
 

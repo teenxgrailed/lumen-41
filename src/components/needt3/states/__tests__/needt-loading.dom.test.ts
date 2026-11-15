@@ -123,4 +123,15 @@ describe("NeedtLoading", () => {
       jest.useRealTimers();
     }
   });
+
+  it("a word that arrives while another is up is marked continued, the first is not", () => {
+    const one = h(NeedtLoading, { key: "a" });
+    act(() => root.render(h("div", null, one)));
+    expect(node().hasAttribute("data-continued")).toBe(false);
+    act(() => root.render(h("div", null, one, h(NeedtLoading, { key: "b" }))));
+    const all = host.querySelectorAll("[data-needt-loading]");
+    expect(all.length).toBe(2);
+    expect(all[0].hasAttribute("data-continued")).toBe(false);
+    expect(all[1].hasAttribute("data-continued")).toBe(true);
+  });
 });

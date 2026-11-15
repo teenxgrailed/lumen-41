@@ -13,8 +13,11 @@
  * reload is better than a lost draft. When it fires, the loading word is
  * shown and the reload follows `COMMIT_MS` later so the word has painted. If
  * the reload is cancelled (a beforeunload "Stay"), the word is cleared after
- * `COMMIT_MS + CANCEL_GRACE_MS` and the request stays open for the next safe
- * moment. At most one reload per minute (`sessionStorage`), and none at all
+ * `COMMIT_MS + CANCEL_GRACE_MS` and the request stays open, but the loop guard
+ * is never reset: a cancelled reload waits out the minute. Once `pagehide` has
+ * fired the page is already leaving (a slow reload keeps this document's timers
+ * alive until the new response arrives), so nothing is cancelled then. At most
+ * one reload per minute (`sessionStorage`), and none at all
  * when storage is unavailable, so a stale CDN cannot loop the page.
  */
 import { hasUnsavedWork } from "./unsaved-work";
@@ -103,6 +106,7 @@ export function createSafeReload(args: {
   const now = args.now ?? Date.now;
   let pending = false;
   let committed = false;
+  let leaving = false;
   // Fields typed into since the gate was created (that is, since mount).
   const typed = new WeakSet<object>();
   const timers = new Set<ReturnType<typeof setTimeout>>();
@@ -157,12 +161,9 @@ export function createSafeReload(args: {
     later(reload, COMMIT_MS);
     // Still here after the reload should have gone: it was cancelled.
     later(() => {
+      // The page is leaving, only slowly: this is not a cancel.
+      if (leaving) return;
       committed = false;
-      try {
-        args.storage?.setItem(LOOP_KEY, "0");
-      } catch {
-        /* nothing to undo */
-      }
       args.onCancel?.();
     }, COMMIT_MS + CANCEL_GRACE_MS);
   };
@@ -171,12 +172,17 @@ export function createSafeReload(args: {
     const target = event.target as Element | null;
     if (target && isEditable(target)) typed.add(target);
   };
+  const onPageHide = () => {
+    leaving = true;
+  };
   const onVisibility = () => {
     if (doc.visibilityState === "hidden") attempt();
   };
 
   doc.addEventListener("input", onInput, true);
   doc.addEventListener("visibilitychange", onVisibility);
+  const win = doc.defaultView;
+  win?.addEventListener("pagehide", onPageHide);
 
   return {
     request() {
@@ -190,6 +196,7 @@ export function createSafeReload(args: {
     dispose() {
       doc.removeEventListener("input", onInput, true);
       doc.removeEventListener("visibilitychange", onVisibility);
+      win?.removeEventListener("pagehide", onPageHide);
       timers.forEach(clearTimeout);
       timers.clear();
     },

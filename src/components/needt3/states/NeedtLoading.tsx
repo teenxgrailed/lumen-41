@@ -46,7 +46,11 @@ export function NeedtLoading({
   useSyncEffect(() => {
     const el = root.current;
     if (!el || reduced || progress !== undefined) return undefined;
-    const started = acquireLoadingClock(performance.now());
+    const entered = performance.now();
+    const started = acquireLoadingClock(entered);
+    // Another word was already waiting: this one takes over without replaying
+    // the entry fade (see needt-loading.css).
+    if (started < entered) el.dataset.continued = "";
     const paint = (now: number) => {
       const fill = fillFor({ progress: undefined, elapsedMs: now - started });
       el.style.setProperty("--nl-inset", `${fillInsetPct(fill)}%`);

@@ -103,3 +103,8 @@
     transition: none;
   }
 }
+/* A word that takes over from one already on screen (route word to Suspense
+ * word, Budget word to the frame cover) does not fade in again. */
+:is(.needt-v3, .nl-host) .nl-root[data-continued] {
+  animation: none;
+}
