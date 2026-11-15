@@ -8,6 +8,7 @@ import {
 } from "@/services/onboarding/sample-service";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { isFeatureEnabled } from "@/lib/feature-flags";
 
 jest.mock("@/lib/auth/api-auth", () => ({ authenticateRequest: jest.fn() }));
 jest.mock("@/lib/prisma", () => ({ prisma: {} }));
@@ -17,11 +18,17 @@ jest.mock("@/services/onboarding/sample-service", () => ({
   sampleStatus: jest.fn(),
 }));
 
+jest.mock("@/lib/feature-flags", () => ({ isFeatureEnabled: jest.fn() }));
+jest.mock("@/services/onboarding/first-replan-demo", () => ({
+  seedFirstReplanDemo: jest.fn(),
+}));
+
 type Handler = (r: NextRequest) => Promise<Response>;
 const POST = route.POST as unknown as Handler;
 const GET = route.GET as unknown as Handler;
 const DELETE = route.DELETE as unknown as Handler;
 
+const flag = isFeatureEnabled as jest.Mock;
 const auth = authenticateRequest as jest.Mock;
 const seed = seedSampleData as jest.Mock;
 const clear = clearSampleData as jest.Mock;
@@ -37,6 +44,7 @@ const NONE = { tasks: 0, projects: 0, pages: 0, habits: 0 };
 
 beforeEach(() => {
   jest.clearAllMocks();
+  flag.mockResolvedValue(false);
   auth.mockResolvedValue({ userId: "u1", workspace: { workspaceId: "w1" } });
 });
 
@@ -67,8 +75,24 @@ describe("POST", () => {
       workspaceId: "w1",
       uses: ["study", "side"],
       timeZone: "Europe/Berlin",
+      skipOverdue: false,
     });
     expect((await res.json()).created).toBe(true);
+  });
+
+  it("leaves out the overdue example when the first-replan demo is on", async () => {
+    flag.mockResolvedValue(true);
+    seed.mockResolvedValue({
+      created: false,
+      use: null,
+      projectId: null,
+      pageId: null,
+      counts: NONE,
+    });
+    await POST(req("POST", {}));
+    expect(seed).toHaveBeenCalledWith(
+      expect.objectContaining({ skipOverdue: true })
+    );
   });
 
   it("answers 200 and created:false on a repeat", async () => {

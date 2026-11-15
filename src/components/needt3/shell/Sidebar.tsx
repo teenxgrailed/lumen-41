@@ -920,72 +920,77 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* Connections: one place for every account Needt reads; says
+        {/* Connections, Agents and Budget are one group: the column above
+            spaces its children 16px apart, so three siblings would sit
+            16px from each other. One wrapper keeps them at row step. */}
+        <div className="base-stack" data-sb-system-group="">
+          {/* Connections: one place for every account Needt reads; says
             "1 issue" in red while one is down. */}
-        <div
-          className="sb-tile shell-sidebar-sb-connections"
-          data-sb-connections=""
-        >
-          <SbRow
-            href="/connections"
-            label="Connections"
-            current={pathname.startsWith("/connections")}
-            icon={<LuCloud size={16} />}
-            trailing={
-              down.length ? (
-                <span
-                  className="shell-sidebar-sb-conn-issue"
-                  data-sb-conn-issue=""
-                  title={`${down.map((c) => c.label).join(", ")} ${down.length === 1 ? "needs" : "need"} reconnecting`}
-                >
-                  <span className="shell-sidebar-bar" aria-hidden="true" />
-                  {down.length} {down.length === 1 ? "issue" : "issues"}
-                </span>
-              ) : null
-            }
-          />
-        </div>
-
-        {/* Agents: a place of its own, shown only while the agent hub is on
-            for this person; the count is alerts they have not opened. */}
-        {agentsItem ? (
           <div
-            className="sb-tile shell-sidebar-sb-agents"
-            data-sb-agents=""
-            title={agentsItem.title}
+            className="sb-tile shell-sidebar-sb-connections"
+            data-sb-connections=""
           >
             <SbRow
-              href={agentsItem.href}
-              label={agentsItem.label}
-              current={isAgentsPath(pathname)}
-              icon={<LuBot size={16} />}
-              trailing={agentsItem.badge}
-            />
-          </div>
-        ) : null}
-
-        {/* Budget: a place of its own while the budget_module flag is on.
-            Free sees it grey with a PRO pill and cannot hide it; Pro hides
-            it in Settings -> General. */}
-        {budgetItem ? (
-          <div
-            className={
-              "sb-tile shell-sidebar-sb-budget" +
-              (budgetItem.locked ? " is-locked" : "")
-            }
-            data-sb-budget={budgetItem.locked ? "locked" : ""}
-          >
-            <SbRow
-              href={budgetItem.href}
-              label={budgetItem.label}
-              current={isBudgetPath(pathname)}
-              icon={<LuWallet size={16} />}
+              href="/connections"
+              label="Connections"
+              current={pathname.startsWith("/connections")}
+              icon={<LuCloud size={16} />}
               trailing={
-                budgetItem.locked ? <ProBadge size="sm" title="Pro" /> : null
+                down.length ? (
+                  <span
+                    className="shell-sidebar-sb-conn-issue"
+                    data-sb-conn-issue=""
+                    title={`${down.map((c) => c.label).join(", ")} ${down.length === 1 ? "needs" : "need"} reconnecting`}
+                  >
+                    <span className="shell-sidebar-bar" aria-hidden="true" />
+                    {down.length} {down.length === 1 ? "issue" : "issues"}
+                  </span>
+                ) : null
               }
             />
           </div>
-        ) : null}
+
+          {/* Agents: a place of its own, shown only while the agent hub is on
+            for this person; the count is alerts they have not opened. */}
+          {agentsItem ? (
+            <div
+              className="sb-tile shell-sidebar-sb-agents"
+              data-sb-agents=""
+              title={agentsItem.title}
+            >
+              <SbRow
+                href={agentsItem.href}
+                label={agentsItem.label}
+                current={isAgentsPath(pathname)}
+                icon={<LuBot size={16} />}
+                trailing={agentsItem.badge}
+              />
+            </div>
+          ) : null}
+
+          {/* Budget: a place of its own while the budget_module flag is on.
+            Free sees it grey with a PRO pill and cannot hide it; Pro hides
+            it in Settings -> General. */}
+          {budgetItem ? (
+            <div
+              className={
+                "sb-tile shell-sidebar-sb-budget" +
+                (budgetItem.locked ? " is-locked" : "")
+              }
+              data-sb-budget={budgetItem.locked ? "locked" : ""}
+            >
+              <SbRow
+                href={budgetItem.href}
+                label={budgetItem.label}
+                current={isBudgetPath(pathname)}
+                icon={<LuWallet size={16} />}
+                trailing={
+                  budgetItem.locked ? <ProBadge size="sm" title="Pro" /> : null
+                }
+              />
+            </div>
+          ) : null}
+        </div>
 
         {sections.map((sec) =>
           sec.id === "starred" ? (

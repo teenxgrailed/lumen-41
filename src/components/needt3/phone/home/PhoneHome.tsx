@@ -14,6 +14,10 @@ import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import {
+  useAdvanceReview,
+  useFirstReplanHints,
+} from "@/lib/needt3/hooks/first-replan";
+import {
   useCheckins,
   useHabits,
   useToggleHabitToday,
@@ -36,6 +40,7 @@ import type { DayBand } from "@/lib/personal-time-days";
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { EndDayNudge } from "../../home/EndDayNudge";
+import { FirstReplanCard } from "../../home/FirstReplanCard";
 import { OverdueRow } from "../../home/HomeV2";
 import { OnboardingResumeBanner } from "../../home/OnboardingResumeBanner";
 import { ReviewCard } from "../../home/ReviewCard";
@@ -173,6 +178,10 @@ export function PhoneHome({
     () => highEnergyHours(schedule.data),
     [schedule.data]
   );
+  // One hint at a time: the first-replan card is answered before the
+  // suggested highlight shows up.
+  const hint = useFirstReplanHints().current;
+  const firstReplanHold = hint !== null;
   const highlight = useHighlight(today);
   const setHighlight = useSetHighlight(today);
   const hlTask = highlightTask(all, highlight.data?.taskId);
@@ -224,6 +233,7 @@ export function PhoneHome({
     projects: projects ?? [],
     streak: dayStreak(all, today).n,
   });
+  useAdvanceReview(review.show, true);
   const calendarItems = scheduleItems([], events.data ?? [], today);
   const personal = usePersonalDay(today);
   const [band, setBand] = useState<DayBand | null>(null);
@@ -405,10 +415,10 @@ export function PhoneHome({
   );
   const aux = (
     <>
-      {review.show ? (
+      {review.show && (hint === null || hint === "review") ? (
         <ReviewCard phone onStart={review.start} onLater={review.later} />
       ) : null}
-      {nudge.show ? (
+      {nudge.show && !firstReplanHold ? (
         <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
       ) : null}
     </>
@@ -563,6 +573,7 @@ export function PhoneHome({
       <PhoneState query={tasksQuery} screen="today" />
       <OnboardingResumeBanner />
       <SampleBanner />
+      {v2 ? null : <FirstReplanCard />}
       {ready && !v2 ? aux : null}
       {ready ? (
         <div className="ha-phone ha-ph-stack" data-ha-stack="">
@@ -586,7 +597,7 @@ export function PhoneHome({
                 v.open(v.sec.next).length ? seeTomorrow : undefined
               }
             />
-          ) : !blocks.nextUp ? null : v2 ? (
+          ) : !blocks.nextUp || firstReplanHold ? null : v2 ? (
             nowNode
           ) : hlTask && !hlTask.done ? (
             <HaHighlight
@@ -636,7 +647,12 @@ export function PhoneHome({
               onOpen={() => openTask(nu)}
             />
           ) : null}
-          {v2 ? aux : null}
+          {v2 ? (
+            <>
+              <FirstReplanCard />
+              {aux}
+            </>
+          ) : null}
           <HaBrief
             lines={haBrief.lines}
             note={haBrief.note}

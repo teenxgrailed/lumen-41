@@ -17,6 +17,7 @@ import { useStartFocus } from "@/components/needt3/focus/useFocusController";
 import { RichMenu } from "@/components/needt3/menu/RichMenu";
 import { openPaywall } from "@/components/needt3/paywall/store";
 import { HomeFaces } from "@/components/needt3/phone/home/HomeFaces";
+import { clockAt } from "@/components/needt3/phone/home/clock";
 import type {
   HomeController,
   HomeTab,
@@ -27,7 +28,6 @@ import { Task } from "@/components/needt3/task/Task";
 import { TaskViewGear } from "@/components/needt3/task/TaskViewGear";
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
-import { formatInTimeZone } from "@/lib/date-utils";
 import { addDays, liveHabits, moveDay, project } from "@/lib/needt3/derive";
 import { highEnergyHours } from "@/lib/needt3/energy";
 import { type RailTile, shownRailTiles } from "@/lib/needt3/home-blocks";
@@ -37,6 +37,10 @@ import { useNow } from "@/lib/needt3/hooks/clock";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
+import {
+  useAdvanceReview,
+  useFirstReplanHints,
+} from "@/lib/needt3/hooks/first-replan";
 import {
   useCheckins,
   useHabits,
@@ -70,6 +74,7 @@ import {
   useStarterGameCard,
 } from "../starter-game/StarterGameSlot";
 import { EndDayNudge } from "./EndDayNudge";
+import { FirstReplanCard } from "./FirstReplanCard";
 import {
   Capped,
   EmptyDay,
@@ -156,9 +161,9 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
   const tz = useTimeZone();
   const reduced = useNeedtReducedMotion();
   const now = useNow();
-  const today = formatInTimeZone(now, tz, "yyyy-MM-dd");
-  const [hh, mm] = formatInTimeZone(now, tz, "HH:mm").split(":");
-  const nowHour = +hh + +mm / 60;
+  // ONE clock for the card, the schedule panel and every list: the person's
+  // zone (the saved one, else the browser's), the same function the phone uses.
+  const { today, hour: nowHour } = clockAt(now, tz);
 
   const tasksQuery = useTasks();
   const events = useEvents({ from: today, to: addDays(today, 8) });
@@ -222,6 +227,13 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
       ? energyDay(split.day, today, nowHour, energyHours)
       : split.day;
   const leavingIds = useMemo(() => new Set(Object.keys(leaving)), [leaving]);
+
+  // One hint at a time (new accounts with the first-replan demo): the replan
+  // card, the "Replanned" card, the sample-day note and the Sunday review each
+  // wait for the one before to be closed. Only then the highlight and the
+  // end-of-day nudge show. `current` is null for everybody else.
+  const hint = useFirstReplanHints().current;
+  const firstReplanHold = hint !== null;
 
   // One rule for every section: it lists open tasks (plus a row still playing
   // its exit) and a section with nothing open is not drawn at all.
@@ -410,6 +422,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
     projects: projects.data ?? [],
     streak: streak.n,
   });
+  useAdvanceReview(review.show, true);
   const hlSub = (t: V3Task, tail: string) =>
     [project(t.projectId, projects.data ?? [])?.name, tail]
       .filter(Boolean)
@@ -597,10 +610,10 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
   const v2day = v2 && tab === "day";
   const aux = (
     <>
-      {review.show ? (
+      {review.show && (hint === null || hint === "review") ? (
         <ReviewCard onStart={review.start} onLater={review.later} />
       ) : null}
-      {nudge.show ? (
+      {nudge.show && !firstReplanHold ? (
         <EndDayNudge onEndDay={finish.show} onDismiss={nudge.dismiss} />
       ) : null}
       {haBrief.locked || haBrief.lines.length || haBrief.note ? (
@@ -987,7 +1000,12 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <OnboardingResumeBanner />
           <SampleBanner />
-          {v2day ? null : aux}
+          {v2day ? null : (
+            <>
+              <FirstReplanCard />
+              {aux}
+            </>
+          )}
           <div
             className="hd-body"
             data-hd-mode={tab}
@@ -996,7 +1014,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
             <div className="hd-col">
               {v2day ? (
                 <>
-                  {blocks.nextUp || closedDay ? (
+                  {!firstReplanHold && (blocks.nextUp || closedDay) ? (
                     <div
                       className="hd-cards ha-cards"
                       data-hd-cards=""
@@ -1006,9 +1024,13 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
                       {closedDay ? allDoneNode : nowNode}
                     </div>
                   ) : null}
-                  <div className="hv2-aux">{aux}</div>
+                  <div className="hv2-aux">
+                    <FirstReplanCard />
+                    {aux}
+                  </div>
                 </>
-              ) : blocks.nextUp || (tab === "day" && closedDay) ? (
+              ) : !firstReplanHold &&
+                (blocks.nextUp || (tab === "day" && closedDay)) ? (
                 <div
                   className="hd-cards ha-cards"
                   data-hd-cards=""

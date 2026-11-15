@@ -1,5 +1,6 @@
 import type { V3Event, V3Task } from "@/lib/needt3/map";
 
+import { clockAt } from "../../phone/home/clock";
 import { type ScheduleItem, scheduleItems } from "../derive";
 import {
   eventSkipKey,
@@ -313,5 +314,54 @@ describe("the overdue row's label", () => {
   it("is the one count and one word", () => {
     expect(overdueLabel(1)).toBe("1 overdue");
     expect(overdueLabel(39)).toBe("39 overdue");
+  });
+});
+
+describe("the Now clock is the person's zone, the same one the schedule panel uses", () => {
+  // 15:10 in Zurich (CET, UTC+1) is 14:10 UTC
+  const instant = new Date("2026-11-15T14:10:00Z");
+  const day = "2026-11-15";
+  const at2 = (h: number, m = 0) =>
+    `${day}T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  const review = task({
+    title: "Review the launch checklist",
+    dueDate: day,
+    scheduledStart: at2(14),
+    estimatedMinutes: 30,
+  });
+  const sync = {
+    id: "ev1",
+    title: "Team sync",
+    startAt: at2(15),
+    endAt: at2(15, 30),
+    isAllDay: false,
+    calendarId: "c1",
+    source: "needt",
+    externalId: null,
+  } as unknown as V3Event;
+  const run = (tz: string) => {
+    const { today, hour } = clockAt(instant, tz);
+    return pickNow({
+      today,
+      schedule: scheduleItems([review], [sync], today),
+      dayOpen: [review],
+      lateOpen: [],
+      nowHour: hour,
+      skipped: [],
+    });
+  };
+
+  it("Europe/Zurich: it is 15:10, the running event wins and the 14:00 task is not Now", () => {
+    expect(clockAt(instant, "Europe/Zurich").hour).toBeCloseTo(15.1667, 3);
+    const p = run("Europe/Zurich");
+    expect(p?.kind).toBe("now");
+    expect(p?.event?.title).toBe("Team sync");
+  });
+
+  it("UTC: the same instant is 14:10, so the 14:00 task is the one running", () => {
+    expect(clockAt(instant, "UTC").hour).toBeCloseTo(14.1667, 3);
+    const p = run("UTC");
+    expect(p?.kind).toBe("now");
+    expect(p?.task?.title).toBe("Review the launch checklist");
   });
 });
