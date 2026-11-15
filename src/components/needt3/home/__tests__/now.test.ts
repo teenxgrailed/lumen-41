@@ -1,7 +1,13 @@
-import type { V3Task } from "@/lib/needt3/map";
+import type { V3Event, V3Task } from "@/lib/needt3/map";
 
-import type { ScheduleItem } from "../derive";
-import { nowCardTime, nowKicker, overdueLabel, pickNow } from "../now";
+import { type ScheduleItem, scheduleItems } from "../derive";
+import {
+  eventSkipKey,
+  nowCardTime,
+  nowKicker,
+  overdueLabel,
+  pickNow,
+} from "../now";
 import { TODAY, task } from "./fixtures";
 
 const at = (h: number, m = 0) =>
@@ -97,13 +103,25 @@ describe("pickNow: what the Now card shows", () => {
     expect(withAnytime?.kind).toBe("anytime");
   });
 
-  it("the evening event is the pick once no open task of today is left", () => {
+  it("overdue beats an event that is more than an hour away", () => {
     const old = task({ dueDate: "2026-08-20" });
     const p = pickNow({
       ...base,
       schedule: [item(null, 20, 120, "Dinner")],
       dayOpen: [],
       lateOpen: [old],
+      nowHour: 10,
+    });
+    expect(p?.kind).toBe("late");
+    expect(p?.task?.id).toBe(old.id);
+  });
+
+  it("a later event is the pick only when nothing else is open", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [item(null, 20, 120, "Dinner")],
+      dayOpen: [],
+      lateOpen: [],
       nowHour: 10,
     });
     expect(p?.event?.title).toBe("Dinner");
@@ -120,26 +138,90 @@ describe("pickNow: what the Now card shows", () => {
     });
     expect(p?.kind).toBe("now");
     expect(p?.event?.title).toBe("Workshop");
+    expect(p?.canSkip).toBe(true);
   });
 
-  it("an event running past midnight is now before midnight; after it, it is not today's", () => {
-    const before = pickNow({
+  it("Skip works on an event: the card moves to the next pick", () => {
+    const t = task();
+    const input = {
+      ...base,
+      schedule: [item(null, 9, 480, "Workshop")],
+      dayOpen: [t],
+      lateOpen: [],
+      nowHour: 13,
+    };
+    const first = pickNow(input)!;
+    expect(first.event?.title).toBe("Workshop");
+    expect(first.skipKey).toBe(eventSkipKey(TODAY, first.event!.key));
+    const next = pickNow({ ...input, skipped: [first.skipKey] });
+    expect(next?.task?.id).toBe(t.id);
+    // skipping the last candidate starts again instead of leaving no card
+    const wrapped = pickNow({
+      ...input,
+      dayOpen: [],
+      skipped: [first.skipKey],
+    });
+    expect(wrapped?.event?.title).toBe("Workshop");
+  });
+
+  it("an event alone cannot be skipped (nowhere to go)", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [item(null, 9, 60, "Call")],
+      dayOpen: [],
+      lateOpen: [],
+      nowHour: 9.5,
+    });
+    expect(p?.canSkip).toBe(false);
+  });
+
+  it("an event skipped yesterday does not stay skipped today", () => {
+    const e = item(null, 9, 60, "Call");
+    const p = pickNow({
+      ...base,
+      schedule: [e],
+      dayOpen: [],
+      lateOpen: [],
+      nowHour: 9.5,
+      skipped: [eventSkipKey("2026-08-31", e.key)],
+    });
+    expect(p?.event?.title).toBe("Call");
+  });
+
+  it("an event running past midnight is now before midnight", () => {
+    const p = pickNow({
       ...base,
       schedule: [item(null, 23, 180, "Night shift")],
       dayOpen: [],
       lateOpen: [],
       nowHour: 23.5,
     });
-    expect(before?.kind).toBe("now");
+    expect(p?.kind).toBe("now");
+  });
+
+  it("an event from 22:00 yesterday to 02:00 today is not in today's schedule, so the task is the pick", () => {
+    const night = {
+      id: "n1",
+      title: "Night shift",
+      startAt: "2026-08-31T22:00",
+      endAt: `${TODAY}T02:00`,
+      isAllDay: false,
+      calendarId: "c1",
+      source: "needt",
+      externalId: null,
+    } as unknown as V3Event;
     const t = task();
-    const after = pickNow({
+    const schedule = scheduleItems([t], [night], TODAY);
+    expect(schedule.some((x) => x.event)).toBe(false);
+    const p = pickNow({
       ...base,
-      schedule: [],
+      schedule,
       dayOpen: [t],
       lateOpen: [],
       nowHour: 0.5,
     });
-    expect(after?.task?.id).toBe(t.id);
+    expect(p?.task?.id).toBe(t.id);
+    expect(p?.kind).toBe("anytime");
   });
 
   it("the next-pick kicker carries the time, so the card does not repeat it", () => {

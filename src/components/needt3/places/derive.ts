@@ -253,9 +253,12 @@ export function trashSections(counts: {
   projects?: number;
 }) {
   const projects = counts.projects ?? 0;
-  const filled = [counts.pages, counts.tasks, counts.boards, projects].filter(
-    Boolean
-  );
+  const filled = [
+    counts.pages,
+    counts.tasks,
+    counts.boards,
+    projects,
+  ].filter(Boolean);
   return {
     total: counts.pages + counts.tasks + counts.boards + projects,
     /** Headings show once two kinds share the list; a lone Tasks list keeps its own. */

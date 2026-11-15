@@ -14,11 +14,12 @@ import { type ScheduleItem, hourAt } from "./derive";
  *  3. `anytime`- today's first open task with no hour;
  *  4. `now`    - a task placed earlier today that is still open (its hour
  *                passed); today still outranks overdue;
- *  5. `next`   - a later event today (after every open task of today);
- *  6. `late`   - the oldest overdue task, only when nothing above exists
- *                (overdue lives in its own row, it never outranks today).
- * Open tasks only; a done item is never the pick. Skip moves a TASK pick to
- * the next one; an event cannot be skipped (it happens at its time anyway).
+ *  5. `late`   - the oldest overdue task (it outranks an event that is more
+ *                than an hour away, but never today's own open tasks);
+ *  6. `next`   - a later event today, only when nothing else is open.
+ * Skip works on any pick (task or event): the key goes into the skipped list
+ * and the card moves on; an event's key is scoped to the day.
+ * Open tasks only; a done item is never the pick.
  */
 
 /** An event this close counts as "next" ahead of open tasks. */
@@ -34,8 +35,10 @@ export interface NowPick {
   event: ScheduleItem | null;
   /** Decimal hour it starts, when it has one. */
   at: number | null;
-  /** More candidates exist, so Skip has somewhere to go (tasks only). */
+  /** More candidates exist, so Skip has somewhere to go. */
   canSkip: boolean;
+  /** What Skip stores: the task id, or the event's day-scoped key. */
+  skipKey: string;
 }
 
 interface Slot {
@@ -45,7 +48,18 @@ interface Slot {
   event: ScheduleItem | null;
 }
 
-export function pickNow(o: {
+export function pickNow(o: PickNowInput): NowPick | null {
+  // Skip walks the candidates; when every one has been passed over the card
+  // starts again from the first (a skipped list never leaves it empty).
+  const first = pickOnce(o);
+  if (first || !o.skipped?.length) return first;
+  return pickOnce({ ...o, skipped: [] });
+}
+
+/** The key Skip stores for an event: scoped to the day, so it expires with it. */
+export const eventSkipKey = (today: string, key: string) => `${today}:${key}`;
+
+interface PickNowInput {
   /** Today's timed items: events and placed tasks (`scheduleItems`). */
   schedule: readonly ScheduleItem[];
   /** Today's open tasks, in the day's order. */
@@ -55,7 +69,9 @@ export function pickNow(o: {
   nowHour: number;
   today: string;
   skipped?: readonly string[];
-}): NowPick | null {
+}
+
+function pickOnce(o: PickNowInput): NowPick | null {
   const skipped = o.skipped ?? [];
   const byId = new Map(o.dayOpen.map((t) => [t.id, t]));
   const skippable = (id: string | null) => !!id && skipped.includes(id);
@@ -66,6 +82,7 @@ export function pickNow(o: {
   const timed: Slot[] = [];
   for (const it of o.schedule) {
     if (it.event) {
+      if (skippable(eventSkipKey(o.today, it.key))) continue;
       timed.push({ at: it.at, len: it.len, task: null, event: it });
       continue;
     }
@@ -91,8 +108,8 @@ export function pickNow(o: {
   const late = o.lateOpen.filter((t) => !skippable(t.id));
 
   const pick = (kind: NowKind, s: Slot): NowPick => {
-    const tasksLeft =
-      timed.filter((x) => x.task && x !== s).length +
+    const others =
+      timed.filter((x) => x !== s).length +
       untimed.filter((t) => t !== s.task).length +
       late.filter((t) => t !== s.task).length;
     return {
@@ -100,7 +117,8 @@ export function pickNow(o: {
       task: s.task,
       event: s.event,
       at: s.at,
-      canSkip: !!s.task && tasksLeft > 0,
+      canSkip: others > 0,
+      skipKey: s.event ? eventSkipKey(o.today, s.event.key) : s.task!.id,
     };
   };
 
@@ -112,23 +130,26 @@ export function pickNow(o: {
       task: untimed[0],
       event: null,
       at: null,
-      canSkip: untimed.length + late.length > 1,
+      canSkip: untimed.length + late.length + timed.length > 1,
+      skipKey: untimed[0].id,
     };
   }
   // A task placed earlier today that is still open (its hour passed): today
   // still outranks overdue, so it is "now" in the only sense left.
   const missed = [...timed].reverse().find((s) => s.task);
   if (missed) return pick("now", missed);
-  if (laterEvent) return pick("next", laterEvent);
+  // Overdue outranks an event that is more than an hour away.
   if (late[0]) {
     return {
       kind: "late",
       task: late[0],
       event: null,
       at: null,
-      canSkip: late.length > 1,
+      canSkip: late.length + timed.length > 1,
+      skipKey: late[0].id,
     };
   }
+  if (laterEvent) return pick("next", laterEvent);
   return null;
 }
 

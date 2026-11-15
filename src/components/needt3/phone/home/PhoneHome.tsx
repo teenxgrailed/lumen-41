@@ -455,6 +455,11 @@ export function PhoneHome({
         dur: dur(nowPick.event.len),
         sub: "On your calendar",
       }}
+      onSkip={
+        nowPick.canSkip
+          ? () => setSkipped([...skipped, nowPick.skipKey])
+          : undefined
+      }
       actions={
         <button
           type="button"
@@ -489,12 +494,7 @@ export function PhoneHome({
       )}
       onSkip={
         nowPick.canSkip
-          ? () =>
-              setSkipped(
-                skipped.length + 1 >= dayOpenNow.length + lateOpenNow.length
-                  ? []
-                  : [...skipped, nowTask.id]
-              )
+          ? () => setSkipped([...skipped, nowPick.skipKey])
           : undefined
       }
       onStart={() => void startFocus(nowTask)}

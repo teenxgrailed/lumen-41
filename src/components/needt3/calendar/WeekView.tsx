@@ -1081,11 +1081,7 @@ export function WeekView({
           <div className="c2-wgrid" style={{ height: GRID_H }}>
             <div className="c2-whours" style={{ width: GUTTER }}>
               {HOURS.map((h) => (
-                <span
-                  key={h}
-                  className="c2-hour"
-                  style={{ top: hourLabelTop(h) }}
-                >
+                <span key={h} className="c2-hour" style={{ top: hourLabelTop(h) }}>
                   {`${String(h).padStart(2, "0")}:00`}
                 </span>
               ))}

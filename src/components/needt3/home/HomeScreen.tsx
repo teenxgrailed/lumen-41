@@ -675,6 +675,11 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
           dur: dur(nowPick.event.len),
           sub: "On your calendar",
         }}
+        onSkip={
+          nowPick.canSkip
+            ? () => setSkipped((sk) => [...sk, nowPick.skipKey])
+            : undefined
+        }
         actions={
           <button
             type="button"
@@ -720,20 +725,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
         )}
         onSkip={
           nowPick.canSkip
-            ? () =>
-                setSkipped((sk) =>
-                  skipNext(
-                    sk,
-                    {
-                      task: nowTask,
-                      after: null,
-                      moreLate: 0,
-                      canSkip: true,
-                    },
-                    [...lateOpen, ...dayOpen].filter((t) => !sk.includes(t.id))
-                      .length
-                  )
-                )
+            ? () => setSkipped((sk) => [...sk, nowPick.skipKey])
             : undefined
         }
         onStart={() => void startFocusOn(nowTask)}

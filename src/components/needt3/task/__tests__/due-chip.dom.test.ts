@@ -80,7 +80,8 @@ function mount(t: V3Task, props: Record<string, unknown>) {
   });
 }
 
-const chip = () => host.querySelector("[data-task-due]") as HTMLElement | null;
+const chip = () =>
+  host.querySelector("[data-task-due]") as HTMLElement | null;
 
 describe("due date chip", () => {
   it.each([
@@ -100,7 +101,9 @@ describe("due date chip", () => {
     mount({ ...task, dueDate: "2026-10-10" } as V3Task, props);
     expect(chip()?.textContent).toBe("10 Oct");
     expect(chip()?.classList.contains("is-late")).toBe(true);
-    expect(chip()?.getAttribute("aria-label")).toBe("Overdue — was due 10 Oct");
+    expect(chip()?.getAttribute("aria-label")).toBe(
+      "Overdue — was due 10 Oct"
+    );
   });
 
   it("draws nothing without a due date or on a done task", () => {

@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 
 import { useQueryClient } from "@tanstack/react-query";
+
 import {
   LuCalendar,
   LuClock,
@@ -316,8 +317,9 @@ export function DocumentScreen({
   sheetRef.current = sheet;
   useEffect(
     () => () => {
-      const editor =
-        sheetRef.current?.querySelector<HTMLElement>(".needt-page-editor");
+      const editor = sheetRef.current?.querySelector<HTMLElement>(
+        ".needt-page-editor"
+      );
       discardBlankDoc(
         qc,
         pageId,
