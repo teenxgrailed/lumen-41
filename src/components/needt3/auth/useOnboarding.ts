@@ -85,6 +85,7 @@ export const IMPORT_SOURCES: ReadonlyArray<{
 
 export function useOnboarding({
   startAt,
+  ui,
 }: {
   startAt?: string | null;
   /** Which face is drawing (kept so both faces call the hook the same way). */
@@ -131,13 +132,14 @@ export function useOnboarding({
     [imports.data]
   );
   const ids = React.useMemo(
-    () => stepsFor(importSources.length > 0),
-    [importSources.length]
+    () => stepsFor(importSources.length > 0, ui === "phone"),
+    [importSources.length, ui]
   );
   const count = ids.length;
 
   const [i, setI] = React.useState(() =>
-    clampStep(stepIndex(startAt || "use"), 3)
+    // a step this face does not show (or an unknown one) starts at the first
+    clampStep(stepIndex(startAt || "use", ids), ids.length)
   );
   const [dir, setDir] = React.useState<1 | -1>(1);
   /* In the order picked: the first one drives the sample day. */

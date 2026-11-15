@@ -8,14 +8,25 @@ import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 
 import { useMark } from "../../settings/SettingsContext";
 import { PkGlyph, pkCx } from "../kit";
-import { type MenuPlaceId, menuTilesFrom, menuWord } from "../menu/places";
+import { usePkSide } from "../kit/theme";
+import { BarStylePicker } from "../menu/BarStylePicker";
+import {
+  BAR_PLACE_SLOTS,
+  type BarStyle,
+  type MenuPlaceId,
+  barPlaces,
+  barStyleFrom,
+  menuTilesFrom,
+  menuWord,
+} from "../menu/places";
 import { PILL_PLACES, PILL_SIZE, pillSlots, toggleSlot } from "./model";
 import { PsGroup, PsRow, usePs } from "./parts";
 
 const noop = () => undefined;
 
 /**
- * Menu: the three places in the pill. A tap puts a place in the next free
+ * Menu: the bottom bar's look (`prefs.barStyle`, applied at once), then the
+ * three places in the pill. A tap puts a place in the next free
  * slot (another tap takes it out); a tap on a slot empties it. The list is
  * written to `prefs.mobileTiles` (what menu A reads through `menuTilesFrom`)
  * only when the pill is full again, and only into the loaded prefs
@@ -66,9 +77,29 @@ export function MenuPage() {
       });
   };
 
+  const side = usePkSide();
+  const barStyle = barStyleFrom(settings.data?.prefs);
+  const pickBar = (style: BarStyle) => {
+    if (!ready || style === barStyle) return;
+    void setPref("barStyle", style)
+      .then((done) => done && mark())
+      .catch(noop);
+  };
+
   const left = PILL_SIZE - slots.length;
   return (
     <>
+      <PsGroup title="Bottom bar">
+        <div className="ps-bar-style" data-ps-bar-style={barStyle}>
+          <BarStylePicker
+            value={barStyle}
+            places={barPlaces(settings.data?.prefs, BAR_PLACE_SLOTS)}
+            side={side}
+            disabled={!ready}
+            onChange={pickBar}
+          />
+        </div>
+      </PsGroup>
       <PsGroup
         title="In the pill"
         hint={

@@ -221,3 +221,61 @@ export function menuGlyphId(id: MenuPlaceId): string | null {
     ? sid
     : null;
 }
+
+/**
+ * The bottom bar's two looks (`UserSettings.prefs.barStyle`): "classic" is
+ * menu A's dark pill with the round + beside it; "float" is a light frosted
+ * pill (dark frosted in the dark theme) holding the places, + and the menu
+ * card's opener in one row. Anything else, or nothing saved, is "classic".
+ */
+export type BarStyle = "classic" | "float";
+export const BAR_STYLES: readonly BarStyle[] = ["classic", "float"];
+
+export function barStyleFrom(prefs: unknown): BarStyle {
+  const raw =
+    prefs && typeof prefs === "object"
+      ? (prefs as Record<string, unknown>).barStyle
+      : null;
+  return raw === "float" ? "float" : "classic";
+}
+
+/**
+ * The order places are offered to the bar after the saved list runs out.
+ * Settings never sits in the bar (it opens a sheet, and the menu card has
+ * it); Agents and Budget neither, since they are rows only while switched on.
+ */
+const BAR_NEVER: readonly MenuPlaceId[] = ["settings", "agents", "budget"];
+const BAR_FALLBACK: readonly MenuPlaceId[] = [
+  ...DEFAULT_TILES,
+  ...MENU_ORDER.filter(
+    (id) => !DEFAULT_TILES.includes(id) && !BAR_NEVER.includes(id)
+  ),
+];
+
+/**
+ * The bar's `count` places: the saved list (`prefs.mobileTiles`) first, in
+ * its order, then the defaults, no repeats. This is the one place the bar's
+ * ordering is decided, so a later ranking source swaps in here. Pure.
+ */
+export function barPlaces(prefs: unknown, count: number): MenuPlaceId[] {
+  const raw =
+    prefs && typeof prefs === "object"
+      ? (prefs as Record<string, unknown>).mobileTiles
+      : null;
+  const out: MenuPlaceId[] = [];
+  const n = Math.max(0, Math.floor(count));
+  const add = (id: MenuPlaceId | undefined) => {
+    if (id && out.length < n && !out.includes(id)) out.push(id);
+  };
+  if (Array.isArray(raw))
+    for (const v of raw) add(typeof v === "string" ? FROM_SAVED[v] : undefined);
+  for (const id of BAR_FALLBACK) add(id);
+  return out;
+}
+
+/**
+ * How many places the floating bar holds: three, beside "+" and the menu
+ * opener (five slots). The same three as the classic pill, so the card that
+ * opens from either bar shows the same tiles on top.
+ */
+export const BAR_PLACE_SLOTS = 3;

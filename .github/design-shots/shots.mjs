@@ -28,7 +28,14 @@ const screens = screenList.split(",").map((s) => s.trim()).filter(Boolean).map((
   const route = i < 0 ? "/" + name : s.slice(i + 1);
   if (!/^[a-z0-9_-]+$/i.test(name)) throw new Error(`bad screen name: ${name}`);
   if (!route.startsWith("/") || route.startsWith("//")) throw new Error(`route must start with one /: ${route}`);
-  return { name, route };
+  // Options after "#", joined by "&": bar=classic|float sets the phone's bottom bar
+  // (prefs.barStyle) before the shot; chrome keeps the phone's fixed chrome (the dock)
+  // and shoots the viewport instead of unrolling the page.
+  const [pathPart, optPart = ""] = route.split("#");
+  const opts = new URLSearchParams(optPart);
+  const bar = opts.get("bar");
+  if (bar && bar !== "classic" && bar !== "float") throw new Error(`bad bar: ${bar}`);
+  return { name, route: pathPart, bar, chrome: opts.has("chrome") };
 });
 
 const sizes = [
@@ -83,6 +90,12 @@ try {
       await route.fulfill({ response: res, json: { ...body, hostedAvailable: true } });
     });
     for (const s of screens) {
+      if (s.bar) {
+        const res = await ctx.request
+          .patch(HOST + "/api/user-settings", { data: { prefs: { barStyle: s.bar } } })
+          .catch((e) => ({ ok: () => false, status: () => e.message }));
+        if (!res.ok()) console.log("WARN bar style not set", s.name, res.status());
+      }
       const page = await ctx.newPage();
       const started = Date.now();
       await page.goto(HOST + s.route, { waitUntil: "domcontentloaded", timeout: 60_000 }).catch((e) => console.log("WARN goto", s.name, e.message));
@@ -94,9 +107,16 @@ try {
         .catch(() => false);
       if (!settled) { warned++; console.log("WARN still loading", s.name, size.tag); }
       await page.waitForTimeout(1200);
+      const file = path.join(out, `${s.name}-${size.tag}.png`);
+      if (s.chrome) {
+        // the dock is fixed chrome: shoot the screen as a person sees it
+        await page.screenshot({ path: file, timeout: 30_000 }).catch((err) => console.log("FAIL shot", s.name, size.tag, err.message.split("\n")[0]));
+        console.log("shot", file, `${Date.now() - started}ms`, page.url().replace(HOST, ""), "viewport");
+        await page.close();
+        continue;
+      }
       const grown = await unroll(page, size.tag === "phone");
       await page.waitForTimeout(500);
-      const file = path.join(out, `${s.name}-${size.tag}.png`);
       // A very tall page (a 24-hour grid unrolled) can exceed what Chromium captures:
       // fall back to the viewport rather than lose the screen.
       try {

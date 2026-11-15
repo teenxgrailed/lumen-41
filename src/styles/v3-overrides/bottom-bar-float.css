@@ -1,0 +1,268 @@
+/*
+ * The floating bottom bar (FloatBar.tsx, `prefs.barStyle = "float"`), the
+ * second look of the phone's dock beside menu A's classic pill.
+ *
+ * One frosted pill over the content: the page ground at a see-through alpha
+ * over a backdrop blur cut to the pill, a hairline edge, no heavy shadow.
+ * Five slots, no labels. The slot you are in sits in a solid circle, the
+ * pill's raised ground (white on light, the raised dark on dark): a ground
+ * shift, never the accent. Icons are the one ink at the ladder's alphas.
+ *
+ * While it is the dock, menu A draws nothing at rest at the pill; its card
+ * still opens (from the bar's dot grid) and grows from the pill's place.
+ */
+.needt-v3 .nfb {
+  --nfb-slot: 48px;
+  --nfb-pad: 6px;
+  --nfb-ground: var(--v2p-plate);
+  --nfb-on: var(--v2p-plate);
+  --nfb-alpha: 0.62;
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--v3-dock-lift, 20px) + 10px);
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.32s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+.needt-v3 .nfb.is-dark {
+  --nfb-ground: var(--v2p-raise);
+  --nfb-on: var(--v2p-raise-2);
+  --nfb-alpha: 0.66;
+}
+.needt-v3 .nfb.is-out {
+  opacity: 0;
+  transform: translateX(-50%) translateY(12px);
+}
+.needt-v3 .nfb.is-out .nfb-pill {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.needt-v3 .nfb.is-preview {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  z-index: auto;
+  transform: none;
+}
+
+.needt-v3 .nfb-pill {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--nfb-pad);
+  border-radius: calc(var(--nfb-slot) / 2 + var(--nfb-pad));
+  pointer-events: auto;
+  box-shadow:
+    inset 0 0 0 0.5px var(--v2p-line),
+    0 8px 24px -16px rgba(18, 16, 40, 0.28);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
+}
+.needt-v3 .nfb-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--nfb-ground);
+  opacity: var(--nfb-alpha);
+}
+
+.needt-v3 .nfb-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--nfb-slot);
+  height: var(--nfb-slot);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--v2p-ink-2);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+.needt-v3 .nfb-slot.is-on {
+  background: var(--nfb-on);
+  color: var(--v2p-ink);
+  box-shadow: 0 1px 2px rgba(18, 16, 40, 0.08);
+}
+.needt-v3 .nfb.is-dark .nfb-slot.is-on {
+  box-shadow: inset 0 0 0 0.5px var(--v2p-line);
+}
+.needt-v3 .nfb-slot .nva-glyph {
+  width: 26px;
+  height: 26px;
+  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+.needt-v3 .nfb-slot svg {
+  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+.needt-v3 .nfb-slot:active .nva-glyph,
+.needt-v3 .nfb-slot.is-add:active svg {
+  transform: scale(0.86);
+}
+.needt-v3 .nfb-slot:focus-visible {
+  outline: 2px solid var(--v2p-ink-3);
+  outline-offset: 1px;
+}
+
+.needt-v3 .nfb-focus {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  pointer-events: auto;
+}
+
+/* Menu A while the floating bar is the dock: at rest at the pill it draws
+ * nothing (the pill, its glass, the + and the focus button); moving (the card
+ * closing back into the pill) and open, it is the card as always. */
+.needt-v3
+  .nva.is-float[data-nva-mode="pill"]:not([data-moving])
+  :is(.nva-body, .nva-glass),
+.needt-v3 .nva.is-float :is(.nva-add, .nva-focus, .nva-hint) {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .nfb,
+  .needt-v3 .nfb-slot,
+  .needt-v3 .nfb-slot .nva-glyph {
+    transition: none;
+  }
+}
+
+/* ── The picker (BarStylePicker.tsx): onboarding's bar step and Settings ──
+ * Two options side by side, each a still preview of its bar on a patch of
+ * page ground, a name and one quiet line. The chosen one carries an ink ring:
+ * the accent is never a fill. */
+.needt-v3 .bsp {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.needt-v3 .bsp-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 8px 12px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--v2p-ink);
+  text-align: left;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--v2p-line);
+  transition: box-shadow 0.18s ease;
+}
+.needt-v3 .bsp-opt.is-on {
+  box-shadow: inset 0 0 0 1.5px var(--v2p-ink);
+}
+.needt-v3 .bsp-opt:focus-visible {
+  outline: 2px solid var(--v2p-ink-3);
+  outline-offset: 2px;
+}
+.needt-v3 .bsp-opt:disabled {
+  opacity: 0.52;
+}
+.needt-v3 .bsp-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 112px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border-radius: 12px;
+  /* a patch of page with something under the glass, so the frost reads */
+  background:
+    linear-gradient(var(--v2p-line), var(--v2p-line)) 14px 18px / 60% 8px
+      no-repeat,
+    linear-gradient(var(--v2p-line), var(--v2p-line)) 14px 34px / 40% 8px
+      no-repeat,
+    linear-gradient(var(--v2p-line), var(--v2p-line)) 14px 74px / 70% 18px
+      no-repeat,
+    var(--v2p-raise);
+}
+.needt-v3 .bsp-scale {
+  display: block;
+  margin-top: 46px;
+  transform: scale(0.5);
+  transform-origin: 50% 50%;
+  white-space: nowrap;
+}
+.needt-v3 .bsp-name {
+  padding: 0 4px;
+  font: 600 13px/18px var(--font-sans);
+}
+.needt-v3 .bsp-sub {
+  padding: 0 4px;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+
+/* the classic pill, still: the inverse of the page (ink as its ground) */
+.needt-v3 .bsp-classic {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.needt-v3 .bsp-cpill,
+.needt-v3 .bsp-cadd {
+  display: inline-flex;
+  align-items: center;
+  background: var(--v2p-ink);
+  color: var(--v2p-ground);
+}
+.needt-v3 .bsp-cpill {
+  gap: 6px;
+  height: 64px;
+  padding: 0 12px;
+  border-radius: 32px;
+}
+.needt-v3 .bsp-cadd {
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 27px;
+}
+.needt-v3 .bsp-cicon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  opacity: 0.52;
+}
+.needt-v3 .bsp-cicon.is-on {
+  opacity: 1;
+}
+.needt-v3 .bsp-cicon .nva-glyph {
+  width: 30px;
+  height: 30px;
+}
+.needt-v3 .bsp-chair {
+  width: 1px;
+  height: 28px;
+  background: currentColor;
+  opacity: 0.28;
+}
+
+/* Settings -> Menu: the picker inside the group card */
+.needt-v3 .ps-bar-style {
+  padding: 10px;
+}

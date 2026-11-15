@@ -118,6 +118,16 @@ export interface MenuProps {
   onSettings: () => void;
   /** True at the first moving frame, false once it settles. */
   onMoving?: (moving: boolean) => void;
+  /**
+   * The bottom bar's look (`prefs.barStyle`). "float": the floating bar
+   * (FloatBar) is the dock, so this menu draws nothing at rest at the pill
+   * and is only the card that `openRequest` opens.
+   */
+  variant?: "classic" | "float";
+  /** Each new value (> 0) opens the card, as a tap on the dot grid does. */
+  openRequest?: number;
+  /** The card opened (card or full) or closed to the pill. */
+  onOpenChange?: (open: boolean) => void;
 }
 
 /** A drag in progress. */
@@ -240,6 +250,7 @@ function fling(S: State, el: HTMLElement, v: number, onFrame: () => void) {
 export function Menu(props: MenuProps) {
   const { side, screen, tiles, counts, me, away, morph, focus, focusOn } =
     props;
+  const float = props.variant === "float";
   const top = tiles.slice(0, 3);
   const rows = menuRows(top, {
     agents: counts?.agents !== undefined,
@@ -505,7 +516,12 @@ export function Menu(props: MenuProps) {
     if (propsRef.current.away || useNeedt3Ui.getState().composerOpen) return;
     const at = document.activeElement;
     if (at && at !== document.body && !R.root?.contains(at)) return;
-    R.dots?.focus({ preventScroll: true });
+    // the floating bar's menu slot opened it; the dot grid is not drawn
+    if (propsRef.current.variant === "float")
+      document
+        .querySelector<HTMLElement>("[data-nfb-menu]")
+        ?.focus({ preventScroll: true });
+    else R.dots?.focus({ preventScroll: true });
   }, [R, S]);
   const rest = useCallback(() => {
     const el = R.root;
@@ -716,6 +732,15 @@ export function Menu(props: MenuProps) {
     if (away && modeRef.current !== "pill") go("pill");
   }, [away, go]);
 
+  /* The floating bar's menu slot asks for the card. */
+  const openRequest = props.openRequest ?? 0;
+  const openHandled = useRef(openRequest);
+  useEffect(() => {
+    if (openRequest === openHandled.current) return;
+    openHandled.current = openRequest;
+    if (modeRef.current === "pill") go("card");
+  }, [openRequest, go]);
+
   /* A tucked-away dock (the handle) comes back on its own when the person
      moves to another place: a screen never starts with the dock gone, which
      read as the bottom of the page being cropped. */
@@ -765,6 +790,9 @@ export function Menu(props: MenuProps) {
   /* While the card is up the screen behind it is not reachable by keyboard,
      pointer or screen reader (it is the host `ShellFrame` marks). */
   const isOpen = menuIsOpen(mode);
+  useEffect(() => {
+    propsRef.current.onOpenChange?.(isOpen);
+  }, [isOpen]);
   const sky = usePkSkyMood();
   useEffect(() => {
     const host =
@@ -968,7 +996,8 @@ export function Menu(props: MenuProps) {
         (side === "dark" ? "is-dark" : "is-light") +
         (away ? " is-away" : "") +
         (morph ? " is-morph" : "") +
-        (focusOn ? " is-focus" : "")
+        (focusOn ? " is-focus" : "") +
+        (float ? " is-float" : "")
       }
       data-nva-mode={mode}
       data-nav-variant="A"
