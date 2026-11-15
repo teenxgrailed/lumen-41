@@ -1,0 +1,1 @@
+- Needt Budget works on the phone again: the Budget frame was 150 px tall (a white band across the top of the screen) instead of filling the screen above the menu.

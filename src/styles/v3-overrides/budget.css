@@ -35,11 +35,14 @@
   background: var(--background);
 }
 
-/* The phone's menu pill floats over the bottom: Budget ends above it. */
+/* The phone's menu pill floats over the bottom: Budget ends above it. The
+   height is stated, never `auto` with `bottom`: an iframe is a replaced
+   element, so top + bottom do not stretch it and `auto` falls back to its
+   intrinsic 150px (a white band across the top of the screen, 15.11.26). */
 .needt-v3[data-ui="phone"] .bd-frame {
   border-radius: 0;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
-  height: auto;
+  bottom: auto;
+  height: calc(100% - env(safe-area-inset-bottom, 0px) - 84px);
 }
 
 /* Free: the row is there but grey, with its PRO pill at full strength. */
