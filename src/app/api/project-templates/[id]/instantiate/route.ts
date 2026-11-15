@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { WorkspaceRole } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { addCalendarDays, newDate, startOfDay } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -211,6 +212,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       });
     });
 
+    /* After the transaction committed; once per instantiation. */
+    if (project.tasks.length > 0) {
+      recordActivation("task_created", auth.userId, {
+        source: "project_template",
+      });
+    }
     return NextResponse.json({ project }, { status: 201 });
   } catch (error) {
     logger.error(

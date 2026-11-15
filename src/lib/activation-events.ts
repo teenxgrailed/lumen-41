@@ -28,6 +28,10 @@ export const ACTIVATION_EVENTS = [
      from a low keep_applied count. */
   "first_replan_card_shown",
   "first_replan_skipped",
+  /* "Plan my day" / schedule.auto: the scheduler applied a schedule with no
+     preview and no Keep. Counted apart so it never inflates replan_shown or
+     keep_applied. */
+  "plan_applied",
 ] as const;
 
 /** Events that count once per account; a unique index enforces it. */
@@ -83,7 +87,14 @@ async function record(
     select: { role: true, sandboxKind: true },
   });
   /* Reviewer and demo logins are not people trying the product. */
-  if (!user || user.sandboxKind) return;
+  if (!user || user.sandboxKind) {
+    logger.debug(
+      "Activation event skipped",
+      { name, reason: user ? "sandbox" : "no_user" },
+      LOG_SOURCE
+    );
+    return;
+  }
   const uid = pseudonymousId(userId);
   if (once) {
     /* The unique (userId, onceKey) index decides: only the insert that wins

@@ -38,6 +38,7 @@ export const SIDE_EVENTS = [
   "first_replan_skipped",
   "undo_applied",
   "fill_applied",
+  "plan_applied",
 ] as const;
 
 export type FunnelStepName = (typeof FUNNEL_STEPS)[number];

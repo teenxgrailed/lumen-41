@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { MailProvider, TaskReminderKind, WorkspaceRole } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import { toPublicMailMessage } from "@/lib/api/public-records";
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -165,6 +166,7 @@ export async function PATCH(
         },
         select: { id: true, title: true, dueDate: true },
       });
+      recordActivation("task_created", auth.userId, { source: "mail" });
       return NextResponse.json({ reminderTask: task }, { status: 201 });
     }
 

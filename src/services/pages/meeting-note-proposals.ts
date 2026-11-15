@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { z } from "zod";
 
+import { recordActivation } from "@/lib/activation-events";
 import type { PageAccessActor } from "@/lib/auth/page-auth";
 import { resolvePageAccess } from "@/lib/auth/page-auth";
 import { PageAccessRole } from "@prisma/client";
@@ -123,6 +124,9 @@ export async function decideMeetingNoteProposal(
     return tasks;
   });
   if (!applied) return null;
+  if (applied.length > 0) {
+    recordActivation("task_created", actor.userId, { source: "meeting_note" });
+  }
   let schedulingRunId: string | null = null;
   if (scheduleRequested) {
     const run = await createSchedulingRun({

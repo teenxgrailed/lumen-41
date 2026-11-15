@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { sendUmamiEvent } from "@/lib/umami-server";
 
@@ -16,7 +17,12 @@ jest.mock("@/lib/prisma", () => ({
 }));
 jest.mock("@/lib/umami-server", () => ({ sendUmamiEvent: jest.fn() }));
 jest.mock("@/lib/logger", () => ({
-  logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn() },
+  logger: {
+    warn: jest.fn(),
+    info: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 const db = prisma as unknown as {
@@ -91,6 +97,22 @@ describe("recordActivation", () => {
     recordActivation("task_created", "gone");
     recordActivation("task_created", null);
     await flush();
+    expect(db.activationEvent.create).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("logs a debug line when it skips a sandbox account, and still writes nothing", async () => {
+    db.user.findUnique.mockResolvedValueOnce({
+      role: "user",
+      sandboxKind: "demo",
+    });
+    recordActivation("task_created", "sandbox");
+    await flush();
+    expect(logger.debug).toHaveBeenCalledWith(
+      "Activation event skipped",
+      { name: "task_created", reason: "sandbox" },
+      "ActivationEvents"
+    );
     expect(db.activationEvent.create).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
   });

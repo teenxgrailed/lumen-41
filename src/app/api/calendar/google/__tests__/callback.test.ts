@@ -1,10 +1,12 @@
 import { NextRequest } from "next/server";
 
+import { recordActivation } from "@/lib/activation-events";
 import {
   calendarOAuthStateCookie,
   calendarOAuthStateCookieValue,
 } from "@/lib/calendar-oauth";
 import { canAddCalendar } from "@/lib/entitlements";
+import { prisma } from "@/lib/prisma";
 import { enqueueCalendarSync } from "@/lib/queue/enqueue";
 
 import { GET } from "../route";
@@ -25,6 +27,7 @@ const CALENDARS = [
 jest.mock("@/lib/auth/api-auth", () => ({
   authenticateRequest: async () => ({ userId: "user-1" }),
 }));
+jest.mock("@/lib/activation-events", () => ({ recordActivation: jest.fn() }));
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
@@ -118,5 +121,37 @@ describe("Google Calendar OAuth callback first sync", () => {
       "calendarError=limit_reached"
     );
     expect(enqueueCalendarSync).not.toHaveBeenCalled();
+  });
+
+  it("records calendar_connected for a new feed and again on re-auth (feed exists)", async () => {
+    process.env.NEXTAUTH_URL = "https://use.needt.app";
+    const makeRequest = () =>
+      new NextRequest(
+        "http://0.0.0.0:3000/api/calendar/google?code=c&state=state-1",
+        {
+          headers: {
+            cookie: `${calendarOAuthStateCookie("google")}=${calendarOAuthStateCookieValue("state-1", "user-1")}`,
+          },
+        }
+      );
+    jest.mocked(recordActivation).mockClear();
+    await GET(makeRequest());
+    expect(recordActivation).toHaveBeenCalledWith(
+      "calendar_connected",
+      "user-1",
+      { provider: "google" }
+    );
+
+    jest.mocked(recordActivation).mockClear();
+    jest
+      .mocked(prisma.calendarFeed.findFirst)
+      .mockResolvedValue({ id: "feed-existing" } as never);
+    await GET(makeRequest());
+    expect(recordActivation).toHaveBeenCalledWith(
+      "calendar_connected",
+      "user-1",
+      { provider: "google" }
+    );
+    jest.mocked(prisma.calendarFeed.findFirst).mockResolvedValue(null as never);
   });
 });

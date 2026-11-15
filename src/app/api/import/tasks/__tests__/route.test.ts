@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 
+import { recordActivation } from "@/lib/activation-events";
 import { prisma } from "@/lib/prisma";
 
 import { POST } from "../route";
@@ -13,6 +14,7 @@ jest.mock("@/lib/auth/api-auth", () => ({
 jest.mock("@/lib/auth/workspace-auth", () => ({
   workspaceDataScopeWhere: () => ({}),
 }));
+jest.mock("@/lib/activation-events", () => ({ recordActivation: jest.fn() }));
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
@@ -110,5 +112,26 @@ describe("POST /api/import/tasks", () => {
     expect(data.priorityLevel).toBe("HIGH");
     expect(data.energyRequired).toBe("LOW");
     expect(data.contextTag).toBe("phone");
+  });
+
+  it("records task_created once per import, after the transaction", async () => {
+    await POST(
+      req({
+        tasks: [
+          { title: "A", status: "todo" },
+          { title: "B", status: "todo" },
+        ],
+      })
+    );
+    expect(recordActivation).toHaveBeenCalledTimes(1);
+    expect(recordActivation).toHaveBeenCalledWith("task_created", "user-1", {
+      source: "import",
+    });
+  });
+
+  it("records nothing when every row was skipped", async () => {
+    taskCreate.mockRejectedValue(new Error("bad row"));
+    await POST(req({ tasks: [{ title: "Bad", status: "todo" }] }));
+    expect(recordActivation).not.toHaveBeenCalled();
   });
 });
