@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { getServerSession } from "next-auth";
 
 import { GoalsScreen } from "@/components/needt3/goals/GoalsScreen";
-import { NeedtLoading } from "@/components/needt3/states/NeedtLoading";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { habitsCardsEnabled } from "@/lib/feature-flags";
@@ -18,7 +17,7 @@ export default async function GoalsPage() {
   const session = await getServerSession(await getAuthOptions());
   const cards = await habitsCardsEnabled(session?.user?.id);
   return (
-    <Suspense fallback={<NeedtLoading />}>
+    <Suspense fallback={null}>
       <GoalsScreen cards={cards} />
     </Suspense>
   );

@@ -1,0 +1,1 @@
+- Health checks now report a lost Redis (the web check as degraded, the worker check once it persists), and the app answers with HSTS, nosniff, same-origin framing and a stricter referrer policy.

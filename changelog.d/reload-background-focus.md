@@ -1,0 +1,1 @@
+- A new version is applied after the tab has been in the background for 5 minutes, and never while a focus session is running.

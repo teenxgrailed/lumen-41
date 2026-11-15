@@ -12,6 +12,7 @@ import {
   sandboxLockedBody,
 } from "@/lib/sandbox/policy";
 import { contentSecurityPolicy } from "@/lib/security/csp";
+import { applySecurityHeaders } from "@/lib/security/headers";
 import { isBogusActionId } from "@/lib/stale-deployment";
 
 const CSP_REPORT_ONLY = contentSecurityPolicy({
@@ -257,6 +258,7 @@ export async function middleware(request: NextRequest) {
   }
   const response = await handle(request);
   response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  applySecurityHeaders(response.headers, request.nextUrl.pathname);
   // Which build answered: a page from an older build compares this with its
   // own SHA and offers a reload (src/lib/pwa/build-version.ts).
   const build =
