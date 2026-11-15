@@ -360,6 +360,17 @@ describe("Home v2 on the phone", () => {
     expect(rows()).toEqual(["b"]);
   });
 
+  it("the day's highlight is the Now card, over the running event; Skip falls through", () => {
+    client.setQueryData(qk.highlight(TODAY), { date: TODAY, taskId: "pm" });
+    mount(PhoneHomeV2);
+    expect(q(".ha-hl .ha-kicker").textContent).toBe("Highlight");
+    expect(q(".ha-hl-title").textContent).toBe("Call Anna");
+    expect(q(".ha-hl-time").textContent).toBe("14:30");
+    click(q("[data-ha-skip]"));
+    expect(q(".ha-hl .ha-kicker").textContent).toBe("Now");
+    expect(q(".ha-hl-title").textContent).toContain("Planning");
+  });
+
   it("asks for no highlight suggestion (no AI action) while v2 is on", async () => {
     mount(PhoneHomeV2);
     await flush();
@@ -380,6 +391,13 @@ describe("Home v2 on the desktop", () => {
     expect(host.querySelector("[data-hv2-late]")).toBeNull();
     expect(host.querySelector("[data-hd-cards]")).not.toBeNull();
     expect(host.querySelector(".hd-fold-title.is-late")).not.toBeNull();
+  });
+
+  it("flag on: a set highlight is the Now card", () => {
+    client.setQueryData(qk.highlight(TODAY), { date: TODAY, taskId: "pm" });
+    mount(DesktopV2On, "desktop");
+    expect(q("[data-hv2-now] .ha-kicker").textContent).toBe("Highlight");
+    expect(q("[data-hv2-now] .ha-hl-title").textContent).toBe("Call Anna");
   });
 
   it("flag on: the Now card and one overdue row", () => {

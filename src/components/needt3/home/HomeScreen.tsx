@@ -670,6 +670,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
         nowHour,
         today,
         skipped,
+        highlight: hlTask && !hlTask.done ? hlTask : null,
       })
     : null;
   const nowTask = nowPick?.task ?? null;
@@ -716,23 +717,25 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
           haTaskCard(
             nowTask,
             today,
-            nowPick.kind === "late"
-              ? nextUpNote(
-                  {
-                    task: nowTask,
-                    after: null,
-                    moreLate: Math.max(0, pickLate.length - 1),
-                    canSkip: true,
-                  },
-                  nowHour,
-                  today
-                )
-              : hlSub(
-                  nowTask,
-                  dayOpen.length > 1
-                    ? `then ${dayOpen.length - 1} more today`
-                    : ""
-                )
+            nowPick.kind === "highlight"
+              ? hlSub(nowTask, "the one thing for today")
+              : nowPick.kind === "late"
+                ? nextUpNote(
+                    {
+                      task: nowTask,
+                      after: null,
+                      moreLate: Math.max(0, pickLate.length - 1),
+                      canSkip: true,
+                    },
+                    nowHour,
+                    today
+                  )
+                : hlSub(
+                    nowTask,
+                    dayOpen.length > 1
+                      ? `then ${dayOpen.length - 1} more today`
+                      : ""
+                  )
           ),
           nowPick.kind
         )}

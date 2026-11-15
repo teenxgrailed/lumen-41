@@ -365,3 +365,85 @@ describe("the Now clock is the person's zone, the same one the schedule panel us
     expect(p?.task?.title).toBe("Review the launch checklist");
   });
 });
+
+describe("the day's highlight is the Now card", () => {
+  const hl = task({ title: "The one thing", scheduledStart: at(16) });
+  const running = item(null, 9, 480, "Workshop");
+  const old = task({ dueDate: "2026-08-20" });
+
+  it("wins over a running event and over overdue", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [running],
+      dayOpen: [hl],
+      lateOpen: [old],
+      nowHour: 13,
+      highlight: hl,
+    });
+    expect(p?.kind).toBe("highlight");
+    expect(p?.task?.id).toBe(hl.id);
+    expect(p?.at).toBe(16);
+    expect(nowKicker(p!)).toBe("Highlight");
+    expect(p?.canSkip).toBe(true);
+  });
+
+  it("a done highlight falls through to the normal order", () => {
+    const done = { ...hl, done: true } as V3Task;
+    const p = pickNow({
+      ...base,
+      schedule: [running],
+      dayOpen: [],
+      lateOpen: [old],
+      nowHour: 13,
+      highlight: done,
+    });
+    expect(p?.kind).toBe("now");
+    expect(p?.event?.title).toBe("Workshop");
+  });
+
+  it("no highlight: the order is unchanged", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [running],
+      dayOpen: [hl],
+      lateOpen: [],
+      nowHour: 13,
+      highlight: null,
+    });
+    expect(p?.event?.title).toBe("Workshop");
+  });
+
+  it("Skip falls through to the normal order", () => {
+    const first = pickNow({
+      ...base,
+      schedule: [running],
+      dayOpen: [hl],
+      lateOpen: [old],
+      nowHour: 13,
+      highlight: hl,
+    })!;
+    expect(first.skipKey).toBe(hl.id);
+    const next = pickNow({
+      ...base,
+      schedule: [running],
+      dayOpen: [hl],
+      lateOpen: [old],
+      nowHour: 13,
+      highlight: hl,
+      skipped: [first.skipKey],
+    });
+    expect(next?.event?.title).toBe("Workshop");
+  });
+
+  it("a highlight alone cannot be skipped", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [],
+      dayOpen: [hl],
+      lateOpen: [],
+      nowHour: 13,
+      highlight: hl,
+    });
+    expect(p?.canSkip).toBe(false);
+  });
+});

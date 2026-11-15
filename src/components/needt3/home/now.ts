@@ -7,6 +7,8 @@ import { type ScheduleItem, hourAt } from "./derive";
  * screen only draws it.
  *
  * The rule, in this order (first that has a candidate wins):
+ *  0. `highlight` - today's highlight, when set and not done: the person's own
+ *                one thing becomes "Now". Skip falls through to the rest;
  *  1. `now`    - something timed is running right now (an event or a placed
  *                task whose [start, start + length) holds the clock);
  *  2. `next`   - the next timed task later today, or an event that starts
@@ -25,7 +27,7 @@ import { type ScheduleItem, hourAt } from "./derive";
 /** An event this close counts as "next" ahead of open tasks. */
 export const SOON_HOURS = 1;
 
-export type NowKind = "now" | "next" | "anytime" | "late";
+export type NowKind = "highlight" | "now" | "next" | "anytime" | "late";
 
 export interface NowPick {
   kind: NowKind;
@@ -69,10 +71,29 @@ interface PickNowInput {
   nowHour: number;
   today: string;
   skipped?: readonly string[];
+  /**
+   * The day's highlight when one is set (the person's own pick, Maksym's
+   * rule of 15.11). Open and not skipped, it is the pick ahead of everything.
+   */
+  highlight?: V3Task | null;
 }
 
 function pickOnce(o: PickNowInput): NowPick | null {
   const skipped = o.skipped ?? [];
+  const hl = o.highlight;
+  if (hl && !hl.done && !skipped.includes(hl.id)) {
+    return {
+      kind: "highlight",
+      task: hl,
+      event: null,
+      at: hourAt(hl, o.today),
+      canSkip:
+        o.dayOpen.some((t) => t.id !== hl.id) ||
+        o.lateOpen.some((t) => t.id !== hl.id) ||
+        o.schedule.some((i) => i.event),
+      skipKey: hl.id,
+    };
+  }
   const byId = new Map(o.dayOpen.map((t) => [t.id, t]));
   const skippable = (id: string | null) => !!id && skipped.includes(id);
 
@@ -164,6 +185,7 @@ export const nowCardTime = <T extends { time?: string }>(
 
 /** The card's kicker: what the person is looking at, in two words. */
 export function nowKicker(p: NowPick): string {
+  if (p.kind === "highlight") return "Highlight";
   if (p.kind === "now") return "Now";
   if (p.kind === "late") return "Overdue";
   if (p.kind === "next" && p.at != null) return `Next · ${hhmm(p.at)}`;

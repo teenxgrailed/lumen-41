@@ -438,6 +438,7 @@ export function PhoneHome({
         nowHour,
         today,
         skipped,
+        highlight: hlTask && !hlTask.done ? hlTask : null,
       })
     : null;
   const nowTask = nowPick?.task ?? null;
@@ -493,11 +494,13 @@ export function PhoneHome({
           today,
           sub(
             nowTask,
-            nowPick.kind === "late"
-              ? `overdue, ${lateOpenNow.length} in all`
-              : dayOpenNow.length > 1
-                ? `then ${dayOpenNow.length - 1} more today`
-                : ""
+            nowPick.kind === "highlight"
+              ? "the one thing for today"
+              : nowPick.kind === "late"
+                ? `overdue, ${lateOpenNow.length} in all`
+                : dayOpenNow.length > 1
+                  ? `then ${dayOpenNow.length - 1} more today`
+                  : ""
           )
         ),
         nowPick.kind
