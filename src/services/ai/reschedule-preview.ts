@@ -657,6 +657,50 @@ export async function createReschedulePreview(
   };
 }
 
+/**
+ * A preview of one task moved to a slot the caller already checked (the first
+ * replan demo, where the slot is the first free gap after the meeting). It is
+ * the same preview token as the scheduler's, so Keep and Undo are the real
+ * apply and undo; only the proposed time comes from the caller.
+ */
+export async function createTargetedReschedulePreview(
+  userId: string,
+  workspace: WorkspaceAccess,
+  move: { taskId: string; start: Date; end: Date },
+  options: ReschedulePreviewOptions = {}
+) {
+  const before = await captureSnapshot(userId, workspace);
+  const contextVersion = await captureContextVersion(userId);
+  const after: ScheduleSnapshot = {
+    ...before,
+    tasks: before.tasks.map((task) =>
+      task.id === move.taskId
+        ? {
+            ...task,
+            scheduledStart: move.start.toISOString(),
+            scheduledEnd: move.end.toISOString(),
+            lastScheduled: newDate().toISOString(),
+          }
+        : task
+    ),
+  };
+  const changes = diffScheduleSnapshots(before, after);
+  const shown = replanActivationEvent("preview", options.via);
+  if (changes.length > 0 && shown) recordActivation(shown, userId);
+  return {
+    changes,
+    unscheduled: [],
+    previewToken: encodeToken(
+      "preview",
+      userId,
+      workspace.workspaceId,
+      contextVersion,
+      before,
+      after
+    ),
+  };
+}
+
 export async function applyReschedulePreview(
   userId: string,
   workspace: WorkspaceAccess,

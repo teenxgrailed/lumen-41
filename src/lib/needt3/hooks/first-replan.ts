@@ -25,6 +25,7 @@ import { ApiError, fetchJson, sendJson } from "./core";
 
 const LOG_SOURCE = "v3-first-replan";
 const API = "/api/onboarding/first-replan";
+const DEMO_PREVIEW_API = "/api/onboarding/first-replan/preview";
 const PREVIEW_API = "/api/tasks/reschedule-preview";
 
 /**
@@ -52,7 +53,7 @@ export type FirstReplanStep =
   | { kind: "kept"; undoToken: string };
 
 interface PreviewReply {
-  previewToken: string;
+  previewToken: string | null;
   changes: { taskId: string; toStart: string | null; toEnd: string | null }[];
 }
 interface ApplyReply {
@@ -107,9 +108,14 @@ export function useFirstReplan(demo: FirstReplanState | null | undefined) {
   const replan = useCallback(async () => {
     setStep({ kind: "previewing" });
     try {
-      const preview = await sendJson<PreviewReply>(PREVIEW_API, "POST", {
-        action: "preview",
-      });
+      // The server picks the first free gap after the meeting, one that
+      // touches no other task or event; Keep applies it for real below.
+      const preview = await sendJson<PreviewReply>(DEMO_PREVIEW_API, "POST");
+      if (!preview.previewToken) {
+        setStep({ kind: "idle" });
+        notify.error("Could not find a free slot today. Try again later.");
+        return;
+      }
       const move = preview.changes.find((c) => c.taskId === taskId);
       const to =
         move?.toStart && move.toEnd

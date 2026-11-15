@@ -131,6 +131,8 @@ it("offers a move that lands after the meeting and after now", async () => {
     kind: "preview",
     to: { start: "2026-11-18T11:45:00.000Z" },
   });
+  // The slot comes from the demo endpoint, which checks the whole day.
+  expect(send.mock.calls[0][0]).toBe("/api/onboarding/first-replan/preview");
 });
 
 it("refuses a move to before the meeting ends, and nothing is kept", async () => {

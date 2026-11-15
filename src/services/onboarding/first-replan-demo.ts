@@ -39,6 +39,8 @@ const BUFFER_MINUTES = 15;
  */
 const DEFAULT_EARLIEST = 9 * 60;
 const DEFAULT_LATEST = 15 * 60;
+/** Where the default work day closes. */
+const DEFAULT_END = 17 * 60;
 const DEFAULT_DAYS = [1, 2, 3, 4, 5];
 /**
  * A demo that starts a day waits this long after the window opens. Together
@@ -71,6 +73,8 @@ export interface DemoHours {
 }
 
 interface DemoWindow {
+  /** Minutes after local midnight the work day closes. */
+  end: number;
   earliest: number;
   latest: number;
   fallback: number;
@@ -101,6 +105,7 @@ export function demoWindow(hours?: DemoHours | null): DemoWindow {
         (d) => Number.isInteger(d) && d >= 0 && d <= 6
       );
       return {
+        end: hours.endHour * 60,
         earliest,
         latest,
         fallback: earliest + DAY_START_OFFSET,
@@ -109,6 +114,7 @@ export function demoWindow(hours?: DemoHours | null): DemoWindow {
     }
   }
   return {
+    end: DEFAULT_END,
     earliest: DEFAULT_EARLIEST,
     latest: DEFAULT_LATEST,
     fallback: DEFAULT_EARLIEST + DAY_START_OFFSET,
@@ -154,6 +160,48 @@ export function demoSlot(
     meetingStart: at(start + MEETING_OFFSET_MINUTES),
     meetingEnd: at(start + MEETING_OFFSET_MINUTES + MEETING_MINUTES),
   };
+}
+
+type Interval = { start: Date; end: Date };
+
+/**
+ * The first free gap for the demo task after the meeting: it starts at least
+ * the scheduler's buffer after `after` (the meeting's end) and after `now`, on
+ * a quarter hour, lasts the task's full length, sits inside a work day and
+ * touches nothing in `busy` (other tasks and calendar events). Null when
+ * three weeks of work days hold no such gap. Pure.
+ */
+export function freeGapAfter(input: {
+  after: Date;
+  now: Date;
+  zone: string;
+  hours?: DemoHours | null;
+  busy: Interval[];
+}): { start: Date; end: Date } | null {
+  const { after, now, zone, hours, busy } = input;
+  const win = demoWindow(hours);
+  const step = 15 * 60_000;
+  const length = TASK_MINUTES * 60_000;
+  const from = Math.max(
+    after.getTime() + BUFFER_MINUTES * 60_000,
+    now.getTime()
+  );
+  let at = Math.ceil(from / step) * step;
+  const limit = at + 21 * 24 * 60 * 60_000;
+  for (; at <= limit; at += step) {
+    const [day, hh, mm] = formatInTimeZone(
+      new Date(at),
+      zone,
+      "yyyy-MM-dd HH mm"
+    ).split(" ");
+    const minute = Number(hh) * 60 + Number(mm);
+    if (!win.days.includes(newDate(`${day}T12:00:00.000Z`).getUTCDay()))
+      continue;
+    if (minute < win.earliest || minute + TASK_MINUTES > win.end) continue;
+    const slot = { start: new Date(at), end: new Date(at + length) };
+    if (!busy.some((b) => overlaps(slot, b))) return slot;
+  }
+  return null;
 }
 
 /** The work hours on the person's auto-schedule settings, if there are any. */
@@ -262,6 +310,71 @@ export async function seedFirstReplanDemo(
     },
   });
   return { created: true };
+}
+
+/**
+ * Where "Replan my day" moves the demo task: the first free gap after the
+ * meeting, checked against everything else on the person's day. Null when
+ * there is no demo, nothing overlaps, or no gap exists.
+ */
+export async function firstReplanTarget(
+  userId: string,
+  now: Date = newDate(),
+  db: Pick<
+    typeof prisma,
+    "task" | "autoScheduleSettings" | "calendarEvent" | "userSettings"
+  > = prisma
+): Promise<{ taskId: string; start: Date; end: Date } | null> {
+  const demo = await firstReplanState(userId, db);
+  if (!demo?.conflict) return null;
+  const horizon = new Date(now.getTime() + 22 * 24 * 60 * 60_000);
+  const [hours, settings, tasks, events] = await Promise.all([
+    db.autoScheduleSettings.findUnique({
+      where: { userId },
+      select: { workHourStart: true, workHourEnd: true, workDays: true },
+    }),
+    db.userSettings.findUnique({
+      where: { userId },
+      select: { timeZone: true },
+    }),
+    db.task.findMany({
+      where: {
+        userId,
+        isArchived: false,
+        status: { notIn: ["completed", "done"] },
+        id: { not: demo.task.id },
+        scheduledEnd: { gt: now },
+        scheduledStart: { lt: horizon },
+      },
+      select: { scheduledStart: true, scheduledEnd: true },
+    }),
+    db.calendarEvent.findMany({
+      where: {
+        feed: { userId, enabled: true },
+        archivedAt: null,
+        allDay: false,
+        end: { gt: now },
+        start: { lt: horizon },
+      },
+      select: { start: true, end: true },
+    }),
+  ]);
+  const busy: Interval[] = [
+    ...tasks.flatMap((t) =>
+      t.scheduledStart && t.scheduledEnd
+        ? [{ start: t.scheduledStart, end: t.scheduledEnd }]
+        : []
+    ),
+    ...events,
+  ];
+  const slot = freeGapAfter({
+    after: new Date(demo.meeting.end),
+    now,
+    zone: validZone(settings?.timeZone),
+    hours: hoursFromSettings(hours),
+    busy,
+  });
+  return slot ? { taskId: demo.task.id, ...slot } : null;
 }
 
 /** Removes exactly the demo rows. Everything else on the account stays. */
