@@ -252,7 +252,11 @@ export async function seedFirstReplanDemo(
         "A demo meeting. It is not on any calendar. Remove the demo any time.",
       estimatedMinutes: MEETING_MINUTES,
       duration: MEETING_MINUTES,
-      isAutoScheduled: false,
+      // The scheduler only treats a locked auto-scheduled task (or a calendar
+      // event) as busy time. Locked, the meeting stays where it is and the
+      // demo task has to move around it: that is the whole demo.
+      isAutoScheduled: true,
+      scheduleLocked: true,
       scheduledStart: slot.meetingStart,
       scheduledEnd: slot.meetingEnd,
     },
@@ -288,13 +292,13 @@ export async function firstReplanState(
     select: {
       id: true,
       title: true,
-      isAutoScheduled: true,
+      scheduleLocked: true,
       scheduledStart: true,
       scheduledEnd: true,
     },
   });
-  const task = rows.find((r) => r.isAutoScheduled);
-  const meeting = rows.find((r) => !r.isAutoScheduled);
+  const task = rows.find((r) => !r.scheduleLocked);
+  const meeting = rows.find((r) => r.scheduleLocked);
   if (
     !task?.scheduledStart ||
     !task.scheduledEnd ||

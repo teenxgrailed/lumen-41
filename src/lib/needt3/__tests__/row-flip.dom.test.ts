@@ -38,6 +38,15 @@ it("measures the row from the bottom of the card", () => {
   expect(measureRow("t1")).toBeNull();
 });
 
+it("finds a phone row by data-pk-row", () => {
+  document.body.innerHTML = `<section data-hd-first-replan></section><div data-pk-row="t1"></div>`;
+  document.querySelector("[data-hd-first-replan]")!.getBoundingClientRect =
+    () => rect(0, 50);
+  document.querySelector("[data-pk-row]")!.getBoundingClientRect = () =>
+    rect(200);
+  expect(measureRow("t1")).toBe(150);
+});
+
 it("slides the row with transform and opacity in at most 250 ms", () => {
   mount(100, 400); // now 300 below the card
   expect(flipRow("t1", 120)).toBe(true); // was 120 below the card

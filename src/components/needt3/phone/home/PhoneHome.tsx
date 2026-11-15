@@ -428,10 +428,10 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       <OnboardingResumeBanner />
       <SampleBanner />
       <FirstReplanCard />
-      {ready && review.show ? (
+      {ready && review.show && !firstReplanHold ? (
         <ReviewCard phone onStart={review.start} onLater={review.later} />
       ) : null}
-      {ready && nudge.show ? (
+      {ready && nudge.show && !firstReplanHold ? (
         <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
       ) : null}
       {ready ? (

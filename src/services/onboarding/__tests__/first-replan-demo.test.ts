@@ -265,8 +265,16 @@ describe("seedFirstReplanDemo", () => {
       });
       expect(String(t.title)).toMatch(/^Demo: /);
     }
-    const task = tasks.find((t) => t.isAutoScheduled)!;
-    const meeting = tasks.find((t) => !t.isAutoScheduled)!;
+    const task = tasks.find((t) => !t.scheduleLocked)!;
+    const meeting = tasks.find((t) => t.scheduleLocked)!;
+    // The scheduler counts only a locked auto-scheduled task as busy time, so
+    // the meeting is both; the demo task is the one that is free to move.
+    expect(meeting).toMatchObject({
+      isAutoScheduled: true,
+      scheduleLocked: true,
+    });
+    expect(task).toMatchObject({ isAutoScheduled: true });
+    expect(task.scheduleLocked).not.toBe(true);
     expect(
       overlaps(
         {
@@ -291,7 +299,7 @@ describe("seedFirstReplanDemo", () => {
       { ...input, now: new Date("2026-11-18T04:00:00Z") },
       db
     );
-    const task = tasks.find((t) => t.isAutoScheduled)!;
+    const task = tasks.find((t) => !t.scheduleLocked)!;
     expect(
       new Intl.DateTimeFormat("en-GB", {
         timeZone: "Europe/Zurich",
@@ -357,8 +365,8 @@ describe("firstReplanState", () => {
     expect(before?.task.title).toBe("Demo: write the weekly plan");
     expect(before?.meeting.title).toBe("Demo: sync with Alex");
 
-    const task = tasks.find((t) => t.isAutoScheduled)!;
-    const meeting = tasks.find((t) => !t.isAutoScheduled)!;
+    const task = tasks.find((t) => !t.scheduleLocked)!;
+    const meeting = tasks.find((t) => t.scheduleLocked)!;
     const end = meeting.scheduledEnd as Date;
     task.scheduledStart = end;
     task.scheduledEnd = new Date(end.getTime() + 3_600_000);
@@ -376,7 +384,7 @@ describe("firstReplanState", () => {
       db
     );
     tasks.splice(
-      tasks.findIndex((t) => !t.isAutoScheduled),
+      tasks.findIndex((t) => t.scheduleLocked),
       1
     );
     expect(await firstReplanState("u1", db)).toBeNull();

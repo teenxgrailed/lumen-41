@@ -786,10 +786,10 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
           <OnboardingResumeBanner />
           <SampleBanner />
           <FirstReplanCard />
-          {review.show ? (
+          {review.show && !firstReplanHold ? (
             <ReviewCard onStart={review.start} onLater={review.later} />
           ) : null}
-          {nudge.show ? (
+          {nudge.show && !firstReplanHold ? (
             <EndDayNudge onEndDay={finish.show} onDismiss={nudge.dismiss} />
           ) : null}
           {haBrief.locked || haBrief.lines.length || haBrief.note ? (

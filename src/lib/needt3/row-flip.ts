@@ -15,7 +15,10 @@ export const ROW_FLIP_MS = 220;
 const ANCHOR = "[data-hd-first-replan]";
 
 function rowOf(id: string): HTMLElement | null {
-  return document.querySelector<HTMLElement>(`[data-task="${id}"]`);
+  // Desktop rows carry data-task, phone rows data-pk-row.
+  return document.querySelector<HTMLElement>(
+    `[data-task="${id}"], [data-pk-row="${id}"]`
+  );
 }
 
 export function prefersReducedMotion(): boolean {
