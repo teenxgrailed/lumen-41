@@ -14,6 +14,16 @@
 .nx-folder {
   --nx-folder-hue: var(--text-muted);
   --nx-lift: 0px;
+  --nx-wall:
+    linear-gradient(
+      color-mix(in oklab, var(--surface-raised) 58%, transparent),
+      color-mix(in oklab, var(--surface-raised) 58%, transparent)
+    ),
+    linear-gradient(
+      color-mix(in oklab, var(--nx-folder-hue) 12%, transparent),
+      color-mix(in oklab, var(--nx-folder-hue) 12%, transparent)
+    ),
+    var(--fill-4);
   position: relative;
   box-sizing: border-box;
   display: block;
@@ -73,36 +83,33 @@
   box-shadow: var(--shadow-ring);
 }
 
-/* front wall: frosted and translucent, the sheets read through it blurred;
-   a rounded shoulder rises from its top edge, ending at about 40% */
-.nx-folder-front {
+/* front wall: frosted and translucent, the sheets read through it blurred.
+   The shoulder is a sibling span stacked directly on its top edge with the
+   same ground (`--nx-wall`) and the same blur, so there is no seam; the wall
+   squares its top-left corner where the shoulder takes over. */
+.nx-folder-front,
+.nx-folder-shoulder {
+  position: absolute;
   z-index: 4;
-  top: 38%;
-  background:
-    linear-gradient(
-      color-mix(in oklab, var(--surface-raised) 58%, transparent),
-      color-mix(in oklab, var(--surface-raised) 58%, transparent)
-    ),
-    linear-gradient(
-      color-mix(in oklab, var(--nx-folder-hue) 12%, transparent),
-      color-mix(in oklab, var(--nx-folder-hue) 12%, transparent)
-    ),
-    var(--fill-4);
-  box-shadow: var(--shadow-ring);
+  background: var(--nx-wall);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
 }
-.nx-folder-front::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: -12px;
-  width: 40%;
-  height: 14px;
-  border-radius: 14px 18px 0 0;
-  background: inherit;
+.nx-folder-front {
+  top: 38%;
+  border-radius: 0 18px 18px 18px;
   box-shadow: var(--shadow-ring);
-  clip-path: inset(0 0 1px 0);
+}
+.nx-folder-shoulder {
+  left: 0;
+  width: 40%;
+  bottom: 62%;
+  height: 14px;
+  border-radius: 14px 14px 0 0;
+  box-shadow:
+    -1px 0 0 var(--fill-5),
+    0 -1px 0 var(--fill-5),
+    1px 0 0 var(--fill-5);
 }
 
 /* the paper: narrow, left of centre, tilted, at staggered heights; the
@@ -157,8 +164,7 @@
   filter: drop-shadow(1.5px 0 0 var(--surface-raised))
     drop-shadow(-1.5px 0 0 var(--surface-raised))
     drop-shadow(0 1.5px 0 var(--surface-raised))
-    drop-shadow(0 -1.5px 0 var(--surface-raised))
-    drop-shadow(0 2px 3px rgba(var(--foreground-rgb), 0.16));
+    drop-shadow(0 -1.5px 0 var(--surface-raised));
 }
 .nx-folder-sticker > svg {
   width: 100%;

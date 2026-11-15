@@ -54,7 +54,7 @@ describe("folder.css", () => {
   it("stacks back 0 < sheets 1-3 < front wall 4 < sticker 5, isolated", () => {
     expect(decl(".nx-folder-art", "isolation")).toBe("isolate");
     expect(decl(".nx-folder-back", "z-index")).toBeUndefined();
-    expect(decl(".nx-folder-front", "z-index")).toBe("4");
+    expect(decl(".nx-folder-front, .nx-folder-shoulder", "z-index")).toBe("4");
     expect(decl(".nx-folder-sticker", "z-index")).toBe("5");
   });
 
@@ -76,19 +76,30 @@ describe("folder.css", () => {
     );
     expect(decl(".nx-folder", "outline")).toBe("none");
     expect(decl(".nx-folder-back", "backdrop-filter")).toBeUndefined();
-    expect(decl(".nx-folder-front", "backdrop-filter")).toBeDefined();
+    expect(
+      decl(".nx-folder-front, .nx-folder-shoulder", "backdrop-filter")
+    ).toBeDefined();
   });
 
   it("draws the ref's proportions: near-square, frosted front, bare sticker", () => {
     expect(decl(".nx-folder-art", "aspect-ratio")).toBe("1.15 / 1");
-    expect(decl(".nx-folder-front", "backdrop-filter")).toBe("blur(14px)");
+    expect(
+      decl(".nx-folder-front, .nx-folder-shoulder", "backdrop-filter")
+    ).toBe("blur(14px)");
     expect(rule(".nx-folder-back, .nx-folder-front")).toBeDefined();
     expect(decl(".nx-folder-back, .nx-folder-front", "border-radius")).toBe(
       "18px"
     );
-    expect(decl(".nx-folder-front", "background")).toMatch(/58%/);
+    expect(decl(".nx-folder", "--nx-wall")).toMatch(/58%/);
+    expect(decl(".nx-folder-front, .nx-folder-shoulder", "background")).toBe(
+      "var(--nx-wall)"
+    );
     expect(decl(".nx-folder-sticker", "background")).toBeUndefined();
     expect(decl(".nx-folder-sticker", "box-shadow")).toBeUndefined();
     expect(decl(".nx-folder-sticker", "filter")).toMatch(/drop-shadow/);
+    // ring first: the sticker has paper outlines and no soft shadow
+    expect(decl(".nx-folder-sticker", "filter")).not.toMatch(
+      /rgba|blur|\d+px \d+px \d+px/
+    );
   });
 });

@@ -136,6 +136,7 @@ export function Folder({
           </span>
         ))}
         <span className="nx-folder-front" />
+        <span className="nx-folder-shoulder" />
         {sticker ? <span className="nx-folder-sticker">{sticker}</span> : null}
       </span>
       <span className="nx-folder-foot">
@@ -151,7 +152,7 @@ export function Folder({
       {caption ? <span className="nx-folder-caption">{caption}</span> : null}
       {shown.length ? (
         <span className="nx-folder-desc" id={descId}>
-          {`Next: ${shown.map((p) => p.title).join("; ")}`}
+          {`Next: ${shown.map((p) => (p.meta ? `${p.title} (${p.meta})` : p.title)).join("; ")}`}
         </span>
       ) : null}
     </>
