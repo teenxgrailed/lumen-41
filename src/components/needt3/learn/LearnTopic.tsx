@@ -15,6 +15,7 @@ import { useIsPro } from "@/components/needt3/paywall/Pro";
 
 import { isSampleId } from "@/lib/learn/samples";
 import {
+  isLearnUpgrade,
   useCreateTopic,
   useGenerateLessons,
   useLearn,
@@ -38,6 +39,7 @@ import {
 import { offersTrial } from "@/lib/needt3/paywall";
 import { notify } from "@/lib/notifications";
 
+import { LearnFrame } from "./LearnFrame";
 import { LessonStack } from "./LessonStack";
 import { LearnChips, LearnPromo } from "./parts";
 
@@ -47,7 +49,7 @@ const FILTERS: readonly { key: LessonFilter; label: string }[] = [
   { key: "done", label: "Done" },
 ];
 
-export function LearnTopic({ topicId }: { topicId: string }) {
+function LearnTopicScreen({ topicId }: { topicId: string }) {
   const learn = useLearn();
   const own = useLearnTopic(topicId);
   const pro = useIsPro();
@@ -107,8 +109,10 @@ export function LearnTopic({ topicId }: { topicId: string }) {
                 {
                   onSuccess: () =>
                     notify.success(`“${lesson.title}” is in your calendar`),
-                  onError: () =>
-                    notify.error("Could not add it to the calendar"),
+                  onError: (error) =>
+                    isLearnUpgrade(error)
+                      ? setPromo("calendar")
+                      : notify.error("Could not add it to the calendar"),
                 }
               );
             }
@@ -266,5 +270,14 @@ function BackLink() {
       <LuChevronLeft size={16} aria-hidden />
       Learning
     </Link>
+  );
+}
+
+/** `/learn/[topicId]`, in the phone kit's screen on the phone. */
+export function LearnTopic({ topicId }: { topicId: string }) {
+  return (
+    <LearnFrame screen="learn-topic">
+      <LearnTopicScreen topicId={topicId} />
+    </LearnFrame>
   );
 }

@@ -11,7 +11,15 @@ import type {
 } from "@/lib/needt3/learn";
 import { qk } from "@/lib/needt3/query-keys";
 
-import { fetchJson, sendJson } from "./core";
+import { ApiError, fetchJson, sendJson } from "./core";
+
+/**
+ * The server said the plan does not allow it (403 UPGRADE_REQUIRED: Free's
+ * lesson of the day is used, or a Pro-only action): show the promo.
+ */
+export function isLearnUpgrade(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 403;
+}
 
 /** Topics (no lesson bodies) and today's count. */
 export function useLearn() {

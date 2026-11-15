@@ -25,6 +25,7 @@ import { useCreateTopic, useGenerateLessons } from "@/lib/needt3/hooks/learn";
 import { LEARN_HREF, learnTopicHref } from "@/lib/needt3/learn";
 import { notify } from "@/lib/notifications";
 
+import { LearnFrame } from "./LearnFrame";
 import { LearnGlyph, hueVar } from "./parts";
 
 export interface NewTopicForm {
@@ -54,7 +55,7 @@ export function topicInputFrom(f: NewTopicForm): LearnTopicInput {
   };
 }
 
-export function LearnNewTopic() {
+function LearnNewTopicScreen() {
   const router = useRouter();
   const pro = useIsPro();
   const create = useCreateTopic();
@@ -194,5 +195,14 @@ export function LearnNewTopic() {
         </div>
       </form>
     </div>
+  );
+}
+
+/** `/learn/new`, in the phone kit's screen on the phone. */
+export function LearnNewTopic() {
+  return (
+    <LearnFrame screen="learn-new">
+      <LearnNewTopicScreen />
+    </LearnFrame>
   );
 }

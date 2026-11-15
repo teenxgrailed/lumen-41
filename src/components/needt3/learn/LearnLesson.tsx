@@ -20,6 +20,7 @@ import {
   typedAnswerMatches,
 } from "@/lib/learn/schema";
 import {
+  isLearnUpgrade,
   useLearn,
   useLearnTopic,
   useScheduleLesson,
@@ -36,9 +37,10 @@ import {
 import { offersTrial } from "@/lib/needt3/paywall";
 import { notify } from "@/lib/notifications";
 
+import { LearnFrame } from "./LearnFrame";
 import { LearnPromo, hueVar } from "./parts";
 
-export function LearnLesson({
+function LearnLessonScreen({
   topicId,
   lessonId,
 }: {
@@ -52,7 +54,7 @@ export function LearnLesson({
   const router = useRouter();
   const setStatus = useSetLessonStatus();
   const schedule = useScheduleLesson();
-  const [gate, setGate] = useState<"calendar" | null>(null);
+  const [gate, setGate] = useState<"calendar" | "limit" | null>(null);
 
   const sample = isSampleId(topicId);
   const topic = sample ? findTopic(learn.data, topicId) : (own.data ?? null);
@@ -100,7 +102,12 @@ export function LearnLesson({
           { lessonId, topicId, status: "done" },
           {
             onSuccess: () => router.push(back),
-            onError: () => notify.error("Could not save that"),
+            // Free's day is used (another device, or a race): the promo,
+            // not an error.
+            onError: (error) =>
+              isLearnUpgrade(error)
+                ? setGate("limit")
+                : notify.error("Could not save that"),
           }
         );
       }}
@@ -146,7 +153,7 @@ export function LearnLessonView({
   blocked: boolean;
   ready: boolean;
   sample: boolean;
-  gate: "calendar" | null;
+  gate: "calendar" | "limit" | null;
   trial: boolean;
   saving: boolean;
   onCloseGate: () => void;
@@ -348,5 +355,14 @@ function BackTo({ href, label }: { href: string; label: string }) {
       <LuChevronLeft size={16} aria-hidden />
       {label}
     </Link>
+  );
+}
+
+/** `/learn/[topicId]/[lessonId]`, in the phone kit's screen on the phone. */
+export function LearnLesson(props: { topicId: string; lessonId: string }) {
+  return (
+    <LearnFrame screen="learn-lesson">
+      <LearnLessonScreen {...props} />
+    </LearnFrame>
   );
 }

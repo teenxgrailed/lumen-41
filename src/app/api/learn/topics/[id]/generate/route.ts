@@ -3,7 +3,9 @@ import { NextRequest } from "next/server";
 import { generateLessons } from "@/services/learn/generate";
 import { learnAuth, learnRespond } from "@/services/learn/http";
 import { addLessons, getTopic, isProLearner } from "@/services/learn/store";
+import { OpError } from "@/services/ops";
 
+import { LEARN_LIMITS } from "@/lib/learn/schema";
 import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
 const LOG_SOURCE = "learn-generate-route";
@@ -31,6 +33,12 @@ export async function POST(request: NextRequest, { params }: Params) {
   return learnRespond(LOG_SOURCE, async () => {
     // Ownership first: a foreign id is NOT_FOUND before any AI is spent.
     const topic = await getTopic(auth.userId, id);
+    // The lesson cap is checked before any AI is spent.
+    if (
+      topic.lessons.length + LEARN_LIMITS.generate >
+      LEARN_LIMITS.lessonsPerTopic
+    )
+      throw new OpError("CONFLICT", "This topic has too many lessons");
     const outcome = await generateLessons(
       auth.userId,
       {

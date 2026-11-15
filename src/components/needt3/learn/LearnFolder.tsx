@@ -2,8 +2,8 @@
  * A stand-in for the shared Folder (`src/components/needt3/ui/Folder.tsx`,
  * PR #710) with exactly its props, so Learn can switch to it by changing one
  * import. Same idea, drawn small: a matte, translucent folder with up to three
- * sheets sticking out of the top, a sticker on the front, the label and a
- * count pill under it. One link (`href`) or one button (`onClick`); with
+ * sheets sticking out of the top (each with its lesson's title on it), a
+ * sticker on the front, the label and a count pill under it. One link (`href`) or one button (`onClick`); with
  * neither a static picture.
  *
  * //todo: swap to ui/Folder when #710 merges (delete this file and the
@@ -80,7 +80,7 @@ export function LearnFolder({
               } as CSSProperties
             }
           >
-            <span className="ln-folder-peek-mark" />
+            <span className="ln-folder-peek-title">{p.title}</span>
           </span>
         ))}
         <span className="ln-folder-front" />

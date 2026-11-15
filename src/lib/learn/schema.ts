@@ -122,9 +122,13 @@ export const learnTopicInputSchema = z
   .strict();
 export type LearnTopicInput = z.infer<typeof learnTopicInputSchema>;
 
+/** A topic change; `icon: null` clears the sticker. */
 export const learnTopicPatchSchema = learnTopicInputSchema
   .partial()
-  .extend({ order: z.number().finite().optional() })
+  .extend({
+    icon: z.enum(LEARN_ICONS).nullable().optional(),
+    order: z.number().finite().optional(),
+  })
   .strict();
 
 export const learnLessonPatchSchema = z

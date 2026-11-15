@@ -1,4 +1,4 @@
--- Learn (flag learn_module): topics and their lessons. Additive only.
+-- Learn: topics and their lessons. Additive only.
 
 -- CreateTable
 CREATE TABLE "LearnTopic" (
@@ -30,11 +30,15 @@ CREATE TABLE "LearnLesson" (
     "order" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "scheduledTaskId" TEXT,
     "completedAt" TIMESTAMP(3),
+    "firstCompletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "LearnLesson_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LearnTopic_userId_sampleKey_key" ON "LearnTopic"("userId", "sampleKey");
 
 -- CreateIndex
 CREATE INDEX "LearnTopic_userId_order_idx" ON "LearnTopic"("userId", "order");
@@ -44,6 +48,9 @@ CREATE INDEX "LearnLesson_topicId_order_idx" ON "LearnLesson"("topicId", "order"
 
 -- CreateIndex
 CREATE INDEX "LearnLesson_userId_completedAt_idx" ON "LearnLesson"("userId", "completedAt");
+
+-- CreateIndex
+CREATE INDEX "LearnLesson_userId_firstCompletedAt_idx" ON "LearnLesson"("userId", "firstCompletedAt");
 
 -- AddForeignKey
 ALTER TABLE "LearnTopic" ADD CONSTRAINT "LearnTopic_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

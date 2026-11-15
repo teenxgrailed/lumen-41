@@ -22,9 +22,10 @@ import {
 import { notify } from "@/lib/notifications";
 
 import { LearnFolder } from "./LearnFolder";
+import { LearnFrame } from "./LearnFrame";
 import { LearnChips, LearnGlyph, hueVar } from "./parts";
 
-export function LearnOverview() {
+function LearnOverviewScreen() {
   const learn = useLearn();
   const pro = useIsPro();
   const router = useRouter();
@@ -182,5 +183,14 @@ function TopicFolder({
         </button>
       ) : null}
     </div>
+  );
+}
+
+/** `/learn`, in the phone kit's screen on the phone. */
+export function LearnOverview() {
+  return (
+    <LearnFrame screen="learn">
+      <LearnOverviewScreen />
+    </LearnFrame>
   );
 }

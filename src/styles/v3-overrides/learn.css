@@ -29,14 +29,10 @@
   gap: 16px;
   padding-bottom: 48px;
 }
-/* The phone has no shell gutter around a route: Learn keeps its own 16px
-   sides, starts under the status bar (--v3-top) and ends above the dock fog. */
-.needt-v3[data-ui="phone"] .ln-screen {
-  padding: var(--v3-top, 52px) 16px
-    max(
-      calc(112px + var(--v3-dock-lift, 20px)),
-      calc(var(--ps-fog-h, 128px) + 16px)
-    );
+/* On the phone the kit's screen (PkScreen, LearnFrame) gives the top inset,
+   the sides and the tail above the menu pill. */
+.needt-v3 .ln-phone .ln-screen {
+  padding: 0;
 }
 
 /* ---------- header ---------- */
@@ -237,17 +233,17 @@
   transform-origin: 50% 100%;
   transition: transform var(--transition-hover);
 }
-.needt-v3 .ln-folder-peek-mark {
+/* The lesson's title on the part of the sheet above the folder's front. */
+.needt-v3 .ln-folder-peek-title {
   position: absolute;
-  left: 12%;
-  top: 14%;
-  width: 56%;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--fill-6);
-  box-shadow:
-    0 9px 0 var(--fill-4),
-    0 18px 0 var(--fill-4);
+  inset: 8px 8px auto;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font: var(--type-meta-medium);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 .needt-v3 .ln-folder-front {
   position: absolute;

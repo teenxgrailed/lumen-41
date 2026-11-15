@@ -4588,7 +4588,7 @@ model ActivationEvent {
   @@index([createdAt])
 }
 
-/// Learn (openspec module-blocks-and-learn, flag `learn_module`): a topic the
+/// Learn (openspec module-blocks-and-learn, on for everybody): a topic the
 /// person names ("Deutsch", "Design") and the lessons in it. Lessons are
 /// written by the AI (Pro) or copied from the built-in samples.
 model LearnTopic {
@@ -4609,29 +4609,34 @@ model LearnTopic {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
+  @@unique([userId, sampleKey])
   @@index([userId, order])
 }
 
 model LearnLesson {
-  id              String     @id @default(cuid())
-  topicId         String
-  topic           LearnTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title           String
+  id               String     @id @default(cuid())
+  topicId          String
+  topic            LearnTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
   /// Where it came from, shown under the title ("AI", "Sample").
-  source          String     @default("AI")
-  minutes         Int        @default(5)
+  source           String     @default("AI")
+  minutes          Int        @default(5)
   /// `learnLessonBodySchema`: reading blocks and check questions.
-  body            Json
-  status          String     @default("new") // new|done
-  order           Float      @default(0)
+  body             Json
+  status           String     @default("new") // new|done
+  order            Float      @default(0)
   /// The task "Put in calendar" made for it.
-  scheduledTaskId String?
-  completedAt     DateTime?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  scheduledTaskId  String?
+  completedAt      DateTime?
+  /// When it was first finished; never cleared, so Free's one lesson a day
+  /// cannot be won back by marking a lesson new and done again.
+  firstCompletedAt DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   @@index([topicId, order])
   @@index([userId, completedAt])
+  @@index([userId, firstCompletedAt])
 }

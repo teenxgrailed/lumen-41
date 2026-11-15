@@ -8,7 +8,11 @@ import { PATCH as lessonPATCH } from "@/app/api/learn/lessons/[id]/route";
 import { POST as schedulePOST } from "@/app/api/learn/lessons/[id]/schedule/route";
 import { GET as overviewGET } from "@/app/api/learn/route";
 import { POST as generatePOST } from "@/app/api/learn/topics/[id]/generate/route";
-import { GET as topicGET } from "@/app/api/learn/topics/[id]/route";
+import {
+  DELETE as topicDELETE,
+  GET as topicGET,
+  PATCH as topicPATCH,
+} from "@/app/api/learn/topics/[id]/route";
 import { POST as topicsPOST } from "@/app/api/learn/topics/route";
 import { getConfiguredSchedulerAI } from "@/services/ai/settings";
 import { runOp } from "@/services/ops";
@@ -59,21 +63,23 @@ jest.mock("@/lib/prisma", () => ({
       findFirst: jest.fn(),
       count: jest.fn(),
       create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
     },
     learnLesson: {
       findFirst: jest.fn(),
       count: jest.fn(),
-      update: jest.fn(),
+      updateMany: jest.fn(),
       createMany: jest.fn(),
     },
+    task: { findFirst: jest.fn() },
   },
 }));
 
 const db = prisma as unknown as {
   learnTopic: Record<string, jest.Mock>;
   learnLesson: Record<string, jest.Mock>;
+  task: Record<string, jest.Mock>;
 };
 
 const req = (url: string, method = "GET", body?: unknown) =>
@@ -116,6 +122,7 @@ const lessonRow = (fields: Record<string, unknown> = {}) => ({
   order: 1,
   scheduledTaskId: null,
   completedAt: null,
+  firstCompletedAt: null,
   createdAt: NOW,
   updatedAt: NOW,
   ...fields,
@@ -171,6 +178,33 @@ describe("ownership", () => {
     });
     expect(body.today).toEqual({ completed: 0, limit: 1 });
     expect(body.topics[0].lessons[0].body).toBeUndefined();
+    // The overview never reads lesson bodies.
+    const lessons = db.learnTopic.findMany.mock.calls[0][0].include.lessons;
+    expect(lessons.select.body).toBeUndefined();
+    expect(lessons.select.title).toBe(true);
+  });
+
+  it("changes and deletes only the caller's topic", async () => {
+    db.learnTopic.updateMany.mockResolvedValue({ count: 0 });
+    const patched = await topicPATCH(
+      req("/api/learn/topics/t9", "PATCH", { icon: null }),
+      params("t9")
+    );
+    expect(patched.status).toBe(404);
+    expect(db.learnTopic.updateMany.mock.calls[0][0]).toEqual({
+      where: { id: "t9", userId: "u1" },
+      data: { icon: null },
+    });
+    db.learnTopic.deleteMany.mockResolvedValue({ count: 0 });
+    const gone = await topicDELETE(
+      req("/api/learn/topics/t9", "DELETE"),
+      params("t9")
+    );
+    expect(gone.status).toBe(404);
+    expect(db.learnTopic.deleteMany.mock.calls[0][0].where).toEqual({
+      id: "t9",
+      userId: "u1",
+    });
   });
 
   it("answers 404 for someone else's topic", async () => {
@@ -200,6 +234,7 @@ describe("ownership", () => {
 
   it("copies a sample with its lessons", async () => {
     db.learnTopic.findFirst.mockResolvedValue(null);
+    db.learnTopic.count.mockResolvedValue(0);
     db.learnTopic.create.mockResolvedValue(topicRow({ sampleKey: "deutsch" }));
     const res = await topicsPOST(
       req("/api/learn/topics", "POST", { sample: "deutsch" })
@@ -211,6 +246,32 @@ describe("ownership", () => {
     expect(
       data.lessons.create.every((l: { userId: string }) => l.userId === "u1")
     ).toBe(true);
+  });
+
+  it("copies a sample only while there is room for a topic", async () => {
+    db.learnTopic.findFirst.mockResolvedValue(null);
+    db.learnTopic.count.mockResolvedValue(50);
+    const res = await topicsPOST(
+      req("/api/learn/topics", "POST", { sample: "deutsch" })
+    );
+    expect(res.status).toBe(409);
+    expect(db.learnTopic.create).not.toHaveBeenCalled();
+  });
+
+  it("answers the topic a second tap made at the same time", async () => {
+    db.learnTopic.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(topicRow({ sampleKey: "deutsch" }));
+    db.learnTopic.count.mockResolvedValue(0);
+    db.learnTopic.create.mockRejectedValue(
+      Object.assign(new Error("unique"), { code: "P2002" })
+    );
+    const res = await topicsPOST(
+      req("/api/learn/topics", "POST", { sample: "deutsch" })
+    );
+    expect(res.status).toBe(201);
+    expect((await res.json()).sampleKey).toBe("deutsch");
   });
 });
 
@@ -228,15 +289,13 @@ describe("free limits", () => {
     );
     expect(res.status).toBe(403);
     expect((await res.json()).code).toBe("UPGRADE_REQUIRED");
-    expect(db.learnLesson.update).not.toHaveBeenCalled();
+    expect(db.learnLesson.updateMany).not.toHaveBeenCalled();
   });
 
-  it("finishes the first lesson of the day", async () => {
+  it("finishes the first lesson of the day and stamps it once", async () => {
     db.learnLesson.findFirst.mockResolvedValue(lessonRow());
     db.learnLesson.count.mockResolvedValue(0);
-    db.learnLesson.update.mockResolvedValue(
-      lessonRow({ status: "done", completedAt: NOW })
-    );
+    db.learnLesson.updateMany.mockResolvedValue({ count: 1 });
     const res = await lessonPATCH(
       req("/api/learn/lessons/l1", "PATCH", { status: "done" }),
       params("l1")
@@ -246,6 +305,42 @@ describe("free limits", () => {
       id: "l1",
       userId: "u1",
     });
+    // Counted by the first completion, which is never cleared.
+    expect(
+      db.learnLesson.count.mock.calls[0][0].where.firstCompletedAt
+    ).toBeDefined();
+    const write = db.learnLesson.updateMany.mock.calls[0][0];
+    expect(write.where).toEqual({ id: "l1", userId: "u1" });
+    expect(write.data.firstCompletedAt).toBeInstanceOf(Date);
+  });
+
+  it("marking a lesson new keeps its first completion", async () => {
+    db.learnLesson.findFirst.mockResolvedValue(
+      lessonRow({ status: "done", completedAt: NOW, firstCompletedAt: NOW })
+    );
+    db.learnLesson.updateMany.mockResolvedValue({ count: 1 });
+    await lessonPATCH(
+      req("/api/learn/lessons/l1", "PATCH", { status: "new" }),
+      params("l1")
+    );
+    expect(db.learnLesson.updateMany.mock.calls[0][0].data).toEqual({
+      status: "new",
+      completedAt: null,
+    });
+  });
+
+  it("re-finishing a lesson finished before does not count again", async () => {
+    db.learnLesson.findFirst.mockResolvedValue(
+      lessonRow({ firstCompletedAt: NOW })
+    );
+    db.learnLesson.count.mockResolvedValue(1);
+    db.learnLesson.updateMany.mockResolvedValue({ count: 1 });
+    const res = await lessonPATCH(
+      req("/api/learn/lessons/l1", "PATCH", { status: "done" }),
+      params("l1")
+    );
+    expect(res.status).toBe(200);
+    expect(db.learnLesson.count).not.toHaveBeenCalled();
   });
 
   it("does not spend AI on Free", async () => {
@@ -270,20 +365,29 @@ describe("free limits", () => {
 });
 
 describe("put in calendar", () => {
-  it("makes an auto-scheduled task and remembers it", async () => {
+  it("claims the lesson, makes an auto-scheduled task and remembers it", async () => {
     db.learnLesson.findFirst.mockResolvedValue(lessonRow());
+    db.learnLesson.updateMany.mockResolvedValue({ count: 1 });
     (runOp as jest.Mock).mockResolvedValue({
       result: { task: { id: "task1" } },
       actionId: "a1",
     });
-    db.learnLesson.update.mockResolvedValue(
-      lessonRow({ scheduledTaskId: "task1" })
-    );
     const res = await schedulePOST(
       req("/api/learn/lessons/l1/schedule", "POST"),
       params("l1")
     );
     expect(res.status).toBe(201);
+    const [claim, finish] = db.learnLesson.updateMany.mock.calls.map(
+      (c) => c[0]
+    );
+    expect(claim).toEqual({
+      where: { id: "l1", userId: "u1", scheduledTaskId: null },
+      data: { scheduledTaskId: "pending" },
+    });
+    expect(finish).toEqual({
+      where: { id: "l1", userId: "u1", scheduledTaskId: "pending" },
+      data: { scheduledTaskId: "task1" },
+    });
     const [name, input, ctx] = (runOp as jest.Mock).mock.calls[0];
     expect(name).toBe("task.create");
     expect(input).toMatchObject({
@@ -293,6 +397,62 @@ describe("put in calendar", () => {
     });
     expect(ctx.userId).toBe("u1");
     expect((await res.json()).taskId).toBe("task1");
+  });
+
+  it("makes no second task when the claim is lost", async () => {
+    db.learnLesson.findFirst.mockResolvedValue(lessonRow());
+    db.learnLesson.updateMany.mockResolvedValue({ count: 0 });
+    const res = await schedulePOST(
+      req("/api/learn/lessons/l1/schedule", "POST"),
+      params("l1")
+    );
+    expect(res.status).toBe(409);
+    expect(runOp).not.toHaveBeenCalled();
+  });
+
+  it("gives the claim back when the task cannot be made", async () => {
+    db.learnLesson.findFirst.mockResolvedValue(lessonRow());
+    db.learnLesson.updateMany.mockResolvedValue({ count: 1 });
+    (runOp as jest.Mock).mockRejectedValue(new Error("boom"));
+    const res = await schedulePOST(
+      req("/api/learn/lessons/l1/schedule", "POST"),
+      params("l1")
+    );
+    expect(res.status).toBe(500);
+    expect(db.learnLesson.updateMany.mock.calls[1][0]).toEqual({
+      where: { id: "l1", userId: "u1", scheduledTaskId: "pending" },
+      data: { scheduledTaskId: null },
+    });
+  });
+
+  it("answers the live task, and schedules again once it is gone", async () => {
+    db.learnLesson.findFirst.mockResolvedValue(
+      lessonRow({ scheduledTaskId: "task0" })
+    );
+    db.task.findFirst.mockResolvedValueOnce({ id: "task0" });
+    const live = await schedulePOST(
+      req("/api/learn/lessons/l1/schedule", "POST"),
+      params("l1")
+    );
+    expect((await live.json()).taskId).toBe("task0");
+    expect(runOp).not.toHaveBeenCalled();
+
+    db.task.findFirst.mockResolvedValueOnce(null);
+    db.learnLesson.updateMany.mockResolvedValue({ count: 1 });
+    (runOp as jest.Mock).mockResolvedValue({
+      result: { task: { id: "task2" } },
+      actionId: "a2",
+    });
+    const again = await schedulePOST(
+      req("/api/learn/lessons/l1/schedule", "POST"),
+      params("l1")
+    );
+    expect((await again.json()).taskId).toBe("task2");
+    expect(db.learnLesson.updateMany.mock.calls[0][0].where).toEqual({
+      id: "l1",
+      userId: "u1",
+      scheduledTaskId: "task0",
+    });
   });
 
   it("does not schedule someone else's lesson", async () => {
