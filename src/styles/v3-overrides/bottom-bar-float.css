@@ -220,10 +220,14 @@
     var(--v2p-raise);
 }
 .needt-v3 .bsp-scale {
+  /* centred on the stage whatever its width (a grid item wider than its
+     track is not centred, it overflows to the right): the bar at the bottom */
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
   display: block;
-  margin-top: 46px;
-  transform: scale(0.5);
-  transform-origin: 50% 50%;
+  transform: translateX(-50%) scale(0.46);
+  transform-origin: 50% 100%;
   white-space: nowrap;
 }
 .needt-v3 .bsp-name {
@@ -296,7 +300,6 @@
     height: 96px;
   }
   .needt-v3 .bsp-scale {
-    margin-top: 40px;
-    transform: scale(0.42);
+    transform: translateX(-50%) scale(0.38);
   }
 }

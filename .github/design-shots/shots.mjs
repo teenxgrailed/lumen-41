@@ -31,18 +31,19 @@ const screens = screenList.split(",").map((s) => s.trim()).filter(Boolean).map((
   // Shot options in the fragment, joined by "&": bar=classic|float sets the phone's
   // bottom bar (prefs.barStyle) for this screen; chrome keeps the fixed layers (the
   // dock, a sheet, a full-screen setup) and shoots the viewport instead of unrolling
-  // the page; wait=<css> waits for that element before the shot. The other parts are
-  // the route's real #anchor and stay on it ("/settings#menu&chrome" opens Menu).
+  // the page; click=<css> taps that element, then wait=<css> waits for one, before
+  // the shot. The other parts are the route's real #anchor and stay on it
+  // ("/settings#appearance&chrome" opens Settings at Appearance).
   const h = route.indexOf("#");
   const frag = h < 0 ? "" : route.slice(h + 1);
-  const isOpt = (p) => p === "chrome" || p.startsWith("bar=") || p.startsWith("wait=");
+  const isOpt = (p) => p === "chrome" || p.startsWith("bar=") || p.startsWith("wait=") || p.startsWith("click=");
   const parts = frag ? frag.split("&") : [];
   const opts = new URLSearchParams(parts.filter(isOpt).join("&"));
   const anchor = parts.filter((p) => !isOpt(p)).join("&");
   const bar = opts.get("bar");
   if (bar && bar !== "classic" && bar !== "float") throw new Error(`bad bar: ${bar}`);
   const path_ = h < 0 ? route : route.slice(0, h) + (anchor ? "#" + anchor : "");
-  return { name, route: path_, bar, chrome: opts.has("chrome"), wait: opts.get("wait") };
+  return { name, route: path_, bar, chrome: opts.has("chrome"), wait: opts.get("wait"), click: opts.get("click") };
 });
 
 const sizes = [
@@ -114,6 +115,11 @@ try {
         .then(() => true)
         .catch(() => false);
       if (!settled) { warned++; console.log("WARN still loading", s.name, size.tag); }
+      if (s.click) {
+        // a page inside a sheet (Settings -> Menu) has no URL of its own: tap its row
+        const tapped = await page.click(s.click, { timeout: 15_000 }).then(() => true).catch(() => false);
+        if (!tapped) { warned++; console.log("WARN could not tap", s.click, s.name, size.tag); }
+      }
       if (s.wait) {
         const seen = await page.waitForSelector(s.wait, { state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
         if (!seen) { warned++; console.log("WARN never showed", s.wait, s.name, size.tag); }
