@@ -196,6 +196,7 @@ jobs:
           node ./design-shots.mjs "$RUNNER_TEMP/cookie.txt" "$RUNNER_TEMP/shots" "$SCREENS" "$SCHEME"
 
       - name: Artifact name
+        if: ${{ always() }}
         id: name
         env:
           REF: ${{ inputs.ref }}

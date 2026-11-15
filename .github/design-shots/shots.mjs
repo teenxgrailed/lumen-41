@@ -45,7 +45,7 @@ async function unroll(page, phone) {
       const cs = getComputedStyle(el);
       if (!/(auto|scroll)/.test(cs.overflowY)) continue;
       const extra = el.scrollHeight - el.clientHeight;
-      if (extra > 40 && (!best || extra > best.scrollHeight - best.clientHeight)) best = el;
+      if (extra > 40 && el.scrollHeight < 12000 && (!best || extra > best.scrollHeight - best.clientHeight)) best = el;
     }
     if (best) {
       for (let el = best; el && el !== document.documentElement; el = el.parentElement) {
@@ -97,7 +97,17 @@ try {
       const grown = await unroll(page, size.tag === "phone");
       await page.waitForTimeout(500);
       const file = path.join(out, `${s.name}-${size.tag}.png`);
-      await page.screenshot({ path: file, fullPage: true });
+      // A very tall page (a 24-hour grid unrolled) can exceed what Chromium captures:
+      // fall back to the viewport rather than lose the screen.
+      try {
+        await page.screenshot({ path: file, fullPage: true, timeout: 30_000 });
+      } catch (e) {
+        console.log("WARN full page failed, viewport shot", s.name, size.tag, e.message.split("\n")[0]);
+        warned++;
+        await page.reload({ waitUntil: "networkidle" }).catch(() => {});
+        await page.waitForTimeout(1500);
+        await page.screenshot({ path: file }).catch((err) => console.log("FAIL shot", s.name, size.tag, err.message.split("\n")[0]));
+      }
       console.log("shot", file, `${Date.now() - started}ms`, page.url().replace(HOST, ""), `unrolled ${grown}px`);
       await page.close();
     }
