@@ -48,6 +48,7 @@ import {
   cornerFrame,
   cornerIsland,
 } from "@/lib/assistant-position";
+import { isAuthPath } from "@/lib/auth/auth-path";
 import { newDate } from "@/lib/date-utils";
 import { isSwiftShellWindow } from "@/lib/desktop";
 import {
@@ -142,7 +143,7 @@ function Corner() {
   const frame = swift ? shape : cornerFrame(pill, islandSize);
 
   /* ---- the nudge tip ---- */
-  const incoming = useIncomingNudges(true);
+  const incoming = useIncomingNudges(!isAuthPath(pathname));
   const markRead = useMarkNudgesRead();
   const fillFreeTime = useFillFreeTime();
   const [tip, setTip] = React.useState<TipNote | null>(null);
