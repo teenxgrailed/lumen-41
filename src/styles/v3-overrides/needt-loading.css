@@ -1,21 +1,19 @@
-/* The loading screen (NeedtLoading): the word "Needt" in the display face,
- * grey, filled with the full text colour from the left by progress. Nothing
- * else on it.
+/* The loading screen (NeedtLoading): only the Needt logo in the middle of the
+ * app background, fading in softly and breathing gently. Nothing else.
  *
- * The grey is the one text colour at a ladder alpha (--text-disabled), the
- * fill is --text-primary; no accent. It appears after 150 ms so a quick load
- * never flashes it (the delay the route skeleton had).
+ * It appears after 150 ms so a quick load never flashes it. The breathe is
+ * opacity and a 0.98 to 1 scale over 2.4 s, nothing more.
  *
  * Scoped under `.needt-v3`. The one place it draws outside that scope (the new
  * version reload on a page with no v3 frame) sits in `.nl-host`, which states
- * literal colours so the overlay is never transparent. */
+ * a literal ground so the overlay is never transparent. */
 :is(.needt-v3, .nl-host) .nl-root {
   flex: 1;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: nl-in 160ms ease-out 150ms backwards;
+  animation: nl-in 400ms ease-out 150ms backwards;
 }
 :is(.needt-v3, .nl-host) .nl-cover {
   position: absolute;
@@ -30,44 +28,17 @@
   z-index: 2147483000;
   background: var(--background, #fcfdfe);
 }
-:is(.needt-v3, .nl-host) .nl-word {
-  position: relative;
-  display: inline-block;
-  font-family: var(--font-v3-exposure), Georgia, serif;
-  font-size: 44px;
-  line-height: 1;
-  white-space: pre;
-  user-select: none;
+:is(.needt-v3, .nl-host) .nl-logo {
+  display: inline-flex;
+  animation: nl-breathe 2.4s ease-in-out infinite;
 }
-:is(.needt-v3, .nl-host) .nl-base {
-  color: var(--text-disabled, rgba(26, 28, 30, 0.25));
-}
-:is(.needt-v3, .nl-host) .nl-fill {
-  position: absolute;
-  inset: 0;
-  color: var(--text-primary, #1a1c1e);
-  clip-path: inset(0 var(--nl-inset, 100%) 0 0);
-  transition: clip-path 240ms linear;
-}
-/* Outside the v3 scope there are no tokens: literal light, literal dark. */
+/* Outside the v3 scope there are no tokens: a literal light and dark ground. */
 .nl-host .nl-fixed {
   background: #fcfdfe;
-}
-.nl-host .nl-base {
-  color: rgba(26, 28, 30, 0.25);
-}
-.nl-host .nl-fill {
-  color: #1a1c1e;
 }
 @media (prefers-color-scheme: dark) {
   .nl-host .nl-fixed {
     background: #111214;
-  }
-  .nl-host .nl-base {
-    color: rgba(249, 249, 249, 0.25);
-  }
-  .nl-host .nl-fill {
-    color: #f9f9f9;
   }
 }
 @keyframes nl-in {
@@ -78,7 +49,18 @@
     opacity: 1;
   }
 }
-/* The same 150 ms wait, then the word simply appears. */
+@keyframes nl-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/* The same 150 ms wait, then the logo simply appears. */
 @keyframes nl-appear {
   from {
     opacity: 0;
@@ -87,24 +69,24 @@
     opacity: 1;
   }
 }
-/* Reduced motion: no fade and no fill; the 150 ms entry delay stays so a quick
+/* Reduced motion: no fade and no breathe; the 150 ms delay stays so a quick
  * load is still clean. */
 :is(.needt-v3, .nl-host) .nl-still {
   animation: nl-appear 1ms linear 150ms backwards;
 }
-:is(.needt-v3, .nl-host) .nl-still .nl-fill {
-  display: none;
+:is(.needt-v3, .nl-host) .nl-still .nl-logo {
+  animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.needt-v3, .nl-host) .nl-root {
     animation: nl-appear 1ms linear 150ms backwards;
   }
-  :is(.needt-v3, .nl-host) .nl-fill {
-    transition: none;
+  :is(.needt-v3, .nl-host) .nl-logo {
+    animation: none;
   }
 }
-/* A word that takes over from one already on screen (route word to Suspense
- * word, Budget word to the frame cover) does not fade in again. */
+/* A screen that takes over from one already on screen does not fade in again
+ * (the breathe carries on, so it is not a restart either). */
 :is(.needt-v3, .nl-host) .nl-root[data-continued] {
   animation: none;
 }

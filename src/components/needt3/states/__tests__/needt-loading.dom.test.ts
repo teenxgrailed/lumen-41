@@ -1,15 +1,17 @@
 /**
  * @jest-environment jsdom
  *
- * The loading word: real progress drives the fill, and reduced motion leaves a
- * still grey word with no animation at all.
+ * The loading screen is the Needt logo and nothing else: no word, no fill, no
+ * text. Reduced motion leaves it still, and a screen that takes over from one
+ * already up does not fade in again.
  */
 import { act, createElement as h } from "react";
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { type Root, createRoot } from "react-dom/client";
 
-import { NeedtLoading } from "../NeedtLoading";
-import { resetLoadingClock } from "../needtLoadingFill";
+import { NeedtLoading, resetLoadingScreens } from "../NeedtLoading";
 
 let reduced = false;
 jest.mock("@/components/providers/MotionRuntime", () => ({
@@ -18,120 +20,70 @@ jest.mock("@/components/providers/MotionRuntime", () => ({
 
 let host: HTMLDivElement;
 let root: Root;
-let frames: jest.SpyInstance;
 
 beforeEach(() => {
   (
     globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
   reduced = false;
-  resetLoadingClock();
+  resetLoadingScreens();
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  frames = jest.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
 });
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
-  frames.mockRestore();
 });
 
-const node = () => host.querySelector<HTMLElement>("[data-needt-loading]")!;
+const nodes = () => host.querySelectorAll<HTMLElement>("[data-needt-loading]");
 
 describe("NeedtLoading", () => {
-  it("draws real progress as the fill", () => {
-    act(() => root.render(h(NeedtLoading, { progress: 0.4 })));
-    expect(node().getAttribute("data-fill")).toBe("0.400");
-    expect(node().style.getPropertyValue("--nl-inset")).toBe("60%");
-    act(() => root.render(h(NeedtLoading, { progress: 1 })));
-    expect(node().style.getPropertyValue("--nl-inset")).toBe("0%");
-  });
-
-  it("says Needt once, in the word, and nothing else", () => {
+  it("renders the Needt app icon, and no word or text", () => {
     act(() => root.render(h(NeedtLoading, {})));
-    expect(node().getAttribute("aria-label")).toBe("Loading");
-    expect(node().querySelector(".nl-base")?.textContent).toBe("Needt");
-    expect(node().querySelector(".nl-fill")?.textContent).toBe("Needt");
-    expect(node().querySelectorAll("*").length).toBe(3);
+    const el = nodes()[0];
+    expect(el.getAttribute("aria-label")).toBe("Loading");
+    const img = el.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img!.getAttribute("src") ?? "").toContain("app-icons");
+    expect((el.textContent ?? "").trim()).toBe("");
+    expect(el.querySelector(".nl-word, .nl-fill, .nl-base")).toBeNull();
   });
 
-  it("with no progress, runs the eased fill from empty", () => {
+  it("breathes by default and is still under reduced motion", () => {
     act(() => root.render(h(NeedtLoading, {})));
-    expect(frames).toHaveBeenCalled();
-    expect(node().getAttribute("data-fill")).toBe("0.000");
-  });
-
-  it("with reduced motion, is a still word: no frames, no fill", () => {
+    expect(nodes()[0].className).not.toContain("nl-still");
+    act(() => root.render(h("div", null)));
     reduced = true;
     act(() => root.render(h(NeedtLoading, {})));
-    expect(frames).not.toHaveBeenCalled();
-    expect(node().className).toContain("nl-still");
-    expect(node().style.getPropertyValue("--nl-inset")).toBe("100%");
-    // Even real progress does not animate the fill.
-    act(() => root.render(h(NeedtLoading, { progress: 0.7 })));
-    expect(node().style.getPropertyValue("--nl-inset")).toBe("100%");
+    expect(nodes()[0].className).toContain("nl-still");
   });
 
-  it("the eased fill really ticks, slowing as it climbs", () => {
-    frames.mockRestore();
-    jest.useFakeTimers();
-    try {
-      act(() => root.render(h(NeedtLoading, {})));
-      const read = () => Number(node().getAttribute("data-fill"));
-      act(() => {
-        jest.advanceTimersByTime(1000);
-      });
-      const a = read();
-      act(() => {
-        jest.advanceTimersByTime(1000);
-      });
-      const b = read();
-      act(() => {
-        jest.advanceTimersByTime(5000);
-      });
-      const c = read();
-      expect(a).toBeGreaterThan(0);
-      expect(b).toBeGreaterThan(a);
-      expect(c).toBeGreaterThan(b);
-      expect(b - a).toBeLessThan(a);
-      expect(c).toBeLessThan(0.9);
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  it("a second word continues the fill instead of starting from empty", () => {
-    frames.mockRestore();
-    jest.useFakeTimers();
-    try {
-      act(() => root.render(h(NeedtLoading, {})));
-      act(() => {
-        jest.advanceTimersByTime(3000);
-      });
-      const before = Number(node().getAttribute("data-fill"));
-      expect(before).toBeGreaterThan(0.4);
-      // The fallback goes, the route's own word arrives in the same turn.
-      act(() => {
-        root.render(h("div", { key: "other" }));
-        root.render(h(NeedtLoading, {}));
-      });
-      expect(Number(node().getAttribute("data-fill"))).toBeGreaterThanOrEqual(
-        before
-      );
-    } finally {
-      jest.useRealTimers();
-    }
-  });
-
-  it("a word that arrives while another is up is marked continued, the first is not", () => {
+  it("a screen that arrives while another is up is continued, the first is not", () => {
     const one = h(NeedtLoading, { key: "a" });
     act(() => root.render(h("div", null, one)));
-    expect(node().hasAttribute("data-continued")).toBe(false);
+    expect(nodes()[0].hasAttribute("data-continued")).toBe(false);
     act(() => root.render(h("div", null, one, h(NeedtLoading, { key: "b" }))));
-    const all = host.querySelectorAll("[data-needt-loading]");
-    expect(all.length).toBe(2);
-    expect(all[0].hasAttribute("data-continued")).toBe(false);
-    expect(all[1].hasAttribute("data-continued")).toBe(true);
+    expect(nodes().length).toBe(2);
+    expect(nodes()[0].hasAttribute("data-continued")).toBe(false);
+    expect(nodes()[1].hasAttribute("data-continued")).toBe(true);
+  });
+});
+
+describe("the loading css", () => {
+  const css = readFileSync(
+    path.join(process.cwd(), "src/styles/v3-overrides/needt-loading.css"),
+    "utf8"
+  );
+  it("breathes in opacity and scale over 2.4 s and nothing else", () => {
+    expect(css).toContain("nl-breathe 2.4s");
+    expect(css).toMatch(/scale\(0\.98\)/);
+    expect(css).not.toMatch(/clip-path|nl-fill|nl-word/);
+  });
+  it("reduced motion removes the breathe, and a continued screen the fade", () => {
+    expect(css).toMatch(
+      /prefers-reduced-motion: reduce\)[\s\S]*\.nl-logo[\s\S]*animation: none/
+    );
+    expect(css).toMatch(/\.nl-root\[data-continued\][\s\S]*animation: none/);
   });
 });
