@@ -1,7 +1,7 @@
 import { NEEDT_PRICING, formatBillingPriceExact } from "@/lib/creem/config";
 import { PLAN_LIMITS } from "@/lib/plan-limits";
 
-/** The 18 screens, in order. */
+/** The 19 screens, in order. */
 export const STEPS3 = [
   "welcome",
   "name",
@@ -20,19 +20,25 @@ export const STEPS3 = [
   "gift",
   "plans",
   "card",
+  "bar",
   "opening",
 ] as const;
 export type Step3 = (typeof STEPS3)[number];
 
-/** Screens that count towards "n of 15" on the phone. */
-export const COUNTED3 = STEPS3.slice(1, 16);
+/**
+ * Screens that count towards "n of 16" on the phone: all but the welcome,
+ * the card (it hands over to checkout) and the opening.
+ */
+export const COUNTED3: readonly Step3[] = STEPS3.filter(
+  (s) => s !== "welcome" && s !== "card" && s !== "opening"
+);
 
-/** The header groups the 15 counted steps into four parts people can read. */
+/** The header groups the steps into four parts people can read. */
 export const PHASES: ReadonlyArray<readonly [string, readonly Step3[]]> = [
   ["About you", ["name", "cats", "tasks", "repeats", "priority"]],
   ["Your time", ["days", "rhythm", "calendar"]],
   ["Your week", ["thinking", "week", "notify"]],
-  ["Account", ["account", "verify", "gift", "plans", "card"]],
+  ["Account", ["account", "verify", "gift", "plans", "card", "bar"]],
 ];
 
 /** The page is dark only while Needt plans, for the gift and while it opens. */
@@ -40,7 +46,8 @@ export const DARK_STEPS: readonly Step3[] = ["thinking", "gift", "opening"];
 
 /**
  * Everything after "account" belongs to an account: confirming it, the gift,
- * the plan, the card and writing the week. Without a session the flow stops
+ * the plan, the card, the bottom bar (`prefs.barStyle`, written on tap) and
+ * writing the week. Without a session the flow stops
  * on "account" (the page redirects there, the client clamps to it).
  */
 export const ACCOUNT_STEP_INDEX = STEPS3.indexOf("account");

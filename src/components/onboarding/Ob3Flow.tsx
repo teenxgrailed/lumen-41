@@ -13,6 +13,7 @@ import { AgeConfirm } from "@/components/needt3/auth/AgeConfirm";
 import { BrandIcon } from "@/components/needt3/brand/BrandIcon";
 import { Glyph, type GlyphName } from "@/components/needt3/glyphs/Glyph";
 import { WithdrawalWaiver } from "@/components/needt3/paywall/WithdrawalWaiver";
+import { BarStyleStep } from "@/components/needt3/phone/auth/BarStyleStep";
 
 import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
 import { V3_FONT_CLASSES } from "@/lib/needt3/fonts";
@@ -270,13 +271,17 @@ export function Ob3Flow({
   const next = () => go(k + 1);
   const back = () =>
     go(
-      step === "gift" || step === "verify" ? STEPS3.indexOf("account") : k - 1
+      step === "gift" || step === "verify"
+        ? STEPS3.indexOf("account")
+        : step === "bar"
+          ? STEPS3.indexOf(store ? "gift" : "plans")
+          : k - 1
     );
 
-  /* Landing on the plan or card screen (a saved link, the checkout return)
-     skips to the end. */
+  /* Landing on the plan or card screen in a store build (a saved link)
+     skips to the bottom bar, the last choice before the end. */
   useEffect(() => {
-    if (store && (step === "plans" || step === "card")) goTo("opening");
+    if (store && (step === "plans" || step === "card")) goTo("bar");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, step]);
 
@@ -651,6 +656,10 @@ export function Ob3Flow({
       planSel === "life"
         ? "One payment. Pro forever, plus Needt Budget."
         : `Nothing is charged today. Your gift runs until ${GIFT_END}, then Pro starts.`,
+    ],
+    bar: [
+      "Your *bottom bar*",
+      "How the bar at the bottom of Needt looks on your phone. Switch any time in Settings.",
     ],
     opening: ["Opening your *week*", null],
   };
@@ -1683,7 +1692,7 @@ export function Ob3Flow({
         className="ob3-link xs"
         onClick={() => {
           setPlanSel("none");
-          goTo("opening");
+          goTo("bar");
         }}
       >
         Continue without a subscription
@@ -1809,7 +1818,7 @@ export function Ob3Flow({
         className="ob3-link xs"
         onClick={() => {
           setPlanSel("none");
-          goTo("opening");
+          goTo("bar");
         }}
       >
         Continue without a subscription
@@ -1893,6 +1902,9 @@ export function Ob3Flow({
         </p>
       </div>
     );
+  } else if (step === "bar") {
+    /* Written on tap into the account's prefs, like the /setup step. */
+    body = <BarStyleStep />;
   } else if (step === "opening") {
     cta = null;
     const r = commit.state === "ok" ? commit.r : null;
@@ -1946,17 +1958,17 @@ export function Ob3Flow({
 
   function onCta() {
     if (store && step === "gift") {
-      goTo("opening");
+      goTo("bar");
       return;
     }
     if (step === "plans" && planSel === "free") {
-      goTo("opening");
+      goTo("bar");
       return;
     }
     if (step === "card") {
       if (payOpen === false) {
         setPlanSel("none");
-        goTo("opening");
+        goTo("bar");
         return;
       }
       void checkout();
