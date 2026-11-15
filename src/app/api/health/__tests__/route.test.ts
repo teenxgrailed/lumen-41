@@ -3,6 +3,7 @@ import { GET } from "@/app/api/health/route";
 import { handleShutdownSignal, resetDrainStateForTests } from "@/lib/drain";
 import { getAgentHubFlag } from "@/lib/health/flags";
 import { getMigrationStatus } from "@/lib/health/migrations";
+import { checkRedis } from "@/lib/health/redis";
 import { readWorkerReleaseBuildSha } from "@/lib/health/worker-release";
 
 jest.mock("@/lib/logger", () => ({
@@ -13,6 +14,9 @@ jest.mock("@/lib/health/flags", () => ({
 }));
 jest.mock("@/lib/health/migrations", () => ({
   getMigrationStatus: jest.fn(),
+}));
+jest.mock("@/lib/health/redis", () => ({
+  checkRedis: jest.fn(),
 }));
 jest.mock("@/lib/health/worker-release", () => ({
   readWorkerReleaseBuildSha: jest.fn(),
@@ -33,6 +37,7 @@ describe("GET /api/health", () => {
     });
     process.env.NEEDT_BUILD_SHA = TEST_SHA;
     mockReadWorkerReleaseBuildSha.mockResolvedValue(null);
+    jest.mocked(checkRedis).mockResolvedValue("ok");
     jest
       .mocked(getAgentHubFlag)
       .mockResolvedValue({ enabled: true, rollout: 100 });
@@ -54,10 +59,29 @@ describe("GET /api/health", () => {
     await expect(response.json()).resolves.toMatchObject({
       ok: true,
       db: "ok",
+      redis: "ok",
       flags: { agent_hub: { enabled: true, rollout: 100 } },
       buildSha: TEST_SHA,
       workerBuildSha: null,
     });
+  });
+
+  it("fails with 503 and redis:fail when Redis is down, keeping the other fields", async () => {
+    mockGetMigrationStatus.mockResolvedValue({ pending: [] });
+    jest.mocked(checkRedis).mockResolvedValue("fail");
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).toMatchObject({
+      ok: false,
+      db: "ok",
+      redis: "fail",
+      buildSha: TEST_SHA,
+      workerBuildSha: null,
+    });
+    expect(typeof body.latencyMs).toBe("number");
   });
 
   it("reports a matching private worker heartbeat without gating web health", async () => {

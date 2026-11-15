@@ -4,6 +4,7 @@ import { isDraining } from "@/lib/drain";
 import { isBuildShaAllowed, resolveBuildSha } from "@/lib/health/build-sha";
 import { getAgentHubFlag } from "@/lib/health/flags";
 import { getMigrationStatus } from "@/lib/health/migrations";
+import { checkRedis } from "@/lib/health/redis";
 import { readWorkerReleaseBuildSha } from "@/lib/health/worker-release";
 
 export const runtime = "nodejs";
@@ -38,6 +39,7 @@ export async function GET() {
       {
         ok: false,
         db: "unchecked",
+        redis: "unchecked",
         buildSha,
         workerBuildSha: null,
         latencyMs: Date.now() - startedAt,
@@ -47,10 +49,13 @@ export async function GET() {
   }
 
   try {
-    const [{ pending }, workerBuildSha, agentHub] = await Promise.all([
+    // Redis has its own 1 s timeout and never rejects, so it cannot slow the
+    // database checks down or turn into a "db: error".
+    const [{ pending }, workerBuildSha, agentHub, redis] = await Promise.all([
       getMigrationStatus(),
       getWorkerBuildSha(buildSha),
       getAgentHubFlag(),
+      checkRedis(),
     ]);
 
     if (pending.length > 0) {
@@ -58,6 +63,21 @@ export async function GET() {
         {
           ok: false,
           db: "migrations-pending",
+          redis,
+          buildSha,
+          workerBuildSha,
+          latencyMs: Date.now() - startedAt,
+        },
+        { status: 503 }
+      );
+    }
+
+    if (redis !== "ok") {
+      return NextResponse.json(
+        {
+          ok: false,
+          db: "ok",
+          redis,
           buildSha,
           workerBuildSha,
           latencyMs: Date.now() - startedAt,
@@ -69,6 +89,7 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       db: "ok",
+      redis,
       buildSha,
       workerBuildSha,
       flags: { agent_hub: agentHub },
@@ -79,6 +100,7 @@ export async function GET() {
       {
         ok: false,
         db: "error",
+        redis: "unchecked",
         buildSha,
         workerBuildSha: null,
         latencyMs: Date.now() - startedAt,

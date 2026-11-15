@@ -83,8 +83,24 @@ const nextConfig = {
       {
         // The application is private; only the landing on needt.app is
         // indexable. middleware.ts sets the same header on every response too.
+        //
+        // Also the baseline security headers. Nothing frames use.needt.app
+        // from another origin (Budget is framed BY us; the iOS/Capacitor
+        // shell loads it top-level), so SAMEORIGIN. HSTS has no
+        // includeSubDomains and no preload: the other *.needt.app hosts are
+        // separate apps. src/lib/security/headers.ts holds the same values
+        // for middleware; /oauth below overrides framing and referrer.
         source: "/:path*",
-        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+        ],
       },
       {
         // The OAuth consent page must never be framed (clickjacking).
