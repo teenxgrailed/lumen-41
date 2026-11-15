@@ -1,9 +1,11 @@
 import type { V3Event, V3Task } from "@/lib/needt3/map";
 
 import { clockAt } from "../../phone/home/clock";
-import { type ScheduleItem, scheduleItems } from "../derive";
+import { type ScheduleItem, chronological, scheduleItems } from "../derive";
 import {
   eventSkipKey,
+  missedLabel,
+  missedToday,
   nowCardTime,
   nowKicker,
   overdueLabel,
@@ -39,7 +41,7 @@ const base = { today: TODAY, skipped: [] as string[] };
 describe("pickNow: what the Now card shows", () => {
   it("is null on a day with nothing open", () => {
     expect(
-      pickNow({ ...base, schedule: [], dayOpen: [], lateOpen: [], nowHour: 9 })
+      pickNow({ ...base, schedule: [], dayOpen: [], nowHour: 9 })
     ).toBeNull();
   });
 
@@ -49,7 +51,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [item(t, 9, 60), item(null, 11, 30, "Standup")],
       dayOpen: [t],
-      lateOpen: [],
       nowHour: 9.5,
     });
     expect(p?.kind).toBe("now");
@@ -58,7 +59,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [item(null, 9, 60, "Dentist")],
       dayOpen: [],
-      lateOpen: [],
       nowHour: 9.25,
     });
     expect(e?.kind).toBe("now");
@@ -67,66 +67,117 @@ describe("pickNow: what the Now card shows", () => {
     expect(e?.canSkip).toBe(false);
   });
 
-  it("an event starting within the hour is next, ahead of a later task", () => {
-    const t = placed(15);
+  it("an event starting within 15 minutes is next, ahead of the task in the current slot", () => {
+    const t = placed(10, { estimatedMinutes: 60 });
     const p = pickNow({
       ...base,
-      schedule: [item(null, 10.75, 30, "Lunch"), item(t, 15)],
+      schedule: [item(t, 10, 60), item(null, 10.75, 30, "Lunch")],
       dayOpen: [t],
-      lateOpen: [],
-      nowHour: 10,
+      nowHour: 10.5 + 1 / 60, // 10:31, the task is running, lunch in 14 min
     });
     expect(p?.kind).toBe("next");
     expect(p?.event?.title).toBe("Lunch");
     expect(nowKicker(p!)).toBe("Next · 10:45");
   });
 
-  it("a later (evening) event does not hide today's open tasks", () => {
-    const timed = placed(15);
-    const anytime = task();
-    const dinner = item(null, 20, 120, "Dinner");
-    const withTimed = pickNow({
+  it("an event 16 minutes away does not outrank the task in the current slot", () => {
+    const t = placed(10, { estimatedMinutes: 60 });
+    const p = pickNow({
       ...base,
-      schedule: [item(timed, 15), dinner],
-      dayOpen: [timed],
-      lateOpen: [],
+      schedule: [item(t, 10, 60), item(null, 10.75, 30, "Lunch")],
+      dayOpen: [t],
+      nowHour: 10.75 - 16 / 60, // 10:29
+    });
+    expect(p?.kind).toBe("now");
+    expect(p?.task?.id).toBe(t.id);
+  });
+
+  it("the 14:55 case: Team sync at 15:00 beats an overdue task", () => {
+    // the overdue one is not even offered to the card: pickNow has no door for it
+    const overdueFromThursday = task({ dueDate: "2026-11-12" });
+    const p = pickNow({
+      ...base,
+      schedule: [item(null, 15, 30, "Team sync")],
+      dayOpen: [],
+      nowHour: 14 + 55 / 60,
+    });
+    expect(overdueFromThursday.done).toBe(false);
+    expect(p?.event?.title).toBe("Team sync");
+    expect(p?.kind).toBe("next");
+  });
+
+  it("an overdue task from a past day never takes the card", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [],
+      dayOpen: [],
       nowHour: 10,
     });
-    expect(withTimed?.task?.id).toBe(timed.id);
-    const withAnytime = pickNow({
+    expect(p).toBeNull();
+  });
+
+  it("the next scheduled item is the nearest timed TASK; a later event does not outrank it", () => {
+    const t = placed(16);
+    const event = item(null, 13, 60, "Workshop");
+    const p = pickNow({
+      ...base,
+      schedule: [event, item(t, 16)],
+      dayOpen: [t],
+      nowHour: 10,
+    });
+    expect(p?.kind).toBe("next");
+    expect(p?.task?.id).toBe(t.id);
+    expect(nowKicker(p!)).toBe("Next · 16:00");
+  });
+
+  it("an evening event does not outrank untimed tasks; it is the pick only when no task is open", () => {
+    const anytime = task();
+    const dinner = item(null, 20, 120, "Dinner");
+    const withTask = pickNow({
       ...base,
       schedule: [dinner],
       dayOpen: [anytime],
-      lateOpen: [],
+      nowHour: 10,
+    });
+    expect(withTask?.task?.id).toBe(anytime.id);
+    expect(withTask?.kind).toBe("anytime");
+    const alone = pickNow({
+      ...base,
+      schedule: [dinner],
+      dayOpen: [],
+      nowHour: 10,
+    });
+    expect(alone?.event?.title).toBe("Dinner");
+    expect(alone?.kind).toBe("next");
+    // a passed task of today still comes before the later event
+    const missed = placed(8);
+    const q = pickNow({
+      ...base,
+      schedule: [item(missed, 8), dinner],
+      dayOpen: [missed],
+      nowHour: 10,
+    });
+    expect(q?.task?.id).toBe(missed.id);
+  });
+
+  it("a timed item ahead beats an open task with no hour", () => {
+    const timed = placed(15);
+    const anytime = task();
+    const p = pickNow({
+      ...base,
+      schedule: [item(timed, 15)],
+      dayOpen: [timed, anytime],
+      nowHour: 10,
+    });
+    expect(p?.task?.id).toBe(timed.id);
+    const withAnytime = pickNow({
+      ...base,
+      schedule: [],
+      dayOpen: [anytime],
       nowHour: 10,
     });
     expect(withAnytime?.task?.id).toBe(anytime.id);
     expect(withAnytime?.kind).toBe("anytime");
-  });
-
-  it("overdue beats an event that is more than an hour away", () => {
-    const old = task({ dueDate: "2026-08-20" });
-    const p = pickNow({
-      ...base,
-      schedule: [item(null, 20, 120, "Dinner")],
-      dayOpen: [],
-      lateOpen: [old],
-      nowHour: 10,
-    });
-    expect(p?.kind).toBe("late");
-    expect(p?.task?.id).toBe(old.id);
-  });
-
-  it("a later event is the pick only when nothing else is open", () => {
-    const p = pickNow({
-      ...base,
-      schedule: [item(null, 20, 120, "Dinner")],
-      dayOpen: [],
-      lateOpen: [],
-      nowHour: 10,
-    });
-    expect(p?.event?.title).toBe("Dinner");
-    expect(p?.kind).toBe("next");
   });
 
   it("a long event keeps the card while it runs, over open tasks", () => {
@@ -134,7 +185,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [item(null, 9, 480, "Workshop")],
       dayOpen: [task()],
-      lateOpen: [],
       nowHour: 13,
     });
     expect(p?.kind).toBe("now");
@@ -148,7 +198,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [item(null, 9, 480, "Workshop")],
       dayOpen: [t],
-      lateOpen: [],
       nowHour: 13,
     };
     const first = pickNow(input)!;
@@ -170,7 +219,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [item(null, 9, 60, "Call")],
       dayOpen: [],
-      lateOpen: [],
       nowHour: 9.5,
     });
     expect(p?.canSkip).toBe(false);
@@ -182,7 +230,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [e],
       dayOpen: [],
-      lateOpen: [],
       nowHour: 9.5,
       skipped: [eventSkipKey("2026-08-31", e.key)],
     });
@@ -194,7 +241,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [item(null, 23, 180, "Night shift")],
       dayOpen: [],
-      lateOpen: [],
       nowHour: 23.5,
     });
     expect(p?.kind).toBe("now");
@@ -218,7 +264,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule,
       dayOpen: [t],
-      lateOpen: [],
       nowHour: 0.5,
     });
     expect(p?.task?.id).toBe(t.id);
@@ -237,7 +282,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [],
       dayOpen: [a, b],
-      lateOpen: [],
       nowHour: 10,
     });
     expect(p?.kind).toBe("anytime");
@@ -245,33 +289,25 @@ describe("pickNow: what the Now card shows", () => {
     expect(p?.canSkip).toBe(true);
   });
 
-  it("a passed-but-open task of today beats overdue", () => {
+  it("a passed-but-open task of today is the last resort", () => {
     const t = placed(8);
-    const old = task({ dueDate: "2026-08-20" });
     const p = pickNow({
       ...base,
       schedule: [item(t, 8, 30)],
       dayOpen: [t],
-      lateOpen: [old],
       nowHour: 14,
     });
     expect(p?.kind).toBe("now");
     expect(p?.task?.id).toBe(t.id);
-  });
-
-  it("overdue is picked only when nothing else is open, oldest first", () => {
-    const o1 = task({ dueDate: "2026-08-20" });
-    const o2 = task({ dueDate: "2026-08-25" });
-    const p = pickNow({
+    // an open task with no hour comes before it
+    const anytime = task();
+    const q = pickNow({
       ...base,
-      schedule: [],
-      dayOpen: [],
-      lateOpen: [o1, o2],
-      nowHour: 10,
+      schedule: [item(t, 8, 30)],
+      dayOpen: [t, anytime],
+      nowHour: 14,
     });
-    expect(p?.kind).toBe("late");
-    expect(p?.task?.id).toBe(o1.id);
-    expect(nowKicker(p!)).toBe("Overdue");
+    expect(q?.task?.id).toBe(anytime.id);
   });
 
   it("Skip moves a task pick on; an event is never skipped", () => {
@@ -281,7 +317,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [],
       dayOpen: [a, b],
-      lateOpen: [],
       nowHour: 10,
       skipped: [a.id],
     });
@@ -290,7 +325,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [item(null, 11, 30, "Call")],
       dayOpen: [],
-      lateOpen: [],
       nowHour: 10,
       skipped: ["whatever"],
     });
@@ -303,7 +337,6 @@ describe("pickNow: what the Now card shows", () => {
       ...base,
       schedule: [item(done, 9, 60)],
       dayOpen: [],
-      lateOpen: [],
       nowHour: 9.5,
     });
     expect(p).toBeNull();
@@ -345,7 +378,6 @@ describe("the Now clock is the person's zone, the same one the schedule panel us
       today,
       schedule: scheduleItems([review], [sync], today),
       dayOpen: [review],
-      lateOpen: [],
       nowHour: hour,
       skipped: [],
     });
@@ -369,14 +401,12 @@ describe("the Now clock is the person's zone, the same one the schedule panel us
 describe("the day's highlight is the Now card", () => {
   const hl = task({ title: "The one thing", scheduledStart: at(16) });
   const running = item(null, 9, 480, "Workshop");
-  const old = task({ dueDate: "2026-08-20" });
 
-  it("wins over a running event and over overdue", () => {
+  it("wins over a running event", () => {
     const p = pickNow({
       ...base,
       schedule: [running],
       dayOpen: [hl],
-      lateOpen: [old],
       nowHour: 13,
       highlight: hl,
     });
@@ -393,7 +423,6 @@ describe("the day's highlight is the Now card", () => {
       ...base,
       schedule: [running],
       dayOpen: [],
-      lateOpen: [old],
       nowHour: 13,
       highlight: done,
     });
@@ -406,7 +435,6 @@ describe("the day's highlight is the Now card", () => {
       ...base,
       schedule: [running],
       dayOpen: [hl],
-      lateOpen: [],
       nowHour: 13,
       highlight: null,
     });
@@ -418,7 +446,6 @@ describe("the day's highlight is the Now card", () => {
       ...base,
       schedule: [running],
       dayOpen: [hl],
-      lateOpen: [old],
       nowHour: 13,
       highlight: hl,
     })!;
@@ -427,7 +454,6 @@ describe("the day's highlight is the Now card", () => {
       ...base,
       schedule: [running],
       dayOpen: [hl],
-      lateOpen: [old],
       nowHour: 13,
       highlight: hl,
       skipped: [first.skipKey],
@@ -440,7 +466,6 @@ describe("the day's highlight is the Now card", () => {
       ...base,
       schedule: [],
       dayOpen: [hl],
-      lateOpen: [],
       nowHour: 13,
       highlight: hl,
     });
@@ -456,7 +481,6 @@ describe("Skip keeps cycling", () => {
       ...base,
       schedule: [],
       dayOpen: [a, b],
-      lateOpen: [],
       nowHour: 10,
     };
     // the screens' onSkip: after a wrap the list starts again from this key
@@ -477,10 +501,122 @@ describe("Skip keeps cycling", () => {
       ...base,
       schedule: [past],
       dayOpen: [hl2],
-      lateOpen: [],
       nowHour: 13,
       highlight: hl2,
     });
     expect(p?.canSkip).toBe(false);
+  });
+});
+
+describe("missedToday: the morning tasks that passed and are not done", () => {
+  const auto = (h: number, over: Partial<V3Task> = {}) =>
+    placed(h, { auto: true, ...over });
+  const morning = auto(9, { estimatedMinutes: 30 });
+  const running = auto(13, { estimatedMinutes: 60 });
+  const later = auto(16);
+  const anytime = task({ auto: true });
+  const fixed = auto(8, { isFixed: true });
+  const open = [morning, running, later, anytime, fixed];
+
+  it("counts an auto-scheduled open task an hour after its slot ended, nothing else", () => {
+    // 15:00: 09:00 task ended long ago; the 13:00 one ended at 14:00 (grace to 15:00)
+    expect(missedToday(open, TODAY, 15).map((t) => t.id)).toEqual([
+      morning.id,
+      running.id,
+    ]);
+    expect(missedToday(open, TODAY, 14.9).map((t) => t.id)).toEqual([
+      morning.id,
+    ]);
+  });
+
+  it("14:00-14:30: not missed at 15:10, missed at 15:31", () => {
+    const t = auto(14, { estimatedMinutes: 30 });
+    expect(missedToday([t], TODAY, 15 + 10 / 60)).toHaveLength(0);
+    expect(missedToday([t], TODAY, 15.5)).toHaveLength(1);
+    expect(missedToday([t], TODAY, 15 + 31 / 60)).toHaveLength(1);
+  });
+
+  it("a placed task with no estimate is read as 30 minutes", () => {
+    const t = auto(9);
+    expect(missedToday([t], TODAY, 10.4)).toHaveLength(0);
+    expect(missedToday([t], TODAY, 10.5)).toHaveLength(1);
+  });
+
+  it("a done, hand-placed, running or untimed task is never offered Reschedule", () => {
+    expect(
+      missedToday(
+        [
+          { ...morning, done: true } as V3Task,
+          placed(9, { auto: false }),
+          auto(9, { status: "in_progress" }),
+          anytime,
+        ],
+        TODAY,
+        20
+      )
+    ).toEqual([]);
+  });
+
+  it("a fixed-time task stays where it is, so it is not offered a new slot", () => {
+    expect(missedToday([fixed], TODAY, 20)).toEqual([]);
+  });
+
+  it("says N tasks from earlier today", () => {
+    expect(missedLabel(1)).toBe("1 task from earlier today");
+    expect(missedLabel(3)).toBe("3 tasks from earlier today");
+  });
+});
+
+describe("a long running event does not hide one that starts soon", () => {
+  it("conference 9-17 running, meeting at 14:05, now 13:55: the meeting wins", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [
+        item(null, 9, 480, "Conference"),
+        item(null, 14 + 5 / 60, 30, "Meeting"),
+      ],
+      dayOpen: [],
+      nowHour: 13 + 55 / 60,
+    });
+    expect(p?.event?.title).toBe("Meeting");
+    expect(p?.kind).toBe("next");
+  });
+
+  it("with no event starting soon, the running one that began last wins", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [
+        item(null, 9, 480, "Conference"),
+        item(null, 13, 120, "Workshop"),
+      ],
+      dayOpen: [],
+      nowHour: 13.5,
+    });
+    expect(p?.event?.title).toBe("Workshop");
+  });
+});
+
+describe("chronological: one list, one Anytime row", () => {
+  it("joins Morning, Afternoon and Evening in order and keeps Anytime apart", () => {
+    const m = placed(9);
+    const a = placed(14);
+    const e = placed(19);
+    const x = task();
+    const out = chronological<V3Task>([
+      ["Morning", [m]],
+      ["Afternoon", [a]],
+      ["Evening", [e]],
+      ["Anytime today", [x]],
+    ]);
+    expect(out.timed.map((t) => t.id)).toEqual([m.id, a.id, e.id]);
+    expect(out.anytime.map((t) => t.id)).toEqual([x.id]);
+  });
+
+  it("knows the phone's name for it too, and an empty day", () => {
+    const x = task();
+    expect(
+      chronological<V3Task>([["Anytime", [x]]]).anytime.map((t) => t.id)
+    ).toEqual([x.id]);
+    expect(chronological<V3Task>([])).toEqual({ timed: [], anytime: [] });
   });
 });

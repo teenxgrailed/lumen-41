@@ -2,6 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 import { prisma } from "@/lib/prisma";
 
+import { openOverdue } from "../helpers/home";
 import { VISUAL_TEST_EMAIL } from "./fixtures";
 import { signInVisualUser } from "./helpers";
 
@@ -99,6 +100,8 @@ async function openHome(page: Page) {
   await signInVisualUser(page);
   await seedOverbookedDay();
   await page.goto("/today");
+  // Home v2: all overdue work is one closed row; Spread / Move to today live in it
+  await openOverdue(page, 20_000);
   await page.addStyleTag({
     content:
       'nextjs-portal, .tsqd-parent-container, aside[aria-label="Quick Tip"] { display: none !important; }',
@@ -134,12 +137,13 @@ test("Overbooked Home offers Spread across the week, and Spread leads on Overdue
       page.getByText(/Spread gives each one the next day/)
     ).toBeVisible();
   }
-  // Next up is the oldest overdue task: its long title is clamped, whole in
-  // the tooltip.
-  await expect(page.locator(".ha-hl-title").first()).toHaveAttribute(
-    "title",
-    LONG_TITLE
-  );
+  // An overdue task never takes the Now card: its long title is clamped in its
+  // row, whole in the tooltip.
+  if (!phone) {
+    await expect(
+      page.locator(`.hd-title[title="${LONG_TITLE}"]`).first()
+    ).toBeVisible();
+  }
   await page.waitForTimeout(350);
 
   await expect(page).toHaveScreenshot("home-overbooked.png", {

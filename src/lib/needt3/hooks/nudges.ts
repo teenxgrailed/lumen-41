@@ -133,12 +133,22 @@ interface ApplyReply {
   changes: { taskId: string }[];
 }
 
+export interface FillNotice {
+  /** The notice's headline for N tasks placed. */
+  placed?: (n: number) => string;
+  description?: string;
+  /** How long the notice (and its Undo) stays, in ms. */
+  duration?: number;
+}
+/** One object for every default call, so the callback below stays stable. */
+const NO_NOTICE: FillNotice = {};
+
 /**
  * "Fill it": ask the scheduler where the tasks with no time would go, place
  * them, and say so with an Undo that restores the schedule as it was. Nothing
  * to place is said plainly instead of pretending.
  */
-export function useFillFreeTime() {
+export function useFillFreeTime(say: FillNotice = NO_NOTICE) {
   const qc = useQueryClient();
   return useCallback(async () => {
     const refresh = () => qc.invalidateQueries({ queryKey: qk.all() });
@@ -179,11 +189,17 @@ export function useFillFreeTime() {
       );
       await refresh();
       const n = applied.changes.length;
-      notify.success(`Placed ${n} ${n === 1 ? "task" : "tasks"}`, {
-        description: "Into your free time, by the plan.",
-        duration: 12_000,
-        action: { label: "Undo", onClick: () => void undo(applied.undoToken) },
-      });
+      notify.success(
+        say.placed?.(n) ?? `Placed ${n} ${n === 1 ? "task" : "tasks"}`,
+        {
+          description: say.description ?? "Into your free time, by the plan.",
+          duration: say.duration ?? 12_000,
+          action: {
+            label: "Undo",
+            onClick: () => void undo(applied.undoToken),
+          },
+        }
+      );
     } catch (error) {
       const stale = error instanceof ApiError && error.status === 409;
       logger.warn(
@@ -199,5 +215,5 @@ export function useFillFreeTime() {
         notify.error("Could not fill your free time");
       }
     }
-  }, [qc]);
+  }, [qc, say]);
 }

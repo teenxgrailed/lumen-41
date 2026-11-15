@@ -123,8 +123,9 @@ export const BUDGET_PRO_ACCESS = "budget_pro_access";
 
 /**
  * Home ("Today") in three blocks: one Now card, the day list, overdue as one
- * row, and the right rail in the project-card frame. Off for everybody; with
- * it off the current Home renders unchanged, so rollback is one switch.
+ * row, and the right rail in the project-card frame. On at 100% for every
+ * account since 15.11.2026 (migration 20261115160000_home_v2_for_everyone);
+ * with it off the previous Home renders unchanged, so rollback is one switch.
  */
 export const HOME_V2 = "home_v2";
 
