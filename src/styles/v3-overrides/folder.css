@@ -50,7 +50,7 @@
   position: relative;
   isolation: isolate;
   display: block;
-  aspect-ratio: 6 / 5;
+  aspect-ratio: 1.15 / 1;
 }
 
 .nx-folder-back,
@@ -59,10 +59,10 @@
   left: 0;
   right: 0;
   bottom: 0;
-  border-radius: 14px;
+  border-radius: 18px;
 }
 .nx-folder-back {
-  top: 14%;
+  top: 16%;
   background:
     linear-gradient(
       color-mix(in oklab, var(--nx-folder-hue) 12%, transparent),
@@ -72,15 +72,15 @@
   box-shadow: var(--shadow-ring);
 }
 
-/* front wall: matte and nearly opaque, the hue only a tint under it; the
-   step sits on its top edge, right of centre, as in the reference */
+/* front wall: frosted and translucent, the sheets read through it blurred;
+   a rounded shoulder rises from its top edge, ending at about 40% */
 .nx-folder-front {
   z-index: 4;
-  top: 35%;
+  top: 38%;
   background:
     linear-gradient(
-      color-mix(in oklab, var(--surface-raised) 75%, transparent),
-      color-mix(in oklab, var(--surface-raised) 75%, transparent)
+      color-mix(in oklab, var(--surface-raised) 58%, transparent),
+      color-mix(in oklab, var(--surface-raised) 58%, transparent)
     ),
     linear-gradient(
       color-mix(in oklab, var(--nx-folder-hue) 12%, transparent),
@@ -88,50 +88,67 @@
     ),
     var(--fill-4);
   box-shadow: var(--shadow-ring);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 .nx-folder-front::before {
   content: "";
   position: absolute;
-  right: 0;
-  top: -11px;
-  width: 44%;
-  height: 12px;
-  border-radius: 10px 10px 0 0;
+  left: 0;
+  top: -12px;
+  width: 40%;
+  height: 14px;
+  border-radius: 14px 18px 0 0;
   background: inherit;
   box-shadow: var(--shadow-ring);
   clip-path: inset(0 0 1px 0);
 }
 
-/* the paper */
+/* the paper: narrow, left of centre, tilted, at staggered heights; the
+   position and tilt of each come from Folder.tsx */
 .nx-folder-peek {
   position: absolute;
-  left: 15%;
-  right: 15%;
-  top: 20%;
-  height: 62%;
+  left: var(--nx-peek-left, 14%);
+  top: var(--nx-peek-top, 14%);
+  width: var(--nx-peek-w, 42%);
+  height: 56%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 1px;
-  padding: 7px 9px 0;
+  padding: 7px 8px 0;
   overflow: hidden;
   border-radius: 8px;
-  background: var(--surface-raised);
+  background: color-mix(
+    in oklab,
+    var(--nx-folder-hue) var(--nx-peek-tint, 0%),
+    var(--surface-raised)
+  );
   box-shadow: var(--shadow-ring);
   text-align: left;
   transform-origin: 50% 100%;
-  transform: translate(
-      var(--nx-peek-dx, 0),
-      calc(var(--nx-peek-dy, 0px) - var(--nx-lift))
-    )
+  transform: translateY(calc(0px - var(--nx-lift)))
     rotate(var(--nx-peek-rot, 0deg));
   transition: transform var(--transition-hover);
 }
-.nx-folder-peek-title {
+.nx-folder-peek-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   max-width: 100%;
+}
+.nx-folder-peek-mark {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid var(--nx-folder-hue);
+  background: color-mix(in oklab, var(--nx-folder-hue) 24%, transparent);
+}
+.nx-folder-peek-title {
+  min-width: 0;
   font: 500 12px/16px var(--font-sans);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -140,38 +157,37 @@
 }
 .nx-folder-peek-meta {
   max-width: 100%;
+  padding-left: 15px;
   font: 400 12px/14px var(--font-sans);
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.nx-folder-peek-bar {
-  width: 42%;
-  height: 4px;
-  margin-top: 1px;
-  border-radius: 2px;
-  background: var(--fill-6);
-}
 
-/* the sticker: a paper tile with a hue ring, a few degrees off true */
+/* the sticker: big, a few degrees off true, outlined in paper, no box */
 .nx-folder-sticker {
   position: absolute;
   z-index: 5;
-  right: 9%;
-  bottom: 12%;
-  width: 36px;
-  height: 36px;
+  right: 8%;
+  bottom: 9%;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 10px;
-  background: var(--surface-raised);
   color: var(--nx-folder-hue);
-  box-shadow:
-    var(--shadow-ring),
-    0 0 0 3px var(--surface-raised),
-    0 0 0 4px color-mix(in oklab, var(--nx-folder-hue) 24%, transparent);
-  transform: rotate(6deg);
+  transform: rotate(8deg);
+  filter: drop-shadow(1.5px 0 0 var(--surface-raised))
+    drop-shadow(-1.5px 0 0 var(--surface-raised))
+    drop-shadow(0 1.5px 0 var(--surface-raised))
+    drop-shadow(0 -1.5px 0 var(--surface-raised))
+    drop-shadow(0 2px 3px rgba(var(--foreground-rgb), 0.16));
+}
+.nx-folder-sticker > svg {
+  width: 100%;
+  height: 100%;
+  stroke-width: 2;
+  fill: color-mix(in oklab, var(--nx-folder-hue) 20%, var(--surface-raised));
 }
 
 .nx-folder-foot {

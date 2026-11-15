@@ -39,7 +39,7 @@ describe("folder.css", () => {
   const rule = (sel: string) => {
     let found: postcss.Rule | undefined;
     postcss.parse(css).walkRules((r) => {
-      if (r.selector === sel && !found) found = r;
+      if (r.selector.replace(/\s+/g, " ") === sel && !found) found = r;
     });
     return found;
   };
@@ -77,5 +77,18 @@ describe("folder.css", () => {
     expect(decl(".nx-folder", "outline")).toBe("none");
     expect(decl(".nx-folder-back", "backdrop-filter")).toBeUndefined();
     expect(decl(".nx-folder-front", "backdrop-filter")).toBeDefined();
+  });
+
+  it("draws the ref's proportions: near-square, frosted front, bare sticker", () => {
+    expect(decl(".nx-folder-art", "aspect-ratio")).toBe("1.15 / 1");
+    expect(decl(".nx-folder-front", "backdrop-filter")).toBe("blur(14px)");
+    expect(rule(".nx-folder-back, .nx-folder-front")).toBeDefined();
+    expect(decl(".nx-folder-back, .nx-folder-front", "border-radius")).toBe(
+      "18px"
+    );
+    expect(decl(".nx-folder-front", "background")).toMatch(/58%/);
+    expect(decl(".nx-folder-sticker", "background")).toBeUndefined();
+    expect(decl(".nx-folder-sticker", "box-shadow")).toBeUndefined();
+    expect(decl(".nx-folder-sticker", "filter")).toMatch(/drop-shadow/);
   });
 });

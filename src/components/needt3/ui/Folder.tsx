@@ -16,8 +16,8 @@
  *                              sticker ring, never a solid fill (PORT.md 0.3).
  *   peeks      Peek[]          0 to 3 sheets, `{ key, title, meta? }`, the
  *                              first one in front and the only one that prints
- *                              its title and meta (the others show a paper
- *                              edge). More than 3 are ignored. None: empty.
+ *                              its title and meta (the others show only a
+ *                              mark). More than 3 are ignored. None: empty.
  *   href       string?         Renders a Next link. Wins over `onClick`.
  *   onClick    () => void      Renders a button.
  *   ariaLabel  string          The accessible name ("Open Operations, 4 open").
@@ -27,7 +27,7 @@
  *
  * Tokens the host must define (the needt-ds-tokens set): --surface-raised,
  * --fill-4, --fill-5, --fill-6, --text-primary, --text-secondary,
- * --text-tertiary, --text-muted, --shadow-ring, --shadow-focus,
+ * --text-tertiary, --text-muted, --shadow-ring, --shadow-focus, --foreground-rgb,
  * --transition-hover, --font-sans. `--accent` is not used.
  *
  * Hover and keyboard focus lift the sheets a few pixels; under
@@ -60,19 +60,30 @@ export interface FolderProps {
 /** How many sheets a folder shows. */
 export const FOLDER_MAX_PEEKS = 3;
 
-/** Rotation (deg) and sideways shift (% of the folder width) per sheet. */
-const FAN: Record<number, readonly { rot: number; dx: number }[]> = {
-  1: [{ rot: -2, dx: 0 }],
-  2: [
-    { rot: 3, dx: 5 },
-    { rot: -6, dx: -6 },
+/**
+ * Where each sheet sits (% of the folder), its width, tilt and tint. The
+ * first sheet is the front one (centre, upright, wider, no tint, the only
+ * one with text); the others lean out behind it, one each side.
+ */
+const FAN: readonly {
+  left: number;
+  top: number;
+  w: number;
+  rot: number;
+  tint: number;
+}[][] = [
+  [],
+  [{ left: 26, top: 12, w: 46, rot: 0, tint: 0 }],
+  [
+    { left: 30, top: 12, w: 46, rot: 0, tint: 0 },
+    { left: 10, top: 17, w: 40, rot: -8, tint: 16 },
   ],
-  3: [
-    { rot: 0, dx: 0 },
-    { rot: -7, dx: -9 },
-    { rot: 6, dx: 9 },
+  [
+    { left: 29, top: 12, w: 46, rot: 0, tint: 0 },
+    { left: 9, top: 17, w: 40, rot: -8, tint: 16 },
+    { left: 50, top: 18, w: 40, rot: 7, tint: 8 },
   ],
-};
+];
 
 export function Folder({
   label,
@@ -88,7 +99,7 @@ export function Folder({
   extra,
 }: FolderProps) {
   const shown = peeks.slice(0, FOLDER_MAX_PEEKS);
-  const fan = FAN[shown.length] ?? [];
+  const fan = FAN[shown.length];
   const cls = `nx-folder${className ? ` ${className}` : ""}`;
   const style = {
     ...(hue ? { "--nx-folder-hue": hue } : null),
@@ -106,22 +117,27 @@ export function Folder({
             data-title={p.title}
             style={
               {
-                "--nx-peek-rot": `${fan[i]?.rot ?? 0}deg`,
-                "--nx-peek-dx": `${fan[i]?.dx ?? 0}%`,
-                "--nx-peek-dy": `${i * -7}px`,
+                "--nx-peek-left": `${fan[i].left}%`,
+                "--nx-peek-top": `${fan[i].top}%`,
+                "--nx-peek-w": `${fan[i].w}%`,
+                "--nx-peek-rot": `${fan[i].rot}deg`,
+                "--nx-peek-tint": `${fan[i].tint}%`,
                 zIndex: shown.length - i,
               } as CSSProperties
             }
           >
             {i === 0 ? (
               <>
-                <span className="nx-folder-peek-title">{p.title}</span>
+                <span className="nx-folder-peek-row">
+                  <span className="nx-folder-peek-mark" />
+                  <span className="nx-folder-peek-title">{p.title}</span>
+                </span>
                 {p.meta ? (
                   <span className="nx-folder-peek-meta">{p.meta}</span>
                 ) : null}
               </>
             ) : (
-              <span className="nx-folder-peek-bar" />
+              <span className="nx-folder-peek-mark" />
             )}
           </span>
         ))}

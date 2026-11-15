@@ -125,7 +125,7 @@ export function WorkScreen({
     return mode === "tasks" ? (
       <PhoneTasks state={state} />
     ) : (
-      <PhoneProjects projectId={projectId} state={state} />
+      <PhoneProjects projectId={projectId} state={state} folders={folders} />
     );
   return (
     <WorkScreenContent
