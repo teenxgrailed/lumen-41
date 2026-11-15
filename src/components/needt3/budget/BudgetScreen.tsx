@@ -10,12 +10,17 @@ import { FiCheck, FiLock } from "react-icons/fi";
 import { LuWallet } from "react-icons/lu";
 
 import {
+  BUDGET_FALLBACK_MS,
   BUDGET_ORIGIN,
   BUDGET_PROMO_MS,
   BUDGET_PROMO_PREF,
+  BUDGET_READY_SEEN_KEY,
+  budgetFallbackVisible,
   budgetFrameSrc,
+  budgetOpenHref,
   budgetThemeMessage,
   budgetView,
+  isBudgetReadyMessage,
   promoSeenFrom,
 } from "@/lib/needt3/budget";
 import { usePlan } from "@/lib/needt3/hooks/plan";
@@ -206,6 +211,23 @@ function BudgetPromo({
   );
 }
 
+function readSeenBefore() {
+  try {
+    return window.localStorage.getItem(BUDGET_READY_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Installed (home-screen app, desktop shell): there is no tab to open one in. */
+function isStandalone() {
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  return (
+    nav.standalone === true ||
+    window.matchMedia?.("(display-mode: standalone)").matches === true
+  );
+}
+
 /** Budget itself, chromeless, following Needt's theme while it is open. */
 export function BudgetFrame() {
   const frame = useRef<HTMLIFrameElement>(null);
@@ -219,6 +241,38 @@ export function BudgetFrame() {
   useEffect(() => {
     const t = window.setTimeout(() => setLoaded(true), FRAME_COVER_MAX_MS);
     return () => window.clearTimeout(t);
+  }, []);
+
+  // Budget (a frame we cannot look into) says when its page has drawn. A frame
+  // that stays silent is how a blocked or signed-out Budget looks: white. After
+  // `BUDGET_FALLBACK_MS` without the message, a way out opens Budget itself.
+  const [ready, setReady] = useState(false);
+  const [waited, setWaited] = useState(false);
+  const [seenBefore] = useState(readSeenBefore);
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    setPhone(scope()?.dataset.ui === "phone");
+    const t = window.setTimeout(() => setWaited(true), BUDGET_FALLBACK_MS);
+    const onMessage = (event: MessageEvent) => {
+      if (!isBudgetReadyMessage(event)) return;
+      setReady(true);
+      try {
+        window.localStorage.setItem(BUDGET_READY_SEEN_KEY, "1");
+      } catch {
+        /* private mode: the way out simply stays phone-only */
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("message", onMessage);
+    };
+  }, []);
+  const openBudget = useCallback(() => {
+    const href = budgetOpenHref();
+    // Safari: a new tab keeps Needt where it was. Installed: same window.
+    if (isStandalone()) window.location.assign(href);
+    else window.open(href, "_blank", "noopener");
   }, []);
 
   const send = useCallback(
@@ -255,6 +309,24 @@ export function BudgetFrame() {
         allow="clipboard-write"
       />
       {loaded ? null : <NeedtLoading cover />}
+      {budgetFallbackVisible({
+        ready,
+        waited,
+        phone,
+        readySeenBefore: seenBefore,
+      }) ? (
+        <div className="bd-fallback" data-bd-fallback="" role="status">
+          <p className="bd-fallback-text">Budget did not open here.</p>
+          <button
+            type="button"
+            className="nx-btn nx-btn-secondary"
+            data-bd-fallback-open=""
+            onClick={openBudget}
+          >
+            Open Budget
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }
