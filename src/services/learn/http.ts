@@ -11,6 +11,8 @@ export const NO_STORE = {
  * The /api/learn routes: the signed-in session for the app, or a `needt_`
  * connector token for scripts and other tools (a token needs `needt.write` to
  * change anything). Learn is on for everybody (owner, 15.11.26: no flag).
+ * Listed in api-route-auth-coverage.test.ts as an authenticating helper: it
+ * returns the auth failure as `response` before a handler does anything.
  */
 export async function learnAuth(
   request: NextRequest,

@@ -199,6 +199,10 @@ function buildPlan(userId, workspaceId) {
     ["GoalCheckIn", "goalCheckIn", any(uid, viaWs("goal"))],
     ["Goal", "goal", any(ws, uid)],
 
+    // Learn (LearnLesson cascades from LearnTopic; deleted first to count it)
+    ["LearnLesson", "learnLesson", uid],
+    ["LearnTopic", "learnTopic", uid],
+
     // Pages, documents, page databases
     ["MeetingNoteProposal", "meetingNoteProposal", any(ws, { page: G })],
     ["PageView", "pageView", any(uid, { page: G })],
