@@ -9,6 +9,7 @@ import {
   eveningText,
   inEveningWindow,
   openHabitCount,
+  resetZoneCache,
   runHabitEveningPush,
   zonesInEveningWindow,
 } from "../evening-push";
@@ -104,6 +105,7 @@ function setup({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  resetZoneCache();
 });
 
 describe("the push", () => {
@@ -231,11 +233,21 @@ describe("who is loaded", () => {
     setup();
     await runHabitEveningPush(AT_2005_ZURICH);
     const where = db.user.findMany.mock.calls[0][0].where;
-    expect(where.userSettings).toEqual({
-      is: { timeZone: { in: ["Europe/Zurich"] } },
-    });
-    expect(where.HabitPush.none.kind).toBe(EVENING_KIND);
-    expect(where.HabitPush.none.createdAt.gte).toBeInstanceOf(Date);
+    expect(where.AND[0].OR).toEqual([
+      {
+        userSettings: { is: { timeZone: "Europe/Zurich" } },
+        HabitPush: { none: { kind: EVENING_KIND, dayKey: "2026-11-16" } },
+      },
+    ]);
+  });
+
+  it("reads the distinct zones once an hour, not on every sweep", async () => {
+    setup();
+    await runHabitEveningPush(AT_2005_ZURICH);
+    await runHabitEveningPush(new Date(AT_2005_ZURICH.getTime() + 5 * 60_000));
+    expect(db.userSettings.groupBy).toHaveBeenCalledTimes(1);
+    await runHabitEveningPush(new Date(AT_2005_ZURICH.getTime() + 61 * 60_000));
+    expect(db.userSettings.groupBy).toHaveBeenCalledTimes(2);
   });
 
   it("nobody is read when no stored zone is in the window", async () => {

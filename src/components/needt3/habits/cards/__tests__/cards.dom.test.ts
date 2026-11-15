@@ -541,6 +541,24 @@ describe("the month grid", () => {
     expect(q(".is-today").getAttribute("data-hc-day")).toBe(TODAY);
   });
 
+  it("counts the header with the stack's filter: no example, no off-day habit", () => {
+    const list = [
+      habit("a", "Read"),
+      { ...habit("ex", "Example"), isSample: true },
+      { ...habit("mon", "Monday"), daysOfWeek: [1] }, // TODAY is a Sunday
+    ];
+    mount(
+      h(HabitCardsPanel, {
+        ctl: fakeCtl({
+          list,
+          shown: list,
+          checkins: [{ habitId: "a", date: TODAY, done: true }],
+        } as never),
+      })
+    );
+    expect(q(".hc-head-count").textContent).toBe("1 of 1 done");
+  });
+
   it("is part of the panel, beside the stack", () => {
     mount(h(HabitCardsPanel, { ctl: fakeCtl() }));
     const panel = q("[data-hc-panel]");

@@ -294,16 +294,25 @@ export function zonesInEveningWindow(
  * actually saved (a handful of distinct values), not from a list of every
  * zone, so an alias such as "Europe/Kiev" is never missed.
  */
-async function dueZones(now: Date): Promise<string[]> {
-  const rows = await prisma.userSettings.groupBy({ by: ["timeZone"] });
-  return zonesInEveningWindow(
-    rows.map((row) => row.timeZone).filter(Boolean),
-    now
-  );
+const ZONES_TTL_MS = 3_600_000;
+let zoneCache: { at: number; zones: string[] } | null = null;
+
+/** Tests only: forget the cached zone list. */
+export function resetZoneCache() {
+  zoneCache = null;
 }
 
-/** An evening row younger than this means today's push is already sent. */
-const SENT_RECENTLY_MS = 20 * 3_600_000;
+async function dueZones(now: Date): Promise<string[]> {
+  // The distinct zones change rarely: read them at most once an hour.
+  if (!zoneCache || now.getTime() - zoneCache.at >= ZONES_TTL_MS) {
+    const rows = await prisma.userSettings.groupBy({ by: ["timeZone"] });
+    zoneCache = {
+      at: now.getTime(),
+      zones: rows.map((row) => row.timeZone).filter(Boolean),
+    };
+  }
+  return zonesInEveningWindow(zoneCache.zones, now);
+}
 
 /**
  * The sweep the worker runs every few minutes. With the flag off for
@@ -336,14 +345,21 @@ export async function runHabitEveningPush(now = newDate()) {
     const rows = await prisma.user.findMany({
       where: {
         ...(onlyIds ? { id: { in: onlyIds } } : {}),
-        userSettings: { is: { timeZone: { in: zones } } },
-        // Today's push already went out: not loaded again by later sweeps.
-        HabitPush: {
-          none: {
-            kind: EVENING_KIND,
-            createdAt: { gte: newDate(now.getTime() - SENT_RECENTLY_MS) },
+        // In a due zone, and without today's claim (that zone's dayKey):
+        // a push already sent is not loaded again by later sweeps.
+        AND: [
+          {
+            OR: zones.map((zone) => ({
+              userSettings: { is: { timeZone: zone } },
+              HabitPush: {
+                none: {
+                  kind: EVENING_KIND,
+                  dayKey: localClock(now, zone).dayKey,
+                },
+              },
+            })),
           },
-        },
+        ],
         habits: {
           some: {
             archivedAt: null,

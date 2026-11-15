@@ -344,7 +344,11 @@ export function HabitCardsPanel({
   /** The face's own per-habit past-day editor, under "Edit past days". */
   past?: ReactNode;
 }) {
-  const { list, kept } = ctl;
+  // The same habits the stack counts: no first-run example, none off today.
+  const todays = ctl.list.filter((h) => habitStack([h], [], ctl.today).length);
+  const kept = todays.filter(
+    (h) => habitCard(h, ctl.checkins, ctl.today).on
+  ).length;
   return (
     <div className="hc-panel" data-hc-panel="">
       <div className="hc-top">
@@ -352,7 +356,7 @@ export function HabitCardsPanel({
           <div className="hc-head">
             <h2 className="hc-head-title">Today</h2>
             <span className="hc-head-count">
-              {kept} of {list.length} done
+              {kept} of {todays.length} done
             </span>
           </div>
           <HabitStack ctl={ctl} />
