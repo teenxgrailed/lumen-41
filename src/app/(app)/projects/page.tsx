@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import { NeedtLoading } from "@/components/needt3/states/NeedtLoading";
 import { WorkScreen } from "@/components/needt3/work/WorkScreen";
 
 import { sectionMetadata } from "@/lib/needt3/section-titles";
@@ -8,7 +9,7 @@ export const metadata = sectionMetadata("projects");
 
 export default function ProjectsPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<NeedtLoading />}>
       <WorkScreen mode="projects" />
     </Suspense>
   );
