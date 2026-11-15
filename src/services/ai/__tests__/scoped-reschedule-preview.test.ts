@@ -20,6 +20,15 @@ type Row = {
   duration: number | null;
   scheduleLocked: boolean;
   isFrozen: boolean;
+  userId: string;
+  assigneeId: string | null;
+  scheduleId: string | null;
+  availableFrom: Date | null;
+  startDate: Date | null;
+  postponedUntil: Date | null;
+  dependsOnId: string | null;
+  dependsOn: { status: string } | null;
+  blockedByDependencies: { blocker: { status: string } }[];
 };
 type Block = {
   taskId: string;
@@ -41,10 +50,21 @@ jest.mock("@/lib/prisma", () => {
   const fake: Record<string, unknown> = {
     task: {
       findMany: async ({ where }: { where: Record<string, unknown> }) => {
-        const ids = (where.id as { in?: string[] } | undefined)?.in;
-        const rows = ids
-          ? state.tasks.filter((t) => ids.includes(t.id))
-          : state.tasks;
+        const id = where.id as { in?: string[]; notIn?: string[] } | undefined;
+        let rows = state.tasks;
+        if (id?.in) rows = rows.filter((t) => id.in!.includes(t.id));
+        if (id?.notIn) {
+          // the overlap check before apply: open tasks outside the set
+          const lt = (where.scheduledStart as { lt: Date }).lt;
+          const gt = (where.scheduledEnd as { gt: Date }).gt;
+          rows = rows.filter(
+            (t) =>
+              !id.notIn!.includes(t.id) &&
+              t.status !== "completed" &&
+              t.scheduledStart! < lt &&
+              t.scheduledEnd! > gt
+          );
+        }
         return rows.map((t) => ({ ...t }));
       },
       updateMany: async ({
@@ -61,7 +81,12 @@ jest.mock("@/lib/prisma", () => {
       },
     },
     scheduledBlock: {
-      findMany: async () => state.blocks.map((b) => ({ ...b })),
+      findMany: async ({ where }: { where: Record<string, unknown> }) => {
+        const notIn = (where.taskId as { notIn?: string[] } | undefined)?.notIn;
+        return state.blocks
+          .filter((b) => !notIn || !notIn.includes(b.taskId))
+          .map((b) => ({ ...b }));
+      },
       deleteMany: async ({
         where,
       }: {
@@ -78,6 +103,10 @@ jest.mock("@/lib/prisma", () => {
       },
     },
     calendarEvent: { findMany: async () => state.events },
+    workSchedule: {
+      findMany: async () => [],
+      findFirst: async () => ({ id: "default" }),
+    },
     userSettings: { findUnique: async () => ({ timeZone: "Europe/Zurich" }) },
     autoScheduleSettings: {
       findUnique: async () => ({
@@ -90,7 +119,6 @@ jest.mock("@/lib/prisma", () => {
     },
     schedulingPreferences: { findUnique: async () => null },
     energyProfileWindow: { findMany: async () => [] },
-    workSchedule: { findMany: async () => [] },
     flexibleHoursOverride: { findMany: async () => [] },
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(fake),
   };
@@ -106,6 +134,17 @@ jest.mock("@/services/scheduling/busy-feeds", () => ({
 }));
 jest.mock("@/services/scheduling/TaskSchedulingService", () => ({
   scheduleAllTasksForUserDetailed: jest.fn(),
+}));
+jest.mock("@/services/personal-time/service", () => ({
+  personalBusyBlocks: async () => [],
+}));
+jest.mock("@/lib/work-week-server", () => ({
+  loadWeekHours: async () =>
+    Array.from({ length: 7 }, (_, day) => ({
+      day,
+      on: day >= 1 && day <= 5,
+      ranges: day >= 1 && day <= 5 ? [{ start: "09:00", end: "17:00" }] : [],
+    })),
 }));
 jest.mock("@/lib/auth/workspace-auth", () => ({
   workspaceDataScopeWhere: () => ({}),
@@ -143,6 +182,15 @@ const row = (
   duration: null,
   scheduleLocked: false,
   isFrozen: false,
+  userId: "u1",
+  assigneeId: "u1",
+  scheduleId: null,
+  availableFrom: null,
+  startDate: null,
+  postponedUntil: null,
+  dependsOnId: null,
+  dependsOn: null,
+  blockedByDependencies: [],
   ...extra,
 });
 
@@ -309,5 +357,82 @@ describe("scoped reschedule preview", () => {
     );
     expect(applied.changes).toEqual([]);
     expect(state.writes).toEqual([]);
+  });
+});
+
+describe("scoped reschedule preview: races and special tasks", () => {
+  const preview = (taskIds: string[]) =>
+    createReschedulePreview("u1", workspace, { taskIds });
+
+  it("refuses to apply when another task moved into the target slot", async () => {
+    const p = await preview(["missed-a"]);
+    const target = (p.changes[0].toStart as string)!;
+    // an unrelated task is dragged onto the slot after the preview
+    const intruder = state.tasks.find((t) => t.id === "later")!;
+    intruder.scheduledStart = d(target);
+    intruder.scheduledEnd = new Date(d(target).getTime() + 30 * 60_000);
+    await expect(
+      applyReschedulePreview("u1", workspace, p.previewToken)
+    ).rejects.toBeInstanceOf(SchedulePreviewConflictError);
+    expect(state.writes).toEqual([]);
+  });
+
+  it("books the slot once when two scoped previews chose the same one", async () => {
+    const first = await preview(["missed-a"]);
+    const second = await preview(["missed-b"]);
+    expect(first.changes[0].toStart).toBe(second.changes[0].toStart);
+    await applyReschedulePreview("u1", workspace, first.previewToken);
+    await expect(
+      applyReschedulePreview("u1", workspace, second.previewToken)
+    ).rejects.toBeInstanceOf(SchedulePreviewConflictError);
+    expect(state.writes).toEqual(["missed-a"]);
+  });
+
+  it("leaves chunked tasks, a teammate's task and a waiting task alone", async () => {
+    state.tasks.push(
+      row("split", "2026-11-18T07:00:00Z", "2026-11-18T08:00:00Z"),
+      row("mate", "2026-11-18T07:00:00Z", "2026-11-18T08:00:00Z", {
+        assigneeId: "u2",
+      }),
+      row("waits", "2026-11-18T07:00:00Z", "2026-11-18T08:00:00Z", {
+        dependsOnId: "x",
+        dependsOn: { status: "todo" },
+      })
+    );
+    state.blocks.push(
+      ...["split", "mate", "waits"].map((id) => ({
+        taskId: id,
+        start: d("2026-11-18T07:00:00Z"),
+        end: d("2026-11-18T08:00:00Z"),
+        chunkIndex: 0,
+        chunkCount: id === "split" ? 2 : 1,
+        isFrozen: false,
+      })),
+      {
+        taskId: "split",
+        start: d("2026-11-19T07:00:00Z"),
+        end: d("2026-11-19T08:00:00Z"),
+        chunkIndex: 1,
+        chunkCount: 2,
+        isFrozen: false,
+      }
+    );
+    const p = await preview(["split", "mate", "waits"]);
+    expect(p.changes).toEqual([]);
+    expect(
+      Object.fromEntries(
+        ("skipped" in p ? p.skipped : []).map((x) => [x.taskId, x.reason])
+      )
+    ).toEqual({ split: "split", mate: "not_found", waits: "blocked" });
+  });
+
+  it("sizes a task with a zero estimate at 30 minutes", async () => {
+    state.tasks[0].estimatedMinutes = 0;
+    state.tasks[0].duration = null;
+    const p = await preview(["missed-a"]);
+    const change = p.changes[0];
+    expect(
+      new Date(change.toEnd!).getTime() - new Date(change.toStart!).getTime()
+    ).toBe(30 * 60_000);
   });
 });

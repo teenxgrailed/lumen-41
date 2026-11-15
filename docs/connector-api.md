@@ -693,21 +693,29 @@ curl -X POST … -d '{ "action": "undo", "token": "<undoToken>" }'
 
 - `taskIds` (1 to 100, optional). Left out, `preview` re-plans the whole
   schedule as before. Given, only those tasks can move.
-- Which tasks move: open tasks whose slot has ended (`reason: "missed"`) or
-  that sit on another block or event (`reason: "overlaps"`). They go into the
-  first free gap **from now** inside work hours (their own estimate long, 30
-  minutes without one), in the order they were first scheduled. Every other
-  task block, pinned or auto, every calendar event and the blocks of tasks that
-  stay are busy time. The result is the same for the same schedule and clock.
+- Which tasks move: your own open tasks (assigned to you, or yours and
+  unassigned) whose slot has ended (`reason: "missed"`) or that sit on another
+  block or event (`reason: "overlaps"`). They go into the first free gap
+  **from now** inside the default work schedule (its days and ranges, minus
+  flexible-hours overrides), their own estimate long (30 minutes without one),
+  on the quarter hour, never before their `availableFrom`, start date or
+  `postponedUntil`, in the order they were first scheduled. Every other task
+  block (pinned or auto), calendar event, personal-time block and the blocks of
+  tasks that stay are busy time, with the scheduler's 15 minute buffer. The
+  result is the same for the same schedule and clock.
 - Ids that cannot move are not an error. They come back in `skipped` with a
-  `reason`: `not_found` (unknown, in another workspace, archived or trashed),
-  `completed`, `pinned` (`scheduleLocked` or frozen), `not_scheduled` (no slot
-  to replace), `not_missed`. A task with no gap in the next three weeks is
-  listed in `unscheduled` and stays.
+  `reason`: `not_found` (unknown, in another workspace, a teammate's task,
+  archived or trashed), `completed`, `pinned` (`scheduleLocked` or frozen),
+  `split` (more than one block, or a block pinned by hand), `blocked` (waits on
+  an unfinished task), `own_hours` (follows its own work schedule),
+  `not_scheduled` (no slot to replace), `not_missed`. A task with no gap in the
+  next three weeks is listed in `unscheduled` and stays.
 - The tokens are bound to the set: `apply` writes only the tasks in `changes`
   and `undo` only the same tasks. Changes to other tasks in between do not
-  matter; a change to one of these tasks or to the calendar answers `409
-  SCHEDULE_PREVIEW_STALE`. Tokens last 15 minutes.
+  matter; a change to one of these tasks or to the calendar, or another task
+  now sitting in a target slot (a second preview kept first), answers `409
+  SCHEDULE_PREVIEW_STALE`. Tokens last 15 minutes. `apply` and `undo` send the
+  `schedule.changed` webhook.
 - Limit: 20 requests a minute per account.
 
 ## Export a page

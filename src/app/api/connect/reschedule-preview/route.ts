@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SchedulePreviewConflictError } from "@/services/ai/reschedule-preview";
 import { runReschedulePreviewAction } from "@/services/ai/reschedule-preview-api";
 import { authenticateConnectorRequest } from "@/services/connectors/auth";
+import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { WorkspaceRole } from "@prisma/client";
 import { ZodError } from "zod";
 
@@ -30,13 +31,28 @@ export async function POST(request: NextRequest) {
       { route: "/api/connect/reschedule-preview", userId: auth.userId }
     );
     if (limited) return limited;
-    return NextResponse.json(
-      await runReschedulePreviewAction(
-        auth.userId,
-        auth.workspace,
-        await request.json().catch(() => null)
-      )
+    const body: unknown = await request.json().catch(() => null);
+    const result = await runReschedulePreviewAction(
+      auth.userId,
+      auth.workspace,
+      body
     );
+    // Keep and Undo change the schedule, like /api/connect/reschedule does.
+    const action = (body as { action?: unknown } | null)?.action;
+    if (action === "apply" || action === "undo") {
+      await sendConnectorWebhook({
+        userId: auth.userId,
+        event: "schedule.changed",
+        payload: { taskCount: result.changes.length, action },
+      }).catch((error) =>
+        logger.warn(
+          "Could not send schedule.changed",
+          { error: error instanceof Error ? error.message : String(error) },
+          LOG_SOURCE
+        )
+      );
+    }
+    return NextResponse.json(result);
   } catch (error) {
     if (error instanceof SchedulePreviewConflictError) {
       return NextResponse.json(

@@ -1,5 +1,4 @@
-import { hoursFromSettings } from "@/services/onboarding/first-replan-demo";
-import { validZone } from "@/services/onboarding/sample-service";
+import { personalBusyBlocks } from "@/services/personal-time/service";
 import { scheduleAllTasksForUserDetailed } from "@/services/scheduling/TaskSchedulingService";
 import {
   blockingEventWhere,
@@ -7,6 +6,7 @@ import {
 } from "@/services/scheduling/busy-feeds";
 import {
   type ScopedReplanSkipReason,
+  overlaps,
   planScopedReplan,
 } from "@/services/scheduling/scoped-replan";
 import { Prisma } from "@prisma/client";
@@ -20,10 +20,12 @@ import {
   type WorkspaceAccess,
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
-import { addCalendarDays, newDate } from "@/lib/date-utils";
+import { addCalendarDays, formatInTimeZone, newDate } from "@/lib/date-utils";
+import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
+import { loadWeekHours } from "@/lib/work-week-server";
 
 import { decryptSecret, encryptSecret } from "./encryption";
 
@@ -747,6 +749,9 @@ const SKIP_TEXT: Record<ScopedReplanSkipReason, string> = {
   not_found: "Not one of your open tasks.",
   completed: "Already completed.",
   pinned: "Pinned in place; left where it is.",
+  split: "Split over several blocks or one is pinned; left where it is.",
+  blocked: "Waits on an unfinished task; left where it is.",
+  own_hours: "Follows its own work schedule; left where it is.",
   not_scheduled: "Has no time slot to replace.",
   not_missed: "Not missed and not overlapping anything.",
 };
@@ -769,28 +774,38 @@ export async function createScopedReschedulePreview(
   const now = newDate();
   const horizon = addCalendarDays(now, 22);
   const scope = workspaceDataScopeWhere(workspace, userId);
-  const [before, contextVersion, settings, hoursRow] = await Promise.all([
-    captureSnapshot(userId, workspace),
-    captureContextVersion(userId),
-    prisma.userSettings.findUnique({
-      where: { userId },
-      select: { timeZone: true },
-    }),
-    prisma.autoScheduleSettings.findUnique({
-      where: { userId },
-      select: {
-        workHourStart: true,
-        workHourEnd: true,
-        workDays: true,
-        excludedCalendars: true,
-      },
-    }),
-  ]);
+  const [before, contextVersion, settings, hoursRow, defaultSchedule] =
+    await Promise.all([
+      captureSnapshot(userId, workspace),
+      captureContextVersion(userId),
+      prisma.userSettings.findUnique({
+        where: { userId },
+        select: { timeZone: true },
+      }),
+      prisma.autoScheduleSettings.findUnique({
+        where: { userId },
+        select: { excludedCalendars: true },
+      }),
+      prisma.workSchedule.findFirst({
+        where: { userId, isDefault: true },
+        select: { id: true },
+      }),
+    ]);
+  const zone = normalizeUserTimeZone(settings?.timeZone);
+  const today = new Date(
+    `${formatInTimeZone(now, zone, "yyyy-MM-dd")}T00:00:00.000Z`
+  );
+  const openTask = {
+    ...scope,
+    isArchived: false,
+    trashedAt: null,
+    status: { notIn: ["completed", "done"] },
+  };
   const busyFeedIds = await resolveBusyFeedIds(
     userId,
     hoursRow?.excludedCalendars
   );
-  const [rows, blocks, events] = await Promise.all([
+  const [rows, blocks, events, personal, week, overrides] = await Promise.all([
     prisma.task.findMany({
       where: {
         ...scope,
@@ -809,28 +824,43 @@ export async function createScopedReschedulePreview(
         id: true,
         title: true,
         status: true,
+        userId: true,
+        assigneeId: true,
         scheduledStart: true,
         scheduledEnd: true,
         estimatedMinutes: true,
         duration: true,
         scheduleLocked: true,
         isFrozen: true,
+        scheduleId: true,
+        availableFrom: true,
+        startDate: true,
+        postponedUntil: true,
+        dependsOnId: true,
+        dependsOn: { select: { status: true } },
+        blockedByDependencies: {
+          where: { removedAt: null },
+          select: { blocker: { select: { status: true } } },
+        },
       },
       orderBy: { id: "asc" },
     }),
     prisma.scheduledBlock.findMany({
       where: {
         userId,
-        task: {
-          ...scope,
-          isArchived: false,
-          trashedAt: null,
-          status: { notIn: ["completed", "done"] },
-        },
-        end: { gt: now },
-        start: { lt: horizon },
+        task: openTask,
+        OR: [
+          { taskId: { in: taskIds } },
+          { end: { gt: now }, start: { lt: horizon } },
+        ],
       },
-      select: { taskId: true, start: true, end: true },
+      select: {
+        taskId: true,
+        start: true,
+        end: true,
+        chunkCount: true,
+        isFrozen: true,
+      },
     }),
     prisma.calendarEvent.findMany({
       where: {
@@ -844,24 +874,63 @@ export async function createScopedReschedulePreview(
       },
       select: { start: true, end: true },
     }),
+    personalBusyBlocks(userId, now, horizon),
+    loadWeekHours(userId),
+    prisma.flexibleHoursOverride.findMany({
+      where: { userId, date: { gte: today, lt: horizon } },
+      select: { date: true, kind: true, startTime: true, endTime: true },
+    }),
   ]);
 
+  const isDone = (status: string) =>
+    status === "completed" || status === "done";
   const plan = planScopedReplan({
     requestedIds: taskIds,
-    tasks: rows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      scheduledStart: row.scheduledStart,
-      scheduledEnd: row.scheduledEnd,
-      minutes: row.estimatedMinutes ?? row.duration ?? 30,
-      pinned: row.scheduleLocked || row.isFrozen,
-      done: row.status === "completed" || row.status === "done",
-    })),
-    events,
+    tasks: rows.map((row) => {
+      const latest = [row.availableFrom, row.startDate, row.postponedUntil]
+        .filter((value): value is Date => value !== null)
+        .reduce<Date | null>(
+          (max, value) => (!max || value > max ? value : max),
+          null
+        );
+      return {
+        id: row.id,
+        title: row.title,
+        scheduledStart: row.scheduledStart,
+        scheduledEnd: row.scheduledEnd,
+        minutes:
+          row.estimatedMinutes && row.estimatedMinutes > 0
+            ? row.estimatedMinutes
+            : row.duration && row.duration > 0
+              ? row.duration
+              : 30,
+        pinned: row.scheduleLocked || row.isFrozen,
+        done: isDone(row.status),
+        // Blocks are kept per person, so only the caller's own tasks move.
+        owned: row.assigneeId
+          ? row.assigneeId === userId
+          : row.userId === userId,
+        notBefore: latest,
+        blocked:
+          (row.dependsOnId !== null &&
+            !!row.dependsOn &&
+            !isDone(row.dependsOn.status)) ||
+          row.blockedByDependencies.some((d) => !isDone(d.blocker.status)),
+        ownHours:
+          row.scheduleId !== null && row.scheduleId !== defaultSchedule?.id,
+      };
+    }),
+    events: [...events, ...personal],
     blocks,
+    week,
+    overrides: overrides.map((o) => ({
+      date: o.date.toISOString().slice(0, 10),
+      kind: o.kind,
+      startTime: o.startTime,
+      endTime: o.endTime,
+    })),
     now,
-    zone: validZone(settings?.timeZone),
-    hours: hoursFromSettings(hoursRow),
+    zone,
   });
 
   const scopeIds = plan.moves.map((move) => move.taskId);
@@ -930,6 +999,71 @@ export async function createScopedReschedulePreview(
   };
 }
 
+/**
+ * The context version covers the calendar but not other tasks, so a task that
+ * moved into a previewed slot since (or a second preview that chose the same
+ * slot and was kept first) would be double-booked. Before a scoped apply,
+ * every target slot must be clear of open tasks and blocks outside the set.
+ */
+async function assertScopedSlotsFree(
+  userId: string,
+  workspace: WorkspaceAccess,
+  value: ScheduleToken,
+  scope: Set<string>
+) {
+  const targets = value.after.tasks.flatMap((task) =>
+    task.scheduledStart && task.scheduledEnd
+      ? [
+          {
+            start: newDate(task.scheduledStart),
+            end: newDate(task.scheduledEnd),
+          },
+        ]
+      : []
+  );
+  if (!targets.length) return;
+  const from = new Date(Math.min(...targets.map((t) => t.start.getTime())));
+  const to = new Date(Math.max(...targets.map((t) => t.end.getTime())));
+  const outside = {
+    ...workspaceDataScopeWhere(workspace, userId),
+    id: { notIn: [...scope] },
+    isArchived: false,
+    trashedAt: null,
+    status: { notIn: ["completed", "done"] },
+  };
+  const [tasks, blocks] = await Promise.all([
+    prisma.task.findMany({
+      where: {
+        ...outside,
+        scheduledStart: { lt: to },
+        scheduledEnd: { gt: from },
+      },
+      select: { scheduledStart: true, scheduledEnd: true },
+    }),
+    prisma.scheduledBlock.findMany({
+      where: {
+        userId,
+        taskId: { notIn: [...scope] },
+        task: outside,
+        start: { lt: to },
+        end: { gt: from },
+      },
+      select: { start: true, end: true },
+    }),
+  ]);
+  const taken = [
+    ...tasks.flatMap((t) =>
+      t.scheduledStart && t.scheduledEnd
+        ? [{ start: t.scheduledStart, end: t.scheduledEnd }]
+        : []
+    ),
+    ...blocks,
+  ];
+  if (targets.some((slot) => taken.some((t) => overlaps(slot, t)))) {
+    throw new SchedulePreviewConflictError();
+  }
+}
+
 export async function applyReschedulePreview(
   userId: string,
   workspace: WorkspaceAccess,
@@ -951,6 +1085,7 @@ export async function applyReschedulePreview(
   ) {
     throw new SchedulePreviewConflictError();
   }
+  if (scope) await assertScopedSlotsFree(userId, workspace, value, scope);
   await restoreSnapshot(userId, workspace, value.after);
   const appliedAll = await captureSnapshot(userId, workspace);
   const applied = scope ? onlyTasks(appliedAll, scope) : appliedAll;
