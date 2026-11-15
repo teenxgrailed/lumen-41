@@ -8,6 +8,14 @@ import { isPublicSignupEnabled } from "./public-signup";
 
 const LOG_SOURCE = "CredentialsProvider";
 
+/* Precomputed bcrypt hash at cost 12, the cost every real password hash is
+   written with (register, email-verification, sandbox). Compared against when
+   there is no usable account so a miss costs the same time as a wrong
+   password and response time does not reveal which emails have one. If the
+   write-side cost changes, regenerate this at the same cost. */
+export const DUMMY_HASH =
+  "$2a$12$BS4.gxZscgcBDDQ34YsEu.6XJFiyhxqIV3v9GkQEGvh2BO2hG.BcS";
+
 /**
  * Authenticates a user with email and password
  * @param email User's email
@@ -29,29 +37,15 @@ export async function authenticateUser(email: string, password: string) {
       },
     });
 
-    // If user doesn't exist, return null
-    if (
-      !user ||
-      !user.isActive ||
-      !user.accounts ||
-      user.accounts.length === 0
-    ) {
-      logger.warn("Authentication failed: User not found", {}, LOG_SOURCE);
-      return null;
-    }
+    const credentialsAccount = user?.isActive
+      ? user.accounts?.find((account) => account.provider === "credentials")
+      : undefined;
 
-    // Get the credentials account
-    const credentialsAccount = user.accounts.find(
-      (account) => account.provider === "credentials"
-    );
-
-    // If no credentials account exists, return null
-    if (!credentialsAccount || !credentialsAccount.id_token) {
-      logger.warn(
-        "Authentication failed: No credentials account found",
-        {},
-        LOG_SOURCE
-      );
+    // No user, inactive, or no password hash: still run one compare so every
+    // path takes a bcrypt's worth of time.
+    if (!user || !credentialsAccount || !credentialsAccount.id_token) {
+      await compare(password, DUMMY_HASH);
+      logger.warn("Authentication failed: No usable account", {}, LOG_SOURCE);
       return null;
     }
 

@@ -15,13 +15,20 @@ import {
 const LOG_SOURCE = "EmailVerificationRequestAPI";
 
 export async function POST(request: NextRequest) {
-  const token = await getToken({ req: request, secret: authSecret() });
-  const body = token?.sub
-    ? null
-    : ((await request.json().catch(() => null)) as { email?: unknown } | null);
+  /* The typed address wins over the session: "Resend confirmation" on the
+     sign-in page with a stale cookie must mail the address typed, not the
+     previous user. The session is used only when no email is given. */
+  const body = (await request.json().catch(() => null)) as {
+    email?: unknown;
+  } | null;
   const requestedEmail =
-    typeof body?.email === "string" ? body.email.trim().toLowerCase() : null;
-  const rateLimitIdentity = token?.sub ?? requestedEmail ?? "missing";
+    typeof body?.email === "string" && body.email.trim()
+      ? body.email.trim().toLowerCase()
+      : null;
+  const token = requestedEmail
+    ? null
+    : await getToken({ req: request, secret: authSecret() });
+  const rateLimitIdentity = requestedEmail ?? token?.sub ?? "missing";
   const limited = await enforceRateLimits(
     [
       ipRule(request, "email-verification:ip", 10, 60 * 60),
@@ -33,10 +40,10 @@ export async function POST(request: NextRequest) {
   );
   if (limited) return limited;
   const user = await prisma.user.findFirst({
-    where: token?.sub
-      ? { id: token.sub }
-      : requestedEmail
-        ? { email: requestedEmail }
+    where: requestedEmail
+      ? { email: requestedEmail }
+      : token?.sub
+        ? { id: token.sub }
         : { id: "" },
     select: { id: true, email: true },
   });
