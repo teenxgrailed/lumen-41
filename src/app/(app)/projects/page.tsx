@@ -2,7 +2,6 @@ import { Suspense } from "react";
 
 import { getServerSession } from "next-auth";
 
-import { NeedtLoading } from "@/components/needt3/states/NeedtLoading";
 import { WorkScreen } from "@/components/needt3/work/WorkScreen";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
@@ -23,7 +22,7 @@ export default async function ProjectsPage() {
     folders = false;
   }
   return (
-    <Suspense fallback={<NeedtLoading />}>
+    <Suspense fallback={null}>
       <WorkScreen mode="projects" folders={folders} />
     </Suspense>
   );

@@ -2,7 +2,6 @@ import { Suspense } from "react";
 
 import type { Metadata } from "next";
 
-import { NeedtLoading } from "@/components/needt3/states/NeedtLoading";
 import { WorkScreen } from "@/components/needt3/work/WorkScreen";
 
 import { projectTabTitle } from "@/lib/needt3/item-titles";
@@ -24,7 +23,7 @@ export default async function ProjectPage({
 }) {
   const { id } = await params;
   return (
-    <Suspense fallback={<NeedtLoading />}>
+    <Suspense fallback={null}>
       <WorkScreen mode="projects" projectId={id} />
     </Suspense>
   );

@@ -93,9 +93,7 @@ export function BudgetScreen() {
         <PxSky variant="a" radius={14}>
           <div className="scroll-inner nx-scroll cn-wrap cn-screen-abs">
             <div className="cn-page bd-page">
-              {view === "loading" ? (
-                <NeedtLoading />
-              ) : (
+              {view === "loading" ? null : (
                 <BudgetPromo
                   locked={view === "promo"}
                   onOpen={open}

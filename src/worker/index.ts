@@ -65,6 +65,7 @@ import {
   startWorkerHealthServer,
   stopWorkerHealthServer,
 } from "@/worker/health-server";
+import { startWorkerTick } from "@/worker/liveness";
 import { runWorkerStartupChecks } from "@/worker/startup";
 import {
   STALE_TASK_MAPPING_SWEEP_INTERVAL_MS,
@@ -165,6 +166,7 @@ let releaseHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 let releaseHeartbeatRefresh: Promise<void> | null = null;
 let releaseHeartbeatRedis: ReleaseHealthRedis | null = null;
 let externalHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
+let workerTickInterval: ReturnType<typeof setInterval> | null = null;
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -525,7 +527,10 @@ export async function start(): Promise<void> {
   // a while on a cold host; a health check that cannot connect until all of
   // it finishes reads as a dead container and gets it restarted mid-start.
   // Release readiness is still proven by the Redis heartbeat, not this port.
-  workerHealthServer = await startWorkerHealthServer();
+  workerHealthServer = await startWorkerHealthServer({ liveness: {} });
+  // Ticks from here on, so the health check sees the worker while the slower
+  // startup checks below run.
+  workerTickInterval = startWorkerTick();
   await runWorkerStartupChecks();
   if (isGitBuildSha(BUILD_SHA)) {
     releaseHeartbeatRedis =
@@ -696,6 +701,8 @@ async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   clearInterval(healthInterval);
+  if (workerTickInterval) clearInterval(workerTickInterval);
+  workerTickInterval = null;
   if (releaseHeartbeatInterval) clearInterval(releaseHeartbeatInterval);
   releaseHeartbeatInterval = null;
   if (externalHeartbeatInterval) clearInterval(externalHeartbeatInterval);
