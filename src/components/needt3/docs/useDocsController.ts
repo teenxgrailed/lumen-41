@@ -38,6 +38,9 @@ export function useDocsController() {
   const [q, setQ] = useState("");
   // The desktop grid's layout (grid, cards by length, list); the phone has one.
   const [view, setView] = useState<DocsView>("grid");
+  // The open folder (a project id or "unsorted"); null is the folders. It
+  // lives here so crossing the 700 px swap keeps the folder that is open.
+  const [folder, setFolder] = useState<string | null>(null);
   const making = useRef(false);
 
   /** The stored sort is per browser (`needt.docsSort`): read it after mount
@@ -87,6 +90,8 @@ export function useDocsController() {
     setQ,
     view,
     setView,
+    folder,
+    setFolder,
     newDoc,
     creating: create.isPending,
   };

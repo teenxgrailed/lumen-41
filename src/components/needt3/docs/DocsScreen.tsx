@@ -15,6 +15,7 @@ import {
   LuArrowDown,
   LuArrowUp,
   LuCheck,
+  LuChevronLeft,
   LuEllipsis,
   LuFolder,
   LuLayers,
@@ -39,10 +40,12 @@ import { ShareSheet } from "../document/ShareSheet";
 import { Art } from "../menu/Art";
 import { RichMenu } from "../menu/RichMenu";
 import { StScreen } from "../states/StScreen";
+import { DocFolders } from "./DocFolders";
 import { DocMiniature } from "./DocMini";
 import { DcCover, DocThumb, docsCopy, useDocTokens } from "./DocParts";
 import { RenameDocSheet } from "./RenameDocSheet";
 import { backdropVars } from "./backdrop";
+import { groupDocs, hasFolders, openGroup } from "./folders";
 import { ageLabel } from "./labels";
 import { docActions } from "./menu-model";
 import {
@@ -429,7 +432,19 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
     () => (query.data ?? []).filter((d) => !d.trashedAt),
     [query.data]
   );
-  const shown = useMemo(() => sortDocs(mine, sort), [mine, sort]);
+  const groups = useMemo(
+    () => groupDocs(mine, projects.data ?? []),
+    [mine, projects.data]
+  );
+  // The top level is folders when the pages sit in more than one group; one
+  // folder opens at once into its list. A folder that emptied is gone.
+  const topLevel = hasFolders(groups);
+  const group = topLevel ? openGroup(groups, ctl.folder) : null;
+  const atFolders = topLevel && !group;
+  const shown = useMemo(
+    () => sortDocs(group ? group.docs : mine, sort),
+    [group, mine, sort]
+  );
   const projectName = useMemo(() => {
     const names = new Map(
       (projects.data ?? []).map((p) => [p.id, p.name] as const)
@@ -516,25 +531,29 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
           the top bar's ⌘K, so the grid has no field of its own. */}
       <header className="docs-docs-screen-1">
         <PageAddButton onNewDoc={newDoc} />
-        <h1 className="docs-docs-screen-2">{c.documents}</h1>
-        <span className="docs-docs-screen-3">
-          {VIEWS.map(([id, icon, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={
-                "docs-docs-screen-4 docs-docs-screen-s1" +
-                (view === id ? " is-on" : "")
-              }
-              aria-label={label}
-              title={label}
-              aria-pressed={view === id}
-              onClick={() => setView(id)}
-            >
-              {icon}
-            </button>
-          ))}
-        </span>
+        <h1 className="docs-docs-screen-2">
+          {group ? group.label : c.documents}
+        </h1>
+        {atFolders ? null : (
+          <span className="docs-docs-screen-3">
+            {VIEWS.map(([id, icon, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={
+                  "docs-docs-screen-4 docs-docs-screen-s1" +
+                  (view === id ? " is-on" : "")
+                }
+                aria-label={label}
+                title={label}
+                aria-pressed={view === id}
+                onClick={() => setView(id)}
+              >
+                {icon}
+              </button>
+            ))}
+          </span>
+        )}
         <DropMenu
           width={232}
           trigger={(isOpen) => (
@@ -597,6 +616,17 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
       </header>
       <StScreen query={query} kind="grid" screen="docs">
         <div className="scroll-inner docs-docs-screen-6 min-h-0 flex-1">
+          {group ? (
+            <button
+              type="button"
+              className="nx-btn nx-btn-text nx-btn-sm"
+              data-docs-back=""
+              onClick={() => ctl.setFolder(null)}
+            >
+              <LuChevronLeft size={14} aria-hidden />
+              {c.documents}
+            </button>
+          ) : null}
           {mine.length === 0 ? (
             <div className="docs-docs-screen-7" data-docs-empty="">
               <Art name="doc" size={56} />
@@ -612,6 +642,12 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
                 {c.new_doc_2}
               </button>
             </div>
+          ) : atFolders ? (
+            <DocFolders
+              groups={groups}
+              now={now}
+              onOpen={(key) => ctl.setFolder(key)}
+            />
           ) : view === "list" ? (
             <DocList
               docs={shown}

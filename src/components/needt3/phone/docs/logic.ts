@@ -39,6 +39,12 @@ export function docsSub(count: number, sort: DocSort) {
   return `${count} ${count === 1 ? "document" : "documents"} · ${sortLine(sort)}`;
 }
 
+/** The line under the title at the folders: "3 folders · 14 documents". */
+export function foldersSub(folders: number, docs: number) {
+  if (!docs) return null;
+  return `${folders} ${folders === 1 ? "folder" : "folders"} · ${docs} ${docs === 1 ? "document" : "documents"}`;
+}
+
 const nameOf = (d: Pick<V3Doc, "title">) => d.title || "Untitled";
 
 /**

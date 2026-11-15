@@ -1,0 +1,1 @@
+- Docs opens as folders: your pages are grouped by project, each folder shows its latest pages, how many it holds and when it last changed, and a tap opens that project's list. Pages with no project sit in Unsorted.
