@@ -24,6 +24,8 @@ const EVENT_LABELS: Record<AdminActivation["events"][number]["name"], string> =
     keep_applied: "Keep pressed",
     undo_applied: "Undo pressed",
     fill_applied: "Fill it used",
+    first_replan_card_shown: "First replan card shown",
+    first_replan_skipped: "First replan skipped",
   };
 
 function shortSha(sha: string | null): string {

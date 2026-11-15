@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 
 import { z } from "zod";
 
+import { isFeatureEnabled } from "@/lib/feature-flags";
+import { FIRST_REPLAN_ONBOARDING } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 
+import { seedFirstReplanDemo } from "./first-replan-demo";
 import { SAMPLE_USES } from "./sample-content";
 import {
   clearSampleData,
@@ -26,6 +29,38 @@ const bodySchema = z
     timeZone: z.string().min(1).max(64).optional(),
   })
   .strict();
+
+/** Whether the first-replan demo is on for this account; never throws. */
+async function demoEnabled(userId: string): Promise<boolean> {
+  try {
+    return Boolean(await isFeatureEnabled(FIRST_REPLAN_ONBOARDING, userId));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The first-replan demo rides on a freshly created sample day, for accounts
+ * the `first_replan_onboarding` flag is on for. It never fails the sample day.
+ */
+async function seedDemoWhenOn(
+  input: { userId: string; workspaceId: string },
+  timeZone: string | undefined
+) {
+  try {
+    await seedFirstReplanDemo({
+      userId: input.userId,
+      workspaceId: input.workspaceId,
+      timeZone,
+    });
+  } catch (error) {
+    logger.warn(
+      "Could not add the first-replan demo",
+      { error: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+  }
+}
 
 /** Whether examples are still on the account: `{ present, counts }`. */
 export async function sampleStatusResponse(userId: string) {
@@ -50,12 +85,17 @@ export async function seedSampleResponse(input: {
     );
   }
   try {
+    const demoOn = await demoEnabled(input.userId);
     const result = await seedSampleData({
       userId: input.userId,
       workspaceId: input.workspaceId,
       uses: parsed.data.uses,
       timeZone: parsed.data.timeZone,
+      skipOverdue: demoOn,
     });
+    if (result.created && demoOn) {
+      await seedDemoWhenOn(input, parsed.data.timeZone);
+    }
     return NextResponse.json(result, { status: result.created ? 201 : 200 });
   } catch (error) {
     logger.error(

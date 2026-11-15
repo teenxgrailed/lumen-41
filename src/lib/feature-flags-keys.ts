@@ -92,6 +92,21 @@ export const HABITS_QUIT = "habits_quit";
 export const AI_CHATGPT_PLAN = "ai_chatgpt_plan";
 
 /**
+ * The first replan, in the first two minutes: a new account's sample day gets
+ * one demo meeting on top of one demo task, and Today offers to replan it
+ * (preview, then Keep). On at 100% for new accounts from the
+ * `20261115120000_first_replan_onboarding_for_new_accounts` migration (owner
+ * decision 15.11.2026); per-user rollout and overrides still apply
+ * (`isFeatureEnabled`). Reads and seeds only for accounts the flag is on for,
+ * so turning it off hides the card and stops new demos.
+ *
+ * //todo: the rollout ends 30.11.2026, but a flag has no end date (a row is
+ * on, off or a percentage). Until the flag system can expire a flag, turn it
+ * off by hand from the admin feature-flag API on 01.12.2026.
+ */
+export const FIRST_REPLAN_ONBOARDING = "first_replan_onboarding";
+
+/**
  * Needt Budget as a place in the sidebar and the phone menu (`/budget`, a
  * frame on budget.needt.app; openspec `add-budget-module`). Off for everybody;
  * Free sees a locked row and a promo, Pro sees Budget.
@@ -120,6 +135,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [HABITS_QUIT]: "QUIT habits and habit presence (Pro).",
   [AI_CHATGPT_PLAN]:
     "Needt AI on the person's own ChatGPT plan (needs OPENAI_SIWC_CLIENT_ID).",
+  [FIRST_REPLAN_ONBOARDING]:
+    "Demo meeting on a new account's Today, with a first replan and Keep.",
   [BUDGET_MODULE]: "Needt Budget as a place in the sidebar (frame).",
   [BUDGET_PRO_ACCESS]:
     "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",

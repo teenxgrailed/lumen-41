@@ -38,6 +38,10 @@ import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import {
+  useAdvanceReview,
+  useFirstReplanHints,
+} from "@/lib/needt3/hooks/first-replan";
+import {
   useCheckins,
   useHabits,
   useToggleHabitToday,
@@ -70,6 +74,7 @@ import {
   useStarterGameCard,
 } from "../starter-game/StarterGameSlot";
 import { EndDayNudge } from "./EndDayNudge";
+import { FirstReplanCard } from "./FirstReplanCard";
 import {
   Capped,
   EmptyDay,
@@ -220,6 +225,13 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       ? energyDay(split.day, today, nowHour, energyHours)
       : split.day;
   const leavingIds = useMemo(() => new Set(Object.keys(leaving)), [leaving]);
+
+  // One hint at a time (new accounts with the first-replan demo): the replan
+  // card, the "Replanned" card, the sample-day note and the Sunday review each
+  // wait for the one before to be closed. Only then the highlight and the
+  // end-of-day nudge show. `current` is null for everybody else.
+  const hint = useFirstReplanHints().current;
+  const firstReplanHold = hint !== null;
 
   // One rule for every section: it lists open tasks (plus a row still playing
   // its exit) and a section with nothing open is not drawn at all.
@@ -405,7 +417,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
     projects: projects.data ?? [],
     streak: streak.n,
   });
-  const hlSub = (t: V3Task, tail: string) =>
+  useAdvanceReview(review.show, true);
+  const hlSub =(t: V3Task, tail: string) =>
     [project(t.projectId, projects.data ?? [])?.name, tail]
       .filter(Boolean)
       .join(" · ");
@@ -779,10 +792,11 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
         <div ref={scrollRef} className="scroll-inner hd-scroll">
           <OnboardingResumeBanner />
           <SampleBanner />
-          {review.show ? (
+          <FirstReplanCard />
+          {review.show && (hint === null || hint === "review") ? (
             <ReviewCard onStart={review.start} onLater={review.later} />
           ) : null}
-          {nudge.show ? (
+          {nudge.show && !firstReplanHold ? (
             <EndDayNudge onEndDay={finish.show} onDismiss={nudge.dismiss} />
           ) : null}
           {haBrief.locked || haBrief.lines.length || haBrief.note ? (
@@ -804,7 +818,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
             data-hd-rail={rail.length || tab === "week" ? "on" : "off"}
           >
             <div className="hd-col">
-              {blocks.nextUp || (tab === "day" && closedDay) ? (
+              {!firstReplanHold &&
+              (blocks.nextUp || (tab === "day" && closedDay)) ? (
                 <div
                   className="hd-cards ha-cards"
                   data-hd-cards=""

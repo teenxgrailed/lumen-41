@@ -118,6 +118,35 @@ describe("recordActivation", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it("the first-replan funnel events count once per account", async () => {
+    recordActivation("first_replan_card_shown", "u");
+    recordActivation("first_replan_skipped", "u");
+    await flush();
+    expect(db.activationEvent.create).not.toHaveBeenCalled();
+    expect(db.activationEvent.createMany.mock.calls.map((c) => c[0])).toEqual([
+      {
+        data: [
+          {
+            userId: "u",
+            name: "first_replan_card_shown",
+            onceKey: "first_replan_card_shown",
+          },
+        ],
+        skipDuplicates: true,
+      },
+      {
+        data: [
+          {
+            userId: "u",
+            name: "first_replan_skipped",
+            onceKey: "first_replan_skipped",
+          },
+        ],
+        skipDuplicates: true,
+      },
+    ]);
+  });
+
   it("repeatable events set no onceKey", async () => {
     recordActivation("task_created", "u");
     await flush();

@@ -14,6 +14,10 @@ import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import {
+  useAdvanceReview,
+  useFirstReplanHints,
+} from "@/lib/needt3/hooks/first-replan";
+import {
   useCheckins,
   useHabits,
   useToggleHabitToday,
@@ -36,6 +40,7 @@ import type { DayBand } from "@/lib/personal-time-days";
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { EndDayNudge } from "../../home/EndDayNudge";
+import { FirstReplanCard } from "../../home/FirstReplanCard";
 import { OnboardingResumeBanner } from "../../home/OnboardingResumeBanner";
 import { ReviewCard } from "../../home/ReviewCard";
 import { SampleBanner } from "../../home/SampleBanner";
@@ -163,6 +168,10 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     () => highEnergyHours(schedule.data),
     [schedule.data]
   );
+  // One hint at a time: the first-replan card is answered before the
+  // suggested highlight shows up.
+  const hint = useFirstReplanHints().current;
+  const firstReplanHold = hint !== null;
   const highlight = useHighlight(today);
   const setHighlight = useSetHighlight(today);
   const hlTask = highlightTask(all, highlight.data?.taskId);
@@ -202,6 +211,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     projects: projects ?? [],
     streak: dayStreak(all, today).n,
   });
+  useAdvanceReview(review.show, true);
   const calendarItems = scheduleItems([], events.data ?? [], today);
   const personal = usePersonalDay(today);
   const [band, setBand] = useState<DayBand | null>(null);
@@ -422,10 +432,11 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       <PhoneState query={tasksQuery} screen="today" />
       <OnboardingResumeBanner />
       <SampleBanner />
-      {ready && review.show ? (
+      <FirstReplanCard />
+      {ready && review.show && (hint === null || hint === "review") ? (
         <ReviewCard phone onStart={review.start} onLater={review.later} />
       ) : null}
-      {ready && nudge.show ? (
+      {ready && nudge.show && !firstReplanHold ? (
         <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
       ) : null}
       {ready ? (
@@ -450,7 +461,8 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
                 v.open(v.sec.next).length ? seeTomorrow : undefined
               }
             />
-          ) : !blocks.nextUp ? null : hlTask && !hlTask.done ? (
+          ) : !blocks.nextUp || firstReplanHold ? null : hlTask &&
+            !hlTask.done ? (
             <HaHighlight
               phone
               state="set"
