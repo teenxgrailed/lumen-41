@@ -4567,7 +4567,7 @@ model HubWebhookDelivery {
 model ActivationEvent {
   id        String   @id @default(cuid())
   userId    String
-  name      String // account_created | calendar_connected | task_created | replan_shown | keep_applied | undo_applied | fill_applied
+  name      String // account_created | calendar_connected | task_created | replan_shown | keep_applied | undo_applied | fill_applied | plan_applied
   createdAt DateTime @default(now())
   /// Set to the event name for once-per-account events (account_created,
   /// calendar_connected) so a unique index makes them race-proof; null otherwise.

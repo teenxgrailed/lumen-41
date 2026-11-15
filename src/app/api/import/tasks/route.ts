@@ -7,6 +7,7 @@ import {
   WorkspaceRole,
 } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { logger } from "@/lib/logger";
@@ -309,6 +310,11 @@ export async function POST(request: NextRequest) {
       },
       LOG_SOURCE
     );
+
+    /* After the transaction committed; once per import, not per row. */
+    if (result.importedCount > 0) {
+      recordActivation("task_created", userId, { source: "import" });
+    }
 
     return NextResponse.json({
       success: true,
