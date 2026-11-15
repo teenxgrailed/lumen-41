@@ -21,7 +21,7 @@ describe("paths that must not record task_created", () => {
   it.each(EXCLUDED)("%s does not import or call recordActivation", (file) => {
     let source: string;
     try {
-      source = readFileSync(join(process.cwd(), file), "utf8");
+      source = readFileSync(`${process.cwd()}/${file}`, "utf8");
     } catch {
       // A renamed file is caught by the list review, not by this check.
       return;
