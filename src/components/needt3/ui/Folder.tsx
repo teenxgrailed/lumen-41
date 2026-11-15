@@ -14,10 +14,12 @@
  *   sticker    ReactNode?      Sits on the front wall (icon, emoji, mark).
  *   hue        string?         Any CSS colour. A tint on the panels and the
  *                              sticker ring, never a solid fill (PORT.md 0.3).
- *   peeks      Peek[]          0 to 3 sheets, `{ key, title, meta? }`, the
- *                              first one in front and the only one that prints
- *                              its title and meta (the others show only a
- *                              mark). More than 3 are ignored. None: empty.
+ *   peeks      Peek[]          0 to 3 sheets, `{ key, title, meta? }`. A sheet
+ *                              shows only a mark, never text; the titles go
+ *                              to a hidden description. More than 3 are ignored.
+ *                              None: an empty folder.
+ *   caption    string?         A second line under the label, 12px, one line,
+ *                              truncated ("Next: German vocabulary").
  *   href       string?         Renders a Next link. Wins over `onClick`.
  *   onClick    () => void      Renders a button.
  *   ariaLabel  string          The accessible name ("Open Operations, 4 open").
@@ -33,7 +35,7 @@
  * Hover and keyboard focus lift the sheets a few pixels; under
  * `prefers-reduced-motion` they do not move. Focus draws `--shadow-focus`.
  */
-import type { CSSProperties, ReactNode } from "react";
+import { type CSSProperties, type ReactNode, useId } from "react";
 
 import Link from "next/link";
 
@@ -53,6 +55,8 @@ export interface FolderProps {
   onClick?: () => void;
   ariaLabel: string;
   className?: string;
+  /** A second line under the label (12px, one line, truncated). */
+  caption?: string;
   style?: CSSProperties;
   extra?: Record<`data-${string}`, string>;
 }
@@ -62,8 +66,8 @@ export const FOLDER_MAX_PEEKS = 3;
 
 /**
  * Where each sheet sits (% of the folder), its width, tilt and tint. The
- * first sheet is the front one (centre, upright, wider, no tint, the only
- * one with text); the others lean out behind it, one each side.
+ * first sheet is the front one (left of centre, upright, no tint); the others
+ * lean out behind it, narrower, one each side.
  */
 const FAN: readonly {
   left: number;
@@ -73,15 +77,15 @@ const FAN: readonly {
   tint: number;
 }[][] = [
   [],
-  [{ left: 26, top: 12, w: 46, rot: 0, tint: 0 }],
+  [{ left: 18, top: 12, w: 40, rot: 0, tint: 0 }],
   [
-    { left: 30, top: 12, w: 46, rot: 0, tint: 0 },
-    { left: 10, top: 17, w: 40, rot: -8, tint: 16 },
+    { left: 18, top: 12, w: 40, rot: 0, tint: 0 },
+    { left: 3, top: 17, w: 32, rot: -9, tint: 16 },
   ],
   [
-    { left: 29, top: 12, w: 46, rot: 0, tint: 0 },
-    { left: 9, top: 17, w: 40, rot: -8, tint: 16 },
-    { left: 50, top: 18, w: 40, rot: 7, tint: 8 },
+    { left: 18, top: 12, w: 40, rot: 0, tint: 0 },
+    { left: 3, top: 17, w: 32, rot: -9, tint: 16 },
+    { left: 48, top: 18, w: 32, rot: 6, tint: 8 },
   ],
 ];
 
@@ -95,9 +99,11 @@ export function Folder({
   onClick,
   ariaLabel,
   className,
+  caption,
   style: extraStyle,
   extra,
 }: FolderProps) {
+  const descId = useId();
   const shown = peeks.slice(0, FOLDER_MAX_PEEKS);
   const fan = FAN[shown.length];
   const cls = `nx-folder${className ? ` ${className}` : ""}`;
@@ -126,19 +132,7 @@ export function Folder({
               } as CSSProperties
             }
           >
-            {i === 0 ? (
-              <>
-                <span className="nx-folder-peek-row">
-                  <span className="nx-folder-peek-mark" />
-                  <span className="nx-folder-peek-title">{p.title}</span>
-                </span>
-                {p.meta ? (
-                  <span className="nx-folder-peek-meta">{p.meta}</span>
-                ) : null}
-              </>
-            ) : (
-              <span className="nx-folder-peek-mark" />
-            )}
+            <span className="nx-folder-peek-mark" />
           </span>
         ))}
         <span className="nx-folder-front" />
@@ -154,8 +148,15 @@ export function Folder({
           </span>
         )}
       </span>
+      {caption ? <span className="nx-folder-caption">{caption}</span> : null}
+      {shown.length ? (
+        <span className="nx-folder-desc" id={descId}>
+          {`Next: ${shown.map((p) => p.title).join("; ")}`}
+        </span>
+      ) : null}
     </>
   );
+  const description = shown.length > 0;
   if (href)
     return (
       <Link
@@ -163,6 +164,7 @@ export function Folder({
         className={cls}
         style={style}
         aria-label={ariaLabel}
+        aria-describedby={description ? descId : undefined}
         {...extra}
       >
         {body}
@@ -175,6 +177,7 @@ export function Folder({
         className={cls}
         style={style}
         aria-label={ariaLabel}
+        aria-describedby={description ? descId : undefined}
         onClick={onClick}
         {...extra}
       >
@@ -187,6 +190,7 @@ export function Folder({
       className={cls}
       style={style}
       aria-label={ariaLabel}
+      aria-describedby={description ? descId : undefined}
       {...extra}
     >
       {body}

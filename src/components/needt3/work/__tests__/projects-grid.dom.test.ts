@@ -94,13 +94,15 @@ describe("ProjectsGrid", () => {
     expect(first.querySelector("[data-folder-count]")?.textContent).toBe("4");
     // three sheets, the soonest in front
     expect(first.querySelectorAll("[data-folder-peek]")).toHaveLength(3);
-    expect(first.querySelector(".nx-folder-peek-title")?.textContent).toBe(
-      "Task b"
+    expect(first.querySelector(".nx-folder-caption")?.textContent).toBe(
+      "Next: Task b"
     );
+    expect(first.querySelector(".nx-folder-peek-title")).toBeNull();
     expect((folders[1] as HTMLElement).style.animationDelay).toBe("40ms");
     // a project with no tasks is an empty folder with a zero
     const empty = folders[1];
     expect(empty.querySelectorAll("[data-folder-peek]")).toHaveLength(0);
+    expect(empty.querySelector(".nx-folder-caption")).toBeNull();
     expect(empty.querySelector("[data-folder-count]")?.textContent).toBe("0");
   });
 });

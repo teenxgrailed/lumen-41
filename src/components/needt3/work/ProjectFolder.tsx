@@ -26,17 +26,19 @@ export function ProjectFolder({
 }) {
   const hue = projectHue(p);
   const open = folderOpen(p.id, tasks).length;
+  const next = nextTasks(p.id, tasks, today);
   return (
     <Folder
       className="nx-swap"
       style={{ animationDelay: `${index * 40}ms` }}
       label={p.name}
+      caption={next[0] ? `Next: ${next[0].title}` : undefined}
       count={open}
       hue={hue}
       // //todo Project.icon names a glyph; until an icon map exists every
       // sticker draws the folder, like the project page and the phone tile.
       sticker={<LuFolder size={40} aria-hidden />}
-      peeks={nextTasks(p.id, tasks, today).map((t) => ({
+      peeks={next.map((t) => ({
         key: t.id,
         title: t.title,
         meta: peekMeta(t, today),

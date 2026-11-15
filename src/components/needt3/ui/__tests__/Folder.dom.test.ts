@@ -60,12 +60,23 @@ describe("Folder", () => {
     expect(host.querySelector("[data-folder-count]")?.textContent).toBe("4");
     expect(host.querySelector("[data-sticker]")).not.toBeNull();
     expect(sheets()).toHaveLength(2);
-    expect(host.querySelector(".nx-folder-peek-title")?.textContent).toBe(
-      "Task 1"
+    // the sheets carry a mark and no text; titles go to a hidden description
+    for (const el of host.querySelectorAll("[data-folder-peek]")) {
+      expect(el.textContent).toBe("");
+      expect(el.querySelector(".nx-folder-peek-mark")).not.toBeNull();
+    }
+    const desc = host.querySelector(".nx-folder-desc") as HTMLElement;
+    expect(desc.textContent).toBe("Next: Task 1; Task 2");
+    expect(links[0].getAttribute("aria-describedby")).toBe(desc.id);
+  });
+
+  it("renders the caption under the label, and none when omitted", () => {
+    render({ caption: "Next: German vocabulary" });
+    expect(host.querySelector(".nx-folder-caption")?.textContent).toBe(
+      "Next: German vocabulary"
     );
-    expect(host.querySelector(".nx-folder-peek-meta")?.textContent).toBe(
-      "Today"
-    );
+    render({ caption: undefined });
+    expect(host.querySelector(".nx-folder-caption")).toBeNull();
   });
 
   it("shows three sheets at most", () => {
