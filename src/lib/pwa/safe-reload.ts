@@ -4,10 +4,14 @@
  * page, the reload is requested, and it fires ONLY at a moment that is safe by
  * construction:
  *
- * - the next route change, or the tab becoming hidden; AND
+ * - the next route change; or the tab becoming hidden; or the tab coming back
+ *   to the foreground after at least `BACKGROUND_RELOAD_MS` hidden (a person
+ *   who left for a while meets the new version with the loading word, not a
+ *   stale screen); AND
  * - nothing is dirty: no open dialog, no field or contenteditable the person
  *   typed into that still holds text, no form whose value differs from its
- *   default, no iframe holding focus, no unsaved page (`unsaved-work.ts`).
+ *   default, no iframe holding focus, no unsaved page, and no running focus
+ *   session (both through `unsaved-work.ts`).
  *
  * Never on blur or focus-leave. If no safe moment comes, it keeps waiting: no
  * reload is better than a lost draft. When it fires, the loading word is
@@ -24,6 +28,8 @@ import { hasUnsavedWork } from "./unsaved-work";
 
 export const COMMIT_MS = 400;
 export const CANCEL_GRACE_MS = 1000;
+/** Hidden at least this long: coming back is a moment to apply the update. */
+export const BACKGROUND_RELOAD_MS = 5 * 60_000;
 const LOOP_KEY = "needt-version-reload";
 const LOOP_WINDOW_MS = 60_000;
 
@@ -107,6 +113,8 @@ export function createSafeReload(args: {
   let pending = false;
   let committed = false;
   let leaving = false;
+  // When the tab last went hidden; null while it is visible.
+  let hiddenAt: number | null = doc.visibilityState === "hidden" ? now() : null;
   // Fields typed into since the gate was created (that is, since mount).
   const typed = new WeakSet<object>();
   const timers = new Set<ReturnType<typeof setTimeout>>();
@@ -176,7 +184,15 @@ export function createSafeReload(args: {
     leaving = true;
   };
   const onVisibility = () => {
-    if (doc.visibilityState === "hidden") attempt();
+    if (doc.visibilityState === "hidden") {
+      hiddenAt ??= now();
+      attempt();
+      return;
+    }
+    const since = hiddenAt;
+    hiddenAt = null;
+    // Back after a long time away. A short look away reloads nothing.
+    if (since !== null && now() - since >= BACKGROUND_RELOAD_MS) attempt();
   };
 
   doc.addEventListener("input", onInput, true);

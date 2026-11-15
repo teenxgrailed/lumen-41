@@ -5,7 +5,12 @@
  * moment that cannot cost work: a route change or a hidden tab, with nothing
  * dirty. Never on blur.
  */
-import { CANCEL_GRACE_MS, COMMIT_MS, createSafeReload } from "../safe-reload";
+import {
+  BACKGROUND_RELOAD_MS,
+  CANCEL_GRACE_MS,
+  COMMIT_MS,
+  createSafeReload,
+} from "../safe-reload";
 import { setUnsavedWork } from "../unsaved-work";
 
 let now = 1_000_000;
@@ -244,5 +249,126 @@ describe("safe reload", () => {
     jest.advanceTimersByTime(COMMIT_MS);
     expect(second.reload).not.toHaveBeenCalled();
     second.gate.dispose();
+  });
+
+  describe("coming back from the background", () => {
+    /** Dirty at the moment of hiding, so the hide itself reloads nothing. */
+    const hideDirty = (gate: ReturnType<typeof setup>["gate"]) => {
+      setUnsavedWork("page:x", true);
+      gate.request();
+      setVisibility("hidden");
+    };
+
+    it("hidden less than 5 minutes, then visible: no reload", () => {
+      const { gate, reload, onCommit } = setup();
+      hideDirty(gate);
+      setUnsavedWork("page:x", false);
+      now += BACKGROUND_RELOAD_MS - 1;
+      setVisibility("visible");
+      jest.advanceTimersByTime(60_000);
+      expect(onCommit).not.toHaveBeenCalled();
+      expect(reload).not.toHaveBeenCalled();
+      gate.dispose();
+    });
+
+    it("hidden 5 minutes or more, then visible, while pending: reloads with the word", () => {
+      const { gate, reload, onCommit } = setup();
+      hideDirty(gate);
+      setUnsavedWork("page:x", false);
+      now += BACKGROUND_RELOAD_MS;
+      setVisibility("visible");
+      expect(onCommit).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(COMMIT_MS);
+      expect(reload).toHaveBeenCalledTimes(1);
+      gate.dispose();
+    });
+
+    it("hidden long but nothing is pending: no reload", () => {
+      const { gate, reload } = setup();
+      setVisibility("hidden");
+      now += BACKGROUND_RELOAD_MS * 2;
+      setVisibility("visible");
+      jest.advanceTimersByTime(60_000);
+      expect(reload).not.toHaveBeenCalled();
+      gate.dispose();
+    });
+
+    it("hidden long but still dirty on return: no reload", () => {
+      const { gate, reload } = setup();
+      hideDirty(gate);
+      now += BACKGROUND_RELOAD_MS * 2;
+      setVisibility("visible");
+      jest.advanceTimersByTime(60_000);
+      expect(reload).not.toHaveBeenCalled();
+      gate.dispose();
+    });
+
+    it("a request that arrives while hidden long reloads on return only if it did not at hide", () => {
+      // Hide is a safe moment already: one reload, not two.
+      const { gate, reload, onCommit } = setup();
+      gate.request();
+      setVisibility("hidden");
+      jest.advanceTimersByTime(COMMIT_MS);
+      expect(reload).toHaveBeenCalledTimes(1);
+      now += BACKGROUND_RELOAD_MS * 2;
+      setVisibility("visible");
+      jest.advanceTimersByTime(60_000);
+      expect(onCommit).toHaveBeenCalledTimes(1);
+      expect(reload).toHaveBeenCalledTimes(1);
+      gate.dispose();
+    });
+
+    it("the loop guard still holds on return", () => {
+      const store = storage();
+      store.setItem("needt-version-reload", String(now - 30_000));
+      const { gate, reload } = setup(store);
+      hideDirty(gate);
+      setUnsavedWork("page:x", false);
+      now += BACKGROUND_RELOAD_MS;
+      // 30 s ago + 5 min is past the minute, so move the stamp to just now.
+      store.setItem("needt-version-reload", String(now - 1_000));
+      setVisibility("visible");
+      jest.advanceTimersByTime(60_000);
+      expect(reload).not.toHaveBeenCalled();
+      gate.dispose();
+    });
+  });
+
+  describe("a running focus session", () => {
+    it("blocks the reload on a route change", () => {
+      const { gate, reload } = setup();
+      setUnsavedWork("focus-session", true);
+      gate.request();
+      gate.routeChanged();
+      jest.advanceTimersByTime(60_000);
+      expect(reload).not.toHaveBeenCalled();
+      setUnsavedWork("focus-session", false);
+      gate.dispose();
+    });
+
+    it("blocks the reload when the tab returns from a long absence", () => {
+      const { gate, reload } = setup();
+      setUnsavedWork("focus-session", true);
+      gate.request();
+      setVisibility("hidden");
+      now += BACKGROUND_RELOAD_MS * 2;
+      setVisibility("visible");
+      jest.advanceTimersByTime(60_000);
+      expect(reload).not.toHaveBeenCalled();
+      setUnsavedWork("focus-session", false);
+      gate.dispose();
+    });
+
+    it("reloads on the next moment once the session has ended", () => {
+      const { gate, reload } = setup();
+      setUnsavedWork("focus-session", true);
+      gate.request();
+      gate.routeChanged();
+      setUnsavedWork("focus-session", false);
+      gate.routeChanged();
+      jest.advanceTimersByTime(COMMIT_MS);
+      expect(reload).toHaveBeenCalledTimes(1);
+      gate.dispose();
+    });
   });
 });
