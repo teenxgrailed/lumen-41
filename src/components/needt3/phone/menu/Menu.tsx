@@ -255,6 +255,7 @@ export function Menu(props: MenuProps) {
   const rows = menuRows(top, {
     agents: counts?.agents !== undefined,
     budget: counts?.budget !== undefined,
+    learn: counts?.learn !== undefined,
   });
   const [mode, setMode] = useState<NvaMode>("pill");
   const [hint, setHint] = useState<"more" | "tuck" | null>(null);
@@ -1185,7 +1186,8 @@ export function Menu(props: MenuProps) {
                         className={
                           "nva-row" +
                           (screen === id ? " is-on" : "") +
-                          (id === "budget" && counts?.budget?.locked
+                          ((id === "budget" && counts?.budget?.locked) ||
+                          (id === "learn" && counts?.learn?.locked)
                             ? " is-locked"
                             : "")
                         }

@@ -5,6 +5,7 @@
  * disagree about where a place lives. Pure.
  */
 import { BUDGET_HREF } from "@/lib/needt3/budget";
+import { LEARN_HREF } from "@/lib/needt3/learn";
 
 import {
   PLACES,
@@ -31,6 +32,7 @@ export type MenuPlaceId =
   | "connections"
   | "agents"
   | "budget"
+  | "learn"
   | "settings";
 
 /**
@@ -54,6 +56,7 @@ export const MENU_ORDER: readonly MenuPlaceId[] = [
   "connections",
   "agents",
   "budget",
+  "learn",
   "settings",
 ];
 
@@ -93,6 +96,8 @@ export function menuWord(id: MenuPlaceId): string {
       return "Agents";
     case "budget":
       return "Budget";
+    case "learn":
+      return "Learn";
     case "settings":
       return "Settings";
     default: {
@@ -113,6 +118,8 @@ export function menuSub(id: MenuPlaceId): string {
       return "Work you hand to agents";
     case "budget":
       return "Wallets and spending";
+    case "learn":
+      return "Topics and lessons";
     case "settings":
       return "Theme, hours, notifications";
     default:
@@ -132,6 +139,7 @@ export function menuAction(id: MenuPlaceId): MenuAction {
   if (id === "connections") return { kind: "route", href: CONNECTIONS_HREF };
   if (id === "agents") return { kind: "route", href: AGENTS_HREF };
   if (id === "budget") return { kind: "route", href: BUDGET_HREF };
+  if (id === "learn") return { kind: "route", href: LEARN_HREF };
   const sid = SHELL_ID[id] as PlaceId;
   const place = PLACES.find((p) => p.id === sid);
   return { kind: "route", href: place ? place.href : "/today" };
@@ -148,6 +156,8 @@ export function menuIdForPath(pathname: string): MenuPlaceId | null {
     return "agents";
   if (pathname === BUDGET_HREF || pathname.startsWith(`${BUDGET_HREF}/`))
     return "budget";
+  if (pathname === LEARN_HREF || pathname.startsWith(`${LEARN_HREF}/`))
+    return "learn";
   const sid = placeForPath(pathname);
   if (!sid) return null;
   for (const id of MENU_ORDER) if (SHELL_ID[id] === sid) return id;
@@ -204,13 +214,14 @@ export function menuTilesFrom(prefs: unknown): MenuPlaceId[] {
  */
 export function menuRows(
   top: readonly MenuPlaceId[],
-  options: { agents?: boolean; budget?: boolean } = {}
+  options: { agents?: boolean; budget?: boolean; learn?: boolean } = {}
 ): MenuPlaceId[] {
   return MENU_ORDER.filter(
     (id) =>
       !top.includes(id) &&
       (id !== "agents" || options.agents === true) &&
-      (id !== "budget" || options.budget === true)
+      (id !== "budget" || options.budget === true) &&
+      (id !== "learn" || options.learn === true)
   );
 }
 

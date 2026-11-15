@@ -16,6 +16,7 @@ import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { learnNavItem } from "@/lib/needt3/learn";
 import { isPro } from "@/lib/needt3/paywall";
 
 import { buildMenuCounts } from "./counts";
@@ -70,6 +71,10 @@ export function usePhoneCounts(): MenuCounts {
     prefs: settings.data?.prefs,
   });
   const budgetLocked = budget ? budget.locked : null;
+  const learn = learnNavItem({
+    pro: plan.data ? isPro(plan.data.kind) : undefined,
+  });
+  const learnLocked = learn ? learn.locked : null;
 
   const docEditedMs = useMemo(() => {
     const m = new Map<string, number>();
@@ -96,6 +101,7 @@ export function usePhoneCounts(): MenuCounts {
       }),
       ...(agentHub.enabled ? { agents: { unread: agentHub.unread } } : {}),
       ...(budgetLocked === null ? {} : { budget: { locked: budgetLocked } }),
+      ...(learnLocked === null ? {} : { learn: { locked: learnLocked } }),
     }),
     [
       now,
@@ -112,6 +118,7 @@ export function usePhoneCounts(): MenuCounts {
       agentHub.enabled,
       agentHub.unread,
       budgetLocked,
+      learnLocked,
     ]
   );
 }

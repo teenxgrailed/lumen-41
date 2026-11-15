@@ -174,6 +174,24 @@ function OwnGlyph({ id }: { id: MenuPlaceId }) {
           <circle cx="16.4" cy="13.5" r="1.2" fill={A} />
         </>
       );
+    case "learn":
+      // an open book with a ribbon
+      return svg(
+        <>
+          <rect
+            x="3"
+            y="5"
+            width="8.6"
+            height="14"
+            rx="2.4"
+            fill={tint(I, 35)}
+          />
+          <rect x="12.4" y="5" width="8.6" height="14" rx="2.4" fill={I} />
+          <rect x="5.4" y="9" width="4" height="1.6" rx=".8" fill={W} />
+          <rect x="5.4" y="12.4" width="3" height="1.6" rx=".8" fill={W} />
+          <rect x="15.6" y="4" width="2.4" height="7" rx="1.2" fill={A} />
+        </>
+      );
     default:
       // settings: three sliders
       return svg(
