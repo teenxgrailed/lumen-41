@@ -42,7 +42,7 @@ beforeEach(() => {
   (globalThis as { fetch?: unknown }).fetch = jest.fn(() =>
     Promise.resolve({ ok: false })
   );
-  host =document.createElement("div");
+  host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
 });

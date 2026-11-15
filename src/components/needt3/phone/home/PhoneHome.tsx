@@ -74,7 +74,7 @@ import {
 } from "../../home/ha";
 import { useHaBrief } from "../../home/ha/useHaBrief";
 import { highlightTask } from "../../home/highlight";
-import { hhmm, nowKicker, pickNow } from "../../home/now";
+import { hhmm, nowCardTime, nowKicker, pickNow } from "../../home/now";
 import { anytimeOpen, lateMovable, spreadLeads } from "../../home/spread";
 import { blockedMinutes, minutesAhead, timeLeft } from "../../home/timeleft";
 import { useEndDayNudge } from "../../home/useEndDayNudge";
@@ -187,10 +187,22 @@ export function PhoneHome({
           busy: { ...X.phase, ...gone },
           view: taskView,
           lift,
+          plate: !v2,
           energy: { nowHour, hours: energyHours },
         }
       ),
-    [all, today, skipped, X.phase, gone, taskView, lift, nowHour, energyHours]
+    [
+      all,
+      today,
+      skipped,
+      X.phase,
+      gone,
+      taskView,
+      lift,
+      v2,
+      nowHour,
+      energyHours,
+    ]
   );
   const { next: N } = v;
   const nu = N.nu;
@@ -277,7 +289,8 @@ export function PhoneHome({
     tasks: all,
     today,
     nowHour,
-    known: highlight.isFetched,
+    // v2 draws no highlight card, so no suggestion is asked for (an AI action)
+    known: highlight.isFetched && !v2,
     hasHighlight: !!highlight.data,
     accept: (id) => void setHighlight.set(id),
     weekFocus: weekFocus.data?.focuses,
@@ -418,6 +431,17 @@ export function PhoneHome({
       })
     : null;
   const nowTask = nowPick?.task ?? null;
+  // v2: the task on the Now card is not repeated in the rows. Only that one
+  // (not the old overdue-first pick) leaves them.
+  const hide = (l: readonly V3Task[]) =>
+    nowTask ? l.filter((t) => t.id !== nowTask.id) : l;
+  const lateRows = v2 ? hide(v.lateRows) : v.lateRows;
+  const inboxRows = v2 ? hide(v.inboxRows) : v.inboxRows;
+  const dayParts = v2
+    ? v.parts
+        .map(([p, l]) => [p, hide(l)] as [string, V3Task[]])
+        .filter(([, l]) => l.length)
+    : v.parts;
   const nowNode = !nowPick ? null : nowPick.event ? (
     <HaHighlight
       phone
@@ -426,7 +450,8 @@ export function PhoneHome({
       card={{
         id: nowPick.event.key,
         title: nowPick.event.title,
-        time: hhmm(nowPick.event.at),
+        // the kicker already says "Next \u00b7 13:00"
+        ...(nowPick.kind === "now" ? { time: hhmm(nowPick.event.at) } : {}),
         dur: dur(nowPick.event.len),
         sub: "On your calendar",
       }}
@@ -447,17 +472,20 @@ export function PhoneHome({
       state="nextup"
       kicker={nowKicker(nowPick)}
       late={nowPick.kind === "late"}
-      card={haTaskCard(
-        nowTask,
-        today,
-        sub(
+      card={nowCardTime(
+        haTaskCard(
           nowTask,
-          nowPick.kind === "late"
-            ? `overdue, ${lateOpenNow.length} in all`
-            : dayOpenNow.length > 1
-              ? `then ${dayOpenNow.length - 1} more today`
-              : ""
-        )
+          today,
+          sub(
+            nowTask,
+            nowPick.kind === "late"
+              ? `overdue, ${lateOpenNow.length} in all`
+              : dayOpenNow.length > 1
+                ? `then ${dayOpenNow.length - 1} more today`
+                : ""
+          )
+        ),
+        nowPick.kind
       )}
       onSkip={
         nowPick.canSkip
@@ -664,26 +692,26 @@ export function PhoneHome({
               />
             </PkSection>
           ) : null}
-          {v.parts.map(([p, list]) => (
+          {dayParts.map(([p, list]) => (
             <PkSection key={p} title={p} count={list.length}>
               <CappedRows list={list} render={(t) => row(t)} />
             </PkSection>
           ))}
-          {v2 && v.lateRows.length ? (
-            <OverdueRow count={v.lateRows.length} actions={lateActs}>
+          {v2 && lateRows.length ? (
+            <OverdueRow count={lateRows.length} actions={lateActs}>
               <CappedRows
-                list={v.lateRows}
+                list={lateRows}
                 render={(t) => row(t, { late: true })}
               />
             </OverdueRow>
           ) : null}
-          {v.inboxRows.length ? (
+          {inboxRows.length ? (
             <PkSection
               title={copy.V2pHome.inbox}
               glyph="tasks"
-              count={v.inboxRows.length}
+              count={inboxRows.length}
             >
-              <CappedRows list={v.inboxRows} render={(t) => row(t)} />
+              <CappedRows list={inboxRows} render={(t) => row(t)} />
             </PkSection>
           ) : null}
           {v.tomorrowRows.length ? (

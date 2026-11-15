@@ -94,7 +94,9 @@ describe("RailFrame", () => {
     const frame = host.querySelector<HTMLElement>("[data-hv2-frame=habits]")!;
     expect(frame.dataset.hv2Hue).toBe("#3b82f6");
     expect(frame.querySelector(".hv2-plate svg.wk-ring")).not.toBeNull();
-    expect(frame.querySelector("[aria-label='50%']")).not.toBeNull();
+    expect(
+      frame.querySelector("[aria-label='Habits, 50% done']")
+    ).not.toBeNull();
   });
 
   it("draws no ring when there is no progress to show", async () => {

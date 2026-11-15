@@ -1,7 +1,7 @@
 import type { V3Task } from "@/lib/needt3/map";
 
 import type { ScheduleItem } from "../derive";
-import { nowKicker, overdueLabel, pickNow } from "../now";
+import { nowCardTime, nowKicker, overdueLabel, pickNow } from "../now";
 import { TODAY, task } from "./fixtures";
 
 const at = (h: number, m = 0) =>
@@ -60,18 +60,91 @@ describe("pickNow: what the Now card shows", () => {
     expect(e?.canSkip).toBe(false);
   });
 
-  it("otherwise the next timed item later today, whichever kind", () => {
+  it("an event starting within the hour is next, ahead of a later task", () => {
     const t = placed(15);
     const p = pickNow({
       ...base,
-      schedule: [item(null, 13, 30, "Lunch"), item(t, 15)],
+      schedule: [item(null, 10.75, 30, "Lunch"), item(t, 15)],
       dayOpen: [t],
       lateOpen: [],
       nowHour: 10,
     });
     expect(p?.kind).toBe("next");
     expect(p?.event?.title).toBe("Lunch");
-    expect(nowKicker(p!)).toBe("Next · 13:00");
+    expect(nowKicker(p!)).toBe("Next · 10:45");
+  });
+
+  it("a later (evening) event does not hide today's open tasks", () => {
+    const timed = placed(15);
+    const anytime = task();
+    const dinner = item(null, 20, 120, "Dinner");
+    const withTimed = pickNow({
+      ...base,
+      schedule: [item(timed, 15), dinner],
+      dayOpen: [timed],
+      lateOpen: [],
+      nowHour: 10,
+    });
+    expect(withTimed?.task?.id).toBe(timed.id);
+    const withAnytime = pickNow({
+      ...base,
+      schedule: [dinner],
+      dayOpen: [anytime],
+      lateOpen: [],
+      nowHour: 10,
+    });
+    expect(withAnytime?.task?.id).toBe(anytime.id);
+    expect(withAnytime?.kind).toBe("anytime");
+  });
+
+  it("the evening event is the pick once no open task of today is left", () => {
+    const old = task({ dueDate: "2026-08-20" });
+    const p = pickNow({
+      ...base,
+      schedule: [item(null, 20, 120, "Dinner")],
+      dayOpen: [],
+      lateOpen: [old],
+      nowHour: 10,
+    });
+    expect(p?.event?.title).toBe("Dinner");
+    expect(p?.kind).toBe("next");
+  });
+
+  it("a long event keeps the card while it runs, over open tasks", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [item(null, 9, 480, "Workshop")],
+      dayOpen: [task()],
+      lateOpen: [],
+      nowHour: 13,
+    });
+    expect(p?.kind).toBe("now");
+    expect(p?.event?.title).toBe("Workshop");
+  });
+
+  it("an event running past midnight is now before midnight; after it, it is not today's", () => {
+    const before = pickNow({
+      ...base,
+      schedule: [item(null, 23, 180, "Night shift")],
+      dayOpen: [],
+      lateOpen: [],
+      nowHour: 23.5,
+    });
+    expect(before?.kind).toBe("now");
+    const t = task();
+    const after = pickNow({
+      ...base,
+      schedule: [],
+      dayOpen: [t],
+      lateOpen: [],
+      nowHour: 0.5,
+    });
+    expect(after?.task?.id).toBe(t.id);
+  });
+
+  it("the next-pick kicker carries the time, so the card does not repeat it", () => {
+    expect(nowCardTime({ time: "13:00" }, "next").time).toBeUndefined();
+    expect(nowCardTime({ time: "13:00" }, "now").time).toBe("13:00");
   });
 
   it("then today's first open task without an hour", () => {

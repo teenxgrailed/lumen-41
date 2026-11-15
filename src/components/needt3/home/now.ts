@@ -9,15 +9,20 @@ import { type ScheduleItem, hourAt } from "./derive";
  * The rule, in this order (first that has a candidate wins):
  *  1. `now`    - something timed is running right now (an event or a placed
  *                task whose [start, start + length) holds the clock);
- *  2. `next`   - the next timed thing later today, event or task;
+ *  2. `next`   - the next timed task later today, or an event that starts
+ *                within the hour (a later event does not outrank open tasks);
  *  3. `anytime`- today's first open task with no hour;
  *  4. `now`    - a task placed earlier today that is still open (its hour
  *                passed); today still outranks overdue;
- *  5. `late`   - the oldest overdue task, only when nothing above exists
+ *  5. `next`   - a later event today (after every open task of today);
+ *  6. `late`   - the oldest overdue task, only when nothing above exists
  *                (overdue lives in its own row, it never outranks today).
  * Open tasks only; a done item is never the pick. Skip moves a TASK pick to
  * the next one; an event cannot be skipped (it happens at its time anyway).
  */
+
+/** An event this close counts as "next" ahead of open tasks. */
+export const SOON_HOURS = 1;
 
 export type NowKind = "now" | "next" | "anytime" | "late";
 
@@ -73,7 +78,12 @@ export function pickNow(o: {
   const running = timed.find(
     (s) => s.at <= o.nowHour && o.nowHour < s.at + s.len / 60
   );
-  const ahead = timed.find((s) => s.at > o.nowHour);
+  // An event wins the card only while it runs or when it starts within the
+  // hour; a later one (an evening dinner) must not hide today's open tasks.
+  const ahead = timed.find(
+    (s) => s.at > o.nowHour && (s.task || s.at - o.nowHour <= SOON_HOURS)
+  );
+  const laterEvent = timed.find((s) => s.event && s.at > o.nowHour);
 
   const untimed = o.dayOpen.filter(
     (t) => hourAt(t, o.today) == null && !skippable(t.id)
@@ -109,6 +119,7 @@ export function pickNow(o: {
   // still outranks overdue, so it is "now" in the only sense left.
   const missed = [...timed].reverse().find((s) => s.task);
   if (missed) return pick("now", missed);
+  if (laterEvent) return pick("next", laterEvent);
   if (late[0]) {
     return {
       kind: "late",
@@ -120,6 +131,15 @@ export function pickNow(o: {
   }
   return null;
 }
+
+/**
+ * The Now card's own time chip: the kicker of a "next" pick already says
+ * "Next \u00b7 13:00", so the card must not repeat it.
+ */
+export const nowCardTime = <T extends { time?: string }>(
+  card: T,
+  kind: NowKind
+): T => (kind === "next" ? { ...card, time: undefined } : card);
 
 /** The card's kicker: what the person is looking at, in two words. */
 export function nowKicker(p: NowPick): string {

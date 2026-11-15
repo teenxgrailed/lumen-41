@@ -182,7 +182,7 @@ export function TrashScreen({ c }: { c: TrashController }) {
         query={mergeQueries(
           c.trashedProjects
             ? [tasks, boards, docs, c.trashedProjects]
-            : [tasks, boards, docs],
+            : [tasks, boards, docs]
         )}
         kind="list"
         screen="trash"

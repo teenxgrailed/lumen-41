@@ -14,6 +14,7 @@ import { type Root, createRoot } from "react-dom/client";
 import type { V3Event, V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 
+import { HomeScreen } from "../../../home/HomeScreen";
 import { PhoneUiProvider } from "../../../root/phone-ui-context";
 import { CalendarFaces } from "../../calendar/CalendarFaces";
 import type { CalendarController } from "../../calendar/useCalendarController";
@@ -214,6 +215,18 @@ const DeskCal = ({ ctl }: { ctl: CalendarController }) =>
   );
 const PhoneHome = () =>
   h(HomeFaces, { desktop: (ctl: HomeController) => h(DeskHome, { ctl }) });
+const PhoneHomeV2 = () =>
+  h(HomeFaces, {
+    v2: true,
+    desktop: (ctl: HomeController) => h(DeskHome, { ctl }),
+  });
+const PhoneHomeOff = () =>
+  h(HomeFaces, {
+    v2: false,
+    desktop: (ctl: HomeController) => h(DeskHome, { ctl }),
+  });
+const DesktopV2Off = () => h(HomeScreen, { v2: false });
+const DesktopV2On = () => h(HomeScreen, { v2: true });
 const PhoneCalendar = () =>
   h(CalendarFaces, {
     desktop: (ctl: CalendarController) => h(DeskCal, { ctl }),
@@ -291,6 +304,90 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   client.clear();
+});
+
+/** Home asks for today's events (phone: a day, desktop: eight days). */
+const seedHomeEvents = (list: V3Event[]) => {
+  client.setQueryData(qk.events({ from: TODAY, to: "2026-09-03" }), list);
+  client.setQueryData(qk.events({ from: TODAY, to: "2026-09-10" }), list);
+};
+
+describe("Home v2 on the phone", () => {
+  beforeEach(() => seedHomeEvents(EVENTS));
+
+  const rows = () =>
+    qa("[data-pk-row]").map((r) => r.getAttribute("data-pk-row"));
+
+  it("v2 off is the old path: overdue plate, an Overdue section, no v2 row", () => {
+    mount(PhoneHomeOff);
+    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("late");
+    expect(host.querySelector("[data-hv2-late]")).toBeNull();
+    expect(rows()).toEqual(["am", "pm", "inbox"]);
+  });
+
+  it("a running event is the Now card and no task leaves the lists", () => {
+    mount(PhoneHomeV2);
+    expect(q(".ha-hl .ha-kicker").textContent).toBe("Now");
+    expect(q(".ha-hl-title").textContent).toContain("Planning");
+    expect(host.querySelector("[data-hv2-open-calendar]")).not.toBeNull();
+    // the overdue task is NOT lost: it is the one row, closed
+    expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    expect(rows()).toEqual(["am", "pm", "inbox"]);
+    click(q("[data-hv2-late-toggle]"));
+    expect(rows()).toEqual(["am", "pm", "late", "inbox"]);
+  });
+
+  it("the Now task leaves the lists, the old overdue-first pick does not", () => {
+    seedHomeEvents([]);
+    mount(PhoneHomeV2);
+    // 14:30 is the next timed task
+    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("pm");
+    expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    expect(rows()).toEqual(["am", "inbox"]);
+  });
+
+  it("when overdue is all there is, it is the card and the count is not short", () => {
+    seedHomeEvents([]);
+    client.setQueryData(qk.tasks({}), [
+      task("a", { dueDate: "2026-08-30", title: "Oldest" }),
+      task("b", { dueDate: "2026-08-31", title: "Older" }),
+    ]);
+    mount(PhoneHomeV2);
+    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("a");
+    expect(q(".ha-hl .ha-kicker").textContent).toBe("Overdue");
+    expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    click(q("[data-hv2-late-toggle]"));
+    expect(rows()).toEqual(["b"]);
+  });
+
+  it("asks for no highlight suggestion (no AI action) while v2 is on", async () => {
+    mount(PhoneHomeV2);
+    await flush();
+    expect(
+      fetchMock.mock.calls.some((c) =>
+        String(c[0]).includes("highlight-suggestions")
+      )
+    ).toBe(false);
+  });
+});
+
+describe("Home v2 on the desktop", () => {
+  beforeEach(() => seedHomeEvents(EVENTS));
+
+  it("flag off: the current Home, with its Next up card and Overdue fold", () => {
+    mount(DesktopV2Off, "desktop");
+    expect(host.querySelector("[data-hv2-now]")).toBeNull();
+    expect(host.querySelector("[data-hv2-late]")).toBeNull();
+    expect(host.querySelector("[data-hd-cards]")).not.toBeNull();
+    expect(host.querySelector(".hd-fold-title.is-late")).not.toBeNull();
+  });
+
+  it("flag on: the Now card and one overdue row", () => {
+    mount(DesktopV2On, "desktop");
+    expect(host.querySelector("[data-hv2-now]")).not.toBeNull();
+    expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    expect(host.querySelector(".hd-fold-title.is-late")).toBeNull();
+  });
 });
 
 describe("Home", () => {

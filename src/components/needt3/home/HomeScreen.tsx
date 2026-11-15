@@ -129,7 +129,7 @@ import {
 } from "./ha";
 import { useHaBrief } from "./ha/useHaBrief";
 import { highlightTask } from "./highlight";
-import { hhmm, nowKicker, pickNow } from "./now";
+import { hhmm, nowCardTime, nowKicker, pickNow } from "./now";
 import { anytimeOpen, lateMovable, spreadLeads } from "./spread";
 import { blockedMinutes, minutesAhead, timeLeft } from "./timeleft";
 import { useEndDayNudge } from "./useEndDayNudge";
@@ -327,7 +327,8 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
     tasks: allTasks,
     today,
     nowHour,
-    known: highlight.isFetched,
+    // v2 draws no highlight card, so no suggestion is asked for (an AI action)
+    known: highlight.isFetched && !v2,
     hasHighlight: !!highlight.data,
     accept: (id) => void setHighlight.set(id),
     weekFocus: weekFocus.data?.focuses,
@@ -669,7 +670,8 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
         card={{
           id: nowPick.event.key,
           title: nowPick.event.title,
-          time: hhmm(nowPick.event.at),
+          // the kicker already says "Next \u00b7 13:00"
+          ...(nowPick.kind === "now" ? { time: hhmm(nowPick.event.at) } : {}),
           dur: dur(nowPick.event.len),
           sub: "On your calendar",
         }}
@@ -692,26 +694,29 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
         kicker={nowKicker(nowPick)}
         late={nowPick.kind === "late"}
         completing={leaving[nowTask.id] === "strike"}
-        card={haTaskCard(
-          nowTask,
-          today,
-          nowPick.kind === "late"
-            ? nextUpNote(
-                {
-                  task: nowTask,
-                  after: null,
-                  moreLate: Math.max(0, pickLate.length - 1),
-                  canSkip: true,
-                },
-                nowHour,
-                today
-              )
-            : hlSub(
-                nowTask,
-                dayOpen.length > 1
-                  ? `then ${dayOpen.length - 1} more today`
-                  : ""
-              )
+        card={nowCardTime(
+          haTaskCard(
+            nowTask,
+            today,
+            nowPick.kind === "late"
+              ? nextUpNote(
+                  {
+                    task: nowTask,
+                    after: null,
+                    moreLate: Math.max(0, pickLate.length - 1),
+                    canSkip: true,
+                  },
+                  nowHour,
+                  today
+                )
+              : hlSub(
+                  nowTask,
+                  dayOpen.length > 1
+                    ? `then ${dayOpen.length - 1} more today`
+                    : ""
+                )
+          ),
+          nowPick.kind
         )}
         onSkip={
           nowPick.canSkip

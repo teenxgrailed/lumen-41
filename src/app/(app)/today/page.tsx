@@ -58,8 +58,10 @@ async function homeV2For(userId: string | undefined): Promise<boolean> {
 
 export default async function TodayPage() {
   const session = await getServerSession(await getAuthOptions());
-  const guard = await guardFor(session?.user?.id);
-  const v2 = await homeV2For(session?.user?.id);
+  const [guard, v2] = await Promise.all([
+    guardFor(session?.user?.id),
+    homeV2For(session?.user?.id),
+  ]);
   // Once: the resolver leaves a cookie, and the next visit gets the banner.
   if (guard.kind === "redirect") redirect(guard.to);
   return (

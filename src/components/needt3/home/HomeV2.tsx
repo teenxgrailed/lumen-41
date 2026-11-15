@@ -66,6 +66,14 @@ export function OverdueRow({
   );
 }
 
+const PANEL_NAME: Record<string, string> = {
+  today: "Today",
+  habits: "Habits",
+  week: "This week",
+  schedule: "Today\u2019s schedule",
+  inbox: "Inbox",
+};
+
 /**
  * A rail panel in the project-card style of Tasks: a frame in the hue, a white
  * plate inside it and a progress ring. `pct` null draws no ring (a panel with
@@ -96,7 +104,7 @@ export function RailFrame({
           <span
             className="hv2-ring"
             role="img"
-            aria-label={`${Math.round(pct * 100)}%`}
+            aria-label={`${PANEL_NAME[label] ?? label}, ${Math.round(pct * 100)}% done`}
           >
             <Ring pct={pct} hue={hue} />
           </span>
