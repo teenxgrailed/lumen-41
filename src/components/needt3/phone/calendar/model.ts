@@ -138,6 +138,48 @@ export function dayPlan(
   };
 }
 
+/** A gap between two blocks of one day that is long enough to use. */
+export interface FreeWindow {
+  /** Decimal hours; for today, never before now. */
+  from: number;
+  to: number;
+  /** Minutes. */
+  len: number;
+  /** The block the gap runs up to: the row the window is drawn above. */
+  before: string;
+}
+
+/** The shortest gap worth offering, minutes. */
+export const FREE_MIN = 30;
+
+/**
+ * The free gaps BETWEEN the day's blocks (not before the first or after the
+ * last): where one block ends and the next begins, with overlapping and
+ * nested blocks merged first. Today's gaps start no earlier than now, rounded
+ * up to a quarter hour; a day already over has none.
+ */
+export function freeWindows(
+  timed: readonly CalTimed[],
+  isToday: boolean,
+  isPast: boolean,
+  nowHour: number,
+  min = FREE_MIN
+): FreeWindow[] {
+  if (isPast || timed.length < 2) return [];
+  const sorted = [...timed].sort((a, b) => a.at - b.at);
+  const out: FreeWindow[] = [];
+  let reach = sorted[0].at + sorted[0].len / 60;
+  for (const b of sorted.slice(1)) {
+    if (b.at > reach) {
+      const from = Math.ceil(Math.max(reach, isToday ? nowHour : 0) * 4) / 4;
+      const len = Math.round((b.at - from) * 60);
+      if (len >= min) out.push({ from, to: b.at, len, before: b.id });
+    }
+    reach = Math.max(reach, b.at + b.len / 60);
+  }
+  return out;
+}
+
 /** The progress of what is on now, 0–1. */
 export function nowProgress(b: Pick<CalTimed, "at" | "len">, nowHour: number) {
   return Math.min(1, Math.max(0, (nowHour - b.at) / (b.len / 60)));

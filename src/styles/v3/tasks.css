@@ -175,6 +175,12 @@
 .needt-v3 .tk-block-title { font: 500 12px/15px var(--font-sans); color: var(--text-primary); overflow: hidden; text-decoration: none; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-box-orient: vertical; }
 .needt-v3 .tk-block-range { font: var(--type-meta); color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A task's ○ inside its calendar block (an event has none). */
+.needt-v3 .tk-block-head { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.needt-v3 .tk-block-head .tk-block-title { flex: 1 1 auto; min-width: 0; }
+.needt-v3 .tk-block .tk-check { width: 14px; height: 14px; border-radius: 5px; }
+.needt-v3 .tk-block-head .tk-check { margin-top: 0.5px; }
+.needt-v3 .tk-block-line .tk-check { align-self: center; }
 
 /* ── work.jsx · Tasks / Projects ─────────────────────────────────────── */
 .needt-v3 .wk-screen { flex: 1; min-height: 0; width: 100%; max-width: 1240px; display: flex; flex-direction: column; }

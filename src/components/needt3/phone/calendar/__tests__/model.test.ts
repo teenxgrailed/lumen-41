@@ -6,6 +6,7 @@ import {
   dayOverlaps,
   dayPlan,
   eventFacts,
+  freeWindows,
   monthGrid,
   stepMonth,
   swipeStep,
@@ -231,5 +232,51 @@ describe("combineQueries", () => {
     c.refetch();
     expect(a.refetch).toHaveBeenCalled();
     expect(b.refetch).toHaveBeenCalled();
+  });
+});
+
+describe("freeWindows", () => {
+  it("offers the gap between two blocks, up to the block it runs into", () => {
+    const g = freeWindows(
+      [timed("a", 9, 60), timed("b", 12, 60)],
+      false,
+      false,
+      0
+    );
+    expect(g).toEqual([{ from: 10, to: 12, len: 120, before: "b" }]);
+  });
+  it("has none before the first block or after the last", () => {
+    expect(freeWindows([timed("a", 9, 60)], false, false, 0)).toEqual([]);
+    expect(
+      freeWindows([timed("a", 9, 60), timed("b", 10, 60)], false, false, 0)
+    ).toEqual([]);
+  });
+  it("merges overlapping and nested blocks before looking for a gap", () => {
+    const g = freeWindows(
+      [timed("a", 9, 240), timed("b", 10, 30), timed("c", 15, 30)],
+      false,
+      false,
+      0
+    );
+    // a runs to 13:00; the block inside it opens no gap
+    expect(g).toEqual([{ from: 13, to: 15, len: 120, before: "c" }]);
+  });
+  it("skips a gap shorter than 30 minutes", () => {
+    expect(
+      freeWindows([timed("a", 9, 60), timed("b", 10.25, 60)], false, false, 0)
+    ).toEqual([]);
+  });
+  it("today: a gap starts no earlier than now (rounded up to a quarter hour)", () => {
+    const list = [timed("a", 9, 60), timed("b", 15, 60)];
+    expect(freeWindows(list, true, false, 12.1)).toEqual([
+      { from: 12.25, to: 15, len: 165, before: "b" },
+    ]);
+    // a gap that is already over has none
+    expect(freeWindows(list, true, false, 14.9)).toEqual([]);
+  });
+  it("a day that is over has none", () => {
+    expect(
+      freeWindows([timed("a", 9, 60), timed("b", 15, 60)], false, true, 0)
+    ).toEqual([]);
   });
 });

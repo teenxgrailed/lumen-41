@@ -706,8 +706,117 @@ describe("Calendar", () => {
     expect(host.textContent).toContain("1 overlap");
     expect(qa("[data-v2p-earlier]")).toHaveLength(0); // folded
     expect(selected()).toBe(TODAY);
-    expect(host.textContent).toContain("Week 36 · 31 Aug – 6 Sep");
     expect(q(".pk-title").textContent).toBe("September");
+  });
+
+  it("the header is one row: the month with its ▾ and Day | Month, no calendar glyph with a date", () => {
+    mount(PhoneCalendar);
+    // the glyph tile drew a calendar with a day number that was not today's
+    expect(qa("[data-pk-glyph]")).toHaveLength(0);
+    expect(qa(".pk-sub")).toHaveLength(0);
+    expect(qa(".pk-head-row")).toHaveLength(1);
+    const row = q(".pk-head-row");
+    expect(row.querySelector("[data-v2p-month-menu]")).not.toBeNull();
+    expect(qa("[data-v2p-view-btn]").map((b) => b.textContent)).toEqual([
+      "Day",
+      "Month",
+    ]);
+    // nothing in the title row or the day heading makes an event or keeps time
+    expect(qa(".v2p-dayhead [data-p5-new-event]")).toHaveLength(0);
+    expect(qa(".v2p-dayhead [data-p5-personal]")).toHaveLength(0);
+    expect(host.textContent).not.toContain("Personal");
+  });
+
+  it("the ▾ menu holds the week, Add event and Keep time for you", () => {
+    mount(PhoneCalendar);
+    expect(qa("[data-v2p-calmenu]")).toHaveLength(0);
+    click(q("[data-v2p-month-menu]"));
+    const menu = q("[data-v2p-calmenu]");
+    expect(menu.textContent).toContain("Week 36 · 31 Aug – 6 Sep");
+    expect(menu.textContent).toContain("Add event");
+    expect(menu.textContent).toContain("Keep time for you");
+    // Today is only offered away from today
+    expect(qa("[data-v2p-menu-today]")).toHaveLength(0);
+    click(q("[data-p5-personal]"));
+    expect(qa("[data-v2p-calmenu]")).toHaveLength(0); // a pick closes it
+    expect(host.textContent).toContain("Kept for you");
+  });
+
+  it("Earlier today is one folded row above the plate, not in the footer", () => {
+    mount(PhoneCalendar);
+    const earlier = q(".v2p-fold.is-earlier");
+    const plate = q("[data-v2p-plate]");
+    expect(
+      earlier.compareDocumentPosition(plate) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(earlier.textContent).toContain("Earlier today");
+    expect(earlier.textContent).toContain("1");
+    expect(qa("[data-v2p-earlier]")).toHaveLength(0); // folded
+    click(q(".v2p-fold.is-earlier .pk-sec-fold"));
+    expect(qa("[data-v2p-earlier] [data-v2p-tl=t2]")).toHaveLength(1);
+  });
+
+  describe("free windows", () => {
+    const D3 = "2026-09-03";
+    const two = () =>
+      client.setQueryData(qk.tasks({}), [
+        task("a", {
+          dueDate: D3,
+          scheduledStart: `${D3}T10:00`,
+          estimatedMinutes: 30,
+        }),
+        task("b", {
+          dueDate: D3,
+          scheduledStart: `${D3}T13:00`,
+          estimatedMinutes: 30,
+        }),
+      ]);
+    it("a gap between two blocks says how long, and + Schedule opens the new-event sheet on it", () => {
+      two();
+      mount(PhoneCalendar);
+      click(q("[data-v2p-day='2026-09-03']"));
+      const row = q("[data-v2p-free=b]");
+      expect(row.textContent).toContain("2 h 30 min free");
+      // the window sits between the two blocks
+      expect(
+        q("[data-v2p-plate=a]").compareDocumentPosition(row) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      click(q("[data-v2p-free-add=b]"));
+      expect(usePhoneOverlays.getState().newEvent).toEqual({
+        startAt: `${D3}T10:30`,
+        endAt: `${D3}T11:30`,
+      });
+    });
+    it("no window before the first block or after the last", () => {
+      two();
+      mount(PhoneCalendar);
+      click(q("[data-v2p-day='2026-09-03']"));
+      expect(qa("[data-v2p-free]")).toHaveLength(1);
+    });
+  });
+
+  describe("Auto-fit", () => {
+    it("the pill sits with the unscheduled items and waits until the plan is known", () => {
+      mount(PhoneCalendar);
+      const pill = q<HTMLButtonElement>("[data-v2p-autofit-go]");
+      expect(pill.textContent).toBe("Auto-fit");
+      expect(pill.disabled).toBe(true); // Free or Pro not known yet
+    });
+    it("a Pro person runs Plan my day with it", async () => {
+      client.setQueryData(qk.plan(), { kind: "monthly" });
+      mount(PhoneCalendar);
+      await click(q("[data-v2p-autofit-go]"));
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/ai/plan-day",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+    it("is not there when everything has a time", () => {
+      client.setQueryData(qk.tasks({}), [calTasks[0], calTasks[1]]);
+      mount(PhoneCalendar);
+      expect(qa("[data-v2p-autofit]")).toHaveLength(0);
+    });
   });
 
   it("a task opens the task sheet, an event opens the event sheet", () => {
@@ -734,7 +843,8 @@ describe("Calendar", () => {
     click(q("[data-p5-step='-1']"));
     click(q("[data-p5-step='-1']"));
     expect(selected()).toBe("2026-08-26");
-    click(q(".pk-sub .pk-btn"));
+    click(q("[data-v2p-month-menu]"));
+    click(q("[data-v2p-menu-today]"));
     expect(selected()).toBe(TODAY);
   });
 
@@ -827,8 +937,9 @@ describe("Calendar", () => {
     );
   });
 
-  it("Event opens the new-event sheet on a free half hour of the day", () => {
+  it("Add event (in the ▾ menu) opens the new-event sheet on a free half hour of the day", () => {
     mount(PhoneCalendar);
+    click(q("[data-v2p-month-menu]"));
     click(q("[data-p5-new-event]"));
     // 14:20 now: 14:30 touches the event on now and Write brief, so the next free hour
     expect(usePhoneOverlays.getState().newEvent).toEqual({

@@ -20,7 +20,7 @@ import {
 /** First and last hour the week grid draws by default, and px per hour. */
 export const C2_START = 7;
 export const C2_END = 21;
-export const C2_H = 52;
+export const C2_H = 64;
 /** A block is drawn at least this tall (+3px gap). */
 export const C2_MIN_H = 20;
 /** Lanes stay at least this wide; a cascade steps this far right. */
@@ -146,7 +146,10 @@ export function c2PlaceCluster<B extends TimedBlock>(
   const hidden = cl.filter((x) => x.col >= cap && !x.b.draft);
   const vis = cl.filter((x) => x.col < cap || x.b.draft);
   const n = Math.min(cl[0].cols, cap);
-  if (inner / n >= C2_MINW || cl[0].cols > n)
+  /* Two blocks that overlap sit side by side, 50/50, at any width: a cascade
+     would draw one over the other's title (critique 15.11). Three or more
+     keep the lane floor, then cascade. */
+  if (n <= 2 || inner / n >= C2_MINW || cl[0].cols > n)
     return {
       placed: vis.map((x) =>
         Object.assign(x, {

@@ -1,5 +1,6 @@
 import {
   C2_GUT,
+  C2_H,
   type CalBlock,
   type TimedBlock,
   c2AgendaFold,
@@ -94,11 +95,27 @@ describe("c2Place", () => {
     expect(placed.some((x) => x.b.id === "__draft")).toBe(true);
   });
 
-  it("cascades a later block in a narrow column", () => {
-    const { placed } = c2Place([tb("a", 9, 120), tb("b", 10, 60)], 120);
-    const b = placed.find((x) => x.b.id === "b");
-    expect(b?.cascade).toBe(true);
-    expect(b?.off).toBe(14);
+  it("keeps two overlapping blocks 50/50 side by side, even in a narrow column", () => {
+    // the critique case: a later, shorter block inside a longer one used to
+    // cascade over it once a lane fell under 72px
+    for (const W of [120, 140, 200, 400]) {
+      const { placed, more } = c2Place([tb("a", 11, 90), tb("b", 11.5, 60)], W);
+      const inner = W - 8;
+      expect(more).toEqual([]);
+      expect(placed.some((x) => x.cascade)).toBe(false);
+      expect(placed.map((x) => [x.left, x.width])).toEqual([
+        [4, inner / 2 - 2],
+        [4 + inner / 2, inner / 2 - 2],
+      ]);
+    }
+  });
+
+  it("cascades a later block when three overlap in a narrow column", () => {
+    const { placed } = c2Place(
+      [tb("a", 9, 120), tb("b", 9.5, 90), tb("c", 10, 60)],
+      120
+    );
+    expect(placed.some((x) => x.cascade)).toBe(true);
   });
 });
 
@@ -189,7 +206,7 @@ describe("days and hours", () => {
 
   it("maps a click to its half hour, inside the grid", () => {
     expect(slotAt(0, 7, 21)).toBe(7);
-    expect(slotAt(52 * 2 + 30, 7, 21)).toBe(9.5);
+    expect(slotAt(C2_H * 2.5 + 2, 7, 21)).toBe(9.5);
     expect(slotAt(99999, 7, 21)).toBe(20);
   });
 });

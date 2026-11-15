@@ -177,7 +177,10 @@ function TaskContent(props: TaskProps) {
   };
 
   if (layout === "block") {
-    const h = box.h ?? Math.max((v.len / 60) * 52 - 3, 20);
+    const h = box.h ?? Math.max((v.len / 60) * 64 - 3, 20);
+    // A Needt task carries its ○ inside the block; an event never does (it
+    // is not ours to close). Skipped where a lane is too narrow to spare it.
+    const blockCheck = !v.event && (box.w ?? 999) >= 64 ? check : null;
     const pt = box.padTop || 0;
     const short = v.len < 30 || h - pt < 34;
     const lines = Math.max(1, Math.floor((h - pt - (box.tight ? 5 : 23)) / 15));
@@ -225,6 +228,7 @@ function TaskContent(props: TaskProps) {
         />
         {short ? (
           <div className="tk-block-line">
+            {blockCheck}
             {fitTime ? <span className="tk-block-time">{v.time}</span> : null}
             <span className={`tk-block-ltitle${v.done ? " is-done" : ""}`}>
               {v.title}
@@ -233,11 +237,14 @@ function TaskContent(props: TaskProps) {
           </div>
         ) : (
           <>
-            <div
-              className={`tk-block-title${v.done ? " is-done" : ""}`}
-              style={{ WebkitLineClamp: lines }}
-            >
-              {v.title}
+            <div className="tk-block-head">
+              {blockCheck}
+              <div
+                className={`tk-block-title${v.done ? " is-done" : ""}`}
+                style={{ WebkitLineClamp: lines }}
+              >
+                {v.title}
+              </div>
             </div>
             {!box.tight ? (
               <div className="tk-block-range">{v.range}</div>

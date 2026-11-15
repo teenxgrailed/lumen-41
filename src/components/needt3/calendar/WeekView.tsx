@@ -61,7 +61,7 @@ import {
   nearestIndex,
   offHours,
   offsetOf,
-  openScrollTop,
+  openAtHour,
   stripDate,
   stripIndex,
 } from "./strip";
@@ -592,13 +592,15 @@ const DayColumn = memo(function DayColumn({
           </span>
         </div>
       ) : null}
-      {isToday && nowHour != null ? (
+      {/* the now line runs across the whole week: bold with its dot on
+          today, a hairline in every other column */}
+      {nowHour != null ? (
         <span
           aria-hidden="true"
-          className="c2-now"
+          className={isToday ? "c2-now" : "c2-now is-week"}
           style={{ top: nowHour * C2_H }}
         >
-          <span className="c2-now-dot" />
+          {isToday ? <span className="c2-now-dot" /> : null}
         </span>
       ) : null}
     </div>
@@ -810,13 +812,7 @@ export function WeekView({
       setColW(w);
       if (!ready.current) {
         ready.current = true;
-        el.scrollTop = openScrollTop(
-          nowHour,
-          work,
-          C2_H,
-          el.clientHeight,
-          GRID_H
-        );
+        el.scrollTop = openAtHour(C2_H, el.clientHeight, GRID_H);
         cbs.current.onFirst?.(stripDate(origin.current, firstRef.current));
       }
     };
@@ -825,8 +821,6 @@ export function WeekView({
     const ro = new ResizeObserver(([entry]) => apply(entry.contentRect.width));
     ro.observe(el);
     return () => ro.disconnect();
-    // nowHour only seeds the first scroll; later minutes must not re-run it
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [n]);
 
   /* The scrollbar is hidden, so the card says there is more: a soft fade on
@@ -1081,7 +1075,11 @@ export function WeekView({
           <div className="c2-wgrid" style={{ height: GRID_H }}>
             <div className="c2-whours" style={{ width: GUTTER }}>
               {HOURS.map((h) => (
-                <span key={h} className="c2-hour" style={{ top: hourLabelTop(h) }}>
+                <span
+                  key={h}
+                  className="c2-hour"
+                  style={{ top: hourLabelTop(h) }}
+                >
                   {`${String(h).padStart(2, "0")}:00`}
                 </span>
               ))}
@@ -1097,7 +1095,7 @@ export function WeekView({
                   isToday={date === today}
                   mine={blocks.get(date) ?? NONE}
                   draft={draft && draft.date === date ? draft : null}
-                  nowHour={date === today ? nowHour : null}
+                  nowHour={nowHour}
                   work={work}
                   peekId={peekId}
                   hover={hover}
