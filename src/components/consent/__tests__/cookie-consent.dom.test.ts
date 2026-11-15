@@ -2,8 +2,8 @@
  * @jest-environment jsdom
  *
  * The cookie banner: shows on the first visit, Accept and Decline set the
- * shared cookie and hide it, Umami is not in the page before consent and is
- * added after Accept, and Cookie settings reopens it.
+ * shared cookie and hide it, Umami (cookieless) loads without a choice, and
+ * Cookie settings reopens it.
  */
 import { act, createElement as h } from "react";
 
@@ -15,6 +15,7 @@ import {
   openCookieSettings,
   parseConsent,
 } from "@/lib/cookie-consent";
+import { UMAMI_BEFORE_SEND } from "@/lib/umami-scrub";
 
 import { CookieConsent } from "../CookieConsent";
 
@@ -65,66 +66,72 @@ describe("CookieConsent", () => {
     expect(banner()).not.toBeNull();
     expect(button("Accept").className).toBe(button("Decline").className);
     expect(banner()?.querySelector("a")?.getAttribute("href")).toBe("/privacy");
-    expect(umami()).toBeNull();
   });
 
-  it("Accept sets the cookie, hides the banner and injects Umami", () => {
+  it("loads Umami without a choice, with Do Not Track and the scrub hook", () => {
     mount();
-    expect(umami()).toBeNull();
-    act(() => button("Accept").click());
-    expect(document.cookie).toContain(`${CONSENT_COOKIE}=accepted`);
-    expect(banner()).toBeNull();
     const script = umami();
     expect(script?.getAttribute("src")).toBe(
       "https://stats.needt.app/script.js"
     );
     expect(script?.getAttribute("data-website-id")).toBe("site-id");
+    expect(script?.getAttribute("data-do-not-track")).toBe("true");
+    expect(script?.getAttribute("data-before-send")).toBe(UMAMI_BEFORE_SEND);
+    expect(
+      typeof (window as unknown as Record<string, unknown>)[UMAMI_BEFORE_SEND]
+    ).toBe("function");
+    expect(document.cookie).not.toContain("umami");
+    expect(window.localStorage.getItem("umami.disabled")).toBeNull();
   });
 
-  it("Decline sets the cookie, hides the banner and never injects Umami", () => {
+  it("Accept sets the cookie, hides the banner, and Umami is loaded once", () => {
+    mount();
+    act(() => button("Accept").click());
+    expect(document.cookie).toContain(`${CONSENT_COOKIE}=accepted`);
+    expect(banner()).toBeNull();
+    expect(document.querySelectorAll("script[data-needt-umami]")).toHaveLength(
+      1
+    );
+  });
+
+  it("Decline sets the cookie and hides the banner; it never writes umami.disabled", () => {
     mount();
     act(() => button("Decline").click());
     expect(document.cookie).toContain(`${CONSENT_COOKIE}=declined`);
     expect(banner()).toBeNull();
-    expect(umami()).toBeNull();
-    expect(window.localStorage.getItem("umami.disabled")).toBe("1");
+    expect(window.localStorage.getItem("umami.disabled")).toBeNull();
   });
 
-  it("does not show again once a choice is saved, and a saved Accept loads Umami", () => {
+  it("a saved choice does not show the banner again", () => {
     document.cookie = `${CONSENT_COOKIE}=accepted; Path=/`;
     mount();
     expect(banner()).toBeNull();
     expect(umami()).not.toBeNull();
   });
 
-  it("a saved Decline shows nothing and loads nothing", () => {
+  it("a saved Decline still loads the cookieless counter", () => {
     document.cookie = `${CONSENT_COOKIE}=declined; Path=/`;
     mount();
     expect(banner()).toBeNull();
-    expect(umami()).toBeNull();
+    expect(umami()).not.toBeNull();
   });
 
-  it("a saved choice re-syncs umami.disabled from the shared cookie", () => {
+  it("removes a leftover umami.disabled flag from an earlier Decline", () => {
     window.localStorage.setItem("umami.disabled", "1");
-    document.cookie = `${CONSENT_COOKIE}=accepted; Path=/`;
-    mount();
-    expect(window.localStorage.getItem("umami.disabled")).toBeNull();
-    act(() => root.unmount());
-    root = createRoot(host);
     document.cookie = `${CONSENT_COOKIE}=declined; Path=/`;
     mount();
-    expect(window.localStorage.getItem("umami.disabled")).toBe("1");
+    expect(window.localStorage.getItem("umami.disabled")).toBeNull();
   });
 
   it("a malformed cookie is no choice: no throw, the banner shows", () => {
     document.cookie = `${CONSENT_COOKIE}=%E0%A4%A; Path=/`;
     expect(() => mount()).not.toThrow();
     expect(banner()).not.toBeNull();
-    expect(umami()).toBeNull();
   });
 
   it("injects nothing when no Umami website id is configured", () => {
     mount(null);
+    expect(umami()).toBeNull();
     act(() => button("Accept").click());
     expect(umami()).toBeNull();
   });
@@ -145,7 +152,6 @@ describe("CookieConsent", () => {
     act(() => openCookieSettings());
     act(() => button("Accept").click());
     expect(parseConsent(document.cookie)).toBe("accepted");
-    expect(umami()).not.toBeNull();
   });
 
   it("Escape on the first visit leaves the banner open", () => {
