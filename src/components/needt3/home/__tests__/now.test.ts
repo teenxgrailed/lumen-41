@@ -116,7 +116,7 @@ describe("pickNow: what the Now card shows", () => {
     expect(p).toBeNull();
   });
 
-  it("the next scheduled item is the nearest timed one, task or event", () => {
+  it("the next scheduled item is the nearest timed TASK; a later event does not outrank it", () => {
     const t = placed(16);
     const event = item(null, 13, 60, "Workshop");
     const p = pickNow({
@@ -126,16 +126,38 @@ describe("pickNow: what the Now card shows", () => {
       nowHour: 10,
     });
     expect(p?.kind).toBe("next");
-    expect(p?.event?.title).toBe("Workshop");
-    expect(nowKicker(p!)).toBe("Next · 13:00");
-    const taskFirst = placed(11);
-    const q = pickNow({
+    expect(p?.task?.id).toBe(t.id);
+    expect(nowKicker(p!)).toBe("Next · 16:00");
+  });
+
+  it("an evening event does not outrank untimed tasks; it is the pick only when no task is open", () => {
+    const anytime = task();
+    const dinner = item(null, 20, 120, "Dinner");
+    const withTask = pickNow({
       ...base,
-      schedule: [item(taskFirst, 11), item(null, 13, 60, "Workshop")],
-      dayOpen: [taskFirst],
+      schedule: [dinner],
+      dayOpen: [anytime],
       nowHour: 10,
     });
-    expect(q?.task?.id).toBe(taskFirst.id);
+    expect(withTask?.task?.id).toBe(anytime.id);
+    expect(withTask?.kind).toBe("anytime");
+    const alone = pickNow({
+      ...base,
+      schedule: [dinner],
+      dayOpen: [],
+      nowHour: 10,
+    });
+    expect(alone?.event?.title).toBe("Dinner");
+    expect(alone?.kind).toBe("next");
+    // a passed task of today still comes before the later event
+    const missed = placed(8);
+    const q = pickNow({
+      ...base,
+      schedule: [item(missed, 8), dinner],
+      dayOpen: [missed],
+      nowHour: 10,
+    });
+    expect(q?.task?.id).toBe(missed.id);
   });
 
   it("a timed item ahead beats an open task with no hour", () => {

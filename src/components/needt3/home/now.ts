@@ -13,11 +13,12 @@ import { type ScheduleItem, hourAt } from "./derive";
  *                `SOON_MINUTES` (15);
  *  2. `now`    - the task in the current time slot: a placed task whose
  *                [start, start + length) holds the clock;
- *  3. `next`   - the next scheduled item today: the nearest timed task or
- *                event after now;
+ *  3. `next`   - the next scheduled TASK: the nearest timed task after now;
  *  4. `anytime`- today's first open task with no hour;
  *  5. `now`    - a task placed earlier today that is still open (its hour
- *                passed), the last one.
+ *                passed), the last one;
+ *  6. `next`   - a later event (not running, not within 15 min), only when no
+ *                task is open today.
  * An overdue task from a past day never takes the card: it has its own row
  * under the day. Skip works on any pick (task or event): the key goes into
  * the skipped list and the card moves on; an event's key is scoped to the day.
@@ -119,13 +120,14 @@ function pickOnce(o: PickNowInput): NowPick | null {
   const runs = (s: Slot) => s.at <= o.nowHour && o.nowHour < s.at + s.len / 60;
   // A calendar event wins the card while it runs or when it starts within 15
   // minutes (the earliest of those); then the task in the current slot; then
-  // the next timed item, whatever it is.
+  // the next timed task.
   const eventNow = timed.find(
     (s) =>
       s.event && (runs(s) || (s.at > o.nowHour && s.at - o.nowHour <= soon))
   );
   const taskNow = timed.find((s) => s.task && runs(s));
-  const ahead = timed.find((s) => s.at > o.nowHour);
+  const ahead = timed.find((s) => s.task && s.at > o.nowHour);
+  const laterEvent = timed.find((s) => s.event && s.at > o.nowHour);
 
   const untimed = o.dayOpen.filter(
     (t) => hourAt(t, o.today) == null && !skippable(t.id)
@@ -163,6 +165,7 @@ function pickOnce(o: PickNowInput): NowPick | null {
   // today's own, so it is "now" in the only sense left.
   const missed = [...timed].reverse().find((s) => s.task);
   if (missed) return pick("now", missed);
+  if (laterEvent) return pick("next", laterEvent);
   return null;
 }
 
