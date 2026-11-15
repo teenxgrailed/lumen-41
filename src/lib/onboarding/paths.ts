@@ -5,7 +5,7 @@
 
 /** The five-step first-run setup (`onboarding_v3` off). */
 export const SETUP_PATH = "/setup";
-/** The 18-screen onboarding on the real planner (`onboarding_v3` on). */
+/** The 19-screen onboarding on the real planner (`onboarding_v3` on). */
 export const START_PATH = "/start";
 /**
  * Where a brand-new account is sent before anybody knows which flow it gets:

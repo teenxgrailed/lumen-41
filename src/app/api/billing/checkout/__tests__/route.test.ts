@@ -309,7 +309,7 @@ describe("Lifetime checkout route", () => {
     const url = new URL(sent.successUrl);
     expect(url.pathname).toBe("/start");
     expect(url.searchParams.get("billing")).toBe("success");
-    expect(url.searchParams.get("step")).toBe("opening");
+    expect(url.searchParams.get("step")).toBe("bar");
   });
 
   it("refuses a checkout without the withdrawal acknowledgement", async () => {

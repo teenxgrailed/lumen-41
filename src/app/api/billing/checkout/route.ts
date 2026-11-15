@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
     const onboarding = parsed.data.from === "onboarding";
     const successUrl = new URL(onboarding ? "/start" : "/settings", appUrl);
     successUrl.searchParams.set("billing", "success");
-    if (onboarding) successUrl.searchParams.set("step", "opening");
+    if (onboarding) successUrl.searchParams.set("step", "bar");
     else successUrl.hash = "billing";
 
     const lifetimeReservation =

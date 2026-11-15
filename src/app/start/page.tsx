@@ -21,7 +21,7 @@ export const metadata = {
 };
 
 /**
- * The 18-screen onboarding. Public: the first half runs before there is an
+ * The 19-screen onboarding. Public: the first half runs before there is an
  * account. A signed-in visitor (back from Apple/Google, or someone who already
  * has an account) is carried past the account screens.
  */
