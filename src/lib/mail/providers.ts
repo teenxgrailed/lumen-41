@@ -10,6 +10,10 @@ import {
   mapRawMimeMessage,
 } from "@/lib/mail/mapping";
 import {
+  MailAuthError,
+  MailTokenUnavailableError,
+} from "@/lib/mail/sync-failure";
+import {
   GmailMessageResource,
   GraphMailMessage,
   ImapCredentials,
@@ -22,9 +26,10 @@ const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
 const GRAPH_API = "https://graph.microsoft.com/v1.0/me";
 const MAX_MESSAGES_PER_SYNC = 2_000;
 
-class MailProviderError extends Error {
+export class MailProviderError extends Error {
   constructor(readonly status: number) {
     super(`Mail provider request failed (${status}).`);
+    this.name = "MailProviderError";
   }
 }
 
@@ -62,7 +67,7 @@ async function providerToken(
   account: MailAccountWithConnection
 ): Promise<string> {
   if (!account.connectionRef || !account.connection) {
-    throw new Error("Mail account is missing its OAuth connection.");
+    throw new MailAuthError("Mail account is missing its OAuth connection.");
   }
   const provider = account.provider === "GMAIL" ? "GOOGLE" : "OUTLOOK";
   const token = await TokenManager.getInstance().getValidAccessToken(
@@ -70,7 +75,7 @@ async function providerToken(
     account.connectionRef,
     account.userId
   );
-  if (!token) throw new Error("Mail OAuth token is unavailable.");
+  if (!token) throw new MailTokenUnavailableError();
   return token;
 }
 
@@ -307,7 +312,7 @@ export async function fetchOutlookBody(
 
 export function imapCredentials(account: MailAccountWithConnection) {
   const decrypted = decryptSecret(account.encryptedCredentials);
-  if (!decrypted) throw new Error("IMAP credentials are unavailable.");
+  if (!decrypted) throw new MailAuthError("IMAP credentials are unavailable.");
   const parsed = JSON.parse(decrypted) as ImapCredentials;
   if (
     !parsed.host ||
@@ -316,7 +321,7 @@ export function imapCredentials(account: MailAccountWithConnection) {
     !parsed.password ||
     typeof parsed.secure !== "boolean"
   ) {
-    throw new Error("IMAP credentials are invalid.");
+    throw new MailAuthError("IMAP credentials are invalid.");
   }
   return parsed;
 }

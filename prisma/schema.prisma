@@ -564,6 +564,12 @@ model MailAccount {
   status               MailAccountStatus @default(ACTIVE)
   syncCursor           String?
   lastSyncAt           DateTime?
+  // Set when sync stopped because the sign-in no longer works (revoked or
+  // expired grant, IMAP login refused). Retrying cannot fix it, so the repeat
+  // job is removed and the account shows "reconnect"; connecting again clears
+  // both columns. syncError is a short code, never provider text.
+  syncPausedAt         DateTime?
+  syncError            String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   messages             MailMessage[]
