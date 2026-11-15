@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 
@@ -40,7 +40,22 @@ export function useDocsController() {
   const [view, setView] = useState<DocsView>("grid");
   // The open folder (a project id or "unsorted"); null is the folders. It
   // lives here so crossing the 700 px swap keeps the folder that is open.
-  const [folder, setFolder] = useState<string | null>(null);
+  // The URL (`?folder=`) holds it too, so browser Back from a page returns
+  // to the folder; an unknown id is the folders (the screen drops it).
+  const pathname = usePathname() || "/pages";
+  const fromUrl = useSearchParams()?.get("folder") || null;
+  const [folder, setFolderState] = useState<string | null>(fromUrl);
+  useEffect(() => setFolderState(fromUrl), [fromUrl]);
+  const setFolder = useCallback(
+    (key: string | null) => {
+      setFolderState(key);
+      router.push(
+        key ? `${pathname}?folder=${encodeURIComponent(key)}` : pathname,
+        { scroll: false }
+      );
+    },
+    [pathname, router]
+  );
   const making = useRef(false);
 
   /** The stored sort is per browser (`needt.docsSort`): read it after mount
@@ -66,11 +81,11 @@ export function useDocsController() {
 
   /** Create an untitled (or titled) doc and open it; one at a time. */
   const newDoc = useCallback(
-    (title = "") => {
+    (title = "", projectId?: string | null) => {
       if (making.current) return;
       making.current = true;
       void create
-        .mutateAsync({ draft: { title } })
+        .mutateAsync({ draft: projectId ? { title, projectId } : { title } })
         .then(({ result }) => {
           if (result) router.push(`/pages/${encodeURIComponent(result.id)}`);
         })

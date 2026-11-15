@@ -26,6 +26,7 @@ const push = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
   usePathname: () => "/pages",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 interface Q {
@@ -54,7 +55,7 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({
-    data: [{ id: "p1", name: "Home", color: "#2a7" }],
+    data: [{ id: "p1", name: "Home", color: "#2a7", archived: false }],
   }),
 }));
 

@@ -33,7 +33,7 @@ import type { V3Doc } from "@/lib/needt3/map";
 
 import { DocFolders } from "../../docs/DocFolders";
 import { useDocTokens } from "../../docs/DocParts";
-import { groupDocs, hasFolders, openGroup } from "../../docs/folders";
+import { UNSORTED, groupDocs, hasFolders, openGroup } from "../../docs/folders";
 import { ageLabel } from "../../docs/labels";
 import { type DocActionId, docActions } from "../../docs/menu-model";
 import {
@@ -107,8 +107,14 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
   // The top level is folders when the pages sit in more than one group; a
   // Quick Open word searches every page, so it shows the list. A folder that
   // emptied is gone.
-  const topLevel = hasFolders(groups) && !q.trim();
-  const group = hasFolders(groups) ? openGroup(groups, ctl.folder) : null;
+  const folderMode =
+    !projects.isPending && !projects.isError && hasFolders(groups);
+  const waiting = projects.isPending && mine.length > 0;
+  const topLevel = folderMode && !q.trim();
+  const group = folderMode ? openGroup(groups, ctl.folder) : null;
+  // New doc inside a project's folder is born in that project.
+  const folderProject =
+    group && !q.trim() && group.key !== UNSORTED ? group.key : null;
   const atFolders = topLevel && !group;
   const sorted = useMemo(
     () => sortDocs(group && !q.trim() ? group.docs : mine, sort),
@@ -244,7 +250,7 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
           }
         >
           <div className="pd-home">
-            {state === "loading" ? (
+            {state === "loading" || (state === "content" && waiting) ? (
               <div data-st-state="loading">
                 <StSkeleton kind="grid" />
               </div>
@@ -300,7 +306,7 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
                     small
                     icon={<LuPlus size={16} aria-hidden />}
                     disabled={creating}
-                    onClick={() => newDoc()}
+                    onClick={() => newDoc("", folderProject)}
                     data-pd-new=""
                   >
                     New doc
@@ -367,12 +373,14 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
         </PkScreen>
         <div className="pd-bar is-list">
           <span />
-          <PdGlass
-            icon={<LuEllipsis size={20} aria-hidden />}
-            label="Sort and more"
-            onClick={() => setMenu(true)}
-            data={{ "data-pd-more": "list" }}
-          />
+          {atFolders ? null : (
+            <PdGlass
+              icon={<LuEllipsis size={20} aria-hidden />}
+              label="Sort and more"
+              onClick={() => setMenu(true)}
+              data={{ "data-pd-more": "list" }}
+            />
+          )}
         </div>
       </div>
       <PdMenu

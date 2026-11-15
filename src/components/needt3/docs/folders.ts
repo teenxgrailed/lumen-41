@@ -8,6 +8,7 @@
  */
 import type { V3Doc, V3Project } from "@/lib/needt3/map";
 
+import { folderCopy } from "./folder-copy";
 import { ageLabel } from "./labels";
 
 /** The key of the group of pages that belong to no project. */
@@ -19,6 +20,8 @@ export interface DocGroup {
   label: string;
   /** The project colour (raw), or null. */
   color: string | null;
+  /** Archived, or a project that is not in the loaded list: a muted folder. */
+  muted: boolean;
   /** Newest update first. */
   docs: V3Doc[];
 }
@@ -51,12 +54,14 @@ function byUpdated(docs: readonly V3Doc[]): V3Doc[] {
  */
 export function groupDocs(
   docs: readonly V3Doc[],
-  projects: readonly Pick<V3Project, "id" | "name" | "color">[]
+  projects: readonly Pick<V3Project, "id" | "name" | "color" | "archived">[]
 ): DocGroup[] {
   const byId = new Map(projects.map((p) => [p.id, p] as const));
   const buckets = new Map<string, V3Doc[]>();
   for (const d of docs) {
-    const key = d.projectId && byId.has(d.projectId) ? d.projectId : UNSORTED;
+    // Only a page with no project at all is Unsorted; a project that is not
+    // in the loaded list (archived, a teammate's) still gets its own folder.
+    const key = d.projectId || UNSORTED;
     const list = buckets.get(key);
     if (list) list.push(d);
     else buckets.set(key, [d]);
@@ -64,19 +69,24 @@ export function groupDocs(
   const groups: DocGroup[] = [];
   for (const [key, list] of buckets) {
     const p = byId.get(key);
+    const unsorted = key === UNSORTED;
+    const muted = !unsorted && (!p || p.archived);
     groups.push({
       key,
-      label: p ? p.name : "Unsorted",
-      color: p ? p.color : null,
+      label: unsorted ? folderCopy.unsorted : p ? p.name : folderCopy.project,
+      color: p && !muted ? p.color : null,
+      muted,
       docs: byUpdated(list),
     });
   }
   const newest = (g: DocGroup) => time(g.docs[0]?.updatedAt);
+  // Active projects, then muted ones, then Unsorted; newest-changed first.
+  const rank = (g: DocGroup) => (g.key === UNSORTED ? 2 : g.muted ? 1 : 0);
   return groups
     .map((g, i) => ({ g, i }))
     .sort((a, b) => {
-      if (a.g.key === UNSORTED) return 1;
-      if (b.g.key === UNSORTED) return -1;
+      const r = rank(a.g) - rank(b.g);
+      if (r) return r;
       const x = newest(a.g);
       const y = newest(b.g);
       return x === y ? a.i - b.i : x < y ? 1 : -1;

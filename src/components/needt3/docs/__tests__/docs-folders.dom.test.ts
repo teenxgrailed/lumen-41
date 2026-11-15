@@ -6,7 +6,7 @@
  * a click opens that group's list and Back returns; one group alone shows
  * the list straight away.
  */
-import { act, createElement as h } from "react";
+import { act, createElement as h, createElement as mockH } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
@@ -22,13 +22,44 @@ import { PhoneUiProvider } from "../../root/phone-ui-context";
 
 jest.mock("../../root/V3Root", () => ({ useDesignV3: () => true }));
 
+// Radix opens its menu on a pointer event jsdom does not send: lay the rows
+// out flat so a click reaches them.
+jest.mock("../../menu/RichMenu", () => ({
+  RichMenu: ({
+    trigger,
+    items,
+  }: {
+    trigger: (open: boolean) => unknown;
+    items: { title?: string; onClick?: () => void }[];
+  }) =>
+    mockH(
+      "div",
+      null,
+      trigger(false) as never,
+      ...items.map((it) =>
+        mockH(
+          "button",
+          { key: it.title, "data-rich": it.title, onClick: it.onClick },
+          it.title
+        )
+      )
+    ),
+}));
+
 const push = jest.fn();
+let search = "";
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
   usePathname: () => "/pages",
+  useSearchParams: () => new URLSearchParams(search),
 }));
 
 let data: V3Doc[] = [];
+const mutateAsync = jest.fn();
+let projectsState: { isPending: boolean; isError: boolean } = {
+  isPending: false,
+  isError: false,
+};
 jest.mock("@/lib/needt3/hooks/docs", () => ({
   useDocs: () => ({
     status: "success",
@@ -37,14 +68,23 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
     error: null,
     refetch: jest.fn(),
   }),
-  useCreateDoc: () => ({ mutateAsync: jest.fn(), isPending: false }),
+  useCreateDoc: () => ({
+    mutateAsync: (...a: unknown[]) => mutateAsync(...a),
+    isPending: false,
+  }),
   useTrashDoc: () => ({ mutateAsync: jest.fn() }),
   useDuplicateDoc: () => ({ mutateAsync: jest.fn() }),
   useUpdateDoc: () => ({ mutateAsync: jest.fn() }),
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({
-    data: [{ id: "ops", name: "Operations", color: "#d80" }],
+    ...projectsState,
+    data: projectsState.isPending
+      ? undefined
+      : [
+          { id: "ops", name: "Operations", color: "#d80", archived: false },
+          { id: "old", name: "Old", color: "#0a0", archived: true },
+        ],
   }),
 }));
 
@@ -73,6 +113,9 @@ let root: Root;
 
 beforeEach(() => {
   push.mockClear();
+  mutateAsync.mockReset().mockResolvedValue({ result: null });
+  search = "";
+  projectsState = { isPending: false, isError: false };
   window.localStorage.clear();
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver = RO;
   Object.defineProperty(window, "matchMedia", {
@@ -155,5 +198,84 @@ describe.each(["desktop", "phone"] as const)("Docs folders, %s", (ui) => {
   it("one group alone is the list, not a lone folder", () => {
     mount([doc("a"), doc("b")], ui);
     expect(host.querySelector("[data-docs-folders]")).toBeNull();
+  });
+
+  it("one group alone renders the list of its pages", () => {
+    mount([doc("a"), doc("b")], ui);
+    const card = (id: string) =>
+      host.querySelector(`[data-ctx-id="${id}"], [data-pd-card="${id}"]`);
+    expect(card("a")).not.toBeNull();
+    expect(card("b")).not.toBeNull();
+  });
+
+  it("waits for the projects instead of flashing the flat list; a failed load falls back to it", () => {
+    projectsState = { isPending: true, isError: false };
+    mount(mixed(), ui);
+    expect(host.querySelector("[data-docs-folders]")).toBeNull();
+    expect(host.querySelector("[data-ctx-id], [data-pd-card]")).toBeNull();
+    expect(host.querySelector('[data-st-state="loading"]')).not.toBeNull();
+    projectsState = { isPending: false, isError: true };
+    mount(mixed(), ui);
+    expect(host.querySelector("[data-docs-folders]")).toBeNull();
+    expect(
+      host.querySelector('[data-ctx-id="loose"], [data-pd-card="loose"]')
+    ).not.toBeNull();
+  });
+
+  it("a project missing from the list and an archived one get their own folders; Unsorted only holds projectless pages", () => {
+    mount(
+      [
+        doc("a", { projectId: "theirs" }),
+        doc("b", { projectId: "old" }),
+        doc("c"),
+      ],
+      ui
+    );
+    expect(folder("theirs")!.textContent).toContain("Project");
+    expect(folder("old")!.textContent).toContain("Old");
+    expect(folder("unsorted")!.getAttribute("aria-label")).toBe(
+      "Open Unsorted, 1 page"
+    );
+  });
+
+  it("New doc inside a project's folder is created in that project; not in Unsorted or at the top", async () => {
+    const newBtn = () =>
+      host.querySelector<HTMLElement>(
+        ui === "phone" ? "[data-pd-new]" : '[data-rich="New Doc"]'
+      )!;
+    mount(mixed(), ui);
+    click(folder("ops")!);
+    click(newBtn());
+    expect(mutateAsync).toHaveBeenLastCalledWith({
+      draft: { title: "", projectId: "ops" },
+    });
+    await act(async () => {});
+    click(host.querySelector<HTMLElement>("[data-pd-back], [data-docs-back]")!);
+    click(folder("unsorted")!);
+    mutateAsync.mockClear();
+    click(newBtn());
+    expect(mutateAsync).toHaveBeenLastCalledWith({ draft: { title: "" } });
+  });
+
+  it("keeps the open folder in the URL, and reads it back", () => {
+    mount(mixed(), ui);
+    click(folder("ops")!);
+    expect(push).toHaveBeenCalledWith("/pages?folder=ops", { scroll: false });
+    click(host.querySelector<HTMLElement>("[data-pd-back], [data-docs-back]")!);
+    expect(push).toHaveBeenLastCalledWith("/pages", { scroll: false });
+    act(() => root.unmount());
+    root = createRoot(host);
+    search = "folder=ops";
+    mount(mixed(), ui);
+    expect(host.querySelector("[data-docs-folders]")).toBeNull();
+    expect(
+      host.querySelector('[data-ctx-id="b"], [data-pd-card="b"]')
+    ).not.toBeNull();
+    // an unknown id is the top level
+    act(() => root.unmount());
+    root = createRoot(host);
+    search = "folder=nope";
+    mount(mixed(), ui);
+    expect(folder("ops")).not.toBeNull();
   });
 });

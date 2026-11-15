@@ -26,8 +26,9 @@ const doc = (id: string, over: Partial<V3Doc> = {}): V3Doc => ({
 });
 
 const projects = [
-  { id: "ops", name: "Operations", color: "#d80" },
-  { id: "home", name: "Home", color: null },
+  { id: "ops", name: "Operations", color: "#d80", archived: false },
+  { id: "home", name: "Home", color: null, archived: false },
+  { id: "old", name: "Old", color: "#0a0", archived: true },
 ];
 
 describe("groupDocs", () => {
@@ -47,13 +48,33 @@ describe("groupDocs", () => {
     expect(g[2]).toMatchObject({ label: "Unsorted", color: null });
   });
 
-  it("puts pages whose project is gone into Unsorted and omits empty projects", () => {
+  it("folds a page into Unsorted only when it has no project at all", () => {
+    const g = groupDocs([doc("a"), doc("b", { projectId: null })], projects);
+    expect(g.map((x) => x.key)).toEqual([UNSORTED]);
+    expect(g[0].muted).toBe(false);
+  });
+
+  it("gives a project missing from the list its own muted folder, labelled Project", () => {
     const g = groupDocs(
-      [doc("a", { projectId: "deleted" }), doc("b", { projectId: "ops" })],
+      [doc("a", { projectId: "theirs" }), doc("b", { projectId: "ops" })],
       projects
     );
-    expect(g.map((x) => x.key)).toEqual(["ops", UNSORTED]);
-    expect(g[1].docs.map((d) => d.id)).toEqual(["a"]);
+    expect(g.map((x) => x.key)).toEqual(["ops", "theirs"]);
+    expect(g[1]).toMatchObject({ label: "Project", muted: true, color: null });
+  });
+
+  it("gives an archived project a muted folder after the active ones, before Unsorted", () => {
+    const g = groupDocs(
+      [
+        doc("loose", { updatedAt: "2026-11-14T10:00:00.000Z" }),
+        doc("o", { projectId: "old", updatedAt: "2026-11-13T10:00:00.000Z" }),
+        doc("h", { projectId: "home", updatedAt: "2026-11-01T10:00:00.000Z" }),
+      ],
+      projects
+    );
+    expect(g.map((x) => x.key)).toEqual(["home", "old", UNSORTED]);
+    expect(g[1]).toMatchObject({ label: "Old", muted: true, color: null });
+    expect(g[0].muted).toBe(false);
   });
 
   it("is empty without pages", () => {

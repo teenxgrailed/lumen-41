@@ -7,6 +7,7 @@
 import { axisOf } from "@/lib/needt3/gesture";
 import type { V3Doc } from "@/lib/needt3/map";
 
+import { folderCopy } from "../../docs/folder-copy";
 import { ageLabel } from "../../docs/labels";
 import { proStyleChanges } from "../../docs/pro-style";
 import { DOC_SORTS, type DocSort } from "../../docs/sort";
@@ -42,7 +43,7 @@ export function docsSub(count: number, sort: DocSort) {
 /** The line under the title at the folders: "3 folders · 14 documents". */
 export function foldersSub(folders: number, docs: number) {
   if (!docs) return null;
-  return `${folders} ${folders === 1 ? "folder" : "folders"} · ${docs} ${docs === 1 ? "document" : "documents"}`;
+  return folderCopy.folders(folders, docs);
 }
 
 const nameOf = (d: Pick<V3Doc, "title">) => d.title || "Untitled";

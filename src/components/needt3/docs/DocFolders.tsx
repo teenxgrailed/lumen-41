@@ -4,6 +4,7 @@ import { LuFileText, LuFolder } from "react-icons/lu";
 
 import { Folder } from "../ui/Folder";
 import { projectHue } from "../work/model";
+import { docsCopy } from "./DocParts";
 import { type DocGroup, UNSORTED, folderModel } from "./folders";
 
 /**
@@ -32,7 +33,7 @@ export function DocFolders({
         return (
           <Folder
             key={m.key}
-            className="nx-swap"
+            className={"nx-swap" + (g.muted ? " is-muted" : "")}
             style={{ animationDelay: `${Math.min(i * 40, 240)}ms` }}
             label={m.label}
             caption={m.caption}
@@ -47,7 +48,7 @@ export function DocFolders({
             }
             peeks={m.peeks}
             onClick={() => onOpen(m.key)}
-            ariaLabel={`Open ${m.label}, ${m.count} ${m.count === 1 ? "page" : "pages"}`}
+            ariaLabel={docsCopy.Folders.open(m.label, m.count)}
             extra={{ "data-docs-folder": m.key }}
           />
         );

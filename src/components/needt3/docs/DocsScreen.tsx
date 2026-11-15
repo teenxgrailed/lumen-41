@@ -40,12 +40,13 @@ import { ShareSheet } from "../document/ShareSheet";
 import { Art } from "../menu/Art";
 import { RichMenu } from "../menu/RichMenu";
 import { StScreen } from "../states/StScreen";
+import { StSkeleton } from "../states/StSkeleton";
 import { DocFolders } from "./DocFolders";
 import { DocMiniature } from "./DocMini";
 import { DcCover, DocThumb, docsCopy, useDocTokens } from "./DocParts";
 import { RenameDocSheet } from "./RenameDocSheet";
 import { backdropVars } from "./backdrop";
-import { groupDocs, hasFolders, openGroup } from "./folders";
+import { UNSORTED, groupDocs, hasFolders, openGroup } from "./folders";
 import { ageLabel } from "./labels";
 import { docActions } from "./menu-model";
 import {
@@ -436,10 +437,16 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
     () => groupDocs(mine, projects.data ?? []),
     [mine, projects.data]
   );
+  // The groups need the projects: wait for them rather than flash the flat
+  // list; if they fail to load, the flat list is the fallback.
+  const waiting = projects.isPending && mine.length > 0;
+  const folderMode = !projects.isPending && !projects.isError;
   // The top level is folders when the pages sit in more than one group; one
   // folder opens at once into its list. A folder that emptied is gone.
-  const topLevel = hasFolders(groups);
+  const topLevel = folderMode && hasFolders(groups);
   const group = topLevel ? openGroup(groups, ctl.folder) : null;
+  // New doc inside a project's folder is born in that project.
+  const folderProject = group && group.key !== UNSORTED ? group.key : null;
   const atFolders = topLevel && !group;
   const shown = useMemo(
     () => sortDocs(group ? group.docs : mine, sort),
@@ -455,7 +462,7 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
 
   const open = (id: string) => router.push(docHref(id));
   const openPdf = (id: string) => router.push(pdfHref(id));
-  const newDoc = () => ctl.newDoc("");
+  const newDoc = () => ctl.newDoc("", folderProject);
 
   // Right-click on a card or a list row.
   const live = useRef({
@@ -568,40 +575,44 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
             </button>
           )}
         >
-          <span
-            className="base-meta"
-            style={{ display: "block", padding: "6px 8px 2px" }}
-          >
-            {copy.SortMenuItems.sort_by}
-          </span>
-          {DOC_SORTS.map(([id, label]) => {
-            const on = sort.key === id;
-            return (
-              <MenuRow
-                key={id}
-                keepOpen
-                icon={on ? <LuCheck size={14} aria-hidden /> : null}
-                hint={
-                  on ? (
-                    <span
-                      className="docs-sort-arrow"
-                      aria-label={dirLabel(id, sort.dir)}
-                    >
-                      {sort.dir === "asc" ? (
-                        <LuArrowUp size={13} aria-hidden />
-                      ) : (
-                        <LuArrowDown size={13} aria-hidden />
-                      )}
-                    </span>
-                  ) : undefined
-                }
-                onClick={() => setSort(id)}
+          {atFolders ? null : (
+            <>
+              <span
+                className="base-meta"
+                style={{ display: "block", padding: "6px 8px 2px" }}
               >
-                {label}
-              </MenuRow>
-            );
-          })}
-          <span className="base-menu-sep" aria-hidden />
+                {copy.SortMenuItems.sort_by}
+              </span>
+              {DOC_SORTS.map(([id, label]) => {
+                const on = sort.key === id;
+                return (
+                  <MenuRow
+                    key={id}
+                    keepOpen
+                    icon={on ? <LuCheck size={14} aria-hidden /> : null}
+                    hint={
+                      on ? (
+                        <span
+                          className="docs-sort-arrow"
+                          aria-label={dirLabel(id, sort.dir)}
+                        >
+                          {sort.dir === "asc" ? (
+                            <LuArrowUp size={13} aria-hidden />
+                          ) : (
+                            <LuArrowDown size={13} aria-hidden />
+                          )}
+                        </span>
+                      ) : undefined
+                    }
+                    onClick={() => setSort(id)}
+                  >
+                    {label}
+                  </MenuRow>
+                );
+              })}
+              <span className="base-menu-sep" aria-hidden />
+            </>
+          )}
           {/* //todo: Select, Show daily notes, Import and Export are mocks in
               the prototype (toasts, client-side Markdown of fixture bodies);
               they come back with multi-select, daily notes and an export
@@ -641,6 +652,10 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
                 <LuPlus size={15} aria-hidden />
                 {c.new_doc_2}
               </button>
+            </div>
+          ) : waiting ? (
+            <div data-st-state="loading">
+              <StSkeleton kind="grid" />
             </div>
           ) : atFolders ? (
             <DocFolders
