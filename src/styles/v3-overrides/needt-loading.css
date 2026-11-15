@@ -30,7 +30,18 @@
 }
 :is(.needt-v3, .nl-host) .nl-logo {
   display: inline-flex;
+}
+/* The breathe starts once the icon (or the fallback tile) is on screen. */
+:is(.needt-v3, .nl-host) .nl-logo.nl-loaded {
   animation: nl-breathe 2.4s ease-in-out infinite;
+}
+/* The last fallback: a rounded tile in the text colour at a ladder alpha. */
+:is(.needt-v3, .nl-host) .nl-tile {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 22%;
+  background: var(--text-disabled, rgba(26, 28, 30, 0.25));
 }
 /* Outside the v3 scope there are no tokens: a literal light and dark ground. */
 .nl-host .nl-fixed {
@@ -40,6 +51,21 @@
   .nl-host .nl-fixed {
     background: #111214;
   }
+}
+/* An explicit theme on <html> (ThemeProvider writes data-theme) beats the OS
+ * preference above. */
+html[data-theme="light"] .nl-host .nl-fixed,
+html[data-theme="paper"] .nl-host .nl-fixed {
+  background: #fcfdfe;
+}
+html[data-theme="warm"] .nl-host .nl-fixed {
+  background: #f7f1e4;
+}
+html[data-theme="dark"] .nl-host .nl-fixed {
+  background: #111214;
+}
+html[data-theme="dim"] .nl-host .nl-fixed {
+  background: #1d1f22;
 }
 @keyframes nl-in {
   from {
@@ -74,14 +100,14 @@
 :is(.needt-v3, .nl-host) .nl-still {
   animation: nl-appear 1ms linear 150ms backwards;
 }
-:is(.needt-v3, .nl-host) .nl-still .nl-logo {
+:is(.needt-v3, .nl-host) .nl-still .nl-logo.nl-loaded {
   animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.needt-v3, .nl-host) .nl-root {
     animation: nl-appear 1ms linear 150ms backwards;
   }
-  :is(.needt-v3, .nl-host) .nl-logo {
+  :is(.needt-v3, .nl-host) .nl-logo.nl-loaded {
     animation: none;
   }
 }

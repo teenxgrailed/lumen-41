@@ -19,16 +19,26 @@ export function NeedtAppIcon({
   size = 48,
   className,
   label,
+  eager,
+  src,
+  onLoad,
+  onError,
 }: {
   size?: number;
   className?: string;
   label?: string;
+  /** Fetch now, at high priority (a loading screen cannot wait for it). */
+  eager?: boolean;
+  /** Draw this file instead of the chosen icon (a fallback). */
+  src?: string;
+  onLoad?: () => void;
+  onError?: () => void;
 }) {
   // The icon the person chose in Settings -> Appearance; Midnight until then.
   const chosen = useAppIcon((s) => s.id);
   return (
     <Image
-      src={appIconSrc(chosen)}
+      src={src ?? appIconSrc(chosen)}
       width={size}
       height={size}
       unoptimized
@@ -36,6 +46,11 @@ export function NeedtAppIcon({
       alt={label || ""}
       aria-hidden={label ? undefined : true}
       className={"needt-app-icon" + (className ? " " + className : "")}
+      {...(eager
+        ? { loading: "eager" as const, fetchPriority: "high" as const }
+        : {})}
+      onLoad={onLoad}
+      onError={onError}
     />
   );
 }
