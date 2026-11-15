@@ -29,18 +29,20 @@ const screens = screenList.split(",").map((s) => s.trim()).filter(Boolean).map((
   if (!/^[a-z0-9_-]+$/i.test(name)) throw new Error(`bad screen name: ${name}`);
   if (!route.startsWith("/") || route.startsWith("//")) throw new Error(`route must start with one /: ${route}`);
   // Shot options in the fragment, joined by "&": bar=classic|float sets the phone's
-  // bottom bar (prefs.barStyle) for this screen; chrome keeps the phone's fixed chrome
-  // (the dock) and shoots the viewport instead of unrolling the page. Any other
-  // fragment is a real #anchor of the route and stays on it.
+  // bottom bar (prefs.barStyle) for this screen; chrome keeps the fixed layers (the
+  // dock, a sheet, a full-screen setup) and shoots the viewport instead of unrolling
+  // the page; wait=<css> waits for that element before the shot. The other parts are
+  // the route's real #anchor and stay on it ("/settings#menu&chrome" opens Menu).
   const h = route.indexOf("#");
   const frag = h < 0 ? "" : route.slice(h + 1);
+  const isOpt = (p) => p === "chrome" || p.startsWith("bar=") || p.startsWith("wait=");
   const parts = frag ? frag.split("&") : [];
-  const isOpt = (p) => p === "chrome" || p.startsWith("bar=");
-  if (!parts.length || !parts.every(isOpt)) return { name, route, bar: null, chrome: false };
-  const opts = new URLSearchParams(frag);
+  const opts = new URLSearchParams(parts.filter(isOpt).join("&"));
+  const anchor = parts.filter((p) => !isOpt(p)).join("&");
   const bar = opts.get("bar");
   if (bar && bar !== "classic" && bar !== "float") throw new Error(`bad bar: ${bar}`);
-  return { name, route: route.slice(0, h), bar, chrome: opts.has("chrome") };
+  const path_ = h < 0 ? route : route.slice(0, h) + (anchor ? "#" + anchor : "");
+  return { name, route: path_, bar, chrome: opts.has("chrome"), wait: opts.get("wait") };
 });
 
 const sizes = [
@@ -112,10 +114,15 @@ try {
         .then(() => true)
         .catch(() => false);
       if (!settled) { warned++; console.log("WARN still loading", s.name, size.tag); }
+      if (s.wait) {
+        const seen = await page.waitForSelector(s.wait, { state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
+        if (!seen) { warned++; console.log("WARN never showed", s.wait, s.name, size.tag); }
+      }
       await page.waitForTimeout(1200);
       const file = path.join(out, `${s.name}-${size.tag}.png`);
       if (s.chrome) {
-        // the dock is fixed chrome: shoot the screen as a person sees it
+        // fixed layers (the dock, a sheet, a full-screen setup) are the subject: shoot
+        // the screen as a person sees it, nothing hidden or unrolled
         await page.screenshot({ path: file, timeout: 30_000 }).catch((err) => console.log("FAIL shot", s.name, size.tag, err.message.split("\n")[0]));
         console.log("shot", file, `${Date.now() - started}ms`, page.url().replace(HOST, ""), "viewport");
         await page.close();
