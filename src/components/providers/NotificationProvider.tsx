@@ -2,6 +2,9 @@
 
 import React, { createContext, useContext, useEffect } from "react";
 
+import { usePathname } from "next/navigation";
+
+import { isAuthPath } from "@/lib/auth/auth-path";
 import { notify } from "@/lib/notifications";
 
 type NotificationType = "success" | "error" | "info" | "warning";
@@ -39,7 +42,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
+  const onAuth = isAuthPath(usePathname());
+
   useEffect(() => {
+    /* No polling on the sign-in pages: nudges belong to a signed-in person's
+       frame, and a poll started before a sign-in keeps running after it. */
+    if (onAuth) return undefined;
     let active = true;
     const poll = async () => {
       try {
@@ -55,16 +63,21 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
             deepLink: string;
           }>;
         };
-        for (const notification of data.notifications) {
-          notify.info(notification.title, {
+        /* One at a time: the poll marks them all delivered, so the rest are
+           already in the bell, and a stack of four cards covers the work. */
+        const [first, ...rest] = data.notifications;
+        if (first) {
+          notify.info(first.title, {
             // Server nudges are the product speaking up on its own: the
             // island, not the action toast.
             surface: "island",
-            description: notification.body,
+            description: rest.length
+              ? `${first.body} ${rest.length} more in your inbox.`
+              : first.body,
             action: {
               label: "Open",
               onClick: () => {
-                window.location.assign(notification.deepLink);
+                window.location.assign(first.deepLink);
               },
             },
           });
@@ -79,7 +92,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
       active = false;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [onAuth]);
 
   return (
     <NotificationContext.Provider value={{ showNotification }}>

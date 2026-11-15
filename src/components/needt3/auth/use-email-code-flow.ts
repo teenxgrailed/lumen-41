@@ -142,3 +142,29 @@ export function useEmailCodeFlow(input: {
 }
 
 export type EmailCodeFlow = ReturnType<typeof useEmailCodeFlow>;
+
+/**
+ * "Send me a code" under a refused password: leaves the password form for the
+ * code form (the address stays, it lives in the host) and mails the code at
+ * once, so one tap is the whole detour.
+ */
+export function useCodeInstead(input: {
+  codeMode: boolean;
+  flow: Pick<EmailCodeFlow, "send">;
+  setUsePassword: ((value: boolean) => void) | undefined;
+  clearRefusal: () => void;
+}) {
+  const { codeMode, flow, setUsePassword, clearRefusal } = input;
+  const [pending, setPending] = React.useState(false);
+  const { send } = flow;
+  React.useEffect(() => {
+    if (!pending || !codeMode) return;
+    setPending(false);
+    void send();
+  }, [pending, codeMode, send]);
+  return React.useCallback(() => {
+    clearRefusal();
+    setPending(true);
+    setUsePassword?.(false);
+  }, [clearRefusal, setUsePassword]);
+}

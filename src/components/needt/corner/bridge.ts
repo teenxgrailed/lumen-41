@@ -17,6 +17,8 @@
  * first message a session shows is usually the one that fired while the page
  * was still mounting.
  */
+import { onAuthPath } from "@/lib/auth/auth-path";
+
 import type { NoticeApi, NoticePayload, NoticeSurface } from "./types";
 
 /** A raise that arrived before the stack did. */
@@ -83,6 +85,10 @@ export function setNoticeSink(
 }
 
 export function raiseNotice(payload: NoticePayload): string {
+  /* The sign-in pages say nothing in a toast or an island: a stale session's
+     nudges were stacked over the form. Those screens show their answers
+     inline. */
+  if (onAuthPath()) return "";
   const surface: NoticeSurface = payload.surface ?? "toast";
   const channel = channels[surface];
   if (channel.live) return channel.live.notify(payload);

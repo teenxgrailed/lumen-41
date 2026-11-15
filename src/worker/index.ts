@@ -22,6 +22,7 @@ import {
 } from "@/services/email-lifecycle/engine";
 import { deliverFocusEnded } from "@/services/focus/focus-end-notification";
 import { expireProGifts } from "@/services/gifts/gifts";
+import { runHabitEveningPush } from "@/services/habits/evening-push";
 import { runHabitPresenceSweep } from "@/services/habits/presence-sweep";
 import {
   processImportRun,
@@ -65,6 +66,7 @@ import {
   startWorkerHealthServer,
   stopWorkerHealthServer,
 } from "@/worker/health-server";
+import { startWorkerTick } from "@/worker/liveness";
 import { runWorkerStartupChecks } from "@/worker/startup";
 import {
   STALE_TASK_MAPPING_SWEEP_INTERVAL_MS,
@@ -165,6 +167,7 @@ let releaseHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 let releaseHeartbeatRefresh: Promise<void> | null = null;
 let releaseHeartbeatRedis: ReleaseHealthRedis | null = null;
 let externalHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
+let workerTickInterval: ReturnType<typeof setInterval> | null = null;
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -284,6 +287,10 @@ async function processReminder(job: Job<ReminderJobData>) {
   }
   if (job.data.kind === "habits") {
     await runHabitPresenceSweep();
+    return;
+  }
+  if (job.data.kind === "habit-evening") {
+    await runHabitEveningPush();
     return;
   }
   const reminderIds = await findDueReminderIds();
@@ -525,7 +532,10 @@ export async function start(): Promise<void> {
   // a while on a cold host; a health check that cannot connect until all of
   // it finishes reads as a dead container and gets it restarted mid-start.
   // Release readiness is still proven by the Redis heartbeat, not this port.
-  workerHealthServer = await startWorkerHealthServer();
+  workerHealthServer = await startWorkerHealthServer({ liveness: {} });
+  // Ticks from here on, so the health check sees the worker while the slower
+  // startup checks below run.
+  workerTickInterval = startWorkerTick();
   await runWorkerStartupChecks();
   if (isGitBuildSha(BUILD_SHA)) {
     releaseHeartbeatRedis =
@@ -604,6 +614,13 @@ export async function start(): Promise<void> {
     "habit-presence-sweep",
     { every: 5 * 60_000 },
     { name: "sweep-habit-presence", data: { kind: "habits" } }
+  );
+  // Every 5 minutes: each person's 20:00 is a different instant, and the
+  // sweep itself decides who is inside the window. Flag off = one row read.
+  await getReminderQueue().upsertJobScheduler(
+    "habit-evening-push-sweep",
+    { every: 5 * 60_000 },
+    { name: "sweep-habit-evening", data: { kind: "habit-evening" } }
   );
   await getNudgeQueue().upsertJobScheduler(
     "proactive-nudge-sweep",
@@ -696,6 +713,8 @@ async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   clearInterval(healthInterval);
+  if (workerTickInterval) clearInterval(workerTickInterval);
+  workerTickInterval = null;
   if (releaseHeartbeatInterval) clearInterval(releaseHeartbeatInterval);
   releaseHeartbeatInterval = null;
   if (externalHeartbeatInterval) clearInterval(externalHeartbeatInterval);

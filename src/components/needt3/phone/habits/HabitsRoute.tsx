@@ -20,8 +20,11 @@ import { HABITS_PAYWALL_FEATURE } from "./model";
  * made once; the Quit state (the open Quit habit, a running pull) is held
  * here the same way. The only thing that differs by face is where a refused
  * add goes: the phone's paywall sheet, the desktop's notice.
+ *
+ * `cards` is the `habits_cards_v1` flag, read on the server by the page and
+ * passed down; false (the default) draws the screens exactly as before.
  */
-export function HabitsRoute() {
+export function HabitsRoute({ cards = false }: { cards?: boolean }) {
   const ui = usePhoneUi();
   const openPaywall = usePhoneOverlays((s) => s.openPaywall);
   const phone = ui === "phone";
@@ -33,8 +36,8 @@ export function HabitsRoute() {
   // The open Quit habit and a running pull survive crossing 700 px too.
   const quit = useQuitController();
   return phone ? (
-    <PhoneHabits ctl={ctl} quit={quit} />
+    <PhoneHabits ctl={ctl} quit={quit} cards={cards} />
   ) : (
-    <HabitsScreen ctl={ctl} quit={quit} />
+    <HabitsScreen ctl={ctl} quit={quit} cards={cards} />
   );
 }

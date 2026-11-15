@@ -53,6 +53,7 @@
 @import "./v3-overrides/app-icon-picker.css";
 @import "./v3-overrides/ios-sign.css";
 @import "./v3-overrides/route-loading.css";
+@import "./v3-overrides/needt-loading.css";
 @import "./v3-overrides/settings-mac.css";
 @import "./v3-overrides/widget-preview.css";
 @import "./v3-overrides/whats-new.css";
@@ -65,3 +66,5 @@
 @import "./v3-overrides/agents.css";
 @import "./v3-overrides/agents-night.css";
 @import "./v3-overrides/budget.css";
+@import "./v3-overrides/habit-cards.css";
+@import "./v3-overrides/folder.css";

@@ -25,6 +25,8 @@ import {
 } from "@/lib/goals";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
+import { GoalCards, type GoalCardsProps } from "./GoalCards";
+
 export interface GoalTaskRow {
   id: string;
   title: string;
@@ -88,6 +90,11 @@ export interface GoalsViewProps {
   onAddTask: (title: string) => void;
   onLinkTask: (taskId: string) => void;
   onToggleTask: (task: GoalTaskRow) => void;
+  /**
+   * `habits_cards_v1`: goals as cards, with their next step and risk hint.
+   * Absent = the list as before.
+   */
+  cards?: Pick<GoalCardsProps, "nextSteps" | "hues" | "today">;
 }
 
 function dayLabel(iso: string | null) {
@@ -709,11 +716,22 @@ export function GoalsView(props: GoalsViewProps) {
         )
       ) : (
         <div className={`gl-body${detail ? " has-panel" : ""}`}>
-          <GoalList
-            goals={list}
-            selectedId={selectedId}
-            onSelect={(id) => props.onSelect(id === selectedId ? null : id)}
-          />
+          {props.cards ? (
+            <GoalCards
+              goals={list}
+              selectedId={selectedId}
+              nextSteps={props.cards.nextSteps}
+              hues={props.cards.hues}
+              today={props.cards.today}
+              onSelect={(id) => props.onSelect(id === selectedId ? null : id)}
+            />
+          ) : (
+            <GoalList
+              goals={list}
+              selectedId={selectedId}
+              onSelect={(id) => props.onSelect(id === selectedId ? null : id)}
+            />
+          )}
           {detail ? <GoalPanel {...props} detail={detail} /> : null}
         </div>
       )}

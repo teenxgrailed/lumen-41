@@ -312,6 +312,46 @@ export function cardTasks(projectId: string, tasks: readonly V3Task[], n = 4) {
   ).slice(0, n);
 }
 
+/**
+ * A project's open tasks as a folder counts them: not done, not "no slot",
+ * not in Trash. The count and the sheets both come from this list.
+ */
+export const folderOpen = (projectId: string, tasks: readonly V3Task[]) =>
+  tasks.filter(
+    (t) => t.projectId === projectId && !t.done && !t.noSlot && !t.trashedAt
+  );
+
+/**
+ * The next open tasks a project folder shows, soonest first: by the day each
+ * is drawn on (`taskDay`, overdue ones lead, no day last), then by the hour
+ * it sits at, then by title so the order never flickers.
+ */
+export function nextTasks(
+  projectId: string,
+  tasks: readonly V3Task[],
+  today: string,
+  n = 3
+) {
+  return folderOpen(projectId, tasks)
+    .map((t) => ({ t, day: taskDay(t, today) ?? "9999-12-31" }))
+    .sort(
+      (a, b) =>
+        (a.day < b.day ? -1 : a.day > b.day ? 1 : 0) ||
+        (hourOn(a.t, a.day) ?? 99) - (hourOn(b.t, b.day) ?? 99) ||
+        a.t.title.localeCompare(b.t.title)
+    )
+    .slice(0, n)
+    .map(({ t }) => t);
+}
+
+/** "Today" / "Overdue" / "4 Sep" / undefined: the line under a sheet's title. */
+export function peekMeta(t: V3Task, today: string) {
+  const day = taskDay(t, today);
+  if (!day) return undefined;
+  if (day === today) return "Today";
+  return day < today ? "Overdue" : (dayLabel(day) ?? undefined);
+}
+
 type ProjectGroupKey = "Overdue" | "Today" | "Upcoming" | "No date";
 
 /**

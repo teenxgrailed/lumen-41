@@ -9,7 +9,15 @@ import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
-import { OverdueRow, RailFrame, dominant, ratio } from "../HomeV2";
+import {
+  DayCount,
+  MissedLine,
+  OverdueRow,
+  RailFrame,
+  dominant,
+  ratio,
+  reviewHour,
+} from "../HomeV2";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -78,6 +86,61 @@ describe("OverdueRow", () => {
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
     await act(async () => toggle.click());
     expect(host.querySelector("[data-late-rows]")).toBeNull();
+  });
+});
+
+describe("MissedLine", () => {
+  it("draws nothing without missed tasks", async () => {
+    await render(h(MissedLine, { count: 0, onReschedule: jest.fn() }));
+    expect(host.querySelector("[data-hv2-missed]")).toBeNull();
+  });
+
+  it("is one line: the count, and Reschedule", async () => {
+    await render(h(MissedLine, { count: 2, onReschedule: jest.fn() }));
+    const line = host.querySelector("[data-hv2-missed]")!;
+    expect(line.textContent).toContain("2 tasks from earlier today");
+    expect(line.querySelector("[data-hv2-missed-go]")?.textContent).toBe(
+      "Reschedule"
+    );
+  });
+
+  it("Reschedule runs the action once and is busy until it answers", async () => {
+    let finish: () => void = () => undefined;
+    const onReschedule = jest.fn(
+      () => new Promise<void>((resolve) => (finish = resolve))
+    );
+    await render(h(MissedLine, { count: 1, onReschedule }));
+    const go = host.querySelector<HTMLButtonElement>("[data-hv2-missed-go]")!;
+    await act(async () => go.click());
+    expect(onReschedule).toHaveBeenCalledTimes(1);
+    expect(go.disabled).toBe(true);
+    await act(async () => go.click());
+    expect(onReschedule).toHaveBeenCalledTimes(1);
+    await act(async () => finish());
+    expect(go.disabled).toBe(false);
+  });
+});
+
+describe("DayCount", () => {
+  it("is a quiet done/total at the title", async () => {
+    await render(h(DayCount, { done: 0, total: 13 }));
+    expect(
+      host.querySelector("[data-hv2-count]")?.getAttribute("data-hv2-count")
+    ).toBe("0/13");
+    expect(host.textContent).toBe("0/13");
+  });
+
+  it("draws nothing for an empty day", async () => {
+    await render(h(DayCount, { done: 0, total: 0 }));
+    expect(host.querySelector("[data-hv2-count]")).toBeNull();
+  });
+});
+
+describe("the Sunday review waits for the evening", () => {
+  it("shows from 18:00 local, not before", () => {
+    expect(reviewHour(17.99)).toBe(false);
+    expect(reviewHour(18)).toBe(true);
+    expect(reviewHour(22.5)).toBe(true);
   });
 });
 

@@ -24,6 +24,7 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { useHomeBlocks } from "@/lib/needt3/hooks/home-blocks";
+import { useFillFreeTime } from "@/lib/needt3/hooks/nudges";
 import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
@@ -42,7 +43,13 @@ import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { EndDayNudge } from "../../home/EndDayNudge";
 import { FirstReplanCard } from "../../home/FirstReplanCard";
-import { OverdueRow } from "../../home/HomeV2";
+import {
+  DayCount,
+  MissedLine,
+  OverdueRow,
+  RESCHEDULE_NOTICE,
+  reviewHour,
+} from "../../home/HomeV2";
 import { OnboardingResumeBanner } from "../../home/OnboardingResumeBanner";
 import { ReviewCard } from "../../home/ReviewCard";
 import { SampleBanner } from "../../home/SampleBanner";
@@ -51,6 +58,7 @@ import { briefFactsOf, doneTodayCount } from "../../home/brief";
 import { firstEvent } from "../../home/day-line-model";
 import {
   capacityFrom,
+  chronological,
   dayStreak,
   dur,
   proFromPlan,
@@ -80,7 +88,13 @@ import {
 } from "../../home/ha";
 import { useHaBrief } from "../../home/ha/useHaBrief";
 import { highlightTask } from "../../home/highlight";
-import { hhmm, nowCardTime, nowKicker, pickNow } from "../../home/now";
+import {
+  hhmm,
+  missedToday,
+  nowCardTime,
+  nowKicker,
+  pickNow,
+} from "../../home/now";
 import { anytimeOpen, lateMovable, spreadLeads } from "../../home/spread";
 import { blockedMinutes, minutesAhead, timeLeft } from "../../home/timeleft";
 import { useEndDayNudge } from "../../home/useEndDayNudge";
@@ -157,6 +171,7 @@ export function PhoneHome({
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const startFocus = useStartFocus();
+  const fillFreeTime = useFillFreeTime(RESCHEDULE_NOTICE);
   const openTask = usePhoneOverlays((s) => s.openTask);
 
   const {
@@ -234,7 +249,10 @@ export function PhoneHome({
     projects: projects ?? [],
     streak: dayStreak(all, today).n,
   });
-  useAdvanceReview(review.show, true);
+  // v2: the Sunday review waits for the evening (from 18:00 local); until
+  // then it counts as not shown, so the first-replan hints do not wait on it.
+  const reviewShown = review.show && (!v2 || reviewHour(nowHour));
+  useAdvanceReview(reviewShown, true);
   const calendarItems = scheduleItems([], events.data ?? [], today);
   const personal = usePersonalDay(today);
   const [band, setBand] = useState<DayBand | null>(null);
@@ -376,6 +394,7 @@ export function PhoneHome({
       late={!!o.late && !t.done}
       phase={X.phase[t.id]}
       out={!!X.out[t.id]}
+      hideDue={v2 && !o.late && !o.tomorrow && t.dueDate === today}
       canDone={!t.done}
       canLater={!t.done && !o.tomorrow}
       actions={t.done ? undefined : actionsOf(t)}
@@ -416,7 +435,7 @@ export function PhoneHome({
   );
   const aux = (
     <>
-      {review.show && (hint === null || hint === "review") ? (
+      {reviewShown && (hint === null || hint === "review") ? (
         <ReviewCard phone onStart={review.start} onLater={review.later} />
       ) : null}
       {nudge.show && !firstReplanHold ? (
@@ -426,7 +445,7 @@ export function PhoneHome({
   );
   // HOME V2: one Now card, picked by `pickNow` (the desktop's rule).
   const dayOpenNow = v.open(v.sec.day);
-  const lateOpenNow = v.open(v.sec.late);
+  // Today's tasks whose hour passed: one line, not rows that hang silently.
   const nowPick = v2
     ? pickNow({
         schedule: scheduleItems(
@@ -435,7 +454,6 @@ export function PhoneHome({
           today
         ),
         dayOpen: dayOpenNow,
-        lateOpen: lateOpenNow,
         nowHour,
         today,
         skipped,
@@ -449,6 +467,11 @@ export function PhoneHome({
       })
     : null;
   const nowTask = nowPick?.task ?? null;
+  const missed = v2
+    ? missedToday(dayOpenNow, today, nowHour).filter(
+        (t) => t.id !== nowTask?.id
+      )
+    : [];
   // v2: the task on the Now card is not repeated in the rows. Only that one
   // (not the old overdue-first pick) leaves them.
   // Only the task whose card is actually drawn leaves them: not on a closed
@@ -467,6 +490,7 @@ export function PhoneHome({
         .map(([p, l]) => [p, hide(l)] as [string, V3Task[]])
         .filter(([, l]) => l.length)
     : v.parts;
+  const chrono = chronological(dayParts);
   const nowNode = !nowPick ? null : nowPick.event ? (
     <HaHighlight
       phone
@@ -506,7 +530,6 @@ export function PhoneHome({
       phone
       state="nextup"
       kicker={nowKicker(nowPick)}
-      late={nowPick.kind === "late"}
       card={nowCardTime(
         haTaskCard(
           nowTask,
@@ -515,11 +538,9 @@ export function PhoneHome({
             nowTask,
             nowPick.kind === "highlight"
               ? "the one thing for today"
-              : nowPick.kind === "late"
-                ? `overdue, ${lateOpenNow.length} in all`
-                : dayOpenNow.length > 1
-                  ? `then ${dayOpenNow.length - 1} more today`
-                  : ""
+              : dayOpenNow.length > 1
+                ? `then ${dayOpenNow.length - 1} more today`
+                : ""
           )
         ),
         nowPick.kind
@@ -545,7 +566,7 @@ export function PhoneHome({
 
   /* Progress is a small part of the header; a finished day is one line. */
   const progress =
-    !ready || v.dayClosed ? null : v.total ? (
+    v2 || !ready || v.dayClosed ? null : v.total ? (
       <div className="v2p-prog" data-v2p-count={`${v.done}/${v.total}`}>
         <p className="v2p-prog-line">
           <span className="v2p-prog-count">
@@ -572,10 +593,11 @@ export function PhoneHome({
     ) : null;
 
   const haHabits = haHabitsOf(habitsQuery.data ?? [], checkins, today);
+  const showHabits = !v2 && blocks.habits && haHabits.length > 0;
   const head =
-    (blocks.habits && haHabits.length) || progress ? (
+    showHabits || progress ? (
       <>
-        {blocks.habits && haHabits.length ? (
+        {showHabits ? (
           <div className="ha-phone">
             <HaHabits
               habits={haHabits}
@@ -594,7 +616,16 @@ export function PhoneHome({
       screen="home"
       glyph="home"
       title={copy.V2pHome.today}
-      sub={dateLine}
+      sub={
+        v2 && ready && !v.dayClosed ? (
+          <span className="hv2-sub">
+            {dateLine}
+            <DayCount done={v.done} total={v.total} />
+          </span>
+        ) : (
+          dateLine
+        )
+      }
       head={head}
     >
       <PhoneState query={tasksQuery} screen="today" />
@@ -674,6 +705,12 @@ export function PhoneHome({
               onOpen={() => openTask(nu)}
             />
           ) : null}
+          {v2 && !firstReplanHold && missed.length ? (
+            <MissedLine
+              count={missed.length}
+              onReschedule={() => fillFreeTime()}
+            />
+          ) : null}
           {v2 ? aux : null}
           <HaBrief
             lines={haBrief.lines}
@@ -730,11 +767,31 @@ export function PhoneHome({
               />
             </PkSection>
           ) : null}
-          {dayParts.map(([p, list]) => (
-            <PkSection key={p} title={p} count={list.length}>
-              <CappedRows list={list} render={(t) => row(t)} />
-            </PkSection>
-          ))}
+          {v2 ? (
+            <>
+              {chrono.timed.length ? (
+                <div className="hv2-list" data-hv2-list="">
+                  <CappedRows list={chrono.timed} render={(t) => row(t)} />
+                </div>
+              ) : null}
+              {chrono.anytime.length ? (
+                <PkSection
+                  title="Anytime"
+                  count={chrono.anytime.length}
+                  folded={fold.anytimeOpen !== true}
+                  onFold={flip("anytimeOpen")}
+                >
+                  <CappedRows list={chrono.anytime} render={(t) => row(t)} />
+                </PkSection>
+              ) : null}
+            </>
+          ) : (
+            dayParts.map(([p, list]) => (
+              <PkSection key={p} title={p} count={list.length}>
+                <CappedRows list={list} render={(t) => row(t)} />
+              </PkSection>
+            ))
+          )}
           {v2 && lateRows.length ? (
             <OverdueRow count={lateRows.length} actions={lateActs}>
               <CappedRows
@@ -777,22 +834,26 @@ export function PhoneHome({
               <CappedRows list={v.doneToday} render={(t) => row(t)} />
             </PkSection>
           ) : null}
-          <StatsCard
-            stats={stats.week}
-            streak={dayStreak(all, today).n}
-            onOpen={stats.show}
-          />
-          <button
-            type="button"
-            className="v2p-notes v2p-notes-btn"
-            data-v2p-notes=""
-            disabled={dailyNote.busy}
-            onClick={() => void openNote()}
-          >
-            {dailyNote.exists
-              ? "Open today\u2019s note"
-              : copy.V2pNotes.notes_for_the_day}
-          </button>
+          {v2 ? null : (
+            <>
+              <StatsCard
+                stats={stats.week}
+                streak={dayStreak(all, today).n}
+                onOpen={stats.show}
+              />
+              <button
+                type="button"
+                className="v2p-notes v2p-notes-btn"
+                data-v2p-notes=""
+                disabled={dailyNote.busy}
+                onClick={() => void openNote()}
+              >
+                {dailyNote.exists
+                  ? "Open today\u2019s note"
+                  : copy.V2pNotes.notes_for_the_day}
+              </button>
+            </>
+          )}
         </div>
       ) : null}
       <HaEndDaySheet phone open={finish.open} {...finish.sheet} />

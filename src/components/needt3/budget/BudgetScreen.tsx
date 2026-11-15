@@ -26,8 +26,12 @@ import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { openPaywall } from "../paywall";
 import { GlassCard, PxSky } from "../scenes";
+import { NeedtLoading } from "../states/NeedtLoading";
 
 const P = priceStrings();
+
+/** The most the loading word covers the frame; see `BudgetFrame`. */
+const FRAME_COVER_MAX_MS = 20_000;
 
 const PROMO_LINES = [
   "Wallets, spending and what is left this month",
@@ -203,11 +207,19 @@ function BudgetPromo({
 }
 
 /** Budget itself, chromeless, following Needt's theme while it is open. */
-function BudgetFrame() {
+export function BudgetFrame() {
   const frame = useRef<HTMLIFrameElement>(null);
   // The first theme goes in the address; later changes go by message, so the
   // frame is not reloaded and keeps its place.
   const [src] = useState(() => budgetFrameSrc(readTheme()));
+  // The word covers the frame from mount (load start) to its load event, so
+  // the white page of a cold Budget is never seen. A frame that never reports
+  // loading is uncovered after `FRAME_COVER_MAX_MS` rather than hidden forever.
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setLoaded(true), FRAME_COVER_MAX_MS);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const send = useCallback(
     () =>
@@ -226,17 +238,23 @@ function BudgetFrame() {
   }, [send]);
 
   return (
-    <iframe
-      ref={frame}
-      className="bd-frame"
-      src={src}
-      title="Needt Budget"
-      data-bd-frame=""
-      // A change made before Budget was ready reaches it on load.
-      onLoad={send}
-      referrerPolicy="strict-origin"
-      // Budget's own pages: forms, its sign-in through Needt, file pickers.
-      allow="clipboard-write"
-    />
+    <>
+      <iframe
+        ref={frame}
+        className="bd-frame"
+        src={src}
+        title="Needt Budget"
+        data-bd-frame=""
+        // A change made before Budget was ready reaches it on load.
+        onLoad={() => {
+          send();
+          setLoaded(true);
+        }}
+        referrerPolicy="strict-origin"
+        // Budget's own pages: forms, its sign-in through Needt, file pickers.
+        allow="clipboard-write"
+      />
+      {loaded ? null : <NeedtLoading cover />}
+    </>
   );
 }

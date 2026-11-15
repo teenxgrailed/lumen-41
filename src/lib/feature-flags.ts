@@ -6,7 +6,10 @@ import {
   AGENT_HUB,
   AI_CHATGPT_PLAN,
   BUDGET_MODULE,
+  FOLDERS_V1,
+  HABITS_CARDS_V1,
   HABITS_QUIT,
+  HABIT_EVENING_PUSH,
   HOME_V2,
 } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
@@ -68,6 +71,37 @@ export async function budgetModuleEnabled(userId: string) {
 /** Home in three blocks (`HOME_V2`) is on for this account. */
 export async function homeV2Enabled(userId: string) {
   return isFeatureEnabled(HOME_V2, userId);
+}
+
+/**
+ * The Habits and Goals card screens (`HABITS_CARDS_V1`). Fails closed: a
+ * missing session or a failed read is "off", so the old screens draw.
+ */
+export async function habitsCardsEnabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return await isFeatureEnabled(HABITS_CARDS_V1, userId);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Projects as folders (`FOLDERS_V1`). Fails closed: no user, or a flag read
+ * that throws, is off, and Projects keeps its cards.
+ */
+export async function foldersV1Enabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return await isFeatureEnabled(FOLDERS_V1, userId);
+  } catch {
+    return false;
+  }
+}
+
+/** The 20:00 habit push is on for this account (`HABIT_EVENING_PUSH`). */
+export async function habitEveningPushEnabled(userId: string) {
+  return isFeatureEnabled(HABIT_EVENING_PUSH, userId);
 }
 
 /**

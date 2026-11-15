@@ -15,6 +15,7 @@ import { type Root, createRoot } from "react-dom/client";
 import type { V3Task } from "@/lib/needt3/map";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { qk } from "@/lib/needt3/query-keys";
+import { hasUnsavedWork } from "@/lib/pwa/unsaved-work";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -804,5 +805,19 @@ describe("a full-time task ticked during its session", () => {
     await runFor({ fullTimeOn: false });
     await markDoneElsewhere();
     expect(q("[data-fc-full-time-ask]")).toBeNull();
+  });
+});
+
+describe("the automatic reload for a new version", () => {
+  it("treats a running session as unsaved work until it ends or unmounts", async () => {
+    await mount();
+    expect(hasUnsavedWork()).toBe(false);
+    await open();
+    await click("[data-fc-seg='25']");
+    await click("[data-fc-start]");
+    expect(hasUnsavedWork()).toBe(true);
+    act(() => root.unmount());
+    expect(hasUnsavedWork()).toBe(false);
+    root = createRoot(host);
   });
 });

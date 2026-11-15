@@ -3,6 +3,7 @@
 import { isMacApp } from "@/lib/desktop";
 import { checkinTimeOptions } from "@/lib/needt3/habit-presence";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
+import { useEveningPushSwitch } from "@/lib/needt3/hooks/habit-evening";
 import { useHabits, useUpdateHabit } from "@/lib/needt3/hooks/habits";
 import { useFreshQuitGate } from "@/lib/needt3/hooks/habits-quit";
 
@@ -137,6 +138,7 @@ export function AlertsSection() {
             )
           : null}
       </SGroup>
+      <EveningPushGroup />
       <HabitsGroup />
       <EmailGroup />
     </>
@@ -252,5 +254,31 @@ function HabitsGroup() {
         </SGroup>
       ) : null}
     </>
+  );
+}
+
+/**
+ * The 20:00 habit push (`habit_evening_push`): one switch, shown only when the
+ * flag is on for this account. On by default only where this account has a
+ * push device subscribed; the choice is stored in `UserSettings.prefs`.
+ */
+function EveningPushGroup() {
+  const mark = useMark();
+  const evening = useEveningPushSwitch();
+  if (!evening.show) return null;
+  return (
+    <SGroup
+      title="Evening habits"
+      hint="Once a day at 20:00 your time, only when habits are left."
+    >
+      <SRow title="Habits left today" desc="A push like “3 habits left today”.">
+        <V3Switch
+          label="Habits left today"
+          checked={evening.on}
+          disabled={evening.disabled}
+          onChange={(v) => void evening.set(v).then((saved) => saved && mark())}
+        />
+      </SRow>
+    </SGroup>
   );
 }

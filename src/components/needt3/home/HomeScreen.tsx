@@ -48,6 +48,7 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { useHomeBlocks } from "@/lib/needt3/hooks/home-blocks";
+import { useFillFreeTime } from "@/lib/needt3/hooks/nudges";
 import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
@@ -88,7 +89,16 @@ import {
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
-import { OverdueRow, RailFrame, dominant, ratio } from "./HomeV2";
+import {
+  DayCount,
+  MissedLine,
+  OverdueRow,
+  RESCHEDULE_NOTICE,
+  RailFrame,
+  dominant,
+  ratio,
+  reviewHour,
+} from "./HomeV2";
 import { OnboardingResumeBanner } from "./OnboardingResumeBanner";
 import { ReviewCard } from "./ReviewCard";
 import { SampleBanner } from "./SampleBanner";
@@ -97,6 +107,7 @@ import { briefFactsOf, doneTodayCount } from "./brief";
 import { firstEvent } from "./day-line-model";
 import {
   capacityFrom,
+  chronological,
   dayState,
   dayStats,
   dayStreak,
@@ -135,7 +146,7 @@ import {
 } from "./ha";
 import { useHaBrief } from "./ha/useHaBrief";
 import { highlightTask } from "./highlight";
-import { hhmm, nowCardTime, nowKicker, pickNow } from "./now";
+import { hhmm, missedToday, nowCardTime, nowKicker, pickNow } from "./now";
 import { anytimeOpen, lateMovable, spreadLeads } from "./spread";
 import { blockedMinutes, minutesAhead, timeLeft } from "./timeleft";
 import { useEndDayNudge } from "./useEndDayNudge";
@@ -180,6 +191,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
   const createDoc = useCreateDoc();
   const { setComposerOpen } = useNeedt3Ui();
   const startFocusOn = useStartFocus();
+  const fillFreeTime = useFillFreeTime(RESCHEDULE_NOTICE);
 
   // The route's controller (created above the face switch, so a resize across
   // 700 px keeps all of it): tab, folds, Skip, the rows playing their exit and
@@ -264,6 +276,8 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
     (t) => t.done && !leaving[t.id] && showsTask(t, taskView, today)
   );
   const sections = closedDay ? [] : sectionsOf(day, shown, today);
+  // v2: one chronological list and a collapsed Anytime row
+  const chrono = chronological(sections);
   const lateShown = late.filter(shown);
   const inboxOpen = inbox.filter((t) => !leaving[t.id]);
   const inboxShown = inbox.filter(shown);
@@ -425,7 +439,10 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
     projects: projects.data ?? [],
     streak: streak.n,
   });
-  useAdvanceReview(review.show, true);
+  // v2: the Sunday review waits for the evening (from 18:00 local). Until
+  // then it counts as not shown, so the first-replan hints do not wait on it.
+  const reviewShown = review.show && (!v2 || reviewHour(nowHour));
+  useAdvanceReview(reviewShown, true);
   const hlSub = (t: V3Task, tail: string) =>
     [project(t.projectId, projects.data ?? [])?.name, tail]
       .filter(Boolean)
@@ -584,6 +601,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
       onToggle={() => check(t)}
       onOpen={open}
       today={today}
+      hideDue={v2 && tab === "day" && !isLate && t.dueDate === today}
     />
   );
   const flip = (k: string) => () => setFold((f) => ({ ...f, [k]: !f[k] }));
@@ -613,7 +631,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
   const v2day = v2 && tab === "day";
   const aux = (
     <>
-      {review.show && (hint === null || hint === "review") ? (
+      {reviewShown && (hint === null || hint === "review") ? (
         <ReviewCard onStart={review.start} onLater={review.later} />
       ) : null}
       {nudge.show && !firstReplanHold ? (
@@ -669,7 +687,6 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
     ? pickNow({
         schedule: sched,
         dayOpen: pickDay,
-        lateOpen: pickLate,
         nowHour,
         today,
         skipped,
@@ -682,6 +699,10 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
       })
     : null;
   const nowTask = nowPick?.task ?? null;
+  // Today's tasks whose hour passed: one line, not rows that hang silently.
+  const missed = v2day
+    ? missedToday(dayOpen, today, nowHour).filter((t) => t.id !== nowTask?.id)
+    : [];
   const nowNode = !nowPick ? (
     <NextUpNone closed={closedDay} />
   ) : nowPick.event ? (
@@ -722,7 +743,6 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
       <HaHighlight
         state="nextup"
         kicker={nowKicker(nowPick)}
-        late={nowPick.kind === "late"}
         completing={leaving[nowTask.id] === "strike"}
         card={nowCardTime(
           haTaskCard(
@@ -730,23 +750,12 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
             today,
             nowPick.kind === "highlight"
               ? hlSub(nowTask, "the one thing for today")
-              : nowPick.kind === "late"
-                ? nextUpNote(
-                    {
-                      task: nowTask,
-                      after: null,
-                      moreLate: Math.max(0, pickLate.length - 1),
-                      canSkip: true,
-                    },
-                    nowHour,
-                    today
-                  )
-                : hlSub(
-                    nowTask,
-                    dayOpen.length > 1
-                      ? `then ${dayOpen.length - 1} more today`
-                      : ""
-                  )
+              : hlSub(
+                  nowTask,
+                  dayOpen.length > 1
+                    ? `then ${dayOpen.length - 1} more today`
+                    : ""
+                )
           ),
           nowPick.kind
         )}
@@ -829,9 +838,11 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
           <div className="ha-card" data-ha-today="">
             <div className="ha-dk-card-t">
               <span>Today</span>
-              <span>
-                {stats.done} of {stats.total}
-              </span>
+              {v2 ? null : (
+                <span>
+                  {stats.done} of {stats.total}
+                </span>
+              )}
             </div>
             <HaTimeLeft
               t={timeCard}
@@ -898,26 +909,10 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
             {railTiles.todayBar}
           </RailFrame>
         ) : null,
-        habits: railTiles.habits ? (
-          <RailFrame
-            label="habits"
-            hue={hueOf(dominant(habits.map((h) => h.projectId)))}
-            pct={ratio(habitsKept, haHabits.length)}
-          >
-            {railTiles.habits}
-          </RailFrame>
-        ) : null,
-        week: weekCard ? (
-          <RailFrame
-            label="week"
-            hue={hueOf(
-              dominant(week.flatMap((w) => w.tasks.map((t) => t.projectId)))
-            )}
-            pct={ratio(totals.done, totals.tasks)}
-          >
-            {railTiles.week}
-          </RailFrame>
-        ) : null,
+        // habits live on their own cards now, and the week has its own tab:
+        // neither is repeated on Today
+        habits: null,
+        week: null,
         schedule: (
           <RailFrame
             label="schedule"
@@ -987,6 +982,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
         />
         <div className="hd-titlebox">
           <h1 className="hd-title-h1">{dateLine}</h1>
+          {v2day ? <DayCount done={stats.done} total={stats.total} /> : null}
           {blocks.weather ? (
             <span className="ha-dk-wx">
               <HaScope>
@@ -1041,6 +1037,12 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
                     >
                       {closedDay ? allDoneNode : nowNode}
                     </div>
+                  ) : null}
+                  {!firstReplanHold && missed.length ? (
+                    <MissedLine
+                      count={missed.length}
+                      onReschedule={() => fillFreeTime()}
+                    />
                   ) : null}
                   <div className="hv2-aux">{aux}</div>
                 </>
@@ -1166,7 +1168,33 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
 
                       {taskView.overdueFirst && !v2 ? lateFold : null}
 
-                      {sections.map(([name, list]) => (
+                      {v2 ? (
+                        <>
+                          {chrono.timed.length ? (
+                            <div className="hv2-list" data-hv2-list="">
+                              <Capped
+                                list={chrono.timed}
+                                render={(t) => row(t)}
+                              />
+                            </div>
+                          ) : null}
+                          {chrono.anytime.length ? (
+                            <Fold
+                              title="Anytime"
+                              count={chrono.anytime.length}
+                              open={fold.anytimeOpen === true}
+                              onToggle={flip("anytimeOpen")}
+                            >
+                              <Capped
+                                list={chrono.anytime}
+                                render={(t) => row(t)}
+                              />
+                            </Fold>
+                          ) : null}
+                        </>
+                      ) : null}
+
+                      {(v2 ? [] : sections).map(([name, list]) => (
                         <Fold
                           key={name}
                           title={name}
@@ -1217,11 +1245,13 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
                           <Capped list={doneToday} render={(t) => row(t)} />
                         </Fold>
                       ) : null}
-                      <NotesLine
-                        has={dailyNote.exists}
-                        busy={dailyNote.busy}
-                        onOpen={() => void openNote()}
-                      />
+                      {v2 ? null : (
+                        <NotesLine
+                          has={dailyNote.exists}
+                          busy={dailyNote.busy}
+                          onOpen={() => void openNote()}
+                        />
+                      )}
                     </>
                   )}
                 </div>

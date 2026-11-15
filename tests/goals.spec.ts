@@ -49,8 +49,12 @@ test.describe("Goals", () => {
     // the progress instead of `check()`, which demands an instant state change.
     await task.getByRole("checkbox").click();
     await expect(panel.locator("[data-gl-percent]")).toHaveText("100%");
+    // Goal cards (`habits_cards_v1`) carry the progress on `[data-gl-card]`;
+    // the older rows on `[data-gl-goal]`. Either way the goal says "1 of 1 task".
     await expect(
-      page.locator("[data-gl-goal]", { hasText: "Run 10k" })
+      page
+        .locator("[data-gl-card], [data-gl-goal]", { hasText: "Run 10k" })
+        .first()
     ).toContainText("1 of 1 task");
   });
 

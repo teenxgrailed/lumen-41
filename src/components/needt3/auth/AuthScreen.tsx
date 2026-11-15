@@ -43,6 +43,7 @@ import {
   type AuthMode,
   MORE_SIGN_IN_WAYS_LABEL,
   WAITLIST,
+  WRONG_PAIR_HELP,
   mailProblem,
   mailProblemText,
   oauthButtonLabel,
@@ -61,7 +62,7 @@ import {
   useAuthFields,
   useAuthSteps,
 } from "./use-auth-fields";
-import { useEmailCodeFlow } from "./use-email-code-flow";
+import { useCodeInstead, useEmailCodeFlow } from "./use-email-code-flow";
 
 export type { AuthMode } from "./auth-logic";
 
@@ -405,6 +406,12 @@ export function AuthScreen({
     onNeedAge: () => onMode("signup"),
     onDone,
     offline,
+  });
+  const codeInstead = useCodeInstead({
+    codeMode,
+    flow: codeFlow,
+    setUsePassword: emailCode?.setUsePassword,
+    clearRefusal: () => setRefused(null),
   });
 
   React.useEffect(() => {
@@ -827,6 +834,20 @@ export function AuthScreen({
             <span className="refusal auth-signin-row-3" role="alert">
               <LuCircleAlert size={13} />
               {refusal}
+            </span>
+          ) : null}
+          {refused?.reason === "wrong" && emailCode && !signup ? (
+            <span className="auth-recover-resend" data-auth-wrong-help>
+              {WRONG_PAIR_HELP.lead}{" "}
+              <button
+                type="button"
+                className="ax-link auth-forgot"
+                data-auth-wrong-code
+                disabled={offline}
+                onClick={codeInstead}
+              >
+                {WRONG_PAIR_HELP.action}
+              </button>
             </span>
           ) : null}
           {!signup && withPass ? aside : null}
