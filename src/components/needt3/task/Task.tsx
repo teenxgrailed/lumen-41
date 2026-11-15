@@ -56,6 +56,8 @@ export interface TaskProps {
   phase?: "strike" | "collapse" | "out";
   back?: boolean;
   hideProject?: boolean;
+  /** The due chip is left out: on Today a task due today says nothing new. */
+  hideDue?: boolean;
   /** The first step is drawn elsewhere (a project's flow puts it on top). */
   hideEntry?: boolean;
   /** The steps are drawn elsewhere (a project's flow): the row keeps its count only. */
@@ -126,6 +128,7 @@ function TaskContent(props: TaskProps) {
   const v = {
     ...shown,
     minutes: details.duration ? shown.minutes : null,
+    due: props.hideDue && !props.late ? null : shown.due,
   };
   // The steps under the row follow the task view's `subtasks` option; a
   // project page draws them itself and keeps only the count here.

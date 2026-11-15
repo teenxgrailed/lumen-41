@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { prisma } from "@/lib/prisma";
 
+import { openOverdue } from "./helpers/home";
 import { type V3User, createV3User, signInAs } from "./helpers/v3-user";
 
 /*
@@ -101,6 +102,7 @@ test("Home: a ticked Overdue row pops, is struck, then folds away and the list c
   await seed(user, "Renew the passport", 1);
 
   await page.goto("/today");
+  await openOverdue(page);
   const row = rowOf(page, "Pay the invoice");
   await expect(row).toBeVisible();
   const others = rowOf(page, "Call the landlord");
@@ -164,6 +166,7 @@ test("Home: Undo inside the window keeps the row", async ({ page }) => {
   await seed(user, "Water the plants", 1);
 
   await page.goto("/today");
+  await openOverdue(page);
   await rowOf(page, "Book the dentist")
     .getByRole("button", { name: "Mark done", exact: true })
     .first()
@@ -193,6 +196,7 @@ test("Home: with Reduce Motion the row leaves with no exit", async ({
   await seed(user, "Pick up the keys", 1);
 
   await page.goto("/today");
+  await openOverdue(page);
   await rowOf(page, "Send the parcel")
     .getByRole("button", { name: "Mark done", exact: true })
     .first()

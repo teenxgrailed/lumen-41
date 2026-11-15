@@ -9,25 +9,25 @@ import { type ScheduleItem, hourAt } from "./derive";
  * The rule, in this order (first that has a candidate wins):
  *  0. `highlight` - today's highlight, when set and not done: the person's own
  *                one thing becomes "Now". Skip falls through to the rest;
- *  1. `now`    - something timed is running right now (an event or a placed
- *                task whose [start, start + length) holds the clock);
- *  2. `next`   - the next timed task later today, or an event that starts
- *                within the hour (a later event does not outrank open tasks);
- *  3. `anytime`- today's first open task with no hour;
- *  4. `now`    - a task placed earlier today that is still open (its hour
- *                passed); today still outranks overdue;
- *  5. `late`   - the oldest overdue task (it outranks an event that is more
- *                than an hour away, but never today's own open tasks);
- *  6. `next`   - a later event today, only when nothing else is open.
- * Skip works on any pick (task or event): the key goes into the skipped list
- * and the card moves on; an event's key is scoped to the day.
+ *  1. `now`/`next` - a calendar event that is running, or starts within
+ *                `SOON_MINUTES` (15);
+ *  2. `now`    - the task in the current time slot: a placed task whose
+ *                [start, start + length) holds the clock;
+ *  3. `next`   - the next scheduled item today: the nearest timed task or
+ *                event after now;
+ *  4. `anytime`- today's first open task with no hour;
+ *  5. `now`    - a task placed earlier today that is still open (its hour
+ *                passed), the last one.
+ * An overdue task from a past day never takes the card: it has its own row
+ * under the day. Skip works on any pick (task or event): the key goes into
+ * the skipped list and the card moves on; an event's key is scoped to the day.
  * Open tasks only; a done item is never the pick.
  */
 
-/** An event this close counts as "next" ahead of open tasks. */
-export const SOON_HOURS = 1;
+/** An event this close (minutes) counts as "next" ahead of the current slot. */
+export const SOON_MINUTES = 15;
 
-export type NowKind = "highlight" | "now" | "next" | "anytime" | "late";
+export type NowKind = "highlight" | "now" | "next" | "anytime";
 
 export interface NowPick {
   kind: NowKind;
@@ -71,8 +71,6 @@ interface PickNowInput {
   schedule: readonly ScheduleItem[];
   /** Today's open tasks, in the day's order. */
   dayOpen: readonly V3Task[];
-  /** Open overdue tasks, oldest first. */
-  lateOpen: readonly V3Task[];
   nowHour: number;
   today: string;
   skipped?: readonly string[];
@@ -94,7 +92,6 @@ function pickOnce(o: PickNowInput): NowPick | null {
       at: hourAt(hl, o.today),
       canSkip:
         o.dayOpen.some((t) => t.id !== hl.id) ||
-        o.lateOpen.some((t) => t.id !== hl.id) ||
         o.schedule.some((i) => i.event && i.at + i.len / 60 > o.nowHour),
       skipKey: hl.id,
     };
@@ -102,9 +99,9 @@ function pickOnce(o: PickNowInput): NowPick | null {
   const byId = new Map(o.dayOpen.map((t) => [t.id, t]));
   const skippable = (id: string | null) => !!id && skipped.includes(id);
 
-  // 1-2: the timed day. A task row counts only while it is in today's open
-  // list (a task just ticked stays there until its row folds, so the card
-  // holds still); an event is always a candidate.
+  // The timed day. A task row counts only while it is in today's open list (a
+  // task just ticked stays there until its row folds, so the card holds
+  // still); an event is always a candidate.
   const timed: Slot[] = [];
   for (const it of o.schedule) {
     if (it.event) {
@@ -118,26 +115,26 @@ function pickOnce(o: PickNowInput): NowPick | null {
   }
   timed.sort((a, b) => a.at - b.at);
 
-  const running = timed.find(
-    (s) => s.at <= o.nowHour && o.nowHour < s.at + s.len / 60
+  const soon = SOON_MINUTES / 60;
+  const runs = (s: Slot) => s.at <= o.nowHour && o.nowHour < s.at + s.len / 60;
+  // A calendar event wins the card while it runs or when it starts within 15
+  // minutes (the earliest of those); then the task in the current slot; then
+  // the next timed item, whatever it is.
+  const eventNow = timed.find(
+    (s) =>
+      s.event && (runs(s) || (s.at > o.nowHour && s.at - o.nowHour <= soon))
   );
-  // An event wins the card only while it runs or when it starts within the
-  // hour; a later one (an evening dinner) must not hide today's open tasks.
-  const ahead = timed.find(
-    (s) => s.at > o.nowHour && (s.task || s.at - o.nowHour <= SOON_HOURS)
-  );
-  const laterEvent = timed.find((s) => s.event && s.at > o.nowHour);
+  const taskNow = timed.find((s) => s.task && runs(s));
+  const ahead = timed.find((s) => s.at > o.nowHour);
 
   const untimed = o.dayOpen.filter(
     (t) => hourAt(t, o.today) == null && !skippable(t.id)
   );
-  const late = o.lateOpen.filter((t) => !skippable(t.id));
 
   const pick = (kind: NowKind, s: Slot): NowPick => {
     const others =
       timed.filter((x) => x !== s).length +
-      untimed.filter((t) => t !== s.task).length +
-      late.filter((t) => t !== s.task).length;
+      untimed.filter((t) => t !== s.task).length;
     return {
       kind,
       task: s.task,
@@ -148,7 +145,9 @@ function pickOnce(o: PickNowInput): NowPick | null {
     };
   };
 
-  if (running) return pick("now", running);
+  if (eventNow)
+    return pick(eventNow.at <= o.nowHour ? "now" : "next", eventNow);
+  if (taskNow) return pick("now", taskNow);
   if (ahead) return pick("next", ahead);
   if (untimed[0]) {
     return {
@@ -156,32 +155,20 @@ function pickOnce(o: PickNowInput): NowPick | null {
       task: untimed[0],
       event: null,
       at: null,
-      canSkip: untimed.length + late.length + timed.length > 1,
+      canSkip: untimed.length > 1,
       skipKey: untimed[0].id,
     };
   }
-  // A task placed earlier today that is still open (its hour passed): today
-  // still outranks overdue, so it is "now" in the only sense left.
+  // A task placed earlier today that is still open (its hour passed): it is
+  // today's own, so it is "now" in the only sense left.
   const missed = [...timed].reverse().find((s) => s.task);
   if (missed) return pick("now", missed);
-  // Overdue outranks an event that is more than an hour away.
-  if (late[0]) {
-    return {
-      kind: "late",
-      task: late[0],
-      event: null,
-      at: null,
-      canSkip: late.length + timed.length > 1,
-      skipKey: late[0].id,
-    };
-  }
-  if (laterEvent) return pick("next", laterEvent);
   return null;
 }
 
 /**
  * The Now card's own time chip: the kicker of a "next" pick already says
- * "Next \u00b7 13:00", so the card must not repeat it.
+ * "Next · 13:00", so the card must not repeat it.
  */
 export const nowCardTime = <T extends { time?: string }>(
   card: T,
@@ -192,7 +179,6 @@ export const nowCardTime = <T extends { time?: string }>(
 export function nowKicker(p: NowPick): string {
   if (p.kind === "highlight") return "Highlight";
   if (p.kind === "now") return "Now";
-  if (p.kind === "late") return "Overdue";
   if (p.kind === "next" && p.at != null) return `Next · ${hhmm(p.at)}`;
   return "Next";
 }
@@ -204,3 +190,28 @@ export const hhmm = (h: number) => {
 
 /** Overdue row copy: "3 overdue" (one count, one word). */
 export const overdueLabel = (n: number) => `${n} overdue`;
+
+/** A placed task with no estimate is read as half an hour long. */
+const DEFAULT_LEN_MIN = 30;
+
+/**
+ * Today's open tasks whose time slot has already passed and that are not
+ * done ("morning tasks past and not done"). A fixed-time task stays where it
+ * is, so it is not offered a new slot. Pure: `nowHour` is the person's clock.
+ */
+export function missedToday(
+  dayOpen: readonly V3Task[],
+  today: string,
+  nowHour: number
+): V3Task[] {
+  return dayOpen.filter((t) => {
+    if (t.done || t.isFixed) return false;
+    const at = hourAt(t, today);
+    if (at == null) return false;
+    return at + (t.estimatedMinutes || DEFAULT_LEN_MIN) / 60 <= nowHour;
+  });
+}
+
+/** The line over them: "2 tasks from earlier today". */
+export const missedLabel = (n: number) =>
+  `${n} ${n === 1 ? "task" : "tasks"} from earlier today`;
