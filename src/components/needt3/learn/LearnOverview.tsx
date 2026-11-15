@@ -21,7 +21,7 @@ import {
 } from "@/lib/needt3/learn";
 import { notify } from "@/lib/notifications";
 
-import { LearnFolder } from "./LearnFolder";
+import { Folder } from "../ui/Folder";
 import { LearnFrame } from "./LearnFrame";
 import { LearnChips, LearnGlyph, hueVar } from "./parts";
 
@@ -150,7 +150,7 @@ function TopicFolder({
       style={{ animationDelay: `${index * 55}ms` }}
       data-ln-topic={topic.id}
     >
-      <LearnFolder
+      <Folder
         label={topic.title}
         count={open.length}
         hue={hueVar(topic.color)}

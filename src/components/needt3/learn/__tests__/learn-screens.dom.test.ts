@@ -39,7 +39,7 @@ describe("overview", () => {
     expect(html).toContain(">Learning</h1>");
     expect(html).toContain("data-ln-samples");
     for (const t of ["Deutsch", "Design", "Finance"]) expect(html).toContain(t);
-    expect(html.match(/class="ln-folder"/g)).toHaveLength(3);
+    expect(html.match(/class="nx-folder"/g)).toHaveLength(3);
     expect(html).toContain('data-ln-make-mine="deutsch"');
     expect(html).toContain("New topic");
     // At most three sheets stick out of a folder.
@@ -72,7 +72,7 @@ describe("overview", () => {
   it("draws nothing but the title while loading", () => {
     const html = overview(undefined);
     expect(html).toContain("Learning");
-    expect(html).not.toContain("ln-folder");
+    expect(html).not.toContain("nx-folder");
   });
 });
 
