@@ -483,6 +483,11 @@ export function V3SignInRoute({
           dest.current = newAccount.current
             ? ONBOARDING_RESUME_PATH
             : safeCallbackUrl;
+          /* Leave from here, as One Tap does: the code form's own `onDone`
+             is skipped when its screen was swapped (phone/desktop face) or
+             unmounted while the request was in flight, which left a fresh
+             sign-in form on a session that already existed. */
+          leave();
           return "ok";
         } catch (e) {
           void logger.error(
@@ -494,7 +499,7 @@ export function V3SignInRoute({
         }
       },
     }),
-    [usePassword, safeCallbackUrl]
+    [usePassword, safeCallbackUrl, leave]
   );
 
   /* Opened by the iOS app's sign-in sheet with `?provider=`: go straight to

@@ -36,6 +36,9 @@ export function useEmailCodeFlow(input: {
   const [touched, setTouched] = React.useState(false);
   const [resendIn, setResendIn] = React.useState(0);
   const alive = React.useRef(true);
+  /* A paste or autofill can fire the sixth digit twice before `busy` renders;
+     the code is single-use, so the second request would only fail. */
+  const verifying = React.useRef(false);
   React.useEffect(() => {
     alive.current = true;
     return () => {
@@ -75,7 +78,8 @@ export function useEmailCodeFlow(input: {
 
   const verify = React.useCallback(
     async (value: string) => {
-      if (busy || offline || !codeComplete(value)) return;
+      if (busy || offline || verifying.current || !codeComplete(value)) return;
+      verifying.current = true;
       setMessage(null);
       setNetErr(false);
       setBusy(true);
@@ -84,11 +88,13 @@ export function useEmailCodeFlow(input: {
         code: value,
         ageConfirmed,
       });
-      if (!alive.current) return;
+      verifying.current = false;
+      // A session exists: leaving must not depend on this screen being alive.
       if (answer === "ok") {
         onDone();
         return;
       }
+      if (!alive.current) return;
       setBusy(false);
       if (answer === "age") {
         onNeedAge();
