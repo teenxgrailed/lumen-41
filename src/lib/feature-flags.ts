@@ -6,6 +6,7 @@ import {
   AGENT_HUB,
   AI_CHATGPT_PLAN,
   BUDGET_MODULE,
+  FOLDERS_V1,
   HABITS_CARDS_V1,
   HABITS_QUIT,
   HABIT_EVENING_PUSH,
@@ -80,6 +81,19 @@ export async function habitsCardsEnabled(userId: string | null | undefined) {
   if (!userId) return false;
   try {
     return await isFeatureEnabled(HABITS_CARDS_V1, userId);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Projects as folders (`FOLDERS_V1`). Fails closed: no user, or a flag read
+ * that throws, is off, and Projects keeps its cards.
+ */
+export async function foldersV1Enabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return await isFeatureEnabled(FOLDERS_V1, userId);
   } catch {
     return false;
   }

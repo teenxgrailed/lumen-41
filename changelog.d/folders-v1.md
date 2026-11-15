@@ -1,0 +1,1 @@
+- Projects can show as folders: the next three open tasks stick out of the top, with the open count under the name (behind the `folders_v1` flag).

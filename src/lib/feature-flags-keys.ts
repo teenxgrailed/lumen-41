@@ -137,6 +137,13 @@ export const HABITS_CARDS_V1 = "habits_cards_v1";
 export const HABIT_EVENING_PUSH = "habit_evening_push";
 
 /**
+ * Projects drawn as frosted folders with the next tasks sticking out
+ * (`Folder`, `ProjectFolders`). Read on the server in `/projects` and passed
+ * down; an unreadable flag is off, so the old project cards stay.
+ */
+export const FOLDERS_V1 = "folders_v1";
+
+/**
  * Home ("Today") in three blocks: one Now card, the day list, overdue as one
  * row, and the right rail in the project-card frame. On at 100% for every
  * account since 15.11.2026 (migration 20261115160000_home_v2_for_everyone);
@@ -167,6 +174,7 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
     "Home in three blocks: Now card, day list, overdue row, framed rail.",
   [BUDGET_PRO_ACCESS]:
     "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",
+  [FOLDERS_V1]: "Projects as folders with the next tasks sticking out.",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>
