@@ -1,0 +1,1 @@
+- Password sign-in takes the same time whether or not the email has an account, and "Resend confirmation" on the sign-in page mails the address you typed even if an older session cookie is still around.
