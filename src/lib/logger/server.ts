@@ -2,7 +2,6 @@ import { addDays, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 import { sanitizeLogEntry } from "./sanitize";
-
 import {
   LogBatchResponse,
   LogDestination,
