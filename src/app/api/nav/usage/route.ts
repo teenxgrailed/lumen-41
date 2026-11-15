@@ -62,8 +62,22 @@ export async function POST(request: NextRequest) {
   try {
     const patch = await prisma.$transaction(async (tx) => {
       // The row is locked so two opens in a row both count.
-      const rows = await tx.$queryRaw<{ prefs: unknown }[]>`
+      const lock = () => tx.$queryRaw<{ prefs: unknown }[]>`
         SELECT "prefs" FROM "UserSettings" WHERE "userId" = ${userId} FOR UPDATE`;
+      let rows = await lock();
+      if (!rows.length) {
+        // No settings row yet (as PATCH /api/user-settings would make it).
+        await tx.userSettings.upsert({
+          where: { userId },
+          update: {},
+          create: {
+            userId,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            prefs: {},
+          },
+        });
+        rows = await lock();
+      }
       if (!rows.length) return null;
       const next = afterOpen(rows[0].prefs, place, newDate());
       const put = JSON.stringify(next);

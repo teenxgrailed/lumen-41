@@ -65,6 +65,9 @@ export function useSidebarPrefs(): [
       ...next(prefsFromRanked(ranked, stored)),
       places: stored.places,
     };
+    // Nothing changed (a fold toggled twice, a re-sent layout): no write.
+    if (JSON.stringify(value) === JSON.stringify(stored))
+      return Promise.resolve(undefined);
     const saved = setPref("sidebar", value);
     // A drag reorder wants to hear a rejection (it puts the old order back).
     return opts?.rethrow ? saved : saved.catch(() => undefined);

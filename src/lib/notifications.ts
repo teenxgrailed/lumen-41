@@ -41,8 +41,9 @@ export type NotificationOptions = {
    * it, the same as it does for its own acts. */
   action?: { label: string; onClick: () => void };
   /**
-   * Several buttons, first one primary. The island draws them all; the toast
-   * pill has room for one, so it shows the first. Wins over `action`.
+   * Several buttons, first one primary. Wins over `action`. The island draws
+   * them all; on the toast (the default surface) only the FIRST action shows,
+   * so pass `surface: "island"` when every button matters.
    */
   actions?: readonly { label: string; onClick: () => void }[];
   /**

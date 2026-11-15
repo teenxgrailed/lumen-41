@@ -20,8 +20,12 @@ import {
   rankPlaces,
   rankedPlaces,
   recordOpen,
+  repin,
+  savedLayouts,
+  seedOrder,
   togglePin,
   undoReorderPatch,
+  withMailRule,
 } from "../nav-rank";
 
 const NOW = new Date("2026-11-15T12:00:00Z");
@@ -294,5 +298,140 @@ describe("pickTip", () => {
     };
     expect(pickTip(prefs, "2026-11-15")).toBeNull();
     expect(pickTip(prefs, "2026-11-16")?.kind).toBe("tip");
+  });
+});
+
+describe("saved layouts seed the order (no navOrder yet)", () => {
+  const desktopTiles = (prefs: unknown) =>
+    prefsFromRanked(rankedPlaces(prefs), DEFAULT_PREFS)
+      .places.filter((p) => p.on)
+      .map((p) => p.id);
+
+  it("keeps a saved sidebar: its tiles, in order; hidden places off the tiles", () => {
+    const prefs = {
+      sidebar: {
+        places: [
+          { id: "habits", on: true },
+          { id: "goals", on: true },
+          { id: "tasks", on: true },
+          { id: "today", on: false },
+          { id: "docs", on: false },
+          { id: "calendar", on: false },
+        ],
+      },
+    };
+    const tiles = desktopTiles(prefs);
+    expect(tiles.slice(0, 3)).toEqual(["habits", "goals", "tasks"]);
+    expect(tiles).not.toContain("today");
+    expect(tiles).not.toContain("docs");
+    expect(tiles).not.toContain("calendar");
+    // the hidden ones come last, in their saved order
+    expect(seedOrder(prefs).slice(-3)).toEqual(["today", "docs", "calendar"]);
+  });
+
+  it("keeps the phone's saved three in the pill", () => {
+    const prefs = { mobileTiles: ["tasks", "boards", "ask"] };
+    expect(menuTilesRanked(rankedPlaces(prefs))).toEqual([
+      "tasks",
+      "moodboards",
+      "ask",
+    ]);
+  });
+
+  it("keeps both when both are saved", () => {
+    const prefs = {
+      mobileTiles: ["home", "calendar", "ask"],
+      sidebar: {
+        places: [
+          { id: "today", on: true },
+          { id: "projects", on: true },
+          { id: "calendar", on: true },
+          { id: "mail", on: true },
+          { id: "habits", on: true },
+          { id: "docs", on: false },
+        ],
+      },
+    };
+    expect(menuTilesRanked(rankedPlaces(prefs))).toEqual([
+      "home",
+      "calendar",
+      "ask",
+    ]);
+    expect([...desktopTiles(prefs)].sort()).toEqual(
+      ["today", "projects", "calendar", "mail", "habits"].sort()
+    );
+  });
+
+  it("a desktop-hidden place does not lead the pill", () => {
+    const prefs = {
+      mobileTiles: ["docs", "tasks", "ask"],
+      sidebar: { places: [{ id: "docs", on: false }] },
+    };
+    expect(seedOrder(prefs).slice(0, 2)).toEqual(["tasks", "ask"]);
+    expect(desktopTiles(prefs)).not.toContain("docs");
+  });
+
+  it("reads onboarding's sidebarTiles when no layout was saved", () => {
+    const prefs = { sidebarTiles: ["goals", "habits", "tasks"] };
+    expect(desktopTiles(prefs).slice(0, 3)).toEqual([
+      "goals",
+      "habits",
+      "tasks",
+    ]);
+  });
+
+  it("ignores a short or broken saved list", () => {
+    expect(savedLayouts({ mobileTiles: ["tasks"] }).pill).toEqual([]);
+    expect(seedOrder({ mobileTiles: "x", sidebar: 3 })).toEqual(BASE);
+  });
+
+  it("an applied order wins over the saved layouts", () => {
+    const prefs = {
+      navOrder: BASE,
+      mobileTiles: ["tasks", "habits", "ask"],
+    };
+    expect(currentOrder(prefs)).toEqual(BASE);
+  });
+});
+
+describe("pins hold when a pending order is applied", () => {
+  it("repin puts pinned places back at their current index", () => {
+    const current: NavId[] = BASE.slice();
+    const ranked: NavId[] = ["habits", ...BASE.filter((id) => id !== "habits")];
+    const out = repin(ranked, current, ["today"]);
+    expect(out[0]).toBe("today");
+    expect(out[1]).toBe("habits");
+    expect(new Set(out).size).toBe(BASE.length);
+  });
+
+  it("a pin made after the ranking ran still holds", () => {
+    const pending = {
+      order: ["habits", ...BASE.filter((id) => id !== "habits")],
+      moved: "habits",
+      at: NOW.toISOString(),
+    };
+    const prefs = { navOrderPending: pending, navPinned: ["today"] };
+    expect(effectiveOrder(prefs)[0]).toBe("today");
+    const patch = applyPendingPatch(prefs, "2026-11-15")!;
+    expect((patch.navOrder as NavId[])[0]).toBe("today");
+    expect((patch.navOrder as NavId[])[1]).toBe("habits");
+  });
+});
+
+describe("the Free Mailbox rule moves Mailbox alone", () => {
+  it("free and paid differ only in where Mailbox sits", () => {
+    const order: NavId[] = ["mail", ...BASE.filter((id) => id !== "mail")];
+    const free = withMailRule(order, [], true);
+    const paid = withMailRule(order, [], false);
+    expect(paid).toEqual(order);
+    expect(free.indexOf("mail")).toBe(5);
+    expect(free.filter((id) => id !== "mail")).toEqual(
+      paid.filter((id) => id !== "mail")
+    );
+  });
+
+  it("an unknown plan counts as paid", () => {
+    const prefs = { navOrder: ["mail"] };
+    expect(rankedPlaces(prefs)[0]).toBe("mail");
   });
 });

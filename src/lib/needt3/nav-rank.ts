@@ -7,9 +7,12 @@
  * Everything lives in `UserSettings.prefs`, so the order, the pins and the
  * counts are readable and writable through `/api/user-settings` as well:
  *
+ * One day basis everywhere (counts, tips, the weekly ranking): the UTC day.
+ *
  *   navUsage         { "YYYY-MM-DD": { place: opens } }, the last 14 days
  *   navPinned        place ids that never move
- *   navOrder         the applied order (absent: the order from onboarding)
+ *   navOrder         the applied order (absent: the saved layouts, else the
+ *                    order from onboarding; see `seedOrder`)
  *   navOrderPending  { order, moved, at }: the next order, applied on the
  *                    next fresh load of the app, never while it is open
  *   navOrderPrev     the order before the last applied change (Undo)
@@ -108,14 +111,22 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
 
-/** "YYYY-MM-DD" of an instant, in UTC (the server's day for counts). */
+/** "YYYY-MM-DD" of an instant, in UTC: the one day basis of this module. */
 export function utcDay(at: Date): string {
   return at.toISOString().slice(0, 10);
 }
 
+/** The UTC day of now. */
+export const utcToday = () => utcDay(newDate());
+
 function dayMinus(day: string, n: number): string {
-  const t = Date.parse(`${day}T00:00:00Z`) - n * 86_400_000;
-  return newDate(t).toISOString().slice(0, 10);
+  const t = newDate(`${day}T00:00:00Z`).getTime() - n * 86_400_000;
+  return utcDay(newDate(t));
+}
+
+/** Milliseconds of an ISO string, or NaN. */
+function msOf(iso: unknown): number {
+  return typeof iso === "string" ? newDate(iso).getTime() : NaN;
 }
 
 /** Known ids once each, in order, then every missing id in `fill` order. */
@@ -190,11 +201,112 @@ export function pendingFrom(prefs: unknown): NavPending | null {
   };
 }
 
-/** The order in use: the applied one, else the one from onboarding. */
-export function currentOrder(prefs: unknown): NavId[] {
+/** Saved spellings of the phone (`mobileTiles`) as ranked ids. */
+const SAVED_ID: Readonly<Record<string, NavId>> = {
+  today: "today",
+  home: "today",
+  boards: "moodboards",
+  ...Object.fromEntries(NAV_IDS.map((id) => [id, id])),
+};
+
+/** Places the phone pill may hold (never Goals, Templates, Shared, Trash). */
+export const PILL_NAV: readonly NavId[] = [
+  "today",
+  "calendar",
+  "tasks",
+  "docs",
+  "mail",
+  "habits",
+  "moodboards",
+  "projects",
+  "ask",
+];
+
+/** Places the desktop sidebar has as tiles (Ask Needt is not one). */
+export const SIDEBAR_NAV: readonly NavId[] = NAV_IDS.filter(
+  (id) => id !== "ask"
+);
+
+/**
+ * The person's saved layouts from before the menu arranged itself: the
+ * desktop's `prefs.sidebar.places` (order and on/off; else onboarding's
+ * `sidebarTiles`, the first five on) and the phone's `prefs.mobileTiles`.
+ */
+export function savedLayouts(prefs: unknown): {
+  on: NavId[];
+  off: NavId[];
+  pill: NavId[];
+} {
+  const p = isRecord(prefs) ? prefs : {};
+  const on: NavId[] = [];
+  const off: NavId[] = [];
+  const side = isRecord(p.sidebar) ? p.sidebar.places : null;
+  if (Array.isArray(side)) {
+    for (const row of side) {
+      if (!isRecord(row)) continue;
+      const id = row.id;
+      if (!isNavId(id) || id === "ask" || on.includes(id) || off.includes(id))
+        continue;
+      (row.on === true ? on : off).push(id);
+    }
+  } else if (Array.isArray(p.sidebarTiles)) {
+    for (const v of p.sidebarTiles)
+      if (isNavId(v) && v !== "ask" && !on.includes(v) && on.length < 5)
+        on.push(v);
+  }
+  const pill: NavId[] = [];
+  if (Array.isArray(p.mobileTiles))
+    for (const v of p.mobileTiles) {
+      const id = typeof v === "string" ? SAVED_ID[v] : undefined;
+      if (id && PILL_NAV.includes(id) && !pill.includes(id)) pill.push(id);
+    }
+  return { on, off, pill: pill.length >= 3 ? pill.slice(0, 3) : [] };
+}
+
+/**
+ * The starting order while nothing has been applied yet: explicit saved
+ * choices first, then onboarding's order. The phone's three lead (a place
+ * the desktop hid from its tiles is left out of that lead), then the
+ * desktop's tiles in their saved order, then the rest; places the desktop
+ * hid from its tiles come last, so they stay off the tiles.
+ */
+export function seedOrder(prefs: unknown): NavId[] {
   const p = isRecord(prefs) ? prefs : {};
   const base = baseOrder(p.uses);
-  return Array.isArray(p.navOrder) ? normalizeOrder(p.navOrder, base) : base;
+  const { on, off, pill } = savedLayouts(p);
+  if (!on.length && !off.length && !pill.length) return base;
+  const lead = pill.filter((id) => !off.includes(id));
+  const mid = on.filter((id) => !lead.includes(id));
+  const tail = off.filter((id) => !lead.includes(id));
+  const rest = base.filter(
+    (id) => !lead.includes(id) && !mid.includes(id) && !tail.includes(id)
+  );
+  return normalizeOrder([...lead, ...mid, ...rest, ...tail], base);
+}
+
+/** The order in use: the applied one, else the seed (`seedOrder`). */
+export function currentOrder(prefs: unknown): NavId[] {
+  const p = isRecord(prefs) ? prefs : {};
+  const seed = seedOrder(p);
+  return Array.isArray(p.navOrder) ? normalizeOrder(p.navOrder, seed) : seed;
+}
+
+/**
+ * `order` with every pinned place put back at its index in `current`; the
+ * others fill the remaining slots in `order`'s order.
+ */
+export function repin(
+  order: readonly NavId[],
+  current: readonly NavId[],
+  pinned: readonly NavId[]
+): NavId[] {
+  const cur = normalizeOrder(current);
+  const pins = pinned.filter((id) => cur.includes(id));
+  const out: (NavId | null)[] = cur.map((id) =>
+    pins.includes(id) ? id : null
+  );
+  const queue = normalizeOrder(order).filter((id) => !pins.includes(id));
+  return out.map((id) => id ?? (queue.shift() as NavId));
 }
 
 /** One more open of `id` on `day`; days older than the window drop out. */
@@ -292,8 +404,7 @@ export function afterOpen(
   const p = isRecord(prefs) ? prefs : {};
   const usage = recordOpen(usageFrom(p), id, utcDay(now));
   const patch: Record<string, unknown> = { navUsage: usage };
-  const last =
-    typeof p.navRankedAt === "string" ? Date.parse(p.navRankedAt) : NaN;
+  const last = msOf(p.navRankedAt);
   if (!Number.isFinite(last)) {
     // The first week only counts.
     patch.navRankedAt = now.toISOString();
@@ -314,7 +425,10 @@ export function afterOpen(
  * (the client writes it on the first load that sees it).
  */
 export function effectiveOrder(prefs: unknown): NavId[] {
-  return pendingFrom(prefs)?.order ?? currentOrder(prefs);
+  const pending = pendingFrom(prefs);
+  const cur = currentOrder(prefs);
+  // Pins set after the ranking ran still hold their slots.
+  return pending ? repin(pending.order, cur, pinnedFrom(prefs)) : cur;
 }
 
 /** The prefs patch that applies a pending order, with its tip. Null: none. */
@@ -325,7 +439,7 @@ export function applyPendingPatch(
   const pending = pendingFrom(prefs);
   if (!pending) return null;
   return {
-    navOrder: pending.order,
+    navOrder: effectiveOrder(prefs),
     navOrderPrev: currentOrder(prefs),
     navOrderPending: null,
     navReorderTip: { moved: pending.moved, day },
@@ -356,20 +470,37 @@ export function togglePin(prefs: unknown, id: NavId): NavId[] {
 }
 
 /**
- * The ranked list both surfaces read. Free has no mailbox, so on Free an
- * unpinned Mailbox is kept out of the first five (the desktop's tiles).
+ * Free has no mailbox, so on Free an unpinned Mailbox is kept out of the
+ * first five (the desktop's tiles). Only Mailbox moves, so a plan that
+ * changes mid-session moves nothing else.
+ */
+export function withMailRule(
+  order: readonly NavId[],
+  pinned: readonly NavId[],
+  free: boolean
+): NavId[] {
+  const out = order.slice();
+  if (!free || pinned.includes("mail")) return out;
+  const i = out.indexOf("mail");
+  if (i < 0 || i >= 5) return out;
+  out.splice(i, 1);
+  out.splice(5, 0, "mail");
+  return out;
+}
+
+/**
+ * The ranked list both surfaces read. A plan that is unknown or failed to
+ * load counts as paid (`free` false).
  */
 export function rankedPlaces(
   prefs: unknown,
   plan: { free?: boolean } = {}
 ): NavId[] {
-  const order = effectiveOrder(prefs);
-  if (!plan.free || pinnedFrom(prefs).includes("mail")) return order;
-  const i = order.indexOf("mail");
-  if (i < 0 || i >= 5) return order;
-  const next: NavId[] = order.filter((id) => id !== "mail");
-  next.splice(5, 0, "mail");
-  return next;
+  return withMailRule(
+    effectiveOrder(prefs),
+    pinnedFrom(prefs),
+    plan.free === true
+  );
 }
 
 /* ---------- tips ---------- */

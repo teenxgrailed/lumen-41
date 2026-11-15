@@ -4,16 +4,20 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
-import { newDate, toLocalDateKey } from "@/lib/date-utils";
+import { newDate } from "@/lib/date-utils";
+import { logger } from "@/lib/logger";
 import {
   type NavId,
   applyPendingPatch,
+  effectiveOrder,
   firstDayQuiet,
   pickTip,
   pinnedFrom,
   rankedPlaces,
   togglePin,
   undoReorderPatch,
+  utcToday,
+  withMailRule,
 } from "@/lib/needt3/nav-rank";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
@@ -22,15 +26,32 @@ import { sendJson } from "./core";
 import { usePlan } from "./plan";
 import { type V3Settings, useSetPrefs, useSettings } from "./settings";
 
+const LOG_SOURCE = "nav-rank";
+
+const errorText = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
 /* ---------- the order of this load ---------- */
 
 /*
- * The order is read once per load of the app and then held: a ranking that
- * lands while the app is open waits for the next fresh load, so nothing moves
- * under the person's finger. Only Undo changes it in place.
+ * The order is read once per load of the app (as soon as the settings are
+ * known) and then held: a ranking that lands while the app is open waits for
+ * the next fresh load, so nothing moves under the person's finger. Undo
+ * changes it in place, and a plan change moves Mailbox alone. Everything is
+ * kept per account, so signing in as someone else starts over.
  */
-let held: NavId[] | null = null;
-let heldFree: boolean | undefined;
+interface Held {
+  user: string;
+  /** The order before the Free Mailbox rule. */
+  base: NavId[];
+  pins: NavId[];
+  free: boolean;
+  order: NavId[];
+  applied: boolean;
+  tipped: boolean;
+}
+
+let state: Held | null = null;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 const subscribe = (l: () => void) => {
@@ -40,32 +61,58 @@ const subscribe = (l: () => void) => {
 
 /** Tests only. */
 export function resetHeldNavOrder() {
-  held = null;
-  heldFree = undefined;
-  applied = false;
-  tipped = false;
+  state = null;
+  lastOpen = null;
   emit();
 }
 
+function heldFor(
+  user: string,
+  prefs: Record<string, unknown>,
+  free: boolean
+): Held {
+  if (state && state.user === user) {
+    if (state.free !== free) {
+      // The plan changed mid-session: only Mailbox may move. No emit here:
+      // this runs during render, and every reader re-renders on the plan.
+      state = {
+        ...state,
+        free,
+        order: withMailRule(state.base, state.pins, free),
+      };
+    }
+    return state;
+  }
+  const base = effectiveOrder(prefs);
+  const pins = pinnedFrom(prefs);
+  state = {
+    user,
+    base,
+    pins,
+    free,
+    order: withMailRule(base, pins, free),
+    applied: false,
+    tipped: false,
+  };
+  return state;
+}
+
 /**
- * The ranked list both the phone pill and the desktop sidebar read. Until the
- * prefs and the plan are known it is the default order (not held).
+ * The ranked list both the phone pill and the desktop sidebar read. Held from
+ * the moment the settings load; until then it is the default order. A plan
+ * that is unknown or failed to load counts as paid.
  */
 export function useRankedPlaces(): NavId[] {
   const settings = useSettings();
   const plan = usePlan();
-  const snap = useSyncExternalStore(
+  useSyncExternalStore(
     subscribe,
-    () => held,
+    () => state,
     () => null
   );
-  const free = plan.data ? plan.data.kind === "free" : undefined;
-  if (!settings.data || free === undefined) return rankedPlaces({});
-  if (snap && heldFree === free) return snap;
-  // First read on this load (or the plan changed): hold it.
-  held = rankedPlaces(settings.data.prefs, { free });
-  heldFree = free;
-  return held;
+  if (!settings.data) return rankedPlaces({});
+  const user = settings.data.userId ?? "";
+  return heldFor(user, settings.data.prefs, plan.data?.kind === "free").order;
 }
 
 /** Pins, as stored, and a toggle that writes them. */
@@ -84,7 +131,14 @@ export function useNavPins(): {
       const cur = qc.getQueryData<V3Settings>(qk.settings());
       if (!cur) return Promise.resolve(undefined);
       return setPrefs({ navPinned: togglePin(cur.prefs, id) }).catch(
-        () => undefined
+        (error) => {
+          logger.error(
+            "Could not save a pin",
+            { error: errorText(error) },
+            LOG_SOURCE
+          );
+          return undefined;
+        }
       );
     },
   };
@@ -92,21 +146,38 @@ export function useNavPins(): {
 
 /* ---------- opens, the pending order, the tips ---------- */
 
-let applied = false;
-let tipped = false;
-
 const RECORD_AFTER_MS = 1200;
+/** The same place opened again within this long counts once. */
+const SAME_OPEN_MS = 30_000;
 
-/** Count one open; quiet on failure (a lost count only delays a ranking). */
+let lastOpen: { id: NavId; at: number } | null = null;
+
+/** Count one open (the same place twice within 30 s counts once). */
 export function recordPlaceOpen(id: NavId) {
-  void sendJson("/api/nav/usage", "POST", { place: id }).catch(() => undefined);
+  const now = newDate().getTime();
+  if (lastOpen && lastOpen.id === id && now - lastOpen.at < SAME_OPEN_MS)
+    return;
+  lastOpen = { id, at: now };
+  void sendJson("/api/nav/usage", "POST", { place: id }).catch((error) =>
+    // A lost count only delays a ranking.
+    logger.error(
+      "Could not count a place open",
+      { error: errorText(error) },
+      LOG_SOURCE
+    )
+  );
 }
 
 /**
- * Mounted once by the shell (desktop and phone). It applies a pending order on the first load that sees it, shows at most one
- * tip per load, and counts the place on show once it has stayed a moment.
- * `place` is the place on show (null: not a place), `askOpen` whether Ask
- * Needt is open; `openSettings` opens where pins are changed.
+ * Mounted once by the shell (desktop and phone). It applies a pending order
+ * on the first load that sees it, shows at most one tip per load, and counts
+ * the place on show once it has stayed a moment. `place` is the place on
+ * show (null: not a place), `askOpen` whether Ask Needt is open;
+ * `openSettings` opens where pins are changed.
+ *
+ * The apply and the tip go out as one write, and the tip shows only once
+ * that write has landed: a write that fails shows nothing, so a tip never
+ * repeats on every load.
  */
 export function useNavRankEffects(
   place: NavId | null,
@@ -118,33 +189,59 @@ export function useNavRankEffects(
   const qc = useQueryClient();
   const openRef = useRef(openSettings);
   openRef.current = openSettings;
+  const setRef = useRef(setPrefs);
+  setRef.current = setPrefs;
 
-  /* The first load with prefs: apply a pending order, then maybe a tip. */
-  const prefs = settings.data?.prefs;
+  const data = settings.data;
   useEffect(() => {
-    if (!prefs) return;
-    const day = toLocalDateKey(newDate());
-    let base = prefs;
-    if (!applied) {
-      applied = true;
-      const patch = applyPendingPatch(prefs, day);
-      if (patch) {
-        base = { ...prefs, ...patch };
-        void setPrefs(patch).catch(() => undefined);
+    if (!data) return;
+    const held = heldFor(data.userId ?? "", data.prefs, state?.free ?? false);
+    if (held.applied && held.tipped) return;
+    const day = utcToday();
+    let base: Record<string, unknown> = data.prefs;
+    const patch: Record<string, unknown> = {};
+    if (!held.applied) {
+      held.applied = true;
+      const apply = applyPendingPatch(base, day);
+      if (apply) {
+        Object.assign(patch, apply);
+        base = { ...base, ...apply };
       }
     }
-    if (tipped) return;
-    tipped = true;
-    if (firstDayQuiet(settings.data?.createdAt, day)) return;
-    const pick = pickTip(base, day);
-    if (!pick) return;
-    void setPrefs(pick.patch).catch(() => undefined);
-    const toSettings = {
-      label: "Change in Settings",
-      onClick: () => openRef.current(),
-    };
-    if (pick.kind === "reorder") {
-      notify.info(`We moved ${navWord(pick.moved)} up`, {
+    let pick: ReturnType<typeof pickTip> = null;
+    if (!held.tipped) {
+      held.tipped = true;
+      if (!firstDayQuiet(data.createdAt, day)) pick = pickTip(base, day);
+      if (pick) Object.assign(patch, pick.patch);
+    }
+    if (!Object.keys(patch).length) return;
+    void setRef
+      .current(patch)
+      .then(() => {
+        if (pick) showTip(pick);
+      })
+      .catch((error) =>
+        logger.error(
+          "Could not apply the menu order or mark its tip",
+          { error: errorText(error) },
+          LOG_SOURCE
+        )
+      );
+
+    function showTip(tip: NonNullable<typeof pick>) {
+      const toSettings = {
+        label: "Change in Settings",
+        onClick: () => openRef.current(),
+      };
+      if (tip.kind === "tip") {
+        notify.info(tip.tip.title, {
+          surface: "island",
+          description: tip.tip.body,
+          actions: [toSettings],
+        });
+        return;
+      }
+      notify.info(`We moved ${navWord(tip.moved)} up`, {
         surface: "island",
         description: "Because you use it most. Pinned places never move.",
         actions: [
@@ -153,26 +250,31 @@ export function useNavRankEffects(
             onClick: () => {
               const cur = qc.getQueryData<V3Settings>(qk.settings());
               const undo = cur && undoReorderPatch(cur.prefs, newDate());
-              if (!undo) return;
-              held = rankedPlaces(
-                { ...cur.prefs, ...undo },
-                { free: heldFree }
-              );
+              if (!cur || !undo || !state) return;
+              const next = { ...cur.prefs, ...undo };
+              state = {
+                ...state,
+                base: effectiveOrder(next),
+                pins: pinnedFrom(next),
+                order: rankedPlaces(next, { free: state.free }),
+              };
               emit();
-              void setPrefs(undo).catch(() => undefined);
+              void setRef
+                .current(undo)
+                .catch((error) =>
+                  logger.error(
+                    "Could not undo the menu order",
+                    { error: errorText(error) },
+                    LOG_SOURCE
+                  )
+                );
             },
           },
           toSettings,
         ],
       });
-    } else {
-      notify.info(pick.tip.title, {
-        surface: "island",
-        description: pick.tip.body,
-        actions: [toSettings],
-      });
     }
-  }, [prefs, setPrefs, qc, settings.data?.createdAt]);
+  }, [data, qc]);
 
   /* Count the place on show once it has stayed a moment. */
   useEffect(() => {
