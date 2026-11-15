@@ -90,34 +90,104 @@ describe("OverdueRow", () => {
 });
 
 describe("MissedLine", () => {
+  const idle = { kind: "idle" } as const;
+  const change = {
+    taskId: "a",
+    title: "Write brief",
+    toStart: "2030-01-02T15:00:00.000Z",
+    toEnd: "2030-01-02T15:30:00.000Z",
+    explanation: "Missed at 08:30",
+  };
+  const props = (o: Record<string, unknown> = {}) => ({
+    count: 2,
+    step: idle,
+    tz: "UTC",
+    onOpen: jest.fn(),
+    onKeep: jest.fn(),
+    onDismiss: jest.fn(),
+    ...o,
+  });
+
   it("draws nothing without missed tasks", async () => {
-    await render(h(MissedLine, { count: 0, onReschedule: jest.fn() }));
+    await render(h(MissedLine, props({ count: 0 })));
     expect(host.querySelector("[data-hv2-missed]")).toBeNull();
   });
 
-  it("is one line: the count, and Reschedule", async () => {
-    await render(h(MissedLine, { count: 2, onReschedule: jest.fn() }));
+  it("is one line: the count, and open slots", async () => {
+    await render(h(MissedLine, props()));
     const line = host.querySelector("[data-hv2-missed]")!;
     expect(line.textContent).toContain("2 tasks from earlier today");
     expect(line.querySelector("[data-hv2-missed-go]")?.textContent).toBe(
-      "Reschedule"
+      "\u2192 open slots"
+    );
+    expect(host.querySelector("[data-hv2-missed-prev]")).toBeNull();
+  });
+
+  it("pressing it asks once; while planning it is busy", async () => {
+    const p = props();
+    await render(h(MissedLine, p));
+    const go = host.querySelector<HTMLButtonElement>("[data-hv2-missed-go]")!;
+    await act(async () => go.click());
+    expect(p.onOpen).toHaveBeenCalledTimes(1);
+    await render(h(MissedLine, { ...p, step: { kind: "previewing" } }));
+    expect(go.disabled).toBe(true);
+  });
+
+  it("the preview lists each change with its time and reason, and what did not fit", async () => {
+    await render(
+      h(
+        MissedLine,
+        props({
+          step: {
+            kind: "preview",
+            token: "t",
+            changes: [change],
+            unscheduled: [{ taskId: "b", title: "Too long" }],
+          },
+        })
+      )
+    );
+    const prev = host.querySelector("[data-hv2-missed-prev]")!;
+    expect(prev.querySelector("[data-change=a]")?.textContent).toContain(
+      "Write brief"
+    );
+    expect(prev.textContent).toContain("Wed 15:00");
+    expect(prev.textContent).toContain("Missed at 08:30");
+    expect(prev.querySelector("[data-unscheduled=b]")?.textContent).toContain(
+      "Didn't fit today"
     );
   });
 
-  it("Reschedule runs the action once and is busy until it answers", async () => {
-    let finish: () => void = () => undefined;
-    const onReschedule = jest.fn(
-      () => new Promise<void>((resolve) => (finish = resolve))
+  it("Keep and Dismiss call their handlers; with nothing placed there is no Keep", async () => {
+    const p = props({
+      step: { kind: "preview", token: "t", changes: [change], unscheduled: [] },
+    });
+    await render(h(MissedLine, p));
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>("[data-hv2-missed-keep]")!.click()
     );
-    await render(h(MissedLine, { count: 1, onReschedule }));
-    const go = host.querySelector<HTMLButtonElement>("[data-hv2-missed-go]")!;
-    await act(async () => go.click());
-    expect(onReschedule).toHaveBeenCalledTimes(1);
-    expect(go.disabled).toBe(true);
-    await act(async () => go.click());
-    expect(onReschedule).toHaveBeenCalledTimes(1);
-    await act(async () => finish());
-    expect(go.disabled).toBe(false);
+    await act(async () =>
+      host
+        .querySelector<HTMLButtonElement>("[data-hv2-missed-dismiss]")!
+        .click()
+    );
+    expect(p.onKeep).toHaveBeenCalledTimes(1);
+    expect(p.onDismiss).toHaveBeenCalledTimes(1);
+    await render(
+      h(
+        MissedLine,
+        props({
+          step: {
+            kind: "preview",
+            token: "t",
+            changes: [],
+            unscheduled: [{ taskId: "b", title: "Too long" }],
+          },
+        })
+      )
+    );
+    expect(host.querySelector("[data-hv2-missed-keep]")).toBeNull();
+    expect(host.querySelector("[data-hv2-missed-dismiss]")).not.toBeNull();
   });
 });
 

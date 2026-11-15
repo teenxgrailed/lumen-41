@@ -49,6 +49,23 @@ jest.mock("@/lib/needt3/hooks/first-replan", () => ({
   useFirstReplanHints: () => ({ current: mockHint, goTo: jest.fn() }),
 }));
 
+const mockNotify = {
+  success: jest.fn(),
+  error: jest.fn(),
+  warning: jest.fn(),
+  info: jest.fn(),
+};
+jest.mock("@/lib/notifications", () => ({
+  ...jest.requireActual("@/lib/notifications"),
+  notify: {
+    ...jest.requireActual("@/lib/notifications").notify,
+    success: (...a: unknown[]) => mockNotify.success(...a),
+    error: (...a: unknown[]) => mockNotify.error(...a),
+    warning: (...a: unknown[]) => mockNotify.warning(...a),
+    info: (...a: unknown[]) => mockNotify.info(...a),
+  },
+}));
+
 const push = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
@@ -398,7 +415,7 @@ describe("Home v2 on the phone", () => {
     expect(q("[data-hv2-missed]").textContent).toContain(
       "1 task from earlier today"
     );
-    expect(q("[data-hv2-missed-go]").textContent).toBe("Reschedule");
+    expect(q("[data-hv2-missed-go]").textContent).toBe("\u2192 open slots");
   });
 
   it("a task due today does not say Due on Today", () => {
@@ -452,6 +469,151 @@ describe("Home v2 on the phone", () => {
         String(c[0]).includes("highlight-suggestions")
       )
     ).toBe(false);
+  });
+});
+
+describe("Keep for tasks from earlier today (scoped replan)", () => {
+  const API = "/api/tasks/reschedule-preview";
+  const answer = (status: number, body: unknown) =>
+    Promise.resolve({
+      ok: status >= 200 && status < 300,
+      status,
+      statusText: "x",
+      headers: new Headers(),
+      text: async () => JSON.stringify(body),
+    });
+  const PREVIEW = {
+    changes: [
+      {
+        taskId: "am",
+        title: "Standup notes",
+        toStart: `${TODAY}T15:00:00.000Z`,
+        toEnd: `${TODAY}T15:30:00.000Z`,
+        explanation: "Missed at 09:00",
+        reason: "missed",
+      },
+    ],
+    unscheduled: [{ taskId: "big", title: "Big one", reason: "no_room" }],
+    skipped: [
+      { taskId: "z", title: "Skipped thing", explanation: "Pinned in place" },
+    ],
+    previewToken: "p1",
+  };
+  /** The posts to the reschedule preview, in order, as their bodies. */
+  const posts = () =>
+    fetchMock.mock.calls
+      .filter((c) => c[0] === API)
+      .map((c) => JSON.parse((c[1] as RequestInit).body as string));
+  const respond = (
+    preview: () => Promise<unknown> = () => answer(200, PREVIEW)
+  ) =>
+    fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+      if (url !== API) return new Promise<never>(() => {});
+      const { action } = JSON.parse(init!.body as string);
+      if (action === "preview") return preview();
+      if (action === "apply") {
+        return answer(200, { changes: PREVIEW.changes, undoToken: "u1" });
+      }
+      return answer(200, { changes: [] });
+    });
+
+  beforeEach(() => {
+    Object.values(mockNotify).forEach((fn) => fn.mockClear());
+    seedHomeEvents([]);
+    client.setQueryData(qk.tasks({}), [
+      task("am", { scheduledStart: `${TODAY}T09:00`, auto: true }),
+      task("pm", { scheduledStart: `${TODAY}T14:30` }),
+    ]);
+    respond();
+  });
+
+  const faces: [string, FunctionComponent, "phone" | "desktop"][] = [
+    ["phone", PhoneHomeV2, "phone"],
+    ["desktop", DesktopV2On, "desktop"],
+  ];
+
+  describe.each(faces)("on the %s", (_name, screen, ui) => {
+    it("the line reads N tasks from earlier today, then open slots", () => {
+      mount(screen, ui);
+      expect(q("[data-hv2-missed]").textContent).toContain(
+        "1 task from earlier today"
+      );
+      expect(q("[data-hv2-missed-go]").textContent).toContain("open slots");
+      expect(host.querySelector("[data-hv2-missed-prev]")).toBeNull();
+    });
+
+    it("pressing it previews with the missed ids and shows changes and what did not fit, not skipped", async () => {
+      mount(screen, ui);
+      click(q("[data-hv2-missed-go]"));
+      await flush();
+      expect(posts()).toEqual([{ action: "preview", taskIds: ["am"] }]);
+      const prev = q("[data-hv2-missed-prev]");
+      expect(prev.textContent).toContain("Standup notes");
+      expect(prev.textContent).toContain("Today 15:00");
+      expect(prev.textContent).toContain("Missed at 09:00");
+      expect(prev.textContent).toContain("Big one");
+      expect(prev.textContent).toContain("Didn't fit today");
+      expect(prev.textContent).not.toContain("Skipped thing");
+      expect(prev.textContent).not.toContain("Pinned in place");
+      // nothing moved yet
+      expect(posts().some((b) => b.action === "apply")).toBe(false);
+    });
+
+    it("Keep applies, says Moved 1 task with Undo, and Undo calls undo", async () => {
+      mount(screen, ui);
+      click(q("[data-hv2-missed-go]"));
+      await flush();
+      click(q("[data-hv2-missed-keep]"));
+      await flush();
+      expect(posts()[1]).toEqual({ action: "apply", token: "p1" });
+      expect(mockNotify.success).toHaveBeenCalledTimes(1);
+      const [text, opts] = mockNotify.success.mock.calls[0];
+      expect(text).toBe("Moved 1 task");
+      expect(opts.action.label).toBe("Undo");
+      expect(host.querySelector("[data-hv2-missed-prev]")).toBeNull();
+      opts.action.onClick();
+      await flush();
+      expect(posts()[2]).toEqual({ action: "undo", token: "u1" });
+      expect(mockNotify.success).toHaveBeenLastCalledWith("Put back");
+    });
+
+    it("Dismiss closes the preview and moves nothing", async () => {
+      mount(screen, ui);
+      click(q("[data-hv2-missed-go]"));
+      await flush();
+      click(q("[data-hv2-missed-dismiss]"));
+      expect(host.querySelector("[data-hv2-missed-prev]")).toBeNull();
+      expect(posts().map((b) => b.action)).toEqual(["preview"]);
+    });
+
+    it("a 429 says Could not and shows nothing", async () => {
+      respond(() => answer(429, { error: "Too many requests" }));
+      mount(screen, ui);
+      click(q("[data-hv2-missed-go]"));
+      await flush();
+      expect(mockNotify.error).toHaveBeenCalledTimes(1);
+      expect(String(mockNotify.error.mock.calls[0][0])).toMatch(/^Could not/);
+      expect(host.querySelector("[data-hv2-missed-prev]")).toBeNull();
+      expect(posts().map((b) => b.action)).toEqual(["preview"]);
+    });
+
+    it("a failed apply says Could not and nothing is reported as moved", async () => {
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+        if (url !== API) return new Promise<never>(() => {});
+        const { action } = JSON.parse(init!.body as string);
+        return action === "preview"
+          ? answer(200, PREVIEW)
+          : answer(500, { error: "boom" });
+      });
+      mount(screen, ui);
+      click(q("[data-hv2-missed-go]"));
+      await flush();
+      click(q("[data-hv2-missed-keep]"));
+      await flush();
+      expect(String(mockNotify.error.mock.calls[0][0])).toMatch(/^Could not/);
+      expect(mockNotify.success).not.toHaveBeenCalled();
+      expect(host.querySelector("[data-hv2-missed-prev]")).toBeNull();
+    });
   });
 });
 
