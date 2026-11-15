@@ -205,7 +205,7 @@ describe("PhoneProjects: the list", () => {
 });
 
 describe("PhoneProjects: folders_v1", () => {
-  it("is two columns of folders: link, count, caption", () => {
+  it("is two columns of folders: link, count, paper title, sticker", () => {
     mount(null, true);
     const list = q(".ptk-plist");
     expect(list.classList.contains("is-folders")).toBe(true);
@@ -218,8 +218,11 @@ describe("PhoneProjects: folders_v1", () => {
       "2"
     );
     expect(links[0].getAttribute("aria-label")).toBe("Open Operations, 2 open");
-    expect(links[1].querySelector(".nx-folder-caption")?.textContent).toBe(
-      "Next: Task d"
+    expect(links[1].querySelector(".nx-folder-peek-title")?.textContent).toBe(
+      "Task d"
+    );
+    expect(links[1].querySelector("[data-sticker=letter]")?.textContent).toBe(
+      "L"
     );
   });
 
