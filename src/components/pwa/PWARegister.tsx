@@ -7,7 +7,11 @@ import { WifiOff } from "lucide-react";
 import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useAppSession } from "@/components/providers/app-session-context";
 
-import { NEW_VERSION_EVENT } from "@/lib/pwa/build-version";
+import {
+  NEW_VERSION_EVENT,
+  isDifferentBuild,
+  workerBuild,
+} from "@/lib/pwa/build-version";
 import {
   clearIfSignedOut,
   clearNeedtOfflineData,
@@ -76,15 +80,15 @@ export function PWARegister() {
     // A new worker takes over (skipWaiting + claim): the open page is from the
     // build before it. Hidden tabs reload at once; a visible one is asked.
     const hadController = Boolean(navigator.serviceWorker?.controller);
-    let reloading = false;
     const onControllerChange = () => {
-      if (!hadController || reloading) return;
-      if (document.visibilityState === "hidden") {
-        reloading = true;
-        window.location.reload();
-      } else {
-        window.dispatchEvent(new Event(NEW_VERSION_EVENT));
-      }
+      if (!hadController) return;
+      // The same build taking over (first claim, a restarted worker) is not a
+      // new version. Only a worker for a different build asks for the reload,
+      // and the page reloads it at a safe moment (lib/pwa/safe-reload.ts).
+      const next = workerBuild(navigator.serviceWorker?.controller?.scriptURL);
+      if (!isDifferentBuild(next, process.env.NEXT_PUBLIC_NEEDT_BUILD_SHA))
+        return;
+      window.dispatchEvent(new Event(NEW_VERSION_EVENT));
     };
     navigator.serviceWorker?.addEventListener(
       "controllerchange",

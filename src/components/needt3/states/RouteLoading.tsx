@@ -1,32 +1,23 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-
-import { StSkeleton } from "./StSkeleton";
-import { routeSkeletonKind } from "./status";
+import { NeedtLoading } from "./NeedtLoading";
 
 /**
- * What a place shows from the tap until its page arrives: the skeleton of the
- * place being opened, inside the frame that is already on screen (the frame
- * belongs to the layout, so it never blinks). Mounted by `app/(app)/loading.tsx`.
+ * What a place shows from the tap until its page arrives: the Needt word,
+ * filling, in the page's own slot inside the frame that is already on screen
+ * (the frame belongs to the layout, so it never blinks). Mounted by
+ * `app/(app)/loading.tsx`.
+ *
+ * A route chunk reports no progress, so the word is in its eased mode: it
+ * climbs toward 90% and is replaced by the page when that arrives.
  *
  * It is not a full-screen overlay (that was the old "Opening" card, removed
- * for flashing on every switch, 7602238). It is an ordinary block in the
- * page's own slot with no background, and CSS (`route-loading.css`) keeps it
- * invisible for the first 150 ms, so a switch that is quick never shows it and
- * a slow one shows the shape of the place instead of the old screen frozen.
+ * for flashing on every switch, 7602238). It is an ordinary block with no
+ * background, and `needt-loading.css` keeps it invisible for the first 150 ms,
+ * so a switch that is quick never shows it. It replaced the per-place
+ * skeletons (owner, 15.11.26: one loading screen, the word); `StSkeleton`
+ * stays for any caller that wants a shape.
  */
 export function RouteLoading() {
-  const kind = routeSkeletonKind(usePathname() ?? "");
-  if (!kind) return null;
-  return (
-    <div
-      className="st-route-loading"
-      role="status"
-      aria-live="polite"
-      data-route-loading={kind}
-    >
-      <StSkeleton kind={kind} />
-    </div>
-  );
+  return <NeedtLoading />;
 }

@@ -1,31 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAdminGrowth } from "@/services/admin/growth";
-import { getAdminOverview } from "@/services/admin/overview";
+import { getOverviewStats } from "@/services/admin/overview-stats-data";
 
 import { routeErrorResponse } from "@/lib/api/route-error";
 import { requireAdmin } from "@/lib/auth/api-auth";
 import { readBuildInfo } from "@/lib/health/build-info";
-import { logger } from "@/lib/logger";
 
 const LOG_SOURCE = "AdminOverviewAPI";
 
 export const runtime = "nodejs";
 
+/**
+ * Internal accounts (ours: admins, sandbox, test addresses) are left out of
+ * every number unless the caller asks for `?internal=include`.
+ */
 export async function GET(request: NextRequest) {
   const denied = await requireAdmin(request);
   if (denied) return denied;
   try {
-    const [overview, build, growth] = await Promise.all([
-      getAdminOverview(),
+    const excludeInternal =
+      request.nextUrl.searchParams.get("internal") !== "include";
+    const [stats, build] = await Promise.all([
+      getOverviewStats(excludeInternal),
       readBuildInfo(),
-      /* Growth is extra: it never takes the overview down with it. */
-      getAdminGrowth().catch(async (error) => {
-        await logger.error("Admin growth failed", { error }, LOG_SOURCE);
-        return null;
-      }),
     ]);
-    return NextResponse.json({ overview, build, growth });
+    return NextResponse.json({ stats, build });
   } catch (error) {
     return routeErrorResponse(
       error,

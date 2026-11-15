@@ -232,6 +232,19 @@
 .needt-v3 .mau-pair.is-stack {
   flex-direction: column;
 }
+/* The pair is a column here (type.css), where the vendored `flex: 1` on its
+   buttons means `flex-basis: 0` against an auto-height box: Safari then sized
+   the pill to its text and the card's top edge clipped it. Column items keep
+   their own 52px. */
+.needt-v3 .mau-pair > .mau-btn {
+  flex: none;
+}
+/* The provider pill is a frosted white on the light plate and a faint fill on
+   the dark one: a hairline in the ladder's own line colour gives it an edge
+   in both. Apple keeps its solid brand pair, which needs none. */
+.needt-v3 .mau-btn.is-quiet[data-provider]:not([data-provider="apple"]) {
+  box-shadow: inset 0 0 0 1px var(--v2p-line);
+}
 .needt-v3 .mau-link.mau-more-ways {
   align-self: center;
 }

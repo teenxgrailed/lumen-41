@@ -14,12 +14,6 @@ import {
 import { useRouter } from "next/navigation";
 
 import {
-  decidePageDraft,
-  type PageDraft,
-  parsePageDraft,
-  serializePageDraft,
-} from "@/components/pages/page-draft";
-import {
   legacyPageCollaborationDraftKey,
   pageCollaborationDocumentName,
   pageCollaborationDraftKey,
@@ -136,6 +130,12 @@ import {
   pageBlocksFromDocument,
 } from "@/components/pages/page-document";
 import {
+  type PageDraft,
+  decidePageDraft,
+  parsePageDraft,
+  serializePageDraft,
+} from "@/components/pages/page-draft";
+import {
   NO_SCROLL,
   blockIdFromHash,
   blockInsertRange,
@@ -203,6 +203,7 @@ import {
   docFieldsOf,
 } from "@/lib/needt3/page-events";
 import { notify } from "@/lib/notifications";
+import { setUnsavedWork } from "@/lib/pwa/unsaved-work";
 import { cn } from "@/lib/utils";
 import { randomId } from "@/lib/uuid";
 
@@ -1594,6 +1595,14 @@ export function PageWorkspace({
   useEffect(() => {
     editor?.setEditable(canEdit);
   }, [canEdit, editor]);
+
+  // The same condition as the beforeunload guard below, for the automatic
+  // reload on a new version: it waits while this page is unsaved.
+  useEffect(() => {
+    const key = `page:${pageId}`;
+    setUnsavedWork(key, saveState !== "saved");
+    return () => setUnsavedWork(key, false);
+  }, [pageId, saveState]);
 
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
