@@ -42,8 +42,9 @@ import {
 } from "../starter-game/StarterGameSlot";
 import { StScreen } from "../states/StScreen";
 import { Task } from "../task/Task";
-import { MiniCard, ProjectCard } from "./ProjectCards";
+import { MiniCard } from "./ProjectCards";
 import { askDeleteProject } from "./ProjectDeleteHost";
+import { ProjectsGrid } from "./ProjectFolders";
 import { ProjectPage } from "./ProjectPage";
 import { ProjectSheet } from "./ProjectSheet";
 import {
@@ -103,9 +104,12 @@ const closeTask = () => setOpenTask(null);
 export function WorkScreen({
   mode,
   projectId = null,
+  folders = false,
 }: {
   mode: "tasks" | "projects";
   projectId?: string | null;
+  /** `folders_v1`, read on the server: Projects as folders (desktop). */
+  folders?: boolean;
 }) {
   const v3 = useDesignV3();
   const phone = usePhoneUi() === "phone";
@@ -123,17 +127,26 @@ export function WorkScreen({
     ) : (
       <PhoneProjects projectId={projectId} state={state} />
     );
-  return <WorkScreenContent mode={mode} projectId={projectId} state={state} />;
+  return (
+    <WorkScreenContent
+      mode={mode}
+      projectId={projectId}
+      state={state}
+      folders={folders}
+    />
+  );
 }
 
 function WorkScreenContent({
   mode,
   projectId,
   state,
+  folders,
 }: {
   mode: "tasks" | "projects";
   projectId: string | null;
   state: WorkState;
+  folders: boolean;
 }) {
   const isProjects = mode === "projects";
   const router = useRouter();
@@ -442,21 +455,16 @@ function WorkScreenContent({
             />
           ) : null}
           {isProjects && !projectId && pview === "cards" && projects.length ? (
-            <div className="wk-pgrid" data-wk-pgrid="">
-              {projects.map((p, i) => (
-                <ProjectCard
-                  key={p.id}
-                  project={p}
-                  index={i}
-                  tasks={m.live}
-                  today={today}
-                  onOpenTask={openTask}
-                  onPick={(id) =>
-                    router.push(`/projects/${encodeURIComponent(id)}`)
-                  }
-                />
-              ))}
-            </div>
+            <ProjectsGrid
+              folders={folders}
+              projects={projects}
+              tasks={m.live}
+              today={today}
+              onOpenTask={openTask}
+              onPick={(id) =>
+                router.push(`/projects/${encodeURIComponent(id)}`)
+              }
+            />
           ) : null}
           {listOn
             ? m.sections.map((s) => (

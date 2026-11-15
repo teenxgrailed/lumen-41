@@ -121,6 +121,13 @@ export const BUDGET_MODULE = "budget_module";
  */
 export const BUDGET_PRO_ACCESS = "budget_pro_access";
 
+/**
+ * Projects drawn as frosted folders with the next tasks sticking out
+ * (`Folder`, `ProjectFolders`). Read on the server in `/projects` and passed
+ * down; an unreadable flag is off, so the old project cards stay.
+ */
+export const FOLDERS_V1 = "folders_v1";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -140,6 +147,7 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BUDGET_MODULE]: "Needt Budget as a place in the sidebar (frame).",
   [BUDGET_PRO_ACCESS]:
     "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",
+  [FOLDERS_V1]: "Projects as folders with the next tasks sticking out.",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

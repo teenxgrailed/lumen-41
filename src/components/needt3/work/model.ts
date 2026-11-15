@@ -311,6 +311,38 @@ export function cardTasks(projectId: string, tasks: readonly V3Task[], n = 4) {
   ).slice(0, n);
 }
 
+/**
+ * The next open tasks a project folder shows, soonest first: by the day each
+ * is drawn on (`taskDay`, overdue ones lead, no day last), then by the hour
+ * it sits at, then by title so the order never flickers.
+ */
+export function nextTasks(
+  projectId: string,
+  tasks: readonly V3Task[],
+  today: string,
+  n = 3
+) {
+  return tasks
+    .filter((t) => t.projectId === projectId && !t.done && !t.noSlot)
+    .map((t) => ({ t, day: taskDay(t, today) ?? "9999-12-31" }))
+    .sort(
+      (a, b) =>
+        (a.day < b.day ? -1 : a.day > b.day ? 1 : 0) ||
+        byTime(a.t, b.t) ||
+        a.t.title.localeCompare(b.t.title)
+    )
+    .slice(0, n)
+    .map(({ t }) => t);
+}
+
+/** "Today" / "Overdue" / "4 Sep" / undefined: the line under a sheet's title. */
+export function peekMeta(t: V3Task, today: string) {
+  const day = taskDay(t, today);
+  if (!day) return undefined;
+  if (day === today) return "Today";
+  return day < today ? "Overdue" : (dayLabel(day) ?? undefined);
+}
+
 type ProjectGroupKey = "Overdue" | "Today" | "Upcoming" | "No date";
 
 /**

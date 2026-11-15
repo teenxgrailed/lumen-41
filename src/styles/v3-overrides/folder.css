@@ -1,0 +1,198 @@
+/* Folder (src/components/needt3/ui/Folder.tsx): a frosted folder, paper
+ * sticking out of the top, a sticker on the front wall.
+ *
+ * PORT.md: every grey is the text colour at a ladder alpha (--fill-*,
+ * --text-*), type is 13px / 12px, the hue is only ever a tint or a mark, and
+ * elevation is a ring. The sheets are paper in the folder, not cards on a
+ * card: a ring and the raised ground, no shadow. Only the class prefix
+ * `nx-folder` and the tokens are needed, so the landing page can reuse it. */
+
+.nx-folder {
+  --nx-folder-hue: var(--text-muted);
+  --nx-lift: 0px;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  text-decoration: none;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+.nx-folder:hover,
+.nx-folder:focus-visible {
+  --nx-lift: 7px;
+}
+.nx-folder:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.nx-folder-art {
+  position: relative;
+  display: block;
+  aspect-ratio: 6 / 5;
+}
+
+/* back wall, with the tab on its top left */
+.nx-folder-back,
+.nx-folder-front {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 14px;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.nx-folder-back {
+  top: 14%;
+  background:
+    linear-gradient(
+      color-mix(in oklab, var(--nx-folder-hue) 12%, transparent),
+      color-mix(in oklab, var(--nx-folder-hue) 12%, transparent)
+    ),
+    var(--fill-5);
+  box-shadow: var(--shadow-ring);
+}
+.nx-folder-back::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -9px;
+  width: 38%;
+  height: 12px;
+  border-radius: 9px 9px 0 0;
+  background: inherit;
+  box-shadow: var(--shadow-ring);
+  clip-path: inset(0 0 3px 0);
+}
+
+/* front wall: lighter than the back, the paper reads through its top edge */
+.nx-folder-front {
+  top: 36%;
+  background:
+    linear-gradient(
+      color-mix(in oklab, var(--nx-folder-hue) 12%, transparent),
+      color-mix(in oklab, var(--nx-folder-hue) 12%, transparent)
+    ),
+    var(--fill-4);
+  box-shadow: var(--shadow-ring);
+}
+
+/* the paper */
+.nx-folder-peek {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  top: 10%;
+  height: 62%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 9px 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  text-align: left;
+  transform-origin: 50% 100%;
+  transform: translate(
+      var(--nx-peek-dx, 0),
+      calc(var(--nx-peek-dy, 0px) - var(--nx-lift))
+    )
+    rotate(var(--nx-peek-rot, 0deg));
+  transition: transform var(--transition-hover);
+}
+.nx-folder-peek-title {
+  max-width: 100%;
+  font: 500 12px/16px var(--font-sans);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nx-folder-peek-meta {
+  max-width: 100%;
+  font: 400 12px/14px var(--font-sans);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nx-folder-peek-bar {
+  width: 42%;
+  height: 4px;
+  margin-top: 1px;
+  border-radius: 2px;
+  background: var(--fill-6);
+}
+
+/* the sticker: a paper tile with a hue ring, a few degrees off true */
+.nx-folder-sticker {
+  position: absolute;
+  right: 9%;
+  bottom: 12%;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: var(--nx-folder-hue);
+  box-shadow:
+    var(--shadow-ring),
+    0 0 0 3px var(--surface-raised),
+    0 0 0 4px color-mix(in oklab, var(--nx-folder-hue) 24%, transparent);
+  transform: rotate(6deg);
+}
+
+.nx-folder-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 8px;
+}
+.nx-folder-label {
+  min-width: 0;
+  font: 500 13px/17px var(--font-sans);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nx-folder-count {
+  flex: none;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--fill-4);
+  font: 400 12px/18px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-folder:hover,
+  .nx-folder:focus-visible {
+    --nx-lift: 0px;
+  }
+  .nx-folder-peek {
+    transition: none;
+  }
+}
+
+/* Projects: the grid of folders (the cards keep .wk-pgrid as it was) */
+.needt-v3 .wk-pgrid.is-folders {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 26px 20px;
+  padding: 14px 0 2px;
+}
