@@ -15,8 +15,12 @@ const HOST = "http://127.0.0.1:3000";
 const [cookieName, ...rest] = fs.readFileSync(cookieFile, "utf8").trim().split("=");
 const cookie = { name: cookieName, value: rest.join("="), domain: "127.0.0.1", path: "/", httpOnly: true, sameSite: "Lax" };
 const screens = screenList.split(",").map((s) => s.trim()).filter(Boolean).map((s) => {
-  const [name, route] = s.split("=");
-  return { name, route: route || "/" + name };
+  const i = s.indexOf("=");
+  const name = i < 0 ? s : s.slice(0, i);
+  const route = i < 0 ? "/" + name : s.slice(i + 1);
+  if (!/^[a-z0-9_-]+$/i.test(name)) throw new Error(`bad screen name: ${name}`);
+  if (!route.startsWith("/") || route.startsWith("//")) throw new Error(`route must start with one /: ${route}`);
+  return { name, route };
 });
 
 const sizes = [
@@ -27,6 +31,7 @@ const sizes = [
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 let warned = 0;
+let signedOut = 0;
 try {
   for (const size of sizes) {
     const ctx = await browser.newContext({ ...size.options, colorScheme: scheme, locale: "en-US", timezoneId: "Europe/Zurich" });
@@ -35,6 +40,7 @@ try {
       const page = await ctx.newPage();
       const started = Date.now();
       await page.goto(HOST + s.route, { waitUntil: "domcontentloaded", timeout: 60_000 }).catch((e) => console.log("WARN goto", s.name, e.message));
+      if (page.url().includes("/auth/")) { signedOut++; console.log("FAIL signed out", s.name, size.tag, page.url()); }
       // The first frames of a slow screen are part of the review: keep one.
       if (s.name === "loading") {
         await page.waitForTimeout(150);
@@ -60,3 +66,4 @@ try {
   await browser.close();
 }
 console.log(`done, ${warned} screen(s) never settled`);
+if (signedOut) { console.log(`${signedOut} shot(s) landed on the sign-in page: the session did not take`); process.exit(1); }

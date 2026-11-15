@@ -34,7 +34,7 @@ on:
         type: string
 
 concurrency:
-  group: needt-design-shots-${{ inputs.ref }}
+  group: needt-design-shots-${{ inputs.ref }}-${{ inputs.scheme }}
   cancel-in-progress: true
 
 permissions:
@@ -84,10 +84,12 @@ jobs:
         with:
           path: tools
           sparse-checkout: .github
+          persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ inputs.ref }}
           path: app
+          persist-credentials: false
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -184,7 +186,8 @@ jobs:
         id: name
         env:
           REF: ${{ inputs.ref }}
-        run: echo "value=design-shots-$(echo "$REF" | tr -c 'A-Za-z0-9._-' '-' | cut -c1-60)" >> "$GITHUB_OUTPUT"
+          SCHEME: ${{ inputs.scheme }}
+        run: echo "value=design-shots-$(echo "$REF" | tr -c 'A-Za-z0-9._-' '-' | cut -c1-60)-$SCHEME" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ always() }}
