@@ -162,6 +162,14 @@ SANDBOX_REVIEWER_PASSWORD=""
 SANDBOX_AI_DAILY_ACTION_CAP="15"
 ```
 
+Admin statistics leave internal accounts out (admins, sandbox accounts,
+`@needt.app` and test addresses are matched by rule). Add the owner's own
+addresses here, comma separated, exact match; unset means only the rules apply.
+
+```env
+INTERNAL_ACCOUNT_EMAILS=""
+```
+
 `NEEDT_AI_API_KEY` is the deployment-wide hosted key. The defaults point at
 OpenRouter serving GLM 5.3 Flash; any OpenAI-compatible endpoint works by
 setting `NEEDT_AI_BASE_URL` and `NEEDT_AI_MODEL`.
