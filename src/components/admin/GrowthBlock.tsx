@@ -1,28 +1,27 @@
 "use client";
 
-import type { AdminGrowth } from "@/services/admin/growth";
+import type {
+  GoalProgress,
+  OverviewStats,
+} from "@/services/admin/overview-stats";
 
 import { dayOf } from "./format";
 
 function Goal({
   label,
-  value,
-  target,
-  perWeek,
+  goal,
   note,
 }: {
   label: string;
-  value: number;
-  target: number;
-  perWeek: number;
+  goal: GoalProgress;
   note: string;
 }) {
-  const share = Math.min(100, Math.round((value / target) * 100));
+  const share = Math.min(100, Math.round((goal.value / goal.target) * 100));
   return (
     <div className="admin-stat" data-admin-goal={label}>
       <span className="admin-stat-label">{label}</span>
       <span className="admin-stat-value">
-        {value} / {target}
+        {goal.value} / {goal.target}
       </span>
       <span
         className="admin-bar"
@@ -35,7 +34,7 @@ function Goal({
         <span style={{ width: `${share}%` }} />
       </span>
       <span className="admin-meta">
-        {perWeek > 0 ? `${perWeek} more a week needed. ` : "Target reached. "}
+        {goal.met ? "Reached. " : `${goal.daysLeft} days left. `}
         {note}
       </span>
     </div>
@@ -43,73 +42,66 @@ function Goal({
 }
 
 /**
- * Weekly actives and paying people against the 05.05.2027 goal. Trials are
- * shown apart and never added to paying; the trend is eight rolling weeks.
+ * The current launch criteria first (Keep by 30.11, paying by 31.12), the May
+ * 2027 goal below as the long view. Goals count external accounts only.
  */
-export function GrowthBlock({ growth }: { growth: AdminGrowth }) {
-  const { goal } = growth;
+export function GrowthBlock({ stats }: { stats: OverviewStats }) {
+  const { goals } = stats;
   return (
     <section className="admin-card" data-admin-growth="">
-      <h2 className="admin-section-title">Growth to {dayOf(goal.deadline)}</h2>
+      <h2 className="admin-section-title">Launch criteria</h2>
       <div className="admin-grid">
         <Goal
-          label="Weekly actives"
-          value={growth.weeklyActives}
-          target={goal.weeklyActives}
-          perWeek={growth.neededPerWeek.weeklyActives}
-          note="Active in the last 7 days."
+          label="Keep pressed"
+          goal={goals.keep}
+          note={`External users by ${dayOf(goals.keep.deadline)}.`}
         />
         <Goal
           label="Paying"
-          value={growth.paying.total}
-          target={goal.paying}
-          perWeek={growth.neededPerWeek.paying}
-          note={`Pro ${growth.paying.pro}, Lifetime ${growth.paying.lifetime}.`}
+          goal={goals.paying}
+          note={`External accounts with a payment, by ${dayOf(goals.paying.deadline)}.`}
         />
-        <div className="admin-stat" data-admin-stat="In a trial, not paying">
-          <span className="admin-stat-label">In a trial, not paying</span>
-          <span className="admin-stat-value">{growth.activeTrials}</span>
-        </div>
-        <div className="admin-stat" data-admin-stat="Days to checkpoint">
-          <span className="admin-stat-label">
-            Checkpoint {dayOf(goal.checkpoint)}
-          </span>
-          <span className="admin-stat-value">
-            {Math.max(0, growth.daysToCheckpoint)} days
-          </span>
-          <span className="admin-meta">
-            {Math.max(0, growth.daysToDeadline)} days to the goal.
-          </span>
-        </div>
+      </div>
+      <h3 className="admin-section-title" data-admin-goal-secondary="">
+        Long goal, {dayOf(goals.may.weeklyActives.deadline)}
+      </h3>
+      <div className="admin-grid">
+        <Goal
+          label="Weekly actives"
+          goal={goals.may.weeklyActives}
+          note="Seen in the last 7 days."
+        />
+        <Goal
+          label="Paying, long goal"
+          goal={goals.may.paying}
+          note="Same count as above."
+        />
       </div>
       <div className="admin-table-wrap">
         <table className="admin-table" data-admin-growth-trend="">
           <thead>
             <tr>
               <th>Week from</th>
-              <th>Last seen in week</th>
-              <th>Paying, changed in week</th>
+              <th>Users with a product event</th>
             </tr>
           </thead>
           <tbody>
-            {growth.weeks.map((week) => (
+            {stats.weeks.map((week) => (
               <tr key={week.from}>
                 <td>{dayOf(week.from)}</td>
-                <td>{week.lastSeen}</td>
-                <td>{week.paidActivity}</td>
+                <td>{week.activeUsers}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <p className="admin-note">
-        Paying is a Pro or Lifetime subscription that still holds its plan;
-        trials are not in it. Activity keeps only the latest visit, so older
-        weeks show who was last seen then and understate; the newest week is the
-        weekly-actives number. The paying column counts paying people whose
-        subscription last changed that week (purchase, renewal or plan change);
-        there is no first-paid date to count real new buyers. Sandbox accounts
-        are left out of actives, paying and trials.
+        The goals ignore the internal toggle: they always count external
+        accounts. The weekly table counts users with any recorded product event
+        (calendar connected, task created, replan, Keep, Undo, Fill it) in each
+        rolling 7 days, so past weeks are real; counting started on 14.11.2026
+        and earlier weeks are empty. Weekly actives is the last visit within 7
+        days.
       </p>
     </section>
   );

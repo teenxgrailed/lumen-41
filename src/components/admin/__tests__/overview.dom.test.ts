@@ -50,119 +50,134 @@ function stat(label: string) {
     ?.textContent;
 }
 
+const goal = (value: number, target: number, deadline: string) => ({
+  value,
+  target,
+  deadline,
+  daysLeft: 15,
+  met: value >= target,
+});
+
+function statsBody(over: Record<string, unknown> = {}) {
+  return {
+    stats: {
+      excludeInternal: true,
+      internal: { accounts: 4, weeklyActives: 2 },
+      users: { total: 120, newLast7Days: 7 },
+      activeTrials: 15,
+      paying: { total: 3, activeNow: 3, creem: 3, apple: 0 },
+      granted: { total: 9, pro: 6, lifetime: 2, gifts: 1 },
+      free: 90,
+      waitlist: 33,
+      weeklyActives: 16,
+      funnel: [
+        { name: "account_created", users7Days: 12, users30Days: 40 },
+        { name: "calendar_connected", users7Days: 8, users30Days: 20 },
+        { name: "task_created", users7Days: 7, users30Days: 18 },
+        { name: "replan_shown", users7Days: 3, users30Days: 6 },
+        { name: "keep_applied", users7Days: 2, users30Days: 4 },
+      ],
+      sideEvents: [
+        { name: "first_replan_card_shown", users7Days: 5, users30Days: 9 },
+      ],
+      weeks: [
+        { from: "2026-10-29T12:00:00.000Z", activeUsers: 0 },
+        { from: "2026-11-05T12:00:00.000Z", activeUsers: 6 },
+      ],
+      goals: {
+        keep: goal(4, 5, "2026-11-30"),
+        paying: goal(3, 10, "2026-12-31"),
+        may: {
+          weeklyActives: goal(16, 300, "2027-05-05"),
+          paying: goal(3, 100, "2027-05-05"),
+        },
+      },
+      generatedAt: "2026-11-15T12:00:00.000Z",
+      ...over,
+    },
+    build: { buildSha: SHA, workerBuildSha: SHA },
+  };
+}
+
 describe("OverviewScreen", () => {
   it("shows the counts and the short build SHAs", async () => {
-    await renderWith({
-      ok: true,
-      status: 200,
-      body: {
-        overview: {
-          users: { total: 120, newLast7Days: 7 },
-          activeTrials: 15,
-          plans: { pro: 11, lifetime: 4, free: 90 },
-          waitlist: 33,
-          generatedAt: "2026-10-16T12:00:00.000Z",
-        },
-        build: { buildSha: SHA, workerBuildSha: SHA },
-      },
-    });
+    await renderWith({ ok: true, status: 200, body: statsBody() });
     expect(stat("Users")).toBe("120");
     expect(stat("New in 7 days")).toBe("7");
     expect(stat("Active trials")).toBe("15");
-    expect(stat("Pro")).toBe("11");
-    expect(stat("Lifetime")).toBe("4");
+    expect(stat("Paying")).toBe("3");
+    expect(stat("Granted")).toBe("9");
     expect(stat("Free")).toBe("90");
+    expect(stat("Weekly actives")).toBe("16");
     expect(stat("Waitlist")).toBe("33");
     expect(stat("App build")).toBe("0123456");
     expect(stat("Worker build")).toBe("0123456");
     expect(host.querySelector('[role="alert"]')).toBeNull();
   });
 
-  it("warns when the worker runs a different build than the app", async () => {
-    await renderWith({
-      ok: true,
-      status: 200,
-      body: {
-        overview: {
-          users: { total: 1, newLast7Days: 0 },
-          activeTrials: 0,
-          plans: { pro: 0, lifetime: 0, free: 1 },
-          waitlist: 0,
-          generatedAt: "2026-10-16T12:00:00.000Z",
-        },
-        build: { buildSha: SHA, workerBuildSha: "f".repeat(40) },
-      },
+  it("asks without internal accounts first, and with them when unticked", async () => {
+    await renderWith({ ok: true, status: 200, body: statsBody() });
+    const urls = () =>
+      (global.fetch as jest.Mock).mock.calls.map((c) => String(c[0]));
+    expect(urls()).toContain("/api/admin/overview");
+    const box = host.querySelector(
+      "[data-admin-internal-toggle] input"
+    ) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    expect(host.textContent).toContain("Exclude internal accounts (4)");
+    await act(async () => {
+      box.click();
     });
+    expect(urls()).toContain("/api/admin/overview?internal=include");
+  });
+
+  it("warns when the worker runs a different build than the app", async () => {
+    const body = statsBody();
+    body.build = { buildSha: SHA, workerBuildSha: "f".repeat(40) };
+    await renderWith({ ok: true, status: 200, body });
     expect(host.querySelector('[role="alert"]')?.textContent).toMatch(
       /different build/
     );
   });
 
   it("says so when the worker has reported no build", async () => {
-    await renderWith({
-      ok: true,
-      status: 200,
-      body: {
-        overview: {
-          users: { total: 1, newLast7Days: 0 },
-          activeTrials: 0,
-          plans: { pro: 0, lifetime: 0, free: 1 },
-          waitlist: 0,
-          generatedAt: "2026-10-16T12:00:00.000Z",
-        },
-        build: { buildSha: SHA, workerBuildSha: null },
-      },
-    });
+    const body = statsBody();
+    body.build = { buildSha: SHA, workerBuildSha: null as unknown as string };
+    await renderWith({ ok: true, status: 200, body });
     expect(stat("Worker build")).toBe("unknown");
   });
 
-  it("shows the growth block against 300 and 100 with trials apart", async () => {
-    await renderWith({
-      ok: true,
-      status: 200,
-      body: {
-        overview: {
-          users: { total: 1, newLast7Days: 0 },
-          activeTrials: 0,
-          plans: { pro: 0, lifetime: 0, free: 1 },
-          waitlist: 0,
-          generatedAt: "2026-11-05T12:00:00.000Z",
-        },
-        build: { buildSha: SHA, workerBuildSha: SHA },
-        growth: {
-          goal: {
-            weeklyActives: 300,
-            paying: 100,
-            checkpoint: "2027-02-05",
-            deadline: "2027-05-05",
-          },
-          weeklyActives: 120,
-          paying: { total: 36, pro: 30, lifetime: 6 },
-          activeTrials: 15,
-          daysToCheckpoint: 92,
-          daysToDeadline: 181,
-          neededPerWeek: { weeklyActives: 7, paying: 3 },
-          weeks: [
-            {
-              from: "2026-10-29T12:00:00.000Z",
-              lastSeen: 120,
-              paidActivity: 3,
-            },
-          ],
-          generatedAt: "2026-11-05T12:00:00.000Z",
-        },
-      },
-    });
-    const goal = (label: string) =>
+  it("shows the launch criteria first and the May goal below", async () => {
+    await renderWith({ ok: true, status: 200, body: statsBody() });
+    const goalText = (label: string) =>
       host.querySelector(`[data-admin-goal="${label}"] .admin-stat-value`)
         ?.textContent;
-    expect(goal("Weekly actives")).toBe("120 / 300");
-    expect(goal("Paying")).toBe("36 / 100");
-    expect(stat("In a trial, not paying")).toBe("15");
-    expect(host.textContent).toContain("2027-02-05");
+    expect(goalText("Keep pressed")).toBe("4 / 5");
+    expect(goalText("Paying")).toBe("3 / 10");
+    expect(goalText("Weekly actives")).toBe("16 / 300");
+    expect(goalText("Paying, long goal")).toBe("3 / 100");
+    expect(host.textContent).toContain("2026-11-30");
+    expect(host.textContent).toContain("2027-05-05");
     expect(
       host.querySelectorAll("[data-admin-growth-trend] tbody tr")
-    ).toHaveLength(1);
+    ).toHaveLength(2);
+  });
+
+  it("shows the activation funnel in order with 7 and 30 days", async () => {
+    await renderWith({ ok: true, status: 200, body: statsBody() });
+    const rows = [...host.querySelectorAll("[data-admin-funnel] tbody tr")].map(
+      (tr) => tr.getAttribute("data-admin-funnel-step")
+    );
+    expect(rows).toEqual([
+      "account_created",
+      "calendar_connected",
+      "task_created",
+      "replan_shown",
+      "keep_applied",
+    ]);
+    expect(
+      host.querySelector('[data-admin-funnel-step="keep_applied"]')?.textContent
+    ).toBe("Keep pressed24");
   });
 
   it("shows the refusal instead of numbers for a non-admin", async () => {
