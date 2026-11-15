@@ -1,23 +1,30 @@
 "use client";
 
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 
-import { LuChevronDown } from "react-icons/lu";
+import { LuCheck, LuChevronDown } from "react-icons/lu";
 
 import { proFromPlan } from "@/components/needt3/home/derive";
 
 import { addDays, addMinutes, project, stamp } from "@/lib/needt3/derive";
 import { cvDur } from "@/lib/needt3/derive";
 import { useCalendars, useEvents } from "@/lib/needt3/hooks/events";
+import {
+  useCheckins,
+  useHabits,
+  useToggleHabitToday,
+} from "@/lib/needt3/hooks/habits";
+import { useHomeBlocks } from "@/lib/needt3/hooks/home-blocks";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { useTasks, useToggleTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Event, V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { showsTask } from "@/lib/needt3/task-view";
 import type { DayBand } from "@/lib/personal-time-days";
 
@@ -29,6 +36,7 @@ import {
 } from "../../calendar/blocks";
 import { CAL_EMPTY_COPY, calendarEmptyState } from "../../calendar/empty";
 import { c2Time, calDay, freeSlot, isoWeek } from "../../calendar/layout";
+import { HaHabits, haHabitsOf } from "../../home/ha";
 import { openPaywall } from "../../paywall/store";
 import { PersonalDayBands } from "../../personal/PersonalBand";
 import { PersonalQuickAdd } from "../../personal/PersonalQuickAdd";
@@ -47,6 +55,7 @@ import {
   pkCx,
 } from "../kit";
 import { PersonalBandSheet } from "../overlays/PersonalBandSheet";
+import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
 import { MonthGrid, Step, WeekStrip } from "./Strips";
 import {
@@ -71,7 +80,7 @@ import { useSwipeStep } from "./useSwipeStep";
 
 const copy = strings["mobile-v2-plates.jsx"].V2pCalendar;
 const VIEWS: readonly [CalView, string][] = [
-  ["schedule", "Day"],
+  ["schedule", copy.day],
   ["month", copy.month],
 ];
 
@@ -104,8 +113,25 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   const [keeping, setKeeping] = useState(false);
   /* The month name's ▾ menu: Today, Add event, Keep time for you. */
   const [menu, setMenu] = useState(false);
+  const menuBtn = useRef<HTMLButtonElement>(null);
+  // an outside tap, and a day swipe (the picked day changing), close the menu
+  useEffect(() => {
+    if (!menu) return undefined;
+    const away = (e: Event) => {
+      const t = e.target as Element | null;
+      if (!t?.closest("[data-v2p-calmenu], [data-v2p-month-menu]"))
+        setMenu(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [menu]);
   const planQuery = usePlan();
   const planner = usePlanDay();
+  const toggleTask = useToggleTask();
+  const toggleHabit = useToggleHabitToday();
+  const habitsQuery = useHabits();
+  const checkinsQuery = useCheckins();
+  const blocks = useHomeBlocks();
 
   const tasksQuery = useTasks();
   const range = visibleRange(day, startDay);
@@ -181,13 +207,14 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
     openNewEvent({ startAt, endAt: addMinutes(startAt, 60) ?? startAt });
   };
 
-  /* "+ Schedule" in a free window: the same new-event sheet, on that slot
-     (an hour of it at most). */
+  /* A free window, tapped: the new-event sheet on that slot, 30 minutes of it.
+     (The quick-add composer takes a sentence, not a time, so it cannot be
+     seeded; the event sheet can.) */
   const scheduleIn = (g: FreeWindow) => {
     const startAt = stamp(day, g.from) ?? `${day}T09:00`;
     openNewEvent({
       startAt,
-      endAt: addMinutes(startAt, Math.min(g.len, 60)) ?? startAt,
+      endAt: addMinutes(startAt, Math.min(g.len, 30)) ?? startAt,
     });
   };
   /* The free gaps between the day's blocks, drawn above the block they run up to. */
@@ -196,34 +223,89 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   const freeRow = (b: CalTimed) => {
     const g = freeBefore.get(b.id);
     return g ? (
-      <div key={`free:${b.id}`} className="v2p-free" data-v2p-free={b.id}>
+      <button
+        key={`free:${b.id}`}
+        type="button"
+        className="v2p-free"
+        onClick={() => scheduleIn(g)}
+        data-v2p-free={b.id}
+        data-v2p-free-add={b.id}
+      >
         <span className="v2p-free-text">{cvDur(g.len)} free</span>
-        <button
-          type="button"
-          className="v2p-free-add"
-          onClick={() => scheduleIn(g)}
-          data-v2p-free-add={b.id}
-        >
-          + Schedule
-        </button>
-      </div>
+        <span className="v2p-free-add">+ Schedule</span>
+      </button>
     ) : null;
   };
 
   /* Auto-fit: Plan my day, the scheduler that places what has no time into
      the free hours (a Pro action; a Free person is shown the plans). */
-  const pro = proFromPlan(planQuery.data?.kind);
+  // an unknown plan that failed to load reads as Free: the pill then opens the
+  // plans instead of waiting for an answer that is not coming
+  const pro = planQuery.isError ? false : proFromPlan(planQuery.data?.kind);
   const unplaced = plan.allDay.filter((b) => !b.event && !b.done).length;
   const autoFit = () => {
     if (pro === false) openPaywall("Plan my day");
     else if (pro) void planner.plan();
   };
 
-  const hueOf = (b: CalItem) =>
-    b.event
-      ? "var(--v2p-ink-3)"
-      : (project((b.entry as V3Task).projectId, projects ?? [])?.color ??
-        "var(--text-muted)");
+  const hueOf = (b: CalItem) => {
+    if (b.event) return "var(--v2p-ink-3)";
+    const p = project((b.entry as V3Task).projectId, projects ?? []);
+    return p ? projectColor(p.id, p.color) : "var(--text-muted)";
+  };
+
+  /* The round check: a task is done in one tap, with the same Undo as
+     everywhere (an event has none). */
+  const completeTask = (b: CalItem) => {
+    const t = b.entry as V3Task;
+    void toggleTask
+      .toggle(t)
+      .then(({ undo }) => snack(t.done ? "Reopened" : "Done", undo))
+      .catch(() => undefined);
+  };
+  const withCheck = (b: CalItem, row: ReactNode) =>
+    b.event ? (
+      row
+    ) : (
+      <div key={`${b.id}:${b.date}`} className="v2p-tlw">
+        {row}
+        <button
+          type="button"
+          className={pkCx("pk-check v2p-tl-check", b.done && "is-on")}
+          aria-pressed={!!b.done}
+          aria-label={b.done ? "Mark not done" : "Mark done"}
+          onClick={() => completeTask(b)}
+          data-v2p-check={b.id}
+        >
+          <span className="pk-check-ring">
+            {b.done ? <LuCheck size={13} /> : null}
+          </span>
+        </button>
+      </div>
+    );
+
+  /* Today's habits, one compact strip at the top of the day: tap to mark. */
+  const haHabits = haHabitsOf(
+    habitsQuery.data ?? [],
+    checkinsQuery.data ?? [],
+    today
+  );
+  const habitStrip =
+    plan.isToday && blocks.habits && haHabits.length ? (
+      <div className="ha-phone v2p-habstrip" data-v2p-habits="">
+        <HaHabits
+          habits={haHabits}
+          onToggle={(id, done) =>
+            void toggleHabit
+              .mutateAsync({ id, done })
+              .then(({ undo }) =>
+                snack(done ? "Habit done" : "Habit unmarked", undo)
+              )
+              .catch(() => undefined)
+          }
+        />
+      </div>
+    ) : null;
 
   const overlap = (b: CalItem) =>
     plan.clash[b.id] ? (
@@ -235,7 +317,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       </span>
     ) : null;
   const ended = (b: CalTimed) => plan.isToday && b.at + b.len / 60 <= hour;
-  const line = (b: CalTimed) => (
+  const rowOf = (b: CalTimed) => (
     <button
       key={b.id}
       type="button"
@@ -260,7 +342,8 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       </span>
     </button>
   );
-  const looseLine = (b: CalItem) => (
+  const line = (b: CalTimed) => withCheck(b, rowOf(b));
+  const looseRow = (b: CalItem) => (
     <button
       key={`${b.id}:${b.date}`}
       type="button"
@@ -281,6 +364,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       </span>
     </button>
   );
+  const looseLine = (b: CalItem) => withCheck(b, looseRow(b));
   const nowLine = (
     <div key="now" className="v2p-now" data-v2p-now="">
       <span className="v2p-now-dot" />
@@ -317,6 +401,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       className="v2p-monthbtn"
       aria-haspopup="menu"
       aria-expanded={menu}
+      ref={menuBtn}
       onClick={() => setMenu((on) => !on)}
       data-v2p-month-menu=""
     >
@@ -333,7 +418,26 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
     run();
   };
   const menuPanel = menu ? (
-    <div className="v2p-calmenu" role="menu" data-v2p-calmenu="">
+    <div
+      className="v2p-calmenu"
+      role="menu"
+      data-v2p-calmenu=""
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          setMenu(false);
+          menuBtn.current?.focus();
+        }
+        if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+        e.preventDefault();
+        const items = Array.from(
+          e.currentTarget.querySelectorAll<HTMLElement>('[role^="menuitem"]')
+        );
+        const at = items.indexOf(document.activeElement as HTMLElement);
+        const step = e.key === "ArrowDown" ? 1 : -1;
+        items[(at + step + items.length) % items.length]?.focus();
+      }}
+    >
       <p className="v2p-calmenu-cap">
         {view === "schedule"
           ? `Week ${isoWeek(week[3].date)} · ${weekRange(week)}`
@@ -488,6 +592,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
 
               <div key={day} className="v2p-swap">
                 {head(dayName)}
+                {habitStrip}
 
                 {/* what is over folds into one quiet row above the Now line */}
                 {plan.earlier.length ? (
@@ -502,6 +607,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
                   </PkSection>
                 ) : null}
 
+                {plateB ? freeRow(plateB) : null}
                 {plateB ? (
                   <PkSkyPlate
                     as="button"
@@ -553,8 +659,8 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
                   <div className="v2p-timeline" data-v2p-coming="">
                     {plan.coming.map((b, i) =>
                       i === plan.nowAt
-                        ? [nowLine, freeRow(b), line(b)]
-                        : [freeRow(b), line(b)]
+                        ? [nowLine, b === plateB ? null : freeRow(b), line(b)]
+                        : [b === plateB ? null : freeRow(b), line(b)]
                     )}
                     {plan.isToday && plan.nowAt < 0 ? nowLine : null}
                   </div>
@@ -562,13 +668,13 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
                 {noTime}
                 {empty}
               </div>
-              {unplaced ? (
+              {unplaced && plan.isToday && pro !== null ? (
                 <div className="v2p-autofit" data-v2p-autofit="">
                   <button
                     type="button"
                     className="v2p-autofit-pill"
                     onClick={autoFit}
-                    disabled={pro === null || planner.busy}
+                    disabled={planner.busy}
                     aria-busy={planner.busy || undefined}
                     data-v2p-autofit-go=""
                   >

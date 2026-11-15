@@ -94,6 +94,9 @@ describe("dayPlan", () => {
     expect(p.nowB).toBeNull();
     expect(p.plate?.id).toBe("soon");
     expect(p.plateLine).toBe("in 30 min");
+    // the meeting in the Next card also stays in the timeline, at its time
+    expect(p.coming.map((b) => b.id)).toEqual(["soon", "late"]);
+    expect(p.nowAt).toBe(0);
     expect(dayPlan(items, [], TODAY, TODAY, 13.0).plateLine).toBe("in 1 h");
   });
   it("after the last item the now line closes the timeline", () => {
@@ -108,6 +111,7 @@ describe("dayPlan", () => {
     const ahead = dayPlan(next, [], "2026-09-03", TODAY, 14);
     expect(ahead.plate?.id).toBe("early");
     expect(ahead.plateLine).toBe("");
+    expect(ahead.coming.map((b) => b.id)).toContain("early");
     expect(ahead.earlier).toEqual([]);
     expect(ahead.nowAt).toBe(-1);
     const past = dayPlan(

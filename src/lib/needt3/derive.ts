@@ -8,6 +8,7 @@
  * day. Nothing here reads the clock or touches the network.
  */
 import { newDate } from "@/lib/date-utils";
+import { projectColor } from "@/lib/needt3/project-color";
 
 export const MONTHS = [
   "Jan",
@@ -403,7 +404,7 @@ export function cvProject(
   const p = project(ref, projects, aliases);
   return p
     ? {
-        color: p.color ?? NEUTRAL_MARK.color,
+        color: projectColor(p.id, p.color),
         icon: p.icon ?? NEUTRAL_MARK.icon,
       }
     : { ...NEUTRAL_MARK };

@@ -18,6 +18,7 @@ import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useToggleTask } from "@/lib/needt3/hooks/tasks";
 
+import { C2_H } from "../calendar/layout";
 import { TaskCheck } from "./TaskCheck";
 import { StepsBlock, StepsCount, useTaskSteps } from "./TaskSteps";
 import { DeskMeta, LineMeta, PinMark, TaskValue } from "./chips";
@@ -177,7 +178,7 @@ function TaskContent(props: TaskProps) {
   };
 
   if (layout === "block") {
-    const h = box.h ?? Math.max((v.len / 60) * 64 - 3, 20);
+    const h = box.h ?? Math.max((v.len / 60) * C2_H - 3, 20);
     // A Needt task carries its ○ inside the block; an event never does (it
     // is not ours to close). Skipped where a lane is too narrow to spare it.
     const blockCheck = !v.event && (box.w ?? 999) >= 64 ? check : null;

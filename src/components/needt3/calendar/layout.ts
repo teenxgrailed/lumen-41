@@ -139,6 +139,10 @@ export function c2PlaceCluster<B extends TimedBlock>(
   capIn: number
 ): { placed: Placed<B>[]; hidden: Placed<B>[] } {
   let cap = capIn;
+  /* Two overlapping blocks sit 50/50 while each lane keeps C2_SPLIT_MIN (PORT
+     section 3); a split that would land under it shows one block and a chip
+     for the other, never a cascade over a title. */
+  if (cl[0].cols === 2 && inner / 2 < C2_SPLIT_MIN) cap = 1;
   /* More than `cap` deep: plain lanes only — as many as stay >= C2_MINW wide
      (never more than cap); the cascade would stack slivers here. */
   if (cl[0].cols > cap)
@@ -146,9 +150,10 @@ export function c2PlaceCluster<B extends TimedBlock>(
   const hidden = cl.filter((x) => x.col >= cap && !x.b.draft);
   const vis = cl.filter((x) => x.col < cap || x.b.draft);
   const n = Math.min(cl[0].cols, cap);
-  /* Two blocks that overlap sit side by side, 50/50, at any width: a cascade
-     would draw one over the other's title (critique 15.11). Three or more
-     keep the lane floor, then cascade. */
+  /* Two blocks that overlap sit side by side, 50/50 (the cap above already
+     refused a split under C2_SPLIT_MIN): a cascade would draw one over the
+     other's title (critique 15.11). Three or more keep the lane floor, then
+     cascade. */
   if (n <= 2 || inner / n >= C2_MINW || cl[0].cols > n)
     return {
       placed: vis.map((x) =>

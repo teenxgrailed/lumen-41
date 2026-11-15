@@ -95,10 +95,10 @@ describe("c2Place", () => {
     expect(placed.some((x) => x.b.id === "__draft")).toBe(true);
   });
 
-  it("keeps two overlapping blocks 50/50 side by side, even in a narrow column", () => {
+  it("keeps two overlapping blocks 50/50 side by side while each lane is >= 64px", () => {
     // the critique case: a later, shorter block inside a longer one used to
     // cascade over it once a lane fell under 72px
-    for (const W of [120, 140, 200, 400]) {
+    for (const W of [136, 140, 200, 400]) {
       const { placed, more } = c2Place([tb("a", 11, 90), tb("b", 11.5, 60)], W);
       const inner = W - 8;
       expect(more).toEqual([]);
@@ -107,6 +107,17 @@ describe("c2Place", () => {
         [4, inner / 2 - 2],
         [4 + inner / 2, inner / 2 - 2],
       ]);
+    }
+  });
+
+  it("under 64px a lane, two overlapping blocks become one block and a chip, never a cascade", () => {
+    for (const W of [100, 120, 130]) {
+      const { placed, more } = c2Place([tb("a", 11, 90), tb("b", 11.5, 60)], W);
+      expect(placed).toHaveLength(1);
+      expect(placed[0].b.id).toBe("a");
+      expect(placed.some((x) => x.cascade)).toBe(false);
+      expect(more).toHaveLength(1);
+      expect(more[0].hidden).toEqual(["b"]);
     }
   });
 

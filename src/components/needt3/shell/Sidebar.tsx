@@ -48,6 +48,7 @@ import {
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
 import { isPro } from "@/lib/needt3/paywall";
+import { projectColor } from "@/lib/needt3/project-color";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -1080,7 +1081,7 @@ export function Sidebar() {
                       icon={
                         <span
                           className="shell-sidebar-grid-2"
-                          style={{ color: p.color ?? "var(--text-tertiary)" }}
+                          style={{ color: projectColor(p.id, p.color) }}
                         >
                           <LuFolder size={16} />
                         </span>

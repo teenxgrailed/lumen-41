@@ -27,7 +27,6 @@ import {
   effectiveFullTime,
   fullTimeAuto,
 } from "@/lib/needt3/full-time";
-import { projectColor } from "@/lib/needt3/project-color";
 import {
   PREVIEW_MAX_ROWS,
   PREVIEW_ROW_TEXT,
@@ -522,7 +521,7 @@ export function projectFromApi(row: ApiProject): V3Project {
   return {
     id: row.id,
     name: row.name,
-    color: projectColor(row.id, row.color),
+    color: row.color ?? null,
     icon: row.icon ?? null,
     ground: row.ground ?? null,
     position: row.position ?? 0,

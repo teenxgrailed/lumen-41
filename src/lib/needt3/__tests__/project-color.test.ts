@@ -1,3 +1,6 @@
+import { PROJECT_SWATCHES } from "@/components/needt3/work/model";
+
+import { previousFields } from "../hooks/core";
 import { projectFromApi } from "../map";
 import {
   PROJECT_PALETTE,
@@ -48,13 +51,29 @@ describe("the project palette", () => {
   });
 });
 
-describe("projectColor: a project never renders grey", () => {
+/** WCAG contrast of a hex against white. */
+const contrastOnWhite = (hex: string) => {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 1.05 / (0.2126 * r + 0.7152 * g + 0.0722 * b + 0.05);
+};
+
+describe("palette contrast", () => {
+  it("every colour reaches 3:1 on a light surface (rails and dots)", () => {
+    for (const c of PROJECT_PALETTE)
+      expect(contrastOnWhite(c)).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("projectColor: a project never RENDERS grey", () => {
   it("falls back to a palette colour when there is none", () => {
     for (const none of [null, undefined, "", "   "]) {
       expect(PROJECT_PALETTE).toContain(projectColor("home", none));
     }
   });
-  it("replaces every shape of grey", () => {
+  it("replaces a stray grey of any shape", () => {
     for (const grey of [
       "#888",
       "#808080",
@@ -62,30 +81,49 @@ describe("projectColor: a project never renders grey", () => {
       "#cccccc",
       "gray",
       "Grey",
+      "rgb(128, 128, 128)",
+      "rgba(150 150 150 / 0.5)",
+      "hsl(0, 0%, 50%)",
       "var(--text-tertiary)",
-      "var(--text-muted)",
       "var(--fill-4)",
     ]) {
       expect(isGreyColor(grey)).toBe(true);
       expect(PROJECT_PALETTE).toContain(projectColor("launch", grey));
     }
   });
+  it("never replaces one of the five swatches, Muted included", () => {
+    for (const [, value] of PROJECT_SWATCHES)
+      expect(projectColor("x", value)).toBe(value);
+    expect(projectColor("x", "var(--text-muted)")).toBe("var(--text-muted)");
+  });
   it("keeps a colour the person chose", () => {
     expect(projectColor("x", "#e11d48")).toBe("#e11d48");
-    expect(projectColor("x", "#5b8def")).toBe("#5b8def");
-    expect(projectColor("x", "var(--accent)")).toBe("var(--accent)");
+    expect(projectColor("x", "rgb(37, 99, 235)")).toBe("rgb(37, 99, 235)");
+    expect(projectColor("x", "hsl(220, 80%, 50%)")).toBe("hsl(220, 80%, 50%)");
   });
-  it("is what every screen reads: projectFromApi never returns grey or null", () => {
-    const home = projectFromApi({ id: "home", name: "Home", color: null });
-    const launch = projectFromApi({
-      id: "launch",
-      name: "Product launch",
-      color: "#999999",
+});
+
+describe("the stored colour is never written over", () => {
+  it("projectFromApi keeps null as null and a stray grey as it was", () => {
+    expect(
+      projectFromApi({ id: "home", name: "Home", color: null }).color
+    ).toBe(null);
+    expect(projectFromApi({ id: "l", name: "L", color: "#999999" }).color).toBe(
+      "#999999"
+    );
+  });
+  it("a rename's undo inverse restores the raw colour, null included", () => {
+    const cur = projectFromApi({ id: "home", name: "Home", color: null });
+    expect(previousFields(cur, { name: "House" })).toEqual({ name: "Home" });
+    // recolouring then undoing puts back null, not a palette colour
+    expect(previousFields(cur, { color: "var(--info)" })).toEqual({
+      color: null,
     });
-    const chosen = projectFromApi({ id: "c", name: "C", color: "#2563eb" });
-    expect(PROJECT_PALETTE).toContain(home.color);
-    expect(PROJECT_PALETTE).toContain(launch.color);
-    expect(chosen.color).toBe("#2563eb");
-    expect(home.color).toBe(projectFromApi({ id: "home", name: "x" }).color);
+  });
+  it("what a rename saves carries no colour of its own making", () => {
+    const cur = projectFromApi({ id: "home", name: "Home", color: null });
+    // the edit form seeds from the raw colour; only the swatch fallback applies
+    expect(cur.color || PROJECT_SWATCHES[0][1]).toBe("var(--accent)");
+    expect(PROJECT_PALETTE).not.toContain(cur.color);
   });
 });

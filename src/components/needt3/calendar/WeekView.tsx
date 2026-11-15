@@ -13,7 +13,7 @@ import {
   useState,
 } from "react";
 
-import { type ProjectLike, weekday } from "@/lib/needt3/derive";
+import { type ProjectLike, daysBetween, weekday } from "@/lib/needt3/derive";
 import { type DayBand, bandTimeLabel } from "@/lib/personal-time-days";
 
 import { useExit } from "../ctx/useExit";
@@ -380,6 +380,29 @@ interface ColumnProps {
   moreKey: string | null;
 }
 
+/**
+ * The now line. It runs across the whole week: bold with its dot on today, a
+ * hairline in the other columns. Its own memoised piece, so a minute passing
+ * redraws a line and not a column.
+ */
+const NowLine = memo(function NowLine({
+  hour,
+  today,
+}: {
+  hour: number;
+  today: boolean;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={today ? "c2-now" : "c2-now is-week"}
+      style={{ top: hour * C2_H }}
+    >
+      {today ? <span className="c2-now-dot" /> : null}
+    </span>
+  );
+});
+
 /** One day: its off-hours shading, hour lines, blocks and now line. */
 const DayColumn = memo(function DayColumn({
   date,
@@ -592,16 +615,8 @@ const DayColumn = memo(function DayColumn({
           </span>
         </div>
       ) : null}
-      {/* the now line runs across the whole week: bold with its dot on
-          today, a hairline in every other column */}
       {nowHour != null ? (
-        <span
-          aria-hidden="true"
-          className={isToday ? "c2-now" : "c2-now is-week"}
-          style={{ top: nowHour * C2_H }}
-        >
-          {isToday ? <span className="c2-now-dot" /> : null}
-        </span>
+        <NowLine hour={nowHour} today={isToday} />
       ) : null}
     </div>
   );
@@ -1095,7 +1110,7 @@ export function WeekView({
                   isToday={date === today}
                   mine={blocks.get(date) ?? NONE}
                   draft={draft && draft.date === date ? draft : null}
-                  nowHour={nowHour}
+                  nowHour={Math.abs(daysBetween(today, date)) < 7 ? nowHour : null}
                   work={work}
                   peekId={peekId}
                   hover={hover}

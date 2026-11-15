@@ -15,6 +15,7 @@ import type { V3Event, V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 
 import { HomeScreen } from "../../../home/HomeScreen";
+import { usePaywallStore } from "../../../paywall/store";
 import { PhoneUiProvider } from "../../../root/phone-ui-context";
 import { CalendarFaces } from "../../calendar/CalendarFaces";
 import type { CalendarController } from "../../calendar/useCalendarController";
@@ -742,6 +743,32 @@ describe("Calendar", () => {
     expect(host.textContent).toContain("Kept for you");
   });
 
+  it("the ▾ menu closes on Escape and on a tap outside it", () => {
+    mount(PhoneCalendar);
+    click(q("[data-v2p-month-menu]"));
+    expect(qa("[data-v2p-calmenu]")).toHaveLength(1);
+    act(() => {
+      q("[data-v2p-calmenu]").dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(qa("[data-v2p-calmenu]")).toHaveLength(0);
+    click(q("[data-v2p-month-menu]"));
+    act(() => {
+      document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    });
+    expect(qa("[data-v2p-calmenu]")).toHaveLength(0);
+  });
+
+  it("a task in the list has a round check that completes it in one tap, an event has none", async () => {
+    toggle.mockClear();
+    mount(PhoneCalendar);
+    expect(qa("[data-v2p-check=t1]")).toHaveLength(1);
+    await click(q("[data-v2p-check=t1]"));
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(qa("[data-v2p-check=e1]")).toHaveLength(0);
+  });
+
   it("Earlier today is one folded row above the plate, not in the footer", () => {
     mount(PhoneCalendar);
     const earlier = q(".v2p-fold.is-earlier");
@@ -771,7 +798,7 @@ describe("Calendar", () => {
           estimatedMinutes: 30,
         }),
       ]);
-    it("a gap between two blocks says how long, and + Schedule opens the new-event sheet on it", () => {
+    it("a gap between two blocks says how long, and a tap on it opens the new-event sheet on it for 30 min", () => {
       two();
       mount(PhoneCalendar);
       click(q("[data-v2p-day='2026-09-03']"));
@@ -782,11 +809,23 @@ describe("Calendar", () => {
         q("[data-v2p-plate=a]").compareDocumentPosition(row) &
           Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy();
-      click(q("[data-v2p-free-add=b]"));
+      click(row);
       expect(usePhoneOverlays.getState().newEvent).toEqual({
         startAt: `${D3}T10:30`,
-        endAt: `${D3}T11:30`,
+        endAt: `${D3}T11:00`,
       });
+    });
+    it("the window that ends at the plate is drawn above the plate", () => {
+      // 10:00: the 09:00 block is over, the plate is Planning at 14:00, and
+      // the gap between now and it is the window that ends at the plate
+      jest.setSystemTime(new Date("2026-09-02T10:00:00Z"));
+      mount(PhoneCalendar);
+      const plate = q("[data-v2p-plate]");
+      const id = plate.getAttribute("data-v2p-plate");
+      const row = q(`[data-v2p-free=${id}]`);
+      expect(
+        row.compareDocumentPosition(plate) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
     });
     it("no window before the first block or after the last", () => {
       two();
@@ -797,11 +836,28 @@ describe("Calendar", () => {
   });
 
   describe("Auto-fit", () => {
-    it("the pill sits with the unscheduled items and waits until the plan is known", () => {
+    it("the pill is not shown until the plan is known", () => {
+      mount(PhoneCalendar);
+      expect(qa("[data-v2p-autofit-go]")).toHaveLength(0);
+    });
+    it("a Free person gets the paywall, not a dead button", () => {
+      client.setQueryData(qk.plan(), { kind: "free" });
       mount(PhoneCalendar);
       const pill = q<HTMLButtonElement>("[data-v2p-autofit-go]");
       expect(pill.textContent).toBe("Auto-fit");
-      expect(pill.disabled).toBe(true); // Free or Pro not known yet
+      expect(pill.disabled).toBe(false);
+      click(pill);
+      expect(usePaywallStore.getState().open).toBe(true);
+      expect(usePaywallStore.getState().feature).toBe("Plan my day");
+      expect(
+        fetchMock.mock.calls.some((c) => c[0] === "/api/ai/plan-day")
+      ).toBe(false);
+    });
+    it("only on today: a day that is not today has no pill", () => {
+      client.setQueryData(qk.plan(), { kind: "monthly" });
+      mount(PhoneCalendar);
+      click(q("[data-v2p-day='2026-09-03']"));
+      expect(qa("[data-v2p-autofit]")).toHaveLength(0);
     });
     it("a Pro person runs Plan my day with it", async () => {
       client.setQueryData(qk.plan(), { kind: "monthly" });

@@ -159,9 +159,6 @@ describe("openAtHour (the grid opens on 08:00)", () => {
   it("lands 08:00 just under the top edge at 64px an hour", () => {
     expect(openAtHour(64, 700, 24 * 64)).toBe(8 * 64 - 6);
   });
-  it("does not depend on the clock", () => {
-    expect(openAtHour(64, 600, 24 * 64)).toBe(openAtHour(64, 600, 24 * 64));
-  });
   it("never scrolls past the end of a short grid", () => {
     expect(openAtHour(64, 24 * 64 - 100, 24 * 64)).toBe(100);
     expect(openAtHour(64, 5000, 24 * 64)).toBe(0);

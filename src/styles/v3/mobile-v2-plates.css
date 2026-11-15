@@ -112,9 +112,19 @@
 
 /* No time (N): Auto-fit stays under the thumb while the list scrolls, above
    the dock (the tail's own clearance: 112px + the dock lift). */
-.needt-v3 .v2p-autofit { position: sticky; bottom: calc(112px + var(--v3-dock-lift, 0px)); z-index: 5; display: flex; justify-content: center; margin-top: 12px; pointer-events: none; }
+.needt-v3 .v2p-autofit { position: sticky; bottom: calc(var(--v3-tail-h, 112px) + var(--v3-sab, 0px)); z-index: 5; display: flex; justify-content: center; margin-top: 12px; pointer-events: none; }
 .needt-v3 .v2p-autofit-pill { pointer-events: auto; height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--v2p-plate); color: var(--v2p-ink); box-shadow: var(--v2p-plate-shadow); font: 500 13px/16px var(--font-sans); -webkit-tap-highlight-color: transparent; }
 .needt-v3 .v2p-autofit-pill:disabled { opacity: 0.5; }
+/* the snack stands there for a few seconds: the pill steps over it */
+.needt-v3:has(.pov-snack) .v2p-autofit { bottom: calc(var(--v3-tail-h, 112px) + var(--v3-sab, 0px) + 64px); }
+
+/* A task row carries its round check at the right edge; the row keeps its width. */
+.needt-v3 .v2p-tlw { position: relative; }
+.needt-v3 .v2p-tlw > .v2p-tl { padding-right: 46px; }
+.needt-v3 .v2p-tl-check { position: absolute; right: -6px; top: 50%; transform: translateY(-50%); margin-left: 0; }
+/* Today's habits: the home's chip strip, tighter, at the top of the day. */
+.needt-v3 .v2p-habstrip { padding: 6px 0 2px; }
+.needt-v3 .v2p-habstrip .ha-hab { font-size: 13px; }
 
 /* The empty week (calendar/empty.ts): two pills side by side, each its own width. */
 .needt-v3 .v2p-cal-empty .pk-empty-action { flex-wrap: wrap; gap: 8px; }

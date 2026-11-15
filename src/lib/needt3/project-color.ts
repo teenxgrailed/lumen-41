@@ -10,13 +10,13 @@
 export const PROJECT_PALETTE = [
   "#5b8def", // blue
   "#8b6cf0", // violet
-  "#2fb5a3", // teal
-  "#3fae6a", // green
-  "#d99a2b", // amber
-  "#e07a3f", // orange
+  "#1f9a8a", // teal
+  "#2e9d5b", // green
+  "#b8780f", // amber
+  "#d1622a", // orange
   "#d65fa3", // pink
-  "#4cb0d6", // sky
-  "#9bb02f", // lime
+  "#2a93bd", // sky
+  "#7d8f14", // lime
   "#b56cd0", // orchid
 ] as const;
 
@@ -40,33 +40,59 @@ const GREY_WORDS =
   /^(gr[ae]y|silver|slate|zinc|neutral|stone|gainsboro|lightgr[ae]y|darkgr[ae]y|dimgr[ae]y|transparent|currentcolor|inherit)$/i;
 const GREY_VARS = /^var\(--(text|fill|border|surface|v2p-ink|ink)\b/i;
 
-/** Saturation (0-1) of "#rgb" / "#rrggbb"; null when it is not one. */
-function hexSaturation(hex: string): number | null {
-  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return null;
-  const full =
-    m[1].length === 3
-      ? m[1]
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : m[1];
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+/** The five colours a person can pick for a project (work/model.ts PROJECT_SWATCHES). */
+const SWATCH_VALUES: ReadonlySet<string> = new Set([
+  "var(--accent)",
+  "var(--info)",
+  "var(--success)",
+  "var(--destructive)",
+  "var(--text-muted)",
+]);
+
+/** Saturation (0-1) of "#rgb" / "#rrggbb" / rgb() / hsl(); null when it is none of them. */
+function saturation(color: string): number | null {
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color);
+  let r: number, g: number, b: number;
+  if (hex) {
+    const full =
+      hex[1].length === 3
+        ? hex[1]
+            .split("")
+            .map((c) => c + c)
+            .join("")
+        : hex[1];
+    [r, g, b] = [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
+  } else {
+    const rgb = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/i.exec(color);
+    if (rgb) [r, g, b] = [+rgb[1], +rgb[2], +rgb[3]];
+    else {
+      const hsl = /^hsla?\(\s*[\d.]+(?:deg)?[\s,]+([\d.]+)%/i.exec(color);
+      return hsl ? Number(hsl[1]) / 100 : null;
+    }
+  }
   const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  return max === 0 ? 0 : (max - min) / max;
+  return max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
 }
 
-/** Whether a stored colour reads as grey (or as nothing). */
+/**
+ * Whether a stored colour is nothing, or a grey the person never picked from
+ * the swatches (a stray hex, a text variable). The five swatches are
+ * deliberate, Muted included, and are never replaced.
+ */
 export function isGreyColor(color: string | null | undefined): boolean {
   if (!color || !color.trim()) return true;
   const c = color.trim();
+  if (SWATCH_VALUES.has(c)) return false;
   if (GREY_WORDS.test(c) || GREY_VARS.test(c)) return true;
-  const s = hexSaturation(c);
+  const s = saturation(c);
   return s !== null && s < 0.16;
 }
 
-/** What a project draws in: its own colour, unless that is none or grey. */
+/**
+ * What a project DRAWS in: its own colour, unless that is empty or a stray
+ * grey. Render-time only: the stored colour is never replaced by this, so
+ * editing, renaming and undo keep what the person set.
+ */
 export function projectColor(
   id: string,
   color: string | null | undefined

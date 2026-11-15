@@ -80,7 +80,7 @@ export interface DayPlan {
   plate: CalTimed | null;
   /** On the plate: "until 15:00" / "in 40 min". */
   plateLine: string;
-  /** Timeline rows after the plate that have not ended. */
+  /** Timeline rows that have not ended, the Next card's meeting included; not the one on now. */
   coming: CalTimed[];
   /** Today's rows that have ended. */
   earlier: CalTimed[];
@@ -112,9 +112,10 @@ export function dayPlan(
     : null;
   const nextB = isToday ? (timed.find((b) => b.at > nowHour) ?? null) : null;
   const plate = isToday ? (nowB ?? nextB) : !isPast ? (timed[0] ?? null) : null;
-  const rest = timed.filter((b) => b !== plate);
-  const coming = rest.filter((b) => !ended(b));
-  const earlier = rest.filter(ended);
+  // A meeting shown in the Next / First up card also stays in the timeline at
+  // its time; only what is on NOW (the Now card) is left out of it.
+  const coming = timed.filter((b) => !ended(b) && b !== nowB);
+  const earlier = timed.filter(ended);
   let plateLine = "";
   if (plate && plate === nowB) plateLine = `until ${c2Time(end(plate))}`;
   else if (plate && isToday) {
