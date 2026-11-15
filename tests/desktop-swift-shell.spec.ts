@@ -11,6 +11,7 @@ import { join } from "node:path";
 
 import { SETUP_PREF } from "@/components/needt3/connections/setup-keys";
 
+import { formatInTimeZone, fromZonedTime, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 import { createV3User, signInAs } from "./helpers/v3-user";
@@ -113,8 +114,9 @@ async function openToday(
   });
   for (let i = 0; i < 24; i++) {
     // placed through the day: Home v2 folds untimed tasks into "Anytime"
-    const start = new Date();
-    start.setUTCHours(7 + (i % 14), 0, 0, 0);
+    const day = formatInTimeZone(newDate(), "Europe/Zurich", "yyyy-MM-dd");
+    const hour = String(7 + (i % 14)).padStart(2, "0");
+    const start = fromZonedTime(`${day}T${hour}:00:00`, "Europe/Zurich");
     await prisma.task.create({
       data: {
         userId: user.id,

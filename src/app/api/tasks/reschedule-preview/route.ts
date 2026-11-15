@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       requiredRole: WorkspaceRole.EDITOR,
     });
     if ("response" in auth) return auth.response;
-    // not an AI action, so it stays on Free; the limit only stops a runaway loop
+    // not an AI action, so it stays on Free; the limit (20 a minute) only stops a runaway loop
     const limited = await enforceRateLimits(
       [accountRule(auth.userId, "tasks-reschedule-preview:account", 20, 60)],
       { route: "/api/tasks/reschedule-preview", userId: auth.userId }
