@@ -18,7 +18,7 @@ const NAME: Record<BarStyle, string> = {
 
 const SUB: Record<BarStyle, string> = {
   classic: "A pill and a + beside it",
-  float: "Everything in one light bar",
+  float: "Everything in one frosted bar",
 };
 
 const noop = () => undefined;
