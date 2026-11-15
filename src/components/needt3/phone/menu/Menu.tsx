@@ -241,7 +241,10 @@ export function Menu(props: MenuProps) {
   const { side, screen, tiles, counts, me, away, morph, focus, focusOn } =
     props;
   const top = tiles.slice(0, 3);
-  const rows = menuRows(top, { agents: counts?.agents !== undefined });
+  const rows = menuRows(top, {
+    agents: counts?.agents !== undefined,
+    budget: counts?.budget !== undefined,
+  });
   const [mode, setMode] = useState<NvaMode>("pill");
   const [hint, setHint] = useState<"more" | "tuck" | null>(null);
   const [holding, setHolding] = useState(false);
@@ -1143,7 +1146,13 @@ export function Menu(props: MenuProps) {
                         key={id}
                         type="button"
                         tabIndex={open ? 0 : -1}
-                        className={"nva-row" + (screen === id ? " is-on" : "")}
+                        className={
+                          "nva-row" +
+                          (screen === id ? " is-on" : "") +
+                          (id === "budget" && counts?.budget?.locked
+                            ? " is-locked"
+                            : "")
+                        }
                         onClick={() => pick(id)}
                         data-nva-row={id}
                       >

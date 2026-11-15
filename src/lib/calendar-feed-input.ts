@@ -40,3 +40,20 @@ export const feedBatchUpdateSchema = z.object({
       .strip()
   ),
 });
+
+/**
+ * Whether a created feed is a real iCal subscription: a LOCAL-type feed whose
+ * address is a calendar link (http, https or webcal). A feed with no address,
+ * or a provider feed, is not.
+ */
+export function isIcsSubscription(feed: {
+  type: string;
+  url?: string | null;
+}): boolean {
+  if (feed.type !== "LOCAL" || !feed.url) return false;
+  try {
+    return ["http:", "https:", "webcal:"].includes(new URL(feed.url).protocol);
+  } catch {
+    return false;
+  }
+}

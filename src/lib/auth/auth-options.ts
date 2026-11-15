@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 
 import { PrismaAdapter } from "@auth/prisma-adapter";
 
+import { recordActivation } from "@/lib/activation-events";
 import { requestUtm } from "@/lib/attribution-server";
 import {
   accountLinkingGate,
@@ -312,6 +313,9 @@ export async function getAuthOptions(): Promise<NextAuthOptions> {
             });
             /* isNewUser is true only on the sign-in that created the row,
                so this is once per account. */
+            recordActivation("account_created", user.id, {
+              method: providerId,
+            });
             void sendUmamiSignupCompleted(providerId, await requestUtm());
           }
           if (oauthLike && user?.id && user.email) {

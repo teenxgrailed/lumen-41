@@ -4,6 +4,8 @@
  * map, docs/port/02-task-plan.md §2.4), so the phone and the rail can never
  * disagree about where a place lives. Pure.
  */
+import { BUDGET_HREF } from "@/lib/needt3/budget";
+
 import {
   PLACES,
   type PlaceId,
@@ -28,6 +30,7 @@ export type MenuPlaceId =
   | "trash"
   | "connections"
   | "agents"
+  | "budget"
   | "settings";
 
 /**
@@ -50,6 +53,7 @@ export const MENU_ORDER: readonly MenuPlaceId[] = [
   "trash",
   "connections",
   "agents",
+  "budget",
   "settings",
 ];
 
@@ -87,6 +91,8 @@ export function menuWord(id: MenuPlaceId): string {
       return "Connections";
     case "agents":
       return "Agents";
+    case "budget":
+      return "Budget";
     case "settings":
       return "Settings";
     default: {
@@ -105,6 +111,8 @@ export function menuSub(id: MenuPlaceId): string {
       return "Calendars, mail and tools";
     case "agents":
       return "Work you hand to agents";
+    case "budget":
+      return "Wallets and spending";
     case "settings":
       return "Theme, hours, notifications";
     default:
@@ -123,6 +131,7 @@ export function menuAction(id: MenuPlaceId): MenuAction {
   if (id === "settings") return { kind: "settings" };
   if (id === "connections") return { kind: "route", href: CONNECTIONS_HREF };
   if (id === "agents") return { kind: "route", href: AGENTS_HREF };
+  if (id === "budget") return { kind: "route", href: BUDGET_HREF };
   const sid = SHELL_ID[id] as PlaceId;
   const place = PLACES.find((p) => p.id === sid);
   return { kind: "route", href: place ? place.href : "/today" };
@@ -137,6 +146,8 @@ export function menuIdForPath(pathname: string): MenuPlaceId | null {
     return "connections";
   if (pathname === AGENTS_HREF || pathname.startsWith(`${AGENTS_HREF}/`))
     return "agents";
+  if (pathname === BUDGET_HREF || pathname.startsWith(`${BUDGET_HREF}/`))
+    return "budget";
   const sid = placeForPath(pathname);
   if (!sid) return null;
   for (const id of MENU_ORDER) if (SHELL_ID[id] === sid) return id;
@@ -187,15 +198,19 @@ export function menuTilesFrom(prefs: unknown): MenuPlaceId[] {
 
 /**
  * The rows of the card: every place that is not one of the three. Agents is a
- * row only while the agent hub is on for the person (`agents: true`); without
- * the flag the card is exactly what it was.
+ * row only while the agent hub is on for the person (`agents: true`), Budget
+ * only while its place is shown (`budget: true`); without them the card is
+ * exactly what it was.
  */
 export function menuRows(
   top: readonly MenuPlaceId[],
-  options: { agents?: boolean } = {}
+  options: { agents?: boolean; budget?: boolean } = {}
 ): MenuPlaceId[] {
   return MENU_ORDER.filter(
-    (id) => !top.includes(id) && (id !== "agents" || options.agents === true)
+    (id) =>
+      !top.includes(id) &&
+      (id !== "agents" || options.agents === true) &&
+      (id !== "budget" || options.budget === true)
   );
 }
 

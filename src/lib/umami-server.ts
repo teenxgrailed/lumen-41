@@ -50,12 +50,13 @@ function targetWebsite(target: UmamiTarget): { id?: string; hostname: string } {
  * landing site by default (see `UmamiTarget`). `data` must hold ids, kinds and
  * outcomes only, never a person or their text. Skipped when the environment
  * is missing; any failure is only logged and never reaches the caller.
- * Callers do not await it.
+ * Callers do not await it. `distinctId` is an optional pseudonymous id.
  */
 export async function sendUmamiEvent(
   name: string,
   data: Record<string, string | number | boolean>,
-  target: UmamiTarget = "landing"
+  target: UmamiTarget = "landing",
+  distinctId?: string
 ): Promise<void> {
   const host = process.env.UMAMI_HOST?.trim().replace(/\/+$/, "");
   const { id: website, hostname } = targetWebsite(target);
@@ -78,6 +79,10 @@ export async function sendUmamiEvent(
           url: "/",
           name,
           data,
+          /* Umami 2.18+ treats `id` as the distinct id, so one person is one
+             visitor instead of every server call folding into one. Older
+             versions ignore the field. */
+          ...(distinctId ? { id: distinctId } : {}),
         },
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),

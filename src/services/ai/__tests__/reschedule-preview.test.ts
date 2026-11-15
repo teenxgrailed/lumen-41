@@ -1,4 +1,22 @@
-import { ScheduleSnapshot, diffScheduleSnapshots } from "../reschedule-preview";
+import {
+  ScheduleSnapshot,
+  diffScheduleSnapshots,
+  replanActivationEvent,
+} from "../reschedule-preview";
+
+describe("replanActivationEvent", () => {
+  it("counts the chat card as replan shown, Keep and Undo", () => {
+    expect(replanActivationEvent("preview")).toBe("replan_shown");
+    expect(replanActivationEvent("apply", "chat")).toBe("keep_applied");
+    expect(replanActivationEvent("undo", "chat")).toBe("undo_applied");
+  });
+
+  it("never counts Fill it as a replan or Keep", () => {
+    expect(replanActivationEvent("preview", "fill")).toBeNull();
+    expect(replanActivationEvent("apply", "fill")).toBe("fill_applied");
+    expect(replanActivationEvent("undo", "fill")).toBeNull();
+  });
+});
 
 describe("reschedule preview staging", () => {
   it("returns only changed placements", () => {

@@ -101,7 +101,7 @@ Configure the OAuth consent screen with the scopes Needt requests:
 - `https://www.googleapis.com/auth/calendar`
 - `https://www.googleapis.com/auth/calendar.events`
 - `https://www.googleapis.com/auth/userinfo.email`
-- `https://www.googleapis.com/auth/tasks`
+- `https://www.googleapis.com/auth/tasks.readonly`
 
 Google sign-in itself requests only `openid email profile`. Calendar access is
 requested later, when the user connects a Google calendar. Google Tasks has its

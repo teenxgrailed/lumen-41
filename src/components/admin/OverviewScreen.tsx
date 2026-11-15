@@ -1,5 +1,6 @@
 "use client";
 
+import type { AdminActivation } from "@/services/admin/activation";
 import type { AdminAgentsHub } from "@/services/admin/agents-hub";
 import type { AdminGrowth } from "@/services/admin/growth";
 import type { AdminOverview } from "@/services/admin/overview";
@@ -13,6 +14,17 @@ interface OverviewResponse {
   build: { buildSha: string; workerBuildSha: string | null };
   growth?: AdminGrowth;
 }
+
+const EVENT_LABELS: Record<AdminActivation["events"][number]["name"], string> =
+  {
+    account_created: "Account created",
+    calendar_connected: "Calendar connected",
+    task_created: "Task created",
+    replan_shown: "Replan shown",
+    keep_applied: "Keep pressed",
+    undo_applied: "Undo pressed",
+    fill_applied: "Fill it used",
+  };
 
 function shortSha(sha: string | null): string {
   if (!sha) return "unknown";
@@ -36,6 +48,10 @@ export function OverviewScreen() {
   const hub = useAdminJson<{ agentsHub: AdminAgentsHub }>(
     "/api/admin/agents-hub"
   );
+  const activation = useAdminJson<{ activation: AdminActivation }>(
+    "/api/admin/activation"
+  );
+  const a = activation.data?.activation;
   const h = hub.data?.agentsHub;
   const o = data?.overview;
   const build = data?.build;
@@ -66,6 +82,29 @@ export function OverviewScreen() {
         </>
       ) : null}
       {data?.growth ? <GrowthBlock growth={data.growth} /> : null}
+      {activation.error ? (
+        <AdminNote tone="danger">{activation.error}</AdminNote>
+      ) : null}
+      {a ? (
+        <section className="admin-card" data-admin-activation="">
+          <h2 className="admin-section-title">Activation, external users</h2>
+          <div className="admin-grid">
+            {a.events.map((event) => (
+              <Stat
+                key={event.name}
+                label={`${EVENT_LABELS[event.name]}, 7 / 14 days`}
+                value={`${event.users7Days} / ${event.users14Days}`}
+              />
+            ))}
+          </div>
+          <p className="admin-note">
+            Distinct users per event. Admin and sandbox accounts are not
+            counted. Counting started when this shipped. Keep is the launch
+            criterion: fewer than 5 external users by 30.11 means the segment or
+            onboarding changes.
+          </p>
+        </section>
+      ) : null}
       {hub.error ? <AdminNote tone="danger">{hub.error}</AdminNote> : null}
       {h ? (
         <section className="admin-card" data-admin-agents-hub="">

@@ -59,9 +59,10 @@ export const SANDBOX_ACCOUNTS = "sandbox_accounts";
 /**
  * The agent hub: handoffs and notes between agents (`needt_agent_*` and
  * `needt_memory_*` MCP tools, `/api/connect/agent-hub/*`, the Agents screen).
- * Off for everybody; turned on for one account with a per-user override
- * (`scripts/admin/set-flag-override.cjs` or the admin feature-flags API),
- * never by hard-coding an account.
+ * On for everybody since migration 20261103200000_agent_hub_for_everyone. A
+ * per-user override (`scripts/admin/set-flag-override.cjs` or the admin
+ * feature-flags API) can still switch it off for one account; never
+ * hard-code an account.
  */
 export const AGENT_HUB = "agent_hub";
 
@@ -99,6 +100,21 @@ export const AI_CHATGPT_PLAN = "ai_chatgpt_plan";
  */
 export const FIRST_REPLAN_ONBOARDING = "first_replan_onboarding";
 
+/**
+ * Needt Budget as a place in the sidebar and the phone menu (`/budget`, a
+ * frame on budget.needt.app; openspec `add-budget-module`). Off for everybody;
+ * Free sees a locked row and a promo, Pro sees Budget.
+ */
+export const BUDGET_MODULE = "budget_module";
+
+/**
+ * Needt Pro opens Needt Budget: the `needt_plan` claim ("pro" | "free") in the
+ * id_token and userinfo Needt gives Budget, which Budget maps to its own
+ * access. Off for everybody until the owner decides the tariff; without it
+ * the claim is not sent and Budget keeps its own billing.
+ */
+export const BUDGET_PRO_ACCESS = "budget_pro_access";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -115,6 +131,9 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
     "Needt AI on the person's own ChatGPT plan (needs OPENAI_SIWC_CLIENT_ID).",
   [FIRST_REPLAN_ONBOARDING]:
     "Demo meeting on a new account's Today, with a first replan and Keep.",
+  [BUDGET_MODULE]: "Needt Budget as a place in the sidebar (frame).",
+  [BUDGET_PRO_ACCESS]:
+    "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

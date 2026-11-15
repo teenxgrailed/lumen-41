@@ -147,6 +147,7 @@ export function useFillFreeTime() {
         await sendJson("/api/tasks/reschedule-preview", "POST", {
           action: "undo",
           token,
+          via: "fill",
         });
         await refresh();
         notify.success("Put back");
@@ -163,7 +164,7 @@ export function useFillFreeTime() {
       const preview = await sendJson<PreviewReply>(
         "/api/tasks/reschedule-preview",
         "POST",
-        { action: "preview" }
+        { action: "preview", via: "fill" }
       );
       if (!preview.changes.length) {
         notify.info("Nothing to place", {
@@ -174,7 +175,7 @@ export function useFillFreeTime() {
       const applied = await sendJson<ApplyReply>(
         "/api/tasks/reschedule-preview",
         "POST",
-        { action: "apply", token: preview.previewToken }
+        { action: "apply", token: preview.previewToken, via: "fill" }
       );
       await refresh();
       const n = applied.changes.length;

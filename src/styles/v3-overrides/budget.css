@@ -1,0 +1,57 @@
+/* Needt Budget as a place (openspec add-budget-module). The promo reuses the
+   Connections promo card (`cn-promo*`); this file only places it and sizes the
+   frame Budget itself lives in. */
+
+.needt-v3 .bd-page {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.needt-v3 .bd-promo-mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  background: var(--fill-3);
+  color: var(--text-primary);
+}
+
+/* The lock sits on the mark's corner, as on the AI tools promo. */
+.needt-v3 .bd-screen .cn-promo-lock {
+  right: -14px;
+  bottom: -10px;
+}
+
+.needt-v3 .bd-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 14px;
+  background: var(--background);
+}
+
+/* The phone's menu pill floats over the bottom: Budget ends above it. */
+.needt-v3[data-ui="phone"] .bd-frame {
+  border-radius: 0;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
+  height: auto;
+}
+
+/* Free: the row is there but grey, with its PRO pill at full strength. */
+.needt-v3 .shell-sidebar-sb-budget.is-locked .sb-row-icon,
+.needt-v3 .shell-sidebar-sb-budget.is-locked .sb-row-label {
+  color: var(--text-muted);
+}
+
+.needt-v3 .nva-row.is-locked .nva-row-word {
+  color: var(--text-muted);
+}
+/* The mark is a drawing, not text: it fades instead. */
+.needt-v3 .nva-row.is-locked .nva-glyph {
+  opacity: 0.55;
+}

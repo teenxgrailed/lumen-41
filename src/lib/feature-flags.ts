@@ -5,6 +5,7 @@ import { canUseAgentHub, canUseQuitHabits } from "@/lib/entitlements";
 import {
   AGENT_HUB,
   AI_CHATGPT_PLAN,
+  BUDGET_MODULE,
   HABITS_QUIT,
 } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
@@ -53,6 +54,14 @@ export async function isFeatureEnabledForEveryone(flagKey: string) {
 export async function agentHubEnabled(userId: string) {
   if (!(await isFeatureEnabled(AGENT_HUB, userId))) return false;
   return (await canUseAgentHub(userId)).allowed;
+}
+
+/**
+ * The Budget place is on for this account (`BUDGET_MODULE`). The plan is not
+ * part of it: Free sees the place locked, so the flag alone decides.
+ */
+export async function budgetModuleEnabled(userId: string) {
+  return isFeatureEnabled(BUDGET_MODULE, userId);
 }
 
 /**

@@ -54,7 +54,9 @@ describe("the Agents row in the phone menu", () => {
     expect(menuRows(top)).not.toContain("agents");
     expect(menuRows(top, { agents: false })).not.toContain("agents");
     expect(menuRows(top)).toEqual(
-      MENU_ORDER.filter((id) => id !== "agents" && !top.includes(id as never))
+      MENU_ORDER.filter(
+        (id) => id !== "agents" && id !== "budget" && !top.includes(id as never)
+      )
     );
   });
 

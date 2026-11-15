@@ -11,6 +11,7 @@
  * - Google, Microsoft and Apple sign-in, and Creem checkout, as form targets.
  * - accounts.google.com/gsi/*: Google One Tap's script, prompt frame, calls
  *   and stylesheet (src/components/needt3/auth/use-google-one-tap.ts).
+ * - budget.needt.app: Needt Budget in its frame on /budget (BUDGET_ORIGIN).
  * Fonts come from next/font, which serves them from 'self'. Images and media
  * are open to any https source because pages, boards and avatars embed them.
  *
@@ -18,6 +19,7 @@
  * and there are no nonces yet (they would force every page to render
  * dynamically). //todo: nonces before this policy is enforced.
  */
+import { BUDGET_ORIGIN } from "@/lib/needt3/budget";
 
 export const CSP_REPORT_PATH = "/api/csp-report";
 
@@ -93,7 +95,8 @@ export function contentSecurityPolicy(
       ...(dev ? ["ws:"] : []),
     ],
     "worker-src": ["'self'", "blob:"],
-    "frame-src": ["'self'", GSI_PATH],
+    // Needt Budget, shown in a frame on /budget (openspec add-budget-module).
+    "frame-src": ["'self'", GSI_PATH, BUDGET_ORIGIN],
     "manifest-src": ["'self'"],
     "report-uri": [CSP_REPORT_PATH],
   };

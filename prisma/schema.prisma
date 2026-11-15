@@ -273,6 +273,7 @@ model User {
   importRuns                   ImportRun[]
   importItemMaps               ImportItemMap[]
   HabitPush                    HabitPush[]
+  activationEvents             ActivationEvent[]
 
   @@index([lastActiveAt])
 }
@@ -4552,5 +4553,24 @@ model HubWebhookDelivery {
 
   @@index([webhookId, createdAt])
   @@index([status, nextAttemptAt])
+  @@index([createdAt])
+}
+
+/// Product activation events (launch criterion 2026-11-14): one row each time a
+/// person does one of six things. Only the user id, the event name and the time;
+/// no content. Founder/admin and sandbox accounts are excluded when it is read.
+model ActivationEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String // account_created | calendar_connected | task_created | replan_shown | keep_applied | undo_applied | fill_applied
+  createdAt DateTime @default(now())
+  /// Set to the event name for once-per-account events (account_created,
+  /// calendar_connected) so a unique index makes them race-proof; null otherwise.
+  onceKey   String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, onceKey])
+  @@index([name, createdAt])
+  @@index([userId, name])
   @@index([createdAt])
 }

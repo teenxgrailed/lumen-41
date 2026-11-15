@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { WorkspaceRole } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import {
   feedBatchUpdateSchema,
   feedCreateSchema,
+  isIcsSubscription,
 } from "@/lib/calendar-feed-input";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -89,6 +91,10 @@ export async function POST(request: NextRequest) {
         userId,
       },
     });
+    /* A calendar subscribed by address (iCal/ICS) is a connected calendar. */
+    if (isIcsSubscription(created)) {
+      recordActivation("calendar_connected", userId, { provider: "ics" });
+    }
     return NextResponse.json(created);
   } catch (error) {
     logger.error(
