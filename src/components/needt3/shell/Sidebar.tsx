@@ -17,16 +17,13 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { createPortal } from "react-dom";
 import {
-  LuBot,
   LuCheck,
   LuChevronDown,
-  LuCloud,
   LuEllipsis,
   LuFileText,
   LuFolder,
   LuPlus,
   LuTarget,
-  LuWallet,
 } from "react-icons/lu";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
@@ -71,6 +68,7 @@ import { useShellApi } from "./ShellContext";
 import { agentsNavItem, isAgentsPath } from "./agents-nav";
 import {
   dayProgress,
+  leadBadge,
   nextEventBadge,
   overdueCount,
   unreadCount,
@@ -675,6 +673,14 @@ export function Sidebar() {
   const pinRef = useRef<HTMLButtonElement>(null);
   const here = placeForPath(pathname);
 
+  // One badge across the tiles: the most urgent (live.ts `leadBadge`).
+  const lead = leadBadge({
+    tiles: tiles.map((t) => t.id),
+    eventMins: cal ? cal.mins : null,
+    overdue,
+    progress,
+    unread,
+  });
   const tile = (p: ShellPlace) => {
     const urgent =
       p.id === "today" && overdue
@@ -683,17 +689,19 @@ export function Sidebar() {
           ? (cal?.urgent ?? null)
           : null;
     const badge: TileBadge | null =
-      p.id === "tasks" && overdue
-        ? {
-            text: String(overdue),
-            danger: true,
-            title: `${overdue} overdue ${overdue === 1 ? "task" : "tasks"}`,
-          }
-        : p.id === "mail" && unread
-          ? { text: String(unread), accent: true }
-          : p.id === "calendar" && cal
-            ? { text: cal.text }
-            : null;
+      p.id !== lead
+        ? null
+        : p.id === "tasks" && overdue
+          ? {
+              text: String(overdue),
+              danger: true,
+              title: `${overdue} overdue ${overdue === 1 ? "task" : "tasks"}`,
+            }
+          : p.id === "mail" && unread
+            ? { text: String(unread), accent: true }
+            : p.id === "calendar" && cal
+              ? { text: cal.text }
+              : null;
     const alert =
       p.id === "mail" && mailDown.length
         ? `${mailDown.map((c) => c.label).join(", ")} ${mailDown.length === 1 ? "needs" : "need"} reconnecting`
@@ -703,7 +711,7 @@ export function Sidebar() {
         place={p}
         href={p.href}
         active={here === p.id}
-        progress={p.id === "today" ? progress : null}
+        progress={p.id === "today" && lead === "today" ? progress : null}
         urgent={urgent}
         badge={badge}
         alert={alert}
@@ -923,7 +931,7 @@ export function Sidebar() {
               href="/connections"
               label="Connections"
               current={pathname.startsWith("/connections")}
-              icon={<LuCloud size={16} />}
+              icon={<PlaceGlyph id="connections" />}
               trailing={
                 down.length ? (
                   <span
@@ -951,7 +959,7 @@ export function Sidebar() {
                 href={agentsItem.href}
                 label={agentsItem.label}
                 current={isAgentsPath(pathname)}
-                icon={<LuBot size={16} />}
+                icon={<PlaceGlyph id="agents" />}
                 trailing={agentsItem.badge}
               />
             </div>
@@ -972,7 +980,7 @@ export function Sidebar() {
                 href={budgetItem.href}
                 label={budgetItem.label}
                 current={isBudgetPath(pathname)}
-                icon={<LuWallet size={16} />}
+                icon={<PlaceGlyph id="budget" />}
                 trailing={
                   budgetItem.locked ? <ProBadge size="sm" title="Pro" /> : null
                 }

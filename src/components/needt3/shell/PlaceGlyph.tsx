@@ -168,6 +168,44 @@ export function PlaceGlyph({ id }: { id: string }) {
         <rect x="7" y="17.2" width="7.4" height="1.9" rx=".95" fill={I} />
       </g>
     ),
+    /* Connections, Agents and Budget are places too, so they wear marks in
+       the same family as the tiles (filled, token hues), not chrome icons. */
+    connections: (
+      <g>
+        <path
+          d="M7 19h10.2a4.3 4.3 0 0 0 .7-8.54A5.8 5.8 0 0 0 6.9 9.6 4.7 4.7 0 0 0 7 19z"
+          fill={I}
+        />
+        <path
+          d="M9.2 14.6h5.6"
+          stroke={W}
+          strokeWidth="1.9"
+          strokeLinecap="round"
+        />
+      </g>
+    ),
+    agents: (
+      <g>
+        <path
+          d="M12 3.8V7"
+          stroke={tint(V, 70)}
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <circle cx="12" cy="3.6" r="1.6" fill={V} />
+        <rect x="4" y="7" width="16" height="13.5" rx="3.6" fill={V} />
+        <circle cx="9.2" cy="13.4" r="1.75" fill={W} />
+        <circle cx="14.8" cy="13.4" r="1.75" fill={W} />
+      </g>
+    ),
+    budget: (
+      <g>
+        <path d="M5 7.2 15 3.6a1.4 1.4 0 0 1 1.9 1.3v2.3z" fill={tint(S, 45)} />
+        <rect x="3" y="6.6" width="18" height="14" rx="3" fill={S} />
+        <rect x="13.4" y="11.2" width="7.6" height="5" rx="2" fill={W} />
+        <circle cx="16.2" cy="13.7" r="1.1" fill={S} />
+      </g>
+    ),
     new: (
       <g>
         <circle cx="12" cy="12" r="9" fill={tint("var(--text-primary)", 7)} />

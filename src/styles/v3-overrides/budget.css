@@ -50,6 +50,11 @@
 .needt-v3 .shell-sidebar-sb-budget.is-locked .sb-row-label {
   color: var(--text-muted);
 }
+/* Its place mark is drawn in hues, not currentColor: grey it the same way. */
+.needt-v3 .shell-sidebar-sb-budget.is-locked .sb-row-icon svg {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
 
 .needt-v3 .nva-row.is-locked .nva-row-word {
   color: var(--text-muted);

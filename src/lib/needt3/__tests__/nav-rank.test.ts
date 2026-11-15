@@ -5,6 +5,7 @@ import { DEFAULT_PREFS } from "@/components/needt3/shell/places";
 import {
   DEFAULT_NAV_ORDER,
   MIN_TOTAL_OPENS,
+  NAV_IDS,
   NAV_TIPS,
   type NavId,
   type NavUsage,
@@ -433,5 +434,37 @@ describe("the Free Mailbox rule moves Mailbox alone", () => {
   it("an unknown plan counts as paid", () => {
     const prefs = { navOrder: ["mail"] };
     expect(rankedPlaces(prefs)[0]).toBe("mail");
+  });
+});
+
+describe("every sidebar place can rank into the tiles", () => {
+  const desktopTiles = (prefs: unknown) =>
+    prefsFromRanked(rankedPlaces(prefs), DEFAULT_PREFS)
+      .places.filter((p) => p.on)
+      .map((p) => p.id);
+
+  it("Goals leaves More once it is the place opened most", () => {
+    expect(desktopTiles({})).not.toContain("goals");
+    const ranked = rankPlaces(today({ goals: 12 }), [], currentOrder({}), NOW);
+    expect(desktopTiles({ navOrder: ranked })[0]).toBe("goals");
+  });
+
+  it("is not capped to the first five: each place can reach the top", () => {
+    for (const id of NAV_IDS.filter((x) => x !== "ask")) {
+      const ranked = rankPlaces(today({ [id]: 12 }), [], BASE, NOW);
+      expect(desktopTiles({ navOrder: ranked })[0]).toBe(id);
+    }
+  });
+
+  it("even a place hidden from the tiles in a saved layout", () => {
+    const prefs = { sidebar: { places: [{ id: "goals", on: false }] } };
+    expect(desktopTiles(prefs)).not.toContain("goals");
+    const ranked = rankPlaces(
+      today({ goals: 12 }),
+      [],
+      currentOrder(prefs),
+      NOW
+    );
+    expect(desktopTiles({ ...prefs, navOrder: ranked })).toContain("goals");
   });
 });
