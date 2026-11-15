@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Sidebar: Connections, Agents and Budget sit together as one group at the normal row step, without the 16px gaps between them.
-
 ## [1.0.0] — 2026-10-25
 
 <!-- changelog.d/admin-01-shell.md -->
