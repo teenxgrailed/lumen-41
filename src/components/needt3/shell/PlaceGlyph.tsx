@@ -6,6 +6,12 @@ import type { ReactNode } from "react";
 
 import { Art, VIOLET } from "../menu/Art";
 import { placeById } from "./places";
+import { useTodayNumber } from "./today-number";
+
+/** Today's date on the calendar mark, in the person's zone; turns at midnight. */
+function TodayNumber() {
+  return <>{useTodayNumber()}</>;
+}
 
 const tint = (c: string, n?: number) =>
   "color-mix(in oklch, " + c + " " + (n || 22) + "%, transparent)";
@@ -137,7 +143,7 @@ export function PlaceGlyph({ id }: { id: string }) {
           fontFamily="Inter, system-ui, sans-serif"
           fill="var(--text-primary)"
         >
-          6
+          <TodayNumber />
         </text>
       </g>
     ),
