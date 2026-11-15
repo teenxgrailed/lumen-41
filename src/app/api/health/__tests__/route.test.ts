@@ -66,16 +66,17 @@ describe("GET /api/health", () => {
     });
   });
 
-  it("fails with 503 and redis:fail when Redis is down, keeping the other fields", async () => {
+  it("stays 200 and ok with degraded:true when Redis is down", async () => {
     mockGetMigrationStatus.mockResolvedValue({ pending: [] });
     jest.mocked(checkRedis).mockResolvedValue("fail");
 
     const response = await GET();
     const body = await response.json();
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
     expect(body).toMatchObject({
-      ok: false,
+      ok: true,
+      degraded: true,
       db: "ok",
       redis: "fail",
       buildSha: TEST_SHA,

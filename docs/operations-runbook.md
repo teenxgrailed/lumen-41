@@ -93,23 +93,27 @@ Point external monitors at these; both answer 200 when healthy and 503 when not.
 
 - `db`: every packaged migration has run (`ok`, `migrations-pending`, `error`);
 - `redis`: a `PING` with a 1 s timeout (`ok` or `fail`; `unchecked` when an
-  earlier check already failed the request);
+  earlier check already failed the request). Report-only: `fail` adds
+  `degraded: true` but the status stays 200 and `ok` stays true;
 - `buildSha` must be a Git SHA in production, else 503 before any dependency
   is touched;
 - `workerBuildSha` is informational and never fails the endpoint.
 
-`ok` is false (HTTP 503) when `db` is not `ok` or `redis` is `fail`. During
-shutdown it answers `{ ok: false, draining: true }` with 503. The deploy gate
-in `docker-publish.yml` reads `ok`, `db` and `buildSha`; a Redis outage now
-holds a release back too.
+`ok` is false (HTTP 503) only when `db` is not `ok` or the build SHA is
+refused. During shutdown it answers `{ ok: false, draining: true }` with 503.
+This endpoint is the container and proxy healthcheck, so Redis is deliberately
+not part of it: a Redis blip must not pull the web container out of rotation or
+block a deploy (`docker-publish.yml` reads `ok`, `db` and `buildSha`). Alert on
+`redis: "fail"` / `degraded: true` in the monitor instead.
 
 `GET /health` on the worker (`127.0.0.1:1235`, loopback only) checks:
 
-- `redis`: a live `PING` with a 1 s timeout;
+- `redis`: a live `PING` with a 1 s timeout, reported in the body only (one
+  blip must not restart-loop the worker);
 - `tickAgeMs`: age of the worker's liveness tick. The tick is a 15 s timer
   that runs whether or not any job arrives and records itself only when its
   own Redis `PING` succeeds, so an idle queue never trips it, while a blocked
-  event loop or a lost Redis does. Older than 60 s is 503.
+  event loop or a Redis that stays down does. Older than 60 s is 503.
 - A worker that has not ticked yet gets a 120 s start-up grace so a cold host
   is not restarted mid-boot.
 

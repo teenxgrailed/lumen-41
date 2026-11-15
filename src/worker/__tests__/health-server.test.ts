@@ -87,11 +87,22 @@ describe("worker liveness health", () => {
     expect(body).toMatchObject({ ok: true, redis: "ok", tickAgeMs: 10_000 });
   });
 
-  it("returns 503 when Redis is unreachable", async () => {
+  it("reports a failed live PING without failing while the tick is fresh", async () => {
     const clock = { now: 1_000_000 };
     const { status, body } = await get({
       redis: "fail",
       lastTick: clock.now - 1_000,
+      clock,
+    });
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ ok: true, redis: "fail" });
+  });
+
+  it("returns 503 when Redis stays down so the tick goes stale", async () => {
+    const clock = { now: 1_000_000 };
+    const { status, body } = await get({
+      redis: "fail",
+      lastTick: clock.now - 61_000,
       clock,
     });
     expect(status).toBe(503);

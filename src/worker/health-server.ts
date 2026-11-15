@@ -58,7 +58,9 @@ export async function startWorkerHealthServer(
       // window instead of getting it restarted mid-start.
       const tickOk =
         tickAgeMs === null ? now() - startedAt < grace : tickAgeMs <= maxAge;
-      const ok = redis === "ok" && tickOk;
+      // The live PING is reported only. Failing on one blip would restart-loop
+      // the worker; the tick going stale (Redis down for 60 s) is the signal.
+      const ok = tickOk;
       response.writeHead(ok ? 200 : 503, {
         "Content-Type": "application/json",
       });

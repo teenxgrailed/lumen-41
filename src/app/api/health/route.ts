@@ -72,24 +72,14 @@ export async function GET() {
       );
     }
 
-    if (redis !== "ok") {
-      return NextResponse.json(
-        {
-          ok: false,
-          db: "ok",
-          redis,
-          buildSha,
-          workerBuildSha,
-          latencyMs: Date.now() - startedAt,
-        },
-        { status: 503 }
-      );
-    }
-
+    // Redis is reported, never gating: this endpoint is the container and
+    // proxy healthcheck, and a Redis blip must not take the web container out
+    // of rotation (a partial outage would become a full one).
     return NextResponse.json({
       ok: true,
       db: "ok",
       redis,
+      ...(redis !== "ok" ? { degraded: true } : {}),
       buildSha,
       workerBuildSha,
       flags: { agent_hub: agentHub },
