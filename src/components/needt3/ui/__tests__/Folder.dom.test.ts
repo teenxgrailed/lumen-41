@@ -66,7 +66,7 @@ describe("Folder", () => {
       expect(el.querySelector(".nx-folder-peek-mark")).not.toBeNull();
     }
     const desc = host.querySelector(".nx-folder-desc") as HTMLElement;
-    expect(desc.textContent).toBe("Next: Task 1; Task 2");
+    expect(desc.textContent).toBe("Next: Task 1 (Today); Task 2");
     expect(links[0].getAttribute("aria-describedby")).toBe(desc.id);
   });
 
