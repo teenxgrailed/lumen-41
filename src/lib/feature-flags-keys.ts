@@ -33,10 +33,11 @@ export const ENERGY_CURVE = "energy_curve";
 export const FOCUS_BLOCKING = "focus_blocking";
 
 /**
- * Where a new account starts: the 18-screen `/start` onboarding when on,
- * first-run `/setup` when off. Off unless a FeatureFlag row turns it on;
- * per-user rollout and overrides apply (`isFeatureEnabled`), so one account
- * can be moved onto it before everybody else. Read for new accounts and by the
+ * Where a new account starts: the 19-screen `/start` onboarding when on,
+ * first-run `/setup` when off. On for everybody at 100% since 15.11.2026
+ * (owner decision, migration 20261115181000); the flag stays as an emergency
+ * off switch. Per-user rollout and overrides apply (`isFeatureEnabled`). Read
+ * for new accounts and by the
  * Today resume guard; people who already finished onboarding are never sent
  * anywhere.
  */
