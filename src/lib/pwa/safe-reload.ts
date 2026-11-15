@@ -1,22 +1,26 @@
 /**
- * Reloads the page for a new version without losing what the person is
- * writing. There is no button and no toast: when the server runs a newer build
- * than the page, the loading word is shown and the page reloads on its own,
- * at the first safe moment:
+ * Reloads the page for a new version without ever costing the person work.
+ * There is no button and no toast: when the server runs a newer build than the
+ * page, the reload is requested, and it fires ONLY at a moment that is safe by
+ * construction:
  *
- * - safe means no text field or contenteditable has focus with changes typed
- *   into it since it took focus (a focused field nobody typed in is safe);
- * - a route change is always safe, whether or not a field is dirty: the
- *   person is leaving that screen, and the reload lands on the new one;
- * - a hidden tab is safe too (nothing is being typed there).
+ * - the next route change, or the tab becoming hidden; AND
+ * - nothing is dirty: no open dialog, no field or contenteditable the person
+ *   typed into that still holds text, no form whose value differs from its
+ *   default, no iframe holding focus, no unsaved page (`unsaved-work.ts`).
  *
- * `request()` is idempotent. Once committed, the word is shown and the reload
- * follows after `COMMIT_MS`, so the word has been painted before the page goes.
- * One reload per minute at most (`sessionStorage`), so a CDN still serving the
- * old build cannot loop the page.
+ * Never on blur or focus-leave. If no safe moment comes, it keeps waiting: no
+ * reload is better than a lost draft. When it fires, the loading word is
+ * shown and the reload follows `COMMIT_MS` later so the word has painted. If
+ * the reload is cancelled (a beforeunload "Stay"), the word is cleared after
+ * `COMMIT_MS + CANCEL_GRACE_MS` and the request stays open for the next safe
+ * moment. At most one reload per minute (`sessionStorage`), and none at all
+ * when storage is unavailable, so a stale CDN cannot loop the page.
  */
+import { hasUnsavedWork } from "./unsaved-work";
 
 export const COMMIT_MS = 400;
+export const CANCEL_GRACE_MS = 1000;
 const LOOP_KEY = "needt-version-reload";
 const LOOP_WINDOW_MS = 60_000;
 
@@ -49,10 +53,38 @@ export function isEditable(el: Element | null | undefined): boolean {
   return false;
 }
 
+function holdsText(el: Element): boolean {
+  const node = el as HTMLInputElement;
+  if (typeof node.value === "string") return node.value.length > 0;
+  return (el.textContent ?? "").trim().length > 0;
+}
+
+/** A form control whose value is not the one it was rendered with. */
+function differsFromDefault(el: Element): boolean {
+  const tag = el.tagName.toUpperCase();
+  if (tag === "SELECT")
+    return Array.from((el as HTMLSelectElement).options).some(
+      (o) => o.selected !== o.defaultSelected
+    );
+  if (tag === "TEXTAREA")
+    return (
+      (el as HTMLTextAreaElement).value !==
+      (el as HTMLTextAreaElement).defaultValue
+    );
+  if (tag === "INPUT") {
+    const input = el as HTMLInputElement;
+    if (input.type === "checkbox" || input.type === "radio")
+      return input.checked !== input.defaultChecked;
+    if (TEXT_INPUT_TYPES.has((input.type || "text").toLowerCase()))
+      return input.value !== input.defaultValue;
+  }
+  return false;
+}
+
 export interface SafeReload {
-  /** A newer build exists: reload as soon as it is safe. */
+  /** A newer build exists: reload at the next safe moment. */
   request(): void;
-  /** The route changed: that is always a safe moment. */
+  /** The route changed: a safe moment if nothing is dirty. */
   routeChanged(): void;
   dispose(): void;
 }
@@ -61,6 +93,8 @@ export function createSafeReload(args: {
   doc: Document;
   /** The word goes up. */
   onCommit: () => void;
+  /** The reload did not happen (cancelled): the word comes down. */
+  onCancel?: () => void;
   reload: () => void;
   storage?: Pick<Storage, "getItem" | "setItem"> | null;
   now?: () => number;
@@ -69,8 +103,8 @@ export function createSafeReload(args: {
   const now = args.now ?? Date.now;
   let pending = false;
   let committed = false;
-  // The field that has had text typed into it since it took focus.
-  let dirty: EventTarget | null = null;
+  // Fields typed into since the gate was created (that is, since mount).
+  const typed = new WeakSet<object>();
   const timers = new Set<ReturnType<typeof setTimeout>>();
 
   const later = (fn: () => void, ms: number) => {
@@ -81,67 +115,80 @@ export function createSafeReload(args: {
     timers.add(t);
   };
 
-  const unsafe = () => {
-    if (doc.visibilityState === "hidden") return false;
-    const active = doc.activeElement;
-    return isEditable(active) && dirty !== null && dirty === active;
+  const dirty = (): boolean => {
+    if (hasUnsavedWork()) return true;
+    if (doc.querySelector('[role="dialog"], dialog[open]')) return true;
+    if (doc.activeElement?.tagName?.toUpperCase() === "IFRAME") return true;
+    for (const el of Array.from(
+      doc.querySelectorAll(
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
+      )
+    )) {
+      if (typed.has(el) && holdsText(el)) return true;
+    }
+    for (const form of Array.from(doc.forms)) {
+      for (const el of Array.from(form.elements)) {
+        if (differsFromDefault(el)) return true;
+      }
+    }
+    return false;
   };
 
   const looped = () => {
+    // Storage is missing or blocked: no way to tell a loop, so do nothing.
+    if (!args.storage) return true;
     try {
-      const last = Number(args.storage?.getItem(LOOP_KEY) || 0);
+      const last = Number(args.storage.getItem(LOOP_KEY) || 0);
       return now() - last < LOOP_WINDOW_MS;
     } catch {
-      // Storage is blocked: no way to tell a loop, so do nothing.
       return true;
     }
   };
 
-  const commit = () => {
-    if (committed || !pending) return;
-    if (looped()) return;
+  const attempt = () => {
+    if (!pending || committed || dirty() || looped()) return;
     committed = true;
     try {
       args.storage?.setItem(LOOP_KEY, String(now()));
     } catch {
-      /* looped() already refused when storage throws */
+      /* looped() refuses when storage throws */
     }
     onCommit();
     later(reload, COMMIT_MS);
-  };
-
-  const attempt = () => {
-    if (pending && !committed && !unsafe()) commit();
+    // Still here after the reload should have gone: it was cancelled.
+    later(() => {
+      committed = false;
+      try {
+        args.storage?.setItem(LOOP_KEY, "0");
+      } catch {
+        /* nothing to undo */
+      }
+      args.onCancel?.();
+    }, COMMIT_MS + CANCEL_GRACE_MS);
   };
 
   const onInput = (event: Event) => {
-    if (isEditable(event.target as Element)) dirty = event.target;
+    const target = event.target as Element | null;
+    if (target && isEditable(target)) typed.add(target);
   };
-  const onFocusIn = (event: Event) => {
-    // A new field starts clean; coming back to the same one keeps its mark.
-    if (dirty !== event.target) dirty = null;
+  const onVisibility = () => {
+    if (doc.visibilityState === "hidden") attempt();
   };
-  // `activeElement` has not moved yet inside focusout; look one turn later.
-  const onFocusOut = () => later(attempt, 0);
-  const onVisibility = () => attempt();
 
   doc.addEventListener("input", onInput, true);
-  doc.addEventListener("focusin", onFocusIn, true);
-  doc.addEventListener("focusout", onFocusOut, true);
   doc.addEventListener("visibilitychange", onVisibility);
 
   return {
     request() {
       pending = true;
-      attempt();
+      // A tab that is already hidden is already at a safe moment.
+      if (doc.visibilityState === "hidden") attempt();
     },
     routeChanged() {
-      commit();
+      attempt();
     },
     dispose() {
       doc.removeEventListener("input", onInput, true);
-      doc.removeEventListener("focusin", onFocusIn, true);
-      doc.removeEventListener("focusout", onFocusOut, true);
       doc.removeEventListener("visibilitychange", onVisibility);
       timers.forEach(clearTimeout);
       timers.clear();

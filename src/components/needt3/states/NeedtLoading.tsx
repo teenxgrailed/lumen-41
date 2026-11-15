@@ -1,10 +1,20 @@
 "use client";
 
-import { type CSSProperties, useEffect, useRef } from "react";
+import { type CSSProperties, useEffect, useLayoutEffect, useRef } from "react";
 
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
-import { fillFor, fillInsetPct } from "./needtLoadingFill";
+import {
+  acquireLoadingClock,
+  fillFor,
+  fillInsetPct,
+  releaseLoadingClock,
+} from "./needtLoadingFill";
+
+// Layout effect on the client (no empty frame when a second word takes over),
+// plain effect on the server (where layout effects only warn).
+const useSyncEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 /**
  * THE loading screen: the word "Needt" in the display face, grey, filling with
@@ -31,20 +41,28 @@ export function NeedtLoading({
   const root = useRef<HTMLDivElement>(null);
 
   // Known progress is drawn from props; eased progress is written straight to
-  // the node each frame, so a wait does not re-render the screen 60 times a second.
-  useEffect(() => {
+  // the node each frame, so a wait does not re-render the screen 60 times a
+  // second. The clock is shared (see `acquireLoadingClock`).
+  useSyncEffect(() => {
     const el = root.current;
     if (!el || reduced || progress !== undefined) return undefined;
-    const started = performance.now();
-    let frame = 0;
-    const tick = (now: number) => {
+    const started = acquireLoadingClock(performance.now());
+    const paint = (now: number) => {
       const fill = fillFor({ progress: undefined, elapsedMs: now - started });
       el.style.setProperty("--nl-inset", `${fillInsetPct(fill)}%`);
       el.dataset.fill = fill.toFixed(3);
+    };
+    paint(performance.now());
+    let frame = 0;
+    const tick = (now: number) => {
+      paint(now);
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      releaseLoadingClock();
+    };
   }, [progress, reduced]);
 
   const initial = reduced ? 0 : fillFor({ progress, elapsedMs: 0 });

@@ -209,7 +209,7 @@ function BudgetPromo({
 }
 
 /** Budget itself, chromeless, following Needt's theme while it is open. */
-function BudgetFrame() {
+export function BudgetFrame() {
   const frame = useRef<HTMLIFrameElement>(null);
   // The first theme goes in the address; later changes go by message, so the
   // frame is not reloaded and keeps its place.

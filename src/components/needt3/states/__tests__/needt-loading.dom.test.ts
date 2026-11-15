@@ -9,6 +9,7 @@ import { act, createElement as h } from "react";
 import { type Root, createRoot } from "react-dom/client";
 
 import { NeedtLoading } from "../NeedtLoading";
+import { resetLoadingClock } from "../needtLoadingFill";
 
 let reduced = false;
 jest.mock("@/components/providers/MotionRuntime", () => ({
@@ -24,6 +25,7 @@ beforeEach(() => {
     globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
   reduced = false;
+  resetLoadingClock();
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -69,5 +71,56 @@ describe("NeedtLoading", () => {
     // Even real progress does not animate the fill.
     act(() => root.render(h(NeedtLoading, { progress: 0.7 })));
     expect(node().style.getPropertyValue("--nl-inset")).toBe("100%");
+  });
+
+  it("the eased fill really ticks, slowing as it climbs", () => {
+    frames.mockRestore();
+    jest.useFakeTimers();
+    try {
+      act(() => root.render(h(NeedtLoading, {})));
+      const read = () => Number(node().getAttribute("data-fill"));
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+      const a = read();
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+      const b = read();
+      act(() => {
+        jest.advanceTimersByTime(5000);
+      });
+      const c = read();
+      expect(a).toBeGreaterThan(0);
+      expect(b).toBeGreaterThan(a);
+      expect(c).toBeGreaterThan(b);
+      expect(b - a).toBeLessThan(a);
+      expect(c).toBeLessThan(0.9);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("a second word continues the fill instead of starting from empty", () => {
+    frames.mockRestore();
+    jest.useFakeTimers();
+    try {
+      act(() => root.render(h(NeedtLoading, {})));
+      act(() => {
+        jest.advanceTimersByTime(3000);
+      });
+      const before = Number(node().getAttribute("data-fill"));
+      expect(before).toBeGreaterThan(0.4);
+      // The fallback goes, the route's own word arrives in the same turn.
+      act(() => {
+        root.render(h("div", { key: "other" }));
+        root.render(h(NeedtLoading, {}));
+      });
+      expect(Number(node().getAttribute("data-fill"))).toBeGreaterThanOrEqual(
+        before
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

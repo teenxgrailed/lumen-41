@@ -36,6 +36,7 @@ export function StaleDeploymentPrompt() {
     const safe = createSafeReload({
       doc: document,
       onCommit: () => setReloading(true),
+      onCancel: () => setReloading(false),
       reload: reloadPage,
       storage: (() => {
         try {
@@ -83,6 +84,13 @@ export function StaleDeploymentPrompt() {
 
   if (!reloading) return null;
   // Inside the v3 scope when there is one, so it wears the person's theme.
-  const host = document.querySelector(".needt-v3") ?? document.body;
-  return createPortal(<NeedtLoading fixed />, host);
+  const scope = document.querySelector(".needt-v3");
+  if (scope) return createPortal(<NeedtLoading fixed />, scope);
+  // No v3 scope (no tokens): the host class carries the literal colours.
+  return createPortal(
+    <div className="nl-host">
+      <NeedtLoading fixed />
+    </div>,
+    document.body
+  );
 }

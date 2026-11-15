@@ -39,3 +39,43 @@ export function fillFor(args: {
 export function fillInsetPct(fill: number): number {
   return Math.round((1 - clampFill(fill)) * 10000) / 100;
 }
+
+/**
+ * One clock for every mounted word. A route change can unmount one loading
+ * word and mount another (the Suspense fallback, then the route's own); a new
+ * instance continues the fill where the last stopped instead of blinking back
+ * to empty. The clock resets once no word has been mounted for `CLOCK_GRACE_MS`.
+ */
+export const CLOCK_GRACE_MS = 400;
+let clockStart: number | null = null;
+let clockUsers = 0;
+let clockReset: ReturnType<typeof setTimeout> | null = null;
+
+/** A word mounted: returns when the shared wait began (now, if it is the first). */
+export function acquireLoadingClock(now: number): number {
+  if (clockReset) {
+    clearTimeout(clockReset);
+    clockReset = null;
+  }
+  clockUsers += 1;
+  if (clockStart === null) clockStart = now;
+  return clockStart;
+}
+
+/** A word unmounted. */
+export function releaseLoadingClock() {
+  clockUsers = Math.max(0, clockUsers - 1);
+  if (clockUsers > 0 || clockReset) return;
+  clockReset = setTimeout(() => {
+    clockReset = null;
+    if (clockUsers === 0) clockStart = null;
+  }, CLOCK_GRACE_MS);
+}
+
+/** Test seam. */
+export function resetLoadingClock() {
+  if (clockReset) clearTimeout(clockReset);
+  clockReset = null;
+  clockStart = null;
+  clockUsers = 0;
+}
