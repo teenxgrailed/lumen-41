@@ -4,31 +4,12 @@
 -- feature-flag API without a deploy. The change is recorded in the flag history like
 -- an admin save, with no actor. Idempotent.
 --
+-- home_v2 is not here: it goes on in the Home polish PR, together with the e2e
+-- updates for the folded overdue row (tests/task-complete-motion.spec.ts).
+--
 -- habit_evening_push keeps its own guards in code: it only ever reaches accounts that
 -- already have a push subscription, only when habits are left for today, and every
 -- person can switch it off in Settings > Notifications.
-
-INSERT INTO "FeatureFlagChange" ("id", "flagKey", "actorUserId", "before", "after", "createdAt")
-SELECT
-  'mig_design_15_11_home_v2',
-  'home_v2',
-  NULL,
-  COALESCE(
-    (SELECT jsonb_build_object('enabled', "enabled", 'rolloutPercentage', "rolloutPercentage")
-       FROM "FeatureFlag" WHERE "key" = 'home_v2'),
-    jsonb_build_object('enabled', false, 'rolloutPercentage', 0)
-  ),
-  jsonb_build_object('enabled', true, 'rolloutPercentage', 100),
-  CURRENT_TIMESTAMP
-WHERE NOT EXISTS (
-  SELECT 1 FROM "FeatureFlag"
-  WHERE "key" = 'home_v2' AND "enabled" = true AND "rolloutPercentage" = 100
-)
-ON CONFLICT ("id") DO NOTHING;
-
-INSERT INTO "FeatureFlag" ("key", "enabled", "rolloutPercentage", "description", "createdAt", "updatedAt")
-VALUES ('home_v2', true, 100, 'Home: Today in three blocks (one Now card, day list, one overdue row).', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-ON CONFLICT ("key") DO UPDATE SET "enabled" = true, "rolloutPercentage" = 100, "updatedAt" = CURRENT_TIMESTAMP;
 
 INSERT INTO "FeatureFlagChange" ("id", "flagKey", "actorUserId", "before", "after", "createdAt")
 SELECT
