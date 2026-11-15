@@ -37,6 +37,7 @@ import { useNow } from "@/lib/needt3/hooks/clock";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useCreateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
+import { useFirstReplanHold } from "@/lib/needt3/hooks/first-replan";
 import {
   useCheckins,
   useHabits,
@@ -70,6 +71,7 @@ import {
   useStarterGameCard,
 } from "../starter-game/StarterGameSlot";
 import { EndDayNudge } from "./EndDayNudge";
+import { FirstReplanCard } from "./FirstReplanCard";
 import {
   Capped,
   EmptyDay,
@@ -82,7 +84,6 @@ import {
   WeekLoad,
   WeekStats,
 } from "./HomeParts";
-import { FirstReplanCard } from "./FirstReplanCard";
 import { OnboardingResumeBanner } from "./OnboardingResumeBanner";
 import { ReviewCard } from "./ReviewCard";
 import { SampleBanner } from "./SampleBanner";
@@ -221,6 +222,10 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
       ? energyDay(split.day, today, nowHour, energyHours)
       : split.day;
   const leavingIds = useMemo(() => new Set(Object.keys(leaving)), [leaving]);
+
+  // One hint at a time: the first-replan card is answered before the
+  // suggested highlight shows up.
+  const firstReplanHold = useFirstReplanHold();
 
   // One rule for every section: it lists open tasks (plus a row still playing
   // its exit) and a section with nothing open is not drawn at all.
@@ -806,7 +811,8 @@ function DesktopHome({ ctl }: { ctl: HomeController }) {
             data-hd-rail={rail.length || tab === "week" ? "on" : "off"}
           >
             <div className="hd-col">
-              {blocks.nextUp || (tab === "day" && closedDay) ? (
+              {!firstReplanHold &&
+              (blocks.nextUp || (tab === "day" && closedDay)) ? (
                 <div
                   className="hd-cards ha-cards"
                   data-hd-cards=""

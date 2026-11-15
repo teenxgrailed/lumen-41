@@ -94,9 +94,15 @@ export const AI_CHATGPT_PLAN = "ai_chatgpt_plan";
 /**
  * The first replan, in the first two minutes: a new account's sample day gets
  * one demo meeting on top of one demo task, and Today offers to replan it
- * (preview, then Keep). Off for everybody; per-user rollout and overrides
- * apply (`isFeatureEnabled`). Reads and seeds only for accounts the flag is on
- * for, so turning it off hides the card and stops new demos.
+ * (preview, then Keep). On at 100% for new accounts from the
+ * `20261115120000_first_replan_onboarding_for_new_accounts` migration (owner
+ * decision 15.11.2026); per-user rollout and overrides still apply
+ * (`isFeatureEnabled`). Reads and seeds only for accounts the flag is on for,
+ * so turning it off hides the card and stops new demos.
+ *
+ * //todo: the rollout ends 30.11.2026, but a flag has no end date (a row is
+ * on, off or a percentage). Until the flag system can expire a flag, turn it
+ * off by hand from the admin feature-flag API on 01.12.2026.
  */
 export const FIRST_REPLAN_ONBOARDING = "first_replan_onboarding";
 

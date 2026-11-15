@@ -17,6 +17,11 @@ import { SampleBanner } from "../SampleBanner";
 const mutate = jest.fn();
 let status: { present: boolean } | undefined;
 let pending = false;
+let hold = false;
+
+jest.mock("@/lib/needt3/hooks/first-replan", () => ({
+  useFirstReplanHold: () => hold,
+}));
 
 jest.mock("@/lib/needt3/hooks/sample", () => ({
   useSampleStatus: () => ({ data: status }),
@@ -28,6 +33,7 @@ let root: Root;
 beforeEach(() => {
   jest.clearAllMocks();
   pending = false;
+  hold = false;
   host = document.createElement("div");
   root = createRoot(host);
 });
@@ -64,4 +70,14 @@ it("disables the button while clearing", async () => {
   expect(
     host.querySelector<HTMLButtonElement>("[data-hd-sample-clear]")!.disabled
   ).toBe(true);
+});
+
+it("waits while the first-replan card is the open question, then appears", async () => {
+  status = { present: true };
+  hold = true;
+  await mount();
+  expect(host.querySelector("[data-hd-sample]")).toBeNull();
+  hold = false;
+  await mount();
+  expect(host.querySelector("[data-hd-sample]")).not.toBeNull();
 });

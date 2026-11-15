@@ -31,12 +31,28 @@ const TASK_MINUTES = 60;
 const MEETING_MINUTES = 45;
 /** The meeting starts this long after the task does, so they overlap. */
 const MEETING_OFFSET_MINUTES = 15;
-/** Earliest and latest start, minutes after local midnight. */
-const EARLIEST = 9 * 60;
-const LATEST = 15 * 60;
-const FALLBACK_START = 10 * 60;
-/** Never earlier than this after `now`, so the person sees it ahead of them. */
-const LEAD_MINUTES = 30;
+/** The scheduler's default gap between two blocks. */
+const BUFFER_MINUTES = 15;
+/**
+ * The default window when the person has no work hours: earliest and latest
+ * start, minutes after local midnight, on weekdays.
+ */
+const DEFAULT_EARLIEST = 9 * 60;
+const DEFAULT_LATEST = 15 * 60;
+const DEFAULT_DAYS = [1, 2, 3, 4, 5];
+/**
+ * A demo that starts a day waits this long after the window opens. Together
+ * with the 15 minute overlap it leaves less than an hour between the start of
+ * the day and the meeting, so the 60 minute task cannot be put before the
+ * meeting: the only way to resolve the overlap is to move it after.
+ */
+const DAY_START_OFFSET = 30;
+/**
+ * Today's demo starts at least this long after `now`. The meeting start is
+ * then under an hour away (start < now + 45, meeting = start + 15), which has
+ * the same effect: no room for the task before the meeting.
+ */
+const LEAD_MINUTES = 15;
 
 export interface DemoSlot {
   taskStart: Date;
@@ -45,31 +61,90 @@ export interface DemoSlot {
   meetingEnd: Date;
 }
 
+/** The person's work hours, when they have set them. */
+export interface DemoHours {
+  /** Hour of day the work day opens and closes, 0 to 24. */
+  startHour: number;
+  endHour: number;
+  /** Days of the week the person works, 0 = Sunday. Empty or missing: Mon-Fri. */
+  days?: number[];
+}
+
+interface DemoWindow {
+  earliest: number;
+  latest: number;
+  fallback: number;
+  days: number[];
+}
+
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
- * Where the demo lands: today at the next half hour at least 30 minutes away
- * when that is between 09:00 and 15:00 local time, otherwise the next weekday
- * at 10:00. Pure: the clock and the zone come in as arguments.
+ * The window a demo may start in: the person's work hours when they fit the
+ * demo (the task has to be able to land after the meeting, inside the day),
+ * otherwise the default window.
  */
-export function demoSlot(now: Date, zone: string): DemoSlot {
+export function demoWindow(hours?: DemoHours | null): DemoWindow {
+  if (hours) {
+    const earliest = hours.startHour * 60;
+    const afterMeeting =
+      MEETING_OFFSET_MINUTES + MEETING_MINUTES + BUFFER_MINUTES + TASK_MINUTES;
+    const latest = Math.floor((hours.endHour * 60 - afterMeeting) / 30) * 30;
+    const valid =
+      Number.isInteger(hours.startHour) &&
+      Number.isInteger(hours.endHour) &&
+      hours.startHour >= 0 &&
+      hours.endHour <= 24 &&
+      latest >= earliest + DAY_START_OFFSET;
+    if (valid) {
+      const days = (hours.days ?? []).filter(
+        (d) => Number.isInteger(d) && d >= 0 && d <= 6
+      );
+      return {
+        earliest,
+        latest,
+        fallback: earliest + DAY_START_OFFSET,
+        days: days.length ? days : DEFAULT_DAYS,
+      };
+    }
+  }
+  return {
+    earliest: DEFAULT_EARLIEST,
+    latest: DEFAULT_LATEST,
+    fallback: DEFAULT_EARLIEST + DAY_START_OFFSET,
+    days: DEFAULT_DAYS,
+  };
+}
+
+/**
+ * Where the demo lands: today at the next half hour at least 15 minutes away
+ * when that is inside the person's work hours (09:00 to 15:00 when they have
+ * none), otherwise the next work day, 30 minutes after the day opens. Every
+ * time is later than `now`. Pure: the clock and the zone come in as arguments.
+ */
+export function demoSlot(
+  now: Date,
+  zone: string,
+  hours?: DemoHours | null
+): DemoSlot {
+  const win = demoWindow(hours);
   const [date, hh, mm] = formatInTimeZone(now, zone, "yyyy-MM-dd HH mm").split(
     " "
   );
   const minutes = Number(hh) * 60 + Number(mm);
   let day = date;
   let start = Math.ceil((minutes + LEAD_MINUTES) / 30) * 30;
-  if (start < EARLIEST) start = FALLBACK_START;
-  else if (start > LATEST) {
+  if (start < win.earliest) start = win.fallback;
+  else if (start > win.latest) {
     day = shiftDay(day, 1);
-    start = FALLBACK_START;
+    start = win.fallback;
   }
-  // Saturday and Sunday are skipped: nobody has a sync on one.
-  for (;;) {
+  // A day off is skipped: nobody has a sync on one.
+  for (let guard = 0; guard < 8; guard++) {
     const weekday = newDate(`${day}T12:00:00.000Z`).getUTCDay();
-    if (weekday !== 0 && weekday !== 6) break;
+    if (win.days.includes(weekday)) break;
     day = shiftDay(day, 1);
-    start = FALLBACK_START;
+    start = win.fallback;
   }
   const at = (m: number) =>
     fromZonedTime(`${day}T${pad(Math.floor(m / 60))}:${pad(m % 60)}:00`, zone);
@@ -81,7 +156,31 @@ export function demoSlot(now: Date, zone: string): DemoSlot {
   };
 }
 
-type Db = Pick<typeof prisma, "task" | "project" | "userSettings">;
+/** The work hours on the person's auto-schedule settings, if there are any. */
+export function hoursFromSettings(
+  row: {
+    workHourStart: number;
+    workHourEnd: number;
+    workDays: string;
+  } | null
+): DemoHours | null {
+  if (!row) return null;
+  let days: number[] = [];
+  try {
+    const parsed: unknown = JSON.parse(row.workDays);
+    if (Array.isArray(parsed)) {
+      days = parsed.filter((d): d is number => typeof d === "number");
+    }
+  } catch {
+    days = [];
+  }
+  return { startHour: row.workHourStart, endHour: row.workHourEnd, days };
+}
+
+type Db = Pick<
+  typeof prisma,
+  "task" | "project" | "userSettings" | "autoScheduleSettings"
+>;
 
 export interface DemoSeedResult {
   created: boolean;
@@ -104,10 +203,14 @@ export async function seedFirstReplanDemo(
   });
   if (existing) return { created: false };
 
-  const [settings, project] = await Promise.all([
+  const [settings, hours, project] = await Promise.all([
     db.userSettings.findUnique({
       where: { userId },
       select: { timeZone: true },
+    }),
+    db.autoScheduleSettings.findUnique({
+      where: { userId },
+      select: { workHourStart: true, workHourEnd: true, workDays: true },
     }),
     db.project.findFirst({
       where: { userId, isSample: true },
@@ -115,7 +218,7 @@ export async function seedFirstReplanDemo(
     }),
   ]);
   const zone = validZone(input.timeZone || settings?.timeZone);
-  const slot = demoSlot(input.now ?? newDate(), zone);
+  const slot = demoSlot(input.now ?? newDate(), zone, hoursFromSettings(hours));
   const common = {
     status: "todo",
     priorityLevel: SchedulingTaskPriority.MEDIUM,

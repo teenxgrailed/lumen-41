@@ -13,6 +13,7 @@ import { useSchedule } from "@/lib/needt3/hooks/account";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
 import { useEvents } from "@/lib/needt3/hooks/events";
+import { useFirstReplanHold } from "@/lib/needt3/hooks/first-replan";
 import {
   useCheckins,
   useHabits,
@@ -36,9 +37,9 @@ import type { DayBand } from "@/lib/personal-time-days";
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { EndDayNudge } from "../../home/EndDayNudge";
+import { FirstReplanCard } from "../../home/FirstReplanCard";
 import { OnboardingResumeBanner } from "../../home/OnboardingResumeBanner";
 import { ReviewCard } from "../../home/ReviewCard";
-import { FirstReplanCard } from "../../home/FirstReplanCard";
 import { SampleBanner } from "../../home/SampleBanner";
 import { StatsCard, StatsSheet } from "../../home/Stats";
 import { briefFactsOf, doneTodayCount } from "../../home/brief";
@@ -164,6 +165,9 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     () => highEnergyHours(schedule.data),
     [schedule.data]
   );
+  // One hint at a time: the first-replan card is answered before the
+  // suggested highlight shows up.
+  const firstReplanHold = useFirstReplanHold();
   const highlight = useHighlight(today);
   const setHighlight = useSetHighlight(today);
   const hlTask = highlightTask(all, highlight.data?.taskId);
@@ -452,7 +456,8 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
                 v.open(v.sec.next).length ? seeTomorrow : undefined
               }
             />
-          ) : !blocks.nextUp ? null : hlTask && !hlTask.done ? (
+          ) : !blocks.nextUp || firstReplanHold ? null : hlTask &&
+            !hlTask.done ? (
             <HaHighlight
               phone
               state="set"

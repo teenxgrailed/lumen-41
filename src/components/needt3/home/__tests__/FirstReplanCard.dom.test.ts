@@ -2,8 +2,9 @@
  * @jest-environment jsdom
  *
  * The first-replan card on Today: nothing without a demo, a Replan and Skip
- * pair while the meeting overlaps the task, Keep and Not now on the preview,
- * and Undo with Remove once kept.
+ * pair while the meeting overlaps the task, a before-to-after line with the
+ * task name, both days and the reason on the preview (Keep and Not now), and
+ * Undo with Remove once kept.
  */
 import { act, createElement as h } from "react";
 
@@ -17,6 +18,7 @@ import { FirstReplanCard } from "../FirstReplanCard";
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
+const reportShown = jest.fn();
 const flow = {
   step: { kind: "idle" } as Record<string, unknown>,
   replan: jest.fn(),
@@ -30,6 +32,7 @@ let demo: FirstReplanState | null | undefined;
 jest.mock("@/lib/needt3/hooks/first-replan", () => ({
   useFirstReplanDemo: () => ({ data: demo }),
   useFirstReplan: () => flow,
+  useReportCardShown: (shown: boolean) => reportShown(shown),
 }));
 jest.mock("@/lib/needt3/hooks/settings", () => ({
   useTimeZone: () => "UTC",
@@ -101,16 +104,60 @@ it("says it is a demo and offers Replan or Skip", async () => {
   expect(flow.replan).toHaveBeenCalledTimes(1);
   await press("skip");
   expect(flow.remove).toHaveBeenCalledTimes(1);
+  // Skip is the one removal that counts as skipping the first card.
+  expect(flow.remove).toHaveBeenCalledWith("skip");
 });
 
-it("shows where the task goes and keeps it only on Keep", async () => {
+it("reports that the card was shown only while there is something to replan", async () => {
+  await mount();
+  expect(reportShown).toHaveBeenLastCalledWith(true);
+  demo = { ...conflict, conflict: false };
+  await mount();
+  expect(reportShown).toHaveBeenLastCalledWith(false);
+});
+
+it("names the task, both times with the day, and the reason", async () => {
   flow.step = {
     kind: "preview",
     token: "tok",
     to: { start: "2026-11-18T11:00:00.000Z", end: "2026-11-18T12:00:00.000Z" },
   };
   await mount();
-  expect(host.textContent).toContain("Move the task to 11:00");
+  const text = host.textContent ?? "";
+  expect(text).toContain("Demo: write the weekly plan");
+  const shift = host.querySelector("[data-fr-shift]")!;
+  expect(shift.querySelector(".hd-fr-from")!.textContent).toBe("Today 10:00");
+  expect(shift.querySelector(".hd-fr-to")!.textContent).toBe("Today 11:00");
+  expect(text).toContain("Overlaps with Sync with Alex");
+  expect(text).toContain("Nothing changes until you press Keep");
+  // The old wording said neither which task nor which day.
+  expect(text).not.toContain("Move the task to");
+});
+
+it("says Tomorrow or the weekday when the move crosses a day", async () => {
+  flow.step = {
+    kind: "preview",
+    token: "tok",
+    to: { start: "2026-11-19T09:30:00.000Z", end: "2026-11-19T10:30:00.000Z" },
+  };
+  await mount();
+  expect(host.querySelector(".hd-fr-to")!.textContent).toBe("Tomorrow 09:30");
+  flow.step = {
+    kind: "preview",
+    token: "tok",
+    to: { start: "2026-11-20T09:30:00.000Z", end: "2026-11-20T10:30:00.000Z" },
+  };
+  await mount();
+  expect(host.querySelector(".hd-fr-to")!.textContent).toBe("Fri 09:30");
+});
+
+it("keeps only on Keep", async () => {
+  flow.step = {
+    kind: "preview",
+    token: "tok",
+    to: { start: "2026-11-18T11:00:00.000Z", end: "2026-11-18T12:00:00.000Z" },
+  };
+  await mount();
   expect(flow.keep).not.toHaveBeenCalled();
   await press("keep");
   expect(flow.keep).toHaveBeenCalledWith("tok");
@@ -122,14 +169,18 @@ it("names the day when the demo waits for another one", async () => {
   jest.setSystemTime(new Date("2026-11-14T22:00:00Z"));
   await mount();
   expect(host.textContent).toContain("Wed 10:00");
+  expect(host.textContent).toContain("Wed 10:15");
 });
 
 it("after Keep offers Undo and removing the demo", async () => {
   flow.step = { kind: "kept", undoToken: "undo-tok" };
   await mount();
   expect(host.textContent).toContain("Replanned");
+  expect(host.textContent).toContain("Demo: write the weekly plan now starts");
   await press("undo");
   expect(flow.undo).toHaveBeenCalledWith("undo-tok");
   await press("remove");
   expect(flow.remove).toHaveBeenCalledTimes(1);
+  // After Keep, removing is not a skip.
+  expect(flow.remove).toHaveBeenCalledWith();
 });

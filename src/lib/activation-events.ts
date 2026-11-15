@@ -23,12 +23,19 @@ export const ACTIVATION_EVENTS = [
   /* "Fill it": the scheduler placed tasks in one click, no preview shown and
      no Keep pressed. Counted apart so it never inflates keep_applied. */
   "fill_applied",
+  /* The first-replan card (first_replan_onboarding): seen, and skipped. Once
+     per account, so "never saw it" and "saw it, left it" can be told apart
+     from a low keep_applied count. */
+  "first_replan_card_shown",
+  "first_replan_skipped",
 ] as const;
 
 /** Events that count once per account; a unique index enforces it. */
 const ONCE_EVENTS: ReadonlySet<ActivationEventName> = new Set([
   "account_created",
   "calendar_connected",
+  "first_replan_card_shown",
+  "first_replan_skipped",
 ]);
 
 export type ActivationEventName = (typeof ACTIVATION_EVENTS)[number];

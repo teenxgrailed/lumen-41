@@ -1,5 +1,6 @@
 "use client";
 
+import { useFirstReplanHold } from "@/lib/needt3/hooks/first-replan";
 import { useClearSample, useSampleStatus } from "@/lib/needt3/hooks/sample";
 
 /**
@@ -7,11 +8,13 @@ import { useClearSample, useSampleStatus } from "@/lib/needt3/hooks/sample";
  * single action that removes it. Draws nothing once there are no examples,
  * while the status is unknown, or if it could not be read. Desktop and phone
  * both use it; the row wraps, so the button drops under the words on a phone.
+ * Waits while the first-replan card is the open question (one hint at a time).
  */
 export function SampleBanner() {
   const status = useSampleStatus();
   const clear = useClearSample();
-  if (!status.data?.present) return null;
+  const hold = useFirstReplanHold();
+  if (!status.data?.present || hold) return null;
   return (
     <div className="hd-sample" role="note" data-hd-sample="">
       <span className="hd-sample-text">
