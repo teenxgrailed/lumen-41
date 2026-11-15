@@ -86,7 +86,6 @@ import {
   moreIsWide,
   placeById,
   placeForPath,
-  setPlaceOn,
   splitPlaces,
 } from "./places";
 import { useSidebarPrefs } from "./useSidebarPrefs";
@@ -622,7 +621,7 @@ export function Sidebar() {
   const shell = useShellApi();
   const docOpen = useOpenDocId() !== null;
   const setComposerOpen = useNeedt3Ui((s) => s.setComposerOpen);
-  const [prefs, setPrefs] = useSidebarPrefs();
+  const [prefs, setPrefs, , auto] = useSidebarPrefs();
   const { tiles, rest } = splitPlaces(prefs);
   const sections = prefs.sections.filter((s) => s.on);
   const timeZone = useTimeZone();
@@ -724,25 +723,15 @@ export function Sidebar() {
           [{ label: "Open", run: () => router.push(p.href) }],
           [
             {
-              label: "Hide from Sidebar",
-              run: () => {
-                void setPrefs((s) => setPlaceOn(s, p.id, false)).then(() =>
-                  notify.success("Moved into More", {
-                    action: {
-                      label: "Undo",
-                      onClick: () =>
-                        void setPrefs((s) => setPlaceOn(s, p.id, true)),
-                    },
-                  })
-                );
-              },
+              label: auto.pinned.includes(p.id) ? "Unpin" : "Pin",
+              run: () => void auto.togglePin(p.id),
             },
-            { label: "Customize Sidebar…", run: shell.openCustomize },
+            { label: "Change in Settings…", run: shell.openCustomize },
           ],
         ];
       }),
       registerCtx("section", () => [
-        [{ label: "Customize Sidebar…", run: shell.openCustomize }],
+        [{ label: "Pinned places…", run: shell.openCustomize }],
       ]),
       registerCtx("project", ({ id }) => {
         const project = id
@@ -911,8 +900,8 @@ export function Sidebar() {
                 { sep: true as const },
                 {
                   art: "tune" as const,
-                  title: "Customize Sidebar",
-                  sub: "Choose tiles and sections",
+                  title: "Pinned places",
+                  sub: "Arranged by what you open",
                   onClick: shell.openCustomize,
                 },
               ]}

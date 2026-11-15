@@ -1,9 +1,11 @@
+import { rankedPlaces } from "@/lib/needt3/nav-rank";
+
 import {
   BAR_PLACE_SLOTS,
   DEFAULT_TILES,
   barPlaces,
   barStyleFrom,
-  menuTilesFrom,
+  menuTilesRanked,
 } from "../places";
 
 describe("barStyleFrom", () => {
@@ -19,9 +21,9 @@ describe("barStyleFrom", () => {
 });
 
 describe("barPlaces", () => {
-  it("with nothing saved returns the defaults, then the rest in menu order", () => {
-    expect(barPlaces(undefined, 3)).toEqual([...DEFAULT_TILES]);
-    expect(barPlaces({}, 5)).toEqual([
+  it("with the default ranking returns the defaults, then the ranked rest", () => {
+    expect(barPlaces(rankedPlaces({}), 3)).toEqual([...DEFAULT_TILES]);
+    expect(barPlaces(rankedPlaces({}), 5)).toEqual([
       "home",
       "docs",
       "ask",
@@ -30,8 +32,8 @@ describe("barPlaces", () => {
     ]);
   });
 
-  it("puts the saved list first, in its order, then fills from the defaults", () => {
-    expect(barPlaces({ mobileTiles: ["mail", "today"] }, 5)).toEqual([
+  it("takes the ranked order, then fills from the defaults", () => {
+    expect(barPlaces(["mail", "today"], 5)).toEqual([
       "mail",
       "home",
       "docs",
@@ -40,14 +42,31 @@ describe("barPlaces", () => {
     ]);
   });
 
-  it("reads the desktop spellings and drops unknown ids and repeats", () => {
+  it("follows the ranking a weekly reorder applied", () => {
+    const prefs = { navOrder: ["tasks", "calendar", "today"] };
+    expect(barPlaces(rankedPlaces(prefs), BAR_PLACE_SLOTS)).toEqual([
+      "tasks",
+      "calendar",
+      "home",
+    ]);
+  });
+
+  it("keeps a pinned place where it is", () => {
+    const prefs = {
+      navOrder: ["mail", "today", "docs", "ask"],
+      navPinned: ["mail"],
+    };
+    expect(barPlaces(rankedPlaces(prefs), BAR_PLACE_SLOTS)[0]).toBe("mail");
+  });
+
+  it("reads the ranked spellings and drops unknown ids, repeats and places the pill does not take", () => {
     expect(
-      barPlaces({ mobileTiles: ["boards", "nope", "boards", 7, "today"] }, 4)
+      barPlaces(["moodboards", "nope", "moodboards", "trash", "today"], 4)
     ).toEqual(["moodboards", "home", "docs", "ask"]);
   });
 
   it("never offers Settings, Agents or Budget", () => {
-    const all = barPlaces({ mobileTiles: ["settings"] }, 50);
+    const all = barPlaces(["settings", "agents", "budget"], 50);
     expect(all).not.toContain("settings");
     expect(all).not.toContain("agents");
     expect(all).not.toContain("budget");
@@ -55,14 +74,16 @@ describe("barPlaces", () => {
   });
 
   it("clamps the count", () => {
-    expect(barPlaces({}, 0)).toEqual([]);
-    expect(barPlaces({}, -2)).toEqual([]);
-    expect(barPlaces({}, 2.7)).toEqual(["home", "docs"]);
+    expect(barPlaces(rankedPlaces({}), 0)).toEqual([]);
+    expect(barPlaces(rankedPlaces({}), -2)).toEqual([]);
+    expect(barPlaces(rankedPlaces({}), 2.7)).toEqual(["home", "docs"]);
   });
 
-  it("holds the same places as the classic pill when the saved list is full", () => {
-    const prefs = { mobileTiles: ["calendar", "tasks", "mail"] };
-    expect(barPlaces(prefs, BAR_PLACE_SLOTS)).toEqual(menuTilesFrom(prefs));
-    expect(barPlaces({}, BAR_PLACE_SLOTS)).toEqual(menuTilesFrom({}));
+  it("holds the same three as the classic pill", () => {
+    const ranked = rankedPlaces({ navOrder: ["calendar", "tasks", "mail"] });
+    expect(barPlaces(ranked, BAR_PLACE_SLOTS)).toEqual(menuTilesRanked(ranked));
+    expect(barPlaces(rankedPlaces({}), BAR_PLACE_SLOTS)).toEqual(
+      menuTilesRanked(rankedPlaces({}))
+    );
   });
 });

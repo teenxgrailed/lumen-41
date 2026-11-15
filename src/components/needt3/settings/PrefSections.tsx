@@ -3,6 +3,7 @@
 import { BUDGET_SIDEBAR_PREF } from "@/lib/needt3/budget";
 import { type CityPlace, parseCityPlace } from "@/lib/needt3/city";
 import { useBudgetNav } from "@/lib/needt3/hooks/budget";
+import { useNavPins, useRankedPlaces } from "@/lib/needt3/hooks/nav-rank";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
@@ -13,6 +14,7 @@ import {
 import { isPro } from "@/lib/needt3/paywall";
 
 import { ProBadge } from "../paywall";
+import { PLACES, placeById } from "../shell/places";
 import { CityField } from "./CityField";
 import { useMark } from "./SettingsContext";
 import { type PrefKey, minutes, readPref } from "./derive";
@@ -44,6 +46,7 @@ export function GeneralSection() {
   const p = usePrefs();
   return (
     <>
+      <PinnedGroup />
       <BudgetGroup p={p} />
       <SGroup title="Links">
         <SRow
@@ -90,6 +93,41 @@ export function GeneralSection() {
         </SRow>
       </SGroup>
     </>
+  );
+}
+
+/**
+ * Pinned places. The sidebar and the menu arrange themselves by use: the
+ * sidebar's places in the order in use; a pinned one
+ * keeps its spot when the weekly ranking moves the others.
+ */
+function PinnedGroup() {
+  const mark = useMark();
+  const ranked = useRankedPlaces();
+  const pins = useNavPins();
+  const ids = ranked.filter((id) => PLACES.some((p) => p.id === id));
+  return (
+    <SGroup
+      title="Pinned"
+      hint="The sidebar follows what you open most, once a week. A pinned place stays where it is."
+    >
+      {ids.map((id) => {
+        const place = placeById(id);
+        if (!place) return null;
+        return (
+          <SRow key={id} title={place.label}>
+            <V3Switch
+              label={`Pin ${place.label}`}
+              checked={pins.pinned.includes(id)}
+              disabled={!pins.ready}
+              onChange={() =>
+                void pins.toggle(id).then((saved) => saved && mark())
+              }
+            />
+          </SRow>
+        );
+      })}
+    </SGroup>
   );
 }
 

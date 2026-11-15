@@ -230,7 +230,8 @@ export function SettingsSheet() {
       setSection(sectionOf(want));
       setList(!want && uiRef.current === "phone");
       sectionY.current = 0;
-      setMenu(false);
+      // "menu" opens the phone's Menu page (the pins).
+      setMenu(want === "menu" && uiRef.current === "phone");
       setPill(null);
     }
   }, [open, want]);

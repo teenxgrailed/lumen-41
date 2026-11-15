@@ -13,6 +13,7 @@ import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useFocusSession } from "@/lib/needt3/hooks/focus";
+import { useRankedPlaces } from "@/lib/needt3/hooks/nav-rank";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 import { initialsOf } from "@/lib/needt3/initials";
@@ -33,7 +34,6 @@ import {
   barStyleFrom,
   menuAction,
   menuIdForPath,
-  menuTilesFrom,
 } from "../menu/places";
 import { usePhoneCounts } from "../menu/usePhoneCounts";
 import { PhoneOverlays } from "../overlays/PhoneOverlays";
@@ -147,13 +147,12 @@ export function PhoneShell() {
 
   const screen = menuIdForPath(pathname);
   const prefs = settings.data?.prefs;
-  /* The bar's look (`prefs.barStyle`); the floating bar holds the same
-     three places as the card's tiles, so the card that opens from it matches. */
+  /* The bar's look (`prefs.barStyle`). Both looks hold the same three places,
+     taken from the ranked list (arranged by use, pins kept, held for this
+     load), so the card that opens from either bar matches. */
   const barStyle = barStyleFrom(prefs);
   const float = barStyle === "float";
-  const floatTiles = float ? barPlaces(prefs, BAR_PLACE_SLOTS).join(",") : "";
-  const classicTiles = menuTilesFrom(prefs).join(",");
-  const tilesKey = float ? floatTiles : classicTiles;
+  const tilesKey = barPlaces(useRankedPlaces(), BAR_PLACE_SLOTS).join(",");
   const tiles = useMemo(() => tilesKey.split(",") as MenuPlaceId[], [tilesKey]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuMoving, setMenuMoving] = useState(false);

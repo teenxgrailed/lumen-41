@@ -223,6 +223,33 @@ export function menuGlyphId(id: MenuPlaceId): string | null {
 }
 
 /**
+/**
+ * The places the pill may hold while the menu arranges itself
+ * by use: the ones Settings / Menu used to offer, never Settings.
+ */
+export const PILL_RANKABLE: readonly MenuPlaceId[] = [
+  "home",
+  "calendar",
+  "tasks",
+  "docs",
+  "mail",
+  "habits",
+  "moodboards",
+  "projects",
+  "ask",
+];
+
+/** A ranked id (`@/lib/needt3/nav-rank`) as the phone spells it. */
+export function menuIdOfNav(id: string): MenuPlaceId | null {
+  return FROM_SAVED[id] ?? null;
+}
+
+/** The phone spelling back to the ranked id ("home" is "today"). */
+export function navIdOfMenu(id: MenuPlaceId): string {
+  return id === "home" ? "today" : id;
+}
+
+/**
  * The bottom bar's two looks (`UserSettings.prefs.barStyle`): "classic" is
  * menu A's dark pill with the round + beside it; "float" is a light frosted
  * pill (dark frosted in the dark theme) holding the places, + and the menu
@@ -240,42 +267,37 @@ export function barStyleFrom(prefs: unknown): BarStyle {
 }
 
 /**
- * The order places are offered to the bar after the saved list runs out.
- * Settings never sits in the bar (it opens a sheet, and the menu card has
- * it); Agents and Budget neither, since they are rows only while switched on.
+ * The bar's `count` places, for both looks: the pill places of the ranked
+ * list (`rankedPlaces` / `useRankedPlaces`: arranged by use, pins kept where
+ * they are) in its order, then the defaults, no repeats. This is the one
+ * place the bar's ordering is decided. Pure.
  */
-const BAR_NEVER: readonly MenuPlaceId[] = ["settings", "agents", "budget"];
-const BAR_FALLBACK: readonly MenuPlaceId[] = [
-  ...DEFAULT_TILES,
-  ...MENU_ORDER.filter(
-    (id) => !DEFAULT_TILES.includes(id) && !BAR_NEVER.includes(id)
-  ),
-];
-
-/**
- * The bar's `count` places: the saved list (`prefs.mobileTiles`) first, in
- * its order, then the defaults, no repeats. This is the one place the bar's
- * ordering is decided, so a later ranking source swaps in here. Pure.
- */
-export function barPlaces(prefs: unknown, count: number): MenuPlaceId[] {
-  const raw =
-    prefs && typeof prefs === "object"
-      ? (prefs as Record<string, unknown>).mobileTiles
-      : null;
+export function barPlaces(
+  ranked: readonly string[],
+  count: number
+): MenuPlaceId[] {
   const out: MenuPlaceId[] = [];
   const n = Math.max(0, Math.floor(count));
-  const add = (id: MenuPlaceId | undefined) => {
+  const add = (id: MenuPlaceId | null) => {
     if (id && out.length < n && !out.includes(id)) out.push(id);
   };
-  if (Array.isArray(raw))
-    for (const v of raw) add(typeof v === "string" ? FROM_SAVED[v] : undefined);
-  for (const id of BAR_FALLBACK) add(id);
+  for (const v of ranked) {
+    const id = menuIdOfNav(v);
+    if (id && PILL_RANKABLE.includes(id)) add(id);
+  }
+  for (const id of DEFAULT_TILES) add(id);
+  for (const id of PILL_RANKABLE) add(id);
   return out;
 }
 
 /**
- * How many places the floating bar holds: three, beside "+" and the menu
- * opener (five slots). The same three as the classic pill, so the card that
- * opens from either bar shows the same tiles on top.
+ * How many places the bar holds: three. The floating bar sets them beside
+ * "+" and the menu opener (five slots); the classic pill holds the same
+ * three, so the card that opens from either bar shows the same tiles on top.
  */
 export const BAR_PLACE_SLOTS = 3;
+
+/** The pill's three from the ranked list (`barPlaces` at three). */
+export function menuTilesRanked(ranked: readonly string[]): MenuPlaceId[] {
+  return barPlaces(ranked, BAR_PLACE_SLOTS);
+}

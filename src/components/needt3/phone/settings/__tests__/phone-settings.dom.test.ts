@@ -403,12 +403,11 @@ describe("nothing is written before the source has loaded", () => {
     expect(useNeedt3Ui.getState().accent).toBe("blue");
   });
 
-  it("Menu: the rows are off until prefs load", async () => {
+  it("Menu: the pin rows are off until prefs load", async () => {
     await mount();
     await tap(q('[data-ps-open="menu"]'));
-    await tap(q('[data-ps-menu-place="mail"]'));
-    expect(writes).toEqual([]);
-    expect(q('[data-ps-slot="home"]')?.hasAttribute("disabled")).toBe(true);
+    await tap(q('[data-ps-pin-place="mail"]'));
+    expect(settingsWrites()).toEqual([]);
   });
 });
 
@@ -655,37 +654,24 @@ describe("Free keeps its gates", () => {
   });
 });
 
-describe("the pill", () => {
+describe("the pill (Menu: pins)", () => {
   beforeEach(() => {
     routes[URLS.settings] = SETTINGS;
   });
 
-  it("takes three places and refuses a fourth; a short pill is not written", async () => {
+  it("shows the three the pill holds and pins a place, with no picker", async () => {
     await mount();
     await tap(q('[data-ps-open="menu"]'));
     expect(q("[data-ps-slots]")?.getAttribute("data-ps-slots")).toBe(
       "home,docs,ask"
     );
-    // take one out: the pill is short, nothing is saved
-    await tap(q('[data-ps-slot="home"]'));
-    expect(q("[data-ps-slots]")?.getAttribute("data-ps-slots")).toBe(
-      "docs,ask"
-    );
-    expect(settingsWrites()).toEqual([]);
-    // fill it again: now it is written, into the loaded prefs
-    await tap(q('[data-ps-menu-place="mail"]'));
+    // the slots are not buttons: the pill arranges itself
+    expect(q('button[data-ps-slot="home"]')).toBeNull();
+    await tap(q('[data-ps-pin-place="mail"]'));
     expect(settingsWrites()).toHaveLength(1);
     expect(settingsWrites()[0].body).toEqual({
-      prefs: { mobileTiles: ["docs", "ask", "mail"] },
+      prefs: { navPinned: ["mail"] },
     });
-    // a fourth is refused with a word, and writes nothing
-    await tap(q('[data-ps-menu-place="tasks"]'));
-    expect(settingsWrites()).toHaveLength(1);
-    // ... in the page's own hint, not a toast over the rows
-    expect(host.textContent).toContain(
-      "The pill holds three — take one out first."
-    );
-    expect(mockNotify).not.toHaveBeenCalled();
   });
 });
 
