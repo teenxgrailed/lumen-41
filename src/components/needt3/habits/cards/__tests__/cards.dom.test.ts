@@ -602,7 +602,7 @@ describe("goal cards", () => {
         onSelect,
       })
     );
-    const card = q('[data-gl-card="g1"]');
+    const card = q('[data-gl-select="g1"]');
     expect(q('[data-gl-progress="g1"]').textContent).toBe("1 of 5 tasks");
     expect(q('[data-gl-next="g1"]').textContent).toContain(
       "Write the announcement"

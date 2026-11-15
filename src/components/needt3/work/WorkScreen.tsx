@@ -56,6 +56,7 @@ import {
   hasMoveToToday,
   hidesDue,
   isOverdue,
+  movedLabel,
   projectHue,
   projectsSorted,
   readProjectSort,
@@ -66,6 +67,8 @@ import { setOpenTask, useOpenTask } from "./taskParam";
 import { type WorkState, useWorkState } from "./useWorkState";
 
 const EMPTY_TASKS: V3Task[] = [];
+/** "Move to today" writes this many tasks at a time. */
+const MOVE_CHUNK = 10;
 const EMPTY_PROJECTS: V3Project[] = [];
 
 /** Keys other than `task` still go through the router. */
@@ -292,26 +295,27 @@ function WorkScreenContent({
   const moveToToday = async (list: readonly V3Task[]) => {
     const r = moveOverdue(list, today);
     if (!r) return;
-    // each move stands alone: a failure (reported and rolled back by the
-    // mutation) must not take the others' Undo with it
-    const settled = await Promise.allSettled(
-      r.moves.map((mv) =>
-        updateTask.mutateAsync({ id: mv.id, patch: mv.patch })
-      )
-    );
-    const moved = settled.flatMap((x) =>
-      x.status === "fulfilled" ? [x.value] : []
-    );
+    // Each move stands alone: a failure (reported and rolled back by the
+    // mutation) must not take the others' Undo with it. Ten at a time, so a
+    // long Overdue list does not fire hundreds of writes at once.
+    //todo one batch op for a bulk move (a single request and a single undo).
+    const moved: Awaited<ReturnType<typeof updateTask.mutateAsync>>[] = [];
+    for (let i = 0; i < r.moves.length; i += MOVE_CHUNK) {
+      const settled = await Promise.allSettled(
+        r.moves
+          .slice(i, i + MOVE_CHUNK)
+          .map((mv) => updateTask.mutateAsync({ id: mv.id, patch: mv.patch }))
+      );
+      for (const x of settled)
+        if (x.status === "fulfilled") moved.push(x.value);
+    }
     if (!moved.length) return;
-    notify.success(
-      `${moved.length} ${moved.length === 1 ? "task" : "tasks"} moved to today`,
-      {
-        action: {
-          label: "Undo",
-          onClick: () => void Promise.allSettled(moved.map((d) => d.undo())),
-        },
-      }
-    );
+    notify.success(movedLabel(moved.length, r.moves.length), {
+      action: {
+        label: "Undo",
+        onClick: () => void Promise.allSettled(moved.map((d) => d.undo())),
+      },
+    });
   };
 
   const row = (t: V3Task) => (

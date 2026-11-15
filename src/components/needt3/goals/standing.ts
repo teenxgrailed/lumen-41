@@ -5,6 +5,7 @@
  */
 import type { GoalView } from "@/lib/goals";
 import { addDays, daysBetween } from "@/lib/needt3/derive";
+import { type DayFields, taskDay } from "@/lib/needt3/task-day";
 
 import { goalRisk } from "../habits/cards/model";
 
@@ -20,8 +21,11 @@ export interface GoalStanding {
   atRisk: boolean;
   /** Days to the deadline (negative = past), null without one. */
   daysLeft: number | null;
-  /** "At risk · 12d left" / "At risk · overdue" / "On track". */
-  label: string;
+  /**
+   * "At risk · 12d left" / "At risk · overdue" / "On track"; null when there is
+   * nothing to say (no deadline, or no progress to compare with the time).
+   */
+  label: string | null;
   /** The longer reason (`goalRisk`'s words), for a tooltip. */
   hint: string | null;
 }
@@ -41,7 +45,9 @@ export function goalStanding(goal: StandingGoal, today: string): GoalStanding {
       ? daysLeft !== null && daysLeft < 0
         ? "At risk · overdue"
         : `At risk · ${daysLeft}d left`
-      : "On track",
+      : daysLeft !== null && goal.progress.percent !== null
+        ? "On track"
+        : null,
     hint: risk?.text ?? null,
   };
 }
@@ -70,4 +76,30 @@ export function sortByRisk<T extends StandingGoal>(
 /** Whether a day ("YYYY-MM-DD") falls in the 7 days that start today. */
 export function inNextWeek(day: string | null | undefined, today: string) {
   return !!day && day >= today && day <= addDays(today, 6);
+}
+
+/**
+ * A goal's plan from its linked tasks: the day the next step sits on (due or
+ * scheduled, the day the rest of the app draws it on) and whether any open
+ * task is on a day in the next 7. `byId` is the person's task list.
+ */
+export function goalPlan(
+  linked: readonly { id: string; status: string }[],
+  step: { id: string } | null,
+  byId: ReadonlyMap<
+    string,
+    Pick<DayFields, "dueDate" | "scheduledStart" | "repeat">
+  >,
+  today: string
+): { stepDay: string | null; planned: boolean } {
+  const dayOf = (id: string) => {
+    const t = byId.get(id);
+    return t ? taskDay(t, today) : null;
+  };
+  return {
+    stepDay: step ? dayOf(step.id) : null,
+    planned: linked.some(
+      (t) => t.status !== "completed" && inNextWeek(dayOf(t.id), today)
+    ),
+  };
 }

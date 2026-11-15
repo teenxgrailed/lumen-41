@@ -90,6 +90,9 @@ describe("Goals screen", () => {
     const out = render({ pro: false });
     expect(out).toContain("Goals are part of Pro");
     expect(out).toContain('data-pro-badge="locked"');
+    // Free keeps the round +, which opens the plans
+    expect(out).toContain("data-page-add");
+    expect(out).not.toContain("data-gl-new");
     expect(out).toContain("data-gl-upgrade");
     expect(out).not.toContain("No goals yet");
   });
@@ -97,6 +100,9 @@ describe("Goals screen", () => {
   it("shows Pro an empty state that starts a goal", () => {
     const out = render({});
     expect(out).toContain("No goals yet");
+    // one New goal only: the empty state's, none in the header
+    expect(out.match(/data-gl-new/g)).toHaveLength(1);
+    expect(out).not.toContain("data-page-add");
     expect(out).not.toContain("data-pro-badge");
   });
 
@@ -121,8 +127,9 @@ describe("Goals screen", () => {
     });
     expect(out).toContain("2 active goals");
     expect(out).not.toContain("never scheduled");
-    // "+ New goal" ends the header
+    // "+ New goal" ends the header; Pro has no second, round +
     expect(out).toContain("data-gl-new");
+    expect(out).not.toContain("data-page-add");
     expect(out).toContain("1 000 / 2 500 CHF");
     expect(out).toContain("1 of 2 tasks");
     expect(out).toContain('class="gl-row nx-press nx-focus is-sub"');

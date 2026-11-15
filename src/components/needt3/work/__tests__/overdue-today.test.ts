@@ -5,7 +5,7 @@
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { DEFAULT_TASK_VIEW } from "@/lib/needt3/task-view";
 
-import { hasMoveToToday, hidesDue, workModel } from "../model";
+import { hasMoveToToday, hidesDue, movedLabel, workModel } from "../model";
 
 const TODAY = "2026-11-15";
 
@@ -90,5 +90,13 @@ describe("Today rows and the Overdue action", () => {
     expect(hasMoveToToday("overdue", false)).toBe(true);
     expect(hasMoveToToday("today", false)).toBe(false);
     expect(hasMoveToToday("overdue", true)).toBe(false);
+  });
+});
+
+describe("Move to today notice", () => {
+  it("says how many moved, and how many of the total when some failed", () => {
+    expect(movedLabel(3, 3)).toBe("3 tasks moved to today");
+    expect(movedLabel(1, 1)).toBe("1 task moved to today");
+    expect(movedLabel(8, 10)).toBe("Moved 8 of 10 to today");
   });
 });

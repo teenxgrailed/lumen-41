@@ -671,19 +671,23 @@ export function GoalsView(props: GoalsViewProps) {
   return (
     <div className="scroll-inner gl-screen" data-v3-screen="goals">
       <header className="pl-place-header-row">
-        <button
-          type="button"
-          aria-label="New goal"
-          title="New goal"
-          data-page-add=""
-          className="nx-btn nx-btn-secondary page-add"
-          onClick={pro ? props.onNew : props.onUpgrade}
-        >
-          <LuPlus size={18} aria-hidden />
-        </button>
+        {pro ? null : (
+          // Pro has "+ New goal" at the right end; Free's + opens the paywall
+          <button
+            type="button"
+            aria-label="New goal"
+            title="New goal"
+            data-page-add=""
+            className="nx-btn nx-btn-secondary page-add"
+            onClick={props.onUpgrade}
+          >
+            <LuPlus size={18} aria-hidden />
+          </button>
+        )}
         <h1 className="pl-place-header-text">Goals</h1>
         <span className="pl-place-header-text-2">{meta}</span>
-        {pro ? (
+        {pro && list.length ? (
+          // with no goals yet the empty state has its own New goal
           <button
             type="button"
             className="nx-btn nx-btn-secondary nx-btn-sm gl-new"
@@ -705,6 +709,7 @@ export function GoalsView(props: GoalsViewProps) {
               <button
                 type="button"
                 className="nx-btn nx-btn-primary"
+                data-gl-new=""
                 onClick={props.onNew}
               >
                 <LuPlus size={14} aria-hidden />

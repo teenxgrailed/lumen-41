@@ -9,7 +9,7 @@
    project's colour; red only marks a goal at risk. Presentational; the next
    steps, hues and what is planned come in as props. */
 import { useState } from "react";
-import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
+import type { CSSProperties } from "react";
 
 import { type GoalView, goalAreaLabel, goalProgressLabel } from "@/lib/goals";
 
@@ -93,33 +93,25 @@ function GoalCard({
   ]
     .filter(Boolean)
     .join(" · ");
-  // A button must not sit inside a button: the card is a div that acts as one,
-  // and its own actions stop the click from also selecting the goal.
-  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget) return;
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onSelect(goal.id);
-    }
-  };
-  const own = (fn: () => void) => (e: MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-    fn();
-  };
+  // The card is an article; its title is the one real select button, stretched
+  // over the card (::after), so Schedule and Plan stay sibling buttons.
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className={`gl-card nx-press nx-focus${selected ? " is-on" : ""}`}
+    <article
+      className={`gl-card nx-press${selected ? " is-on" : ""}`}
       style={hue ? ({ "--hue": hue } as CSSProperties) : undefined}
       data-gl-card={goal.id}
-      aria-pressed={selected}
-      onClick={() => onSelect(goal.id)}
-      onKeyDown={onKey}
     >
       <span className="gl-card-top">
         <span className="hc-mark" aria-hidden="true" />
-        <span className="gl-card-title">{goal.title}</span>
+        <button
+          type="button"
+          className="gl-card-title"
+          data-gl-select={goal.id}
+          aria-pressed={selected}
+          onClick={() => onSelect(goal.id)}
+        >
+          {goal.title}
+        </button>
         <span className="gl-card-progress" data-gl-progress={goal.id}>
           {label ?? "No progress yet"}
         </span>
@@ -152,10 +144,10 @@ function GoalCard({
                 className="nx-btn nx-btn-text nx-btn-sm gl-card-act"
                 data-gl-schedule={goal.id}
                 disabled={busy}
-                aria-label={`Schedule ${step.title}`}
-                onClick={own(() => onSchedule(step.id))}
+                aria-label={`Schedule ${step.title} on the first free day`}
+                onClick={() => onSchedule(step.id)}
               >
-                Schedule
+                Schedule · first free day
               </button>
             )
           ) : null}
@@ -166,7 +158,7 @@ function GoalCard({
           type="button"
           className="nx-btn nx-btn-secondary nx-btn-sm gl-card-plan"
           data-gl-plan={goal.id}
-          onClick={own(() => onPlan(goal.id))}
+          onClick={() => onPlan(goal.id)}
         >
           Plan a task
         </button>
@@ -179,17 +171,26 @@ function GoalCard({
         ) : (
           <span className="gl-card-due">No deadline</span>
         )}
-        {open ? (
+        {open && standing.label ? (
           <span
             className={`gl-card-risk ${standing.atRisk ? "is-risk" : "is-ok"}`}
             data-gl-risk={standing.atRisk ? "at-risk" : "on-track"}
-            title={standing.hint ?? undefined}
+            aria-label={
+              standing.hint
+                ? `${standing.label}. ${standing.hint}`
+                : standing.label
+            }
           >
             {standing.label}
           </span>
         ) : null}
       </span>
-    </div>
+      {open && standing.atRisk && standing.hint ? (
+        <span className="gl-card-hint" data-gl-hint={goal.id}>
+          {standing.hint}
+        </span>
+      ) : null}
+    </article>
   );
 }
 

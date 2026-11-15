@@ -321,6 +321,7 @@
   gap: 12px;
 }
 .needt-v3 .gl-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -338,7 +339,6 @@
     color-mix(in srgb, var(--hue, var(--text-primary)) 22%, transparent);
   color: var(--text-primary);
   text-align: left;
-  cursor: pointer;
 }
 .needt-v3 .gl-card.is-on {
   box-shadow: inset 0 0 0 1px var(--text-primary);
@@ -352,11 +352,38 @@
 .needt-v3 .gl-card-title {
   flex: 1;
   min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
   font: var(--type-ui-medium);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* the title button covers the whole card; the card's own actions sit above */
+.needt-v3 .gl-card-title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.needt-v3 .gl-card:has(.gl-card-title:focus-visible) {
+  box-shadow: inset 0 0 0 2px var(--text-primary);
+}
+.needt-v3 .gl-card-title:focus-visible {
+  outline: none;
+}
+.needt-v3 .gl-card-act,
+.needt-v3 .gl-card-plan {
+  position: relative;
+  z-index: 1;
+}
+.needt-v3 .gl-card-hint {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
 }
 .needt-v3 .gl-card-progress {
   flex: none;
@@ -419,9 +446,10 @@
 /* the next step's action sits at the line's right end, on the row's geometry */
 .needt-v3 .gl-card-next {
   align-items: center;
+  flex-wrap: wrap;
 }
 .needt-v3 .gl-card-next-text {
-  flex: 1;
+  flex: 1 1 120px;
 }
 .needt-v3 .gl-card-act {
   flex: none;

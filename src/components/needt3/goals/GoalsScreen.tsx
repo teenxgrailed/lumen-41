@@ -24,7 +24,7 @@ import { useTasks } from "@/lib/needt3/hooks/tasks";
 import { nextStep } from "../habits/cards/model";
 import { useSpread } from "../home/useSpread";
 import { EMPTY_GOAL_FORM, type GoalFormValues, GoalsView } from "./GoalsView";
-import { inNextWeek } from "./standing";
+import { goalPlan } from "./standing";
 
 function numberOrUndefined(value: string) {
   const trimmed = value.trim().replace(/\s/g, "").replace(",", ".");
@@ -54,9 +54,7 @@ function useGoalCards(on: boolean, goals: readonly GoalView[] | undefined) {
   const details = useGoalDetails(ids);
   if (!on || !goals) return undefined;
   const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
-  const day = new Map(
-    (taskList.data ?? []).map((t) => [t.id, t.scheduledStart?.slice(0, 10)])
-  );
+  const byId = new Map((taskList.data ?? []).map((t) => [t.id, t] as const));
   const nextSteps: Record<string, { id: string; title: string } | null> = {};
   const stepDays: Record<string, string | null> = {};
   const planned: Record<string, boolean> = {};
@@ -66,11 +64,10 @@ function useGoalCards(on: boolean, goals: readonly GoalView[] | undefined) {
     const step = nextStep(data.tasks);
     nextSteps[id] = step;
     if (!taskList.data) return;
-    if (step) stepDays[step.id] = day.get(step.id) ?? null;
-    // something open and placed in the next 7 days, whichever task it is
-    planned[id] = data.tasks.some(
-      (t) => t.status !== "completed" && inNextWeek(day.get(t.id), today)
-    );
+    // due or scheduled, the day the rest of the app draws the task on
+    const plan = goalPlan(data.tasks, step, byId, today);
+    if (step) stepDays[step.id] = plan.stepDay;
+    planned[id] = plan.planned;
   });
   const color = new Map(
     (projects.data ?? []).map((p) => [p.id, p.color] as const)

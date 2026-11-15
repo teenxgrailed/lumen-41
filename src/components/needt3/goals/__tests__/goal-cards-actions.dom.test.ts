@@ -83,10 +83,26 @@ describe("Goal card actions", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("the card itself still selects, by click", () => {
+  it("the title is the card's one select button", () => {
     const { onSelect } = draw();
-    act(() => (host.querySelector("[data-gl-card]") as HTMLElement).click());
+    const title = host.querySelector("[data-gl-select]") as HTMLButtonElement;
+    expect(host.querySelector("article[data-gl-card]")).not.toBeNull();
+    expect(title.getAttribute("aria-pressed")).toBe("false");
+    act(() => title.click());
     expect(onSelect).toHaveBeenCalledWith("g1");
+  });
+
+  it("offers Schedule as a first-free-day action, and shows the day once set", () => {
+    draw();
+    expect(
+      host.querySelector('[data-gl-schedule="g1"]')?.textContent
+    ).toContain("first free day");
+    // a step with only a due date has a day already: no Schedule, the day shows
+    draw({ stepDays: { t1: "2026-11-16" } });
+    expect(host.querySelector("[data-gl-schedule]")).toBeNull();
+    expect(host.querySelector('[data-gl-when="g1"]')?.textContent).toBe(
+      "Tomorrow"
+    );
   });
 
   it("disables Schedule while a placement runs", () => {

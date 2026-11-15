@@ -68,6 +68,12 @@ export const hidesDue = (
   today: string
 ) => !projectsOnly && tab === "today" && t.dueDate === today;
 
+/** The notice after "Move to today": all moved, or how many of them. */
+export const movedLabel = (moved: number, total: number) =>
+  moved === total
+    ? `${total} ${total === 1 ? "task" : "tasks"} moved to today`
+    : `Moved ${moved} of ${total} to today`;
+
 /** The Overdue section carries "Move to today" (desktop Tasks, not Projects). */
 export const hasMoveToToday = (sectionKey: string, projectsOnly: boolean) =>
   sectionKey === "overdue" && !projectsOnly;

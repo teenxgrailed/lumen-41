@@ -1,6 +1,6 @@
 import type { GoalView } from "@/lib/goals";
 
-import { goalStanding, inNextWeek, sortByRisk } from "../standing";
+import { goalPlan, goalStanding, inNextWeek, sortByRisk } from "../standing";
 
 const TODAY = "2026-11-15";
 
@@ -70,8 +70,30 @@ describe("goalStanding", () => {
     expect(s.label).toBe("At risk · overdue");
   });
 
-  it("has no standing against time without a deadline", () => {
-    expect(goalStanding(goal("a"), TODAY).atRisk).toBe(false);
+  it("says nothing without a deadline, or without progress to compare", () => {
+    expect(goalStanding(goal("a", { percent: 50 }), TODAY).label).toBeNull();
+    expect(
+      goalStanding(goal("a", { deadline: "2026-12-30T00:00:00.000Z" }), TODAY)
+        .label
+    ).toBeNull();
+  });
+
+  it("reads a deadline that falls today as on track when keeping up", () => {
+    const s = goalStanding(
+      goal("a", { deadline: "2026-11-15T00:00:00.000Z", percent: 99 }),
+      TODAY
+    );
+    expect(s.daysLeft).toBe(0);
+    expect(s.label).toBe("On track");
+  });
+
+  it("reads a deadline that falls today as at risk, 0d left, when behind", () => {
+    const s = goalStanding(
+      goal("a", { deadline: "2026-11-15T00:00:00.000Z", percent: 10 }),
+      TODAY
+    );
+    expect(s.atRisk).toBe(true);
+    expect(s.label).toBe("At risk · 0d left");
   });
 });
 
@@ -104,5 +126,51 @@ describe("inNextWeek", () => {
     expect(inNextWeek("2026-11-22", TODAY)).toBe(false);
     expect(inNextWeek("2026-11-14", TODAY)).toBe(false);
     expect(inNextWeek(null, TODAY)).toBe(false);
+  });
+});
+
+describe("goalPlan", () => {
+  const byId = new Map([
+    ["due", { dueDate: "2026-11-17", scheduledStart: null, repeat: null }],
+    ["far", { dueDate: "2026-12-30", scheduledStart: null, repeat: null }],
+    [
+      "placed",
+      {
+        dueDate: null,
+        scheduledStart: "2026-11-16T10:00",
+        repeat: null,
+      },
+    ],
+    ["none", { dueDate: null, scheduledStart: null, repeat: null }],
+  ]);
+  const open = (id: string) => ({ id, status: "todo" });
+
+  it("takes a step that only has a due date as already on that day", () => {
+    const plan = goalPlan([open("due")], { id: "due" }, byId, TODAY);
+    expect(plan.stepDay).toBe("2026-11-17");
+    expect(plan.planned).toBe(true);
+  });
+
+  it("reads a scheduled block as the day too", () => {
+    expect(goalPlan([open("placed")], { id: "placed" }, byId, TODAY)).toEqual({
+      stepDay: "2026-11-16",
+      planned: true,
+    });
+  });
+
+  it("has no day for an unplaced step, and nothing planned", () => {
+    expect(goalPlan([open("none")], { id: "none" }, byId, TODAY)).toEqual({
+      stepDay: null,
+      planned: false,
+    });
+  });
+
+  it("does not count a far day or a finished task as planned", () => {
+    expect(goalPlan([open("far")], { id: "far" }, byId, TODAY).planned).toBe(
+      false
+    );
+    expect(
+      goalPlan([{ id: "due", status: "completed" }], null, byId, TODAY).planned
+    ).toBe(false);
   });
 });
