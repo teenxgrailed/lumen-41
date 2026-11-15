@@ -427,10 +427,18 @@
     .nva-head-blur,
     .nva-add,
     .nva-focus-btn,
-    .nva-tiles .nva-tile
+    .nva-tiles .nva-tile,
+    .nfb-pill
   ) {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+/* The floating bar (bottom-bar-float.css) is a sibling of the menu, not
+ * inside it or the host: PhoneShell marks it with data-nva-moving for the
+ * same span, and it stays faded out (.is-out) until the menu has settled. */
+.needt-v3 .nfb[data-nva-moving] .nfb-pill {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 /* ... and so does the screen under the menu: PhoneShell sets data-nva-moving on
  * the host for the same span. !important because the kit's glass chips and
@@ -473,7 +481,8 @@
     .mau-chip,
     .mau-theme,
     .mau-skip,
-    .pov-snack
+    .pov-snack,
+    .nfb-pill
   ) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;

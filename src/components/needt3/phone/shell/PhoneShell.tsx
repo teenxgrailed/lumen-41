@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -22,10 +23,14 @@ import { planPill } from "../../shell/AccountMenu";
 import { pkDotSweep } from "../kit/Material";
 import { pkScrollY } from "../kit/scroll";
 import { usePkSide } from "../kit/theme";
+import { FloatBar } from "../menu/FloatBar";
 import { FocusDockButton } from "../menu/FocusDockButton";
 import { Menu } from "../menu/Menu";
 import {
+  BAR_PLACE_SLOTS,
   type MenuPlaceId,
+  barPlaces,
+  barStyleFrom,
   menuAction,
   menuIdForPath,
   menuTilesFrom,
@@ -141,7 +146,18 @@ export function PhoneShell() {
   const covered = useCoverActive();
 
   const screen = menuIdForPath(pathname);
-  const tiles = menuTilesFrom(settings.data?.prefs);
+  const prefs = settings.data?.prefs;
+  /* The bar's look (`prefs.barStyle`); the floating bar holds the same
+     three places as the card's tiles, so the card that opens from it matches. */
+  const barStyle = barStyleFrom(prefs);
+  const float = barStyle === "float";
+  const floatTiles = float ? barPlaces(prefs, BAR_PLACE_SLOTS).join(",") : "";
+  const classicTiles = menuTilesFrom(prefs).join(",");
+  const tilesKey = float ? floatTiles : classicTiles;
+  const tiles = useMemo(() => tilesKey.split(",") as MenuPlaceId[], [tilesKey]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuMoving, setMenuMoving] = useState(false);
+  const [openRequest, setOpenRequest] = useState(0);
 
   const away = askOpen || covered;
   const morph = useLinger(composerOpen, MORPH_SETTLE_MS);
@@ -208,7 +224,16 @@ export function PhoneShell() {
 
   /* While the menu moves, the screen under it gives up its own blur bands:
      exactly one backdrop-filter (the pill's glass) is live (motion.css P2). */
+  const floatRef = useRef(float);
+  useEffect(() => {
+    floatRef.current = float;
+    if (!float) setMenuMoving(false);
+  }, [float]);
   const onMoving = useCallback((moving: boolean) => {
+    /* The floating bar stays out (no blur) until the menu settles: one
+       render when it starts moving and one when it stops, never per frame,
+       and only while the floating bar is the dock. */
+    if (floatRef.current) setMenuMoving(moving);
     const host = document.querySelector("[data-v2p-host]");
     if (!host) return;
     if (moving) host.setAttribute("data-nva-moving", "");
@@ -245,8 +270,31 @@ export function PhoneShell() {
     pro: kind !== "free",
   };
 
+  const onCompose = useCallback(
+    () => useNeedt3Ui.getState().setComposerOpen(true),
+    []
+  );
+  const onMenu = useCallback(() => setOpenRequest((n) => n + 1), []);
+
   return (
     <>
+      {/* First in the frame: the composer morphs out of the first
+          `[data-nva-pill]`, which is this bar's pill while it is the dock. */}
+      {float ? (
+        <FloatBar
+          side={side}
+          places={tiles}
+          screen={screen}
+          open={menuOpen}
+          moving={menuMoving}
+          away={away}
+          morph={morph}
+          focus={focusOn ? <FocusDockButton /> : null}
+          onPick={onPick}
+          onCompose={onCompose}
+          onMenu={onMenu}
+        />
+      ) : null}
       <Menu
         side={side}
         screen={screen}
@@ -254,12 +302,15 @@ export function PhoneShell() {
         counts={counts}
         me={me}
         away={away}
-        focus={<FocusDockButton />}
-        focusOn={focusOn}
+        focus={float ? null : <FocusDockButton />}
+        focusOn={float ? false : focusOn}
         morph={morph}
         onPick={onPick}
         onSettings={onSettings}
         onMoving={onMoving}
+        variant={barStyle}
+        openRequest={openRequest}
+        onOpenChange={setMenuOpen}
       />
       <PhoneOverlays />
       <PageSnapshot pathname={pathname} />

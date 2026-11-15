@@ -63,20 +63,60 @@ export interface NvaGeom {
   S0: number;
   /** The pill's end (hairline + dot grid box) from the pill's right edge. */
   BE: number;
+  /** Centre-to-centre distance of two pill slots (54; the floating bar's slot + gap). */
+  SP: number;
+  /** The floating bar is the dock: the pill is its pill (`nvaFloatPill`). */
+  float: boolean;
   /** Track length from the pill to the card. */
   range: number;
 }
 
-export function nvaGeom(fw: number, fh: number, focus = false): NvaGeom {
+/**
+ * The floating bar's pill (FloatBar.tsx, bottom-bar-float.css), so the card
+ * grows out of, and shrinks back into, the pill that is on screen: five
+ * slots of `min(48, (fw - 40) / 5.6)` px (never under 36), 4 px apart, 6 px
+ * padding. The CSS computes the same slot from 100vw: the phone frame is the
+ * viewport.
+ */
+export const NVA_FLOAT = { slotMax: 48, slotMin: 36, gap: 4, pad: 6 } as const;
+export const NVA_FLOAT_SLOTS = 5;
+
+export function nvaFloatSlot(fw: number): number {
+  return Math.max(
+    NVA_FLOAT.slotMin,
+    Math.min(NVA_FLOAT.slotMax, (fw - 40) / 5.6)
+  );
+}
+
+export function nvaFloatPill(fw: number) {
+  const slot = nvaFloatSlot(fw);
+  const { gap, pad } = NVA_FLOAT;
+  return {
+    PW: NVA_FLOAT_SLOTS * slot + (NVA_FLOAT_SLOTS - 1) * gap + 2 * pad,
+    PH: slot + 2 * pad,
+    S0: pad + slot / 2,
+    SP: slot + gap,
+    // the dot grid is the last slot: menu A's 60 px end box centred on it
+    BE: pad + slot / 2 + 30,
+  };
+}
+
+export function nvaGeom(
+  fw: number,
+  fh: number,
+  focus = false,
+  float = false
+): NvaGeom {
   const M = 10;
   const W = fw - 2 * M;
   const fullH = fh - NVA_TOP - M;
   const cardH = Math.min(fullH, 478);
   // Idle: the pill (236) between nothing and New task. Focus: the
   // `.fd-dock` (232) right of the focus button, the pair centred.
-  const PW = focus ? NVA_FOCUS_PW : 236;
-  const PX = focus ? (NVA_FOCUS + NVA_FOCUS_GAP) / 2 : 0;
-  const PH = 64;
+  const fp = float ? nvaFloatPill(fw) : null;
+  const PW = fp ? fp.PW : focus ? NVA_FOCUS_PW : 236;
+  const PX = !fp && focus ? (NVA_FOCUS + NVA_FOCUS_GAP) / 2 : 0;
+  const PH = fp ? fp.PH : 64;
   // The pill's bottom edge stands PB above the menu frame's bottom, which is
   // `--v3-dock-lift` above the display edge less the layer's 8 px edge inset
   // (phone-ground.css): 20 - 8 + 18 = 30 px in an installed app and a Safari
@@ -108,8 +148,10 @@ export function nvaGeom(fw: number, fh: number, focus = false): NvaGeom {
     // `.fd-dock span` 50 px slots after 10 px padding: centres at 35 + 54 i,
     // the dot grid (the fourth) at 197, 35 short of the right edge, which is
     // 65 for the 60 px end box (hairline 1 + 7, dots 44, centre at 30).
-    S0: focus ? 35 : 34,
-    BE: focus ? 65 : 60,
+    S0: fp ? fp.S0 : focus ? 35 : 34,
+    BE: fp ? fp.BE : focus ? 65 : 60,
+    SP: fp ? fp.SP : 54,
+    float: !!fp,
   };
 }
 
@@ -168,7 +210,7 @@ export function nvaClipPath(g: NvaGeom, s: NvaBox) {
 /** Where icon i sits in the pill. */
 export function nvaPillSlot(g: NvaGeom, i: number) {
   return {
-    x: (g.W - g.PW) / 2 + g.PX + g.S0 + i * 54,
+    x: (g.W - g.PW) / 2 + g.PX + g.S0 + i * g.SP,
     y: g.fullH - (g.PB - g.M) - g.PH / 2,
   };
 }
