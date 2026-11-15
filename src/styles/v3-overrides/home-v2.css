@@ -139,6 +139,54 @@
   color: var(--text-muted);
 }
 
+/* the preview under that line: one row per task (title, new time, reason),
+   what did not fit, then Keep / Dismiss. 13px rows, 12px reasons. */
+.needt-v3 .hv2-missed-prev {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 var(--space-8);
+  padding: 0 12px;
+}
+.needt-v3 .hv2-missed-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.needt-v3 .hv2-missed-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  min-width: 0;
+}
+.needt-v3 .hv2-missed-row-t {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.needt-v3 .hv2-missed-row-at {
+  flex: none;
+  font: 400 13px/18px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.needt-v3 .hv2-missed-row-why {
+  flex: 1 0 100%;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+}
+.needt-v3 .hv2-missed-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* the day's count at the right edge of the title: a quiet "3/13" */
 .needt-v3 .hv2-count {
   margin-left: 10px;

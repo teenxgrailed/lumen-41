@@ -2,6 +2,9 @@
 
 import { type ReactNode, useState } from "react";
 
+import { addCalendarDays, formatInTimeZone, newDate } from "@/lib/date-utils";
+import type { MissedKeepStep } from "@/lib/needt3/hooks/missed-keep";
+
 import { Ring } from "../work/parts";
 import { missedLabel, overdueLabel } from "./now";
 
@@ -67,46 +70,138 @@ export function OverdueRow({
 }
 
 /**
+ * "Today 14:30", "Tomorrow 09:00", "Mon 10:00": the day is always said, so a
+ * move never reads as a change of hour alone.
+ */
+function whenLabel(iso: string, tz: string) {
+  const now = newDate();
+  const d = newDate(iso);
+  const day = formatInTimeZone(d, tz, "yyyy-MM-dd");
+  const tomorrow = formatInTimeZone(
+    addCalendarDays(now, 1, tz),
+    tz,
+    "yyyy-MM-dd"
+  );
+  const label =
+    day === formatInTimeZone(now, tz, "yyyy-MM-dd")
+      ? "Today"
+      : day === tomorrow
+        ? "Tomorrow"
+        : formatInTimeZone(d, tz, "EEE");
+  return `${label} ${formatInTimeZone(d, tz, "HH:mm")}`;
+}
+
+/**
  * Today's tasks whose time has passed and are not done: ONE quiet line under
- * the Now card instead of rows that hang silently in the list. "Reschedule"
- * asks the scheduler for open slots (the existing reschedule preview -> apply,
- * with an Undo in the notice it leaves). Draws nothing without any.
+ * the Now card instead of rows that hang silently in the list. "N tasks from
+ * earlier today -> open slots" asks the scoped replan (`useMissedKeep`) where
+ * only those tasks would go and shows it right under the line: title, new
+ * time, the reason; what did not fit says so. Keep applies (the notice has
+ * Undo), Dismiss closes. Nothing moves before Keep. Draws nothing without any.
  */
 export function MissedLine({
   count,
-  onReschedule,
+  step,
+  tz,
+  onOpen,
+  onKeep,
+  onDismiss,
 }: {
   count: number;
-  onReschedule: () => Promise<void> | void;
+  step: MissedKeepStep;
+  tz: string;
+  onOpen: () => void;
+  onKeep: () => void;
+  onDismiss: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  if (count <= 0) return null;
+  if (count <= 0 && step.kind === "idle") return null;
+  const shown = step.kind === "preview" || step.kind === "applying";
+  const busy = step.kind === "previewing" || step.kind === "applying";
+  const changes = shown ? step.changes : [];
+  const unscheduled = shown ? step.unscheduled : [];
   return (
-    <p className="hv2-missed" data-hv2-missed="">
-      <span className="hv2-missed-t">{missedLabel(count)}</span>
-      <button
-        type="button"
-        className="hv2-missed-go nx-focus"
-        data-hv2-missed-go=""
-        disabled={busy}
-        aria-busy={busy || undefined}
-        onClick={() => {
-          setBusy(true);
-          void Promise.resolve(onReschedule()).finally(() => setBusy(false));
-        }}
-      >
-        Reschedule
-      </button>
-    </p>
+    <>
+      <p className="hv2-missed" data-hv2-missed="">
+        <span className="hv2-missed-t">{missedLabel(count)}</span>
+        <button
+          type="button"
+          className="hv2-missed-go nx-focus"
+          data-hv2-missed-go=""
+          disabled={busy || shown}
+          aria-busy={step.kind === "previewing" || undefined}
+          onClick={onOpen}
+        >
+          <span aria-hidden="true">{"\u2192"}</span> open slots
+        </button>
+      </p>
+      {shown ? (
+        <section
+          className="hv2-missed-prev"
+          aria-label="Open slots for earlier tasks"
+          data-hv2-missed-prev=""
+        >
+          {changes.length ? (
+            <ul className="hv2-missed-rows" data-hv2-missed-changes="">
+              {changes.map((c) => (
+                <li
+                  key={c.taskId}
+                  className="hv2-missed-row"
+                  data-change={c.taskId}
+                >
+                  <span className="hv2-missed-row-t">{c.title}</span>
+                  {c.toStart ? (
+                    <span className="hv2-missed-row-at">
+                      {whenLabel(c.toStart, tz)}
+                    </span>
+                  ) : null}
+                  <span className="hv2-missed-row-why">{c.explanation}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {unscheduled.length ? (
+            <ul className="hv2-missed-rows" data-hv2-missed-unscheduled="">
+              {unscheduled.map((u) => (
+                <li
+                  key={u.taskId}
+                  className="hv2-missed-row"
+                  data-unscheduled={u.taskId}
+                >
+                  <span className="hv2-missed-row-t">{u.title}</span>
+                  <span className="hv2-missed-row-why">
+                    Didn&apos;t fit today
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <span className="hv2-missed-acts">
+            {changes.length ? (
+              <button
+                type="button"
+                className="nx-btn nx-btn-primary nx-btn-sm"
+                data-hv2-missed-keep=""
+                disabled={busy}
+                onClick={onKeep}
+              >
+                {step.kind === "applying" ? "Keeping\u2026" : "Keep"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="nx-btn nx-btn-secondary nx-btn-sm"
+              data-hv2-missed-dismiss=""
+              disabled={busy}
+              onClick={onDismiss}
+            >
+              Dismiss
+            </button>
+          </span>
+        </section>
+      ) : null}
+    </>
   );
 }
-
-/** The notice Reschedule leaves: its own words, long enough to reach Undo. */
-export const RESCHEDULE_NOTICE = {
-  placed: (n: number) => `Rescheduled ${n} ${n === 1 ? "task" : "tasks"}`,
-  description: "Into your open slots.",
-  duration: 30_000,
-};
 
 /** The day's count, quiet, at the right edge of the title: "3/13". */
 export function DayCount({ done, total }: { done: number; total: number }) {

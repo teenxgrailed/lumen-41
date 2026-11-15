@@ -1,0 +1,1 @@
+- On Home, "N tasks from earlier today" now opens a preview under the line: each task with its new time and the reason, and what did not fit today. Keep moves only those tasks into your open slots; the notice has Undo. Dismiss closes it.

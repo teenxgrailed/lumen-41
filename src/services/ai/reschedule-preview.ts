@@ -1,8 +1,14 @@
+import { hoursFromSettings } from "@/services/onboarding/first-replan-demo";
+import { validZone } from "@/services/onboarding/sample-service";
 import { scheduleAllTasksForUserDetailed } from "@/services/scheduling/TaskSchedulingService";
 import {
   blockingEventWhere,
   resolveBusyFeedIds,
 } from "@/services/scheduling/busy-feeds";
+import {
+  type ScopedReplanSkipReason,
+  planScopedReplan,
+} from "@/services/scheduling/scoped-replan";
 import { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 
@@ -59,6 +65,12 @@ type ScheduleToken = {
   contextVersion: string;
   before: ScheduleSnapshot;
   after: ScheduleSnapshot;
+  /**
+   * Set on a scoped preview (`taskIds`): the only tasks apply and undo read
+   * or write. `before` and `after` hold just these. Absent on a whole-schedule
+   * preview, which compares and restores everything as before.
+   */
+  scopeTaskIds?: string[];
 };
 
 export type RescheduleChange = {
@@ -70,6 +82,8 @@ export type RescheduleChange = {
   toEnd: string | null;
   explanation: string;
   score: number | null;
+  /** Scoped previews only: why this task moves. */
+  reason?: "missed" | "overlaps";
 };
 
 export class SchedulePreviewConflictError extends Error {
@@ -571,7 +585,8 @@ function encodeToken(
   workspaceId: string,
   contextVersion: string,
   before: ScheduleSnapshot,
-  after: ScheduleSnapshot
+  after: ScheduleSnapshot,
+  scopeTaskIds?: string[]
 ) {
   return encryptSecret(
     JSON.stringify({
@@ -583,6 +598,7 @@ function encodeToken(
       contextVersion,
       before,
       after,
+      ...(scopeTaskIds ? { scopeTaskIds } : {}),
     } satisfies ScheduleToken)
   );
 }
@@ -610,7 +626,25 @@ function decodeToken(
 
 /** `chat`: a preview card is shown and Keep applies it. `fill`: one click, nothing shown. */
 export type ReschedulePreviewVia = "chat" | "fill";
-export type ReschedulePreviewOptions = { via?: ReschedulePreviewVia };
+export type ReschedulePreviewOptions = {
+  via?: ReschedulePreviewVia;
+  /**
+   * Re-plan only these tasks (missed or overlapping, open, not pinned) into
+   * free gaps from now. Left out: the whole schedule, as before.
+   */
+  taskIds?: string[];
+};
+
+/** Restricts a snapshot to the given task ids. */
+function onlyTasks(
+  snapshot: ScheduleSnapshot,
+  ids: Set<string>
+): ScheduleSnapshot {
+  return {
+    tasks: snapshot.tasks.filter((task) => ids.has(task.id)),
+    blocks: snapshot.blocks.filter((block) => ids.has(block.taskId)),
+  };
+}
 
 /**
  * The activation event one step of the flow counts as, or null. A preview is
@@ -631,6 +665,14 @@ export async function createReschedulePreview(
   workspace: WorkspaceAccess,
   options: ReschedulePreviewOptions = {}
 ) {
+  if (options.taskIds) {
+    return createScopedReschedulePreview(
+      userId,
+      workspace,
+      options.taskIds,
+      options
+    );
+  }
   const before = await captureSnapshot(userId, workspace);
   const contextVersion = await captureContextVersion(userId);
   const staged = await computeStagedSnapshot(userId, workspace, before);
@@ -701,6 +743,193 @@ export async function createTargetedReschedulePreview(
   };
 }
 
+const SKIP_TEXT: Record<ScopedReplanSkipReason, string> = {
+  not_found: "Not one of your open tasks.",
+  completed: "Already completed.",
+  pinned: "Pinned in place; left where it is.",
+  not_scheduled: "Has no time slot to replace.",
+  not_missed: "Not missed and not overlapping anything.",
+};
+
+/**
+ * A preview that moves only `taskIds`: the missed (or overlapping) open ones
+ * among them, into the first free gap from now inside work hours. Every other
+ * task block, pinned or auto, and every calendar event is busy time, and
+ * nothing is placed earlier than now. Ids that are unknown, foreign,
+ * completed, pinned or not missed are not an error: they come back in
+ * `skipped` with a reason and stay as they are. The token is scoped: Keep and
+ * Undo read and write exactly the moved tasks.
+ */
+export async function createScopedReschedulePreview(
+  userId: string,
+  workspace: WorkspaceAccess,
+  taskIds: string[],
+  options: ReschedulePreviewOptions = {}
+) {
+  const now = newDate();
+  const horizon = addCalendarDays(now, 22);
+  const scope = workspaceDataScopeWhere(workspace, userId);
+  const [before, contextVersion, settings, hoursRow] = await Promise.all([
+    captureSnapshot(userId, workspace),
+    captureContextVersion(userId),
+    prisma.userSettings.findUnique({
+      where: { userId },
+      select: { timeZone: true },
+    }),
+    prisma.autoScheduleSettings.findUnique({
+      where: { userId },
+      select: {
+        workHourStart: true,
+        workHourEnd: true,
+        workDays: true,
+        excludedCalendars: true,
+      },
+    }),
+  ]);
+  const busyFeedIds = await resolveBusyFeedIds(
+    userId,
+    hoursRow?.excludedCalendars
+  );
+  const [rows, blocks, events] = await Promise.all([
+    prisma.task.findMany({
+      where: {
+        ...scope,
+        isArchived: false,
+        trashedAt: null,
+        OR: [
+          { id: { in: taskIds } },
+          {
+            status: { notIn: ["completed", "done"] },
+            scheduledEnd: { gt: now },
+            scheduledStart: { lt: horizon },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        scheduledStart: true,
+        scheduledEnd: true,
+        estimatedMinutes: true,
+        duration: true,
+        scheduleLocked: true,
+        isFrozen: true,
+      },
+      orderBy: { id: "asc" },
+    }),
+    prisma.scheduledBlock.findMany({
+      where: {
+        userId,
+        task: {
+          ...scope,
+          isArchived: false,
+          trashedAt: null,
+          status: { notIn: ["completed", "done"] },
+        },
+        end: { gt: now },
+        start: { lt: horizon },
+      },
+      select: { taskId: true, start: true, end: true },
+    }),
+    prisma.calendarEvent.findMany({
+      where: {
+        feedId: { in: busyFeedIds },
+        feed: { userId, enabled: true },
+        archivedAt: null,
+        allDay: false,
+        ...blockingEventWhere,
+        start: { lt: horizon },
+        end: { gt: now },
+      },
+      select: { start: true, end: true },
+    }),
+  ]);
+
+  const plan = planScopedReplan({
+    requestedIds: taskIds,
+    tasks: rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      scheduledStart: row.scheduledStart,
+      scheduledEnd: row.scheduledEnd,
+      minutes: row.estimatedMinutes ?? row.duration ?? 30,
+      pinned: row.scheduleLocked || row.isFrozen,
+      done: row.status === "completed" || row.status === "done",
+    })),
+    events,
+    blocks,
+    now,
+    zone: validZone(settings?.timeZone),
+    hours: hoursFromSettings(hoursRow),
+  });
+
+  const scopeIds = plan.moves.map((move) => move.taskId);
+  const scopeSet = new Set(scopeIds);
+  const moveById = new Map(plan.moves.map((move) => [move.taskId, move]));
+  const scopedBefore = onlyTasks(before, scopeSet);
+  const scopedAfter: ScheduleSnapshot = {
+    tasks: scopedBefore.tasks.map((task) => {
+      const move = moveById.get(task.id)!;
+      return {
+        ...task,
+        scheduledStart: move.to.start.toISOString(),
+        scheduledEnd: move.to.end.toISOString(),
+        lastScheduled: now.toISOString(),
+      };
+    }),
+    // A task that had chunk blocks now has one block at the new slot.
+    blocks: [...new Set(scopedBefore.blocks.map((block) => block.taskId))].map(
+      (taskId): SnapshotBlock => {
+        const move = moveById.get(taskId)!;
+        return {
+          taskId,
+          start: move.to.start.toISOString(),
+          end: move.to.end.toISOString(),
+          chunkIndex: 0,
+          chunkCount: 1,
+          isFrozen: false,
+        };
+      }
+    ),
+  };
+  const changes = diffScheduleSnapshots(scopedBefore, scopedAfter).map(
+    (change) => {
+      const move = moveById.get(change.taskId)!;
+      return { ...change, explanation: move.explanation, reason: move.reason };
+    }
+  );
+  logger.info(
+    "Created scoped schedule preview",
+    {
+      userId,
+      requested: taskIds.length,
+      moved: changes.length,
+      skipped: plan.skipped.length,
+    },
+    LOG_SOURCE
+  );
+  const shown = replanActivationEvent("preview", options.via);
+  if (changes.length > 0 && shown) recordActivation(shown, userId);
+  return {
+    changes,
+    unscheduled: plan.unscheduled,
+    skipped: plan.skipped.map((item) => ({
+      ...item,
+      explanation: SKIP_TEXT[item.reason],
+    })),
+    previewToken: encodeToken(
+      "preview",
+      userId,
+      workspace.workspaceId,
+      contextVersion,
+      scopedBefore,
+      scopedAfter,
+      scopeIds
+    ),
+  };
+}
+
 export async function applyReschedulePreview(
   userId: string,
   workspace: WorkspaceAccess,
@@ -708,10 +937,14 @@ export async function applyReschedulePreview(
   options: ReschedulePreviewOptions = {}
 ) {
   const value = decodeToken(token, userId, workspace.workspaceId, "preview");
-  const [current, contextVersion] = await Promise.all([
+  const scope = value.scopeTaskIds ? new Set(value.scopeTaskIds) : null;
+  const [captured, contextVersion] = await Promise.all([
     captureSnapshot(userId, workspace),
     captureContextVersion(userId),
   ]);
+  // A scoped token compares and writes only its own tasks; whatever else
+  // changed meanwhile is not its business.
+  const current = scope ? onlyTasks(captured, scope) : captured;
   if (
     !snapshotsMatch(current, value.before) ||
     contextVersion !== value.contextVersion
@@ -719,7 +952,8 @@ export async function applyReschedulePreview(
     throw new SchedulePreviewConflictError();
   }
   await restoreSnapshot(userId, workspace, value.after);
-  const applied = await captureSnapshot(userId, workspace);
+  const appliedAll = await captureSnapshot(userId, workspace);
+  const applied = scope ? onlyTasks(appliedAll, scope) : appliedAll;
   await publishScheduleChange(userId);
   logger.info("Applied schedule preview", { userId }, LOG_SOURCE);
   /* From the chat card, applying is the person pressing Keep. "Fill it"
@@ -734,7 +968,8 @@ export async function applyReschedulePreview(
       workspace.workspaceId,
       await captureContextVersion(userId),
       value.before,
-      applied
+      applied,
+      value.scopeTaskIds
     ),
   };
 }
@@ -746,10 +981,12 @@ export async function undoReschedulePreview(
   options: ReschedulePreviewOptions = {}
 ) {
   const value = decodeToken(token, userId, workspace.workspaceId, "undo");
-  const [current, contextVersion] = await Promise.all([
+  const scope = value.scopeTaskIds ? new Set(value.scopeTaskIds) : null;
+  const [captured, contextVersion] = await Promise.all([
     captureSnapshot(userId, workspace),
     captureContextVersion(userId),
   ]);
+  const current = scope ? onlyTasks(captured, scope) : captured;
   if (
     !snapshotsMatch(current, value.after) ||
     contextVersion !== value.contextVersion

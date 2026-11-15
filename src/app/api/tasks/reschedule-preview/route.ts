@@ -1,30 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  SchedulePreviewConflictError,
-  applyReschedulePreview,
-  createReschedulePreview,
-  undoReschedulePreview,
-} from "@/services/ai/reschedule-preview";
+import { SchedulePreviewConflictError } from "@/services/ai/reschedule-preview";
+import { runReschedulePreviewAction } from "@/services/ai/reschedule-preview-api";
 import { WorkspaceRole } from "@prisma/client";
-import { z } from "zod";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
 import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
 const LOG_SOURCE = "reschedule-preview-api";
-
-/* Who asked: the chat preview card (a preview is shown, Keep is pressed) or
-   "Fill it" (placed in one click, nothing shown). Only the first counts as a
-   replan in the activation metrics. */
-const via = z.enum(["chat", "fill"]).default("chat");
-
-const requestSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("preview"), via }),
-  z.object({ action: z.literal("apply"), token: z.string().min(1), via }),
-  z.object({ action: z.literal("undo"), token: z.string().min(1), via }),
-]);
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,30 +22,12 @@ export async function POST(request: NextRequest) {
       { route: "/api/tasks/reschedule-preview", userId: auth.userId }
     );
     if (limited) return limited;
-    const input = requestSchema.parse(await request.json().catch(() => null));
-    if (input.action === "preview") {
-      return NextResponse.json(
-        await createReschedulePreview(auth.userId, auth.workspace!, {
-          via: input.via,
-        })
-      );
-    }
-    if (input.action === "apply") {
-      return NextResponse.json(
-        await applyReschedulePreview(
-          auth.userId,
-          auth.workspace!,
-          input.token,
-          {
-            via: input.via,
-          }
-        )
-      );
-    }
     return NextResponse.json(
-      await undoReschedulePreview(auth.userId, auth.workspace!, input.token, {
-        via: input.via,
-      })
+      await runReschedulePreviewAction(
+        auth.userId,
+        auth.workspace!,
+        await request.json().catch(() => null)
+      )
     );
   } catch (error) {
     if (error instanceof SchedulePreviewConflictError) {

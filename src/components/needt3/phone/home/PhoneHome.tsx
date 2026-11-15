@@ -24,7 +24,7 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { useHomeBlocks } from "@/lib/needt3/hooks/home-blocks";
-import { useFillFreeTime } from "@/lib/needt3/hooks/nudges";
+import { useMissedKeep } from "@/lib/needt3/hooks/missed-keep";
 import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
@@ -46,7 +46,6 @@ import {
   DayCount,
   MissedLine,
   OverdueRow,
-  RESCHEDULE_NOTICE,
   reviewHour,
 } from "../../home/HomeV2";
 import { OnboardingResumeBanner } from "../../home/OnboardingResumeBanner";
@@ -170,7 +169,7 @@ export function PhoneHome({
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const startFocus = useStartFocus();
-  const fillFreeTime = useFillFreeTime(RESCHEDULE_NOTICE);
+  const missedKeep = useMissedKeep();
   const openTask = usePhoneOverlays((s) => s.openTask);
 
   const {
@@ -707,7 +706,11 @@ export function PhoneHome({
           {v2 && !firstReplanHold && missed.length ? (
             <MissedLine
               count={missed.length}
-              onReschedule={() => fillFreeTime()}
+              step={missedKeep.step}
+              tz={tz}
+              onOpen={() => void missedKeep.preview(missed.map((t) => t.id))}
+              onKeep={() => void missedKeep.keep()}
+              onDismiss={missedKeep.dismiss}
             />
           ) : null}
           {v2 ? aux : null}
