@@ -352,18 +352,59 @@ describe("Home v2 on the phone", () => {
     expect(rows()).toEqual(["am", "inbox"]);
   });
 
-  it("when overdue is all there is, it is the card and the count is not short", () => {
+  it("when overdue is all there is, it never takes the card; the row holds all of it", () => {
     seedHomeEvents([]);
     client.setQueryData(qk.tasks({}), [
       task("a", { dueDate: "2026-08-30", title: "Oldest" }),
       task("b", { dueDate: "2026-08-31", title: "Older" }),
     ]);
     mount(PhoneHomeV2);
-    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("a");
-    expect(q(".ha-hl .ha-kicker").textContent).toBe("Overdue");
-    expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    expect(host.querySelector("[data-ha-card]")).toBeNull();
+    expect(q("[data-hv2-late]").textContent).toContain("2 overdue");
     click(q("[data-hv2-late-toggle]"));
-    expect(rows()).toEqual(["b"]);
+    expect(rows()).toEqual(["a", "b"]);
+  });
+
+  it("one chronological list, a collapsed Anytime row, no habit pills, notes or week card", () => {
+    seedHomeEvents([]);
+    client.setQueryData(qk.tasks({}), [
+      task("am", { scheduledStart: `${TODAY}T09:00`, title: "Standup notes" }),
+      task("pm", { scheduledStart: `${TODAY}T14:30`, title: "Call Anna" }),
+      task("any", { title: "Whenever" }),
+    ]);
+    mount(PhoneHomeV2);
+    expect(
+      host.querySelector("[data-hv2-list] [data-pk-row=am]")
+    ).not.toBeNull();
+    expect(host.textContent).not.toContain("Morning");
+    expect(host.textContent).not.toContain("Afternoon");
+    expect(q("[data-hv2-list]").textContent).not.toContain("Whenever");
+    expect(host.textContent).toContain("Anytime");
+    expect(rows()).not.toContain("any");
+    expect(host.textContent).not.toContain("Stretch");
+    expect(host.querySelector("[data-v2p-count]")).toBeNull();
+    expect(host.querySelector("[data-v2p-notes]")).toBeNull();
+    expect(q("[data-hv2-count]").getAttribute("data-hv2-count")).toBe("0/3");
+  });
+
+  it("morning tasks that passed become one line with Reschedule", () => {
+    seedHomeEvents([]);
+    client.setQueryData(qk.tasks({}), [
+      task("am", { scheduledStart: `${TODAY}T09:00`, auto: true }),
+      task("pm", { scheduledStart: `${TODAY}T14:30` }),
+    ]);
+    mount(PhoneHomeV2);
+    // 14:20: the 09:00 auto-scheduled task is behind us by more than an hour
+    expect(q("[data-hv2-missed]").textContent).toContain(
+      "1 task from earlier today"
+    );
+    expect(q("[data-hv2-missed-go]").textContent).toBe("Reschedule");
+  });
+
+  it("a task due today does not say Due on Today", () => {
+    seedHomeEvents([]);
+    mount(PhoneHomeV2);
+    expect(q("[data-pk-row=am]").textContent).not.toContain("Due");
   });
 
   it("the day's highlight is the Now card, over the running event; Skip falls through", () => {

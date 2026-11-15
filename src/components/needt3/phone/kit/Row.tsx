@@ -488,6 +488,8 @@ export interface PkTaskRowProps {
   actions?: PkRowActions;
   /** Inside a project's own page the project is not repeated. */
   hideProject?: boolean;
+  /** Today's own screen: a task due today does not say "Due 15 Nov". */
+  hideDue?: boolean;
   /** A project page draws the steps itself: the row keeps only its count. */
   hideSteps?: boolean;
   /** The last step ticked closes the task: close it as the row's own tick does. */
@@ -514,6 +516,7 @@ export function PkTaskRow({
   onSwipe,
   actions,
   hideProject,
+  hideDue,
   hideSteps,
   onStepClose,
   action,
@@ -523,7 +526,7 @@ export function PkTaskRow({
   const line = [
     late
       ? `Since ${dueLabel(t) ?? ""}`.trim()
-      : !t.done && dueLabel(t)
+      : !t.done && !hideDue && dueLabel(t)
         ? `Due ${dueLabel(t)}`
         : null,
     durLabel(t.estimatedMinutes) || null,

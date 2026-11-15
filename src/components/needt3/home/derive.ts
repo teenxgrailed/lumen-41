@@ -170,6 +170,23 @@ export function sectionsOf(
   return out.filter(([, list]) => list.length > 0);
 }
 
+/**
+ * HOME V2: the day as ONE chronological list plus an "Anytime" row, instead
+ * of Morning / Afternoon / Evening. Takes the part pairs (`sectionsOf` on the
+ * desktop, `parts` on the phone) so both faces share the rule: every part but
+ * "Anytime" joins the list in order, the untimed tasks stay apart.
+ */
+export function chronological<T>(pairs: readonly (readonly [string, T[]])[]): {
+  timed: T[];
+  anytime: T[];
+} {
+  const any = (name: string) => name.startsWith("Anytime");
+  return {
+    timed: pairs.filter(([n]) => !any(n)).flatMap(([, l]) => l),
+    anytime: pairs.filter(([n]) => any(n)).flatMap(([, l]) => l),
+  };
+}
+
 export interface NextUp {
   task: V3Task;
   /** The next timed open task after it, for the "fits before" line. */

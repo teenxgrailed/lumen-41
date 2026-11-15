@@ -3,7 +3,7 @@
 import { type ReactNode, useState } from "react";
 
 import { Ring } from "../work/parts";
-import { overdueLabel } from "./now";
+import { missedLabel, overdueLabel } from "./now";
 
 /**
  * HOME V2 (flag `home_v2`): the two shared pieces of the three-block Today.
@@ -65,6 +65,66 @@ export function OverdueRow({
     </section>
   );
 }
+
+/**
+ * Today's tasks whose time has passed and are not done: ONE quiet line under
+ * the Now card instead of rows that hang silently in the list. "Reschedule"
+ * asks the scheduler for open slots (the existing reschedule preview -> apply,
+ * with an Undo in the notice it leaves). Draws nothing without any.
+ */
+export function MissedLine({
+  count,
+  onReschedule,
+}: {
+  count: number;
+  onReschedule: () => Promise<void> | void;
+}) {
+  const [busy, setBusy] = useState(false);
+  if (count <= 0) return null;
+  return (
+    <p className="hv2-missed" data-hv2-missed="">
+      <span className="hv2-missed-t">{missedLabel(count)}</span>
+      <button
+        type="button"
+        className="hv2-missed-go nx-focus"
+        data-hv2-missed-go=""
+        disabled={busy}
+        aria-busy={busy || undefined}
+        onClick={() => {
+          setBusy(true);
+          void Promise.resolve(onReschedule()).finally(() => setBusy(false));
+        }}
+      >
+        Reschedule
+      </button>
+    </p>
+  );
+}
+
+/** The notice Reschedule leaves: its own words, long enough to reach Undo. */
+export const RESCHEDULE_NOTICE = {
+  placed: (n: number) => `Rescheduled ${n} ${n === 1 ? "task" : "tasks"}`,
+  description: "Into your open slots.",
+  duration: 30_000,
+};
+
+/** The day's count, quiet, at the right edge of the title: "3/13". */
+export function DayCount({ done, total }: { done: number; total: number }) {
+  if (total <= 0) return null;
+  return (
+    <span
+      className="hv2-count"
+      data-hv2-count={`${done}/${total}`}
+      title={`${done} of ${total} done today`}
+    >
+      {done}/{total}
+    </span>
+  );
+}
+
+/** The Sunday review waits for the evening: it shows from 18:00 local. */
+export const REVIEW_FROM_HOUR = 18;
+export const reviewHour = (nowHour: number) => nowHour >= REVIEW_FROM_HOUR;
 
 const PANEL_NAME: Record<string, string> = {
   today: "Today",

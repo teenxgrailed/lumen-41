@@ -14,6 +14,11 @@ jest.mock("@/lib/auth/api-auth", () => ({
     workspace: { workspaceId: "w1" },
   }),
 }));
+const limit = jest.fn().mockResolvedValue(null);
+jest.mock("@/lib/security/rate-limit", () => ({
+  accountRule: jest.fn((...a: unknown[]) => a),
+  enforceRateLimits: (...a: unknown[]) => limit(...a),
+}));
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
@@ -33,7 +38,21 @@ function call(body: unknown) {
   );
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  limit.mockResolvedValue(null);
+});
+
+describe("reschedule-preview route: rate limit", () => {
+  it("answers 429 over the limit and does nothing", async () => {
+    limit.mockResolvedValueOnce(
+      Response.json({ error: "Too many requests" }, { status: 429 })
+    );
+    const res = await call({ action: "preview" });
+    expect(res?.status).toBe(429);
+    expect(createReschedulePreview).not.toHaveBeenCalled();
+  });
+});
 
 describe("reschedule-preview route: via", () => {
   it("defaults to the chat card", async () => {
