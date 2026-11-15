@@ -50,6 +50,12 @@ jest.mock("@/lib/needt3/hooks/first-replan", () => ({
   useFirstReplanHints: () => ({ current: mockHint, goTo: jest.fn() }),
 }));
 
+const snackMock = jest.fn<string, unknown[]>(() => "");
+jest.mock("../../overlays/snack", () => ({
+  ...jest.requireActual("../../overlays/snack"),
+  snack: (...a: unknown[]) => snackMock(...a),
+}));
+
 const push = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
@@ -747,8 +753,10 @@ describe("Calendar", () => {
     mount(PhoneCalendar);
     click(q("[data-v2p-month-menu]"));
     expect(qa("[data-v2p-calmenu]")).toHaveLength(1);
+    // the first item has focus, and Escape is heard on the document
+    expect(document.activeElement?.getAttribute("role")).toMatch(/^menuitem/);
     act(() => {
-      q("[data-v2p-calmenu]").dispatchEvent(
+      document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
       );
     });
@@ -764,9 +772,47 @@ describe("Calendar", () => {
     toggle.mockClear();
     mount(PhoneCalendar);
     expect(qa("[data-v2p-check=t1]")).toHaveLength(1);
-    await click(q("[data-v2p-check=t1]"));
+    const undo = jest.fn();
+    toggle.mockResolvedValueOnce({ result: null, undo });
+    click(q("[data-v2p-check=t1]"));
+    await flush();
     expect(toggle).toHaveBeenCalledTimes(1);
     expect(qa("[data-v2p-check=e1]")).toHaveLength(0);
+    // "Done", and the card's Undo is the write's own inverse
+    expect(snackMock).toHaveBeenCalledWith("Done", undo);
+    (snackMock.mock.calls.at(-1)?.[1] as () => void)();
+    expect(undo).toHaveBeenCalledTimes(1);
+  });
+
+  it("today's habits are one strip at the top of the day: a tap marks it, with Undo", async () => {
+    snackMock.mockClear();
+    mount(PhoneCalendar);
+    const strip = q("[data-v2p-habits]");
+    expect(strip.querySelectorAll("[data-ha-habit]")).toHaveLength(1);
+    expect(
+      strip.compareDocumentPosition(q(".v2p-timeline")) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    fetchMock.mockImplementation((url: unknown) =>
+      String(url).includes("/completions/")
+        ? Promise.resolve({
+            ok: true,
+            status: 204,
+            statusText: "",
+            text: () => Promise.resolve(""),
+          })
+        : new Promise<never>(() => {})
+    );
+    click(q('[data-v2p-habits] [data-ha-habit="h1"]'));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/habits/h1/completions/today",
+      expect.objectContaining({ method: "PUT" })
+    );
+    expect(snackMock).toHaveBeenCalledWith("Habit done", expect.any(Function));
+    // not on another day
+    click(q("[data-v2p-day='2026-09-03']"));
+    expect(qa("[data-v2p-habits]")).toHaveLength(0);
   });
 
   it("Earlier today is one folded row above the plate, not in the footer", () => {

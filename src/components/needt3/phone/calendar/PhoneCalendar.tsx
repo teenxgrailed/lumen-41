@@ -122,8 +122,21 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       if (!t?.closest("[data-v2p-calmenu], [data-v2p-month-menu]"))
         setMenu(false);
     };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMenu(false);
+      menuBtn.current?.focus();
+    };
     document.addEventListener("pointerdown", away);
-    return () => document.removeEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    // the first item takes focus, so the arrow keys have somewhere to start
+    document
+      .querySelector<HTMLElement>('[data-v2p-calmenu] [role^="menuitem"]')
+      ?.focus();
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", esc);
+    };
   }, [menu]);
   const planQuery = usePlan();
   const planner = usePlanDay();
@@ -239,9 +252,10 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
 
   /* Auto-fit: Plan my day, the scheduler that places what has no time into
      the free hours (a Pro action; a Free person is shown the plans). */
-  // an unknown plan that failed to load reads as Free: the pill then opens the
-  // plans instead of waiting for an answer that is not coming
-  const pro = planQuery.isError ? false : proFromPlan(planQuery.data?.kind);
+  // a plan that failed to load is not "Free": the server decides on the tap
+  // (it refuses a Free account itself), so a Pro person is never sent to the
+  // plans because of a failed read
+  const pro = planQuery.isError ? true : proFromPlan(planQuery.data?.kind);
   const unplaced = plan.allDay.filter((b) => !b.event && !b.done).length;
   const autoFit = () => {
     if (pro === false) openPaywall("Plan my day");
@@ -423,11 +437,6 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       role="menu"
       data-v2p-calmenu=""
       onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.stopPropagation();
-          setMenu(false);
-          menuBtn.current?.focus();
-        }
         if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
         e.preventDefault();
         const items = Array.from(

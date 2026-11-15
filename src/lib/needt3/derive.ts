@@ -490,7 +490,8 @@ export function habitColor(
 ) {
   if (!h) return null;
   if (h.color) return h.color;
-  return project(h.projectId, projects)?.color ?? null;
+  const p = project(h.projectId, projects);
+  return p ? projectColor(p.id, p.color) : null;
 }
 export function liveHabits<H extends { archivedAt?: string | null }>(
   list: readonly H[]

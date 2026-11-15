@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type CSSProperties,
   type HTMLAttributes,
   type Ref,
   memo,
@@ -13,7 +14,7 @@ import {
   useState,
 } from "react";
 
-import { type ProjectLike, daysBetween, weekday } from "@/lib/needt3/derive";
+import { type ProjectLike, weekday } from "@/lib/needt3/derive";
 import { type DayBand, bandTimeLabel } from "@/lib/personal-time-days";
 
 import { useExit } from "../ctx/useExit";
@@ -40,6 +41,7 @@ import {
   c2Time,
   calDay,
   slotAt,
+  weekStart,
 } from "./layout";
 import {
   type Anchor,
@@ -319,6 +321,8 @@ export interface WeekViewProps {
   /** The clock's decimal hour today, for the now line. */
   nowHour: number | null;
   today: string;
+  /** "monday" or "sunday": which days make the week the now line spans. */
+  weekStartDay?: string;
   /** Hours the person works; the rest of the grid is shaded. */
   work?: WorkHours | null;
   projects?: readonly ProjectLike[];
@@ -366,7 +370,8 @@ interface ColumnProps {
   isToday: boolean;
   mine: readonly CalTimed[];
   draft: Draft | null;
-  nowHour: number | null;
+  /** The now line shows in this column (the clock's hour is on the grid). */
+  showNow: boolean;
   work?: WorkHours | null;
   peekId: string | null;
   hover: Hover;
@@ -385,18 +390,12 @@ interface ColumnProps {
  * hairline in the other columns. Its own memoised piece, so a minute passing
  * redraws a line and not a column.
  */
-const NowLine = memo(function NowLine({
-  hour,
-  today,
-}: {
-  hour: number;
-  today: boolean;
-}) {
+const NowLine = memo(function NowLine({ today }: { today: boolean }) {
   return (
     <span
       aria-hidden="true"
       className={today ? "c2-now" : "c2-now is-week"}
-      style={{ top: hour * C2_H }}
+      style={{ top: `calc(var(--c2-now-h, 0) * ${C2_H}px)` }}
     >
       {today ? <span className="c2-now-dot" /> : null}
     </span>
@@ -411,7 +410,7 @@ const DayColumn = memo(function DayColumn({
   isToday,
   mine,
   draft,
-  nowHour,
+  showNow,
   work,
   peekId,
   hover,
@@ -615,9 +614,7 @@ const DayColumn = memo(function DayColumn({
           </span>
         </div>
       ) : null}
-      {nowHour != null ? (
-        <NowLine hour={nowHour} today={isToday} />
-      ) : null}
+      {showNow ? <NowLine today={isToday} /> : null}
     </div>
   );
 });
@@ -654,6 +651,7 @@ export function WeekView({
   blocks,
   nowHour,
   today,
+  weekStartDay = "monday",
   work,
   projects,
   draft,
@@ -1032,6 +1030,7 @@ export function WeekView({
     }
   };
 
+  const thisWeek = weekStart(today, weekStartDay);
   const range = drawnRange(first, n);
   const drawn: number[] = [];
   if (colW > 0) for (let i = range.from; i <= range.to; i++) drawn.push(i);
@@ -1087,7 +1086,17 @@ export function WeekView({
               );
             })}
           </div>
-          <div className="c2-wgrid" style={{ height: GRID_H }}>
+          <div
+            className="c2-wgrid"
+            style={
+              {
+                height: GRID_H,
+                // the clock moves here, on the grid, so a minute passing
+                // restyles one element and no column re-renders
+                "--c2-now-h": nowHour ?? 0,
+              } as CSSProperties
+            }
+          >
             <div className="c2-whours" style={{ width: GUTTER }}>
               {HOURS.map((h) => (
                 <span
@@ -1110,7 +1119,10 @@ export function WeekView({
                   isToday={date === today}
                   mine={blocks.get(date) ?? NONE}
                   draft={draft && draft.date === date ? draft : null}
-                  nowHour={Math.abs(daysBetween(today, date)) < 7 ? nowHour : null}
+                  showNow={
+                    nowHour != null &&
+                    weekStart(date, weekStartDay) === thisWeek
+                  }
                   work={work}
                   peekId={peekId}
                   hover={hover}

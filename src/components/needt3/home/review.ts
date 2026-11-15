@@ -87,8 +87,10 @@ export function focusOptions(
   today: string
 ): HaFocusOption[] {
   const open = tasks.filter((t) => !t.done && !t.trashedAt && !t.noSlot);
-  const colorOf = (id: string | null) =>
-    projects.find((p) => p.id === id)?.color ?? NEUTRAL;
+  const colorOf = (id: string | null) => {
+    const p = projects.find((x) => x.id === id);
+    return p ? projectColor(p.id, p.color) : NEUTRAL;
+  };
   const counts = new Map<string, number>();
   for (const t of open)
     if (t.projectId)
