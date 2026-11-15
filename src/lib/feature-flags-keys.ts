@@ -128,6 +128,13 @@ export const BUDGET_PRO_ACCESS = "budget_pro_access";
  */
 export const FOLDERS_V1 = "folders_v1";
 
+/**
+ * Home ("Today") in three blocks: one Now card, the day list, overdue as one
+ * row, and the right rail in the project-card frame. Off for everybody; with
+ * it off the current Home renders unchanged, so rollback is one switch.
+ */
+export const HOME_V2 = "home_v2";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -145,6 +152,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [FIRST_REPLAN_ONBOARDING]:
     "Demo meeting on a new account's Today, with a first replan and Keep.",
   [BUDGET_MODULE]: "Needt Budget as a place in the sidebar (frame).",
+  [HOME_V2]:
+    "Home in three blocks: Now card, day list, overdue row, framed rail.",
   [BUDGET_PRO_ACCESS]:
     "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",
   [FOLDERS_V1]: "Projects as folders with the next tasks sticking out.",

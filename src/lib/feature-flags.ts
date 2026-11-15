@@ -8,6 +8,7 @@ import {
   BUDGET_MODULE,
   FOLDERS_V1,
   HABITS_QUIT,
+  HOME_V2,
 } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
 
@@ -63,6 +64,11 @@ export async function agentHubEnabled(userId: string) {
  */
 export async function budgetModuleEnabled(userId: string) {
   return isFeatureEnabled(BUDGET_MODULE, userId);
+}
+
+/** Home in three blocks (`HOME_V2`) is on for this account. */
+export async function homeV2Enabled(userId: string) {
+  return isFeatureEnabled(HOME_V2, userId);
 }
 
 /**

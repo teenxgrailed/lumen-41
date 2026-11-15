@@ -69,7 +69,7 @@ describe("Home rail", () => {
     );
     const from = tsx.indexOf('className="hd-rail"');
     const aside = tsx.slice(from, tsx.indexOf("</aside>", from));
-    expect(aside).toContain("railTiles[id]");
+    expect(aside).toContain("railOut[id]");
     expect(tsx).not.toContain("hd-side");
     expect(tsx.match(/className="hd-rail"/g)).toHaveLength(1);
   });

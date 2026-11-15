@@ -47,7 +47,13 @@ export function HaHighlight({
   onStart,
   onDone,
   onOpen,
+  kicker: kickerText,
+  actions,
 }: {
+  /** Home v2: the kicker word ("Now", "Next · 14:00") instead of Next up. */
+  kicker?: string;
+  /** Home v2: replaces Start focus / Done (an event has neither). */
+  actions?: ReactNode;
   phone?: boolean;
   state: HaHighlightState;
   card: HaCard;
@@ -81,7 +87,7 @@ export function HaHighlight({
       </span>
     ) : state === "nextup" ? (
       <span className={haCx("ha-kicker", late && "is-late")}>
-        {late ? "Overdue" : "Next up"}
+        {kickerText ?? (late ? "Overdue" : "Next up")}
       </span>
     ) : (
       <span className="ha-kicker">
@@ -173,6 +179,8 @@ export function HaHighlight({
             </span>
           ) : null}
         </div>
+      ) : actions ? (
+        <div className="ha-hl-acts">{actions}</div>
       ) : (
         <div className="ha-hl-acts">
           <button
