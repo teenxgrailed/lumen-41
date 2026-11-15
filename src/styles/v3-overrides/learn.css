@@ -173,7 +173,8 @@
   min-width: 0;
 }
 .needt-v3 .ln-mine {
-  margin-left: -8px;
+  /* Under the Folder's centred label, so centred too. */
+  align-self: center;
 }
 
 /* ---------- lesson stack (topic) ---------- */
