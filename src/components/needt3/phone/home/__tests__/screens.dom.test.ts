@@ -389,8 +389,12 @@ describe("Home v2 on the phone", () => {
 
   it("morning tasks that passed become one line with Reschedule", () => {
     seedHomeEvents([]);
+    client.setQueryData(qk.tasks({}), [
+      task("am", { scheduledStart: `${TODAY}T09:00`, auto: true }),
+      task("pm", { scheduledStart: `${TODAY}T14:30` }),
+    ]);
     mount(PhoneHomeV2);
-    // 14:20: the 09:00 task is behind us
+    // 14:20: the 09:00 auto-scheduled task is behind us by more than an hour
     expect(q("[data-hv2-missed]").textContent).toContain(
       "1 task from earlier today"
     );

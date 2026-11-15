@@ -101,6 +101,13 @@ export function MissedLine({
   );
 }
 
+/** The notice Reschedule leaves: its own words, long enough to reach Undo. */
+export const RESCHEDULE_NOTICE = {
+  placed: (n: number) => `Rescheduled ${n} ${n === 1 ? "task" : "tasks"}`,
+  description: "Into your open slots.",
+  duration: 30_000,
+};
+
 /** The day's count, quiet, at the right edge of the title: "3/13". */
 export function DayCount({ done, total }: { done: number; total: number }) {
   if (total <= 0) return null;

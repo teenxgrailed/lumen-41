@@ -46,6 +46,7 @@ import {
   DayCount,
   MissedLine,
   OverdueRow,
+  RESCHEDULE_NOTICE,
   reviewHour,
 } from "../../home/HomeV2";
 import { OnboardingResumeBanner } from "../../home/OnboardingResumeBanner";
@@ -169,7 +170,7 @@ export function PhoneHome({
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const startFocus = useStartFocus();
-  const fillFreeTime = useFillFreeTime();
+  const fillFreeTime = useFillFreeTime(RESCHEDULE_NOTICE);
   const openTask = usePhoneOverlays((s) => s.openTask);
 
   const {
@@ -444,7 +445,6 @@ export function PhoneHome({
   // HOME V2: one Now card, picked by `pickNow` (the desktop's rule).
   const dayOpenNow = v.open(v.sec.day);
   // Today's tasks whose hour passed: one line, not rows that hang silently.
-  const missed = v2 ? missedToday(dayOpenNow, today, nowHour) : [];
   const nowPick = v2
     ? pickNow({
         schedule: scheduleItems(
@@ -466,6 +466,11 @@ export function PhoneHome({
       })
     : null;
   const nowTask = nowPick?.task ?? null;
+  const missed = v2
+    ? missedToday(dayOpenNow, today, nowHour).filter(
+        (t) => t.id !== nowTask?.id
+      )
+    : [];
   // v2: the task on the Now card is not repeated in the rows. Only that one
   // (not the old overdue-first pick) leaves them.
   // Only the task whose card is actually drawn leaves them: not on a closed

@@ -119,12 +119,14 @@ function pickOnce(o: PickNowInput): NowPick | null {
   const soon = SOON_MINUTES / 60;
   const runs = (s: Slot) => s.at <= o.nowHour && o.nowHour < s.at + s.len / 60;
   // A calendar event wins the card while it runs or when it starts within 15
-  // minutes (the earliest of those); then the task in the current slot; then
+  // minutes (one starting soon first, else the one that began last); then the task in the current slot; then
   // the next timed task.
-  const eventNow = timed.find(
-    (s) =>
-      s.event && (runs(s) || (s.at > o.nowHour && s.at - o.nowHour <= soon))
+  // Among them one starting soon wins; else the running event that began last.
+  const startsSoon = timed.find(
+    (s) => s.event && s.at > o.nowHour && s.at - o.nowHour <= soon
   );
+  const running = timed.filter((s) => s.event && runs(s));
+  const eventNow = startsSoon ?? running[running.length - 1];
   const taskNow = timed.find((s) => s.task && runs(s));
   const ahead = timed.find((s) => s.task && s.at > o.nowHour);
   const laterEvent = timed.find((s) => s.event && s.at > o.nowHour);
@@ -194,6 +196,9 @@ export const hhmm = (h: number) => {
 /** Overdue row copy: "3 overdue" (one count, one word). */
 export const overdueLabel = (n: number) => `${n} overdue`;
 
+/** A task whose slot ended is not "missed" until this many minutes later. */
+export const MISSED_GRACE_MIN = 60;
+
 /** A placed task with no estimate is read as half an hour long. */
 const DEFAULT_LEN_MIN = 30;
 
@@ -208,10 +213,18 @@ export function missedToday(
   nowHour: number
 ): V3Task[] {
   return dayOpen.filter((t) => {
-    if (t.done || t.isFixed) return false;
+    // only what Reschedule can move: auto-scheduled, open, not held or running
+    if (t.done || t.isFixed || !t.auto || t.status === "in_progress")
+      return false;
     const at = hourAt(t, today);
     if (at == null) return false;
-    return at + (t.estimatedMinutes || DEFAULT_LEN_MIN) / 60 <= nowHour;
+    // for an hour after its slot a task is just "earlier today"
+    return (
+      at +
+        (t.estimatedMinutes || DEFAULT_LEN_MIN) / 60 +
+        MISSED_GRACE_MIN / 60 <=
+      nowHour
+    );
   });
 }
 

@@ -73,7 +73,10 @@ async function phone(
     update: { theme: app },
     create: { userId: user.id, theme: app, timeZone: "Europe/Zurich" },
   });
-  for (let i = 0; i < tasks; i++)
+  for (let i = 0; i < tasks; i++) {
+    // placed through the day: Home v2 folds untimed tasks into "Anytime"
+    const start = new Date();
+    start.setUTCHours(7 + (i % 14), 0, 0, 0);
     await prisma.task.create({
       data: {
         userId: user.id,
@@ -81,8 +84,12 @@ async function phone(
         title: `Row ${i + 1}`,
         status: "todo",
         dueDate: new Date(),
+        scheduledStart: start,
+        scheduledEnd: new Date(start.getTime() + 30 * 60 * 1000),
+        estimatedMinutes: 30,
       },
     });
+  }
   await signInAs(page, user);
   await context.addCookies([{ name: "needt-ui", value: "phone", url: BASE }]);
   if (ENGINE === chromium) {

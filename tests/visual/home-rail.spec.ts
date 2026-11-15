@@ -66,7 +66,9 @@ for (const width of [1440, 2000]) {
     });
 
     expect(boxes.rail.width).toBeCloseTo(360, 0);
-    expect(boxes.tiles.length).toBeGreaterThanOrEqual(3);
+    // Home v2 drops the habits and week tiles: Today and Schedule always stay
+    // (the seed has no inbox task), so two equal tiles is the floor.
+    expect(boxes.tiles.length).toBeGreaterThanOrEqual(2);
     for (const t of boxes.tiles) {
       expect(t.width).toBeCloseTo(boxes.rail.width, 0);
       expect(t.left).toBeCloseTo(boxes.rail.left, 0);

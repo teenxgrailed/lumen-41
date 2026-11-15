@@ -112,6 +112,9 @@ async function openToday(
     },
   });
   for (let i = 0; i < 24; i++) {
+    // placed through the day: Home v2 folds untimed tasks into "Anytime"
+    const start = new Date();
+    start.setUTCHours(7 + (i % 14), 0, 0, 0);
     await prisma.task.create({
       data: {
         userId: user.id,
@@ -120,6 +123,9 @@ async function openToday(
         title: `Swift shell row ${i + 1}`,
         status: "todo",
         dueDate: new Date(),
+        scheduledStart: start,
+        scheduledEnd: new Date(start.getTime() + 30 * 60 * 1000),
+        estimatedMinutes: 30,
       },
     });
   }

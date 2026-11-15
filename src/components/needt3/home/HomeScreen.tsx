@@ -92,6 +92,7 @@ import {
   DayCount,
   MissedLine,
   OverdueRow,
+  RESCHEDULE_NOTICE,
   RailFrame,
   dominant,
   ratio,
@@ -189,7 +190,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
   const createDoc = useCreateDoc();
   const { setComposerOpen } = useNeedt3Ui();
   const startFocusOn = useStartFocus();
-  const fillFreeTime = useFillFreeTime();
+  const fillFreeTime = useFillFreeTime(RESCHEDULE_NOTICE);
 
   // The route's controller (created above the face switch, so a resize across
   // 700 px keeps all of it): tab, folds, Skip, the rows playing their exit and
@@ -696,7 +697,9 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
     : null;
   const nowTask = nowPick?.task ?? null;
   // Today's tasks whose hour passed: one line, not rows that hang silently.
-  const missed = v2day ? missedToday(dayOpen, today, nowHour) : [];
+  const missed = v2day
+    ? missedToday(dayOpen, today, nowHour).filter((t) => t.id !== nowTask?.id)
+    : [];
   const nowNode = !nowPick ? (
     <NextUpNone closed={closedDay} />
   ) : nowPick.event ? (

@@ -11,6 +11,7 @@ import { z } from "zod";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
+import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
 const LOG_SOURCE = "reschedule-preview-api";
 
@@ -31,6 +32,12 @@ export async function POST(request: NextRequest) {
       requiredRole: WorkspaceRole.EDITOR,
     });
     if ("response" in auth) return auth.response;
+    // not an AI action, so it stays on Free; the limit only stops a runaway loop
+    const limited = await enforceRateLimits(
+      [accountRule(auth.userId, "tasks-reschedule-preview:account", 20, 60)],
+      { route: "/api/tasks/reschedule-preview", userId: auth.userId }
+    );
+    if (limited) return limited;
     const input = requestSchema.parse(await request.json().catch(() => null));
     if (input.action === "preview") {
       return NextResponse.json(

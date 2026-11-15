@@ -509,34 +509,51 @@ describe("Skip keeps cycling", () => {
 });
 
 describe("missedToday: the morning tasks that passed and are not done", () => {
-  const morning = placed(9, { estimatedMinutes: 30 });
-  const running = placed(13, { estimatedMinutes: 60 });
-  const later = placed(16);
-  const anytime = task();
-  const fixed = placed(8, { isFixed: true });
+  const auto = (h: number, over: Partial<V3Task> = {}) =>
+    placed(h, { auto: true, ...over });
+  const morning = auto(9, { estimatedMinutes: 30 });
+  const running = auto(13, { estimatedMinutes: 60 });
+  const later = auto(16);
+  const anytime = task({ auto: true });
+  const fixed = auto(8, { isFixed: true });
   const open = [morning, running, later, anytime, fixed];
 
-  it("counts a placed open task whose slot ended, nothing else", () => {
-    // 13:30: the 09:00 task ended; the 13:00 one is running; 16:00 is ahead
-    expect(missedToday(open, TODAY, 13.5).map((t) => t.id)).toEqual([
+  it("counts an auto-scheduled open task an hour after its slot ended, nothing else", () => {
+    // 15:00: 09:00 task ended long ago; the 13:00 one ended at 14:00 (grace to 15:00)
+    expect(missedToday(open, TODAY, 15).map((t) => t.id)).toEqual([
+      morning.id,
+      running.id,
+    ]);
+    expect(missedToday(open, TODAY, 14.9).map((t) => t.id)).toEqual([
       morning.id,
     ]);
   });
 
-  it("a task ending exactly now is missed; one still running is not", () => {
-    expect(missedToday([morning], TODAY, 9.5)).toHaveLength(1);
-    expect(missedToday([morning], TODAY, 9.49)).toHaveLength(0);
+  it("14:00-14:30: not missed at 15:10, missed at 15:31", () => {
+    const t = auto(14, { estimatedMinutes: 30 });
+    expect(missedToday([t], TODAY, 15 + 10 / 60)).toHaveLength(0);
+    expect(missedToday([t], TODAY, 15.5)).toHaveLength(1);
+    expect(missedToday([t], TODAY, 15 + 31 / 60)).toHaveLength(1);
   });
 
   it("a placed task with no estimate is read as 30 minutes", () => {
-    const t = placed(9);
-    expect(missedToday([t], TODAY, 9.4)).toHaveLength(0);
-    expect(missedToday([t], TODAY, 9.5)).toHaveLength(1);
+    const t = auto(9);
+    expect(missedToday([t], TODAY, 10.4)).toHaveLength(0);
+    expect(missedToday([t], TODAY, 10.5)).toHaveLength(1);
   });
 
-  it("a done task and a task with no hour are never missed", () => {
+  it("a done, hand-placed, running or untimed task is never offered Reschedule", () => {
     expect(
-      missedToday([{ ...morning, done: true } as V3Task, anytime], TODAY, 20)
+      missedToday(
+        [
+          { ...morning, done: true } as V3Task,
+          placed(9, { auto: false }),
+          auto(9, { status: "in_progress" }),
+          anytime,
+        ],
+        TODAY,
+        20
+      )
     ).toEqual([]);
   });
 
@@ -547,6 +564,35 @@ describe("missedToday: the morning tasks that passed and are not done", () => {
   it("says N tasks from earlier today", () => {
     expect(missedLabel(1)).toBe("1 task from earlier today");
     expect(missedLabel(3)).toBe("3 tasks from earlier today");
+  });
+});
+
+describe("a long running event does not hide one that starts soon", () => {
+  it("conference 9-17 running, meeting at 14:05, now 13:55: the meeting wins", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [
+        item(null, 9, 480, "Conference"),
+        item(null, 14 + 5 / 60, 30, "Meeting"),
+      ],
+      dayOpen: [],
+      nowHour: 13 + 55 / 60,
+    });
+    expect(p?.event?.title).toBe("Meeting");
+    expect(p?.kind).toBe("next");
+  });
+
+  it("with no event starting soon, the running one that began last wins", () => {
+    const p = pickNow({
+      ...base,
+      schedule: [
+        item(null, 9, 480, "Conference"),
+        item(null, 13, 120, "Workshop"),
+      ],
+      dayOpen: [],
+      nowHour: 13.5,
+    });
+    expect(p?.event?.title).toBe("Workshop");
   });
 });
 
