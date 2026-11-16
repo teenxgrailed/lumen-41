@@ -22,6 +22,7 @@ import {
   LuEllipsis,
   LuFileText,
   LuFolder,
+  LuGraduationCap,
   LuPlus,
   LuTarget,
 } from "react-icons/lu";
@@ -44,6 +45,7 @@ import {
 } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { isLearnPath, learnNavItem } from "@/lib/needt3/learn";
 import { isPro } from "@/lib/needt3/paywall";
 import { notify } from "@/lib/notifications";
 
@@ -644,6 +646,9 @@ export function Sidebar() {
     pro: plan.data ? isPro(plan.data.kind) : undefined,
     prefs: settings.data?.prefs,
   });
+  const learnItem = learnNavItem({
+    pro: plan.data ? isPro(plan.data.kind) : undefined,
+  });
   const showMail = tiles.some((p) => p.id === "mail");
   const showCal = tiles.some((p) => p.id === "calendar");
   const mail = useMail("inbox");
@@ -983,6 +988,28 @@ export function Sidebar() {
                 icon={<PlaceGlyph id="budget" />}
                 trailing={
                   budgetItem.locked ? <ProBadge size="sm" title="Pro" /> : null
+                }
+              />
+            </div>
+          ) : null}
+
+          {/* Learn: for everybody. Free sees it grey with a PRO pill (one
+            lesson a day, no AI). */}
+          {learnItem ? (
+            <div
+              className={
+                "sb-tile shell-sidebar-sb-learn" +
+                (learnItem.locked ? " is-locked" : "")
+              }
+              data-sb-learn={learnItem.locked ? "locked" : ""}
+            >
+              <SbRow
+                href={learnItem.href}
+                label={learnItem.label}
+                current={isLearnPath(pathname)}
+                icon={<LuGraduationCap size={16} />}
+                trailing={
+                  learnItem.locked ? <ProBadge size="sm" title="Pro" /> : null
                 }
               />
             </div>

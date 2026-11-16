@@ -37,6 +37,7 @@ export const SECTION_TITLES = {
   connectApp: "Connect an app",
   agents: "Agents",
   budget: "Budget",
+  learn: "Learn",
   notFound: "Not found",
 } as const;
 

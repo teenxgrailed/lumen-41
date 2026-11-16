@@ -96,6 +96,11 @@ export interface AIChatRequest {
   systemPrompt: string;
   messages: AIChatMessage[];
   tools?: AIChatToolDefinition[];
+  /**
+   * A longer (or shorter) answer than the provider's default. Never raises a
+   * cap the config already sets (slow mode keeps its 600).
+   */
+  maxTokens?: number;
 }
 
 /** One tool call the model made, as the next request must echo it. */

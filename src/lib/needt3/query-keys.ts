@@ -113,6 +113,9 @@ export const qk = {
   budgetNav: () => [V3, "budget-nav"] as const,
   /** Whether the 20:00 habit push exists for this account (`GET /api/habits/evening-push`). */
   habitEveningPush: () => [V3, "habit-evening-push"] as const,
+  /** Topics, lessons and today's count (`GET /api/learn`). */
+  learn: () => [V3, "learn"] as const,
+  learnTopic: (id: string) => [V3, "learn", "topic", id] as const,
   settings: () => [V3, "settings"] as const,
   /** The changelog feed and what is unseen (`GET /api/whats-new`). */
   whatsNew: () => [V3, "whats-new"] as const,

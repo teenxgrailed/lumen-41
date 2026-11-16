@@ -259,6 +259,8 @@ model User {
   personalBlocks               PersonalBlock[]
   goals                        Goal[]
   goalCheckIns                 GoalCheckIn[]
+  learnTopics                  LearnTopic[]
+  learnLessons                 LearnLesson[]
   weeklyFocusTargets           WeeklyFocusTarget[]
   meetingNoteProposals         MeetingNoteProposal[]      @relation("MeetingNoteProposalCreator")
   closedDays                   ClosedDay[]
@@ -4584,4 +4586,57 @@ model ActivationEvent {
   @@index([name, createdAt])
   @@index([userId, name])
   @@index([createdAt])
+}
+
+/// Learn (openspec module-blocks-and-learn, on for everybody): a topic the
+/// person names ("Deutsch", "Design") and the lessons in it. Lessons are
+/// written by the AI (Pro) or copied from the built-in samples.
+model LearnTopic {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  /// A palette key (`LEARN_COLORS`): the wash the topic's cards wear.
+  color     String        @default("violet")
+  /// A glyph key for the folder's sticker (`LEARN_ICONS`).
+  icon      String?
+  goal      String?
+  level     String?
+  /// The built-in sample this topic was made from ("deutsch"), if any.
+  sampleKey String?
+  order     Float         @default(0)
+  lessons   LearnLesson[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([userId, sampleKey])
+  @@index([userId, order])
+}
+
+model LearnLesson {
+  id               String     @id @default(cuid())
+  topicId          String
+  topic            LearnTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  /// Where it came from, shown under the title ("AI", "Sample").
+  source           String     @default("AI")
+  minutes          Int        @default(5)
+  /// `learnLessonBodySchema`: reading blocks and check questions.
+  body             Json
+  status           String     @default("new") // new|done
+  order            Float      @default(0)
+  /// The task "Put in calendar" made for it.
+  scheduledTaskId  String?
+  completedAt      DateTime?
+  /// When it was first finished; never cleared, so Free's one lesson a day
+  /// cannot be won back by marking a lesson new and done again.
+  firstCompletedAt DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([topicId, order])
+  @@index([userId, completedAt])
+  @@index([userId, firstCompletedAt])
 }
