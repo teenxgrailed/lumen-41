@@ -12,6 +12,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 
 import { useLivePreviews } from "@/lib/needt3/hooks/docs";
+import { useNavRankEffects } from "@/lib/needt3/hooks/nav-rank";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -29,7 +30,6 @@ import { PhoneShell } from "../phone/shell/PhoneShell";
 import { ShellFrame } from "../root/ShellFrame";
 import { StatusBanners } from "../states/StBanner";
 import { BugSheet } from "./BugSheet";
-import { CustomizeSidebar } from "./CustomizeSidebar";
 import { DesktopBridge } from "./DesktopBridge";
 import { KeySheet } from "./KeySheet";
 import { PermanentHosts } from "./PermanentHosts";
@@ -45,6 +45,7 @@ import {
   nextTheme,
   resolveKey,
 } from "./keys";
+import { placeForPath } from "./places";
 
 /** Below this width the rail steps out of the row and floats over the page. */
 export const SB_NARROW = 1100;
@@ -86,7 +87,6 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
   const [chatDock, setChatDock] = useState<HTMLElement | null>(null);
   const [float, setFloat] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
-  const [customize, setCustomize] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
   const [newsOpen, setNewsOpen] = useState(false);
   const [bugOpen, setBugOpen] = useState(false);
@@ -117,6 +117,15 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
   // Choosing a place from the floating rail is the end of its errand.
   useEffect(() => setFloat(false), [pathname]);
 
+  // The menu and the sidebar arrange themselves by use: pins live in
+  // Settings (the phone's Menu page, the desktop's General section).
+  const askOpen = useNeedt3Ui((s) => s.askOpen);
+  const openPins = useCallback(
+    () => useNeedt3Ui.getState().openSettings(phone ? "menu" : "general"),
+    [phone]
+  );
+  useNavRankEffects(placeForPath(pathname ?? ""), askOpen, openPins);
+
   const toggleSidebar = useCallback(() => {
     if (focusMode) {
       setFocusMode(false);
@@ -134,12 +143,12 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
       focusMode,
       toggleSidebar,
       setFocusMode,
-      openCustomize: () => setCustomize(true),
+      openCustomize: openPins,
       openKeys: () => setKeysOpen(true),
       openWhatsNew: () => setNewsOpen(true),
       openBug: () => setBugOpen(true),
     }),
-    [narrow, focusMode, toggleSidebar]
+    [narrow, focusMode, toggleSidebar, openPins]
   );
 
   /* The app menu: what a right-click on anything unmarked offers. */
@@ -296,7 +305,6 @@ export function V3Shell({ children, ui }: PropsWithChildren<{ ui: PhoneUi }>) {
   const desktopLayers = (
     <>
       <CtxLayer />
-      <CustomizeSidebar open={customize} onClose={() => setCustomize(false)} />
       <KeySheet open={keysOpen} onClose={() => setKeysOpen(false)} />
       <WhatsNew open={newsOpen} onClose={() => setNewsOpen(false)} />
       <BugSheet open={bugOpen} onClose={() => setBugOpen(false)} />

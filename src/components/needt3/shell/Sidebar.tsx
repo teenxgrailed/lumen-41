@@ -17,16 +17,13 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { createPortal } from "react-dom";
 import {
-  LuBot,
   LuCheck,
   LuChevronDown,
-  LuCloud,
   LuEllipsis,
   LuFileText,
   LuFolder,
   LuPlus,
   LuTarget,
-  LuWallet,
 } from "react-icons/lu";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
@@ -71,6 +68,7 @@ import { useShellApi } from "./ShellContext";
 import { agentsNavItem, isAgentsPath } from "./agents-nav";
 import {
   dayProgress,
+  leadBadge,
   nextEventBadge,
   overdueCount,
   unreadCount,
@@ -86,7 +84,6 @@ import {
   moreIsWide,
   placeById,
   placeForPath,
-  setPlaceOn,
   splitPlaces,
 } from "./places";
 import { useSidebarPrefs } from "./useSidebarPrefs";
@@ -622,7 +619,7 @@ export function Sidebar() {
   const shell = useShellApi();
   const docOpen = useOpenDocId() !== null;
   const setComposerOpen = useNeedt3Ui((s) => s.setComposerOpen);
-  const [prefs, setPrefs] = useSidebarPrefs();
+  const [prefs, setPrefs, , auto] = useSidebarPrefs();
   const { tiles, rest } = splitPlaces(prefs);
   const sections = prefs.sections.filter((s) => s.on);
   const timeZone = useTimeZone();
@@ -676,6 +673,14 @@ export function Sidebar() {
   const pinRef = useRef<HTMLButtonElement>(null);
   const here = placeForPath(pathname);
 
+  // One badge across the tiles: the most urgent (live.ts `leadBadge`).
+  const lead = leadBadge({
+    tiles: tiles.map((t) => t.id),
+    eventMins: cal ? cal.mins : null,
+    overdue,
+    progress,
+    unread,
+  });
   const tile = (p: ShellPlace) => {
     const urgent =
       p.id === "today" && overdue
@@ -684,17 +689,19 @@ export function Sidebar() {
           ? (cal?.urgent ?? null)
           : null;
     const badge: TileBadge | null =
-      p.id === "tasks" && overdue
-        ? {
-            text: String(overdue),
-            danger: true,
-            title: `${overdue} overdue ${overdue === 1 ? "task" : "tasks"}`,
-          }
-        : p.id === "mail" && unread
-          ? { text: String(unread), accent: true }
-          : p.id === "calendar" && cal
-            ? { text: cal.text }
-            : null;
+      p.id !== lead
+        ? null
+        : p.id === "tasks" && overdue
+          ? {
+              text: String(overdue),
+              danger: true,
+              title: `${overdue} overdue ${overdue === 1 ? "task" : "tasks"}`,
+            }
+          : p.id === "mail" && unread
+            ? { text: String(unread), accent: true }
+            : p.id === "calendar" && cal
+              ? { text: cal.text }
+              : null;
     const alert =
       p.id === "mail" && mailDown.length
         ? `${mailDown.map((c) => c.label).join(", ")} ${mailDown.length === 1 ? "needs" : "need"} reconnecting`
@@ -704,7 +711,7 @@ export function Sidebar() {
         place={p}
         href={p.href}
         active={here === p.id}
-        progress={p.id === "today" ? progress : null}
+        progress={p.id === "today" && lead === "today" ? progress : null}
         urgent={urgent}
         badge={badge}
         alert={alert}
@@ -724,25 +731,15 @@ export function Sidebar() {
           [{ label: "Open", run: () => router.push(p.href) }],
           [
             {
-              label: "Hide from Sidebar",
-              run: () => {
-                void setPrefs((s) => setPlaceOn(s, p.id, false)).then(() =>
-                  notify.success("Moved into More", {
-                    action: {
-                      label: "Undo",
-                      onClick: () =>
-                        void setPrefs((s) => setPlaceOn(s, p.id, true)),
-                    },
-                  })
-                );
-              },
+              label: auto.pinned.includes(p.id) ? "Unpin" : "Pin",
+              run: () => void auto.togglePin(p.id),
             },
-            { label: "Customize Sidebar…", run: shell.openCustomize },
+            { label: "Change in Settings…", run: shell.openCustomize },
           ],
         ];
       }),
       registerCtx("section", () => [
-        [{ label: "Customize Sidebar…", run: shell.openCustomize }],
+        [{ label: "Pinned places…", run: shell.openCustomize }],
       ]),
       registerCtx("project", ({ id }) => {
         const project = id
@@ -911,8 +908,8 @@ export function Sidebar() {
                 { sep: true as const },
                 {
                   art: "tune" as const,
-                  title: "Customize Sidebar",
-                  sub: "Choose tiles and sections",
+                  title: "Pinned places",
+                  sub: "Arranged by what you open",
                   onClick: shell.openCustomize,
                 },
               ]}
@@ -934,7 +931,7 @@ export function Sidebar() {
               href="/connections"
               label="Connections"
               current={pathname.startsWith("/connections")}
-              icon={<LuCloud size={16} />}
+              icon={<PlaceGlyph id="connections" />}
               trailing={
                 down.length ? (
                   <span
@@ -962,7 +959,7 @@ export function Sidebar() {
                 href={agentsItem.href}
                 label={agentsItem.label}
                 current={isAgentsPath(pathname)}
-                icon={<LuBot size={16} />}
+                icon={<PlaceGlyph id="agents" />}
                 trailing={agentsItem.badge}
               />
             </div>
@@ -983,7 +980,7 @@ export function Sidebar() {
                 href={budgetItem.href}
                 label={budgetItem.label}
                 current={isBudgetPath(pathname)}
-                icon={<LuWallet size={16} />}
+                icon={<PlaceGlyph id="budget" />}
                 trailing={
                   budgetItem.locked ? <ProBadge size="sm" title="Pro" /> : null
                 }

@@ -57,7 +57,7 @@ function SidebarToggle() {
       "⌘.",
       () => shell.setFocusMode(!shell.focusMode),
     ],
-    ["Customize Sidebar", "", shell.openCustomize],
+    ["Pinned places", "", shell.openCustomize],
   ];
   return (
     <span

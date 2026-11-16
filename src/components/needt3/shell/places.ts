@@ -372,3 +372,24 @@ export function placeForPath(pathname: string): PlaceId | null {
     if (pathname === p.href || pathname.startsWith(`${p.href}/`)) return p.id;
   return null;
 }
+
+/**
+ * The layout as the sidebar arranges itself by use: places in
+ * the ranked order, the first five tiles, the rest under More. Sections and
+ * folds stay the person's own (`prefs.sidebar`). `ranked` is
+ * `rankedPlaces(prefs, plan)`, which already keeps Free's Mailbox off the
+ * tiles; ids that are not sidebar places (Ask Needt) are skipped.
+ */
+export function prefsFromRanked(
+  ranked: readonly string[],
+  saved: SidebarPrefs
+): SidebarPrefs {
+  const ids = ranked.filter(
+    (id, i): id is PlaceId => PLACE_IDS.has(id) && ranked.indexOf(id) === i
+  );
+  for (const p of PLACES) if (!ids.includes(p.id)) ids.push(p.id);
+  return {
+    ...saved,
+    places: ids.map((id, i) => ({ id, on: i < TILES_MAX })),
+  };
+}
