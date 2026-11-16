@@ -44,6 +44,9 @@ export async function createV3User(
       name: `V3 ${label}`,
       role: "user",
       emailVerified: newDate(),
+      // A finished account: with `onboarding_v3` on for everyone, Today sends
+      // anyone who never onboarded (and has no data yet) into /start.
+      onboardingCompletedAt: newDate(),
     },
   });
   const workspace = await prisma.workspace.create({
