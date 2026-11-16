@@ -62,6 +62,8 @@ export async function createOAuthMailAccount(options: {
     update: {
       connectionRef: options.connectionRef,
       status: MailAccountStatus.ACTIVE,
+      syncPausedAt: null,
+      syncError: null,
     },
     create: options,
   });
@@ -154,6 +156,7 @@ export async function persistMailMessages(options: {
         where: { id: options.accountId },
         data: {
           status: MailAccountStatus.ACTIVE,
+          syncError: null,
           lastSyncAt: newDate(),
           ...(options.cursor !== undefined && { syncCursor: options.cursor }),
         },
@@ -161,6 +164,40 @@ export async function persistMailMessages(options: {
     },
     { timeout: 30_000 }
   );
+}
+
+export async function getMailAccountSyncError(
+  accountId: string
+): Promise<string | null> {
+  const account = await prisma.mailAccount.findUnique({
+    where: { id: accountId },
+    select: { syncError: true },
+  });
+  return account?.syncError ?? null;
+}
+
+/**
+ * Stop syncing an account whose sign-in no longer works. It shows as ERROR
+ * ("reconnect") until the person connects it again, which clears both columns.
+ * `code` is a short fixed code, never provider text.
+ */
+export async function pauseMailAccountSync(accountId: string, code: string) {
+  return prisma.mailAccount.update({
+    where: { id: accountId },
+    data: {
+      status: MailAccountStatus.ERROR,
+      syncPausedAt: newDate(),
+      syncError: code,
+    },
+  });
+}
+
+/** Remember a failure that might be permanent, without pausing yet. */
+export async function recordMailSyncError(accountId: string, code: string) {
+  return prisma.mailAccount.update({
+    where: { id: accountId },
+    data: { status: MailAccountStatus.ERROR, syncError: code },
+  });
 }
 
 export async function setMailAccountError(accountId: string) {

@@ -126,6 +126,8 @@ export async function POST(request: NextRequest) {
       update: {
         encryptedCredentials: encryptSecret(JSON.stringify(credentials)),
         status: "ACTIVE",
+        syncPausedAt: null,
+        syncError: null,
       },
       create: {
         userId: auth.userId,

@@ -67,6 +67,7 @@ import {
   stopWorkerHealthServer,
 } from "@/worker/health-server";
 import { startWorkerTick } from "@/worker/liveness";
+import { describeFailedJob, processMailSyncJob } from "@/worker/mail-sync";
 import { runWorkerStartupChecks } from "@/worker/startup";
 import {
   STALE_TASK_MAPPING_SWEEP_INTERVAL_MS,
@@ -99,10 +100,8 @@ import { logger } from "@/lib/logger";
 import { listActiveMailAccountIds } from "@/lib/mail-db";
 import {
   closeImapIdleWatchers,
-  ensureImapIdleWatcher,
   startImapIdleWatchers,
 } from "@/lib/mail/imap-idle";
-import { syncMailAccount } from "@/lib/mail/sync";
 import {
   closeRedisConnection,
   getRedisConnection,
@@ -260,11 +259,6 @@ async function processReschedule(job: Job<RescheduleJobData>, token?: string) {
 
 async function processWebhookRenew(job: Job<WebhookRenewJobData>) {
   await renewCalendarWebhooks(job.data);
-}
-
-async function processMailSync(job: Job<MailSyncJobData>) {
-  await syncMailAccount(job.data.accountId);
-  await ensureImapIdleWatcher(job.data.accountId);
 }
 
 async function processBugReportSync(job: Job<BugReportSyncJobData>) {
@@ -439,7 +433,7 @@ const workers = [
     processWebhookRenew,
     { connection, concurrency: 1 }
   ),
-  new Worker<MailSyncJobData>(QUEUE_NAMES.mailSync, processMailSync, {
+  new Worker<MailSyncJobData>(QUEUE_NAMES.mailSync, processMailSyncJob, {
     connection,
     concurrency: 3,
   }),
@@ -517,11 +511,7 @@ for (const worker of workers) {
   worker.on("failed", (job, error) => {
     void logger.error(
       "Background job failed",
-      {
-        queue: worker.name,
-        jobId: job?.id ?? "unknown",
-        error: error.message,
-      },
+      describeFailedJob(worker.name, job, error),
       LOG_SOURCE
     );
   });
