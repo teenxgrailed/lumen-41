@@ -62,6 +62,21 @@ async function seedDemoWhenOn(
   }
 }
 
+/**
+ * The first-replan demo for an account that finished `/start` (no sample day
+ * there): seeded when `first_replan_onboarding` is on for the person, once
+ * (`seedFirstReplanDemo` checks), after the week is placed so the commit's
+ * scheduler run cannot move the demo task. Never throws.
+ */
+export async function seedFirstReplanDemoAfterStart(input: {
+  userId: string;
+  workspaceId: string;
+  timeZone?: string;
+}): Promise<void> {
+  if (!(await demoEnabled(input.userId))) return;
+  await seedDemoWhenOn(input, input.timeZone);
+}
+
 /** Whether examples are still on the account: `{ present, counts }`. */
 export async function sampleStatusResponse(userId: string) {
   return NextResponse.json(await sampleStatus(userId));
