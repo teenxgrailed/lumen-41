@@ -227,7 +227,7 @@ There is one flag, `day_plan`, turned on by a data migration at 100% in PR A. Of
 - the touch sweep and the Someday sweep do nothing
 - the API answers but no UI calls it
 
-No flag gates rollout.
+No flag gates rollout. A second flag, `someday_sweep`, ships OFF. Running the nightly sweep on existing data would be the launch migration (E) without the owner's yes, so it is turned on together with E. Until D merges, `day_plan` at 100% changes nothing visible to users.
 
 ## Existing notifications vs D7
 
