@@ -81,8 +81,15 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // The application is private; only the landing on needt.app is
-        // indexable. middleware.ts sets the same header on every response too.
+        // Noindex on every path except the legal pages (/terms, /privacy;
+        // src/lib/seo/indexable-paths.ts). A separate rule, because a negative
+        // lookahead in the source is the only way to leave two paths out.
+        source: "/:path((?!terms$|privacy$).*)",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
+        // The application is private; only the landing on needt.app (and the
+        // legal pages) are indexable. middleware.ts sets the same header on every response too.
         //
         // Also the baseline security headers. Nothing frames use.needt.app
         // from another origin (Budget is framed BY us; the iOS/Capacitor
@@ -92,7 +99,6 @@ const nextConfig = {
         // for middleware; /oauth below overrides framing and referrer.
         source: "/:path*",
         headers: [
-          { key: "X-Robots-Tag", value: "noindex, nofollow" },
           { key: "Strict-Transport-Security", value: "max-age=31536000" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
