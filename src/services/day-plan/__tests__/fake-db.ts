@@ -52,10 +52,19 @@ const DEFAULTS: Record<string, () => Row> = {
     editedByUserAt: null,
   }),
   dayPlanItem: () => ({ isMain: false, addedBy: "draft", resolution: null }),
+  channelLink: () => ({ unlinkedAt: null }),
+  channelLinkCode: () => ({ usedAt: null }),
   planSettings: () => ({
     limitSuggestionDismissedAt: null,
     limitSuggestion: null,
   }),
+};
+
+/** Unique indexes the channel tables rely on (a repeat raises P2002 like Prisma). */
+const UNIQUE: Record<string, string[]> = {
+  channelUpdate: ["channel", "externalUpdateId"],
+  channelLink: ["channel", "externalChatId"],
+  channelLinkCode: ["codeHash"],
 };
 
 export function createDayPlanDb(start = new Date("2026-11-19T20:00:00Z")) {
@@ -74,6 +83,9 @@ export function createDayPlanDb(start = new Date("2026-11-19T20:00:00Z")) {
     workSchedule: [],
     flexibleHoursOverride: [],
     calendarEvent: [],
+    channelLink: [],
+    channelLinkCode: [],
+    channelUpdate: [],
   };
   let clock = start.getTime();
   let ids = 0;
@@ -183,6 +195,17 @@ export function createDayPlanDb(start = new Date("2026-11-19T20:00:00Z")) {
 
   function create(model: string, data: Where): Row {
     const { activities, ...rest } = data;
+    const unique = UNIQUE[model];
+    if (
+      unique &&
+      tables[model].some((row) =>
+        unique.every((key) => same(row[key], rest[key]))
+      )
+    ) {
+      throw Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+      });
+    }
     const row: Row = {
       id: nextId(model),
       createdAt: now(),
