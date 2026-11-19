@@ -83,6 +83,7 @@ export function createDayPlanDb(start = new Date("2026-11-19T20:00:00Z")) {
     workSchedule: [],
     flexibleHoursOverride: [],
     calendarEvent: [],
+    taskListMapping: [],
     channelLink: [],
     channelLinkCode: [],
     channelUpdate: [],

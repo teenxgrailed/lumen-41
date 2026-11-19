@@ -55,51 +55,55 @@ export async function redeemLinkCode(
   externalChatId: string,
   now: Date = newDate()
 ): Promise<RedeemResult> {
-  const row = await prisma.channelLinkCode.findUnique({
-    where: { codeHash: hashCode(code) },
-  });
-  if (
-    !row ||
-    row.channel !== channel ||
-    row.usedAt !== null ||
-    row.expiresAt.getTime() <= now.getTime()
-  ) {
-    return { status: "invalid" };
-  }
+  // One transaction: check, claim the code, unlink the person's other chat and
+  // link this one, so a failure half way leaves nothing changed.
+  return prisma.$transaction(async (tx) => {
+    const row = await tx.channelLinkCode.findUnique({
+      where: { codeHash: hashCode(code) },
+    });
+    if (
+      !row ||
+      row.channel !== channel ||
+      row.usedAt !== null ||
+      row.expiresAt.getTime() <= now.getTime()
+    ) {
+      return { status: "invalid" } as const;
+    }
 
-  const existing = await prisma.channelLink.findUnique({
-    where: { channel_externalChatId: { channel, externalChatId } },
-  });
-  if (
-    existing &&
-    existing.unlinkedAt === null &&
-    existing.userId !== row.userId
-  ) {
-    return { status: "taken" };
-  }
+    const existing = await tx.channelLink.findUnique({
+      where: { channel_externalChatId: { channel, externalChatId } },
+    });
+    if (
+      existing &&
+      existing.unlinkedAt === null &&
+      existing.userId !== row.userId
+    ) {
+      return { status: "taken" } as const;
+    }
 
-  // Single use: only the request that flips usedAt goes on.
-  const claimed = await prisma.channelLinkCode.updateMany({
-    where: { id: row.id, usedAt: null, expiresAt: { gt: now } },
-    data: { usedAt: now },
-  });
-  if (claimed.count !== 1) return { status: "invalid" };
+    // Single use: only the request that flips usedAt goes on.
+    const claimed = await tx.channelLinkCode.updateMany({
+      where: { id: row.id, usedAt: null, expiresAt: { gt: now } },
+      data: { usedAt: now },
+    });
+    if (claimed.count !== 1) return { status: "invalid" } as const;
 
-  if (existing && existing.unlinkedAt === null) {
-    return { status: "already", userId: row.userId };
-  }
+    if (existing && existing.unlinkedAt === null) {
+      return { status: "already", userId: row.userId } as const;
+    }
 
-  // One active chat per person and channel: a newer link replaces the older.
-  await prisma.channelLink.updateMany({
-    where: { userId: row.userId, channel, unlinkedAt: null },
-    data: { unlinkedAt: now },
+    // One active chat per person and channel: a newer link replaces the older.
+    await tx.channelLink.updateMany({
+      where: { userId: row.userId, channel, unlinkedAt: null },
+      data: { unlinkedAt: now },
+    });
+    await tx.channelLink.upsert({
+      where: { channel_externalChatId: { channel, externalChatId } },
+      create: { userId: row.userId, channel, externalChatId, linkedAt: now },
+      update: { userId: row.userId, linkedAt: now, unlinkedAt: null },
+    });
+    return { status: "linked", userId: row.userId } as const;
   });
-  await prisma.channelLink.upsert({
-    where: { channel_externalChatId: { channel, externalChatId } },
-    create: { userId: row.userId, channel, externalChatId, linkedAt: now },
-    update: { userId: row.userId, linkedAt: now, unlinkedAt: null },
-  });
-  return { status: "linked", userId: row.userId };
 }
 
 export async function findActiveLink(

@@ -70,6 +70,8 @@ export interface ChannelAdapter {
     message: OutgoingMessage,
     ref?: string
   ): Promise<void>;
+  /** Acknowledges a control press that gets no message back (stops its spinner). */
+  ack?(ref: string): Promise<void>;
   /** Fetches the audio of a voice note, when the channel has any. */
   loadVoice?(voiceFileRef: string): Promise<AudioPayload | null>;
 }

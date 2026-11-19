@@ -1,4 +1,5 @@
 import { parseTasksForUser } from "@/services/ai/parse-tasks";
+import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { createDayPlanDb } from "@/services/day-plan/__tests__/fake-db";
 import {
   NOW,
@@ -10,14 +11,26 @@ import {
   seedPlan,
   seedTask,
 } from "@/services/day-plan/__tests__/helpers";
+import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
+import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
+import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
+import { recomputeTaskActuals } from "@/services/time-tracking/timeEntries";
 import { readFileSync } from "fs";
 import { join } from "path";
 
 import { recordActivation } from "@/lib/activation-events";
 import { logger } from "@/lib/logger";
+import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
+import { schedulePushTaskBlock } from "@/lib/task-block-push";
+import { TaskChangeTracker } from "@/lib/task-sync/task-change-tracker";
 
 import { buildTouchMessage, handleIncoming } from "../core";
-import { LINK_CODE_TTL_MS, createLinkCode, findActiveLink } from "../links";
+import {
+  LINK_CODE_TTL_MS,
+  cleanupChannelRows,
+  createLinkCode,
+  findActiveLink,
+} from "../links";
 import { SECRET_HEADER, createTelegramAdapter } from "../telegram/adapter";
 import { type FetchLike, createTelegramClient } from "../telegram/client";
 import { sendChannelTouch } from "../touch";
@@ -49,6 +62,48 @@ jest.mock("@/lib/security/rate-limit", () => ({
 jest.mock("@/services/ai/parse-tasks", () => ({
   parseTasksForUser: jest.fn(),
 }));
+jest.mock("@/lib/auth/workspace-auth", () => ({
+  ...jest.requireActual("@/lib/auth/workspace-auth"),
+  resolveWorkspaceAccess: jest.fn().mockResolvedValue({
+    enabled: false,
+    workspaceId: "ws-1",
+    workspaceKind: "PERSONAL",
+    role: "OWNER",
+    dataScope: { mode: "legacy", userId: "user-1" },
+  }),
+}));
+jest.mock("@/services/connectors/webhooks", () => ({
+  sendConnectorWebhook: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("@/services/focus/completion-ends-focus", () => ({
+  endFocusForCompletedTask: jest.fn().mockResolvedValue({ ended: false }),
+}));
+jest.mock("@/services/reminders/reminders", () => ({
+  rescheduleRemindersSoon: jest.fn(),
+}));
+jest.mock("@/services/scheduling/TaskSchedulingService", () => ({
+  scheduleAllTasksForUser: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("@/services/time-tracking/timeEntries", () => ({
+  recomputeTaskActuals: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("@/lib/realtime/publish", () => ({
+  publishRealtimeEventSafe: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("@/lib/task-block-push", () => ({
+  schedulePushTaskBlock: jest.fn(),
+  deleteTaskBlockEvent: jest.fn(),
+}));
+jest.mock("@/lib/task-sync/task-change-tracker", () => {
+  const trackChange = jest.fn().mockResolvedValue(undefined);
+  return {
+    TaskChangeTracker: jest.fn().mockImplementation(() => ({
+      compareTaskObjects: jest.fn().mockReturnValue({ status: "completed" }),
+      trackChange,
+    })),
+    __trackChange: trackChange,
+  };
+});
 jest.mock("@/lib/auth/personal-workspace", () => ({
   ensurePersonalWorkspaceRow: jest.fn().mockResolvedValue({ id: "ws-1" }),
 }));
@@ -154,6 +209,7 @@ const taskTitles = (userId = USER) =>
     .map((t) => String(t.title));
 
 beforeEach(() => {
+  jest.clearAllMocks();
   mockState.db = createDayPlanDb();
   db().insert("userSettings", { userId: USER, timeZone: "Europe/Zurich" });
   db().insert("userSettings", { userId: OTHER, timeZone: "Europe/Zurich" });
@@ -355,7 +411,7 @@ describe("plan buttons", () => {
 
     const row = db().tables.task.find((t) => t.id === anna.id);
     expect(row?.status).toBe("completed");
-    expect(row?.completedAt).toEqual(NOW);
+    expect(row?.completedAt).toBeInstanceOf(Date);
     const edit = calls.find((c) => c.url.endsWith("/editMessageText"));
     expect(edit?.body.message_id).toBe(77);
     expect(String(edit?.body.text)).toContain("✓ Call Anna");
@@ -584,6 +640,9 @@ describe("text and voice replies", () => {
       )
     );
     expect(logged).not.toContain("secret plan");
+    // Only the error name and code are logged, never its message.
+    expect(logged).not.toContain("parser down");
+    expect(logged).toContain("errorName");
     expect((logger.error as jest.Mock).mock.calls.length).toBeGreaterThan(0);
   });
 });
@@ -627,5 +686,273 @@ describe("daily touches", () => {
     expect(await sendChannelTouch(USER, message, [adapter])).toBe(1);
     expect(calls).toHaveLength(1);
     expect(calls[0].body.chat_id).toBe(CHAT);
+  });
+});
+
+describe("review fixes", () => {
+  it("test_done_from_telegram_runs_full_completion", async () => {
+    linkChat(USER, CHAT);
+    db().insert("taskListMapping", { projectId: "proj-1" });
+    const task = seedTask(db(), {
+      title: "Call Anna",
+      assigneeId: USER,
+      projectId: "proj-1",
+      tags: [],
+    });
+    seedPlan(db(), TODAY, [task.id], { status: "active" });
+    const { adapter } = telegram();
+
+    await processWebhook(
+      adapter,
+      hook(buttonUpdate(1, CHAT, `d:${task.id}`)),
+      clock
+    );
+
+    const row = db().tables.task.find((t) => t.id === task.id);
+    expect(row?.status).toBe("completed");
+    expect(row?.completedAt).toBeInstanceOf(Date);
+    // Everything the task API does around a completion.
+    expect(TaskChangeTracker).toHaveBeenCalled();
+    const tracker = (
+      jest.requireMock("@/lib/task-sync/task-change-tracker") as {
+        __trackChange: jest.Mock;
+      }
+    ).__trackChange;
+    expect(tracker).toHaveBeenCalledWith(
+      task.id,
+      "UPDATE",
+      USER,
+      expect.anything(),
+      undefined,
+      expect.any(String)
+    );
+    expect(sendConnectorWebhook).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER, event: "task.completed" })
+    );
+    expect(schedulePushTaskBlock).toHaveBeenCalledWith(USER, task.id);
+    expect(recomputeTaskActuals).toHaveBeenCalledWith(task.id);
+    expect(endFocusForCompletedTask).toHaveBeenCalled();
+    expect(scheduleAllTasksForUser).toHaveBeenCalled();
+    expect(rescheduleRemindersSoon).toHaveBeenCalledWith({ taskId: task.id });
+    expect(publishRealtimeEventSafe).toHaveBeenCalledWith(
+      USER,
+      "tasks-updated"
+    );
+  });
+
+  it("test_done_on_repeating_task_completes_this_occurrence", async () => {
+    linkChat(USER, CHAT);
+    const master = seedTask(db(), {
+      title: "Water plants",
+      isRecurring: true,
+      recurrenceRule: "FREQ=DAILY",
+      dueDate: dayDate(TODAY),
+      tags: [],
+    });
+    seedPlan(db(), TODAY, [master.id], { status: "active" });
+    const { adapter, calls } = telegram();
+
+    await processWebhook(
+      adapter,
+      hook(buttonUpdate(1, CHAT, `d:${master.id}`)),
+      clock
+    );
+
+    // This occurrence is stored as its own completed row...
+    const occurrence = db().tables.task.find(
+      (t) => t.recurrenceMasterId === master.id
+    );
+    expect(occurrence?.status).toBe("completed");
+    expect((occurrence?.dueDate as Date).getTime()).toBe(
+      dayDate(TODAY).getTime()
+    );
+    // ...and the series moves on to its next date, still open.
+    const series = db().tables.task.find((t) => t.id === master.id);
+    expect(series?.status).toBe("todo");
+    expect((series?.dueDate as Date).getTime()).toBeGreaterThan(
+      dayDate(TODAY).getTime()
+    );
+    // The plan shows it done, and a second press is stale.
+    const edit = calls.find((c) => c.url.endsWith("/editMessageText"));
+    expect(String(edit?.body.text)).toContain("\u2713 Water plants");
+    await processWebhook(
+      adapter,
+      hook(buttonUpdate(2, CHAT, `d:${master.id}`)),
+      clock
+    );
+    expect(
+      db().tables.task.filter((t) => t.recurrenceMasterId === master.id)
+    ).toHaveLength(1);
+  });
+
+  it("test_unlinked_chat_writes_no_rows", async () => {
+    const { adapter } = telegram();
+    await processWebhook(
+      adapter,
+      hook(textUpdate(1, OTHER_CHAT, "buy milk")),
+      clock
+    );
+    await processWebhook(
+      adapter,
+      hook(textUpdate(2, OTHER_CHAT, "/start nopenopenope1")),
+      clock
+    );
+    await processWebhook(
+      adapter,
+      hook(buttonUpdate(3, OTHER_CHAT, "d:abc")),
+      clock
+    );
+    for (const table of [
+      "channelUpdate",
+      "channelLink",
+      "channelLinkCode",
+      "task",
+      "dayPlan",
+      "dayPlanItem",
+    ]) {
+      expect(db().tables[table]).toHaveLength(0);
+    }
+  });
+
+  it("test_reply_matching_existing_tasks_is_echoed", async () => {
+    linkChat(USER, CHAT);
+    const existing = seedTask(db(), { title: "Call Anna" });
+    const { adapter, calls } = telegram();
+
+    await processWebhook(
+      adapter,
+      hook(textUpdate(1, CHAT, "call anna, book flights")),
+      clock
+    );
+
+    expect(taskTitles().sort()).toEqual(["Book flights", "Call Anna"]);
+    const reply = sentTexts(calls)[0];
+    expect(reply).toContain("Call Anna");
+    expect(reply).toContain("Book flights");
+    const items = db().tables.dayPlanItem.map((i) => i.taskId);
+    expect(items).toContain(existing.id);
+    // Only the new task counts as created.
+    expect(record).toHaveBeenCalledWith("channel_reply", USER, {
+      channel: "telegram",
+      kind: "text",
+      tasksCreated: 1,
+    });
+  });
+
+  it("refuses an oversized webhook body before reading it", async () => {
+    linkChat(USER, CHAT);
+    const { adapter, calls } = telegram();
+    const big = new Request("http://localhost/api/channels/telegram/webhook", {
+      method: "POST",
+      headers: {
+        [SECRET_HEADER]: SECRET,
+        "content-length": String(64 * 1024 + 1),
+      },
+      body: JSON.stringify(textUpdate(1, CHAT, "buy milk")),
+    });
+    const outcome = await processWebhook(adapter, big, clock);
+    expect(outcome.status).toBe(413);
+    expect(taskTitles()).toEqual([]);
+    expect(db().tables.channelUpdate).toHaveLength(0);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("answers a button press even when the core has nothing to say", async () => {
+    linkChat(USER, CHAT);
+    const { adapter, calls } = telegram();
+    await processWebhook(adapter, hook(buttonUpdate(1, CHAT, "d:whatever")), {
+      ...clock,
+      allow: async () => false,
+    });
+    expect(calls.map((c) => c.url.split("/").pop())).toEqual([
+      "answerCallbackQuery",
+    ]);
+  });
+
+  it("limits link attempts per chat: one notice, then silence", async () => {
+    const outs: (string | null)[] = [];
+    for (let i = 0; i < 8; i += 1) {
+      const out = await handleIncoming(
+        {
+          channel: "telegram",
+          externalChatId: OTHER_CHAT,
+          event: { kind: "link", code: `guess-code-${i}-xxxx` },
+        },
+        clock
+      );
+      outs.push(out?.text ?? null);
+    }
+    // The mocked default limiter allows everything; use an injected one.
+    const seen = new Map<string, number>();
+    const allow = async (key: string, limit: number) => {
+      const n = (seen.get(key) ?? 0) + 1;
+      seen.set(key, n);
+      return n <= limit;
+    };
+    const limited: (string | null)[] = [];
+    for (let i = 0; i < 8; i += 1) {
+      const out = await handleIncoming(
+        {
+          channel: "telegram",
+          externalChatId: OTHER_CHAT,
+          event: { kind: "link", code: `guess-code-${i}-xxxx` },
+        },
+        { ...clock, allow }
+      );
+      limited.push(out?.text ?? null);
+    }
+    expect(limited.slice(0, 5).every((t) => /did not work/.test(t ?? ""))).toBe(
+      true
+    );
+    expect(limited[5]).toMatch(/too many/i);
+    expect(limited.slice(6)).toEqual([null, null]);
+    expect(outs.every((t) => /did not work/.test(t ?? ""))).toBe(true);
+  });
+
+  it("redeems a code inside one transaction", async () => {
+    const spy = jest.spyOn(
+      db().client as { $transaction: (fn: unknown) => Promise<unknown> },
+      "$transaction"
+    );
+    const { code } = await createLinkCode(USER, "telegram", NOW);
+    await handleIncoming(
+      {
+        channel: "telegram",
+        externalChatId: CHAT,
+        event: { kind: "link", code },
+      },
+      clock
+    );
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect((await findActiveLink("telegram", CHAT))?.userId).toBe(USER);
+  });
+
+  it("cleanup forgets old update ids and expired codes only", async () => {
+    const old = new Date(NOW.getTime() - 8 * 24 * 3600_000);
+    db().insert("channelUpdate", {
+      channel: "telegram",
+      externalUpdateId: "1",
+      createdAt: old,
+    });
+    db().insert("channelUpdate", {
+      channel: "telegram",
+      externalUpdateId: "2",
+      createdAt: NOW,
+    });
+    db().insert("channelLinkCode", {
+      userId: USER,
+      channel: "telegram",
+      codeHash: "a",
+      expiresAt: old,
+    });
+    db().insert("channelLinkCode", {
+      userId: USER,
+      channel: "telegram",
+      codeHash: "b",
+      expiresAt: new Date(NOW.getTime() + 600_000),
+    });
+    expect(await cleanupChannelRows(NOW)).toEqual({ updates: 1, codes: 1 });
+    expect(db().tables.channelUpdate).toHaveLength(1);
+    expect(db().tables.channelLinkCode).toHaveLength(1);
   });
 });

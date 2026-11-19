@@ -1,10 +1,13 @@
 import { logger } from "@/lib/logger";
 
 import { type CoreDeps, handleIncoming } from "./core";
-import { claimUpdate } from "./links";
+import { claimUpdate, findActiveLink } from "./links";
 import type { ChannelAdapter } from "./types";
 
 const LOG_SOURCE = "channels-webhook";
+
+/** A webhook body larger than this is refused before it is read. */
+export const WEBHOOK_MAX_BYTES = 64 * 1024;
 
 export interface WebhookOutcome {
   status: number;
@@ -13,10 +16,11 @@ export interface WebhookOutcome {
 
 /**
  * The same pipeline for every channel: authenticate with the channel's own
- * secret, read the update, drop a repeat delivery, let the core decide, send
- * the answer. A failure after authentication still answers 200, so the
- * messenger does not redeliver the same update in a loop. Message text is never
- * logged.
+ * secret, refuse an oversized body, read the update, let the core decide, send
+ * the answer. A repeat delivery is dropped, but only for linked chats: a chat
+ * that is not linked writes no rows at all. A failure after authentication
+ * still answers 200, so the messenger does not redeliver the same update in a
+ * loop. Message text is never logged, nor is an error's message.
  */
 export async function processWebhook(
   adapter: ChannelAdapter,
@@ -25,6 +29,10 @@ export async function processWebhook(
 ): Promise<WebhookOutcome> {
   if (!adapter.verify(request)) {
     return { status: 401, body: { ok: false, error: "unauthorized" } };
+  }
+  const declared = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declared) && declared > WEBHOOK_MAX_BYTES) {
+    return { status: 413, body: { ok: false, error: "too_large" } };
   }
 
   let update;
@@ -35,8 +43,15 @@ export async function processWebhook(
   }
   if (!update) return { status: 200, body: { ok: true, ignored: true } };
 
+  let answered = false;
   try {
-    if (!(await claimUpdate(adapter.channel, update.externalUpdateId))) {
+    // Only a linked chat is deduped; a stranger's message writes nothing.
+    const link = await findActiveLink(adapter.channel, update.externalChatId);
+    if (
+      link &&
+      !(await claimUpdate(adapter.channel, update.externalUpdateId))
+    ) {
+      if (update.ref) await adapter.ack?.(update.ref).catch(() => undefined);
       return { status: 200, body: { ok: true, duplicate: true } };
     }
     const message = await handleIncoming(
@@ -51,6 +66,7 @@ export async function processWebhook(
       }
     );
     if (message) {
+      answered = true;
       await adapter.send(
         { channel: adapter.channel, externalChatId: update.externalChatId },
         message,
@@ -63,10 +79,15 @@ export async function processWebhook(
       {
         channel: adapter.channel,
         kind: update.event.kind,
-        error: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : "unknown",
+        code: String((error as { code?: unknown } | null)?.code ?? ""),
       },
       LOG_SOURCE
     );
+  }
+  // A pressed control is always answered, so its spinner never hangs.
+  if (!answered && update.ref) {
+    await adapter.ack?.(update.ref).catch(() => undefined);
   }
   return { status: 200, body: { ok: true } };
 }

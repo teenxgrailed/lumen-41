@@ -61,7 +61,8 @@ export type ReminderJobData =
   /** The 20:00 "habits left today" push (flag `habit_evening_push`). */
   | { kind: "habit-evening" }
   /** The nightly Someday sweep (flags `day_plan` and `someday_sweep`). */
-  | { kind: "someday-sweep" };
+  | { kind: "someday-sweep" }
+  | { kind: "channel-update-cleanup" };
 
 /** A delayed job per running Focus session, due at its planned end. */
 export interface FocusJobData {

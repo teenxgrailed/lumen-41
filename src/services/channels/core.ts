@@ -2,12 +2,18 @@ import { buildDraft, getDayPlan } from "@/services/day-plan";
 import type { PlanItemView, PlanView } from "@/services/day-plan/plan";
 import { addDaysToKey, keyFromDate } from "@/services/day-plan/rules";
 import { userTimeZone } from "@/services/day-plan/settings";
+import { updateTaskFields } from "@/services/tasks/task-update";
+import { WorkspaceRole } from "@prisma/client";
 
 import { recordActivation } from "@/lib/activation-events";
+import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { habitDayKey } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
+import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
+
+import { TaskStatus } from "@/types/task";
 
 import {
   type ActiveLink,
@@ -96,7 +102,8 @@ async function defaultAllow(
 
 /* ---------- rendering ---------- */
 
-const isDone = (item: PlanItemView) => item.status === "completed";
+const isDone = (item: PlanItemView) =>
+  item.status === "completed" || item.resolution === "done";
 
 /** The plan as text, with a done/later action on every task still open. */
 function renderPlan(
@@ -218,17 +225,37 @@ async function handleAction(
   const { task, item, dateKey } = found;
 
   if (action === "done") {
-    if (task.isRecurring) {
+    // The same completion the app uses (recurrence, change tracking, webhook,
+    // calendar block, focus end, reminders, scheduler), not a bare update.
+    const workspace = await resolveWorkspaceAccess({
+      userId,
+      requiredRole: WorkspaceRole.EDITOR,
+    });
+    const result = await updateTaskFields({
+      userId,
+      workspace,
+      taskId,
+      patch: { status: TaskStatus.COMPLETED },
+    });
+    if (!result.ok) return { message: reply(STALE_TEXT) };
+    if (result.recurringAlreadyDone) {
+      const next = result.recurringAlreadyDone.nextDueDate;
       return {
-        message: reply("Open Needt to complete a repeating task."),
+        message: reply(
+          next
+            ? `Already done today. It comes up again on ${next}.`
+            : "Already done today."
+        ),
       };
     }
-    if (task.status !== "completed") {
-      await prisma.task.update({
-        where: { id: taskId },
-        data: { status: "completed", completedAt: now, lastTouchedAt: now },
+    if (task.isRecurring) {
+      // The series row stays open for its next date; this occurrence is done.
+      await prisma.dayPlanItem.update({
+        where: { id: item.id },
+        data: { resolution: "done" },
       });
     }
+    await publishRealtimeEventSafe(userId, "tasks-updated");
   } else {
     // "Later" is Someday: out of the plan and off the home screen.
     await prisma.task.updateMany({
@@ -257,7 +284,8 @@ async function replyAsTasks(
     now,
   });
   const created = result.createdTasks;
-  if (created.length === 0) {
+  const everything = [...created, ...result.matchedTasks];
+  if (everything.length === 0) {
     return {
       message: reply(
         "I did not find a task in that. Send one task per line, or one sentence."
@@ -269,9 +297,9 @@ async function replyAsTasks(
   const inPlan =
     result.skipped === "edited"
       ? []
-      : created.filter((task) => planned.has(task.id));
-  const waiting = created.length - inPlan.length;
-  const listed = inPlan.length > 0 ? inPlan : created;
+      : everything.filter((task) => planned.has(task.id));
+  const waiting = everything.length - inPlan.length;
+  const listed = inPlan.length > 0 ? inPlan : everything;
   const shown = listed
     .slice(0, TITLE_ECHO_MAX)
     .map((task) => `- ${task.title}`);
@@ -386,6 +414,13 @@ export async function handleIncoming(
   const { channel, externalChatId, event } = context;
 
   if (event.kind === "link") {
+    const allow = deps.allow ?? defaultAllow;
+    // Guessing codes: a few tries a minute per chat, one notice, then silence.
+    if (!(await allow(`link:${channel}:${externalChatId}`, 5, 60))) {
+      return (await allow(`linkslow:${channel}:${externalChatId}`, 1, 60))
+        ? reply("Too many link attempts. Wait a minute and try again.")
+        : null;
+    }
     const result = await redeemLinkCode(
       channel,
       event.code,

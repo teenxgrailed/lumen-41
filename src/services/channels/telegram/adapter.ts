@@ -165,6 +165,15 @@ export function createTelegramAdapter(options: {
       return null;
     },
 
+    async ack(refText) {
+      try {
+        const ref = JSON.parse(refText) as Ref;
+        if (ref.c) await client.answerCallbackQuery(ref.c);
+      } catch {
+        // Nothing to acknowledge.
+      }
+    },
+
     async send(
       target: ChannelTarget,
       message: OutgoingMessage,
