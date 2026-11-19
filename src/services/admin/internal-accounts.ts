@@ -1,4 +1,4 @@
-import type { SandboxKind } from "@prisma/client";
+import type { Prisma, SandboxKind } from "@prisma/client";
 
 /**
  * Which accounts are ours and not a person trying the product. The Admin
@@ -7,6 +7,8 @@ import type { SandboxKind } from "@prisma/client";
  * - `User.internal` is true (set by hand);
  * - it is an admin (`role = "admin"`);
  * - it is a sandbox account (`sandboxKind` is set: reviewer, public demo);
+ * - its address is a QA bot account: local part starts with `qa+` (see
+ *   `isQaTestEmail`);
  * - its address matches one of `INTERNAL_EMAIL_RULES`;
  * - its address is one of the owner's own addresses listed in the
  *   `INTERNAL_ACCOUNT_EMAILS` environment variable (comma separated, exact
@@ -45,6 +47,30 @@ export const INTERNAL_EMAIL_RULES: readonly EmailRule[] = [
   { op: "startsWith", value: "agent@", why: "agent mailbox" },
 ];
 
+/** Local-part prefix of the daily QA bot accounts, e.g. `qa+20261119@host`. */
+export const QA_EMAIL_PREFIX = "qa+";
+
+/**
+ * True for a QA bot account: the local part (start of the address) begins with
+ * `qa+`, case-insensitive. `aqa+x@...` and `qa@...` are real people.
+ */
+export function isQaTestEmail(email: string | null | undefined): boolean {
+  return (email ?? "").trim().toLowerCase().startsWith(QA_EMAIL_PREFIX);
+}
+
+/**
+ * Prisma `where` for `User` that leaves QA bot accounts out. Accounts without
+ * an address stay in (a bare NOT would drop NULL rows). Read-side only: the
+ * rows are never touched. Spread it into a user filter, or nest it under
+ * `user:` on a relation.
+ */
+export const NOT_QA_USER: Prisma.UserWhereInput = {
+  OR: [
+    { email: null },
+    { NOT: { email: { startsWith: QA_EMAIL_PREFIX, mode: "insensitive" } } },
+  ],
+};
+
 export type InternalCheckInput = {
   email: string | null;
   role: string | null;
@@ -82,6 +108,7 @@ export function internalReason(
   if (user.sandboxKind) return "sandbox";
   if (user.email) {
     const email = user.email.toLowerCase();
+    if (isQaTestEmail(email)) return "qa-account";
     if (ownerEmails.includes(email)) return "owner-email";
     if (INTERNAL_EMAIL_RULES.some((rule) => emailMatchesRule(email, rule))) {
       return "email-pattern";

@@ -2,6 +2,7 @@ import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 import { getAdminActivation } from "../activation";
+import { NOT_QA_USER } from "../internal-accounts";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: { activationEvent: { groupBy: jest.fn() } },
@@ -44,6 +45,7 @@ describe("getAdminActivation", () => {
     expect(arg.where.user).toEqual({
       role: { not: "admin" },
       sandboxKind: null,
+      ...NOT_QA_USER,
     });
     const days = Math.round(
       (NOW.getTime() - arg.where.createdAt.gte.getTime()) / (24 * 3_600_000)

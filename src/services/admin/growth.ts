@@ -4,6 +4,8 @@ import { SubscriptionPlan } from "@prisma/client";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
+import { NOT_QA_USER } from "./internal-accounts";
+
 /**
  * The launch goal (owner decision 2026-11-05): 300 weekly actives and 100
  * paying people by 05.05.2027, with a checkpoint on 05.02.2027. Dates are UTC
@@ -81,7 +83,7 @@ export async function getAdminGrowth(
   /* Sandbox accounts are never counted, as for the actives. */
   const paid = (plan: SubscriptionPlan) => ({
     ...holdsPlan(plan, now),
-    user: { sandboxKind: null },
+    user: { sandboxKind: null, ...NOT_QA_USER },
   });
   const anyPaid = {
     OR: [paid(SubscriptionPlan.PRO), paid(SubscriptionPlan.LIFETIME)],
@@ -96,6 +98,7 @@ export async function getAdminGrowth(
         userId: { not: null },
         user: {
           sandboxKind: null,
+          AND: [NOT_QA_USER],
           OR: [
             { subscription: { is: null } },
             { subscription: { is: { plan: SubscriptionPlan.FREE } } },
@@ -105,7 +108,7 @@ export async function getAdminGrowth(
     }),
     ...Array.from({ length: GROWTH_TREND_WEEKS }, (_, i) =>
       prisma.user.count({
-        where: { sandboxKind: null, lastActiveAt: window(i) },
+        where: { sandboxKind: null, ...NOT_QA_USER, lastActiveAt: window(i) },
       })
     ),
     ...Array.from({ length: GROWTH_TREND_WEEKS }, (_, i) =>
