@@ -2,11 +2,16 @@ import { recordActivation } from "@/lib/activation-events";
 import { newDate } from "@/lib/date-utils";
 import { dayPlanEnabled, somedaySweepEnabled } from "@/lib/feature-flags";
 import { DAY_PLAN, SOMEDAY_SWEEP } from "@/lib/feature-flags-keys";
+import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
-import { cleanupCutoff, isSomedayCandidate, staleCutoff } from "./rules";
-import { userTimeZone } from "./settings";
+import {
+  type SomedayExclusion,
+  cleanupCutoff,
+  somedayExclusion,
+  staleCutoff,
+} from "./rules";
 
 const LOG_SOURCE = "SomedaySweep";
 const PAGE = 500;
@@ -28,7 +33,7 @@ export async function moveTasksToSomeday(
   userId: string,
   taskIds: string[],
   options: {
-    reason: "review" | "stale" | "button" | "manual";
+    reason: "review" | "stale" | "button" | "manual" | "migration";
     now: Date;
     touch?: boolean;
     tx?: SomedayWriter;
@@ -68,6 +73,142 @@ export interface SweepResult {
   users: number;
 }
 
+/** What the selection reads: the sweep passes the client, a dry run a read-only transaction. */
+export type SomedayReader = Pick<
+  typeof prisma,
+  "task" | "dayPlanItem" | "userSettings"
+>;
+
+export interface ScanOptions {
+  /** Skips people for whom this says no (the sweep's flag check). */
+  isAllowed?: (userId: string) => Promise<boolean>;
+  /**
+   * Called with each person's selected task ids, page by page. Moving the
+   * tasks is the caller's business; the scan itself never writes.
+   */
+  onUser: (userId: string, taskIds: string[]) => Promise<void>;
+  /**
+   * Also reads the open tasks the protection rules keep out, and counts them
+   * per rule here. Same rules, wider read: used by the migration dry run.
+   */
+  excluded?: Partial<Record<SomedayExclusion, number>>;
+}
+
+/**
+ * The one selection behind the nightly sweep and the launch migration: open
+ * tasks untouched for 14 days that no protection rule keeps out
+ * (`somedayExclusion`). It only reads.
+ */
+export async function scanSomedayCandidates(
+  db: SomedayReader,
+  now: Date,
+  options: ScanOptions
+): Promise<void> {
+  const cutoff = staleCutoff(now);
+  const allowed = new Map<string, boolean>();
+  const zones = new Map<string, string>();
+  const wide = Boolean(options.excluded);
+  let cursor: string | undefined;
+
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const rows = await db.task.findMany({
+      where: {
+        userId: { not: null },
+        // The wide read adds in-progress tasks so the dry run can count them.
+        status: wide ? { in: ["todo", "in_progress"] } : "todo",
+        createdAt: { lt: cutoff },
+        OR: [{ lastTouchedAt: null }, { lastTouchedAt: { lt: cutoff } }],
+        ...(wide
+          ? {}
+          : {
+              isArchived: false,
+              trashedAt: null,
+              somedayAt: null,
+              isRecurring: false,
+              recurrenceMasterId: null,
+              habitId: null,
+              isSample: false,
+            }),
+      },
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        isArchived: true,
+        trashedAt: true,
+        somedayAt: true,
+        isRecurring: true,
+        recurrenceMasterId: true,
+        habitId: true,
+        isSample: true,
+        dueDate: true,
+        deadline: true,
+        lastTouchedAt: true,
+        createdAt: true,
+        activities: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
+      },
+      orderBy: { id: "asc" },
+      take: PAGE,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+    if (rows.length === 0) break;
+    cursor = rows[rows.length - 1].id;
+
+    const inOpenPlan = new Set(
+      (
+        await db.dayPlanItem.findMany({
+          where: {
+            taskId: { in: rows.map((row) => row.id) },
+            plan: { status: { in: ["draft", "active"] } },
+          },
+          select: { taskId: true },
+        })
+      ).map((item) => item.taskId)
+    );
+
+    const byUser = new Map<string, string[]>();
+    for (const row of rows) {
+      const userId = row.userId;
+      if (!userId) continue;
+      if (!allowed.has(userId)) {
+        allowed.set(
+          userId,
+          options.isAllowed ? await options.isAllowed(userId) : true
+        );
+      }
+      if (!allowed.get(userId)) continue;
+      if (!zones.has(userId)) {
+        const settings = await db.userSettings.findUnique({
+          where: { userId },
+          select: { timeZone: true },
+        });
+        zones.set(userId, normalizeUserTimeZone(settings?.timeZone));
+      }
+      const reason = somedayExclusion(
+        {
+          ...row,
+          lastActivityAt: row.activities[0]?.createdAt ?? null,
+          inOpenPlan: inOpenPlan.has(row.id),
+        },
+        now,
+        zones.get(userId) as string
+      );
+      if (reason === null) {
+        byUser.set(userId, [...(byUser.get(userId) ?? []), row.id]);
+      } else if (options.excluded && reason !== "fresh") {
+        options.excluded[reason] = (options.excluded[reason] ?? 0) + 1;
+      }
+    }
+
+    for (const [userId, ids] of byUser) await options.onUser(userId, ids);
+    if (rows.length < PAGE) break;
+  }
+}
+
 /**
  * Cheap pre-check, one row per flag: a flag with no row, or switched off with
  * no per-person override that is on, cannot be on for anybody. Off costs two
@@ -103,94 +244,12 @@ export async function sweepSomeday(
     return { skipped: "flag_off", moved: 0, users: 0 };
   }
 
-  const cutoff = staleCutoff(now);
-  const allowed = new Map<string, boolean>();
-  const zones = new Map<string, string>();
   const movedUsers = new Set<string>();
   let moved = 0;
-  let cursor: string | undefined;
-
-  for (let page = 0; page < MAX_PAGES; page += 1) {
-    const rows = await prisma.task.findMany({
-      where: {
-        userId: { not: null },
-        status: "todo",
-        isArchived: false,
-        trashedAt: null,
-        somedayAt: null,
-        isRecurring: false,
-        recurrenceMasterId: null,
-        habitId: null,
-        isSample: false,
-        createdAt: { lt: cutoff },
-        OR: [{ lastTouchedAt: null }, { lastTouchedAt: { lt: cutoff } }],
-      },
-      select: {
-        id: true,
-        userId: true,
-        status: true,
-        isArchived: true,
-        trashedAt: true,
-        somedayAt: true,
-        isRecurring: true,
-        recurrenceMasterId: true,
-        habitId: true,
-        isSample: true,
-        dueDate: true,
-        deadline: true,
-        lastTouchedAt: true,
-        createdAt: true,
-        activities: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { createdAt: true },
-        },
-      },
-      orderBy: { id: "asc" },
-      take: PAGE,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-    });
-    if (rows.length === 0) break;
-    cursor = rows[rows.length - 1].id;
-
-    const inOpenPlan = new Set(
-      (
-        await prisma.dayPlanItem.findMany({
-          where: {
-            taskId: { in: rows.map((row) => row.id) },
-            plan: { status: { in: ["draft", "active"] } },
-          },
-          select: { taskId: true },
-        })
-      ).map((item) => item.taskId)
-    );
-
-    const byUser = new Map<string, string[]>();
-    for (const row of rows) {
-      const userId = row.userId;
-      if (!userId) continue;
-      if (!allowed.has(userId)) {
-        allowed.set(
-          userId,
-          (await dayPlanEnabled(userId)) && (await somedaySweepEnabled(userId))
-        );
-      }
-      if (!allowed.get(userId)) continue;
-      if (!zones.has(userId)) zones.set(userId, await userTimeZone(userId));
-      const stale = isSomedayCandidate(
-        {
-          ...row,
-          lastActivityAt: row.activities[0]?.createdAt ?? null,
-          inOpenPlan: inOpenPlan.has(row.id),
-        },
-        now,
-        zones.get(userId) as string
-      );
-      if (!stale) continue;
-      byUser.set(userId, [...(byUser.get(userId) ?? []), row.id]);
-    }
-
-    for (const [userId, ids] of byUser) {
+  await scanSomedayCandidates(prisma, now, {
+    isAllowed: async (userId) =>
+      (await dayPlanEnabled(userId)) && (await somedaySweepEnabled(userId)),
+    onUser: async (userId, ids) => {
       if (!options.dryRun) {
         await moveTasksToSomeday(userId, ids, { reason: "stale", now });
         for (let i = 0; i < ids.length; i += 1) {
@@ -199,9 +258,8 @@ export async function sweepSomeday(
       }
       moved += ids.length;
       movedUsers.add(userId);
-    }
-    if (rows.length < PAGE) break;
-  }
+    },
+  });
 
   logger.info(
     "Someday sweep finished",
@@ -331,4 +389,57 @@ export async function cleanupSomeday(
     });
   }
   return { archived, kept };
+}
+
+/** What the migration did for one person: how many tasks, and whether they came back. */
+export async function getSomedayMigration(
+  userId: string
+): Promise<{ moved: number; restored: boolean }> {
+  const [moved, open] = await Promise.all([
+    prisma.somedayMigrationMove.count({ where: { userId } }),
+    prisma.somedayMigrationMove.count({ where: { userId, restoredAt: null } }),
+  ]);
+  return { moved, restored: moved > 0 && open === 0 };
+}
+
+/**
+ * "Return all": restores exactly the tasks the launch migration moved for this
+ * person and has not been restored yet. A task is only returned while it is
+ * still in Someday for the migration reason, so one the person parked by hand
+ * is never touched. Afterwards every move row counts as restored, so the
+ * screen is not shown again.
+ */
+export async function restoreSomedayMigration(
+  userId: string,
+  now: Date = newDate()
+): Promise<{ restored: number }> {
+  const moves = await prisma.somedayMigrationMove.findMany({
+    where: { userId, restoredAt: null },
+    select: { taskId: true },
+  });
+  const taskIds = moves.map((move) => move.taskId);
+  let restored = 0;
+  for (let i = 0; i < taskIds.length; i += PAGE) {
+    const rows = await prisma.task.findMany({
+      where: {
+        id: { in: taskIds.slice(i, i + PAGE) },
+        userId,
+        somedayAt: { not: null },
+        somedayReason: "migration",
+      },
+      select: { id: true },
+    });
+    restored += (
+      await restoreSomeday(
+        userId,
+        rows.map((row) => row.id),
+        now
+      )
+    ).length;
+  }
+  await prisma.somedayMigrationMove.updateMany({
+    where: { userId, restoredAt: null },
+    data: { restoredAt: now },
+  });
+  return { restored };
 }

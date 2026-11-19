@@ -127,11 +127,13 @@ Each PR ships on its own. Every owner decision has a test with a human name, wri
 
 ## PR E — Someday launch migration
 
-- [ ] **E-1 — Script** `scripts/someday-migration.ts` with `--dry-run` (the default) and `--apply`. It uses the same protection rules as the sweep, writes `SomedayMigrationMove` rows, is idempotent, and refuses `--apply` on production without a recorded backup id.
-- [ ] **E-2 — "Return all"** endpoint. The migration screen is part of D.
-- [ ] **E-3 — Tests:**
+- [x] **E-1 — Script** `scripts/someday-migration.ts` with `--dry-run` (the default) and `--apply`. It uses the same protection rules as the sweep, writes `SomedayMigrationMove` rows, is idempotent, and refuses `--apply` on production without a recorded backup id.
+- [x] **E-2 — "Return all"** endpoint. The migration screen is part of D.
+- [x] **E-3 — Tests:**
   - `test_dry_run_writes_nothing` (D10)
   - `test_migration_is_idempotent` (D10)
   - `test_return_all_restores_only_migrated_tasks` (D10)
   - `test_apply_refuses_without_backup` (D10)
+  - `test_dry_run_matches_sweep_selection` (D10)
+  - `test_dry_run_runs_in_read_only_transaction` (D10)
 - [ ] **E-4** Dry-run on a production copy, and report the number of tasks and users to Main. The real run waits for the owner's yes.

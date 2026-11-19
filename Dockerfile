@@ -35,6 +35,7 @@ RUN npm ci --include=dev --legacy-peer-deps --ignore-scripts
 COPY . .
 RUN npm run prisma:generate
 RUN npm run build:worker
+RUN npm run build:scripts
 RUN npm run build:collaboration
 
 # Web builder stage - adds the Next build on top of the shared runtime build.
@@ -162,6 +163,9 @@ COPY --from=builder /app/prisma ./prisma
 # `node scripts/admin/reset-user-data.cjs --email ...`. Plain CommonJS that
 # needs only @prisma/client and DATABASE_URL.
 COPY scripts/admin ./scripts/admin
+# The Someday launch migration, bundled from scripts/someday-migration.ts so it
+# shares the sweep's rules: `node scripts/someday-migration.cjs --dry-run`.
+COPY --from=builder /app/dist/scripts/someday-migration.cjs ./scripts/someday-migration.cjs
 COPY entrypoint.sh .
 RUN chmod +x /app/entrypoint.sh
 USER node
