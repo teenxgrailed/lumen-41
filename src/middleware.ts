@@ -64,6 +64,8 @@ const publicRoutes = [
   "/subscription/lifetime/success",
   "/subscription/lifetime/setup-password",
   "/robots.txt",
+  // Crawlers fetch it without a session; it was redirected to sign-in (307).
+  "/sitemap.xml",
 ];
 
 // Routes that only admins can access

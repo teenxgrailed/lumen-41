@@ -1,0 +1,38 @@
+name: SEO check
+
+# Fetches the live sitemap of the public site and fails when a listed URL is
+# not HTTP 200, redirects, carries noindex (meta or X-Robots-Tag) or declares a
+# canonical that is not itself. Kept out of ci.yml on purpose: it depends on
+# production, and a red check there would block the publish that follows CI.
+# The needt.app source itself is checked on the `landing` branch
+# (.github/workflows/landing-seo.yml, same script in --dir mode).
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      sitemap:
+        description: Sitemap URL to check
+        required: false
+        default: https://needt.app/sitemap.xml
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sitemap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          sparse-checkout: scripts/seo
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Check the sitemap
+        env:
+          SITEMAP: ${{ inputs.sitemap || 'https://needt.app/sitemap.xml' }}
+        run: node scripts/seo/check-sitemap.mjs "$SITEMAP"

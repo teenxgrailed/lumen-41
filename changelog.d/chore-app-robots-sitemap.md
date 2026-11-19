@@ -1,0 +1,1 @@
+- chore: use.needt.app serves /sitemap.xml (empty, public) and keeps crawlers out of login-only screens.
