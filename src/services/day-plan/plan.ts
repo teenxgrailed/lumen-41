@@ -246,6 +246,10 @@ export interface BuildDraftResult {
   plan: PlanView;
   /** Candidates that did not go in (or arrived after the person edited). */
   suggested: TaskLite[];
+  /** Tasks the note created (not the ones it matched to existing tasks). */
+  createdTasks: TaskLite[];
+  /** Existing open tasks the note matched by title and put in the draft. */
+  matchedTasks: TaskLite[];
   built: boolean;
   skipped: "closed" | "edited" | null;
 }
@@ -434,6 +438,8 @@ export async function buildDraft(
     return {
       plan: toPlanView(existing, settings),
       suggested: [],
+      createdTasks: [],
+      matchedTasks: [],
       built: false,
       skipped: "closed",
     };
@@ -478,6 +484,22 @@ export async function buildDraft(
         addedBy: "draft",
       })
     );
+  const matchedTasks: TaskLite[] = fromNote
+    .filter((entry) => entry.reused)
+    .map((entry) => ({
+      id: entry.candidate.id,
+      title: entry.candidate.title,
+      estimatedMinutes: entry.candidate.minutes,
+      dueDate: null,
+    }));
+  const createdTasks: TaskLite[] = fromNote
+    .filter((entry) => !entry.reused)
+    .map((entry) => ({
+      id: entry.candidate.id,
+      title: entry.candidate.title,
+      estimatedMinutes: entry.candidate.minutes,
+      dueDate: null,
+    }));
   const taken = new Set([
     ...keptIds,
     ...carried.map((c) => c.id),
@@ -537,6 +559,8 @@ export async function buildDraft(
     return {
       plan: toPlanView(existing, settings),
       suggested,
+      createdTasks,
+      matchedTasks,
       built: false,
       skipped: "edited",
     };
@@ -618,6 +642,8 @@ export async function buildDraft(
     return {
       plan: toPlanView((current ?? existing) as PlanRow, settings),
       suggested: [],
+      createdTasks,
+      matchedTasks,
       built: false,
       skipped: current?.status === "closed" ? "closed" : "edited",
     };
@@ -652,6 +678,8 @@ export async function buildDraft(
         estimatedMinutes: candidate.minutes,
         dueDate: null,
       })),
+    createdTasks,
+    matchedTasks,
     built: true,
     skipped: null,
   };

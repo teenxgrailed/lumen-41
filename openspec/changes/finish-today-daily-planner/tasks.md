@@ -99,16 +99,16 @@ Each PR ships on its own. Every owner decision has a test with a human name, wri
 
 ## PR C — Channel core and Telegram adapter
 
-- [ ] **C-1 — Schema:** `ChannelLink`, `ChannelLinkCode` and `ChannelUpdate`.
-- [ ] **C-2 — Core.** The `ChannelAdapter` interface. Outgoing morning and evening messages come from the plan service; incoming text, voice and action events go to the plan service.
-- [ ] **C-3 — Telegram adapter:**
+- [x] **C-1 — Schema:** `ChannelLink`, `ChannelLinkCode` and `ChannelUpdate`.
+- [x] **C-2 — Core.** The `ChannelAdapter` interface. Outgoing morning and evening messages come from the plan service; incoming text, voice and action events go to the plan service.
+- [x] **C-3 — Telegram adapter:**
   - webhook with `secret_token` verification and update dedupe
   - inline "done" and "later" buttons
   - link via deep link `?start=<code>`, plus unlink
-- [ ] **C-4 — Voice:** a `transcribe` service behind the AI settings. Choose the provider, record the cost per minute in the PR, and fall back to asking for text.
-- [ ] **C-5 — Touch fan-out.** B's sweep also sends through linked channels, still counted as one touch.
-- [ ] **C-6 — Analytics:** `channel_reply`.
-- [ ] **C-7 — Tests:**
+- [x] **C-4 — Voice:** a `transcribe` service behind the AI settings. Choose the provider, record the cost per minute in the PR, and fall back to asking for text. _Done as the interface plus a fallback that asks for text; no provider is chosen until the owner approves one._
+- [ ] **C-5 — Touch fan-out.** B's sweep also sends through linked channels, still counted as one touch. _`sendChannelTouch(userId, message)` is exported; wired with B after rebase._
+- [x] **C-6 — Analytics:** `channel_reply`.
+- [x] **C-7 — Tests:**
   - `test_core_does_not_know_the_messenger` (D6)
   - `test_same_reply_gives_same_tasks_on_any_channel` (D6)
   - `test_unlinked_chat_creates_no_tasks`

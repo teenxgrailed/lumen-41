@@ -148,6 +148,8 @@ function buildPlan(userId, workspaceId) {
     ["DayPlan", "dayPlan", uid],
     ["PlanSettings", "planSettings", uid],
     ["SomedayMigrationMove", "somedayMigrationMove", uid],
+    ["ChannelLinkCode", "channelLinkCode", uid],
+    ["ChannelLink", "channelLink", uid],
     ["ClosedDay", "closedDay", uid],
     ["PersonalBlock", "personalBlock", uid],
     ["WeeklyFocusTarget", "weeklyFocusTarget", wsOnly],

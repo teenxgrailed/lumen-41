@@ -284,6 +284,8 @@ model User {
   dayPlans                     DayPlan[]
   planSettings                 PlanSettings?
   somedayMigrationMoves        SomedayMigrationMove[]
+  channelLinks                 ChannelLink[]
+  channelLinkCodes             ChannelLinkCode[]
 
   @@index([lastActiveAt])
 }
@@ -4722,4 +4724,48 @@ model SomedayMigrationMove {
 
   @@unique([taskId, batch])
   @@index([userId, batch])
+}
+
+/// A messenger chat linked to a Needt account (openspec finish-today-daily-planner,
+/// PR C). One chat links to at most one account; unlinking keeps the row with
+/// `unlinkedAt` set, so the chat can be linked again and old rows stay auditable.
+model ChannelLink {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel        String // telegram
+  externalChatId String
+  linkedAt       DateTime  @default(now())
+  unlinkedAt     DateTime?
+
+  @@unique([channel, externalChatId])
+  @@index([userId, channel])
+}
+
+/// A single-use code that links a messenger chat to an account. Only the hash
+/// is stored; it expires 10 minutes after creation.
+model ChannelLinkCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   String
+  codeHash  String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, channel])
+  @@index([expiresAt])
+}
+
+/// Messenger update ids already handled, so a redelivered update does nothing
+/// twice. Rows older than a few days are removed by a cleanup.
+model ChannelUpdate {
+  id               String   @id @default(cuid())
+  channel          String
+  externalUpdateId String
+  createdAt        DateTime @default(now())
+
+  @@unique([channel, externalUpdateId])
+  @@index([createdAt])
 }

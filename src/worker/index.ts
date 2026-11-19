@@ -57,6 +57,7 @@ import {
   CALDAV_SYNC_INTERVAL_MS,
   sweepCalDavFeeds,
 } from "@/worker/caldav-sweep";
+import { sweepChannelRows } from "@/worker/channel-update-cleanup";
 import { startExternalHeartbeat } from "@/worker/external-heartbeat";
 import {
   STALE_FEED_SWEEP_INTERVAL_MS,
@@ -292,6 +293,10 @@ async function processReminder(job: Job<ReminderJobData>) {
     // A no-op while `someday_sweep` is off (it ships off until the launch
     // migration); `day_plan` is the kill switch on top.
     await sweepSomeday();
+    return;
+  }
+  if (job.data.kind === "channel-update-cleanup") {
+    await sweepChannelRows();
     return;
   }
   const reminderIds = await findDueReminderIds();
@@ -625,6 +630,15 @@ export async function start(): Promise<void> {
     "someday-sweep",
     { pattern: "0 3 * * *", tz: "UTC" },
     { name: "sweep-someday", data: { kind: "someday-sweep" } }
+  );
+  // Daily at 03:30 UTC: old messenger update ids and expired link codes.
+  await getReminderQueue().upsertJobScheduler(
+    "channel-update-cleanup",
+    { pattern: "30 3 * * *", tz: "UTC" },
+    {
+      name: "cleanup-channel-updates",
+      data: { kind: "channel-update-cleanup" },
+    }
   );
   await getNudgeQueue().upsertJobScheduler(
     "proactive-nudge-sweep",

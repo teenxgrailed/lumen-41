@@ -38,6 +38,9 @@ export const ACTIVATION_EVENTS = [
   "plan_built",
   "day_closed",
   "task_to_someday",
+  /* A handled message in a linked messenger chat. Props: channel, kind
+     (text | voice | button) and tasksCreated; never the message text. */
+  "channel_reply",
 ] as const;
 
 /** Events that count once per account; a unique index enforces it. */
