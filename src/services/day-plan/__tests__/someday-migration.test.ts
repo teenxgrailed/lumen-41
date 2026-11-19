@@ -62,6 +62,8 @@ type Fn = (...args: unknown[]) => unknown;
  * The fake client wrapped so every call is logged in order, with the raw SET
  * statement a real Postgres connection would receive.
  */
+const readOnly = { value: "on" };
+
 function loggedClient() {
   const order: string[] = [];
   const base = db().client as Record<string, unknown>;
@@ -74,6 +76,12 @@ function loggedClient() {
         return async (sql: string) => {
           order.push(sql);
           return 0;
+        };
+      }
+      if (prop === "$queryRawUnsafe") {
+        return async (sql: string) => {
+          order.push(sql);
+          return [{ ro: readOnly.value }];
         };
       }
       if (prop === "$disconnect") return async () => undefined;
@@ -164,6 +172,24 @@ describe("Someday launch migration", () => {
     expect(printed).not.toContain("@");
   });
 
+  it("test_dry_run_stops_when_transaction_is_not_read_only", async () => {
+    seedMix();
+    const { client, order } = loggedClient();
+    readOnly.value = "off";
+    try {
+      await expect(runDryRun(client, NOW)).rejects.toThrow(
+        "transaction is not read-only"
+      );
+      expect(
+        order.some((call) =>
+          /\.(findMany|findUnique|findFirst|count)$/.test(call)
+        )
+      ).toBe(false);
+    } finally {
+      readOnly.value = "on";
+    }
+  });
+
   it("test_dry_run_runs_in_read_only_transaction", async () => {
     seedMix();
     const { client, order } = loggedClient();
@@ -179,7 +205,10 @@ describe("Someday launch migration", () => {
     // And nothing but reads follows it.
     expect(order[1]).toBe("SET LOCAL lock_timeout = '5s'");
     expect(order[2]).toBe("SET LOCAL statement_timeout = '120s'");
-    for (const call of order.slice(3)) {
+    expect(order[3]).toBe(
+      "SELECT current_setting('transaction_read_only') AS ro"
+    );
+    for (const call of order.slice(4)) {
       expect(call).toMatch(/\.(findMany|findUnique|findFirst|count)$/);
     }
   });

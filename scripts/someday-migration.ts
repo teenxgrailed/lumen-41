@@ -232,6 +232,18 @@ export async function runDryRun(
       await tx.$executeRawUnsafe("SET TRANSACTION READ ONLY");
       await tx.$executeRawUnsafe("SET LOCAL lock_timeout = '5s'");
       await tx.$executeRawUnsafe("SET LOCAL statement_timeout = '120s'");
+      // Proof, printed first: the database itself says this transaction
+      // cannot write. Anything but "on" stops the run before any scan.
+      const rows = (await tx.$queryRawUnsafe(
+        "SELECT current_setting('transaction_read_only') AS ro"
+      )) as Array<{ ro?: unknown }>;
+      const readOnly = String(rows?.[0]?.ro ?? "");
+      console.log(`transaction_read_only: ${readOnly}`);
+      if (readOnly !== "on") {
+        const error = new Error("transaction is not read-only");
+        error.name = "NotReadOnly";
+        throw error;
+      }
       const result = await scanSomedayCandidates(
         tx as unknown as SomedayReader,
         now,
