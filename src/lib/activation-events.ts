@@ -33,6 +33,11 @@ export const ACTIVATION_EVENTS = [
      preview and no Keep. Counted apart so it never inflates replan_shown or
      keep_applied. */
   "plan_applied",
+  /* The day plan (openspec finish-today-daily-planner). Props are counts, dates
+     and short kinds only: never a task title, note text or message text. */
+  "plan_built",
+  "day_closed",
+  "task_to_someday",
 ] as const;
 
 /** Events that count once per account; a unique index enforces it. */

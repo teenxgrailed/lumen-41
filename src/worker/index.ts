@@ -14,6 +14,7 @@ import {
   sweepPendingDeliveries,
 } from "@/services/agent-hub/webhooks";
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
+import { sweepSomeday } from "@/services/day-plan/someday";
 import { sendDueBroadcasts } from "@/services/email-broadcasts/send";
 import {
   applySunset,
@@ -285,6 +286,12 @@ async function processReminder(job: Job<ReminderJobData>) {
   }
   if (job.data.kind === "habit-evening") {
     await runHabitEveningPush();
+    return;
+  }
+  if (job.data.kind === "someday-sweep") {
+    // A no-op while `someday_sweep` is off (it ships off until the launch
+    // migration); `day_plan` is the kill switch on top.
+    await sweepSomeday();
     return;
   }
   const reminderIds = await findDueReminderIds();
@@ -611,6 +618,13 @@ export async function start(): Promise<void> {
     "habit-evening-push-sweep",
     { every: 5 * 60_000 },
     { name: "sweep-habit-evening", data: { kind: "habit-evening" } }
+  );
+  // Daily at 03:00 UTC. Registered always; the sweep itself checks both flags,
+  // so with `someday_sweep` off it reads two flag rows and returns.
+  await getReminderQueue().upsertJobScheduler(
+    "someday-sweep",
+    { pattern: "0 3 * * *", tz: "UTC" },
+    { name: "sweep-someday", data: { kind: "someday-sweep" } }
   );
   await getNudgeQueue().upsertJobScheduler(
     "proactive-nudge-sweep",

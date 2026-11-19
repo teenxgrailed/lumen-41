@@ -1,4 +1,8 @@
-import { agentHubEnabled, isFeatureEnabled } from "@/lib/feature-flags";
+import {
+  agentHubEnabled,
+  dayPlanEnabled,
+  isFeatureEnabled,
+} from "@/lib/feature-flags";
 import { HABITS_QUIT } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 
@@ -7,6 +11,7 @@ import {
   type McpTool,
   type McpToolContext,
   findMcpTool,
+  isDayPlanTool,
   isQuitTool,
   listMcpTools,
   toolError,
@@ -120,6 +125,17 @@ export async function quitToolHidden(
   return isQuitTool(tool) && !(await isFeatureEnabled(HABITS_QUIT, userId));
 }
 
+/**
+ * The day plan kill switch: with `day_plan` off the eight day plan and Someday
+ * tools do not exist for the account (method-not-found, nothing written).
+ */
+export async function dayPlanToolHidden(
+  tool: { name: string },
+  userId: string
+): Promise<boolean> {
+  return isDayPlanTool(tool) && !(await dayPlanEnabled(userId));
+}
+
 async function callTool(ctx: McpToolContext, id: JsonRpcId, params: unknown) {
   const { name, arguments: rawArgs } = (params ?? {}) as {
     name?: unknown;
@@ -132,6 +148,9 @@ async function callTool(ctx: McpToolContext, id: JsonRpcId, params: unknown) {
     return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
   }
   if (await quitToolHidden(tool, ctx.userId)) {
+    return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
+  }
+  if (await dayPlanToolHidden(tool, ctx.userId)) {
     return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
   }
 
@@ -201,6 +220,7 @@ export async function handleMcpMessage(
         tools: listMcpTools(ctx.auth.scopes, {
           hub: await agentHubEnabled(ctx.userId),
           quit: await isFeatureEnabled(HABITS_QUIT, ctx.userId),
+          dayPlan: await dayPlanEnabled(ctx.userId),
         }),
       });
     case "tools/call":
