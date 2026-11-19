@@ -902,8 +902,13 @@ export async function closeDay(
     };
   }
 
+  // An item already marked done counts as done even while its task row is
+  // still open: a repeating task completes one occurrence, not the master.
   const done = plan.items.filter(
-    (item) => item.task.status === "completed" || item.task.trashedAt
+    (item) =>
+      item.resolution === "done" ||
+      item.task.status === "completed" ||
+      item.task.trashedAt
   );
   const unfinished = plan.items.filter((item) => !done.includes(item));
   const unfinishedIds = unfinished.map((item) => item.taskId);

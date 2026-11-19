@@ -652,6 +652,39 @@ describe("review fixes", () => {
     ).toBe("channel");
   });
 
+  it("test_repeating_task_marked_done_needs_no_decision_at_close", async () => {
+    // Only today's occurrence was completed: the task row itself stays open.
+    const repeating = seedTask(db(), { title: "Repeating", status: "todo" });
+    const open = seedTask(db(), { title: "Still open" });
+    const plan = seedPlan(
+      db(),
+      TODAY,
+      [String(repeating.id), String(open.id)],
+      { status: "active" }
+    );
+    const item = db().tables.dayPlanItem.find(
+      (row) => row.planId === plan.id && row.taskId === repeating.id
+    );
+    if (item) item.resolution = "done";
+
+    await closeDay(
+      USER,
+      {
+        date: TODAY,
+        resolutions: [{ taskId: String(open.id), resolution: "tomorrow" }],
+      },
+      { now: NOW }
+    );
+
+    const after = db().tables.dayPlanItem.find(
+      (row) => row.planId === plan.id && row.taskId === repeating.id
+    );
+    expect(after?.resolution).toBe("done");
+    expect(db().tables.dayPlan.find((row) => row.id === plan.id)?.status).toBe(
+      "closed"
+    );
+  });
+
   it("test_tasks_sent_to_tomorrow_survive_draft_rebuild", async () => {
     const drafts = [0, 1, 2, 3, 4].map((i) =>
       seedTask(db(), { title: `Draft ${i}` })
