@@ -93,7 +93,7 @@ const buildMessage = jest.fn();
 jest.mock("@/services/channels/touch", () => ({
   sendChannelTouch: (...args: unknown[]) => telegram(...args),
 }));
-jest.mock("@/services/channels/core", () => ({
+jest.mock("@/services/channels/render", () => ({
   buildTouchMessage: (...args: unknown[]) => buildMessage(...args),
 }));
 jest.mock("@/services/reminders/reminder-delivery", () => ({

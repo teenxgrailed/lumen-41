@@ -24,7 +24,7 @@ import { DAY_PLAN, DAY_PLAN_TOUCHES } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
-import { buildTouchMessage } from "../channels/core";
+import { buildTouchMessage } from "../channels/render";
 import { sendChannelTouch } from "../channels/touch";
 import { inQuietHours, prefsFrom } from "../notifications/preferences";
 import { activateDayPlan, buildDraft, getDayPlan } from "./plan";
