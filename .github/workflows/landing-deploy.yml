@@ -43,6 +43,7 @@ jobs:
           : "${COOLIFY_TOKEN:?COOLIFY_API_TOKEN is required}"
           api="${COOLIFY_API_URL%/}/api/v1"
           code=$(curl --silent --show-error --max-time 60 --output /tmp/deploy.json --write-out '%{http_code}' \
+            --request POST \
             --header "Authorization: Bearer $COOLIFY_TOKEN" \
             "$api/deploy?uuid=$LANDING_UUID&force=false")
           echo "Coolify answered HTTP $code"
