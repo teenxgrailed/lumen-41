@@ -539,14 +539,117 @@ describe("review fixes", () => {
       { now: NOW }
     );
 
-    const tomorrow = await getDayPlan(USER, TOMORROW, NOW);
-    expect(titles(tomorrow.plan?.items ?? [])).toEqual(["Old leftover"]);
-    // Not the day after the closed one, which has long passed.
+    // NOW is the evening of 19 Nov: the day after the closed one has long
+    // passed, so the leftover lands on today and never on a past date.
+    const landed = await getDayPlan(USER, TODAY, NOW);
+    expect(titles(landed.plan?.items ?? [])).toEqual(["Old leftover"]);
     expect(
       db().tables.dayPlan.some((plan) =>
         (plan.date as Date).toISOString().startsWith("2026-11-11")
       )
     ).toBe(false);
+  });
+
+  it("test_closing_day_after_midnight_sends_to_the_new_day", async () => {
+    const a = seedTask(db(), { title: "Late leftover" });
+    seedPlan(db(), TODAY, [String(a.id)], { status: "active" });
+    // 00:30 on 20 Nov in Zurich: the day being closed is 19 Nov, and 20 Nov
+    // (the day that just started) is where its leftovers go, not 21 Nov.
+    const afterMidnight = new Date("2026-11-19T23:30:00Z");
+
+    await closeDay(
+      USER,
+      {
+        date: TODAY,
+        resolutions: [{ taskId: String(a.id), resolution: "tomorrow" }],
+      },
+      { now: afterMidnight }
+    );
+
+    const landed = await getDayPlan(USER, TOMORROW, afterMidnight);
+    expect(titles(landed.plan?.items ?? [])).toEqual(["Late leftover"]);
+    expect(
+      db().tables.dayPlan.some((plan) =>
+        (plan.date as Date).toISOString().startsWith("2026-11-21")
+      )
+    ).toBe(false);
+  });
+
+  it("test_concurrent_build_create_race_is_skipped_not_a_500", async () => {
+    const a = seedTask(db(), { title: "Candidate" });
+    expect(a.id).toBeTruthy();
+    const client = db().client as {
+      dayPlan: { create: (args: unknown) => Promise<unknown> };
+    };
+    jest.spyOn(client.dayPlan, "create").mockImplementationOnce(async () => {
+      // The rival build wins the race: its plan exists when ours fails.
+      db().insert("dayPlan", { userId: USER, date: dayDate(TOMORROW) });
+      throw Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+      });
+    });
+
+    const result = await buildDraft(USER, TOMORROW, { now: NOW });
+
+    expect(result.built).toBe(false);
+    expect(result.skipped).not.toBeNull();
+  });
+
+  it("test_update_claims_the_plan_before_writing_items", async () => {
+    const a = seedTask(db(), { title: "Draft one" });
+    const mine = seedTask(db(), { title: "Mine" });
+    const plan = seedPlan(db(), TOMORROW, [String(a.id)]);
+    const client = db().client as {
+      dayPlanItem: { deleteMany: (args: unknown) => Promise<unknown> };
+    };
+    const original = client.dayPlanItem.deleteMany.bind(client.dayPlanItem);
+    const claimedAtFirstItemWrite: unknown[] = [];
+    jest
+      .spyOn(client.dayPlanItem, "deleteMany")
+      .mockImplementation(async (args: unknown) => {
+        const row = db().tables.dayPlan.find((p) => p.id === plan.id);
+        claimedAtFirstItemWrite.push(row?.editedByUserAt ?? null);
+        return original(args);
+      });
+
+    await updateDayPlan(
+      USER,
+      { date: TOMORROW, items: [{ taskId: String(mine.id) }] },
+      NOW
+    );
+
+    // The claim already stood when the first item row was touched, so a
+    // concurrent draft build (which needs editedByUserAt null) loses.
+    expect(claimedAtFirstItemWrite[0]).not.toBeNull();
+  });
+
+  it("test_channel_items_survive_draft_rebuild_like_user_items", async () => {
+    const drafts = [0, 1, 2, 3, 4].map((i) =>
+      seedTask(db(), { title: `Draft ${i}` })
+    );
+    const plan = seedPlan(
+      db(),
+      TOMORROW,
+      drafts.map((task) => String(task.id))
+    );
+    const fromChannel = seedTask(db(), { title: "From a channel" });
+    db().insert("dayPlanItem", {
+      planId: plan.id,
+      taskId: fromChannel.id,
+      position: 5,
+      addedBy: "channel",
+    });
+
+    const result = await buildDraft(USER, TOMORROW, { now: NOW });
+
+    const names = titles(result.plan.items);
+    expect(names).toContain("From a channel");
+    // It counts against the limit of 5 like a chosen task: 4 drafts remain.
+    expect(names.filter((name) => name.startsWith("Draft "))).toHaveLength(4);
+    expect(
+      db().tables.dayPlanItem.find((item) => item.taskId === fromChannel.id)
+        ?.addedBy
+    ).toBe("channel");
   });
 
   it("test_tasks_sent_to_tomorrow_survive_draft_rebuild", async () => {

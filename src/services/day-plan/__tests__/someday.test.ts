@@ -120,6 +120,31 @@ describe("Someday leaves the calendar", () => {
     expect(taskOf(stays.id)?.scheduledStart).toEqual(start);
   });
 
+  it("test_restored_pinned_task_can_be_scheduled_again", async () => {
+    const pinned = scheduled("Pinned", {
+      scheduleLocked: true,
+      isFrozen: true,
+    });
+    seedPlan(db(), "2026-11-19", [String(pinned.id)], { status: "active" });
+
+    await closeDay(
+      USER,
+      {
+        date: "2026-11-19",
+        resolutions: [{ taskId: String(pinned.id), resolution: "someday" }],
+      },
+      { now: NOW }
+    );
+    expect(taskOf(pinned.id)?.somedayAt).toEqual(NOW);
+
+    await restoreSomeday(USER, [String(pinned.id)], NOW);
+
+    const row = taskOf(pinned.id);
+    expect(row?.somedayAt).toBeNull();
+    expect(row?.scheduleLocked).toBe(false);
+    expect(row?.isFrozen).toBe(false);
+  });
+
   it("clears the schedule when the nightly sweep parks a task too", async () => {
     const stale = scheduled("Stale", { createdAt: daysAgo(30) });
 

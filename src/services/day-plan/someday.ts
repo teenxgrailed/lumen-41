@@ -45,6 +45,10 @@ export async function moveTasksToSomeday(
         scheduledEnd: null,
         scheduleScore: null,
         scheduleAtRisk: false,
+        // A pinned or frozen task would stay out of auto-scheduling after a
+        // restore, so the pin goes with the move.
+        scheduleLocked: false,
+        isFrozen: false,
         ...(options.touch ? { lastTouchedAt: options.now } : {}),
       },
     });
