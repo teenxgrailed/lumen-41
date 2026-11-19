@@ -17,7 +17,7 @@
     "prebuild": "tsx scripts/whats-new.ts",
     "build": "next build",
     "postbuild": "node scripts/check-production-artifacts.mjs",
-    "build:scripts": "esbuild scripts/someday-migration.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/scripts/someday-migration.cjs --external:@prisma/client --external:.prisma --external:@block65/webcrypto-web-push",
+    "build:scripts": "esbuild scripts/someday-migration.ts --bundle --platform=node --target=node22 --format=cjs --alias:@/lib/prisma=./scripts/someday-migration-prisma.ts --outfile=dist/scripts/someday-migration.cjs --external:@prisma/client --external:.prisma --external:@block65/webcrypto-web-push",
     "build:worker": "esbuild src/worker/index.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/worker/index.js --external:@prisma/client --external:.prisma --external:@block65/webcrypto-web-push",
     "build:collaboration": "esbuild src/collaboration/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/collaboration/index.mjs --external:@prisma/client --external:.prisma --banner:js=\"import{createRequire as __createRequire}from'node:module';const require=__createRequire(import.meta.url);\"",
     "vercel-build": "prisma generate && prisma migrate deploy && npm run build",

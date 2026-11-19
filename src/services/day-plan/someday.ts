@@ -73,6 +73,9 @@ export interface SweepResult {
   users: number;
 }
 
+/** Why a task stays out of the launch migration beyond the shared rules. */
+export type MigrationExclusion = "pinned" | "future_scheduled";
+
 /** What the selection reads: the sweep passes the client, a dry run a read-only transaction. */
 export type SomedayReader = Pick<
   typeof prisma,
@@ -91,7 +94,25 @@ export interface ScanOptions {
    * Also reads the open tasks the protection rules keep out, and counts them
    * per rule here. Same rules, wider read: used by the migration dry run.
    */
-  excluded?: Partial<Record<SomedayExclusion, number>>;
+  excluded?: Partial<Record<SomedayExclusion | MigrationExclusion, number>>;
+  /** Rows per page (default 500). Smaller values exist for tests. */
+  pageSize?: number;
+  /**
+   * How many pages to read before stopping and reporting `truncated`. The
+   * sweep keeps its cap; the migration passes `Infinity` so it scans all rows.
+   */
+  maxPages?: number;
+  /**
+   * Launch migration only: also keeps out tasks the person pinned or froze, and
+   * tasks scheduled in the future, which the move would unschedule. The sweep
+   * does not pass it and is unchanged.
+   */
+  keepPinnedAndScheduled?: boolean;
+}
+
+export interface ScanResult {
+  /** True when the page cap stopped the scan before the last row. */
+  truncated: boolean;
 }
 
 /**
@@ -103,14 +124,17 @@ export async function scanSomedayCandidates(
   db: SomedayReader,
   now: Date,
   options: ScanOptions
-): Promise<void> {
+): Promise<ScanResult> {
+  const pageSize = options.pageSize ?? PAGE;
+  const maxPages = options.maxPages ?? MAX_PAGES;
   const cutoff = staleCutoff(now);
   const allowed = new Map<string, boolean>();
   const zones = new Map<string, string>();
   const wide = Boolean(options.excluded);
   let cursor: string | undefined;
 
-  for (let page = 0; page < MAX_PAGES; page += 1) {
+  let truncated = true;
+  for (let page = 0; page < maxPages; page += 1) {
     const rows = await db.task.findMany({
       where: {
         userId: { not: null },
@@ -141,6 +165,9 @@ export async function scanSomedayCandidates(
         recurrenceMasterId: true,
         habitId: true,
         isSample: true,
+        scheduleLocked: true,
+        isFrozen: true,
+        scheduledStart: true,
         dueDate: true,
         deadline: true,
         lastTouchedAt: true,
@@ -152,10 +179,13 @@ export async function scanSomedayCandidates(
         },
       },
       orderBy: { id: "asc" },
-      take: PAGE,
+      take: pageSize,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
-    if (rows.length === 0) break;
+    if (rows.length === 0) {
+      truncated = false;
+      break;
+    }
     cursor = rows[rows.length - 1].id;
 
     const inOpenPlan = new Set(
@@ -197,16 +227,27 @@ export async function scanSomedayCandidates(
         now,
         zones.get(userId) as string
       );
-      if (reason === null) {
+      let kept: SomedayExclusion | MigrationExclusion | null = reason;
+      if (kept === null && options.keepPinnedAndScheduled) {
+        if (row.scheduleLocked || row.isFrozen) kept = "pinned";
+        else if (row.scheduledStart && row.scheduledStart > now) {
+          kept = "future_scheduled";
+        }
+      }
+      if (kept === null) {
         byUser.set(userId, [...(byUser.get(userId) ?? []), row.id]);
-      } else if (options.excluded && reason !== "fresh") {
-        options.excluded[reason] = (options.excluded[reason] ?? 0) + 1;
+      } else if (options.excluded && kept !== "fresh") {
+        options.excluded[kept] = (options.excluded[kept] ?? 0) + 1;
       }
     }
 
     for (const [userId, ids] of byUser) await options.onUser(userId, ids);
-    if (rows.length < PAGE) break;
+    if (rows.length < pageSize) {
+      truncated = false;
+      break;
+    }
   }
+  return { truncated };
 }
 
 /**
@@ -404,10 +445,10 @@ export async function getSomedayMigration(
 
 /**
  * "Return all": restores exactly the tasks the launch migration moved for this
- * person and has not been restored yet. A task is only returned while it is
- * still in Someday for the migration reason, so one the person parked by hand
- * is never touched. Afterwards every move row counts as restored, so the
- * screen is not shown again.
+ * person and has not been restored yet, found by their move rows. A task still
+ * in Someday comes back whatever the reason it carries now, so one the weekly
+ * cleanup archived after the migration is unarchived too. Only the move rows
+ * read here are marked restored, so a row added meanwhile is left alone.
  */
 export async function restoreSomedayMigration(
   userId: string,
@@ -415,7 +456,7 @@ export async function restoreSomedayMigration(
 ): Promise<{ restored: number }> {
   const moves = await prisma.somedayMigrationMove.findMany({
     where: { userId, restoredAt: null },
-    select: { taskId: true },
+    select: { id: true, taskId: true },
   });
   const taskIds = moves.map((move) => move.taskId);
   let restored = 0;
@@ -425,7 +466,6 @@ export async function restoreSomedayMigration(
         id: { in: taskIds.slice(i, i + PAGE) },
         userId,
         somedayAt: { not: null },
-        somedayReason: "migration",
       },
       select: { id: true },
     });
@@ -437,9 +477,16 @@ export async function restoreSomedayMigration(
       )
     ).length;
   }
-  await prisma.somedayMigrationMove.updateMany({
-    where: { userId, restoredAt: null },
-    data: { restoredAt: now },
-  });
+  const moveIds = moves.map((move) => move.id);
+  for (let i = 0; i < moveIds.length; i += PAGE) {
+    await prisma.somedayMigrationMove.updateMany({
+      where: {
+        userId,
+        restoredAt: null,
+        id: { in: moveIds.slice(i, i + PAGE) },
+      },
+      data: { restoredAt: now },
+    });
+  }
   return { restored };
 }

@@ -35,7 +35,6 @@ RUN npm ci --include=dev --legacy-peer-deps --ignore-scripts
 COPY . .
 RUN npm run prisma:generate
 RUN npm run build:worker
-RUN npm run build:scripts
 RUN npm run build:collaboration
 
 # Web builder stage - adds the Next build on top of the shared runtime build.
@@ -65,6 +64,9 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
     NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
     NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
+# The Someday launch migration bundle, copied into the web image only (the
+# production stage below), so the worker and collaboration images skip it.
+RUN npm run build:scripts
 # Source maps upload only when CI mounts the Sentry secrets; Coolify's
 # fallback build has none and builds without uploading.
 RUN --mount=type=secret,id=sentry_auth_token,required=false \
