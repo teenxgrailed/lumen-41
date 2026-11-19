@@ -13,6 +13,7 @@ const state = {
   users: [] as Row[],
   flagOn: true,
   touchesOn: true,
+  devices: [{ id: "device-1", endpoint: "e" }] as Row[],
 };
 
 const same = (a: unknown, b: unknown) =>
@@ -87,14 +88,25 @@ jest.mock("@/lib/feature-flags", () => ({
 }));
 
 const deliver = jest.fn();
+const telegram = jest.fn();
+const buildMessage = jest.fn();
+jest.mock("@/services/channels/touch", () => ({
+  sendChannelTouch: (...args: unknown[]) => telegram(...args),
+}));
+jest.mock("@/services/channels/core", () => ({
+  buildTouchMessage: (...args: unknown[]) => buildMessage(...args),
+}));
 jest.mock("@/services/reminders/reminder-delivery", () => ({
   deliverPush: (...args: unknown[]) => deliver(...args),
 }));
 jest.mock("@/services/push/targets", () => ({
   PUSH_TARGET_SELECT: {},
   pushConfigured: () => true,
-  pushTargetsOf: () => [],
-  loadPushTargets: async () => [{ id: "device-1", endpoint: "e" }],
+  pushTargetsOf: (u: {
+    pushSubscriptions?: unknown[];
+    nativePushTokens?: unknown[];
+  }) => [...(u.pushSubscriptions ?? []), ...(u.nativePushTokens ?? [])],
+  loadPushTargets: async () => state.devices,
 }));
 
 const planMock = {
@@ -130,7 +142,16 @@ beforeEach(() => {
   state.planSettings = [];
   state.userSettings = [{ userId: "u1", timeZone: "Europe/Zurich" }];
   state.notificationSettings = [];
-  state.users = [{ id: "u1" }];
+  state.users = [
+    { id: "u1", pushSubscriptions: [{ id: "s1" }], nativePushTokens: [] },
+  ];
+  state.devices = [{ id: "device-1", endpoint: "e" }];
+  telegram.mockResolvedValue(0);
+  buildMessage.mockImplementation(async (_u: string, kind: string) => ({
+    kind,
+    text: `${kind} plan`,
+    actions: [{ taskId: "t1", title: "Invoice", action: "done" }],
+  }));
   state.flagOn = true;
   state.touchesOn = true;
   deliver.mockResolvedValue(true);
@@ -320,4 +341,69 @@ test("the digest is replaced only with the flag on, morningOn and not off", asyn
   expect(await morningTouchReplacesDigest("u1")).toBe(false);
   state.touchesOn = true;
   expect(await morningTouchReplacesDigest("u1")).toBe(true);
+});
+
+test("test_linked_telegram_gets_the_morning_touch", async () => {
+  telegram.mockResolvedValue(1);
+  state.users = [
+    {
+      id: "u1",
+      pushSubscriptions: [{ id: "s1" }],
+      nativePushTokens: [],
+      channelLinks: [{ id: "l1" }],
+    },
+  ];
+  await runDayPlanTouchSweep(MORNING);
+  expect(telegram).toHaveBeenCalledTimes(1);
+  expect(telegram.mock.calls[0][0]).toBe("u1");
+  expect(telegram.mock.calls[0][1]).toMatchObject({
+    kind: "morning",
+    text: "morning plan",
+    actions: [{ taskId: "t1", action: "done" }],
+  });
+});
+
+test("test_push_and_telegram_count_as_one_touch", async () => {
+  telegram.mockResolvedValue(1);
+  state.users = [
+    {
+      id: "u1",
+      pushSubscriptions: [{ id: "s1" }],
+      nativePushTokens: [],
+      channelLinks: [{ id: "l1" }],
+    },
+  ];
+  await runDayPlanTouchSweep(MORNING);
+  await runDayPlanTouchSweep(new Date(MORNING.getTime() + 60_000));
+  expect(deliver).toHaveBeenCalledTimes(1);
+  expect(telegram).toHaveBeenCalledTimes(1);
+
+  // Push fails but Telegram delivers: still sent, claim kept.
+  state.planSettings = [];
+  deliver.mockResolvedValue(false);
+  await runDayPlanTouchSweep(new Date("2026-11-20T07:00:30Z"));
+  await runDayPlanTouchSweep(new Date("2026-11-20T07:02:00Z"));
+  expect(telegram).toHaveBeenCalledTimes(2);
+
+  // Every channel fails: the claim is released and the next sweep retries.
+  telegram.mockResolvedValue(0);
+  await runDayPlanTouchSweep(new Date("2026-11-21T07:00:30Z"));
+  await runDayPlanTouchSweep(new Date("2026-11-21T07:02:00Z"));
+  expect(telegram).toHaveBeenCalledTimes(4);
+});
+
+test("test_touch_reaches_telegram_without_push_device", async () => {
+  telegram.mockResolvedValue(1);
+  state.users = [
+    {
+      id: "u1",
+      pushSubscriptions: [],
+      nativePushTokens: [],
+      channelLinks: [{ id: "l1" }],
+    },
+  ];
+  state.devices = [];
+  await runDayPlanTouchSweep(MORNING);
+  expect(deliver).not.toHaveBeenCalled();
+  expect(telegram).toHaveBeenCalledTimes(1);
 });

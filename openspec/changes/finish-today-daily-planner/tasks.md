@@ -107,7 +107,7 @@ Each PR ships on its own. Every owner decision has a test with a human name, wri
   - inline "done" and "later" buttons
   - link via deep link `?start=<code>`, plus unlink
 - [x] **C-4 — Voice:** a `transcribe` service behind the AI settings. Choose the provider, record the cost per minute in the PR, and fall back to asking for text. _Done as the interface plus a fallback that asks for text; no provider is chosen until the owner approves one._
-- [ ] **C-5 — Touch fan-out.** B's sweep also sends through linked channels, still counted as one touch. _`sendChannelTouch(userId, message)` is exported; wired with B after rebase._
+- [x] **C-5 — Touch fan-out.** B's sweep also sends through linked channels, still counted as one touch. _`sendChannelTouch(userId, message)` is exported; wired with B after rebase._
 - [x] **C-6 — Analytics:** `channel_reply`.
 - [x] **C-7 — Tests:**
   - `test_core_does_not_know_the_messenger` (D6)

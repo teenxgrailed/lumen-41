@@ -24,6 +24,8 @@ import { DAY_PLAN, DAY_PLAN_TOUCHES } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
+import { buildTouchMessage } from "../channels/core";
+import { sendChannelTouch } from "../channels/touch";
 import { inQuietHours, prefsFrom } from "../notifications/preferences";
 import { activateDayPlan, buildDraft, getDayPlan } from "./plan";
 import { addDaysToKey } from "./rules";
@@ -94,16 +96,12 @@ export function eveningText(unfinished: number): TouchPayload {
 
 /* ---------- the one fan-out ---------- */
 
-/**
- * Sends one logical touch to every channel the person has. Today that is web
- * and native push; a messenger joins here. True when at least one channel
- * delivered.
- */
-export async function sendDayPlanTouch(
+/** Web and native push to every device of the person. */
+async function sendPushChannels(
   userId: string,
   kind: TouchKind,
   payload: TouchPayload
-): Promise<boolean> {
+) {
   const targets = await loadPushTargets(userId);
   const results = await Promise.allSettled(
     targets.map((target) =>
@@ -116,6 +114,50 @@ export async function sendDayPlanTouch(
   return results.some(
     (result) => result.status === "fulfilled" && result.value
   );
+}
+
+/** Linked messenger chats, with the plan's text and done/later actions. */
+async function sendMessengerChannels(
+  userId: string,
+  kind: TouchKind,
+  now: Date | undefined
+) {
+  try {
+    const message = await buildTouchMessage(userId, kind, now);
+    return (await sendChannelTouch(userId, message)) > 0;
+  } catch (error) {
+    await logger.warn(
+      "Messenger touch failed",
+      {
+        userId,
+        kind,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
+    return false;
+  }
+}
+
+/**
+ * Sends one logical touch to every channel the person has: web and native
+ * push (unless `push` is false) and linked messenger chats. It is ONE touch:
+ * true when at least one channel delivered, so the caller keeps its claim, and
+ * false only when every channel failed or there was none.
+ */
+export async function sendDayPlanTouch(
+  userId: string,
+  kind: TouchKind,
+  payload: TouchPayload,
+  options: { push?: boolean; now?: Date } = {}
+): Promise<boolean> {
+  const [pushed, chatted] = await Promise.all([
+    options.push === false
+      ? false
+      : sendPushChannels(userId, kind, payload).catch(() => false),
+    sendMessengerChannels(userId, kind, options.now),
+  ]);
+  return pushed || chatted;
 }
 
 /**
@@ -238,14 +280,18 @@ async function composeEvening(
 
 /* ---------- the sweep ---------- */
 
-type Person = Parameters<typeof pushTargetsOf>[0] & { id: string };
+type Person = Parameters<typeof pushTargetsOf>[0] & {
+  id: string;
+  channelLinks?: { id: string }[];
+};
 
 async function touchPerson(
   person: Person,
   kind: TouchKind,
   clock: { dayKey: string; minutes: number },
   time: string,
-  now: Date
+  now: Date,
+  push: boolean
 ) {
   if (!(await dayPlanTouchesEnabled(person.id))) return false;
   const sinceWindow =
@@ -266,10 +312,12 @@ async function touchPerson(
         : await composeEvening(person.id, clock.dayKey, now);
     // Nothing to say today: the claim stays, so it is not retried all window.
     if (!payload) return false;
-    const delivered = await sendDayPlanTouch(person.id, kind, {
-      ...payload,
-      tag: `day-plan:${kind}:${clock.dayKey}`,
-    });
+    const delivered = await sendDayPlanTouch(
+      person.id,
+      kind,
+      { ...payload, tag: `day-plan:${kind}:${clock.dayKey}` },
+      { push, now }
+    );
     if (!delivered) await release(person.id, kind, now, taken.previous);
     return delivered;
   } catch (error) {
@@ -318,13 +366,16 @@ async function sweepPage(people: Person[], now: Date) {
     const settings = planOf.get(person.id);
     const clock = localMoment(now, zone);
     const prefs = prefsFrom(notifOf.get(person.id) ?? null, zone);
-    if (!prefs.channelPush || inQuietHours(prefs, now)) continue;
+    if (inQuietHours(prefs, now)) continue;
+    // Push needs the channel on and a device; a linked chat needs neither.
+    const canPush = prefs.channelPush && pushTargetsOf(person).length > 0;
+    if (!canPush && !(person.channelLinks?.length ?? 0)) continue;
     for (const kind of ["morning", "evening"] as const) {
       const on = settings ? settings[`${kind}On`] : true;
       if (!on) continue;
       const time = settings?.[`${kind}Time`] ?? DEFAULT_TIMES[kind];
       if (!inTouchWindow(clock.minutes, time)) continue;
-      if (await touchPerson(person, kind, clock, time, now)) sent += 1;
+      if (await touchPerson(person, kind, clock, time, now, canPush)) sent += 1;
     }
   }
   return sent;
@@ -366,12 +417,21 @@ export async function runDayPlanTouchSweep(now = newDate()) {
         OR: [
           { pushSubscriptions: { some: {} } },
           { nativePushTokens: { some: {} } },
+          { channelLinks: { some: { unlinkedAt: null } } },
         ],
       },
       orderBy: { id: "asc" },
       take: USERS_PER_PAGE,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-      select: { id: true, ...PUSH_TARGET_SELECT },
+      select: {
+        id: true,
+        ...PUSH_TARGET_SELECT,
+        channelLinks: {
+          where: { unlinkedAt: null },
+          select: { id: true },
+          take: 1,
+        },
+      },
     });
     if (rows.length === 0) break;
     cursor = rows[rows.length - 1].id;
