@@ -93,7 +93,7 @@
     <nav class="toc" aria-label="On this page"><span class="fh2">Start</span><a href="#quickstart">Quickstart</a><a href="#auth">Authentication</a><span class="fh2">Reference</span><a href="#reference">Endpoints</a><a href="#tasks">Tasks</a><a href="#schedule">Schedule</a><a href="#control">Control</a><a href="#errors">Errors</a><span class="fh2">Recipes</span><a href="#shortcuts">Apple Shortcuts</a><a href="#automations">n8n, Zapier, Make</a></nav>
     <article class="prose">
 <h2 id="quickstart"><i>Quickstart</i></h2>
-<p>The API is part of Pro and Lifetime (and the 14-day trial). Create a token in <span class="ui">Settings → Data → Personal API</span>, keep it in an environment variable, and add your first task. Needt schedules it into free time and returns it with its slot.</p>
+<p>The API is part of Pro and Lifetime (and the 14-day trial). Create a token in <span class="ui">Settings → Connections → Needt API</span>, keep it in an environment variable, and add your first task. Needt schedules it into free time and returns it with its slot.</p>
 <div class="code"><div class="code-h"><span>Terminal</span><button class="copy" data-copy="#code-13">Copy</button></div><pre><code id="code-13">export NEEDT_TOKEN=&quot;needt_…&quot;</code></pre></div>
 <div class="code"><div class="code-h"><span>Create a task</span><button class="copy" data-copy="#code-14">Copy</button></div><pre><code id="code-14">curl -X POST https://use.needt.app/api/connect/tasks \
   -H &quot;Authorization: Bearer $NEEDT_TOKEN&quot; \
@@ -218,7 +218,7 @@
           </div>
         </div>
         <div class="foot-cols">
-          <div><span class="fh">Product</span><a href="../../#tour">Tour</a><a href="../../pricing/">Pricing</a><a href="../../templates/">Templates</a><a href="../../integrations/">Integrations</a><a href="../../download/">Download</a><a href="../../plugin/">Needt Plugin</a><a href="../../budget/">Needt Budget</a><a href="../../agents/">Needt Agents</a><a href="../../students/">Student discount <i>Soon</i></a><a href="../../changelog/">Changelog</a></div>
+          <div><span class="fh">Product</span><a href="../../#tour">Tour</a><a href="../../pricing/">Pricing</a><a href="../../templates/">Templates</a><a href="../../integrations/">Integrations</a><a href="../../download/">Download</a><a href="../../plugin/">Needt Plugin</a><a href="../../budget/">Needt Budget</a><a href="../../agents/">Needt Agents</a><a href="../../students/">Student discount</a><a href="../../changelog/">Changelog</a></div>
           <div><span class="fh">Use cases</span><a href="../../for/freelancers/">Freelancers</a><a href="../../for/students/">Students</a><a href="../../for/founders/">Founders</a><a href="../../for/content-creators/">Creators</a><a href="../../for/adhd/">ADHD</a><a href="../../for/">All use cases</a></div>
           <div><span class="fh">Resources</span><a href="../../learn/">Learn</a><a href="../../blog/">Blog</a><a href="../../resources/mcp/">Connect AI (MCP)</a><a href="../../resources/api/">API</a><a href="../../compare/">Compare</a><a href="../../best/">Best apps</a><a href="../../glossary/">Glossary</a><a href="../../help/">Help</a><a href="https://use.needt.app/support">Support</a></div>
           <div><span class="fh">Company</span><a href="mailto:hello@needt.app">hello@needt.app</a><a href="https://x.com/needtapp" rel="noopener">@needtapp</a><a href="https://use.needt.app/auth/signin">Log in to the Needt app</a><a class="js-signup" href="https://use.needt.app/auth/signin">Try it free</a></div>
