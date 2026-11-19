@@ -1,3 +1,4 @@
+import { isQaTestEmail } from "@/services/admin/internal-accounts";
 import { createHmac } from "crypto";
 
 import { authSecret } from "@/lib/auth/auth-secret";
@@ -84,13 +85,14 @@ async function record(
   const once = ONCE_EVENTS.has(name);
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, sandboxKind: true },
+    select: { role: true, sandboxKind: true, email: true },
   });
   /* Reviewer and demo logins are not people trying the product. */
-  if (!user || user.sandboxKind) {
+  /* QA bot accounts (`qa+...`) are skipped for the same reason. */
+  if (!user || user.sandboxKind || isQaTestEmail(user.email)) {
     logger.debug(
       "Activation event skipped",
-      { name, reason: user ? "sandbox" : "no_user" },
+      { name, reason: !user ? "no_user" : user.sandboxKind ? "sandbox" : "qa" },
       LOG_SOURCE
     );
     return;

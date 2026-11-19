@@ -4,6 +4,7 @@ import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 import { GROWTH_GOAL, GROWTH_TREND_WEEKS, getAdminGrowth } from "../growth";
+import { NOT_QA_USER } from "../internal-accounts";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -97,7 +98,7 @@ describe("getAdminGrowth", () => {
     for (const [{ where }] of db.subscription.count.mock.calls) {
       const parts = where.AND ? where.AND[0].OR : [where];
       for (const part of parts) {
-        expect(part.user).toEqual({ sandboxKind: null });
+        expect(part.user).toEqual({ sandboxKind: null, ...NOT_QA_USER });
       }
     }
     expect(

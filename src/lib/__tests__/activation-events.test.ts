@@ -117,6 +117,20 @@ describe("recordActivation", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  it("test_qa_plus_account_sends_no_analytics_events", async () => {
+    db.user.findUnique.mockResolvedValue({
+      role: "user",
+      sandboxKind: null,
+      email: "QA+20261119@somedomain.com",
+    });
+    recordActivation("task_created", "qa_user");
+    recordActivation("account_created", "qa_user");
+    await flush();
+    expect(db.activationEvent.create).not.toHaveBeenCalled();
+    expect(db.activationEvent.createMany).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("once-events insert through the unique key and send only when they won", async () => {
     recordActivation("calendar_connected", "u", { provider: "google" });
     await flush();
