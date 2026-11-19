@@ -165,7 +165,7 @@ so the folder also opens from disk (`site.js` rewrites folder links to `index.ht
 - Cache-bust: styles/site/app `?v=44`, `sub.css`/`sub.js` `?v=2`.
 
 ## v31 (28.10.26)
-- Plugin file is now **v0.5.1** (52 KB, 7 skills incl. `/needt` and `critic`). Partner section rewritten to the new partner (loop, routes to other skills, reads connected tools, 2–4 ideas, money verdict, plans).
+- Plugin file was then an early version (7 skills incl. `/needt` and `critic`; the current release is v0.15.0, see the 19.11.26 entry). Partner section rewritten to the new partner (loop, routes to other skills, reads connected tools, 2–4 ideas, money verdict, plans).
 - Install section: real channels — GitHub `teenxgrailed/needt-plugin` (plugin in `plugins/needt`), `claude plugin marketplace add …` + `claude plugin install needt@needt`, `codex plugin marketplace add …`, `.plugin` upload in the Claude app, MCP server `https://mcp.needt.app/mcp` for Cursor and others. "Also in": MCP Registry, Glama, Smithery, mcp.so, MCP Market (in review), Claude Directory and ChatGPT/Codex (in review). When a review passes, change its chip from "in review" to a link.
 - Icons: `assets/budget/icon.svg` = Budget's own mark (copied from Needt-budget `static/favicon.svg`); `assets/plugin/icon.svg` = new Plugin icon (a slash command orbited by seven skills; the big amber one is /needt). Used in the sub-page heroes, lockups, favicons, the header deck, the Product menu and the home band. Budget page links to budget.needt.app (hero meta, a button, the clickable site preview).
 - Cache-bust: styles `?v=46`, sub `?v=5`.
@@ -284,7 +284,7 @@ so the folder also opens from disk (`site.js` rewrites folder links to `index.ht
   - Changelog entries for 25, 27 and 28 Oct. The plugin page does not claim Claude Directory or ChatGPT listings.
   - `/press/` (press-kit image files; there is no `/press/index.html`).
 - Home "Lately" band dropped: the owner's Updates list replaces it. Updates rows fixed: Free has no hosted AI; 28 Oct entry added.
-- `/students/` says "coming soon": the student price is not configured in Creem and `?plan=student` is not handled yet. CTAs go to students@needt.app until it is live.
+- `/students/` said the price was not live yet (not configured in Creem then). It has been live since 19.11.26 (owner) and the page says so.
 - Cache: `site.js?v=48` (Free-plan note on Pricing).
 
 ## v38–v40 (03.11.26) — owner's v40 export, ported onto the branch
@@ -325,3 +325,6 @@ so the folder also opens from disk (`site.js` rewrites folder links to `index.ht
 - **Build:** `NEEDT_SITE=<site> sh _landing-build/build_v42.sh` on a copy of `origin/landing:landing-site` runs merge_v41 → facts → updates → feat → sections → style (CSS/JS blocks between ⟦v42⟧ markers, brace + glued-selector check) → bust. `wire.py` and `build.py` are not safe to re-run on the branch base (they regenerate older copy); `/students/` is only regenerated with `NEEDT_STUDENTS_LIVE=1`.
 - **Checks (Chromium):** 0 console errors; no horizontal scroll at 320/375/390/1440 (the feature rail's own scroll and the plugin page's two wide blocks are as before); header taps on 5 pages; reduced motion hides nothing. perf.js: desktop frame p95 16.8 → 16.8 ms, mobile 16.8 → 16.7–16.8 ms, 0 long tasks before and after; mobile style recalc during the scroll 243 → 308–418 ms.
 - **Cache:** `styles.css?v=58`, `app.js?v=50` on every page.
+
+## Copy consistency (19.11.26)
+Text only, no layout. One truth across pages: hosted AI agent is Pro, Lifetime and trial only (04.10 changelog entry kept, with a note); Agents hub MCP address `https://use.needt.app/api/mcp` (guide: `/resources/mcp/#agents`) next to the planner address `https://mcp.needt.app/mcp`; token is made in Settings → Connections → Needt API; plugin v0.15.0 (8 free skills, `/needt` and `/needt:roadmap` on Pro); attachments and webhooks are live; booking pages: Free 1, Pro unlimited; Needt Docs have tables, not databases; student discount (40%) is live; home shows the date of the newest changelog entry.

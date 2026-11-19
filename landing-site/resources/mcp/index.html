@@ -100,8 +100,9 @@
 <p>There are two ways to prove it’s you. Use the first wherever the client offers it.</p>
 <ul>
   <li><strong>Sign in with Needt (OAuth).</strong> The client opens a Needt window, you approve, done. Nothing to copy, and you can revoke access at any time.</li>
-  <li><strong>Personal token.</strong> For clients that send a header instead. In Needt open <span class="ui">Settings → Data → Personal API</span>, create a token and copy it. Send it as <code>Authorization: Bearer &lt;your-token&gt;</code>. Treat it like a password: one token per client, revoke the ones you no longer use.</li>
+  <li><strong>Personal token.</strong> For clients that send a header instead. In Needt open <span class="ui">Settings → Connections → Needt API</span>, create a token and copy it. Send it as <code>Authorization: Bearer &lt;your-token&gt;</code>. Treat it like a password: one token per client, revoke the ones you no longer use.</li>
 </ul>
+<p id="agents"><strong>Agents hub.</strong> The <a href="../../agents/">Needt Agents</a> board has its own address, for agents that send a token in a header: <code>https://use.needt.app/api/mcp</code>. Make the token in Needt under <span class="ui">Settings › Connections</span>, one per agent. In Claude Code: <code>claude mcp add --scope user --transport http needt https://use.needt.app/api/mcp --header "Authorization: Bearer &lt;your-token&gt;"</code>. Your own planner, tasks and calendar stay at <code>https://mcp.needt.app/mcp</code> above.</p>
 <div class="callout note"><b>What the AI can reach</b>The connection uses your workspace and your plan. It sees what you can see in Needt, and nothing in your account that the tools below don’t touch.</div>
 <h2 id="clients">Pick your <i>client</i></h2>
 <p>Each guide shows the exact steps, with screenshots of where to click in Needt.</p>
@@ -145,7 +146,7 @@
 <ul>
   <li><strong>Deleting asks twice.</strong> A delete only goes through when the assistant sends an explicit confirmation, and deleted items land in Needt’s trash, where you can restore them.</li>
   <li><strong>Read freely, write deliberately.</strong> Most clients show each tool call before it runs. Keep confirmations on for anything that changes your plan.</li>
-  <li><strong>Revoke in one place.</strong> <span class="ui">Settings → Data → Personal API</span> lists every token and connected app. Removing one cuts it off immediately.</li>
+  <li><strong>Revoke in one place.</strong> <span class="ui">Settings → Connections → Needt API</span> lists every token and connected app. Removing one cuts it off immediately.</li>
   <li><strong>Watch what you paste.</strong> An assistant follows text it reads. Don’t let it act on instructions that came from an email or a web page you didn’t write.</li>
 </ul>
 
@@ -187,7 +188,7 @@
           </div>
         </div>
         <div class="foot-cols">
-          <div><span class="fh">Product</span><a href="../../#tour">Tour</a><a href="../../pricing/">Pricing</a><a href="../../templates/">Templates</a><a href="../../integrations/">Integrations</a><a href="../../download/">Download</a><a href="../../plugin/">Needt Plugin</a><a href="../../budget/">Needt Budget</a><a href="../../agents/">Needt Agents</a><a href="../../students/">Student discount <i>Soon</i></a><a href="../../changelog/">Changelog</a></div>
+          <div><span class="fh">Product</span><a href="../../#tour">Tour</a><a href="../../pricing/">Pricing</a><a href="../../templates/">Templates</a><a href="../../integrations/">Integrations</a><a href="../../download/">Download</a><a href="../../plugin/">Needt Plugin</a><a href="../../budget/">Needt Budget</a><a href="../../agents/">Needt Agents</a><a href="../../students/">Student discount</a><a href="../../changelog/">Changelog</a></div>
           <div><span class="fh">Use cases</span><a href="../../for/freelancers/">Freelancers</a><a href="../../for/students/">Students</a><a href="../../for/founders/">Founders</a><a href="../../for/content-creators/">Creators</a><a href="../../for/adhd/">ADHD</a><a href="../../for/">All use cases</a></div>
           <div><span class="fh">Resources</span><a href="../../learn/">Learn</a><a href="../../blog/">Blog</a><a href="../../resources/mcp/">Connect AI (MCP)</a><a href="../../resources/api/">API</a><a href="../../compare/">Compare</a><a href="../../best/">Best apps</a><a href="../../glossary/">Glossary</a><a href="../../help/">Help</a><a href="https://use.needt.app/support">Support</a></div>
           <div><span class="fh">Company</span><a href="mailto:hello@needt.app">hello@needt.app</a><a href="https://x.com/needtapp" rel="noopener">@needtapp</a><a href="https://use.needt.app/auth/signin">Log in to the Needt app</a><a class="js-signup" href="https://use.needt.app/auth/signin">Try it free</a></div>
