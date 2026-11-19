@@ -6,12 +6,18 @@ import { useRouter } from "next/navigation";
 
 import { readPref } from "@/components/needt3/settings/derive";
 
+import { planIsShown } from "@/lib/needt3/day-plan";
 import { addDays } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
 import { highEnergyHours } from "@/lib/needt3/energy";
 import { useSchedule } from "@/lib/needt3/hooks/account";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
+import {
+  useDayPlanToday,
+  useRestoreSomeday,
+  useSomeday,
+} from "@/lib/needt3/hooks/day-plan";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import {
   useAdvanceReview,
@@ -121,9 +127,13 @@ import { PersonalBandSheet } from "../overlays/PersonalBandSheet";
 import { useTaskActions } from "../overlays/schedule";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
+import { PlanCloseSheet } from "./PlanCloseSheet";
+import { PlanToday } from "./PlanToday";
+import { SomedaySheet } from "./SomedaySheet";
 import { usePhoneClock } from "./clock";
 import { homeView, moveLate, nextUpWhy } from "./model";
 import { CappedRows, PhoneState, hasContent } from "./parts";
+import { useCloseFlow } from "./useCloseFlow";
 import type { HomeController } from "./useHomeController";
 
 const copy = strings["mobile-v2-plates.jsx"];
@@ -235,6 +245,25 @@ export function PhoneHome({
   const prefs = useSettings().data?.prefs;
   const events = useEvents({ from: today, to: addDays(today, 1) });
   const finish = useFinishDay({ late: v.sec.late, day: v.sec.day, today });
+  // The day plan (flag day_plan): with a plan for today, Today is drawn from
+  // it and the evening End day closes it. Off or none: the old Today.
+  const dayPlan = useDayPlanToday(today);
+  const planOn = planIsShown(dayPlan.snapshot);
+  const planOpen = planOn && dayPlan.snapshot?.plan?.status !== "closed";
+  const planIds = useMemo(
+    () => new Set(dayPlan.snapshot?.plan?.items.map((i) => i.taskId) ?? []),
+    [dayPlan.snapshot]
+  );
+  const [fullList, setFullList] = useState(false);
+  const [somedayOpen, setSomedayOpen] = useState(false);
+  const someday = useSomeday(somedayOpen);
+  const returning = useRestoreSomeday();
+  const closeFlow = useCloseFlow({
+    today,
+    snapshot: dayPlan.snapshot,
+    fallback: finish.show,
+  });
+  const endDay = planOpen ? closeFlow.show : finish.show;
   const openRest = {
     late: v.lateN,
     inbox: v.open(v.sec.inbox).length,
@@ -287,7 +316,7 @@ export function PhoneHome({
   const nudge = useEndDayNudge({
     today,
     nowHour,
-    hidden: v.dayClosed || finish.open,
+    hidden: v.dayClosed || finish.open || closeFlow.open,
   });
   const plan = usePlan();
   const pro = proFromPlan(plan.data?.kind);
@@ -438,7 +467,7 @@ export function PhoneHome({
         <ReviewCard phone onStart={review.start} onLater={review.later} />
       ) : null}
       {nudge.show && !firstReplanHold ? (
-        <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
+        <EndDayNudge phone onEndDay={endDay} onDismiss={nudge.dismiss} />
       ) : null}
     </>
   );
@@ -482,13 +511,22 @@ export function PhoneHome({
       : null;
   const hide = (l: readonly V3Task[]) =>
     shownNow ? l.filter((t) => t.id !== shownNow.id) : l;
+  // With the plan drawn, its tasks are not repeated in the day's lists and the
+  // overdue and Inbox lists wait behind "All tasks".
+  const hidePlan = (l: readonly V3Task[]) =>
+    planOn ? l.filter((t) => !planIds.has(t.id)) : l;
+  const folded = planOn && !fullList;
   const lateRows = v2 ? hide(v.lateRows) : v.lateRows;
   const inboxRows = v2 ? hide(v.inboxRows) : v.inboxRows;
-  const dayParts = v2
-    ? v.parts
-        .map(([p, l]) => [p, hide(l)] as [string, V3Task[]])
-        .filter(([, l]) => l.length)
-    : v.parts;
+  const dayParts =
+    v2 || planOn
+      ? v.parts
+          .map(
+            ([p, l]) => [p, hidePlan(v2 ? hide(l) : l)] as [string, V3Task[]]
+          )
+          .filter(([, l]) => l.length)
+      : v.parts;
+  const taskById = new Map(all.map((t) => [t.id, t] as const));
   const chrono = chronological(dayParts);
   const nowNode = !nowPick ? null : nowPick.event ? (
     <HaHighlight
@@ -649,7 +687,7 @@ export function PhoneHome({
                   calendarItems
                 ),
               })}
-              onEndDay={finish.show}
+              onEndDay={endDay}
               onSeeTomorrow={
                 v.open(v.sec.next).length ? seeTomorrow : undefined
               }
@@ -751,9 +789,20 @@ export function PhoneHome({
         <PkEmpty line={copy.V2pHome.a_clear_day_nothing_is_due_and_nothing_i} />
       ) : null}
 
+      {ready && planOn && dayPlan.snapshot ? (
+        <PlanToday
+          snapshot={dayPlan.snapshot}
+          byId={taskById}
+          row={(t) => row(t)}
+          allCount={lateRows.length + inboxRows.length}
+          allOpen={fullList}
+          onAll={() => setFullList((o) => !o)}
+          onSomeday={() => setSomedayOpen(true)}
+        />
+      ) : null}
       {ready ? (
         <div className="v2p-day">
-          {!v2 && v.lateRows.length ? (
+          {!v2 && !folded && v.lateRows.length ? (
             <PkSection
               title={copy.V2pHome.overdue}
               tone="late"
@@ -791,7 +840,7 @@ export function PhoneHome({
               </PkSection>
             ))
           )}
-          {v2 && lateRows.length ? (
+          {v2 && !folded && lateRows.length ? (
             <OverdueRow count={lateRows.length} actions={lateActs}>
               <CappedRows
                 list={lateRows}
@@ -799,7 +848,7 @@ export function PhoneHome({
               />
             </OverdueRow>
           ) : null}
-          {inboxRows.length ? (
+          {!folded && inboxRows.length ? (
             <PkSection
               title={copy.V2pHome.inbox}
               glyph="tasks"
@@ -856,6 +905,15 @@ export function PhoneHome({
         </div>
       ) : null}
       <HaEndDaySheet phone open={finish.open} {...finish.sheet} />
+      <PlanCloseSheet {...closeFlow.sheet} />
+      <SomedaySheet
+        open={somedayOpen}
+        items={someday.data?.items ?? []}
+        loading={someday.isLoading}
+        busy={returning.busy}
+        onReturn={(id) => void returning.restore([id])}
+        onClose={() => setSomedayOpen(false)}
+      />
       <HaReviewSheet phone open={review.open} {...review.sheet} />
       <StatsSheet
         phone

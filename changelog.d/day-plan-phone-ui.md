@@ -1,0 +1,2 @@
+- Today on the phone shows your plan: up to three main tasks, the rest of the plan, and the older leftovers folded under "Needs a decision" instead of a long overdue count. The full list is one tap away, and so is Someday, where each task has Return.
+- End day closes the plan: each open task goes to Tomorrow, Later or Delete, a note says what is on tomorrow, and tomorrow's plan is ready the next morning.
