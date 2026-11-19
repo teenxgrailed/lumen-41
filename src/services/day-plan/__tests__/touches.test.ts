@@ -1,5 +1,6 @@
 import {
-  morningTouchReplacesDigest,
+  morningTouchCoversDigest,
+  resetTouchZoneCache,
   runDayPlanTouchSweep,
   sendDayPlanTouch,
 } from "../touches";
@@ -13,6 +14,9 @@ const state = {
   users: [] as Row[],
   flagOn: true,
   touchesOn: true,
+  flagRow: true,
+  adapters: 0,
+  writes: 0,
   devices: [{ id: "device-1", endpoint: "e" }] as Row[],
 };
 
@@ -43,20 +47,32 @@ function matchWhere(row: Row, where: Row): boolean {
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     featureFlag: {
-      findUnique: async ({ where }: { where: { key: string } }) => ({
-        enabled:
-          where.key === "day_plan_touches" ? state.touchesOn : state.flagOn,
-        overrides: [],
-      }),
+      findUnique: async ({ where }: { where: { key: string } }) =>
+        state.flagRow
+          ? {
+              enabled:
+                where.key === "day_plan_touches"
+                  ? state.touchesOn
+                  : state.flagOn,
+              overrides: [],
+            }
+          : null,
     },
     user: { findMany: async () => state.users },
-    userSettings: { findMany: async () => state.userSettings },
+    userSettings: {
+      findMany: async () => state.userSettings,
+      groupBy: async () =>
+        [...new Set(state.userSettings.map((r) => r.timeZone))].map(
+          (timeZone) => ({ timeZone })
+        ),
+    },
     notificationSettings: { findMany: async () => state.notificationSettings },
     planSettings: {
       findMany: async () => state.planSettings,
       findUnique: async ({ where }: { where: Row }) =>
         state.planSettings.find((r) => r.userId === where.userId) ?? null,
       createMany: async ({ data }: { data: Row[] }) => {
+        state.writes += 1;
         for (const d of data) {
           if (!state.planSettings.some((r) => r.userId === d.userId)) {
             state.planSettings.push({
@@ -73,6 +89,7 @@ jest.mock("@/lib/prisma", () => ({
         return { count: 1 };
       },
       updateMany: async ({ where, data }: { where: Row; data: Row }) => {
+        state.writes += 1;
         const rows = state.planSettings.filter((r) => matchWhere(r, where));
         rows.forEach((r) => Object.assign(r, data));
         return { count: rows.length };
@@ -98,6 +115,9 @@ jest.mock("@/services/channels/render", () => ({
 }));
 jest.mock("@/services/reminders/reminder-delivery", () => ({
   deliverPush: (...args: unknown[]) => deliver(...args),
+}));
+jest.mock("@/services/channels/registry", () => ({
+  configuredAdapters: () => new Array(state.adapters).fill({}),
 }));
 jest.mock("@/services/push/targets", () => ({
   PUSH_TARGET_SELECT: {},
@@ -154,6 +174,10 @@ beforeEach(() => {
   }));
   state.flagOn = true;
   state.touchesOn = true;
+  state.flagRow = true;
+  state.adapters = 0;
+  state.writes = 0;
+  resetTouchZoneCache();
   deliver.mockResolvedValue(true);
   planMock.getDayPlan.mockResolvedValue(
     activePlan([
@@ -168,9 +192,9 @@ beforeEach(() => {
 });
 
 test("test_touches_default_to_8_and_21_local", async () => {
-  // Not yet 08:00 and past the 5-minute window: nothing.
+  // Not yet 08:00 and past the 30-minute window: nothing.
   await runDayPlanTouchSweep(new Date("2026-11-19T06:59:00Z"));
-  await runDayPlanTouchSweep(new Date("2026-11-19T07:05:00Z"));
+  await runDayPlanTouchSweep(new Date("2026-11-19T07:31:00Z"));
   expect(deliver).not.toHaveBeenCalled();
 
   await runDayPlanTouchSweep(MORNING);
@@ -336,11 +360,36 @@ test("test_touches_off_until_ui_ships", async () => {
   expect(deliver).toHaveBeenCalledTimes(1);
 });
 
-test("the digest is replaced only with the flag on, morningOn and not off", async () => {
+test("morningTouchCoversDigest follows what was really sent", async () => {
+  const digest = { digestTime: "08:00", timeZone: "Europe/Zurich" };
+  const now = new Date("2026-11-19T07:30:00Z");
+  expect(await morningTouchCoversDigest("u1", digest, now)).toBe(false);
+  await runDayPlanTouchSweep(MORNING);
+  expect(await morningTouchCoversDigest("u1", digest, now)).toBe(true);
   state.touchesOn = false;
-  expect(await morningTouchReplacesDigest("u1")).toBe(false);
-  state.touchesOn = true;
-  expect(await morningTouchReplacesDigest("u1")).toBe(true);
+  expect(await morningTouchCoversDigest("u1", digest, now)).toBe(false);
+});
+
+test("a morning touch that is switched off never covers the digest", async () => {
+  state.planSettings = [
+    {
+      userId: "u1",
+      morningTime: "08:00",
+      eveningTime: "21:00",
+      morningOn: false,
+      eveningOn: true,
+      lastMorningAt: null,
+      lastEveningAt: null,
+    },
+  ];
+  await runDayPlanTouchSweep(MORNING);
+  expect(
+    await morningTouchCoversDigest(
+      "u1",
+      { digestTime: "08:00", timeZone: "Europe/Zurich" },
+      new Date("2026-11-19T07:30:00Z")
+    )
+  ).toBe(false);
 });
 
 test("test_linked_telegram_gets_the_morning_touch", async () => {
@@ -406,4 +455,104 @@ test("test_touch_reaches_telegram_without_push_device", async () => {
   await runDayPlanTouchSweep(MORNING);
   expect(deliver).not.toHaveBeenCalled();
   expect(telegram).toHaveBeenCalledTimes(1);
+});
+
+test("test_moving_touch_time_after_it_was_sent_sends_nothing_more", async () => {
+  await runDayPlanTouchSweep(MORNING);
+  expect(deliver).toHaveBeenCalledTimes(1);
+  state.planSettings[0].morningTime = "08:10";
+  await runDayPlanTouchSweep(new Date("2026-11-19T07:12:00Z"));
+  state.planSettings[0].morningTime = "07:50";
+  await runDayPlanTouchSweep(new Date("2026-11-19T06:55:00Z"));
+  expect(deliver).toHaveBeenCalledTimes(1);
+});
+
+test("test_changing_time_zone_after_touch_sends_nothing_more", async () => {
+  await runDayPlanTouchSweep(MORNING);
+  expect(deliver).toHaveBeenCalledTimes(1);
+  // Athens is two hours ahead: 07:10Z is 09:10 there, inside a 09:00 window.
+  state.userSettings = [{ userId: "u1", timeZone: "Europe/Athens" }];
+  state.planSettings[0].morningTime = "09:00";
+  await runDayPlanTouchSweep(new Date("2026-11-19T07:10:00Z"));
+  expect(deliver).toHaveBeenCalledTimes(1);
+});
+
+test("test_dst_repeated_hour_sends_once", async () => {
+  // 25 Oct 2026: Zurich clocks go 03:00 CEST back to 02:00 CET, so 02:30
+  // happens twice (00:30Z and 01:30Z).
+  state.planSettings = [
+    {
+      userId: "u1",
+      morningTime: "02:30",
+      eveningTime: "21:00",
+      morningOn: true,
+      eveningOn: true,
+      lastMorningAt: null,
+      lastEveningAt: null,
+    },
+  ];
+  await runDayPlanTouchSweep(new Date("2026-10-25T00:35:00Z"));
+  await runDayPlanTouchSweep(new Date("2026-10-25T01:35:00Z"));
+  await runDayPlanTouchSweep(new Date("2026-10-25T01:55:00Z"));
+  expect(deliver).toHaveBeenCalledTimes(1);
+});
+
+test("test_touch_catches_up_after_a_missed_sweep", async () => {
+  // No sweep ran at 08:00 to 08:20; the 08:25 one still sends it.
+  await runDayPlanTouchSweep(new Date("2026-11-19T07:25:00Z"));
+  expect(deliver).toHaveBeenCalledTimes(1);
+  // A failed delivery is retried by a later sweep inside the same window.
+  deliver.mockResolvedValue(false);
+  await runDayPlanTouchSweep(new Date("2026-11-20T07:00:30Z"));
+  deliver.mockResolvedValue(true);
+  await runDayPlanTouchSweep(new Date("2026-11-20T07:20:00Z"));
+  expect(deliver).toHaveBeenCalledTimes(3);
+});
+
+test("test_invalid_time_zone_does_not_stop_the_sweep", async () => {
+  state.users = [
+    { id: "bad", pushSubscriptions: [{ id: "s0" }], nativePushTokens: [] },
+    { id: "boom", pushSubscriptions: [{ id: "s2" }], nativePushTokens: [] },
+    { id: "u1", pushSubscriptions: [{ id: "s1" }], nativePushTokens: [] },
+  ];
+  state.userSettings = [
+    { userId: "bad", timeZone: "Mars/Olympus" },
+    { userId: "boom", timeZone: "Europe/Zurich" },
+    { userId: "u1", timeZone: "Europe/Zurich" },
+  ];
+  planMock.getDayPlan.mockImplementation(async (userId: string) => {
+    if (userId === "boom") throw new Error("db down");
+    return activePlan([item("Invoice", true)]);
+  });
+  await runDayPlanTouchSweep(MORNING);
+  const claimed = state.planSettings.map((r) => r.userId);
+  expect(claimed).not.toContain("bad");
+  // The failing person released their claim; the next person still got it.
+  expect(deliver).toHaveBeenCalledTimes(1);
+  expect(
+    state.planSettings.find((r) => r.userId === "boom")?.lastMorningAt
+  ).toBeNull();
+});
+
+test("with no flag row at all (the shipping state) nothing is read or written", async () => {
+  state.flagRow = false;
+  await runDayPlanTouchSweep(MORNING);
+  await runDayPlanTouchSweep(EVENING);
+  expect(state.writes).toBe(0);
+  expect(planMock.getDayPlan).not.toHaveBeenCalled();
+  expect(planMock.buildDraft).not.toHaveBeenCalled();
+  expect(deliver).not.toHaveBeenCalled();
+});
+
+test("the sweep stands down when neither push nor a messenger is configured", async () => {
+  const targets = jest.requireMock("@/services/push/targets");
+  const original = targets.pushConfigured;
+  targets.pushConfigured = () => false;
+  try {
+    await runDayPlanTouchSweep(MORNING);
+    expect(deliver).not.toHaveBeenCalled();
+    expect(state.writes).toBe(0);
+  } finally {
+    targets.pushConfigured = original;
+  }
 });

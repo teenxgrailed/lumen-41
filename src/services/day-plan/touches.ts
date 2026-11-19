@@ -2,13 +2,19 @@
  *
  * A morning plan and an evening "close the day", at the person's own local
  * times (defaults 08:00 and 21:00), each at most once per local day. Nothing
- * else the plan system does is sent as a notification (D7). Idempotence is a
- * compare-and-set on PlanSettings.lastMorningAt / lastEveningAt, taken before
- * sending, so restarts and overlapping sweeps cannot send twice.
+ * else the plan system does is sent as a notification (D7).
+ *
+ * Idempotence is a compare-and-set on PlanSettings.lastMorningAt /
+ * lastEveningAt taken before sending: it succeeds only when the touch was not
+ * sent since local midnight of today in the person's zone. It is per local DAY,
+ * not per window, so moving the time, changing the zone or a repeated DST hour
+ * cannot send a second one. The due window is [time, time+30min) so a missed
+ * sweep catches up and a released claim can retry.
  *
  * Every touch leaves through `sendDayPlanTouch`, the one place a channel is
- * added (messengers join it in a later PR).
+ * added.
  */
+import { configuredAdapters } from "@/services/channels/registry";
 import {
   PUSH_TARGET_SELECT,
   loadPushTargets,
@@ -16,9 +22,12 @@ import {
   pushTargetsOf,
 } from "@/services/push/targets";
 import { deliverPush } from "@/services/reminders/reminder-delivery";
-import { formatInTimeZone } from "date-fns-tz";
 
-import { newDate } from "@/lib/date-utils";
+import {
+  formatInTimeZone,
+  newDate,
+  startOfDayInTimeZone,
+} from "@/lib/date-utils";
 import { dayPlanTouchesEnabled } from "@/lib/feature-flags";
 import { DAY_PLAN, DAY_PLAN_TOUCHES } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
@@ -33,9 +42,11 @@ import { addDaysToKey } from "./rules";
 const LOG_SOURCE = "DayPlanTouches";
 const USERS_PER_PAGE = 200;
 const MAX_PAGES = 500;
-export const TOUCH_WINDOW_MIN = 5;
+/** Same catch-up window as the habit evening push. */
+export const TOUCH_WINDOW_MIN = 30;
 export const TODAY_URL = "/today";
 export const MAIN_NAMES = 3;
+const ZONES_TTL_MS = 3_600_000;
 
 export type TouchKind = "morning" | "evening";
 
@@ -52,6 +63,17 @@ const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/;
 const minutesOf = (hhmm: string) =>
   Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 
+/** True for a zone Intl knows; a stored bad zone is skipped, never guessed. */
+export function isValidZone(zone: string | null | undefined): zone is string {
+  if (!zone) return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone }).format(newDate());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Minutes since local midnight and the local day key, in the given zone. */
 export function localMoment(now: Date, timeZone: string) {
   const [hour, minute] = formatInTimeZone(now, timeZone, "HH:mm")
@@ -63,7 +85,7 @@ export function localMoment(now: Date, timeZone: string) {
   };
 }
 
-/** `time` up to (not including) `time` + 5 minutes on the local clock. */
+/** `time` up to (not including) `time` + 30 minutes on the local clock. */
 export function inTouchWindow(minutes: number, time: string): boolean {
   if (!TIME_OF_DAY.test(time)) return false;
   const start = minutesOf(time);
@@ -161,19 +183,30 @@ export async function sendDayPlanTouch(
 }
 
 /**
- * True when the morning touch takes the place of the old morning digest for
- * this person: the plan system is on for them and the morning touch is not
- * switched off. Defaults to on when they never stored settings.
+ * True when today's morning touch was claimed and sent for this person, and
+ * the digest at `digestTime` is a morning one. Only then does the morning
+ * digest leave its push out (its email never moves). The claim of a touch that
+ * had nothing to say or failed is given back, so a set `lastMorningAt` inside
+ * today's local day means it went out.
  */
-export async function morningTouchReplacesDigest(
-  userId: string
+export async function morningTouchCoversDigest(
+  userId: string,
+  digest: { digestTime: string; timeZone: string },
+  now: Date
 ): Promise<boolean> {
+  if (!TIME_OF_DAY.test(digest.digestTime)) return false;
+  if (minutesOf(digest.digestTime) >= 12 * 60) return false;
+  if (!isValidZone(digest.timeZone)) return false;
   if (!(await dayPlanTouchesEnabled(userId))) return false;
   const row = await prisma.planSettings.findUnique({
     where: { userId },
-    select: { morningOn: true },
+    select: { lastMorningAt: true },
   });
-  return row?.morningOn ?? true;
+  const sent = row?.lastMorningAt;
+  return Boolean(
+    sent &&
+      sent.getTime() >= startOfDayInTimeZone(now, digest.timeZone).getTime()
+  );
 }
 
 /* ---------- compare-and-set ---------- */
@@ -182,14 +215,14 @@ const fieldOf = (kind: TouchKind) =>
   kind === "morning" ? "lastMorningAt" : "lastEveningAt";
 
 /**
- * Takes the day's touch: succeeds only if it was not sent since the start of
- * this local window. The row is created first (schema defaults) so a person
- * with no stored settings is covered too.
+ * Takes the day's touch: succeeds only if it was not sent since local midnight
+ * of today. The row is created first (schema defaults) so a person with no
+ * stored settings is covered too.
  */
 async function claim(
   userId: string,
   kind: TouchKind,
-  windowStart: Date,
+  localMidnight: Date,
   now: Date
 ): Promise<{ previous: Date | null } | null> {
   const field = fieldOf(kind);
@@ -205,7 +238,7 @@ async function claim(
   const { count } = await prisma.planSettings.updateMany({
     where: {
       userId,
-      OR: [{ [field]: null }, { [field]: { lt: windowStart } }],
+      OR: [{ [field]: null }, { [field]: { lt: localMidnight } }],
     },
     data: { [field]: now },
   });
@@ -288,20 +321,16 @@ type Person = Parameters<typeof pushTargetsOf>[0] & {
 async function touchPerson(
   person: Person,
   kind: TouchKind,
+  zone: string,
   clock: { dayKey: string; minutes: number },
-  time: string,
   now: Date,
   push: boolean
 ) {
   if (!(await dayPlanTouchesEnabled(person.id))) return false;
-  const sinceWindow =
-    (clock.minutes - minutesOf(time)) * 60_000 +
-    now.getUTCSeconds() * 1000 +
-    now.getUTCMilliseconds();
   const taken = await claim(
     person.id,
     kind,
-    new Date(now.getTime() - sinceWindow),
+    startOfDayInTimeZone(now, zone),
     now
   );
   if (!taken) return false;
@@ -310,8 +339,13 @@ async function touchPerson(
       kind === "morning"
         ? await composeMorning(person.id, clock.dayKey, now)
         : await composeEvening(person.id, clock.dayKey, now);
-    // Nothing to say today: the claim stays, so it is not retried all window.
-    if (!payload) return false;
+    if (!payload) {
+      // Nothing to say. A morning claim is given back so `lastMorningAt` only
+      // ever means "sent" (the digest relies on it); the evening one stays.
+      if (kind === "morning")
+        await release(person.id, kind, now, taken.previous);
+      return false;
+    }
     const delivered = await sendDayPlanTouch(
       person.id,
       kind,
@@ -322,17 +356,39 @@ async function touchPerson(
     return delivered;
   } catch (error) {
     await release(person.id, kind, now, taken.previous);
-    await logger.error(
-      "Day plan touch failed",
-      {
-        userId: person.id,
-        kind,
-        error: error instanceof Error ? error.message : String(error),
-      },
-      LOG_SOURCE
-    );
-    return false;
+    throw error;
   }
+}
+
+async function sweepPerson(
+  person: Person,
+  settings:
+    | {
+        morningTime: string;
+        eveningTime: string;
+        morningOn: boolean;
+        eveningOn: boolean;
+      }
+    | undefined,
+  zone: string,
+  notification: Parameters<typeof prefsFrom>[0],
+  now: Date
+) {
+  const clock = localMoment(now, zone);
+  const prefs = prefsFrom(notification, zone);
+  if (inQuietHours(prefs, now)) return 0;
+  // Push needs the channel on and a device; a linked chat needs neither.
+  const canPush = prefs.channelPush && pushTargetsOf(person).length > 0;
+  if (!canPush && !(person.channelLinks?.length ?? 0)) return 0;
+  let sent = 0;
+  for (const kind of ["morning", "evening"] as const) {
+    const on = settings ? settings[`${kind}On`] : true;
+    if (!on) continue;
+    const time = settings?.[`${kind}Time`] ?? DEFAULT_TIMES[kind];
+    if (!inTouchWindow(clock.minutes, time)) continue;
+    if (await touchPerson(person, kind, zone, clock, now, canPush)) sent += 1;
+  }
+  return sent;
 }
 
 async function sweepPage(people: Person[], now: Date) {
@@ -360,64 +416,134 @@ async function sweepPage(people: Person[], now: Date) {
 
   let sent = 0;
   for (const person of people) {
-    // No stored zone: never guess one.
+    // No stored zone, or one Intl does not know: skip, never guess.
     const zone = zoneOf.get(person.id);
-    if (!zone) continue;
-    const settings = planOf.get(person.id);
-    const clock = localMoment(now, zone);
-    const prefs = prefsFrom(notifOf.get(person.id) ?? null, zone);
-    if (inQuietHours(prefs, now)) continue;
-    // Push needs the channel on and a device; a linked chat needs neither.
-    const canPush = prefs.channelPush && pushTargetsOf(person).length > 0;
-    if (!canPush && !(person.channelLinks?.length ?? 0)) continue;
-    for (const kind of ["morning", "evening"] as const) {
-      const on = settings ? settings[`${kind}On`] : true;
-      if (!on) continue;
-      const time = settings?.[`${kind}Time`] ?? DEFAULT_TIMES[kind];
-      if (!inTouchWindow(clock.minutes, time)) continue;
-      if (await touchPerson(person, kind, clock, time, now, canPush)) sent += 1;
+    if (!isValidZone(zone)) continue;
+    try {
+      sent += await sweepPerson(
+        person,
+        planOf.get(person.id),
+        zone,
+        notifOf.get(person.id) ?? null,
+        now
+      );
+    } catch (error) {
+      // One bad person must not stop the sweep.
+      await logger.error(
+        "Day plan touch failed",
+        {
+          userId: person.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        LOG_SOURCE
+      );
     }
   }
   return sent;
 }
 
-/** One row read when the flag cannot be on for anybody. */
-async function flagRowMayBeOn(key: string) {
+/* ---------- who to load ---------- */
+
+interface FlagScope {
+  /** null = on for everybody; a list = only these override users. */
+  only: string[] | null;
+}
+
+/** The flag row once; null = off for everybody (no row is the shipping state). */
+async function loadFlag(key: string): Promise<FlagScope | null> {
   const flag = await prisma.featureFlag.findUnique({
     where: { key },
     select: {
       enabled: true,
-      overrides: {
-        where: { enabled: true },
-        select: { userId: true },
-        take: 1,
-      },
+      overrides: { where: { enabled: true }, select: { userId: true } },
     },
   });
-  return Boolean(flag && (flag.enabled || flag.overrides.length > 0));
+  if (!flag) return null;
+  const ids = (flag.overrides ?? []).map((o: { userId: string }) => o.userId);
+  if (flag.enabled) return { only: null };
+  return ids.length > 0 ? { only: ids } : null;
 }
 
-/** Both flags must be able to be on for somebody before a person is read. */
-async function flagMayBeOn() {
-  return (
-    (await flagRowMayBeOn(DAY_PLAN)) && (await flagRowMayBeOn(DAY_PLAN_TOUCHES))
-  );
+async function flagScope(): Promise<FlagScope | null> {
+  const plan = await loadFlag(DAY_PLAN);
+  if (!plan) return null;
+  const touches = await loadFlag(DAY_PLAN_TOUCHES);
+  if (!touches) return null;
+  if (!plan.only) return touches;
+  if (!touches.only) return plan;
+  const allowed = new Set(plan.only);
+  const both = touches.only.filter((id) => allowed.has(id));
+  return both.length > 0 ? { only: both } : null;
+}
+
+let zoneCache: { at: number; zones: string[] } | null = null;
+
+/** Tests only: forget the cached zone list. */
+export function resetTouchZoneCache() {
+  zoneCache = null;
+}
+
+/** Stored zones where the default morning or evening window is open now. */
+async function dueZones(now: Date): Promise<string[]> {
+  if (!zoneCache || now.getTime() - zoneCache.at >= ZONES_TTL_MS) {
+    const rows = await prisma.userSettings.groupBy({ by: ["timeZone"] });
+    zoneCache = {
+      at: now.getTime(),
+      zones: rows.map((row) => row.timeZone).filter(isValidZone),
+    };
+  }
+  return zoneCache.zones.filter((zone) => {
+    const { minutes } = localMoment(now, zone);
+    return (
+      inTouchWindow(minutes, DEFAULT_TIMES.morning) ||
+      inTouchWindow(minutes, DEFAULT_TIMES.evening)
+    );
+  });
 }
 
 export async function runDayPlanTouchSweep(now = newDate()) {
-  if (!pushConfigured()) return { users: 0, sent: 0 };
-  if (!(await flagMayBeOn())) return { users: 0, sent: 0 };
+  if (!pushConfigured() && configuredAdapters().length === 0) {
+    return { users: 0, sent: 0 };
+  }
+  const scope = await flagScope();
+  if (!scope) return { users: 0, sent: 0 };
+  const zones = await dueZones(now);
+
   let cursor: string | undefined;
   let users = 0;
   let sent = 0;
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const rows = await prisma.user.findMany({
       where: {
-        userSettings: { isNot: null },
-        OR: [
-          { pushSubscriptions: { some: {} } },
-          { nativePushTokens: { some: {} } },
-          { channelLinks: { some: { unlinkedAt: null } } },
+        ...(scope.only ? { id: { in: scope.only } } : {}),
+        AND: [
+          {
+            // Default times: only zones whose window is open. Custom times
+            // are rare and cannot be pre-filtered by zone, so those people
+            // are always looked at.
+            OR: [
+              ...(zones.length > 0
+                ? [{ userSettings: { is: { timeZone: { in: zones } } } }]
+                : []),
+              {
+                planSettings: {
+                  is: {
+                    OR: [
+                      { morningTime: { not: DEFAULT_TIMES.morning } },
+                      { eveningTime: { not: DEFAULT_TIMES.evening } },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+          {
+            OR: [
+              { pushSubscriptions: { some: {} } },
+              { nativePushTokens: { some: {} } },
+              { channelLinks: { some: { unlinkedAt: null } } },
+            ],
+          },
         ],
       },
       orderBy: { id: "asc" },
