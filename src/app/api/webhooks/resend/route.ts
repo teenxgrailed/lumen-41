@@ -71,7 +71,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (isUniqueViolation(error)) return NextResponse.json({ ok: true });
-    throw error;
+    logger.error(
+      "Resend event ledger write failed",
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      LOG_SOURCE
+    );
+    return NextResponse.json({ error: "failed" }, { status: 500 });
   }
 
   try {
