@@ -87,15 +87,16 @@ Each PR ships on its own. Every owner decision has a test with a human name, wri
 
 ## PR B — Two touches over web push
 
-- [ ] **B-1 — `day-plan-touch-sweep`** on the Reminder queue: per-user local time, compare-and-set idempotence, no guessed time zone, quiet hours respected.
-- [ ] **B-2 — Content.** Morning: the main tasks plus "+N", opening `/today`. Evening: the leftover count, opening the review and note. The evening send builds tomorrow's draft.
-- [ ] **B-3 — Settings API** for times and toggles. Skip the morning digest when the morning touch is on.
-- [ ] **B-4 — Tests:**
+- [x] **B-1 — `day-plan-touch-sweep`** on the Reminder queue: per-user local time, compare-and-set idempotence, no guessed time zone, quiet hours respected.
+- [x] **B-2 — Content.** Morning: the main tasks plus "+N", opening `/today`. Evening: the leftover count, opening the review and note. The evening send builds tomorrow's draft.
+- [x] **B-3 — Settings API** for times and toggles. Skip the morning digest when the morning touch is on.
+- [x] **B-4 — Tests:**
   - `test_touches_default_to_8_and_21_local`
   - `test_touch_is_sent_once_per_day`
   - `test_no_touch_without_time_zone`
   - `test_touch_off_sends_nothing`
   - `test_plan_system_sends_only_two_touches` (D7)
+  - `test_morning_digest_skipped_when_morning_touch_on`
 
 ## PR C — Channel core and Telegram adapter
 

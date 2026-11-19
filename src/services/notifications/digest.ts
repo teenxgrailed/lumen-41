@@ -10,6 +10,7 @@
  *
  * Both read Settings → Notifications through preferences.ts first.
  */
+import { morningTouchReplacesDigest } from "@/services/day-plan/touches";
 import {
   PUSH_TARGET_SELECT,
   PushTarget,
@@ -70,6 +71,14 @@ export async function deliverDailyDigests(now = newDate()) {
       data: { lastDigestAt: now },
     });
     if (!claimed.count) continue;
+    // The day plan's morning touch is the one morning message for a person
+    // it can reach; the digest stays for everybody else.
+    if (
+      pushTargetsOf(row.user).length &&
+      (await morningTouchReplacesDigest(row.userId))
+    ) {
+      continue;
+    }
     const feed = await getNotificationFeed({
       userId: row.userId,
       group: "activity",
