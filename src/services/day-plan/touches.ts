@@ -46,7 +46,7 @@ const MAX_PAGES = 500;
 export const TOUCH_WINDOW_MIN = 30;
 export const TODAY_URL = "/today";
 export const MAIN_NAMES = 3;
-const ZONES_TTL_MS = 3_600_000;
+const ZONES_TTL_MS = 20 * 60_000;
 
 export type TouchKind = "morning" | "evening";
 
@@ -183,16 +183,16 @@ export async function sendDayPlanTouch(
 }
 
 /**
- * True when today's morning touch was claimed and sent for this person, and
- * the digest at `digestTime` is a morning one. Only then does the morning
- * digest leave its push out (its email never moves). The claim of a touch that
- * had nothing to say or failed is given back, so a set `lastMorningAt` inside
- * today's local day means it went out.
+ * Whether the morning digest leaves its push out because the morning touch
+ * replaces it. Decided from the schedule alone, never from whether the touch
+ * has gone out yet, so the order of the two sweeps cannot change the outcome:
+ * `day_plan_touches` is on for the person, the morning touch is on, the zone is
+ * valid and the digest's local time is before 12:00. The email digest never
+ * moves. A touch that fails means no morning push that day.
  */
-export async function morningTouchCoversDigest(
+export async function morningTouchReplacesDigestPush(
   userId: string,
-  digest: { digestTime: string; timeZone: string },
-  now: Date
+  digest: { digestTime: string; timeZone: string }
 ): Promise<boolean> {
   if (!TIME_OF_DAY.test(digest.digestTime)) return false;
   if (minutesOf(digest.digestTime) >= 12 * 60) return false;
@@ -200,13 +200,9 @@ export async function morningTouchCoversDigest(
   if (!(await dayPlanTouchesEnabled(userId))) return false;
   const row = await prisma.planSettings.findUnique({
     where: { userId },
-    select: { lastMorningAt: true },
+    select: { morningOn: true },
   });
-  const sent = row?.lastMorningAt;
-  return Boolean(
-    sent &&
-      sent.getTime() >= startOfDayInTimeZone(now, digest.timeZone).getTime()
-  );
+  return row?.morningOn ?? true;
 }
 
 /* ---------- compare-and-set ---------- */
@@ -313,6 +309,10 @@ async function composeEvening(
 
 /* ---------- the sweep ---------- */
 
+// todo: a person who travels west after their touch window (a new local day
+// that starts before the old one ends) can get a second touch; fixing it needs
+// the zone the claim was taken in stored next to lastMorningAt/lastEveningAt.
+
 type Person = Parameters<typeof pushTargetsOf>[0] & {
   id: string;
   channelLinks?: { id: string }[];
@@ -339,13 +339,8 @@ async function touchPerson(
       kind === "morning"
         ? await composeMorning(person.id, clock.dayKey, now)
         : await composeEvening(person.id, clock.dayKey, now);
-    if (!payload) {
-      // Nothing to say. A morning claim is given back so `lastMorningAt` only
-      // ever means "sent" (the digest relies on it); the evening one stays.
-      if (kind === "morning")
-        await release(person.id, kind, now, taken.previous);
-      return false;
-    }
+    // Nothing to say: the claim stays, so it is decided once for the day.
+    if (!payload) return false;
     const delivered = await sendDayPlanTouch(
       person.id,
       kind,

@@ -1,5 +1,5 @@
 import {
-  morningTouchCoversDigest,
+  morningTouchReplacesDigestPush,
   resetTouchZoneCache,
   runDayPlanTouchSweep,
   sendDayPlanTouch,
@@ -17,6 +17,8 @@ const state = {
   flagRow: true,
   adapters: 0,
   writes: 0,
+  wheres: [] as Row[],
+  overrides: [] as Row[],
   devices: [{ id: "device-1", endpoint: "e" }] as Row[],
 };
 
@@ -54,11 +56,16 @@ jest.mock("@/lib/prisma", () => ({
                 where.key === "day_plan_touches"
                   ? state.touchesOn
                   : state.flagOn,
-              overrides: [],
+              overrides: state.overrides,
             }
           : null,
     },
-    user: { findMany: async () => state.users },
+    user: {
+      findMany: async ({ where }: { where: Row }) => {
+        state.wheres.push(where);
+        return state.users;
+      },
+    },
     userSettings: {
       findMany: async () => state.userSettings,
       groupBy: async () =>
@@ -177,6 +184,8 @@ beforeEach(() => {
   state.flagRow = true;
   state.adapters = 0;
   state.writes = 0;
+  state.wheres = [];
+  state.overrides = [];
   resetTouchZoneCache();
   deliver.mockResolvedValue(true);
   planMock.getDayPlan.mockResolvedValue(
@@ -360,17 +369,23 @@ test("test_touches_off_until_ui_ships", async () => {
   expect(deliver).toHaveBeenCalledTimes(1);
 });
 
-test("morningTouchCoversDigest follows what was really sent", async () => {
-  const digest = { digestTime: "08:00", timeZone: "Europe/Zurich" };
-  const now = new Date("2026-11-19T07:30:00Z");
-  expect(await morningTouchCoversDigest("u1", digest, now)).toBe(false);
-  await runDayPlanTouchSweep(MORNING);
-  expect(await morningTouchCoversDigest("u1", digest, now)).toBe(true);
+test("the digest push gives way by schedule only", async () => {
+  const morning = { digestTime: "08:00", timeZone: "Europe/Zurich" };
+  expect(await morningTouchReplacesDigestPush("u1", morning)).toBe(true);
+  expect(
+    await morningTouchReplacesDigestPush("u1", {
+      ...morning,
+      digestTime: "12:00",
+    })
+  ).toBe(false);
+  expect(
+    await morningTouchReplacesDigestPush("u1", { ...morning, timeZone: "x/y" })
+  ).toBe(false);
   state.touchesOn = false;
-  expect(await morningTouchCoversDigest("u1", digest, now)).toBe(false);
+  expect(await morningTouchReplacesDigestPush("u1", morning)).toBe(false);
 });
 
-test("a morning touch that is switched off never covers the digest", async () => {
+test("a morning touch that is switched off does not replace the digest push", async () => {
   state.planSettings = [
     {
       userId: "u1",
@@ -382,13 +397,11 @@ test("a morning touch that is switched off never covers the digest", async () =>
       lastEveningAt: null,
     },
   ];
-  await runDayPlanTouchSweep(MORNING);
   expect(
-    await morningTouchCoversDigest(
-      "u1",
-      { digestTime: "08:00", timeZone: "Europe/Zurich" },
-      new Date("2026-11-19T07:30:00Z")
-    )
+    await morningTouchReplacesDigestPush("u1", {
+      digestTime: "08:00",
+      timeZone: "Europe/Zurich",
+    })
   ).toBe(false);
 });
 
@@ -555,4 +568,68 @@ test("the sweep stands down when neither push nor a messenger is configured", as
   } finally {
     targets.pushConfigured = original;
   }
+});
+
+test("test_empty_morning_claims_once_and_stops", async () => {
+  planMock.getDayPlan.mockResolvedValue({ plan: null });
+  planMock.buildDraft.mockResolvedValue({ plan: { items: [] } });
+  for (let minute = 0; minute < 30; minute += 5) {
+    await runDayPlanTouchSweep(
+      new Date(MORNING.getTime() + minute * 60_000 - 30_000)
+    );
+  }
+  expect(deliver).not.toHaveBeenCalled();
+  expect(planMock.buildDraft).toHaveBeenCalledTimes(1);
+  expect(state.planSettings[0].lastMorningAt).not.toBeNull();
+});
+
+test("the zone prefilter keeps only zones whose default window is open", async () => {
+  state.userSettings = [
+    { userId: "u1", timeZone: "Europe/Zurich" },
+    { userId: "u2", timeZone: "America/Los_Angeles" },
+  ];
+  await runDayPlanTouchSweep(MORNING);
+  const and = state.wheres[0].AND as { OR: Row[] }[];
+  const zoneBranch = and[0].OR[0] as {
+    userSettings: { is: { timeZone: { in: string[] } } };
+  };
+  expect(zoneBranch.userSettings.is.timeZone.in).toEqual(["Europe/Zurich"]);
+});
+
+test("people with custom times are always included in the scan", async () => {
+  // Nobody's default window is open at 12:00Z, yet custom-time people load.
+  await runDayPlanTouchSweep(new Date("2026-11-19T12:00:00Z"));
+  const and = state.wheres[0].AND as { OR: Row[] }[];
+  expect(and[0].OR).toHaveLength(1);
+  expect(JSON.stringify(and[0].OR[0])).toContain("morningTime");
+  expect(JSON.stringify(and[0].OR[0])).toContain("eveningTime");
+});
+
+test("with the flag off for everybody only override users are scanned", async () => {
+  state.touchesOn = false;
+  state.overrides = [{ userId: "u9", enabled: true }];
+  await runDayPlanTouchSweep(MORNING);
+  expect(state.wheres[0].id).toEqual({ in: ["u9"] });
+});
+
+test("Asia/Kathmandu (+5:45): the claim's local midnight is 18:15Z", async () => {
+  state.userSettings = [{ userId: "u1", timeZone: "Asia/Kathmandu" }];
+  // Sent at 00:05 local on the 19th (18:20Z on the 18th): same local day.
+  state.planSettings = [
+    {
+      userId: "u1",
+      morningTime: "08:00",
+      eveningTime: "21:00",
+      morningOn: true,
+      eveningOn: true,
+      lastMorningAt: new Date("2026-11-18T18:20:00Z"),
+      lastEveningAt: null,
+    },
+  ];
+  await runDayPlanTouchSweep(new Date("2026-11-19T02:20:00Z"));
+  expect(deliver).not.toHaveBeenCalled();
+  // Sent at 23:55 local on the 18th (18:10Z): the previous local day.
+  state.planSettings[0].lastMorningAt = new Date("2026-11-18T18:10:00Z");
+  await runDayPlanTouchSweep(new Date("2026-11-19T02:20:00Z"));
+  expect(deliver).toHaveBeenCalledTimes(1);
 });

@@ -5,8 +5,10 @@ const NOW = new Date("2026-11-19T07:30:00Z");
 
 const state = {
   touchesOn: true,
+  morningOn: true,
   lastMorningAt: null as Date | null,
   digestTime: "08:00",
+  timeZone: "Europe/Zurich",
 };
 const pushed = jest.fn();
 const emailed = jest.fn();
@@ -29,7 +31,10 @@ jest.mock("@/lib/prisma", () => ({
       updateMany: async () => ({ count: 1 }),
     },
     planSettings: {
-      findUnique: async () => ({ lastMorningAt: state.lastMorningAt }),
+      findUnique: async () => ({
+        morningOn: state.morningOn,
+        lastMorningAt: state.lastMorningAt,
+      }),
     },
   },
 }));
@@ -52,7 +57,7 @@ jest.mock("../preferences", () => ({
     channelPush: true,
     emailNotifications: true,
     digestTime: state.digestTime,
-    timeZone: "Europe/Zurich",
+    timeZone: state.timeZone,
   }),
   typeOfFeedKind: () => "mention",
 }));
@@ -89,8 +94,10 @@ jest.mock("@/services/day-plan/plan", () => ({
 beforeEach(() => {
   jest.clearAllMocks();
   state.touchesOn = true;
+  state.morningOn = true;
   state.digestTime = "08:00";
-  state.lastMorningAt = new Date("2026-11-19T07:00:30Z");
+  state.timeZone = "Europe/Zurich";
+  state.lastMorningAt = null;
 });
 
 test("test_morning_digest_skipped_when_morning_touch_on", async () => {
@@ -105,24 +112,26 @@ test("test_email_digest_never_skipped", async () => {
 });
 
 test.each([
-  ["test_digest_kept_when_morning_touch_did_not_send", null, true, "08:00"],
-  [
-    "the touch was sent yesterday, not today",
-    new Date("2026-11-18T07:00:30Z"),
-    true,
-    "08:00",
-  ],
-  ["day_plan_touches is off", new Date("2026-11-19T07:00:30Z"), false, "08:00"],
-  [
-    "a non-morning digest is never skipped",
-    new Date("2026-11-19T07:00:30Z"),
-    true,
-    "18:00",
-  ],
-])("the digest push is kept when %s", async (_name, sent, on, time) => {
-  state.lastMorningAt = sent;
-  state.touchesOn = on;
-  state.digestTime = time;
+  ["before the touch ran", null],
+  ["after the touch went out", new Date("2026-11-19T07:00:30Z")],
+  ["after a touch that failed yesterday", new Date("2026-11-18T07:00:30Z")],
+])(
+  "test_digest_decision_does_not_depend_on_touch_order (%s)",
+  async (_name, sent) => {
+    state.lastMorningAt = sent;
+    await deliverDailyDigests(NOW);
+    expect(pushed).not.toHaveBeenCalled();
+    expect(emailed).toHaveBeenCalledTimes(1);
+  }
+);
+
+test.each([
+  ["day_plan_touches is off", { touchesOn: false }],
+  ["the morning touch is switched off", { morningOn: false }],
+  ["the digest is an evening one", { digestTime: "18:00" }],
+  ["the stored zone is invalid", { timeZone: "Mars/Olympus" }],
+])("the digest push is kept when %s", async (_name, change) => {
+  Object.assign(state, change);
   await deliverDailyDigests(NOW);
   expect(pushed).toHaveBeenCalledTimes(1);
   expect(emailed).toHaveBeenCalledTimes(1);

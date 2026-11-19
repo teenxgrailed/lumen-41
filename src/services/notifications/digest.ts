@@ -10,7 +10,7 @@
  *
  * Both read Settings → Notifications through preferences.ts first.
  */
-import { morningTouchCoversDigest } from "@/services/day-plan/touches";
+import { morningTouchReplacesDigestPush } from "@/services/day-plan/touches";
 import {
   PUSH_TARGET_SELECT,
   PushTarget,
@@ -80,13 +80,13 @@ export async function deliverDailyDigests(now = newDate()) {
     const summary = digestSummary(feed.items);
     if (!summary) continue;
     try {
-      // The morning digest leaves its push out only on a day the day plan's
-      // morning touch really went out; the email digest is never skipped.
+      // A morning digest's push gives way to the day plan's morning touch (by
+      // schedule, not by whether it has gone out); the email is never skipped.
       if (
         prefs.channelPush &&
         pushTargetsOf(row.user).length &&
         pushConfigured() &&
-        !(await morningTouchCoversDigest(row.userId, prefs, now))
+        !(await morningTouchReplacesDigestPush(row.userId, prefs))
       ) {
         await pushAll(pushTargetsOf(row.user), {
           ...summary,
