@@ -52,6 +52,7 @@ const DEFAULTS: Record<string, () => Row> = {
     editedByUserAt: null,
   }),
   dayPlanItem: () => ({ isMain: false, addedBy: "draft", resolution: null }),
+  somedayMigrationMove: () => ({ restoredAt: null }),
   channelLink: () => ({ unlinkedAt: null }),
   channelLinkCode: () => ({ usedAt: null }),
   planSettings: () => ({
@@ -65,6 +66,7 @@ const UNIQUE: Record<string, string[]> = {
   channelUpdate: ["channel", "externalUpdateId"],
   channelLink: ["channel", "externalChatId"],
   channelLinkCode: ["codeHash"],
+  somedayMigrationMove: ["taskId", "batch"],
 };
 
 export function createDayPlanDb(start = new Date("2026-11-19T20:00:00Z")) {
@@ -245,8 +247,21 @@ export function createDayPlanDb(start = new Date("2026-11-19T20:00:00Z")) {
       );
       return row ? shape(model, row, args) : null;
     },
+    count: async (args: Where = {}) => rowsOf(model, args).length,
     create: async (args: Where) =>
       shape(model, create(model, args.data as Where), args),
+    createMany: async (args: Where) => {
+      let count = 0;
+      for (const data of args.data as Where[]) {
+        try {
+          create(model, data);
+          count += 1;
+        } catch (error) {
+          if (!args.skipDuplicates) throw error;
+        }
+      }
+      return { count };
+    },
     update: async (args: Where) => {
       const row = tables[model].find((candidate) =>
         matches(model, candidate, args.where as Where)

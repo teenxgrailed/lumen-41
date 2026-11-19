@@ -137,14 +137,26 @@ export function recordActivation(
   props: ActivationProps = {}
 ): void {
   if (!userId) return;
-  void record(name, userId, props).catch((error: unknown) => {
-    logger.warn(
-      "Activation event failed",
-      {
-        name,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      LOG_SOURCE
-    );
-  });
+  const pending: Promise<void> = record(name, userId, props)
+    .catch((error: unknown) => {
+      logger.warn(
+        "Activation event failed",
+        {
+          name,
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+        LOG_SOURCE
+      );
+    })
+    .finally(() => {
+      inFlight.delete(pending);
+    });
+  inFlight.add(pending);
+}
+
+const inFlight = new Set<Promise<void>>();
+
+/** Waits for the events still being written. For scripts that exit after a run. */
+export async function settleActivationEvents(): Promise<void> {
+  while (inFlight.size > 0) await Promise.all([...inFlight]);
 }

@@ -4721,6 +4721,8 @@ model SomedayMigrationMove {
   movedAt    DateTime  @default(now())
   restoredAt DateTime?
   batch      String
+  /// The database copy taken before the run (the id the operator passed).
+  backupId   String?
 
   @@unique([taskId, batch])
   @@index([userId, batch])

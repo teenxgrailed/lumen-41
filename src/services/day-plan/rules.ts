@@ -413,6 +413,52 @@ export interface SomedayCandidate extends TouchSignals {
   inOpenPlan: boolean;
 }
 
+/** Why a task stays out of Someday; `fresh` means it is not stale at all. */
+export type SomedayExclusion =
+  | "fresh"
+  | "not_open"
+  | "archived"
+  | "trashed"
+  | "already_someday"
+  | "recurring"
+  | "habit"
+  | "sample"
+  | "open_plan"
+  | "near_deadline";
+
+/**
+ * The one definition of the sweep's rule, shared by the nightly sweep and the
+ * launch migration: `null` means the task goes to Someday, anything else is the
+ * first reason it stays. Staleness is checked first, so a count per reason only
+ * covers tasks that were untouched for 14 days.
+ */
+export function somedayExclusion(
+  task: SomedayCandidate,
+  now: Date,
+  timeZone: string
+): SomedayExclusion | null {
+  if (touchedAtOf(task) >= staleCutoff(now)) return "fresh";
+  if (task.status !== "todo") return "not_open";
+  if (task.isArchived) return "archived";
+  if (task.trashedAt) return "trashed";
+  if (task.somedayAt) return "already_someday";
+  if (task.isRecurring || task.recurrenceMasterId) return "recurring";
+  if (task.habitId) return "habit";
+  if (task.isSample) return "sample";
+  if (task.inOpenPlan) return "open_plan";
+
+  const today = formatInTimeZone(now, timeZone, "yyyy-MM-dd");
+  const horizon = keyFromDate(
+    dateFnsAddDays(requireDateKey(today), DAY_PLAN_LIMITS.protectedDeadlineDays)
+  );
+  for (const value of [task.dueDate, task.deadline]) {
+    if (!value) continue;
+    const key = dateKeyOf(value, timeZone);
+    if (key >= today && key <= horizon) return "near_deadline";
+  }
+  return null;
+}
+
 /**
  * The sweep's rule: an open task nobody touched for 14 days goes to Someday,
  * unless it is protected. Protected: due or deadline from today to 14 days
@@ -425,20 +471,5 @@ export function isSomedayCandidate(
   now: Date,
   timeZone: string
 ): boolean {
-  if (task.status !== "todo") return false;
-  if (task.isArchived || task.trashedAt || task.somedayAt) return false;
-  if (task.isRecurring || task.recurrenceMasterId || task.habitId) return false;
-  if (task.isSample || task.inOpenPlan) return false;
-  if (touchedAtOf(task) >= staleCutoff(now)) return false;
-
-  const today = formatInTimeZone(now, timeZone, "yyyy-MM-dd");
-  const horizon = keyFromDate(
-    dateFnsAddDays(requireDateKey(today), DAY_PLAN_LIMITS.protectedDeadlineDays)
-  );
-  for (const value of [task.dueDate, task.deadline]) {
-    if (!value) continue;
-    const key = dateKeyOf(value, timeZone);
-    if (key >= today && key <= horizon) return false;
-  }
-  return true;
+  return somedayExclusion(task, now, timeZone) === null;
 }
