@@ -15,6 +15,38 @@ export interface WebhookOutcome {
 }
 
 /**
+ * Reads the body up to the cap and hands back a request the adapter can read
+ * as usual, or "too_large" as soon as the cap is passed.
+ */
+async function readBounded(request: Request): Promise<Request | "too_large"> {
+  if (!request.body) return request;
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > WEBHOOK_MAX_BYTES) {
+      await reader.cancel().catch(() => undefined);
+      return "too_large";
+    }
+    chunks.push(value);
+  }
+  const buffer = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new Request(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: buffer,
+  });
+}
+
+/**
  * The same pipeline for every channel: authenticate with the channel's own
  * secret, refuse an oversized body, read the update, let the core decide, send
  * the answer. A repeat delivery is dropped, but only for linked chats: a chat
@@ -34,10 +66,16 @@ export async function processWebhook(
   if (Number.isFinite(declared) && declared > WEBHOOK_MAX_BYTES) {
     return { status: 413, body: { ok: false, error: "too_large" } };
   }
+  // The header is only a hint (it can be missing, wrong or not a number), so
+  // the bytes themselves are counted while they are read.
+  const bounded = await readBounded(request);
+  if (bounded === "too_large") {
+    return { status: 413, body: { ok: false, error: "too_large" } };
+  }
 
   let update;
   try {
-    update = await adapter.parseUpdate(request);
+    update = await adapter.parseUpdate(bounded);
   } catch {
     update = null;
   }

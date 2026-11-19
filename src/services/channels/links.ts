@@ -61,6 +61,19 @@ export async function redeemLinkCode(
     const row = await tx.channelLinkCode.findUnique({
       where: { codeHash: hashCode(code) },
     });
+    if (row && row.channel === channel && row.usedAt !== null) {
+      // A resent "start" with a used code: this chat may already be the one.
+      const linked = await tx.channelLink.findUnique({
+        where: { channel_externalChatId: { channel, externalChatId } },
+      });
+      if (
+        linked &&
+        linked.unlinkedAt === null &&
+        linked.userId === row.userId
+      ) {
+        return { status: "already", userId: row.userId } as const;
+      }
+    }
     if (
       !row ||
       row.channel !== channel ||

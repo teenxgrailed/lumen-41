@@ -58,7 +58,7 @@ export function secretMatches(
 
 const START = /^\/start(?:@\w+)?(?:\s+([A-Za-z0-9_-]{8,64}))?\s*$/;
 const STOP = /^\/stop(?:@\w+)?\s*$/;
-const CALLBACK = /^([dl]):([A-Za-z0-9_-]{1,64})$/;
+const CALLBACK = /^([dl]):([A-Za-z0-9_-]{1,64})(?::(\d{4})(\d{2})(\d{2}))?$/;
 
 function eventOfText(text: string): IncomingEvent {
   const trimmed = text.trim();
@@ -96,7 +96,9 @@ function keyboardOf(message: OutgoingMessage): InlineButton[][] {
         action.action === "done"
           ? `Done: ${truncate(action.title, BUTTON_TITLE_MAX)}`
           : "Later",
-      callback_data: `${action.action === "done" ? "d" : "l"}:${action.taskId}`,
+      callback_data: `${action.action === "done" ? "d" : "l"}:${action.taskId}${
+        action.dateKey ? `:${action.dateKey.replace(/-/g, "")}` : ""
+      }`,
     });
   }
   return rows;
@@ -142,6 +144,9 @@ export function createTelegramAdapter(options: {
             kind: "action",
             action: match[1] === "d" ? "done" : "later",
             taskId: match[2],
+            ...(match[3]
+              ? { dateKey: `${match[3]}-${match[4]}-${match[5]}` }
+              : {}),
           },
           ref: JSON.stringify(ref),
         };

@@ -6,7 +6,10 @@ import { updateTaskFields } from "@/services/tasks/task-update";
 import { WorkspaceRole } from "@prisma/client";
 
 import { recordActivation } from "@/lib/activation-events";
-import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
+import {
+  WorkspaceAuthorizationError,
+  resolveWorkspaceAccess,
+} from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { habitDayKey } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
@@ -129,11 +132,13 @@ function renderPlan(
           taskId: item.taskId,
           action: "done",
           title: item.title,
+          dateKey: plan?.date,
         });
         actions.push({
           taskId: item.taskId,
           action: "later",
           title: item.title,
+          dateKey: plan?.date,
         });
       }
     }
@@ -178,7 +183,7 @@ const STALE_TEXT = "That task is no longer in the plan.";
  * The open plan row of a task of this person, or null when there is none: the
  * task is gone, trashed, or only on days that were already closed.
  */
-async function openPlanItem(userId: string, taskId: string) {
+async function openPlanItem(userId: string, taskId: string, dateKey: string) {
   const task = await prisma.task.findFirst({
     where: { id: taskId, userId },
     select: {
@@ -187,6 +192,7 @@ async function openPlanItem(userId: string, taskId: string) {
       trashedAt: true,
       isRecurring: true,
       somedayAt: true,
+      workspaceId: true,
     },
   });
   if (!task || task.trashedAt) return null;
@@ -198,11 +204,10 @@ async function openPlanItem(userId: string, taskId: string) {
     },
     include: { plan: { select: { date: true, status: true } } },
   });
-  if (items.length === 0) return null;
-  const item = [...items].sort(
-    (a, b) => b.plan.date.getTime() - a.plan.date.getTime()
-  )[0];
-  return { task, item, dateKey: keyFromDate(item.plan.date) };
+  // The day of the message that was pressed, never another day's row.
+  const item = items.find((row) => keyFromDate(row.plan.date) === dateKey);
+  if (!item) return null;
+  return { task, item, dateKey };
 }
 
 async function rerender(
@@ -218,19 +223,34 @@ async function handleAction(
   userId: string,
   action: "done" | "later",
   taskId: string,
-  now: Date
+  now: Date,
+  pressedDateKey?: string
 ): Promise<ActionOutcome> {
-  const found = await openPlanItem(userId, taskId);
+  // An older control without a day means today, in the person's time zone.
+  const found = await openPlanItem(
+    userId,
+    taskId,
+    pressedDateKey ?? habitDayKey(now, await userTimeZone(userId))
+  );
   if (!found) return { message: reply(STALE_TEXT) };
   const { task, item, dateKey } = found;
 
   if (action === "done") {
     // The same completion the app uses (recurrence, change tracking, webhook,
     // calendar block, focus end, reminders, scheduler), not a bare update.
-    const workspace = await resolveWorkspaceAccess({
-      userId,
-      requiredRole: WorkspaceRole.EDITOR,
-    });
+    let workspace;
+    try {
+      workspace = await resolveWorkspaceAccess({
+        userId,
+        requestedWorkspaceId: task.workspaceId ?? undefined,
+        requiredRole: WorkspaceRole.EDITOR,
+      });
+    } catch (error) {
+      if (error instanceof WorkspaceAuthorizationError) {
+        return { message: reply("You can't edit that task any more.") };
+      }
+      throw error;
+    }
     const result = await updateTaskFields({
       userId,
       workspace,
@@ -238,23 +258,19 @@ async function handleAction(
       patch: { status: TaskStatus.COMPLETED },
     });
     if (!result.ok) return { message: reply(STALE_TEXT) };
-    if (result.recurringAlreadyDone) {
-      const next = result.recurringAlreadyDone.nextDueDate;
-      return {
-        message: reply(
-          next
-            ? `Already done today. It comes up again on ${next}.`
-            : "Already done today."
-        ),
-      };
-    }
-    if (task.isRecurring) {
+    // A repeat tick on a series that was already done today counts as done in
+    // the plan too, so the row stops offering the button.
+    if (task.isRecurring || result.recurringAlreadyDone) {
       // The series row stays open for its next date; this occurrence is done.
       await prisma.dayPlanItem.update({
         where: { id: item.id },
         data: { resolution: "done" },
       });
     }
+    await prisma.task.updateMany({
+      where: { id: taskId, userId },
+      data: { lastTouchedAt: now },
+    });
     await publishRealtimeEventSafe(userId, "tasks-updated");
   } else {
     // "Later" is Someday: out of the plan and off the home screen.
@@ -358,7 +374,8 @@ async function handleLinked(
         userId,
         event.action,
         event.taskId,
-        now
+        now,
+        event.dateKey
       );
       recordActivation("channel_reply", userId, {
         channel: link.channel,

@@ -8,7 +8,13 @@ export type IncomingEvent =
   | { kind: "text"; text: string }
   /** A voice note; the adapter fetches the audio when the core asks for it. */
   | { kind: "voice"; voiceFileRef: string }
-  | { kind: "action"; action: PlanActionKind; taskId: string }
+  | {
+      kind: "action";
+      action: PlanActionKind;
+      taskId: string;
+      /** The plan day (YYYY-MM-DD) of the message the control was pressed on. */
+      dateKey?: string;
+    }
   /** Link this chat to the account that made `code`. */
   | { kind: "link"; code: string }
   | { kind: "unlink" }
@@ -23,6 +29,8 @@ export interface PlanAction {
   action: PlanActionKind;
   /** The task title, for the adapter to label its control. */
   title: string;
+  /** The plan day (YYYY-MM-DD) the control belongs to, echoed back on a press. */
+  dateKey?: string;
 }
 
 /**

@@ -19,6 +19,10 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 import { recordActivation } from "@/lib/activation-events";
+import {
+  WorkspaceAuthorizationError,
+  resolveWorkspaceAccess,
+} from "@/lib/auth/workspace-auth";
 import { logger } from "@/lib/logger";
 import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
@@ -954,5 +958,207 @@ describe("review fixes", () => {
     expect(await cleanupChannelRows(NOW)).toEqual({ updates: 1, codes: 1 });
     expect(db().tables.channelUpdate).toHaveLength(1);
     expect(db().tables.channelLinkCode).toHaveLength(1);
+  });
+});
+
+describe("second review pass", () => {
+  const compact = (key: string) => key.replace(/-/g, "");
+  const sharedAccess = {
+    enabled: true,
+    workspaceId: "ws-shared",
+    workspaceKind: "SHARED",
+    role: "EDITOR",
+    dataScope: { mode: "workspace", workspaceId: "ws-shared" },
+  };
+
+  it("test_done_on_task_in_shared_workspace_completes_it", async () => {
+    linkChat(USER, CHAT);
+    const task = seedTask(db(), {
+      title: "Shared job",
+      workspaceId: "ws-shared",
+      tags: [],
+    });
+    seedPlan(db(), TODAY, [task.id], { status: "active" });
+    // Workspace mode on: access is resolved for the task's own workspace, and
+    // anything else is refused, so this fails if the id is not passed on.
+    (resolveWorkspaceAccess as jest.Mock).mockImplementationOnce(
+      async (input: { requestedWorkspaceId?: string }) => {
+        if (input.requestedWorkspaceId !== "ws-shared") {
+          throw new WorkspaceAuthorizationError(
+            "denied",
+            403,
+            "WORKSPACE_ACCESS_DENIED"
+          );
+        }
+        return sharedAccess;
+      }
+    );
+    const { adapter } = telegram();
+    await processWebhook(
+      adapter,
+      hook(buttonUpdate(1, CHAT, `d:${task.id}`)),
+      clock
+    );
+    const row = db().tables.task.find((t) => t.id === task.id);
+    expect(row?.status).toBe("completed");
+    expect(row?.lastTouchedAt).toBeInstanceOf(Date);
+  });
+
+  it("says so when the person can no longer edit the task", async () => {
+    linkChat(USER, CHAT);
+    const task = seedTask(db(), {
+      title: "Not yours now",
+      workspaceId: "ws-shared",
+      tags: [],
+    });
+    seedPlan(db(), TODAY, [task.id], { status: "active" });
+    (resolveWorkspaceAccess as jest.Mock).mockImplementationOnce(async () => {
+      throw new WorkspaceAuthorizationError(
+        "denied",
+        403,
+        "WORKSPACE_ACCESS_DENIED"
+      );
+    });
+    const { adapter, calls } = telegram();
+    await processWebhook(
+      adapter,
+      hook(buttonUpdate(1, CHAT, `d:${task.id}`)),
+      clock
+    );
+    expect(db().tables.task.find((t) => t.id === task.id)?.status).toBe("todo");
+    expect(sentTexts(calls).join("\n")).toContain(
+      "You can't edit that task any more"
+    );
+  });
+
+  it("marks the plan row done when the series was already ticked today", async () => {
+    linkChat(USER, CHAT);
+    const master = seedTask(db(), {
+      title: "Stretch",
+      isRecurring: true,
+      recurrenceRule: "FREQ=DAILY",
+      dueDate: dayDate(TOMORROW),
+      lastCompletedDate: NOW,
+      tags: [],
+    });
+    seedPlan(db(), TODAY, [master.id], { status: "active" });
+    const { adapter, calls } = telegram();
+    await processWebhook(
+      adapter,
+      hook(buttonUpdate(1, CHAT, `d:${master.id}`)),
+      clock
+    );
+    const item = db().tables.dayPlanItem.find((i) => i.taskId === master.id);
+    expect(item?.resolution).toBe("done");
+    const edit = calls.find((c) => c.url.endsWith("/editMessageText"));
+    expect(String(edit?.body.text)).toContain("✓ Stretch");
+  });
+
+  it("test_press_on_today_never_marks_tomorrows_item", async () => {
+    linkChat(USER, CHAT);
+    const master = seedTask(db(), {
+      title: "Water plants",
+      isRecurring: true,
+      recurrenceRule: "FREQ=DAILY",
+      dueDate: dayDate(TODAY),
+      tags: [],
+    });
+    seedPlan(db(), TODAY, [master.id], { status: "active" });
+    seedPlan(db(), TOMORROW, [master.id], { status: "active" });
+
+    // The controls carry the day of the plan they were drawn from.
+    const message = await buildTouchMessage(USER, "morning", NOW);
+    expect(message.actions[0].dateKey).toBe(TODAY);
+    const { adapter, calls } = telegram();
+    await adapter.send({ channel: "telegram", externalChatId: CHAT }, message);
+    expect(JSON.stringify(calls[calls.length - 1].body)).toContain(
+      `d:${master.id}:${compact(TODAY)}`
+    );
+
+    await processWebhook(
+      adapter,
+      hook(buttonUpdate(1, CHAT, `d:${master.id}:${compact(TODAY)}`)),
+      clock
+    );
+    const items = db().tables.dayPlanItem.filter((i) => i.taskId === master.id);
+    const todays = items.find(
+      (i) =>
+        (
+          db().tables.dayPlan.find((p) => p.id === i.planId)?.date as Date
+        ).getTime() === dayDate(TODAY).getTime()
+    );
+    const tomorrows = items.find((i) => i !== todays);
+    expect(todays?.resolution).toBe("done");
+    expect(tomorrows?.resolution ?? null).toBeNull();
+  });
+
+  it("treats a control without a day as today", async () => {
+    linkChat(USER, CHAT);
+    const task = seedTask(db(), { title: "Only tomorrow", tags: [] });
+    seedPlan(db(), TOMORROW, [task.id], { status: "active" });
+    const { adapter } = telegram();
+    await processWebhook(
+      adapter,
+      hook(buttonUpdate(1, CHAT, `d:${task.id}`)),
+      clock
+    );
+    expect(db().tables.task.find((t) => t.id === task.id)?.status).toBe("todo");
+  });
+
+  it("test_webhook_body_cap_holds_without_a_content_length", async () => {
+    linkChat(USER, CHAT);
+    const { adapter } = telegram();
+    const chunk = () => new Uint8Array(40 * 1024).fill(32);
+    const streamed = (headers: Record<string, string>) =>
+      new Request("http://localhost/api/channels/telegram/webhook", {
+        method: "POST",
+        headers: { [SECRET_HEADER]: SECRET, ...headers },
+        body: new ReadableStream({
+          start(controller) {
+            controller.enqueue(chunk());
+            controller.enqueue(chunk());
+            controller.close();
+          },
+        }),
+        duplex: "half",
+      } as RequestInit);
+    expect((await processWebhook(adapter, streamed({}), clock)).status).toBe(
+      413
+    );
+    expect(
+      (
+        await processWebhook(
+          adapter,
+          streamed({ "content-length": "abc" }),
+          clock
+        )
+      ).status
+    ).toBe(413);
+    expect(taskTitles()).toEqual([]);
+
+    // A small body with a junk length still goes through.
+    const ok = new Request("http://localhost/api/channels/telegram/webhook", {
+      method: "POST",
+      headers: { [SECRET_HEADER]: SECRET, "content-length": "abc" },
+      body: JSON.stringify(textUpdate(9, CHAT, "buy milk")),
+    });
+    expect((await processWebhook(adapter, ok, clock)).status).toBe(200);
+    expect(taskTitles()).toContain("Buy milk");
+  });
+
+  it("answers 'already linked' when a used code is sent again from the linked chat", async () => {
+    const { code } = await createLinkCode(USER, "telegram", NOW);
+    const send = () =>
+      handleIncoming(
+        {
+          channel: "telegram",
+          externalChatId: CHAT,
+          event: { kind: "link", code },
+        },
+        clock
+      );
+    expect((await send())?.text).toMatch(/linked/i);
+    expect((await send())?.text).toMatch(/already linked/i);
+    expect((await findActiveLink("telegram", CHAT))?.userId).toBe(USER);
   });
 });
