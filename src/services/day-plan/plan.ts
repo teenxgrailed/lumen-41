@@ -27,6 +27,7 @@ import {
   resolutionSchema,
 } from "./rules";
 import { getPlanSettings, suggestLimit, userTimeZone } from "./settings";
+import { moveTasksToSomeday } from "./someday";
 
 export const TASK_SELECT = {
   id: true,
@@ -461,14 +462,24 @@ export async function buildDraft(
     );
   }
 
-  const carried: Candidate[] = (existing?.items ?? []).map((item) =>
-    candidateOf(item.task, timeZone, {
-      pinned: item.position,
-      isMain: item.isMain,
-      addedBy: item.addedBy === "review" ? "review" : "draft",
-    })
-  );
+  // Tasks the person (or the evening review) chose are never recut: only the
+  // plan's own `draft` items are. Chosen tasks count against the limit and the
+  // focus budget first, even when they already sit over them.
+  const keptItems = (existing?.items ?? [])
+    .filter((item) => item.addedBy === "review" || item.addedBy === "user")
+    .sort((a, b) => a.position - b.position);
+  const keptIds = new Set(keptItems.map((item) => item.taskId));
+  const carried: Candidate[] = (existing?.items ?? [])
+    .filter((item) => !keptIds.has(item.taskId))
+    .map((item) =>
+      candidateOf(item.task, timeZone, {
+        pinned: item.position,
+        isMain: item.isMain,
+        addedBy: "draft",
+      })
+    );
   const taken = new Set([
+    ...keptIds,
     ...carried.map((c) => c.id),
     ...fromNote.map((entry) => entry.candidate.id),
   ]);
@@ -480,10 +491,34 @@ export async function buildDraft(
     ...carried,
     ...fromNote
       .map((entry) => entry.candidate)
-      .filter((candidate) => !carried.some((c) => c.id === candidate.id)),
+      .filter(
+        (candidate) =>
+          !keptIds.has(candidate.id) &&
+          !carried.some((c) => c.id === candidate.id)
+      ),
     ...dated.map((task) => candidateOf(task, timeZone)),
   ]);
-  const cut = cutDraft(ranked, settings);
+  const keptMinutes = keptItems.reduce(
+    (sum, item) => sum + estimateOf(item.task),
+    0
+  );
+  const room = Math.max(0, settings.taskLimit - keptItems.length);
+  const budget = settings.focusMinutes - keptMinutes;
+  // cutDraft always keeps its first candidate; with chosen tasks already
+  // filling the plan or the budget nothing new goes in.
+  const cut =
+    room === 0 || (keptItems.length > 0 && budget <= 0)
+      ? { chosen: [] as Candidate[], overflow: ranked, focusMinutes: 0 }
+      : cutDraft(ranked, { taskLimit: room, focusMinutes: budget });
+  const keptMains = keptItems.filter((item) => item.isMain).length;
+  const mainIds = new Set([
+    ...keptItems.filter((item) => item.isMain).map((item) => item.taskId),
+    ...cut.chosen
+      .slice(0, Math.max(0, settings.mainLimit - keptMains))
+      .map((c) => c.id),
+  ]);
+  const totalCount = keptItems.length + cut.chosen.length;
+  const totalMinutes = keptMinutes + cut.focusMinutes;
 
   if (existing?.editedByUserAt) {
     // The person's edits win. New material is offered, never forced in.
@@ -511,23 +546,48 @@ export async function buildDraft(
     .filter((entry) => entry.reused)
     .map((entry) => entry.candidate.id);
 
-  await prisma.$transaction(async (tx) => {
-    const plan = existing
-      ? await tx.dayPlan.update({
-          where: { id: existing.id },
-          data: { source, builtAt: now },
-        })
-      : await tx.dayPlan.create({
-          data: { userId, date, status: "draft", source, builtAt: now },
-        });
+  const written = await prisma.$transaction(async (tx) => {
+    // The person may have edited (or closed) the plan while the note was being
+    // parsed. The check is part of the write, not a read before it, so a
+    // concurrent edit is never overwritten.
+    let plan: { id: string };
+    if (existing) {
+      const claimed = await tx.dayPlan.updateMany({
+        where: {
+          id: existing.id,
+          editedByUserAt: null,
+          status: { not: "closed" },
+        },
+        data: { source, builtAt: now },
+      });
+      if (claimed.count === 0) return false;
+      plan = existing;
+    } else {
+      const raced = await tx.dayPlan.findUnique({
+        where: { userId_date: { userId, date } },
+        select: { id: true },
+      });
+      if (raced) return false;
+      plan = await tx.dayPlan.create({
+        data: { userId, date, status: "draft", source, builtAt: now },
+      });
+    }
     await tx.dayPlanItem.deleteMany({
       where: {
         planId: plan.id,
+        addedBy: "draft",
         taskId: { notIn: cut.chosen.map((c) => c.id) },
       },
     });
-    for (const [position, candidate] of cut.chosen.entries()) {
-      const isMain = cut.mainIds.has(candidate.id);
+    for (const [position, item] of keptItems.entries()) {
+      await tx.dayPlanItem.updateMany({
+        where: { planId: plan.id, taskId: item.taskId },
+        data: { position },
+      });
+    }
+    for (const [index, candidate] of cut.chosen.entries()) {
+      const position = keptItems.length + index;
+      const isMain = mainIds.has(candidate.id);
       await tx.dayPlanItem.upsert({
         where: { planId_taskId: { planId: plan.id, taskId: candidate.id } },
         create: {
@@ -540,7 +600,17 @@ export async function buildDraft(
         update: { position, isMain },
       });
     }
+    return true;
   });
+  if (!written) {
+    const current = await loadPlan(userId, date);
+    return {
+      plan: toPlanView((current ?? existing) as PlanRow, settings),
+      suggested: [],
+      built: false,
+      skipped: current?.status === "closed" ? "closed" : "edited",
+    };
+  }
   if (reusedByNote.length > 0) {
     await prisma.task.updateMany({
       where: { id: { in: reusedByNote }, userId },
@@ -552,10 +622,10 @@ export async function buildDraft(
     // Once per date: a rebuild of an existing draft is not a second event.
     recordActivation("plan_built", userId, {
       date: dateKey,
-      taskCount: cut.chosen.length,
-      mainCount: cut.mainIds.size,
+      taskCount: totalCount,
+      mainCount: mainIds.size,
       limit: settings.taskLimit,
-      focusMinutes: cut.focusMinutes,
+      focusMinutes: totalMinutes,
       source,
     });
   }
@@ -590,7 +660,7 @@ export const dayPlanUpdateSchema = z
         })
       )
       .max(50),
-    /** Allow the plan to grow past the person's limit. */
+    /** Allow the plan to grow past the person's limit or focus budget. */
     confirmOverLimit: z.boolean().optional(),
     /** Start the day: draft to active. */
     status: z.enum(["active"]).optional(),
@@ -653,6 +723,23 @@ export async function updateDayPlan(
         { limit: settings.taskLimit }
       );
     }
+  }
+  const focusTotal = ids.reduce(
+    (sum, id) => sum + estimateOf(byId.get(id) as TaskRow),
+    0
+  );
+  if (
+    focusTotal > settings.focusMinutes &&
+    ids.length > 1 &&
+    added.length > 0 &&
+    !input.confirmOverLimit
+  ) {
+    throw new DayPlanError(
+      "over_budget",
+      409,
+      `The plan is past your focus budget (${settings.focusMinutes} min). Confirm going over it or swap a task.`,
+      { focusMinutes: focusTotal, budget: settings.focusMinutes }
+    );
   }
   const flags = input.items.map((item) =>
     item.isMain !== undefined
@@ -836,7 +923,12 @@ export async function closeDay(
   const toDelete = unfinished.filter((i) => choice.get(i.taskId) === "delete");
 
   const settings = await getPlanSettings(userId);
-  const tomorrowKey = addDaysToKey(input.date, 1);
+  // "Tomorrow" is the person's real tomorrow. Closing an old, unclosed day
+  // sends its leftovers to today + 1, never to a day that has already passed.
+  const todayKey = dateKeyOf(now, await userTimeZone(userId));
+  const afterClosed = addDaysToKey(input.date, 1);
+  const realTomorrow = addDaysToKey(todayKey, 1);
+  const tomorrowKey = afterClosed > realTomorrow ? afterClosed : realTomorrow;
   const tomorrowDate = requireDateKey(tomorrowKey);
   const tomorrow =
     toTomorrow.length > 0 ? await loadPlan(userId, tomorrowDate) : null;
@@ -851,7 +943,14 @@ export async function closeDay(
     );
   }
 
-  await prisma.$transaction(async (tx) => {
+  const closed = await prisma.$transaction(async (tx) => {
+    // Claim the close first: a second concurrent close finds the plan already
+    // closed, does nothing and records no second event.
+    const claim = await tx.dayPlan.updateMany({
+      where: { id: plan.id, status: { not: "closed" } },
+      data: { status: "closed", closedAt: now },
+    });
+    if (claim.count === 0) return false;
     for (const item of done) {
       await tx.dayPlanItem.updateMany({
         where: { planId: plan.id, taskId: item.taskId },
@@ -896,12 +995,11 @@ export async function closeDay(
         data: { resolution: kind === "delete" ? "deleted" : kind },
       });
     }
-    if (toSomeday.length > 0) {
-      await tx.task.updateMany({
-        where: { id: { in: toSomeday.map((i) => i.taskId) }, userId },
-        data: { somedayAt: now, somedayReason: "review", lastTouchedAt: now },
-      });
-    }
+    await moveTasksToSomeday(
+      userId,
+      toSomeday.map((i) => i.taskId),
+      { reason: "review", now, touch: true, tx }
+    );
     if (toDelete.length > 0) {
       await tx.task.updateMany({
         where: { id: { in: toDelete.map((i) => i.taskId) }, userId },
@@ -914,11 +1012,17 @@ export async function closeDay(
         data: { lastTouchedAt: now },
       });
     }
-    await tx.dayPlan.update({
-      where: { id: plan.id },
-      data: { status: "closed", closedAt: now },
-    });
+    return true;
   });
+  if (!closed) {
+    const current = (await loadPlan(userId, date)) ?? plan;
+    return {
+      date: input.date,
+      status: "closed",
+      ...countsOf(current.items),
+      alreadyClosed: true,
+    };
+  }
 
   const result: CloseDayResult = {
     date: input.date,

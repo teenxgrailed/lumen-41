@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authorize, failure } from "@/services/day-plan/http";
+import { assertDayPlanOn, authorize, failure } from "@/services/day-plan/http";
 import {
   getPlanSettings,
   suggestLimit,
@@ -45,6 +45,7 @@ export async function PUT(request: NextRequest) {
   );
   if ("response" in auth) return auth.response;
   try {
+    await assertDayPlanOn(auth.userId);
     const body = await request.json().catch(() => null);
     const settings = await updatePlanSettings(auth.userId, body);
     return NextResponse.json({ settings });

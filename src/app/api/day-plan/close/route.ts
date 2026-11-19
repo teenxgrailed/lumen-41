@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authorize, failure, parseBody } from "@/services/day-plan/http";
+import {
+  assertDayPlanOn,
+  authorize,
+  failure,
+  parseBody,
+} from "@/services/day-plan/http";
 import { closeDay, closeDaySchema } from "@/services/day-plan/plan";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
@@ -20,6 +25,7 @@ export async function POST(request: NextRequest) {
   );
   if ("response" in auth) return auth.response;
   try {
+    await assertDayPlanOn(auth.userId);
     const input = await parseBody(request, closeDaySchema);
     return NextResponse.json(
       await closeDay(auth.userId, input, { channel: "app" })

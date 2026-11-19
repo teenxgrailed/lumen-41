@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authorize, failure, parseBody } from "@/services/day-plan/http";
+import {
+  assertDayPlanOn,
+  authorize,
+  failure,
+  parseBody,
+} from "@/services/day-plan/http";
 import { buildDraft } from "@/services/day-plan/plan";
 import { dateKeySchema } from "@/services/day-plan/rules";
 import { z } from "zod";
@@ -28,6 +33,7 @@ export async function POST(request: NextRequest) {
   );
   if ("response" in auth) return auth.response;
   try {
+    await assertDayPlanOn(auth.userId);
     const input = await parseBody(request, bodySchema);
     const result = await buildDraft(auth.userId, input.date, {
       note: input.note,

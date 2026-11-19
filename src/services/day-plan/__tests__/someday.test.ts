@@ -3,6 +3,7 @@ import path from "path";
 
 import { recordActivation } from "@/lib/activation-events";
 
+import { closeDay } from "../plan";
 import { touchedAtOf } from "../rules";
 import {
   cleanupSomeday,
@@ -41,6 +42,12 @@ jest.mock("@/lib/logger", () => ({
   },
 }));
 jest.mock("@/lib/activation-events", () => ({ recordActivation: jest.fn() }));
+jest.mock("@/services/ai/parse-tasks", () => ({
+  parseTasksForUser: jest.fn(),
+}));
+jest.mock("@/lib/auth/personal-workspace", () => ({
+  ensurePersonalWorkspaceRow: jest.fn().mockResolvedValue({ id: "ws-1" }),
+}));
 jest.mock("@/lib/feature-flags", () => ({
   dayPlanEnabled: async () => mockState.flags.day_plan,
   somedaySweepEnabled: async () => mockState.flags.someday_sweep,
@@ -61,6 +68,67 @@ beforeEach(() => {
   db().insert("userSettings", { userId: USER, timeZone: "Europe/Zurich" });
   setFlags({ day_plan: true, someday_sweep: true });
   record.mockReset();
+});
+
+describe("Someday leaves the calendar", () => {
+  const start = new Date("2026-11-20T09:00:00Z");
+  const end = new Date("2026-11-20T10:00:00Z");
+  const scheduled = (title: string, over: Record<string, unknown> = {}) => {
+    const task = seedTask(db(), {
+      title,
+      scheduledStart: start,
+      scheduledEnd: end,
+      scheduleScore: 1,
+      ...over,
+    });
+    db().insert("scheduledBlock", {
+      taskId: task.id,
+      userId: USER,
+      start,
+      end,
+    });
+    return task;
+  };
+  const blocksOf = () => db().tables.scheduledBlock.map((b) => b.taskId);
+
+  it("test_task_sent_to_someday_leaves_the_calendar", async () => {
+    const parked = scheduled("Parked");
+    const stays = scheduled("Stays");
+    seedPlan(db(), "2026-11-19", [String(parked.id), String(stays.id)], {
+      status: "active",
+    });
+
+    await closeDay(
+      USER,
+      {
+        date: "2026-11-19",
+        resolutions: [
+          { taskId: String(parked.id), resolution: "someday" },
+          { taskId: String(stays.id), resolution: "tomorrow" },
+        ],
+      },
+      { now: NOW }
+    );
+
+    const row = taskOf(parked.id);
+    expect(row?.somedayAt).toEqual(NOW);
+    expect(row?.scheduledStart).toBeNull();
+    expect(row?.scheduledEnd).toBeNull();
+    expect(row?.scheduleScore).toBeNull();
+    // Only the parked task's blocks went.
+    expect(blocksOf()).toEqual([stays.id]);
+    expect(taskOf(stays.id)?.scheduledStart).toEqual(start);
+  });
+
+  it("clears the schedule when the nightly sweep parks a task too", async () => {
+    const stale = scheduled("Stale", { createdAt: daysAgo(30) });
+
+    expect((await sweepSomeday(NOW)).moved).toBe(1);
+
+    expect(taskOf(stale.id)?.somedayAt).toEqual(NOW);
+    expect(taskOf(stale.id)?.scheduledStart).toBeNull();
+    expect(blocksOf()).toEqual([]);
+  });
 });
 
 describe("D3 Someday sweep", () => {

@@ -706,6 +706,24 @@ function quitGateError(
     : { status: 404, error: "Not found" };
 }
 
+/**
+ * The day plan and Someday tools: listed and callable only while `day_plan` is
+ * on for the account (the kill switch hides all of them).
+ */
+const DAY_PLAN_TOOL_NAMES: ReadonlySet<string> = new Set([
+  "needt_day_plan",
+  "needt_day_plan_edit",
+  "needt_day_plan_draft",
+  "needt_day_plan_close",
+  "needt_day_plan_settings",
+  "needt_someday",
+  "needt_someday_restore",
+  "needt_someday_cleanup",
+]);
+
+export const isDayPlanTool = (tool: { name: string }): boolean =>
+  DAY_PLAN_TOOL_NAMES.has(tool.name);
+
 /** The single MCP tool catalogue. The stdio bridge has no list of its own. */
 /**
  * The day plan belongs to the person, not to a shared workspace: a call that
@@ -2871,7 +2889,7 @@ export function isWriteCall(tool: McpTool, args: unknown): boolean {
  */
 export function listMcpTools(
   scopes: readonly McpScope[] = [],
-  options: { hub?: boolean; quit?: boolean } = {}
+  options: { hub?: boolean; quit?: boolean; dayPlan?: boolean } = {}
 ): {
   name: string;
   description: string;
@@ -2883,7 +2901,9 @@ export function listMcpTools(
     (tool) =>
       (admin || !isAdminTool(tool)) &&
       (options.hub || !isHubTool(tool)) &&
-      (options.quit || !isQuitTool(tool))
+      (options.quit || !isQuitTool(tool)) &&
+      // Only an explicit false hides them: the public server card lists all.
+      (options.dayPlan !== false || !isDayPlanTool(tool))
   ).map((tool) => ({
     name: tool.name,
     description: tool.description,

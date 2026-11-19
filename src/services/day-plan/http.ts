@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { z } from "zod";
 
 import type { authenticateRequest } from "@/lib/auth/api-auth";
+import { dayPlanEnabled } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
 import {
   accountRule,
@@ -34,6 +35,17 @@ export async function authorize(
   );
   if (limited) return { response: limited };
   return { userId };
+}
+
+/**
+ * The `day_plan` kill switch for writes: off, every write is refused (404
+ * `disabled`) and nothing changes. Reads stay open, and the stored plans stay
+ * exactly as they are, so switching it back on loses nothing.
+ */
+export async function assertDayPlanOn(userId: string): Promise<void> {
+  if (!(await dayPlanEnabled(userId))) {
+    throw new DayPlanError("disabled", 404, "The day plan is switched off");
+  }
 }
 
 export function failure(error: unknown, logSource: string): NextResponse {

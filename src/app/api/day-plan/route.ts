@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authorize, failure, parseBody } from "@/services/day-plan/http";
+import {
+  assertDayPlanOn,
+  authorize,
+  failure,
+  parseBody,
+} from "@/services/day-plan/http";
 import {
   dayPlanUpdateSchema,
   getDayPlan,
@@ -44,6 +49,7 @@ export async function PUT(request: NextRequest) {
   );
   if ("response" in auth) return auth.response;
   try {
+    await assertDayPlanOn(auth.userId);
     const input = await parseBody(request, dayPlanUpdateSchema);
     return NextResponse.json({
       plan: await updateDayPlan(auth.userId, input),

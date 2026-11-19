@@ -59,6 +59,11 @@ export function seedFlags(
 ) {
   db.tables.featureFlag.length = 0;
   for (const [key, enabled] of Object.entries(flags)) {
-    db.insert("featureFlag", { key, enabled, overrides: [] });
+    db.insert("featureFlag", {
+      key,
+      enabled,
+      rolloutPercentage: 100,
+      overrides: [],
+    });
   }
 }

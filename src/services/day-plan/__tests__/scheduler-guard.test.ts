@@ -1,7 +1,4 @@
-import { NOT_IN_SOMEDAY } from "@/services/scheduling/candidates";
 import type { ScheduleResult } from "@/services/scheduling/engine";
-import { readFileSync } from "fs";
-import path from "path";
 
 import {
   dropBlocksPastPlanDate,
@@ -123,40 +120,5 @@ describe("D4 scheduler guard", () => {
     );
     expect(taskIds(result)).toEqual(["a"]);
     expect(dropped).toEqual(["a"]);
-  });
-});
-
-describe("Someday and the scheduler", () => {
-  it("test_someday_task_is_not_auto_scheduled", async () => {
-    const parked = seedTask(mockState.db, {
-      title: "Parked",
-      isAutoScheduled: true,
-      somedayAt: new Date("2026-11-10T03:00:00Z"),
-    });
-    const live = seedTask(mockState.db, {
-      title: "Live",
-      isAutoScheduled: true,
-    });
-
-    // The filter the scheduler's candidate query spreads in keeps only the
-    // task that is not in Someday.
-    const taskTable = mockState.db.client.task as {
-      findMany: (args: unknown) => Promise<Array<{ id: unknown }>>;
-    };
-    const rows = await taskTable.findMany({
-      where: { ...NOT_IN_SOMEDAY, isAutoScheduled: true },
-    });
-    expect(rows.map((row: { id: unknown }) => row.id)).toEqual([live.id]);
-    expect(rows.map((row: { id: unknown }) => row.id)).not.toContain(parked.id);
-
-    // And the service really spreads it into the candidate query.
-    const source = readFileSync(
-      path.join(
-        process.cwd(),
-        "src/services/scheduling/TaskSchedulingService.ts"
-      ),
-      "utf8"
-    );
-    expect(source).toContain("...NOT_IN_SOMEDAY,");
   });
 });

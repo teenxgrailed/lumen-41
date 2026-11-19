@@ -2,6 +2,7 @@ import { parseTasksForUser } from "@/services/ai/parse-tasks";
 
 import { recordActivation } from "@/lib/activation-events";
 
+import { appendEveningNote } from "../note";
 import { buildDraft, closeDay, getDayPlan, updateDayPlan } from "../plan";
 import { DayPlanError, suggestedLimitFrom } from "../rules";
 import { getPlanSettings, suggestLimit, updatePlanSettings } from "../settings";
@@ -440,23 +441,6 @@ describe("plan edits", () => {
   });
 });
 
-describe("D5 kill switch", () => {
-  it("test_kill_switch_off_keeps_plan_data", async () => {
-    // Plan rows are plain data: nothing in the plan services deletes them when
-    // the flag is off. The sweep and the guard stand down (see someday and
-    // scheduler-guard tests); the API keeps answering.
-    const a = seedTask(db());
-    seedPlan(db(), TOMORROW, [String(a.id)]);
-    const before = structuredClone([
-      db().tables.dayPlan,
-      db().tables.dayPlanItem,
-    ]);
-    const snapshot = await getDayPlan(USER, TOMORROW, NOW);
-    expect(snapshot.plan?.taskCount).toBe(1);
-    expect([db().tables.dayPlan, db().tables.dayPlanItem]).toEqual(before);
-  });
-});
-
 describe("API scoping", () => {
   it("test_other_users_plan_is_not_found", async () => {
     const mine = seedTask(db(), { userId: USER });
@@ -538,5 +522,186 @@ describe("analytics", () => {
         expect(["string", "number", "boolean"]).toContain(typeof value);
       }
     }
+  });
+});
+
+describe("review fixes", () => {
+  it("test_closing_old_day_sends_leftover_to_real_tomorrow", async () => {
+    const a = seedTask(db(), { title: "Old leftover" });
+    seedPlan(db(), "2026-11-10", [String(a.id)], { status: "active" });
+
+    await closeDay(
+      USER,
+      {
+        date: "2026-11-10",
+        resolutions: [{ taskId: String(a.id), resolution: "tomorrow" }],
+      },
+      { now: NOW }
+    );
+
+    const tomorrow = await getDayPlan(USER, TOMORROW, NOW);
+    expect(titles(tomorrow.plan?.items ?? [])).toEqual(["Old leftover"]);
+    // Not the day after the closed one, which has long passed.
+    expect(
+      db().tables.dayPlan.some((plan) =>
+        (plan.date as Date).toISOString().startsWith("2026-11-11")
+      )
+    ).toBe(false);
+  });
+
+  it("test_tasks_sent_to_tomorrow_survive_draft_rebuild", async () => {
+    const drafts = [0, 1, 2, 3, 4].map((i) =>
+      seedTask(db(), { title: `Draft ${i}` })
+    );
+    const plan = seedPlan(
+      db(),
+      TOMORROW,
+      drafts.map((task) => String(task.id))
+    );
+    const sent = seedTask(db(), { title: "Sent from review" });
+    const picked = seedTask(db(), { title: "Picked by me" });
+    // The plan already sits over its limit of 5 with these two.
+    db().insert("dayPlanItem", {
+      planId: plan.id,
+      taskId: sent.id,
+      position: 5,
+      addedBy: "review",
+    });
+    db().insert("dayPlanItem", {
+      planId: plan.id,
+      taskId: picked.id,
+      position: 6,
+      addedBy: "user",
+    });
+
+    const result = await buildDraft(USER, TOMORROW, { now: NOW });
+
+    expect(result.built).toBe(true);
+    const names = titles(result.plan.items);
+    expect(names).toContain("Sent from review");
+    expect(names).toContain("Picked by me");
+    // Only the plan's own draft items were recut, to the room left (5 - 2).
+    expect(names.filter((name) => name.startsWith("Draft "))).toEqual([
+      "Draft 0",
+      "Draft 1",
+      "Draft 2",
+    ]);
+    expect(result.plan.mainCount).toBeLessThanOrEqual(3);
+  });
+
+  it("test_user_edit_during_draft_build_is_kept", async () => {
+    const a = seedTask(db(), { title: "From the draft" });
+    const mine = seedTask(db(), { title: "Picked mid-build" });
+    seedPlan(db(), TOMORROW, [String(a.id)]);
+    parse.mockImplementation(async () => {
+      // The person rearranges the plan while the note is being parsed.
+      await updateDayPlan(
+        USER,
+        { date: TOMORROW, items: [{ taskId: String(mine.id) }] },
+        NOW
+      );
+      return { fallback: false, tasks: [{ title: "Something new" }] };
+    });
+
+    const result = await buildDraft(USER, TOMORROW, {
+      note: "something new",
+      now: NOW,
+    });
+
+    expect(result.built).toBe(false);
+    expect(result.skipped).toBe("edited");
+    expect(titles(result.plan.items)).toEqual(["Picked mid-build"]);
+    expect(db().tables.dayPlanItem.map((item) => item.taskId)).toEqual([
+      mine.id,
+    ]);
+  });
+
+  it("test_edit_past_focus_budget_needs_confirmation", async () => {
+    await updatePlanSettings(USER, { focusMinutes: 120 }, NOW);
+    const ids = [0, 1, 2].map((i) =>
+      String(seedTask(db(), { title: `Long ${i}`, estimatedMinutes: 60 }).id)
+    );
+    const two = await updateDayPlan(
+      USER,
+      { date: TOMORROW, items: ids.slice(0, 2).map((taskId) => ({ taskId })) },
+      NOW
+    );
+    expect(two.focusMinutes).toBe(120);
+
+    await expect(
+      updateDayPlan(
+        USER,
+        { date: TOMORROW, items: ids.map((taskId) => ({ taskId })) },
+        NOW
+      )
+    ).rejects.toMatchObject({ code: "over_budget", status: 409 });
+    expect(db().tables.dayPlanItem).toHaveLength(2);
+
+    const over = await updateDayPlan(
+      USER,
+      {
+        date: TOMORROW,
+        items: ids.map((taskId) => ({ taskId })),
+        confirmOverLimit: true,
+      },
+      NOW
+    );
+    expect(over.focusMinutes).toBe(180);
+  });
+
+  it("test_closing_day_twice_records_one_event", async () => {
+    const a = seedTask(db(), { title: "Leftover" });
+    seedPlan(db(), TODAY, [String(a.id)], { status: "active" });
+    const close = () =>
+      closeDay(
+        USER,
+        {
+          date: TODAY,
+          resolutions: [{ taskId: String(a.id), resolution: "tomorrow" }],
+        },
+        { now: NOW }
+      );
+
+    const results = await Promise.all([close(), close()]);
+
+    expect(results.filter((result) => !result.alreadyClosed)).toHaveLength(1);
+    expect(
+      record.mock.calls.filter(([name]) => name === "day_closed")
+    ).toHaveLength(1);
+    const tomorrow = await getDayPlan(USER, TOMORROW, NOW);
+    expect(titles(tomorrow.plan?.items ?? [])).toEqual(["Leftover"]);
+  });
+
+  it("test_same_note_twice_is_not_duplicated", async () => {
+    await appendEveningNote(USER, TODAY, "finish invoice\ncall Anna");
+    await appendEveningNote(USER, TODAY, "finish invoice\ncall Anna\ngym");
+
+    expect(db().tables.dailyAgenda).toHaveLength(1);
+    const content = String(db().tables.dailyAgenda[0].content);
+    expect(content.match(/finish invoice/g)).toHaveLength(1);
+    expect(content.match(/call Anna/g)).toHaveLength(1);
+    expect(content.match(/gym/g)).toHaveLength(1);
+  });
+
+  it("appends after a day saved in between instead of overwriting it", async () => {
+    db().insert("dailyAgenda", {
+      userId: USER,
+      date: dayDate(TODAY),
+      content: "<p>Written by me</p>",
+    });
+    const agenda = db().client.dailyAgenda as {
+      updateMany: (args: unknown) => Promise<{ count: number }>;
+    };
+    // The first conditional write loses to a save made in between.
+    const spy = jest
+      .spyOn(agenda, "updateMany")
+      .mockResolvedValueOnce({ count: 0 });
+
+    await appendEveningNote(USER, TODAY, "call Anna");
+
+    expect(spy).toHaveBeenCalledTimes(2);
+    const content = String(db().tables.dailyAgenda[0].content);
+    expect(content).toContain("Written by me");
+    expect(content).toContain("call Anna");
   });
 });

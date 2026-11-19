@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { POST as postClose } from "@/app/api/day-plan/close/route";
+import { POST as postDraft } from "@/app/api/day-plan/draft/route";
 import { GET as getPlan, PUT as putPlan } from "@/app/api/day-plan/route";
 import { PUT as putSettings } from "@/app/api/day-plan/settings/route";
+import { POST as postCleanup } from "@/app/api/someday/cleanup/route";
+import { POST as postRestore } from "@/app/api/someday/restore/route";
 import { GET as getSomeday } from "@/app/api/someday/route";
 import { createDayPlanDb } from "@/services/day-plan/__tests__/fake-db";
 import {
   OTHER,
   TODAY,
+  TOMORROW,
   USER,
+  seedFlags,
   seedPlan,
   seedTask,
 } from "@/services/day-plan/__tests__/helpers";
@@ -53,6 +58,7 @@ const request = (url: string, method = "GET", body?: unknown) =>
 beforeEach(() => {
   mockState.db = createDayPlanDb();
   mockState.db.insert("userSettings", { userId: USER, timeZone: "UTC" });
+  seedFlags(mockState.db, { day_plan: true });
   auth.mockResolvedValue({ userId: USER });
 });
 
@@ -111,5 +117,65 @@ describe("day plan routes", () => {
     expect(close.status).toBe(404);
     const get = await getPlan(request(`/api/day-plan?date=${TODAY}`));
     expect((await get.json()).plan).toBeNull();
+  });
+});
+
+describe("D5 kill switch", () => {
+  it("test_kill_switch_off_keeps_plan_data", async () => {
+    const task = seedTask(mockState.db);
+    seedPlan(mockState.db, TODAY, [String(task.id)], { status: "active" });
+    const snapshot = () =>
+      structuredClone([
+        mockState.db.tables.dayPlan,
+        mockState.db.tables.dayPlanItem,
+        mockState.db.tables.task,
+        mockState.db.tables.planSettings,
+      ]);
+    const before = snapshot();
+
+    seedFlags(mockState.db, { day_plan: false });
+
+    const writes = [
+      await putPlan(
+        request("/api/day-plan", "PUT", {
+          date: TODAY,
+          items: [{ taskId: task.id }],
+        })
+      ),
+      await postClose(
+        request("/api/day-plan/close", "POST", {
+          date: TODAY,
+          resolutions: [{ taskId: task.id, resolution: "delete" }],
+        })
+      ),
+      await postDraft(
+        request("/api/day-plan/draft", "POST", { date: TOMORROW })
+      ),
+      await putSettings(
+        request("/api/day-plan/settings", "PUT", { taskLimit: 7 })
+      ),
+      await postRestore(
+        request("/api/someday/restore", "POST", { taskIds: [task.id] })
+      ),
+      await postCleanup(request("/api/someday/cleanup", "POST", {})),
+    ];
+    for (const response of writes) {
+      expect(response.status).toBe(404);
+      expect((await response.json()).error).toBe("disabled");
+    }
+    // Nothing was written: the plan, its items, the task and the settings stay.
+    expect(snapshot()).toEqual(before);
+
+    // Reads still answer, with the plan as it was.
+    const read = await getPlan(request(`/api/day-plan?date=${TODAY}`));
+    expect(read.status).toBe(200);
+    expect((await read.json()).plan.taskCount).toBe(1);
+
+    // Back on: writes work again on the same data.
+    seedFlags(mockState.db, { day_plan: true });
+    const again = await putSettings(
+      request("/api/day-plan/settings", "PUT", { taskLimit: 7 })
+    );
+    expect(again.status).toBe(200);
   });
 });

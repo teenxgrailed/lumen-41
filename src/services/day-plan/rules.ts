@@ -45,6 +45,8 @@ export type DayPlanErrorCode =
   | "no_plan"
   | "day_closed"
   | "over_limit"
+  | "over_budget"
+  | "disabled"
   | "invalid_main"
   | "missing_resolutions"
   | "unknown_resolutions"

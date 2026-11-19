@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authorize, failure, parseBody } from "@/services/day-plan/http";
+import {
+  assertDayPlanOn,
+  authorize,
+  failure,
+  parseBody,
+} from "@/services/day-plan/http";
 import { cleanupSomeday } from "@/services/day-plan/someday";
 import { z } from "zod";
 
@@ -25,6 +30,7 @@ export async function POST(request: NextRequest) {
   );
   if ("response" in auth) return auth.response;
   try {
+    await assertDayPlanOn(auth.userId);
     const input = await parseBody(request, bodySchema);
     return NextResponse.json(
       await cleanupSomeday(auth.userId, { keepTaskIds: input.keepTaskIds })

@@ -12,6 +12,51 @@ const LOG_SOURCE = "SomedaySweep";
 const PAGE = 500;
 const MAX_PAGES = 100;
 
+/** Prisma client or a transaction of it: what `moveTasksToSomeday` writes with. */
+type SomedayWriter = Pick<typeof prisma, "task" | "scheduledBlock">;
+
+/**
+ * The one way a task goes to Someday (evening review, the nightly sweep, the
+ * API and any channel button). It sets `somedayAt` and clears the task's
+ * schedule (`scheduledStart`/`scheduledEnd`) and deletes its ScheduledBlocks in
+ * the same write, so a parked task also leaves the calendar. Pass the
+ * transaction client to make it part of a larger transaction; without one it
+ * runs in its own. Returns how many tasks moved (already-parked ones are left
+ * as they are).
+ */
+export async function moveTasksToSomeday(
+  userId: string,
+  taskIds: string[],
+  options: {
+    reason: "review" | "stale" | "button" | "manual";
+    now: Date;
+    touch?: boolean;
+    tx?: SomedayWriter;
+  }
+): Promise<number> {
+  if (taskIds.length === 0) return 0;
+  const run = async (db: SomedayWriter) => {
+    const { count } = await db.task.updateMany({
+      where: { id: { in: taskIds }, userId, somedayAt: null },
+      data: {
+        somedayAt: options.now,
+        somedayReason: options.reason,
+        scheduledStart: null,
+        scheduledEnd: null,
+        scheduleScore: null,
+        scheduleAtRisk: false,
+        ...(options.touch ? { lastTouchedAt: options.now } : {}),
+      },
+    });
+    await db.scheduledBlock.deleteMany({
+      where: { userId, taskId: { in: taskIds } },
+    });
+    return count;
+  };
+  if (options.tx) return run(options.tx);
+  return prisma.$transaction((tx) => run(tx as unknown as SomedayWriter));
+}
+
 export interface SweepResult {
   /** Why nothing ran, when nothing did. */
   skipped: "flag_off" | null;
@@ -143,10 +188,7 @@ export async function sweepSomeday(
 
     for (const [userId, ids] of byUser) {
       if (!options.dryRun) {
-        await prisma.task.updateMany({
-          where: { id: { in: ids }, userId, somedayAt: null },
-          data: { somedayAt: now, somedayReason: "stale" },
-        });
+        await moveTasksToSomeday(userId, ids, { reason: "stale", now });
         for (let i = 0; i < ids.length; i += 1) {
           recordActivation("task_to_someday", userId, { reason: "stale" });
         }

@@ -69,6 +69,11 @@ export function createDayPlanDb(start = new Date("2026-11-19T20:00:00Z")) {
     schedulingPreferences: [],
     featureFlag: [],
     somedayMigrationMove: [],
+    scheduledBlock: [],
+    autoScheduleSettings: [],
+    workSchedule: [],
+    flexibleHoursOverride: [],
+    calendarEvent: [],
   };
   let clock = start.getTime();
   let ids = 0;
@@ -181,6 +186,7 @@ export function createDayPlanDb(start = new Date("2026-11-19T20:00:00Z")) {
     const row: Row = {
       id: nextId(model),
       createdAt: now(),
+      updatedAt: now(),
       ...(DEFAULTS[model]?.() ?? {}),
       ...rest,
     };
