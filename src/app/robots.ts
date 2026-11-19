@@ -4,6 +4,9 @@ import type { MetadataRoute } from "next";
 // needt.app. Nothing here may be indexed, and every response carries
 // `X-Robots-Tag: noindex, nofollow`.
 //
+// /terms and /privacy are indexable (src/lib/seo/indexable-paths.ts) and listed
+// in the sitemap, so they are never disallowed.
+//
 // Pages Google may already know (/, /auth/*, /privacy, /terms, /support, /p/,
 // /b/, /start, and /agents and /settings, which needt.app links to) stay
 // crawlable: a Disallow would hide their noindex, and a URL Google already

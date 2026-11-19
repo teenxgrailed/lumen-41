@@ -1,1 +1,1 @@
-- chore: use.needt.app serves /sitemap.xml (empty, public) and keeps crawlers out of login-only screens.
+- chore: the terms and privacy pages on use.needt.app can be found by Google; every other app page stays hidden. /sitemap.xml is public.

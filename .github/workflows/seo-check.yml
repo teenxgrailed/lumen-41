@@ -13,9 +13,8 @@ on:
   workflow_dispatch:
     inputs:
       sitemap:
-        description: Sitemap URL to check
+        description: Sitemap URL to check (default: both hosts)
         required: false
-        default: https://needt.app/sitemap.xml
         type: string
 
 permissions:
@@ -25,6 +24,12 @@ jobs:
   sitemap:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        sitemap:
+          - https://needt.app/sitemap.xml
+          - https://use.needt.app/sitemap.xml
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -34,5 +39,5 @@ jobs:
           node-version: 22
       - name: Check the sitemap
         env:
-          SITEMAP: ${{ inputs.sitemap || 'https://needt.app/sitemap.xml' }}
+          SITEMAP: ${{ inputs.sitemap || matrix.sitemap }}
         run: node scripts/seo/check-sitemap.mjs "$SITEMAP"
