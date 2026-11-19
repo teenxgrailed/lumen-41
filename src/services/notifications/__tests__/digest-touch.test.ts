@@ -68,6 +68,13 @@ test("test_morning_digest_skipped_when_morning_touch_on", async () => {
   expect(state.feedCalls).toBe(0);
 });
 
+test("the digest still runs while day_plan_touches is off", async () => {
+  // The skip helper answers false for everybody while the flag is off.
+  state.replaces = false;
+  await deliverDailyDigests(new Date("2026-11-19T08:00:00Z"));
+  expect(state.feedCalls).toBe(1);
+});
+
 test("the digest still runs when the morning touch is off", async () => {
   state.replaces = false;
   await deliverDailyDigests(new Date("2026-11-19T08:00:00Z"));

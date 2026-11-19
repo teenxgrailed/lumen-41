@@ -169,6 +169,13 @@ export const DAY_PLAN = "day_plan";
  */
 export const SOMEDAY_SWEEP = "someday_sweep";
 
+/**
+ * The two daily day-plan touches and the morning digest skip. Ships OFF with
+ * no data migration: before the day plan screen exists they would be a
+ * user-visible change. The UI release (PR D) turns it on.
+ */
+export const DAY_PLAN_TOUCHES = "day_plan_touches";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -197,6 +204,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
     "Day plan kill switch: plan touches, Someday sweep and scheduler plan guard (on for everyone).",
   [SOMEDAY_SWEEP]:
     "Nightly Someday sweep (off until the launch migration; per-user override for testing).",
+  [DAY_PLAN_TOUCHES]:
+    "Morning and evening day-plan pushes, and the morning digest skip (off until the day plan screen ships).",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

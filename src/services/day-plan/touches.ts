@@ -19,7 +19,8 @@ import { deliverPush } from "@/services/reminders/reminder-delivery";
 import { formatInTimeZone } from "date-fns-tz";
 
 import { newDate } from "@/lib/date-utils";
-import { dayPlanEnabled } from "@/lib/feature-flags";
+import { dayPlanTouchesEnabled } from "@/lib/feature-flags";
+import { DAY_PLAN, DAY_PLAN_TOUCHES } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -125,7 +126,7 @@ export async function sendDayPlanTouch(
 export async function morningTouchReplacesDigest(
   userId: string
 ): Promise<boolean> {
-  if (!(await dayPlanEnabled(userId))) return false;
+  if (!(await dayPlanTouchesEnabled(userId))) return false;
   const row = await prisma.planSettings.findUnique({
     where: { userId },
     select: { morningOn: true },
@@ -246,7 +247,7 @@ async function touchPerson(
   time: string,
   now: Date
 ) {
-  if (!(await dayPlanEnabled(person.id))) return false;
+  if (!(await dayPlanTouchesEnabled(person.id))) return false;
   const sinceWindow =
     (clock.minutes - minutesOf(time)) * 60_000 +
     now.getUTCSeconds() * 1000 +
@@ -330,9 +331,9 @@ async function sweepPage(people: Person[], now: Date) {
 }
 
 /** One row read when the flag cannot be on for anybody. */
-async function flagMayBeOn() {
+async function flagRowMayBeOn(key: string) {
   const flag = await prisma.featureFlag.findUnique({
-    where: { key: "day_plan" },
+    where: { key },
     select: {
       enabled: true,
       overrides: {
@@ -343,6 +344,13 @@ async function flagMayBeOn() {
     },
   });
   return Boolean(flag && (flag.enabled || flag.overrides.length > 0));
+}
+
+/** Both flags must be able to be on for somebody before a person is read. */
+async function flagMayBeOn() {
+  return (
+    (await flagRowMayBeOn(DAY_PLAN)) && (await flagRowMayBeOn(DAY_PLAN_TOUCHES))
+  );
 }
 
 export async function runDayPlanTouchSweep(now = newDate()) {

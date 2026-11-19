@@ -1,4 +1,8 @@
-import { runDayPlanTouchSweep, sendDayPlanTouch } from "../touches";
+import {
+  morningTouchReplacesDigest,
+  runDayPlanTouchSweep,
+  sendDayPlanTouch,
+} from "../touches";
 
 type Row = Record<string, unknown>;
 
@@ -8,6 +12,7 @@ const state = {
   notificationSettings: [] as Row[],
   users: [] as Row[],
   flagOn: true,
+  touchesOn: true,
 };
 
 const same = (a: unknown, b: unknown) =>
@@ -37,7 +42,11 @@ function matchWhere(row: Row, where: Row): boolean {
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     featureFlag: {
-      findUnique: async () => ({ enabled: state.flagOn, overrides: [] }),
+      findUnique: async ({ where }: { where: { key: string } }) => ({
+        enabled:
+          where.key === "day_plan_touches" ? state.touchesOn : state.flagOn,
+        overrides: [],
+      }),
     },
     user: { findMany: async () => state.users },
     userSettings: { findMany: async () => state.userSettings },
@@ -74,7 +83,7 @@ jest.mock("@/lib/logger", () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 jest.mock("@/lib/feature-flags", () => ({
-  dayPlanEnabled: async () => state.flagOn,
+  dayPlanTouchesEnabled: async () => state.flagOn && state.touchesOn,
 }));
 
 const deliver = jest.fn();
@@ -123,6 +132,7 @@ beforeEach(() => {
   state.notificationSettings = [];
   state.users = [{ id: "u1" }];
   state.flagOn = true;
+  state.touchesOn = true;
   deliver.mockResolvedValue(true);
   planMock.getDayPlan.mockResolvedValue(
     activePlan([
@@ -289,4 +299,25 @@ test("sendDayPlanTouch is the single fan-out and reports delivery", async () => 
       url: "/today",
     })
   ).toBe(false);
+});
+
+test("test_touches_off_until_ui_ships", async () => {
+  state.touchesOn = false;
+  await runDayPlanTouchSweep(MORNING);
+  await runDayPlanTouchSweep(EVENING);
+  expect(deliver).not.toHaveBeenCalled();
+  expect(planMock.getDayPlan).not.toHaveBeenCalled();
+  expect(planMock.buildDraft).not.toHaveBeenCalled();
+  // Nothing was claimed either, so turning it on later still sends that day.
+  expect(state.planSettings).toEqual([]);
+  state.touchesOn = true;
+  await runDayPlanTouchSweep(MORNING);
+  expect(deliver).toHaveBeenCalledTimes(1);
+});
+
+test("the digest is replaced only with the flag on, morningOn and not off", async () => {
+  state.touchesOn = false;
+  expect(await morningTouchReplacesDigest("u1")).toBe(false);
+  state.touchesOn = true;
+  expect(await morningTouchReplacesDigest("u1")).toBe(true);
 });
