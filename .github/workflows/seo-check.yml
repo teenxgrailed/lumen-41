@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       sitemap:
-        description: Sitemap URL to check (default: both hosts)
+        description: "Sitemap URL to check (default: both hosts)"
         required: false
         type: string
 
