@@ -114,9 +114,17 @@ export function dateKeyOf(value: Date, timeZone: string): string {
 
 /* ---------- settings ---------- */
 
+/**
+ * A touch time: HH:MM, no later than 23:30, so the 30-minute touch window never
+ * crosses local midnight.
+ */
 const timeOfDay = z
   .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "time must be HH:MM");
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "time must be HH:MM")
+  .refine(
+    (value) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) <= 1410,
+    "time must be 23:30 or earlier"
+  );
 
 /** What a person or an API client may change. Out-of-range values reject. */
 export const planSettingsPatchSchema = z

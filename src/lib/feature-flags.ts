@@ -7,6 +7,7 @@ import {
   AI_CHATGPT_PLAN,
   BUDGET_MODULE,
   DAY_PLAN,
+  DAY_PLAN_TOUCHES,
   FOLDERS_V1,
   HABITS_CARDS_V1,
   HABITS_QUIT,
@@ -145,6 +146,19 @@ export async function dayPlanEnabled(userId: string | null | undefined) {
   if (!userId) return false;
   try {
     return await isFeatureEnabled(DAY_PLAN, userId);
+  } catch {
+    return false;
+  }
+}
+
+/** The day-plan touches: `day_plan` (kill switch) and `day_plan_touches`. */
+export async function dayPlanTouchesEnabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return (
+      (await isFeatureEnabled(DAY_PLAN, userId)) &&
+      (await isFeatureEnabled(DAY_PLAN_TOUCHES, userId))
+    );
   } catch {
     return false;
   }

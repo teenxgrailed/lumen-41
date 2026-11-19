@@ -15,6 +15,7 @@ import {
 } from "@/services/agent-hub/webhooks";
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
 import { sweepSomeday } from "@/services/day-plan/someday";
+import { runDayPlanTouchSweep } from "@/services/day-plan/touches";
 import { sendDueBroadcasts } from "@/services/email-broadcasts/send";
 import {
   applySunset,
@@ -287,6 +288,11 @@ async function processReminder(job: Job<ReminderJobData>) {
   }
   if (job.data.kind === "habit-evening") {
     await runHabitEveningPush();
+    return;
+  }
+  if (job.data.kind === "day-plan-touch") {
+    // One flag row read while `day_plan` is off for everybody.
+    await runDayPlanTouchSweep();
     return;
   }
   if (job.data.kind === "someday-sweep") {
@@ -623,6 +629,13 @@ export async function start(): Promise<void> {
     "habit-evening-push-sweep",
     { every: 5 * 60_000 },
     { name: "sweep-habit-evening", data: { kind: "habit-evening" } }
+  );
+  // Every 5 minutes: the morning and evening touches are due in a 5-minute
+  // window of each person's own clock; the sweep decides who is inside it.
+  await getReminderQueue().upsertJobScheduler(
+    "day-plan-touch-sweep",
+    { every: 5 * 60_000 },
+    { name: "sweep-day-plan-touch", data: { kind: "day-plan-touch" } }
   );
   // Daily at 03:00 UTC. Registered always; the sweep itself checks both flags,
   // so with `someday_sweep` off it reads two flag rows and returns.

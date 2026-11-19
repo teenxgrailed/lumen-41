@@ -62,7 +62,9 @@ export type ReminderJobData =
   | { kind: "habit-evening" }
   /** The nightly Someday sweep (flags `day_plan` and `someday_sweep`). */
   | { kind: "someday-sweep" }
-  | { kind: "channel-update-cleanup" };
+  | { kind: "channel-update-cleanup" }
+  /** The two day plan touches (flag `day_plan_touches`), every 5 minutes. */
+  | { kind: "day-plan-touch" };
 
 /** A delayed job per running Focus session, due at its planned end. */
 export interface FocusJobData {

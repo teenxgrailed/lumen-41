@@ -87,15 +87,16 @@ Each PR ships on its own. Every owner decision has a test with a human name, wri
 
 ## PR B — Two touches over web push
 
-- [ ] **B-1 — `day-plan-touch-sweep`** on the Reminder queue: per-user local time, compare-and-set idempotence, no guessed time zone, quiet hours respected.
-- [ ] **B-2 — Content.** Morning: the main tasks plus "+N", opening `/today`. Evening: the leftover count, opening the review and note. The evening send builds tomorrow's draft.
-- [ ] **B-3 — Settings API** for times and toggles. Skip the morning digest when the morning touch is on.
-- [ ] **B-4 — Tests:**
+- [x] **B-1 — `day-plan-touch-sweep`** on the Reminder queue: per-user local time, compare-and-set idempotence, no guessed time zone, quiet hours respected.
+- [x] **B-2 — Content.** Morning: the main tasks plus "+N", opening `/today`. Evening: the leftover count, opening the review and note. The evening send builds tomorrow's draft.
+- [x] **B-3 — Settings API** for times and toggles. Skip the morning digest when the morning touch is on.
+- [x] **B-4 — Tests:**
   - `test_touches_default_to_8_and_21_local`
   - `test_touch_is_sent_once_per_day`
   - `test_no_touch_without_time_zone`
   - `test_touch_off_sends_nothing`
   - `test_plan_system_sends_only_two_touches` (D7)
+  - `test_morning_digest_skipped_when_morning_touch_on`
 
 ## PR C — Channel core and Telegram adapter
 
@@ -106,7 +107,7 @@ Each PR ships on its own. Every owner decision has a test with a human name, wri
   - inline "done" and "later" buttons
   - link via deep link `?start=<code>`, plus unlink
 - [x] **C-4 — Voice:** a `transcribe` service behind the AI settings. Choose the provider, record the cost per minute in the PR, and fall back to asking for text. _Done as the interface plus a fallback that asks for text; no provider is chosen until the owner approves one._
-- [ ] **C-5 — Touch fan-out.** B's sweep also sends through linked channels, still counted as one touch. _`sendChannelTouch(userId, message)` is exported; wired with B after rebase._
+- [x] **C-5 — Touch fan-out.** B's sweep also sends through linked channels, still counted as one touch. _`sendChannelTouch(userId, message)` is exported; wired with B after rebase._
 - [x] **C-6 — Analytics:** `channel_reply`.
 - [x] **C-7 — Tests:**
   - `test_core_does_not_know_the_messenger` (D6)
