@@ -11,6 +11,7 @@ import {
   seedPlan,
   seedTask,
 } from "@/services/day-plan/__tests__/helpers";
+import { closeDay } from "@/services/day-plan/plan";
 import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
 import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
@@ -1160,5 +1161,30 @@ describe("second review pass", () => {
     expect((await send())?.text).toMatch(/linked/i);
     expect((await send())?.text).toMatch(/already linked/i);
     expect((await findActiveLink("telegram", CHAT))?.userId).toBe(USER);
+  });
+
+  it("test_closeday_needs_no_resolution_for_a_task_done_from_the_bot", async () => {
+    linkChat(USER, CHAT);
+    const master = seedTask(db(), {
+      title: "Water plants",
+      isRecurring: true,
+      recurrenceRule: "FREQ=DAILY",
+      dueDate: dayDate(TODAY),
+      tags: [],
+    });
+    seedPlan(db(), TODAY, [master.id], { status: "active" });
+    const { adapter } = telegram();
+    await processWebhook(
+      adapter,
+      hook(buttonUpdate(1, CHAT, `d:${master.id}`)),
+      clock
+    );
+    // The series row is open again for its next date, but the plan row is done.
+    const closed = await closeDay(
+      USER,
+      { date: TODAY, resolutions: [] },
+      { now: NOW }
+    );
+    expect(closed).toMatchObject({ planned: 1, done: 1 });
   });
 });
