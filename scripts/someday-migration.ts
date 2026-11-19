@@ -104,6 +104,21 @@ export function parseArgs(argv: string[]): Args {
   return args;
 }
 
+/** `token` in `text` with no digit right before or after it (no regex, no input in a pattern). */
+function hasDateToken(text: string, token: string): boolean {
+  const isDigit = (char: string | undefined) =>
+    char !== undefined && char >= "0" && char <= "9";
+  for (
+    let at = text.indexOf(token);
+    at !== -1;
+    at = text.indexOf(token, at + 1)
+  ) {
+    if (!isDigit(text[at - 1]) && !isDigit(text[at + token.length]))
+      return true;
+  }
+  return false;
+}
+
 /**
  * The backup must be from today (UTC). Coolify's backup names may carry no date
  * at all, so `--backup-date YYYY-MM-DD` is the alternative proof. Throws a
@@ -120,8 +135,7 @@ export function assertBackupFromToday(
   const dashed = now.toISOString().slice(0, 10);
   const compact = dashed.replace(/-/g, "");
   const inId =
-    new RegExp(`(?<!\\d)${compact}(?!\\d)`).test(backupId) ||
-    new RegExp(`(?<!\\d)${dashed}(?!\\d)`).test(backupId);
+    hasDateToken(backupId, compact) || hasDateToken(backupId, dashed);
   if (inId) return;
   if (backupDate && backupDate.trim() === dashed) return;
   throw new Error(
