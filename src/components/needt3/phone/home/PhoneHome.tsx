@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 
 import { readPref } from "@/components/needt3/settings/derive";
 
+import { clock } from "@/lib/needt3/day";
 import { planIsShown } from "@/lib/needt3/day-plan";
+import { dayHeader, freeAfterHour } from "@/lib/needt3/day-plan-view";
 import { addDays } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
 import { highEnergyHours } from "@/lib/needt3/energy";
@@ -128,7 +130,7 @@ import { useTaskActions } from "../overlays/schedule";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
 import { PlanCloseSheet } from "./PlanCloseSheet";
-import { PlanToday } from "./PlanToday";
+import { PlanDate, PlanHello, PlanToday, PlanWeekday } from "./PlanToday";
 import { SomedaySheet } from "./SomedaySheet";
 import { usePhoneClock } from "./clock";
 import { homeView, moveLate, nextUpWhy } from "./model";
@@ -414,10 +416,20 @@ export function PhoneHome({
     return p ? { name: p.name, color: p.color } : null;
   };
   const actionsOf = useTaskActions(X.exit);
-  const row = (t: V3Task, o: { late?: boolean; tomorrow?: boolean } = {}) => (
+  const row = (
+    t: V3Task,
+    o: {
+      late?: boolean;
+      tomorrow?: boolean;
+      icon?: React.ReactNode;
+      size?: "big" | "compact";
+    } = {}
+  ) => (
     <PkTaskRow
       key={t.id}
       t={t}
+      icon={o.icon}
+      size={o.size}
       project={projOf(t)}
       late={!!o.late && !t.done}
       phase={X.phase[t.id]}
@@ -631,9 +643,24 @@ export function PhoneHome({
 
   const haHabits = haHabitsOf(habitsQuery.data ?? [], checkins, today);
   const showHabits = !v2 && blocks.habits && haHabits.length > 0;
+  // The day plan's header: the weekday big with a dot, the date at the right,
+  // then the greeting sentence and the stats line, filled from data.
+  const planShown = ready && planOn && !!dayPlan.snapshot?.plan;
+  const dayMeetings = calendarItems.filter((x) => x.event);
+  const free = freeAfterHour(dayMeetings, nowHour, hourOfClock(workCap.end));
+  const planHead = planShown ? (
+    <PlanHello
+      plan={dayPlan.snapshot!.plan!}
+      hour={nowHour}
+      meetings={dayMeetings.length}
+      habits={haHabits.length}
+      freeAfter={free == null ? null : clock(free)}
+    />
+  ) : null;
   const head =
-    showHabits || progress ? (
+    showHabits || progress || planHead ? (
       <>
+        {planHead}
         {showHabits ? (
           <div className="ha-phone">
             <HaHabits
@@ -647,14 +674,17 @@ export function PhoneHome({
         {progress}
       </>
     ) : null;
+  const hdr = planShown ? dayHeader(now, tz) : null;
 
   return (
     <PkScreen
       screen="home"
-      glyph="home"
-      title={copy.V2pHome.today}
+      glyph={hdr ? undefined : "home"}
+      className={hdr ? "dp-screen" : undefined}
+      title={hdr ? <PlanWeekday weekday={hdr.weekday} /> : copy.V2pHome.today}
+      right={hdr ? <PlanDate date={hdr.date} year={hdr.year} /> : undefined}
       sub={
-        v2 && ready && !v.dayClosed ? (
+        hdr ? undefined : v2 && ready && !v.dayClosed ? (
           <span className="hv2-sub">
             {dateLine}
             <DayCount done={v.done} total={v.total} />
