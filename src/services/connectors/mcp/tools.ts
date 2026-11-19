@@ -43,6 +43,23 @@ import { authorizeConnectorWorkspace } from "@/services/connectors/auth";
 import type { BearerAuth } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
 import { createLocalEvent } from "@/services/connectors/local-events";
+import {
+  DayPlanError,
+  buildDraft,
+  cleanupSomeday,
+  closeDay,
+  closeDaySchema,
+  dayPlanUpdateSchema,
+  getDayPlan,
+  getPlanSettings,
+  listSomeday,
+  planSettingsPatchSchema,
+  restoreSomeday,
+  suggestLimit,
+  updateDayPlan,
+  updatePlanSettings,
+} from "@/services/day-plan";
+import { userTimeZone } from "@/services/day-plan/settings";
 import { type GoalRow, loadGoalViews } from "@/services/goals/progress";
 import {
   HabitCompletionDateError,
@@ -127,6 +144,7 @@ import {
   GOAL_TITLE_MAX,
   GOAL_UNIT_MAX,
 } from "@/lib/goals";
+import { habitDayKey } from "@/lib/habit-completion-date";
 import { listMailMessages } from "@/lib/mail-db";
 import { ADMIN_READ_SCOPE, type McpScope } from "@/lib/mcp-config";
 import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
@@ -689,6 +707,44 @@ function quitGateError(
 }
 
 /** The single MCP tool catalogue. The stdio bridge has no list of its own. */
+/**
+ * The day plan belongs to the person, not to a shared workspace: a call that
+ * resolves to a shared workspace is refused. Returns an error result, or null
+ * when the call may go on.
+ */
+async function dayPlanGate(
+  ctx: McpToolContext,
+  mode: "read" | "write"
+): Promise<McpToolResult | null> {
+  const access =
+    mode === "read" ? await readAccess(ctx) : await writeAccess(ctx);
+  if ("error" in access) return access.error;
+  if (access.workspace.workspaceKind !== WorkspaceKind.PERSONAL) {
+    return toolError({
+      status: 400,
+      error: "The day plan belongs to the personal workspace",
+    });
+  }
+  return null;
+}
+
+function dayPlanFailure(error: unknown): McpToolResult {
+  if (error instanceof DayPlanError) {
+    return toolError({
+      status: error.status,
+      error: error.code,
+      message: error.message,
+      ...error.details,
+    });
+  }
+  throw error;
+}
+
+const planDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .describe("yyyy-MM-dd, the day the plan is for.");
+
 export const MCP_TOOLS: McpTool[] = [
   defineTool({
     name: "needt_search",
@@ -2381,6 +2437,217 @@ MCP_TOOLS.push(
         { id: args.actionId }
       ),
   }),
+  defineTool({
+    name: "needt_day_plan",
+    description:
+      "The plan of a day: its tasks in order with the main flag (at most 3), the person's limit and focus budget, the plan status (draft, active, closed), tasks left over from earlier days that still need a decision (tomorrow, later or delete), and a suggested limit once two weeks of history exist. Defaults to today in the person's time zone. Read-only.",
+    annotations: {
+      title: "Day plan",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    input: z.object({ date: planDate.optional() }).strict(),
+    async invoke(ctx, args) {
+      const denied = await dayPlanGate(ctx, "read");
+      if (denied) return denied;
+      try {
+        const date =
+          args.date ?? habitDayKey(newDate(), await userTimeZone(ctx.userId));
+        return toolResult(await getDayPlan(ctx.userId, date));
+      } catch (error) {
+        return dayPlanFailure(error);
+      }
+    },
+  }),
+  defineTool(
+    {
+      name: "needt_day_plan_edit",
+      description:
+        "Arrange the plan of a day: send the whole list of tasks in the order they are done, with isMain on at most 3. Tasks not listed leave the plan. The plan never grows past the person's limit unless confirmOverLimit is true. status: active starts the day. The plan counts as edited, so an automatic rebuild never undoes it.",
+      annotations: {
+        title: "Edit day plan",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      input: dayPlanUpdateSchema,
+      async invoke(ctx, args) {
+        const denied = await dayPlanGate(ctx, "write");
+        if (denied) return denied;
+        try {
+          return toolResult({ plan: await updateDayPlan(ctx.userId, args) });
+        } catch (error) {
+          return dayPlanFailure(error);
+        }
+      },
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_day_plan_draft",
+      description:
+        "Build the draft plan of a day, usually tomorrow, in the evening. With note (the person's evening note, one item per line) the note is saved to the day before and turned into tasks; open tasks with the same title are reused. Without a note the draft comes from that day's dated tasks and deadlines. It is cut at the person's limit and focus budget. It never overwrites a plan the person edited (new candidates come back as suggested) and never touches a closed plan.",
+      annotations: {
+        title: "Build day plan draft",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+      input: z
+        .object({ date: planDate, note: z.string().max(5000).optional() })
+        .strict(),
+      async invoke(ctx, args) {
+        const denied = await dayPlanGate(ctx, "write");
+        if (denied) return denied;
+        try {
+          return toolResult(
+            await buildDraft(ctx.userId, args.date, { note: args.note })
+          );
+        } catch (error) {
+          return dayPlanFailure(error);
+        }
+      },
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_day_plan_close",
+      description:
+        "Close a day. Every unfinished planned task needs exactly one resolution: tomorrow (joins the next day's draft), someday (leaves the lists for Someday) or delete (to Trash, restorable). With any missing the day stays open and nothing changes; the answer lists what is missing. Nothing is moved to another day without a resolution. confirmOverflow lets leftovers go past tomorrow's limit.",
+      annotations: {
+        title: "Close day",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      input: closeDaySchema,
+      async invoke(ctx, args) {
+        const denied = await dayPlanGate(ctx, "write");
+        if (denied) return denied;
+        try {
+          return toolResult(
+            await closeDay(ctx.userId, args, { channel: "api" })
+          );
+        } catch (error) {
+          return dayPlanFailure(error);
+        }
+      },
+    },
+    ["tasks-updated"]
+  ),
+  defineTool({
+    name: "needt_day_plan_settings",
+    description:
+      "Read or change the day plan settings. With no arguments it returns them: taskLimit (3 to 10, default 5), focusMinutes (up to 300), morning and evening times, and a suggested limit when one exists. With fields it changes them; a value outside the range is refused and nothing is stored. acceptSuggestion takes the suggested limit, dismissSuggestion keeps the limit and stays quiet for 14 days.",
+    annotations: {
+      title: "Day plan settings",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    input: planSettingsPatchSchema,
+    scopes: (args) =>
+      Object.keys(args).length > 0 ? ["needt.write"] : ["needt.read"],
+    async invoke(ctx, args) {
+      const writes = Object.keys(args).length > 0;
+      const denied = await dayPlanGate(ctx, writes ? "write" : "read");
+      if (denied) return denied;
+      try {
+        if (!writes) {
+          const [settings, limitSuggestion] = await Promise.all([
+            getPlanSettings(ctx.userId),
+            suggestLimit(ctx.userId),
+          ]);
+          return toolResult({ settings, limitSuggestion });
+        }
+        return toolResult({
+          settings: await updatePlanSettings(ctx.userId, args),
+        });
+      } catch (error) {
+        return dayPlanFailure(error);
+      }
+    },
+  }),
+  defineTool({
+    name: "needt_someday",
+    description:
+      "The tasks in Someday: open tasks nobody touched for 14 days, or that were sent there in an evening review. Each carries when it moved, why, and cleanupDue when it has been there a week and the weekly cleanup would archive it. archived: true lists what the cleanup archived instead (restorable). Someday tasks stay in search and needt_list.",
+    annotations: {
+      title: "Someday",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    input: z.object({ archived: z.boolean().optional() }).strict(),
+    async invoke(ctx, args) {
+      const denied = await dayPlanGate(ctx, "read");
+      if (denied) return denied;
+      return toolResult(
+        await listSomeday(ctx.userId, { archived: args.archived })
+      );
+    },
+  }),
+  defineTool(
+    {
+      name: "needt_someday_restore",
+      description:
+        "Return tasks from Someday (or from the weekly cleanup's archive) to the normal lists. They count as touched now and may be added to a plan.",
+      annotations: {
+        title: "Restore from Someday",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      input: z
+        .object({ taskIds: z.array(z.string().min(1)).min(1).max(500) })
+        .strict(),
+      async invoke(ctx, args) {
+        const denied = await dayPlanGate(ctx, "write");
+        if (denied) return denied;
+        return toolResult({
+          restored: await restoreSomeday(ctx.userId, args.taskIds),
+        });
+      },
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_someday_cleanup",
+      description:
+        "The weekly Someday cleanup: archive every Someday task that has been there for at least 7 days, except keepTaskIds. Archived, never deleted; needt_someday_restore brings them back.",
+      annotations: {
+        title: "Clear Someday",
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      input: z
+        .object({
+          keepTaskIds: z.array(z.string().min(1)).max(1000).optional(),
+        })
+        .strict(),
+      async invoke(ctx, args) {
+        const denied = await dayPlanGate(ctx, "write");
+        if (denied) return denied;
+        return toolResult(
+          await cleanupSomeday(ctx.userId, { keepTaskIds: args.keepTaskIds })
+        );
+      },
+    },
+    ["tasks-updated"]
+  ),
   defineTool({
     name: "needt_create_project",
     description:

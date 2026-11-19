@@ -100,6 +100,8 @@ const baseRow: NeedtTaskRow = {
   entry: null,
   noSlot: false,
   lastTouchedAt: null,
+  somedayAt: null,
+  somedayReason: null,
   previousScheduledStart: null,
   valueCents: null,
   earnedCents: null,

@@ -1,4 +1,5 @@
 import { getLearnedDurationRatio } from "@/services/ai/memory";
+import { guardActiveDayPlans } from "@/services/day-plan/scheduler-guard";
 import { personalBusyBlocks } from "@/services/personal-time/service";
 import {
   blockingEventWhere,
@@ -6,6 +7,7 @@ import {
   resolveBusyFeedIds,
 } from "@/services/scheduling/busy-feeds";
 import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
+import { NOT_IN_SOMEDAY } from "@/services/scheduling/candidates";
 import { AutoScheduleSettingsMissingError } from "@/services/scheduling/errors";
 import { withUserScheduleLock } from "@/services/scheduling/user-schedule-lock";
 import { getCalibrationContext } from "@/services/time-tracking/calibration";
@@ -462,6 +464,7 @@ async function scheduleAllTasksForUserLocked(
       where: {
         ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
         OR: [{ isAutoScheduled: true }, { autoScheduled: true }],
+        ...NOT_IN_SOMEDAY,
         status: {
           not: {
             in: [TaskStatus.COMPLETED, TaskStatus.IN_PROGRESS],
@@ -514,7 +517,7 @@ async function scheduleAllTasksForUserLocked(
         task.scheduledStart !== null || Boolean(task.scheduledBlocks?.length)
     );
 
-    const result = scheduleTasks({
+    const engineResult = scheduleTasks({
       tasks: dbTasks.map(toSchedulableTask),
       busyBlocks: [
         ...busyEvents.map(
@@ -573,6 +576,9 @@ async function scheduleAllTasksForUserLocked(
       },
       now,
     });
+    // Reschedule-on-miss never carries a task of an open day plan to a later
+    // day (openspec finish-today-daily-planner, D4).
+    const result = await guardActiveDayPlans(userId, timeZone, engineResult);
 
     await prisma.task.updateMany({
       where: {

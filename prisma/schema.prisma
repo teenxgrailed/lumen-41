@@ -281,6 +281,9 @@ model User {
   importItemMaps               ImportItemMap[]
   HabitPush                    HabitPush[]
   activationEvents             ActivationEvent[]
+  dayPlans                     DayPlan[]
+  planSettings                 PlanSettings?
+  somedayMigrationMoves        SomedayMigrationMove[]
 
   @@index([lastActiveAt])
 }
@@ -1037,8 +1040,14 @@ model Task {
   // `null`, per the contract's three-state convention, when it still can't
   // be).
   entry                  String? // The task's two-minute first step.
-  noSlot                 Boolean          @default(false) // Belongs to no day/rail.
+  noSlot                 Boolean                @default(false) // Belongs to no day/rail.
   lastTouchedAt          DateTime? // Backs `age` without updatedAt's reschedule noise.
+  /// Someday (openspec finish-today-daily-planner): set while an open task sits
+  /// in the Someday bucket. null = on the normal lists.
+  somedayAt              DateTime?
+  somedayReason          String? // stale | review | button | migration | manual | cleanup
+  dayPlanItems           DayPlanItem[]
+  somedayMigrationMoves  SomedayMigrationMove[]
   previousScheduledStart DateTime? // Backs `movedFrom`: where the scheduler moved it from.
   valueCents             Int? // Money task: what it is worth, in integer cents.
   earnedCents            Int? // Money task: what has come in, in integer cents.
@@ -1051,7 +1060,7 @@ model Task {
   originKind             String?
   originId               String?
   originQuote            String?
-  splitAllowed           Boolean          @default(true)
+  splitAllowed           Boolean                @default(true)
   /// Focus runs the whole planned time even if the task is ticked early.
   /// null = auto (see effectiveFullTime in src/lib/needt3/full-time.ts).
   fullTime               Boolean?
@@ -1059,7 +1068,7 @@ model Task {
   /// The goal this task moves forward (src/services/goals). A goal is never a
   /// task: only linked tasks are scheduled, the goal itself never is.
   goalId                 String?
-  goal                   Goal?            @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  goal                   Goal?                  @relation(fields: [goalId], references: [id], onDelete: SetNull)
 
   @@unique([recurrenceMasterId, recurrenceInstanceAt])
   @@unique([habitId, habitOccurrenceAt])
@@ -1098,6 +1107,7 @@ model Task {
   @@index([blockDirty, userId])
   @@index([blockFeedId])
   @@index([globalStage])
+  @@index([userId, somedayAt])
   @@index([habitId, habitOccurrenceAt])
   @@index([userId, trashedAt])
   @@index([originKind, originId])
@@ -4639,4 +4649,77 @@ model LearnLesson {
   @@index([topicId, order])
   @@index([userId, completedAt])
   @@index([userId, firstCompletedAt])
+}
+
+/// The plan of one local day (openspec finish-today-daily-planner, PR A). One
+/// per person and date. `draft` is built the evening before, `active` once the
+/// day starts, `closed` when every leftover has a resolution.
+model DayPlan {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date           DateTime      @db.Date
+  status         String        @default("draft") // draft | active | closed
+  source         String        @default("no_note") // note | no_note | fallback
+  builtAt        DateTime      @default(now())
+  closedAt       DateTime?
+  /// Set the first time the person changes the plan; a rebuild never
+  /// overwrites a plan with this set.
+  editedByUserAt DateTime?
+  items          DayPlanItem[]
+
+  @@unique([userId, date])
+  @@index([userId, status])
+}
+
+model DayPlanItem {
+  id         String  @id @default(cuid())
+  planId     String
+  plan       DayPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  taskId     String
+  task       Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  position   Int
+  isMain     Boolean @default(false)
+  addedBy    String  @default("draft") // draft | user | review | channel
+  resolution String? // done | tomorrow | someday | deleted
+
+  @@unique([planId, taskId])
+  @@index([taskId])
+}
+
+/// Per-person plan settings. Times and the two sent-at stamps belong to the
+/// daily touches (PR B); the limits are read by the plan logic.
+model PlanSettings {
+  id                         String    @id @default(cuid())
+  userId                     String    @unique
+  user                       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskLimit                  Int       @default(5)
+  mainLimit                  Int       @default(3)
+  focusMinutes               Int       @default(300)
+  morningTime                String    @default("08:00")
+  eveningTime                String    @default("21:00")
+  morningOn                  Boolean   @default(true)
+  eveningOn                  Boolean   @default(true)
+  lastMorningAt              DateTime?
+  lastEveningAt              DateTime?
+  limitSuggestion            Int?
+  limitSuggestionDismissedAt DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+}
+
+/// Which tasks the one-time Someday launch migration moved, so "Return all"
+/// restores exactly these and nothing the person moved by hand.
+model SomedayMigrationMove {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId     String
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  movedAt    DateTime  @default(now())
+  restoredAt DateTime?
+  batch      String
+
+  @@unique([taskId, batch])
+  @@index([userId, batch])
 }

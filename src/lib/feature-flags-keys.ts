@@ -152,6 +152,23 @@ export const FOLDERS_V1 = "folders_v1";
  */
 export const HOME_V2 = "home_v2";
 
+/**
+ * The day plan (openspec finish-today-daily-planner): a limited plan of the
+ * day, the evening review and Someday. The kill switch of the whole system, on
+ * at 100% for every account from the first deploy (migration
+ * 20261119120100_day_plan_for_everyone). Off stops the plan touches, the
+ * Someday sweep and the scheduler's plan guard; no plan row is deleted.
+ */
+export const DAY_PLAN = "day_plan";
+
+/**
+ * The nightly Someday sweep. Ships OFF with no data migration: run on existing
+ * data it would be the one-time launch migration (PR E) without the owner's
+ * yes. Only the launch migration turns it on. The job is registered and does
+ * nothing while this is off.
+ */
+export const SOMEDAY_SWEEP = "someday_sweep";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -176,6 +193,10 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BUDGET_PRO_ACCESS]:
     "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",
   [FOLDERS_V1]: "Projects as folders with the next tasks sticking out.",
+  [DAY_PLAN]:
+    "Day plan kill switch: plan touches, Someday sweep and scheduler plan guard (on for everyone).",
+  [SOMEDAY_SWEEP]:
+    "Nightly Someday sweep (off until the launch migration; per-user override for testing).",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Day plan logic (no screen yet): a plan per day with draft/active/closed states, a draft built from the evening note, a close-day review that sends unfinished tasks to Someday, a suggested daily limit from your own history, and the `/api/day-plan`, `/api/someday` routes plus MCP tools for them. The scheduler no longer moves a task of today's active plan to a later day. Someday is the new name for what used to be called Later. The `day_plan` flag is on for everyone; the daily Someday sweep ships behind a separate `someday_sweep` flag, off. Nothing changes on screen until the day-plan UI ships.
+
 ## [1.0.0] — 2026-10-25
 
 <!-- changelog.d/admin-01-shell.md -->
