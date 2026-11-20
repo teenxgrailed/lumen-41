@@ -208,12 +208,12 @@ describe("phone page ground", () => {
     expect(rule('.needt-v3[data-ui="phone"] .pk-sheet')).toContain(
       "padding-bottom: var(--v3-sab)"
     );
+    // the tail and the calendar's sticky Auto-fit share one number
     expect(rule('.needt-v3[data-ui="phone"] .pk-tail')).toContain(
-      "112px + var(--v3-dock-lift)"
+      "height: var(--v3-tail-h)"
     );
-    expect(rule('.needt-v3[data-ui="phone"] .pk-tail')).toContain(
-      "var(--ps-fog-h) + 16px"
-    );
+    expect(css).toContain("112px + var(--v3-dock-lift)");
+    expect(css).toContain("var(--ps-fog-h) + 16px");
     expect(css).toContain("--v3-sab: env(safe-area-inset-bottom, 0px)");
   });
 

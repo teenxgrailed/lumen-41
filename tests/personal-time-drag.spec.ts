@@ -153,8 +153,8 @@ async function dragTo(
   await page.mouse.up();
 }
 
-/** An hour of the grid is 52px; a quarter hour is 13px. */
-const HOUR = 52;
+/** An hour of the grid is 64px; a quarter hour is 16px. */
+const HOUR = 64;
 
 test.describe("personal time: move and resize on the grid", () => {
   test.beforeEach(({ page }) => {

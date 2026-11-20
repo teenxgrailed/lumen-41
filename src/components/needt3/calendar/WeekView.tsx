@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type CSSProperties,
   type HTMLAttributes,
   type Ref,
   memo,
@@ -40,6 +41,7 @@ import {
   c2Time,
   calDay,
   slotAt,
+  weekStart,
 } from "./layout";
 import {
   type Anchor,
@@ -61,7 +63,7 @@ import {
   nearestIndex,
   offHours,
   offsetOf,
-  openScrollTop,
+  openAtHour,
   stripDate,
   stripIndex,
 } from "./strip";
@@ -319,6 +321,8 @@ export interface WeekViewProps {
   /** The clock's decimal hour today, for the now line. */
   nowHour: number | null;
   today: string;
+  /** "monday" or "sunday": which days make the week the now line spans. */
+  weekStartDay?: string;
   /** Hours the person works; the rest of the grid is shaded. */
   work?: WorkHours | null;
   projects?: readonly ProjectLike[];
@@ -366,7 +370,8 @@ interface ColumnProps {
   isToday: boolean;
   mine: readonly CalTimed[];
   draft: Draft | null;
-  nowHour: number | null;
+  /** The now line shows in this column (the clock's hour is on the grid). */
+  showNow: boolean;
   work?: WorkHours | null;
   peekId: string | null;
   hover: Hover;
@@ -380,6 +385,23 @@ interface ColumnProps {
   moreKey: string | null;
 }
 
+/**
+ * The now line. It runs across the whole week: bold with its dot on today, a
+ * hairline in the other columns. Its own memoised piece, so a minute passing
+ * redraws a line and not a column.
+ */
+const NowLine = memo(function NowLine({ today }: { today: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={today ? "c2-now" : "c2-now is-week"}
+      style={{ top: `calc(var(--c2-now-h, 0) * ${C2_H}px)` }}
+    >
+      {today ? <span className="c2-now-dot" /> : null}
+    </span>
+  );
+});
+
 /** One day: its off-hours shading, hour lines, blocks and now line. */
 const DayColumn = memo(function DayColumn({
   date,
@@ -388,7 +410,7 @@ const DayColumn = memo(function DayColumn({
   isToday,
   mine,
   draft,
-  nowHour,
+  showNow,
   work,
   peekId,
   hover,
@@ -592,15 +614,7 @@ const DayColumn = memo(function DayColumn({
           </span>
         </div>
       ) : null}
-      {isToday && nowHour != null ? (
-        <span
-          aria-hidden="true"
-          className="c2-now"
-          style={{ top: nowHour * C2_H }}
-        >
-          <span className="c2-now-dot" />
-        </span>
-      ) : null}
+      {showNow ? <NowLine today={isToday} /> : null}
     </div>
   );
 });
@@ -637,6 +651,7 @@ export function WeekView({
   blocks,
   nowHour,
   today,
+  weekStartDay = "monday",
   work,
   projects,
   draft,
@@ -810,13 +825,7 @@ export function WeekView({
       setColW(w);
       if (!ready.current) {
         ready.current = true;
-        el.scrollTop = openScrollTop(
-          nowHour,
-          work,
-          C2_H,
-          el.clientHeight,
-          GRID_H
-        );
+        el.scrollTop = openAtHour(C2_H, el.clientHeight, GRID_H);
         cbs.current.onFirst?.(stripDate(origin.current, firstRef.current));
       }
     };
@@ -825,8 +834,6 @@ export function WeekView({
     const ro = new ResizeObserver(([entry]) => apply(entry.contentRect.width));
     ro.observe(el);
     return () => ro.disconnect();
-    // nowHour only seeds the first scroll; later minutes must not re-run it
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [n]);
 
   /* The scrollbar is hidden, so the card says there is more: a soft fade on
@@ -1023,6 +1030,7 @@ export function WeekView({
     }
   };
 
+  const thisWeek = weekStart(today, weekStartDay);
   const range = drawnRange(first, n);
   const drawn: number[] = [];
   if (colW > 0) for (let i = range.from; i <= range.to; i++) drawn.push(i);
@@ -1078,10 +1086,24 @@ export function WeekView({
               );
             })}
           </div>
-          <div className="c2-wgrid" style={{ height: GRID_H }}>
+          <div
+            className="c2-wgrid"
+            style={
+              {
+                height: GRID_H,
+                // the clock moves here, on the grid, so a minute passing
+                // restyles one element and no column re-renders
+                "--c2-now-h": nowHour ?? 0,
+              } as CSSProperties
+            }
+          >
             <div className="c2-whours" style={{ width: GUTTER }}>
               {HOURS.map((h) => (
-                <span key={h} className="c2-hour" style={{ top: hourLabelTop(h) }}>
+                <span
+                  key={h}
+                  className="c2-hour"
+                  style={{ top: hourLabelTop(h) }}
+                >
                   {`${String(h).padStart(2, "0")}:00`}
                 </span>
               ))}
@@ -1097,7 +1119,10 @@ export function WeekView({
                   isToday={date === today}
                   mine={blocks.get(date) ?? NONE}
                   draft={draft && draft.date === date ? draft : null}
-                  nowHour={date === today ? nowHour : null}
+                  showNow={
+                    nowHour != null &&
+                    weekStart(date, weekStartDay) === thisWeek
+                  }
                   work={work}
                   peekId={peekId}
                   hover={hover}

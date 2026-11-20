@@ -5,6 +5,7 @@ import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { laterPatch } from "@/lib/needt3/day";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 
 import { flowSteps } from "../../work/flow";
 import { isOverdue } from "../../work/model";
@@ -113,7 +114,9 @@ export function useTaskRows({
       <PkTaskRow
         key={t.id}
         t={t}
-        project={p ? { name: p.name, color: p.color } : null}
+        project={
+          p ? { name: p.name, color: projectColor(p.id, p.color) } : null
+        }
         hideProject={hideProject}
         hideSteps={flow && !t.done && !!flowSteps(t)}
         late={isOverdue(t, today)}

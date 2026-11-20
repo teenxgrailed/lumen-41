@@ -80,7 +80,7 @@ export interface DayPlan {
   plate: CalTimed | null;
   /** On the plate: "until 15:00" / "in 40 min". */
   plateLine: string;
-  /** Timeline rows after the plate that have not ended. */
+  /** Timeline rows that have not ended, the Next card's meeting included; not the one on now. */
   coming: CalTimed[];
   /** Today's rows that have ended. */
   earlier: CalTimed[];
@@ -112,9 +112,10 @@ export function dayPlan(
     : null;
   const nextB = isToday ? (timed.find((b) => b.at > nowHour) ?? null) : null;
   const plate = isToday ? (nowB ?? nextB) : !isPast ? (timed[0] ?? null) : null;
-  const rest = timed.filter((b) => b !== plate);
-  const coming = rest.filter((b) => !ended(b));
-  const earlier = rest.filter(ended);
+  // A meeting shown in the Next / First up card also stays in the timeline at
+  // its time; only what is on NOW (the Now card) is left out of it.
+  const coming = timed.filter((b) => !ended(b) && b !== nowB);
+  const earlier = timed.filter(ended);
   let plateLine = "";
   if (plate && plate === nowB) plateLine = `until ${c2Time(end(plate))}`;
   else if (plate && isToday) {
@@ -136,6 +137,48 @@ export function dayPlan(
     nowAt: isToday ? coming.findIndex((b) => b.at > nowHour) : -1,
     booked: timed.reduce((s, b) => s + b.len, 0),
   };
+}
+
+/** A gap between two blocks of one day that is long enough to use. */
+export interface FreeWindow {
+  /** Decimal hours; for today, never before now. */
+  from: number;
+  to: number;
+  /** Minutes. */
+  len: number;
+  /** The block the gap runs up to: the row the window is drawn above. */
+  before: string;
+}
+
+/** The shortest gap worth offering, minutes. */
+export const FREE_MIN = 30;
+
+/**
+ * The free gaps BETWEEN the day's blocks (not before the first or after the
+ * last): where one block ends and the next begins, with overlapping and
+ * nested blocks merged first. Today's gaps start no earlier than now, rounded
+ * up to a quarter hour; a day already over has none.
+ */
+export function freeWindows(
+  timed: readonly CalTimed[],
+  isToday: boolean,
+  isPast: boolean,
+  nowHour: number,
+  min = FREE_MIN
+): FreeWindow[] {
+  if (isPast || timed.length < 2) return [];
+  const sorted = [...timed].sort((a, b) => a.at - b.at);
+  const out: FreeWindow[] = [];
+  let reach = sorted[0].at + sorted[0].len / 60;
+  for (const b of sorted.slice(1)) {
+    if (b.at > reach) {
+      const from = Math.ceil(Math.max(reach, isToday ? nowHour : 0) * 4) / 4;
+      const len = Math.round((b.at - from) * 60);
+      if (len >= min) out.push({ from, to: b.at, len, before: b.id });
+    }
+    reach = Math.max(reach, b.at + b.len / 60);
+  }
+  return out;
 }
 
 /** The progress of what is on now, 0–1. */

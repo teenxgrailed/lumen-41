@@ -18,6 +18,7 @@ import { addedLabel } from "@/lib/needt3/day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useCreateTask, useTaskParts } from "@/lib/needt3/hooks/tasks";
 import type { V3Project } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
@@ -250,7 +251,7 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
                 on={!!f && f.text.toLowerCase() === words.toLowerCase()}
                 onClick={() => write(pick, words)}
                 hue={
-                  project ? (project.color ?? "var(--text-muted)") : undefined
+                  project ? projectColor(project.id, project.color) : undefined
                 }
               >
                 {label}
