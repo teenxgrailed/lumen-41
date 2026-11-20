@@ -900,6 +900,8 @@ model Task {
   id          String  @id @default(cuid())
   title       String
   description String?
+  // One emoji the person (or the phone composer's keyword map) gave the task.
+  icon        String?
   status      String // enum: 'todo', 'in_progress', 'completed'
 
   // Time Management

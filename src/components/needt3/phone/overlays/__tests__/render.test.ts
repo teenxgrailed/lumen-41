@@ -182,7 +182,7 @@ describe("PkComposer", () => {
   const out = html(h(PkComposer, { open: true, onClose: none }));
   it("one big field, the three chips, Add disabled while empty", () => {
     expect(out).toContain("data-pov-line");
-    for (const c of ["date", "project", "priority"])
+    for (const c of ["date", "time", "duration", "project", "priority"])
       expect(out).toContain(`data-pov-chip="${c}"`);
     expect(out).not.toContain("data-pov-attach-btn");
     expect(out).toMatch(
@@ -191,7 +191,7 @@ describe("PkComposer", () => {
     expect(out).toContain("Say when, which project, how urgent");
   });
   it("is a sheet that can grow out of the pill", () => {
-    expect(out).toContain("pk-sheet-morph");
+    expect(out).not.toContain("pk-sheet-morph");
     expect(out).toContain("pov-composer");
   });
 });

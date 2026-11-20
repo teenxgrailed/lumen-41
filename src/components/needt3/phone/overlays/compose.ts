@@ -87,8 +87,11 @@ export function composeFromLine(
   return composeFromParse(coParse(text, now, vocabularyOf(projects)), today);
 }
 
-/** The chip a facet kind is drawn by: the three the phone composer offers. */
-export type ChipKind = Extract<CoFacetKind, "date" | "project" | "priority">;
+/** The chip a facet kind is drawn by: the five the phone composer offers. */
+export type ChipKind = Extract<
+  CoFacetKind,
+  "date" | "time" | "duration" | "project" | "priority"
+>;
 
 /**
  * A chip's pick written into the line: the words the line already used for
@@ -120,6 +123,19 @@ export const CHIP_ROWS: Record<
     ["Tomorrow", "tomorrow"],
     ["This weekend", "this weekend"],
     ["Next week", "next week"],
+  ],
+  time: [
+    ["9:00", "at 9am"],
+    ["12:00", "at noon"],
+    ["15:00", "at 3pm"],
+    ["18:00", "at 6pm"],
+  ],
+  duration: [
+    ["15 min", "for 15 min"],
+    ["30 min", "for 30 min"],
+    ["45 min", "for 45 min"],
+    ["1 h", "for 1 h"],
+    ["2 h", "for 2 h"],
   ],
   priority: [
     ["Urgent", "urgent"],

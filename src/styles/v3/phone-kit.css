@@ -249,6 +249,14 @@
   box-shadow: var(--pk-glass-edge), var(--pk-sheet-shadow); color: var(--v2p-ink); outline: none; transform: translate3d(0, 110%, 0); will-change: transform;
   user-select: none; -webkit-user-select: none; touch-action: none; }
 .needt-v3 .pk-sheet-layer:not(.is-open) .pk-sheet { pointer-events: none; }
+/* A sheet with a text field rises with the on-screen keyboard (--pk-kb, written
+   from the visual viewport) and never grows taller than what is left. */
+.needt-v3 .pk-sheet-layer[data-pk-kb] .pk-sheet { bottom: var(--pk-kb, 0px); max-height: calc(100% - var(--pk-kb, 0px) - 12px); transition: bottom 0.26s cubic-bezier(0.22, 0.8, 0.2, 1), max-height 0.26s cubic-bezier(0.22, 0.8, 0.2, 1); }
+.needt-v3 .pk-sheet-layer[data-pk-kb] .pk-sheet-foot { padding-bottom: 12px; }
+@media (prefers-reduced-motion: reduce) { .needt-v3 .pk-sheet-layer[data-pk-kb] .pk-sheet { transition: none; } }
+/* The keyboard and the field's own chrome follow the frame's theme, not the system's. */
+.needt-v3:is([data-theme="light"], [data-theme="paper"], [data-theme="warm"]) .pk-sheet :is(input, textarea) { color-scheme: light; }
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .pk-sheet :is(input, textarea) { color-scheme: dark; }
 .needt-v3 .pk-sheet-layer > .pk-scrim { z-index: 0; }
 .needt-v3 .pk-sheet-grab { flex: none; display: block; width: 36px; height: 5px; margin: 8px auto 2px; border-radius: 3px; background: var(--v2p-ink-3); }
 .needt-v3 .pk-sheet-head { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 12px 22px 8px; }
@@ -337,10 +345,10 @@
 .needt-v3 button.pk-glass:active { transform: scale(0.96); }
 @media (prefers-reduced-motion: reduce) { .needt-v3 button.pk-glass { transition: none; } }
 
-/* ── the morph (PkSheet from=…): the sheet grows out of menu A's pill — a wash
-   in the pill's colour fades as it grows, the content arrives late ── */
-.needt-v3 .pk-sheet-morph { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; background: var(--nva-bg, var(--v2p-plate)); }
-.needt-v3 .pk-sheet-layer.is-morphing .pk-sheet > :not(.pk-sheet-morph) { opacity: var(--pk-morph-k, 1); }
+/* ── the morph (PkSheet from=…): the sheet grows out of menu A's pill; the
+   content arrives late. The sheet keeps the frame's theme the whole way (no
+   inverse wash: it flashed white on a dark frame). ── */
+.needt-v3 .pk-sheet-layer.is-morphing .pk-sheet > * { opacity: var(--pk-morph-k, 1); }
 
 /* glass chips (wave 3): the small chip buttons on the ground are frosted
    glass; inside a plate they keep the plate's raise */

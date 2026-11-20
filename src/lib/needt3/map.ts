@@ -127,6 +127,7 @@ export interface ApiTask {
   energyRequired?: string | null;
   title: string;
   description?: string | null;
+  icon?: string | null;
   status: string;
   dueDate?: string | null;
   estimatedMinutes?: number | null;
@@ -284,6 +285,8 @@ export interface V3Task {
   title: string;
   /** Plain text, newlines kept (Data.js NOTES 09.10.26). */
   notes: string | null;
+  /** One emoji (`Task.icon`); absent or null = none. */
+  icon?: string | null;
   done: boolean;
   /** Raw lifecycle status ("todo" | "in_progress" | "completed"). */
   status: string;
@@ -356,6 +359,7 @@ export function taskFromApi(row: ApiTask, tz: string): V3Task {
     id: row.id,
     title: row.title,
     notes: notesText(row.description),
+    icon: row.icon ?? null,
     done: row.status === "completed",
     status: row.status,
     projectId: row.projectId ?? null,
@@ -444,6 +448,7 @@ export function taskPatchToApi(
     Object.prototype.hasOwnProperty.call(patch, k);
   if (has("title")) out.title = patch.title;
   if (has("notes")) out.description = patch.notes;
+  if (has("icon")) out.icon = patch.icon ?? null;
   if (has("done")) out.status = patch.done ? "completed" : "todo";
   if (has("projectId")) out.projectId = patch.projectId;
   if (has("dueDate")) out.dueDate = localToIso(patch.dueDate, tz);
