@@ -86,6 +86,7 @@ import {
   useUpdateTask,
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Task, V3TaskPatch } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { qk } from "@/lib/needt3/query-keys";
 import {
   type CustomRepeat,
@@ -451,7 +452,7 @@ export function TaskDialog({
     {
       k: "project",
       glyph: <LuFolder size={13} aria-hidden />,
-      dot: proj ? (proj.color ?? "var(--text-quaternary)") : null,
+      dot: proj ? projectColor(proj.id, proj.color) : null,
       value: proj?.name ?? null,
       empty: "Project",
       title: "Project",
@@ -945,7 +946,7 @@ export function TaskDialog({
                   aria-hidden="true"
                   style={
                     {
-                      "--tdc-hue": p.color || "var(--text-quaternary)",
+                      "--tdc-hue": projectColor(p.id, p.color),
                     } as CSSProperties
                   }
                 />

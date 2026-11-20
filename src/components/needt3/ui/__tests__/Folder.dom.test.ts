@@ -60,14 +60,26 @@ describe("Folder", () => {
     expect(host.querySelector("[data-folder-count]")?.textContent).toBe("4");
     expect(host.querySelector("[data-sticker]")).not.toBeNull();
     expect(sheets()).toHaveLength(2);
-    // the sheets carry a mark and no text; titles go to a hidden description
-    for (const el of host.querySelectorAll("[data-folder-peek]")) {
-      expect(el.textContent).toBe("");
+    // every sheet draws a status circle and its title on one line
+    const papers = [...host.querySelectorAll("[data-folder-peek]")];
+    expect(papers.map((el) => el.textContent)).toEqual(["Task 1", "Task 2"]);
+    for (const el of papers)
       expect(el.querySelector(".nx-folder-peek-mark")).not.toBeNull();
-    }
     const desc = host.querySelector(".nx-folder-desc") as HTMLElement;
     expect(desc.textContent).toBe("Next: Task 1 (Today); Task 2");
     expect(links[0].getAttribute("aria-describedby")).toBe(desc.id);
+  });
+
+  it("a muted placeholder sheet reads quietly and is not described", () => {
+    render({ peeks: [{ key: "n", title: "No open tasks", muted: true }] });
+    expect(sheets()).toHaveLength(1);
+    expect(
+      host.querySelector(".nx-folder-peek-title.is-muted")?.textContent
+    ).toBe("No open tasks");
+    expect(host.querySelector(".nx-folder-desc")).toBeNull();
+    expect(host.querySelector("a")?.hasAttribute("aria-describedby")).toBe(
+      false
+    );
   });
 
   it("renders the caption under the label, and none when omitted", () => {

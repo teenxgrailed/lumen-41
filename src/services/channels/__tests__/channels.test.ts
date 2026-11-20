@@ -149,11 +149,12 @@ function telegramFetch() {
   return { fetchMock, calls };
 }
 
-function telegram() {
+function telegram(doneStickerFileId?: string) {
   const { fetchMock, calls } = telegramFetch();
   const adapter = createTelegramAdapter({
     client: createTelegramClient("bot-token", fetchMock),
     secret: SECRET,
+    doneStickerFileId,
   });
   return { adapter, calls };
 }
@@ -183,6 +184,18 @@ const voiceUpdate = (updateId: number, chat: string) => ({
     message_id: updateId,
     chat: { id: Number(chat), type: "private" },
     voice: { file_id: "voice-file-1" },
+  },
+});
+
+const stickerUpdate = (updateId: number, chat: string, emoji?: unknown) => ({
+  update_id: updateId,
+  message: {
+    message_id: updateId,
+    chat: { id: Number(chat), type: "private" },
+    sticker: {
+      file_id: "sticker-file-1",
+      ...(emoji === undefined ? {} : { emoji }),
+    },
   },
 });
 
@@ -497,6 +510,111 @@ describe("plan buttons", () => {
     expect(db().tables.task.find((t) => t.id === theirs.id)?.status).toBe(
       "todo"
     );
+  });
+});
+
+describe("stickers", () => {
+  it("test_sticker_done_emoji_marks_item_done", async () => {
+    linkChat(USER, CHAT);
+    const anna = seedTask(db(), { title: "Call Anna" });
+    const gym = seedTask(db(), { title: "Gym" });
+    seedPlan(db(), TODAY, [anna.id, gym.id], { status: "active" });
+    const { adapter, calls } = telegram();
+
+    const outcome = await processWebhook(
+      adapter,
+      hook(stickerUpdate(1, CHAT, "👍🏽")),
+      clock
+    );
+
+    expect(outcome.status).toBe(200);
+    expect(db().tables.task.find((t) => t.id === anna.id)?.status).toBe(
+      "completed"
+    );
+    expect(db().tables.task.find((t) => t.id === gym.id)?.status).not.toBe(
+      "completed"
+    );
+    expect(sentTexts(calls).join("\n")).toContain("✓ Call Anna");
+  });
+
+  it("moves the next task to later on a moon sticker", async () => {
+    linkChat(USER, CHAT);
+    const anna = seedTask(db(), { title: "Call Anna" });
+    seedPlan(db(), TODAY, [anna.id], { status: "active" });
+    const { adapter } = telegram();
+    await processWebhook(adapter, hook(stickerUpdate(1, CHAT, "🌙")), clock);
+    expect(
+      db().tables.task.find((t) => t.id === anna.id)?.somedayAt
+    ).toBeInstanceOf(Date);
+  });
+
+  it("test_unknown_sticker_gets_help_reply", async () => {
+    linkChat(USER, CHAT);
+    const anna = seedTask(db(), { title: "Call Anna" });
+    seedPlan(db(), TODAY, [anna.id], { status: "active" });
+    const { adapter, calls } = telegram();
+
+    const outcome = await processWebhook(
+      adapter,
+      hook(stickerUpdate(1, CHAT, "🦄")),
+      clock
+    );
+
+    expect(outcome.status).toBe(200);
+    expect(calls).toHaveLength(1);
+    expect(String(calls[0].body.text)).toContain("✅");
+    expect(db().tables.task.find((t) => t.id === anna.id)?.status).not.toBe(
+      "completed"
+    );
+  });
+
+  it("test_sticker_without_emoji_does_not_throw", async () => {
+    linkChat(USER, CHAT);
+    const { adapter, calls } = telegram();
+
+    const noEmoji = await processWebhook(
+      adapter,
+      hook(stickerUpdate(1, CHAT)),
+      clock
+    );
+    const badEmoji = await processWebhook(
+      adapter,
+      hook(stickerUpdate(2, CHAT, 42)),
+      clock
+    );
+
+    expect(noEmoji.status).toBe(200);
+    expect(badEmoji.status).toBe(200);
+    expect(calls).toHaveLength(2);
+    expect(String(calls[0].body.text)).toContain("sticker");
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("test_done_reply_sends_sticker_when_file_id_set", async () => {
+    linkChat(USER, CHAT);
+    const anna = seedTask(db(), { title: "Call Anna" });
+    seedPlan(db(), TODAY, [anna.id], { status: "active" });
+    const { adapter, calls } = telegram("CAACAgIAAxkBAAtest");
+
+    await processWebhook(adapter, hook(stickerUpdate(1, CHAT, "✅")), clock);
+
+    const methods = calls.map((c) => c.url.split("/").pop());
+    expect(methods).toEqual(["sendMessage", "sendSticker"]);
+    expect(calls[1].body).toEqual({
+      chat_id: CHAT,
+      sticker: "CAACAgIAAxkBAAtest",
+    });
+  });
+
+  it("test_done_reply_skips_sticker_when_file_id_unset", async () => {
+    linkChat(USER, CHAT);
+    const anna = seedTask(db(), { title: "Call Anna" });
+    seedPlan(db(), TODAY, [anna.id], { status: "active" });
+    const { adapter, calls } = telegram();
+
+    await processWebhook(adapter, hook(stickerUpdate(1, CHAT, "✅")), clock);
+
+    expect(calls.map((c) => c.url.split("/").pop())).toEqual(["sendMessage"]);
   });
 });
 

@@ -1,76 +1,97 @@
 "use client";
 
-import { type CSSProperties, useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
-import {
-  acquireLoadingClock,
-  fillFor,
-  fillInsetPct,
-  releaseLoadingClock,
-} from "./needtLoadingFill";
+import { DEFAULT_APP_ICON, appIconSrc } from "@/lib/needt3/app-icon";
 
-// Layout effect on the client (no empty frame when a second word takes over),
+import { useAppIcon } from "@/store/app-icon";
+
+import { NeedtAppIcon } from "../wordmark/AppIcon";
+
+// Layout effect on the client (no empty frame when a second one takes over),
 // plain effect on the server (where layout effects only warn).
 const useSyncEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 /**
- * THE loading screen: the word "Needt" in the display face, grey, filling with
- * the full text colour from left to right by real progress. Nothing else is on
- * it. Pass `progress` (0..1) when the load reports it; leave it out and the
- * fill eases toward 90% and slows down, and only completes when the caller
- * unmounts it or passes 1. Reduced motion: a still grey word, no fill, no
- * transition; the swap to the page happens when loading is done.
+ * One shared count of mounted loading screens. A route change can unmount one
+ * and mount another in the same turn (a fallback, then the real cover); the
+ * newcomer is marked `data-continued` and does not fade in again. A screen
+ * that was up within `GRACE_MS` counts too, except the very same node coming
+ * back (a Strict Mode remount is not a hand-over).
+ */
+const GRACE_MS = 400;
+let mounted = 0;
+let lastGone = -Infinity;
+let lastNode: HTMLElement | null = null;
+
+/** Test seam. */
+export function resetLoadingScreens() {
+  mounted = 0;
+  lastGone = -Infinity;
+  lastNode = null;
+}
+
+/**
+ * THE loading screen: only the Needt logo (the app icon, the one the sign-in
+ * header shows) in the middle of the app background, fading in softly and
+ * breathing gently (opacity and scale 0.98 to 1 over about 2.4 s). No word, no
+ * fill, no text. Reduced motion: still, with no animation.
+ *
+ * Mount it only inside a hydrated app: the chosen icon comes from the store
+ * that settings fill in, so before that it shows the default icon first.
+ *
+ * The icon is fetched eagerly. If the chosen file fails, the default icon is
+ * drawn; if that fails too, a plain tile in the text colour. It breathes only
+ * once something is on screen, so an empty box never breathes.
+ *
+ * Shown only for real waits: a new-version reload and the Budget frame. A
+ * place switch has its skeleton (`RouteLoading`), never this.
  *
  * `cover` lays it over its (positioned) parent with the page ground, for a
- * frame that loads in place; `fixed` covers the whole window. Neither is
- * needed in a page slot, where it simply centres itself.
+ * frame that loads in place; `fixed` covers the whole window.
  */
 export function NeedtLoading({
-  progress,
   cover,
   fixed,
 }: {
-  progress?: number | undefined;
   cover?: boolean;
   fixed?: boolean;
 }) {
   const reduced = useNeedtReducedMotion();
   const root = useRef<HTMLDivElement>(null);
+  // 0: the chosen icon, 1: the default icon, 2: a plain tile.
+  const [stage, setStage] = useState<0 | 1 | 2>(0);
+  const [loaded, setLoaded] = useState(false);
 
-  // Known progress is drawn from props; eased progress is written straight to
-  // the node each frame, so a wait does not re-render the screen 60 times a
-  // second. The clock is shared (see `acquireLoadingClock`).
+  // The default icon is no fallback for itself: straight to the tile.
+  const fail = () =>
+    setStage((s) =>
+      s === 0 && useAppIcon.getState().id !== DEFAULT_APP_ICON ? 1 : 2
+    );
+
   useSyncEffect(() => {
     const el = root.current;
-    if (!el || reduced || progress !== undefined) return undefined;
-    const entered = performance.now();
-    const started = acquireLoadingClock(entered);
-    // Another word was already waiting: this one takes over without replaying
-    // the entry fade (see needt-loading.css).
-    if (started < entered) el.dataset.continued = "";
-    const paint = (now: number) => {
-      const fill = fillFor({ progress: undefined, elapsedMs: now - started });
-      el.style.setProperty("--nl-inset", `${fillInsetPct(fill)}%`);
-      el.dataset.fill = fill.toFixed(3);
-    };
-    paint(performance.now());
-    let frame = 0;
-    const tick = (now: number) => {
-      paint(now);
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
+    if (!el) return undefined;
+    const now = performance.now();
+    if (mounted > 0 || (el !== lastNode && now - lastGone < GRACE_MS))
+      el.dataset.continued = "";
+    mounted += 1;
+    // An icon that was already in the HTML finished before React was listening.
+    const img = el.querySelector("img");
+    if (img && img.complete) {
+      if (img.naturalWidth > 0) setLoaded(true);
+      // ...and one that failed before React was listening.
+      else fail();
+    }
     return () => {
-      cancelAnimationFrame(frame);
-      releaseLoadingClock();
+      mounted = Math.max(0, mounted - 1);
+      lastGone = performance.now();
+      lastNode = el;
     };
-  }, [progress, reduced]);
-
-  const initial = reduced ? 0 : fillFor({ progress, elapsedMs: 0 });
-  const style = { "--nl-inset": `${fillInsetPct(initial)}%` } as CSSProperties;
+  }, []);
 
   return (
     <div
@@ -84,12 +105,22 @@ export function NeedtLoading({
       aria-live="polite"
       aria-label="Loading"
       data-needt-loading=""
-      data-fill={initial.toFixed(3)}
-      style={style}
     >
-      <span className="nl-word" aria-hidden="true">
-        <span className="nl-base">Needt</span>
-        <span className="nl-fill">Needt</span>
+      <span
+        className={"nl-logo" + (loaded || stage === 2 ? " nl-loaded" : "")}
+        aria-hidden="true"
+      >
+        {stage === 2 ? (
+          <span className="nl-tile" />
+        ) : (
+          <NeedtAppIcon
+            size={64}
+            eager
+            src={stage === 1 ? appIconSrc(DEFAULT_APP_ICON) : undefined}
+            onLoad={() => setLoaded(true)}
+            onError={fail}
+          />
+        )}
       </span>
     </div>
   );

@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type Root, createRoot } from "react-dom/client";
 
 import { type WeekHandle, WeekView, drawnSpan } from "../WeekView";
+import { C2_H } from "../layout";
 import { STRIP_BUFFER } from "../strip";
 
 (
@@ -155,9 +156,9 @@ describe("Week strip", () => {
     expect(parseInt(first.style.top, 10)).toBeGreaterThanOrEqual(0);
     expect(labels[1]).toBe("01:00");
     expect(labels[23]).toBe("23:00");
-    // the grid is the whole day tall: 24 × 52px
+    // the grid is the whole day tall: 24 × 64px
     expect((host.querySelector(".c2-wgrid") as HTMLElement).style.height).toBe(
-      "1248px"
+      `${24 * C2_H}px`
     );
   });
 
@@ -179,17 +180,20 @@ describe("Week strip", () => {
     mount();
     const wed = host.querySelector('[data-c2-day="2026-09-09"]') as HTMLElement;
     const spans = Array.from(wed.querySelectorAll<HTMLElement>(".c2-off"));
-    expect(spans.map((s) => s.style.height)).toEqual(["468px", "364px"]); // 9h, 7h
+    expect(spans.map((s) => s.style.height)).toEqual([
+      `${9 * C2_H}px`,
+      `${7 * C2_H}px`,
+    ]); // 9h, 7h
     const sun = host.querySelector('[data-c2-day="2026-09-13"]') as HTMLElement;
     expect(sun.querySelectorAll(".c2-off")).toHaveLength(1);
     expect((sun.querySelector(".c2-off") as HTMLElement).style.height).toBe(
-      "1248px"
+      `${24 * C2_H}px`
     );
   });
 
-  it("opens with now a third of the way down", () => {
+  it("opens on 08:00, whatever the clock says", () => {
     const { scroller } = mount();
-    expect(scroller.scrollTop).toBe(10 * 52 - 200);
+    expect(scroller.scrollTop).toBe(8 * C2_H - 6);
   });
 
   it("opens on the day it was given and reports it", () => {
@@ -290,9 +294,15 @@ describe("Week strip", () => {
 
 describe("drawing a range", () => {
   it("snaps to quarter hours and keeps at least one", () => {
-    expect(drawnSpan(14 * 52 + 3, 15.5 * 52)).toEqual({ at: 14, end: 15.5 });
-    expect(drawnSpan(15.5 * 52, 14 * 52 + 3)).toEqual({ at: 14, end: 15.5 });
-    expect(drawnSpan(10 * 52, 10 * 52 + 2)).toEqual({ at: 10, end: 10.25 });
-    expect(drawnSpan(23.9 * 52, 30 * 52)).toEqual({ at: 23.75, end: 24 });
+    expect(drawnSpan(14 * C2_H + 3, 15.5 * C2_H)).toEqual({
+      at: 14,
+      end: 15.5,
+    });
+    expect(drawnSpan(15.5 * C2_H, 14 * C2_H + 3)).toEqual({
+      at: 14,
+      end: 15.5,
+    });
+    expect(drawnSpan(10 * C2_H, 10 * C2_H + 2)).toEqual({ at: 10, end: 10.25 });
+    expect(drawnSpan(23.9 * C2_H, 30 * C2_H)).toEqual({ at: 23.75, end: 24 });
   });
 });

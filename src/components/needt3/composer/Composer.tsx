@@ -80,6 +80,7 @@ import {
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useCreateTask, useTaskParts } from "@/lib/needt3/hooks/tasks";
 import type { V3Project } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 import { notify } from "@/lib/notifications";
 
@@ -261,8 +262,10 @@ const COPY: Record<CoKind, { placeholder: string; field: string; go: string }> =
 /** The prototype's flight runs 460 ms; snapped to the scale (MOTION V-D17). */
 const FLIGHT_MS = 280;
 
-function hueOf(project: { color: string | null } | null | undefined) {
-  return project?.color ?? ACCENT;
+function hueOf(
+  project: { id: string; color: string | null } | null | undefined
+) {
+  return project ? projectColor(project.id, project.color) : ACCENT;
 }
 
 /* THE UNDERLAY. The input's own text is transparent; this draws the same

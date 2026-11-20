@@ -26,6 +26,7 @@ const push = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
   usePathname: () => "/pages",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 interface Q {
@@ -54,7 +55,7 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({
-    data: [{ id: "p1", name: "Home", color: "#2a7" }],
+    data: [{ id: "p1", name: "Home", color: "#2a7", archived: false }],
   }),
 }));
 
@@ -159,7 +160,6 @@ const three = () => [
     createdAt: "2026-10-02T10:00:00.000Z",
     updatedAt: "2026-10-09T10:00:00.000Z",
     isFavorite: true,
-    projectId: "p1",
   }),
   doc("c", "", {
     updatedAt: "2026-10-05T10:00:00.000Z",
@@ -170,7 +170,8 @@ const three = () => [
 
 describe("Docs home", () => {
   it("lists live docs newest first with the sub line, pin and project", () => {
-    query = ok(three());
+    // all in one project: a single group is the list itself, not folders
+    query = ok(three().map((d) => ({ ...d, projectId: "p1" })));
     mount();
     expect(titles()).toEqual(["Bravo", "Untitled", "Alpha"]);
     expect($(".pk-sub").textContent).toBe("3 documents · Recently edited");

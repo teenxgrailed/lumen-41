@@ -35,6 +35,7 @@ export interface TelegramClient {
     text: string,
     keyboard?: InlineButton[][]
   ): Promise<void>;
+  sendSticker(chatId: string, fileId: string): Promise<void>;
   answerCallbackQuery(callbackQueryId: string): Promise<void>;
   /** Downloads a file by id, refusing anything over `maxBytes`. */
   downloadFile(
@@ -89,6 +90,9 @@ export function createTelegramClient(
         text,
         ...(keyboard && keyboard.length > 0 ? markup(keyboard) : {}),
       });
+    },
+    async sendSticker(chatId, fileId) {
+      await call("sendSticker", { chat_id: chatId, sticker: fileId });
     },
     async editMessageText(chatId, messageId, text, keyboard) {
       await call("editMessageText", {

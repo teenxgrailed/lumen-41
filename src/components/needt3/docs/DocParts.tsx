@@ -8,6 +8,7 @@ import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { CoverArt } from "./CoverArt";
 import { MiniRows } from "./DocMini";
 import { backdropVars } from "./backdrop";
+import { folderCopy } from "./folder-copy";
 import {
   type DocStyle,
   type StyledDoc,
@@ -19,7 +20,10 @@ import {
   styleOf,
 } from "./style";
 
-const copy = strings["DocsScreen.jsx"];
+const copy = {
+  ...strings["DocsScreen.jsx"],
+  Folders: folderCopy,
+};
 
 const NO_TOKENS: TokenReader = () => "";
 

@@ -214,7 +214,56 @@ async function handleAction(
       recordActivation("task_to_someday", userId, { reason: "button" });
     }
   }
-  return { message: await rerender(userId, dateKey, now) };
+  const message = await rerender(userId, dateKey, now);
+  return {
+    message: action === "done" ? { ...message, celebrate: true } : message,
+  };
+}
+
+/* ---------- stickers ---------- */
+
+const STICKER_HELP_TEXT =
+  "I can read a few stickers: ✅ 👍 👌 💪 mark your next task done, 🌙 💤 ⏭ " +
+  "move it to later. For anything else, send text or a voice note.";
+
+const NOTHING_OPEN_TEXT = "Nothing is left open in today's plan.";
+
+const STICKER_INTENTS: Record<string, "done" | "later"> = {
+  "✅": "done",
+  "👍": "done",
+  "👌": "done",
+  "💪": "done",
+  "🌙": "later",
+  "💤": "later",
+  "⏭": "later",
+};
+
+/** The emoji without skin-tone and variation selectors, so a toned 👍 reads as 👍. */
+const bareEmoji = (emoji: string) =>
+  emoji.replace(/[\u{1F3FB}-\u{1F3FF}\uFE0E\uFE0F]/gu, "");
+
+async function handleSticker(
+  userId: string,
+  emoji: string | undefined,
+  now: Date
+): Promise<OutgoingMessage> {
+  const intent = emoji ? STICKER_INTENTS[bareEmoji(emoji)] : undefined;
+  if (!intent) return reply(STICKER_HELP_TEXT);
+  const dateKey = habitDayKey(now, await userTimeZone(userId));
+  const { plan } = await getDayPlan(userId, dateKey, now);
+  // The next open task of today's plan, the one the buttons offer first.
+  const next = (plan?.items ?? []).find(
+    (item) => item.resolution === null && item.status !== "completed"
+  );
+  if (!next) return reply(NOTHING_OPEN_TEXT);
+  const { message } = await handleAction(
+    userId,
+    intent,
+    next.taskId,
+    now,
+    dateKey
+  );
+  return message;
 }
 
 /* ---------- replies that become tasks ---------- */
@@ -311,6 +360,15 @@ async function handleLinked(
       recordActivation("channel_reply", userId, {
         channel: link.channel,
         kind: "button",
+        tasksCreated: 0,
+      });
+      return message;
+    }
+    case "sticker": {
+      const message = await handleSticker(userId, event.emoji, now);
+      recordActivation("channel_reply", userId, {
+        channel: link.channel,
+        kind: "sticker",
         tasksCreated: 0,
       });
       return message;

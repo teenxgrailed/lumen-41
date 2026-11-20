@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -13,6 +13,7 @@ import {
 } from "@/components/needt3/task/useCompletion";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { moveOverdue } from "@/lib/needt3/day";
 import {
   useArchiveProject,
   useCreateProject,
@@ -25,7 +26,7 @@ import {
   useTimeZone,
 } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
 
@@ -52,7 +53,10 @@ import {
   type ProjectFilter,
   WK_EMPTY,
   type WorkTab,
+  hasMoveToToday,
+  hidesDue,
   isOverdue,
+  movedLabel,
   projectHue,
   projectsSorted,
   readProjectSort,
@@ -63,6 +67,8 @@ import { setOpenTask, useOpenTask } from "./taskParam";
 import { type WorkState, useWorkState } from "./useWorkState";
 
 const EMPTY_TASKS: V3Task[] = [];
+/** "Move to today" writes this many tasks at a time. */
+const MOVE_CHUNK = 10;
 const EMPTY_PROJECTS: V3Project[] = [];
 
 /** Keys other than `task` still go through the router. */
@@ -153,6 +159,7 @@ function WorkScreenContent({
   const tz = useTimeZone();
   const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
   const tasksQ = useTasks();
+  const updateTask = useUpdateTask();
   const projectsQ = useProjects();
   const settings = useSettings();
   const setPref = useSetPref();
@@ -284,6 +291,43 @@ function WorkScreenContent({
       .catch(() => undefined);
   };
 
+  /** The shown overdue tasks onto today (Home's action); one Undo puts all back. */
+  const moving = useRef(false);
+  const [movingNow, setMovingNow] = useState(false);
+  const moveToToday = async (list: readonly V3Task[]) => {
+    if (moving.current) return;
+    const r = moveOverdue(list, today);
+    if (!r) return;
+    moving.current = true;
+    setMovingNow(true);
+    try {
+      // Each move stands alone: a failure (reported and rolled back by the
+      // mutation) must not take the others' Undo with it. Ten at a time, so a
+      // long Overdue list does not fire hundreds of writes at once.
+      //todo one batch op for a bulk move (a single request and a single undo).
+      const moved: Awaited<ReturnType<typeof updateTask.mutateAsync>>[] = [];
+      for (let i = 0; i < r.moves.length; i += MOVE_CHUNK) {
+        const settled = await Promise.allSettled(
+          r.moves
+            .slice(i, i + MOVE_CHUNK)
+            .map((mv) => updateTask.mutateAsync({ id: mv.id, patch: mv.patch }))
+        );
+        for (const x of settled)
+          if (x.status === "fulfilled") moved.push(x.value);
+      }
+      if (!moved.length) return;
+      notify.success(movedLabel(moved.length, r.moves.length), {
+        action: {
+          label: "Undo",
+          onClick: () => void Promise.allSettled(moved.map((d) => d.undo())),
+        },
+      });
+    } finally {
+      moving.current = false;
+      setMovingNow(false);
+    }
+  };
+
   const row = (t: V3Task) => (
     <Task
       key={t.id}
@@ -291,6 +335,9 @@ function WorkScreenContent({
       task={t}
       today={today}
       late={isOverdue(t, today)}
+      // On Today every open row but the overdue ones is due today, so the date
+      // would repeat on each line (#721's rule, as on Home)
+      hideDue={hidesDue(tab, isProjects, t, today)}
       onOpen={openTask}
       hideProject={!!m.filter}
     />
@@ -475,6 +522,20 @@ function WorkScreenContent({
                   count={s.tasks.length}
                   open={!fold[s.key]}
                   onToggle={flip(s.key)}
+                  action={
+                    hasMoveToToday(s.key, isProjects) ? (
+                      <button
+                        type="button"
+                        className="nx-btn nx-btn-secondary nx-btn-sm"
+                        data-wk-move-today=""
+                        disabled={movingNow}
+                        aria-busy={movingNow || undefined}
+                        onClick={() => void moveToToday(s.tasks)}
+                      >
+                        Move to today
+                      </button>
+                    ) : undefined
+                  }
                 >
                   <div className="wk-list">
                     <Capped list={s.tasks} render={row} />

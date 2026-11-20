@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { LuFolder } from "react-icons/lu";
 
 import type { V3Doc } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 
 import { renameValue } from "../../docs/menu-model";
 import { PkActions, type PkActs } from "../kit/Hold";
@@ -113,7 +114,7 @@ export function MoveSheet({
           ...projects.map((p) => ({
             label: p.name,
             icon: <LuFolder size={18} aria-hidden />,
-            hue: p.color ?? "var(--v2p-ink-3)",
+            hue: projectColor(p.id, p.color),
             check: doc.projectId === p.id,
             onClick: () => onPick(doc, p.id, p.name),
           })),

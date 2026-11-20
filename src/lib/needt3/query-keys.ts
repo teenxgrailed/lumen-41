@@ -56,11 +56,18 @@ export const qk = {
   docs: (sort?: DocsSort) =>
     sort ? ([V3, "docs", sort] as const) : ([V3, "docs"] as const),
   doc: (id: string) => [V3, "doc", id] as const,
+  /** The day plan of a date (`GET /api/day-plan?date=`). */
+  dayPlan: (date?: string) =>
+    date ? ([V3, "day-plan", date] as const) : ([V3, "day-plan"] as const),
+  /** The Someday list (`GET /api/someday`). */
+  someday: () => [V3, "someday"] as const,
   /** Whether the day's note exists (`useDailyNote`). */
   dailyNote: (day: string) => [V3, "daily-note", day] as const,
   /** The day's highlight (`GET /api/highlight?date=`). */
   /** Home stats (`GET /api/stats?range=`). */
   stats: (range: "week" | "month") => [V3, "stats", range] as const,
+  /** Home day streak (`GET /api/streak`). */
+  streak: () => [V3, "streak"] as const,
   /** The day's morning brief (`GET /api/ai/morning-brief?date=`). */
   morningBrief: (day: string) => [V3, "morning-brief", day] as const,
   /** The Starter game's entry-card state (`GET /api/starter-game`). */

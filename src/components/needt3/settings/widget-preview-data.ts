@@ -2,6 +2,7 @@
    14:20) is the fallback; when the person has tasks planned for today, their next
    tasks replace it. Pure: `now` and the time zone come in, nothing is read here. */
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { projectColor } from "@/lib/needt3/project-color";
 
 export interface PreviewTask {
   title: string;
@@ -69,7 +70,7 @@ interface ApiTask {
   status?: unknown;
   scheduledStart?: unknown;
   dueDate?: unknown;
-  project?: { color?: unknown } | null;
+  project?: { id?: unknown; color?: unknown } | null;
 }
 
 function asDate(v: unknown): Date | null {
@@ -103,10 +104,17 @@ export function previewDay(
     const at = asDate(t.scheduledStart) ?? asDate(t.dueDate);
     if (!at || dayKey(at) !== today) return;
     const hasTime = asDate(t.scheduledStart) !== null;
+    // a project's colour is derived like everywhere else (a colourless one
+    // never shows as grey); a task with no project takes an area colour
     const color =
-      typeof t.project?.color === "string" && t.project.color
-        ? t.project.color
-        : AREA_COLORS[i % AREA_COLORS.length];
+      typeof t.project?.id === "string"
+        ? projectColor(
+            t.project.id,
+            typeof t.project.color === "string" ? t.project.color : null
+          )
+        : typeof t.project?.color === "string" && t.project.color
+          ? t.project.color
+          : AREA_COLORS[i % AREA_COLORS.length];
     rows.push({
       at,
       task: {
