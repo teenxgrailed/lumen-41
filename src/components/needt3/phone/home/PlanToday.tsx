@@ -140,7 +140,7 @@ export function PlanToday({
   const [decideFolded, setDecideFolded] = useState(true);
   const { main, rest, needsDecision } = planSections(snapshot);
   const one = (t: V3Task, size: "big" | "compact") =>
-    row(t, { size, icon: <TaskGlyph title={t.title} /> });
+    row(t, { size, icon: <TaskGlyph title={t.title} icon={t.icon} /> });
   const rows = (items: typeof main, size: "big" | "compact") =>
     items.flatMap((i) => {
       const t = byId.get(i.taskId);

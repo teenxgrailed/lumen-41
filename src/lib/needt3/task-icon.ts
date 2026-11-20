@@ -113,3 +113,30 @@ export function taskIconKey(title: string): TaskIconKey {
   for (const [key, re] of PATTERNS) if (re.test(t)) return key;
   return "generic";
 }
+
+/** Every key a person can pick for a task, "generic" (no match) excluded. */
+export const TASK_ICON_KEYS: readonly TaskIconKey[] = [
+  "call",
+  "mail",
+  "meeting",
+  "shop",
+  "money",
+  "workout",
+  "health",
+  "cook",
+  "clean",
+  "travel",
+  "read",
+  "write",
+  "design",
+  "camera",
+  "code",
+  "study",
+  "plan",
+  "music",
+];
+
+/** True for a stored `Task.icon` that names an icon this build knows. */
+export const isTaskIconKey = (v: unknown): v is TaskIconKey =>
+  typeof v === "string" &&
+  (v === "generic" || TASK_ICON_KEYS.includes(v as TaskIconKey));
