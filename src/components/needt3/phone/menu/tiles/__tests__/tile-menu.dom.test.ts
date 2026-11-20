@@ -62,6 +62,7 @@ jest.mock("../useTileFacts", () => ({
       { time: "09:00", title: "Plan the week" },
       { time: "10:30", title: "Call the factory" },
       { time: null, title: "Pay rent" },
+      { time: null, title: "Water the plants" },
       { time: null, title: "Stretch" },
     ],
     events: [],
@@ -181,7 +182,7 @@ describe("the tile menu", () => {
     const today = q('[data-tile="today"]')!;
     expect(today.textContent).toContain("Plan the week");
     expect(today.textContent).toContain("09:00");
-    expect(today.textContent).not.toContain("Stretch"); // the fourth is on the next page
+    expect(today.textContent).not.toContain("Stretch"); // the fifth is on the next page
     expect(q('[data-tile="ask"] .ntm-name')!.textContent).toBe("Ask Needt");
     const papers = qa('[data-tile="project"] .ntm-paper').map(
       (n) => n.textContent

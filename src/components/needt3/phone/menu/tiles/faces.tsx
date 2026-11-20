@@ -198,13 +198,14 @@ export function TileFace({
             <Empty>Nothing planned</Empty>
           ) : (
             <Swap
-              items={pages(rows, 3)}
+              items={pages(rows, 4)}
               offset={offset}
               active={active}
               render={(pg) => (
                 <ul className="ntm-rows">
                   {pg.map((r, i) => (
                     <li key={i}>
+                      <span className="ntm-dot" aria-hidden="true" />
                       <span className="ntm-time">{r.time ?? "any"}</span>
                       <span className="ntm-txt">{r.title}</span>
                     </li>
