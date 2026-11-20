@@ -215,8 +215,8 @@
 
 /* Projects as folders (folders_v1): the grid of folders; the cards keep .wk-pgrid */
 .needt-v3 .wk-pgrid.is-folders {
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 30px 26px;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: 24px 16px;
   padding: 14px 0 2px;
 }
 /* phone: two folders across */

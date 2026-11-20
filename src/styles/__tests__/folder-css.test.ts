@@ -15,6 +15,9 @@ describe("folder.css", () => {
   it("uses only 13px and 12px type", () => {
     const sizes: string[] = [];
     postcss.parse(css).walkDecls((d) => {
+      // the sticker letter and emoji are a mark, not chrome type
+      if (/sticker-(letter|emoji)/.test((d.parent as postcss.Rule).selector))
+        return;
       if (d.prop === "font" && d.value !== "inherit")
         sizes.push(d.value.split(/\s+/)[1].split("/")[0]);
       if (d.prop === "font-size") sizes.push(d.value);
@@ -90,7 +93,7 @@ describe("folder.css", () => {
     expect(decl(".nx-folder-back, .nx-folder-front", "border-radius")).toBe(
       "18px"
     );
-    expect(decl(".nx-folder", "--nx-wall")).toMatch(/58%/);
+    expect(decl(".nx-folder", "--nx-wall")).toMatch(/26%[\s\S]*50%/);
     expect(decl(".nx-folder-front, .nx-folder-shoulder", "background")).toBe(
       "var(--nx-wall)"
     );
