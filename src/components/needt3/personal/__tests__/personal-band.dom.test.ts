@@ -13,6 +13,7 @@ import { type Root, createRoot } from "react-dom/client";
 import type { DayBand } from "@/lib/personal-time-days";
 
 import { type WeekHandle, WeekView } from "../../calendar/WeekView";
+import { C2_H } from "../../calendar/layout";
 import { PersonalBand, PersonalRow } from "../PersonalBand";
 
 (
@@ -202,8 +203,8 @@ describe("Week grid with personal time", () => {
     const band = col.querySelector("[data-personal-band]") as HTMLElement;
     expect(band).not.toBeNull();
     expect(band.dataset.variant).toBe("grid");
-    expect(band.style.top).toBe(`${13 * 52}px`);
-    expect(band.style.height).toBe(`${52}px`);
+    expect(band.style.top).toBe(`${13 * C2_H}px`);
+    expect(band.style.height).toBe(`${C2_H}px`);
     // painted before the hour lines, so they draw over it
     const children = Array.from(col.children);
     expect(children.indexOf(band)).toBeLessThan(

@@ -12,6 +12,7 @@ import {
   weekday,
 } from "@/lib/needt3/derive";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import {
   hourOn,
   isOnToday,
@@ -482,8 +483,9 @@ export const PROJECT_SWATCHES: readonly [string, string][] = [
 ];
 
 /** A project's colour, or the neutral mark when it has none. */
-export const projectHue = (p: Pick<V3Project, "color"> | null | undefined) =>
-  p?.color || "var(--text-tertiary)";
+export const projectHue = (
+  p: Pick<V3Project, "id" | "color"> | null | undefined
+) => (p ? projectColor(p.id, p.color) : "var(--text-tertiary)");
 
 /** True when `name` is taken by another project (case-insensitive). */
 export function nameTaken(

@@ -11,11 +11,14 @@ import { createTelegramClient } from "./client";
  *   TELEGRAM_WEBHOOK_SECRET  sent back by Telegram in X-Telegram-Bot-Api-Secret-Token
  *                            (1-256 characters from A-Z a-z 0-9 _ -)
  *   TELEGRAM_BOT_USERNAME    optional, without the @: builds the t.me deep link
+ *   TELEGRAM_DONE_STICKER_FILE_ID  optional file_id of the sticker sent after
+ *                            a task is done; unset = text only
  */
 export interface TelegramConfig {
   token: string;
   secret: string;
   username: string | null;
+  doneStickerFileId: string | null;
 }
 
 export function telegramConfig(
@@ -25,7 +28,8 @@ export function telegramConfig(
   const secret = env.TELEGRAM_WEBHOOK_SECRET?.trim();
   if (!token || !secret) return null;
   const username = env.TELEGRAM_BOT_USERNAME?.trim().replace(/^@/, "") || null;
-  return { token, secret, username };
+  const doneStickerFileId = env.TELEGRAM_DONE_STICKER_FILE_ID?.trim() || null;
+  return { token, secret, username, doneStickerFileId };
 }
 
 export function telegramConfigured(env: NodeJS.ProcessEnv = process.env) {
@@ -40,6 +44,7 @@ export function getTelegramAdapter(
   return createTelegramAdapter({
     client: createTelegramClient(config.token),
     secret: config.secret,
+    doneStickerFileId: config.doneStickerFileId,
   });
 }
 

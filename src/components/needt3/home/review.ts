@@ -7,6 +7,7 @@ import type { Stats } from "@/services/stats/home-stats";
 import { addDays, dayLabel, weekday } from "@/lib/needt3/derive";
 import { dailyNoteTitle } from "@/lib/needt3/hooks/daily-note";
 import type { V3Priority, V3Project, V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import type { WeekFocusItem } from "@/lib/needt3/week-focus";
 
 import { dur } from "./derive";
@@ -86,8 +87,10 @@ export function focusOptions(
   today: string
 ): HaFocusOption[] {
   const open = tasks.filter((t) => !t.done && !t.trashedAt && !t.noSlot);
-  const colorOf = (id: string | null) =>
-    projects.find((p) => p.id === id)?.color ?? NEUTRAL;
+  const colorOf = (id: string | null) => {
+    const p = projects.find((x) => x.id === id);
+    return p ? projectColor(p.id, p.color) : NEUTRAL;
+  };
   const counts = new Map<string, number>();
   for (const t of open)
     if (t.projectId)
@@ -105,7 +108,7 @@ export function focusOptions(
       kind: "project",
       id: p.id,
       title: p.name,
-      color: p.color ?? NEUTRAL,
+      color: projectColor(p.id, p.color),
     }));
   const horizon = addDays(today, 7);
   const taskOptions = open
