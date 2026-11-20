@@ -16,7 +16,6 @@
 @keyframes v3-ptk-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 /* ── the header: a compact line, a thin bar, the segmented control ── */
-.needt-v3 .pk-head.ptk-head { padding-bottom: 16px; }
 .needt-v3 .ptk-sub { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0; font-variant-numeric: tabular-nums; }
 .needt-v3 .ptk-sub .pk-num { vertical-align: baseline; }
 .needt-v3 .ptk-sub-sep { display: inline-flex; align-items: center; gap: 6px; }

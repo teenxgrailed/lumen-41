@@ -329,9 +329,6 @@
 .needt-v3 .pk-glyph-art > *,
 .needt-v3 .pk-glyph-art .nva-glyph { width: 100%; height: 100%; }
 .needt-v3 .pk-glyph-art svg { display: block; width: 100%; height: 100%; }
-/* in the header: the big tile before the large title */
-.needt-v3 .pk-head-glyph { margin-right: -2px; }
-.needt-v3 .pk-head-glyph + .pk-title { flex: 1; }
 .needt-v3 .pk-sec-glyph { margin-right: 2px; }
 .needt-v3 .pk-sec.is-big .pk-sec-fold { align-items: center; }
 
@@ -354,8 +351,6 @@
 .needt-v3 .pk-btn.is-chip { background: var(--pk-glass-chip); box-shadow: var(--pk-glass-chip-edge); -webkit-backdrop-filter: blur(12px) saturate(1.5); backdrop-filter: blur(12px) saturate(1.5); }
 .needt-v3 .pk-plate:not(.pk-skyplate) .pk-btn.is-chip,
 .needt-v3 .pk-pull .pk-btn.is-chip { background: var(--v2p-plate-raise); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
-.needt-v3 .pk-head-row.is-top { margin-bottom: 12px; }
-.needt-v3 .pk-head-row.is-top .pk-head-glyph { margin-right: 0; }
 
 /* ── hold → actions (PkHold, PkActions, PkHueTile; wave 3, from mobile.css) ── */
 .needt-v3 .pk-hold { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
