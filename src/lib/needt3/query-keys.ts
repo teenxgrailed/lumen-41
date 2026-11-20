@@ -66,6 +66,8 @@ export const qk = {
   /** The day's highlight (`GET /api/highlight?date=`). */
   /** Home stats (`GET /api/stats?range=`). */
   stats: (range: "week" | "month") => [V3, "stats", range] as const,
+  /** Home day streak (`GET /api/streak`). */
+  streak: () => [V3, "streak"] as const,
   /** The day's morning brief (`GET /api/ai/morning-brief?date=`). */
   morningBrief: (day: string) => [V3, "morning-brief", day] as const,
   /** The Starter game's entry-card state (`GET /api/starter-game`). */
