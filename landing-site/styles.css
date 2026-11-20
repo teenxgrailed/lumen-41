@@ -1603,8 +1603,8 @@ div.up-row { cursor: default; }
 .iph-scr > img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: top center; border-radius: 0; box-shadow: none; transform: none; }
 /* screens with no status bar of their own start below the bezel's island */
 .iph-scr.iph-pad { background: #f6f5f2; }
-.iph-scr.iph-pad > img { top: 4.6%; height: 95.4%; }
-.mx-bud .iph-scr > img { top: 4.6%; height: 95.4%; }
+.iph-scr.iph-pad > img { top: 4.6%; height: 92%; object-fit: contain; object-position: top center; }
+.mx-bud .iph-scr > img { top: 4.6%; height: 92%; object-fit: contain; object-position: top center; }
 .iph-bezel { position: absolute; inset: 0; display: block; width: 100%; height: 100%; max-width: none; border-radius: 0; box-shadow: none; background: transparent; pointer-events: none; filter: drop-shadow(0 28px 34px rgba(40,40,110,.28)); }
 .mx-bud > .iph { position: absolute; right: 30px; bottom: -130px; width: 200px; transform: rotate(4deg); transition: transform .4s var(--ease); }
 .mx-bud:hover > .iph { transform: rotate(2deg) translateY(-8px); }
