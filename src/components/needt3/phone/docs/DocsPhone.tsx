@@ -8,6 +8,7 @@ import {
   LuArrowDown,
   LuArrowUp,
   LuCheck,
+  LuChevronLeft,
   LuCopy,
   LuDownload,
   LuEllipsis,
@@ -30,7 +31,9 @@ import { useDocs } from "@/lib/needt3/hooks/docs";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import type { V3Doc } from "@/lib/needt3/map";
 
+import { DocFolders } from "../../docs/DocFolders";
 import { useDocTokens } from "../../docs/DocParts";
+import { UNSORTED, groupDocs, hasFolders, openGroup } from "../../docs/folders";
 import { ageLabel } from "../../docs/labels";
 import { type DocActionId, docActions } from "../../docs/menu-model";
 import {
@@ -58,7 +61,7 @@ import { DocCard } from "./DocCard";
 import { MoveSheet, RenameSheet } from "./DocSheets";
 import { PdGlass, PdMenu, type PdMenuItem } from "./PhoneMenu";
 import { ShareSheetPhone } from "./ShareSheetPhone";
-import { docsSub, matchDocs } from "./logic";
+import { docsSub, foldersSub, matchDocs } from "./logic";
 
 /**
  * Docs on the phone (phone-docs.jsx `PdDocs` 1588): the large "Docs" title,
@@ -97,7 +100,26 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
     () => (query.data ?? []).filter((d) => !d.trashedAt),
     [query.data]
   );
-  const sorted = useMemo(() => sortDocs(mine, sort), [mine, sort]);
+  const groups = useMemo(
+    () => groupDocs(mine, projects.data ?? []),
+    [mine, projects.data]
+  );
+  // The top level is folders when the pages sit in more than one group; a
+  // Quick Open word searches every page, so it shows the list. A folder that
+  // emptied is gone.
+  const folderMode =
+    !projects.isPending && !projects.isError && hasFolders(groups);
+  const waiting = projects.isPending && mine.length > 0;
+  const topLevel = folderMode && !q.trim();
+  const group = folderMode ? openGroup(groups, ctl.folder) : null;
+  // New doc inside a project's folder is born in that project.
+  const folderProject =
+    group && !q.trim() && group.key !== UNSORTED ? group.key : null;
+  const atFolders = topLevel && !group;
+  const sorted = useMemo(
+    () => sortDocs(group && !q.trim() ? group.docs : mine, sort),
+    [group, mine, sort, q]
+  );
   const shown = useMemo(() => matchDocs(sorted, q), [sorted, q]);
   const projectOf = useMemo(() => {
     const byId = new Map((projects.data ?? []).map((p) => [p.id, p] as const));
@@ -216,10 +238,19 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
           screen="docs"
           title="Docs"
           glyph="docs"
-          sub={state === "content" ? docsSub(mine.length, sort) : null}
+          sub={
+            state !== "content"
+              ? null
+              : atFolders
+                ? foldersSub(groups.length, mine.length)
+                : docsSub(
+                    group && !q.trim() ? group.docs.length : mine.length,
+                    sort
+                  )
+          }
         >
           <div className="pd-home">
-            {state === "loading" ? (
+            {state === "loading" || (state === "content" && waiting) ? (
               <div data-st-state="loading">
                 <StSkeleton kind="grid" />
               </div>
@@ -275,7 +306,7 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
                     small
                     icon={<LuPlus size={16} aria-hidden />}
                     disabled={creating}
-                    onClick={() => newDoc()}
+                    onClick={() => newDoc("", folderProject)}
                     data-pd-new=""
                   >
                     New doc
@@ -290,7 +321,27 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
                     From template
                   </PkButton>
                 </div>
-                {shown.length ? (
+                {group && !q.trim() ? (
+                  <div className="pd-new">
+                    <PkButton
+                      kind="quiet"
+                      small
+                      icon={<LuChevronLeft size={16} aria-hidden />}
+                      onClick={() => ctl.setFolder(null)}
+                      data-pd-back=""
+                    >
+                      {group.label}
+                    </PkButton>
+                  </div>
+                ) : null}
+                {atFolders ? (
+                  <DocFolders
+                    phone
+                    groups={groups}
+                    now={now}
+                    onOpen={(key) => ctl.setFolder(key)}
+                  />
+                ) : shown.length ? (
                   <div className="pd-grid" role="list">
                     {shown.map((d) => (
                       <DocCard
@@ -322,12 +373,14 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
         </PkScreen>
         <div className="pd-bar is-list">
           <span />
-          <PdGlass
-            icon={<LuEllipsis size={20} aria-hidden />}
-            label="Sort and more"
-            onClick={() => setMenu(true)}
-            data={{ "data-pd-more": "list" }}
-          />
+          {atFolders ? null : (
+            <PdGlass
+              icon={<LuEllipsis size={20} aria-hidden />}
+              label="Sort and more"
+              onClick={() => setMenu(true)}
+              data={{ "data-pd-more": "list" }}
+            />
+          )}
         </div>
       </div>
       <PdMenu

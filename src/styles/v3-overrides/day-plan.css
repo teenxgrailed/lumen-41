@@ -1,0 +1,486 @@
+/* The phone Today from the day plan: the header, the greeting, the plan list,
+   the evening close and Someday (openspec finish-today-daily-planner, D).
+   Scoped under .needt-v3. Rules kept (docs/handoff/PORT.md §0, §6):
+   every grey is the one ink at a ladder alpha (--v2p-ink / -2 / -3 and fills
+   at 6 / 12 %) · chrome type is 13 and 12 px, only the greeting, the weekday
+   and the sheet title are display · the accent is a mark (one dot), never a
+   fill · one form row (32 px segments, 48 px rows) · no sheet under the whole
+   screen: the greeting and the list share the ground, parted by air and a
+   hairline. Motion is the one rise-and-settle, 0.42 s, with a 55 ms stagger.
+   In the sheets the ink follows the plate (--ha-*), so light and dark both
+   read whichever way the sheet is themed. */
+
+.needt-v3 :is(.dp-screen, .dp-sheet) {
+  --dp-ink: var(--ha-ink, var(--v2p-ink));
+  --dp-ink-2: var(--ha-ink-2, var(--v2p-ink-2));
+  --dp-ink-3: var(--ha-ink-3, var(--v2p-ink-3));
+  --dp-line: var(--ha-line, var(--v2p-line));
+  --dp-fill: color-mix(in srgb, var(--dp-ink) 6%, transparent);
+  --dp-fill-on: color-mix(in srgb, var(--dp-ink) 12%, transparent);
+  --dp-ease: var(--pk-ease, cubic-bezier(0.2, 0.9, 0.24, 1));
+}
+
+/* ── Header: the weekday, one accent mark, the date at the right ─────────── */
+.needt-v3 .dp-screen .pk-head {
+  padding-bottom: 4px;
+}
+.needt-v3 .dp-screen .pk-head-row {
+  align-items: baseline;
+}
+.needt-v3 .dp-screen .pk-title {
+  font: 600 44px/46px var(--font-sans);
+  letter-spacing: -0.045em;
+}
+.needt-v3 .dp-day {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.needt-v3 .dp-dot {
+  flex: none;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--v2p-lav);
+}
+.needt-v3 .dp-day .dp-dot {
+  transform: translateY(-2px);
+}
+.needt-v3 .dp-date {
+  flex: none;
+  display: inline-flex;
+  gap: 6px;
+  font: 400 13px/1.2 var(--font-sans);
+  color: var(--dp-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .dp-date span {
+  color: var(--dp-ink-3);
+}
+
+/* ── Greeting: two-tone sentence, small icons before the counts ──────────── */
+.needt-v3 .dp-hello {
+  padding: 16px 0 0;
+}
+.needt-v3 .dp-sentence {
+  margin: 0;
+  font: 600 28px/1.24 var(--font-sans);
+  letter-spacing: -0.03em;
+  text-wrap: pretty;
+}
+.needt-v3 .dp-soft {
+  color: var(--dp-ink-2);
+}
+.needt-v3 .dp-fact {
+  color: var(--dp-ink);
+  white-space: nowrap;
+}
+.needt-v3 .dp-fact-ic {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 6px;
+  color: var(--dp-ink);
+}
+.needt-v3 .dp-stats {
+  margin: 14px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 13px/1.35 var(--font-sans);
+  color: var(--dp-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .dp-stats i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--dp-ink-3);
+}
+
+/* ── Plan list: same ground, parted from the greeting by air and a hairline ─ */
+.needt-v3 .dp-list {
+  margin-top: 28px;
+  padding-top: 4px;
+  border-top: 1px solid var(--dp-line);
+}
+.needt-v3 .dp-group + .dp-group {
+  margin-top: 10px;
+}
+.needt-v3 .dp-rest {
+  border-top: 1px solid var(--dp-line);
+  padding-top: 2px;
+}
+.needt-v3 .dp-label {
+  margin: 16px 2px 2px;
+  display: flex;
+  gap: 6px;
+  font: 600 12px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dp-ink-2);
+}
+.needt-v3 .dp-label span {
+  letter-spacing: 0;
+  color: var(--dp-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* main tasks: larger rows with an icon; the rest: compact */
+.needt-v3 .dp-list .pk-row.is-big {
+  min-height: 76px;
+}
+.needt-v3 .dp-list .pk-row.is-big .pk-row-title {
+  font: 600 19px/24px var(--font-sans);
+  letter-spacing: -0.025em;
+}
+.needt-v3 .dp-list .pk-row.is-compact {
+  min-height: 52px;
+}
+.needt-v3 .dp-list .pk-row.is-compact .pk-row-title {
+  font: 500 15px/20px var(--font-sans);
+}
+.needt-v3 .pk-row-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  margin-left: -4px;
+}
+
+/* a task's icon: a round bubble in the object's own colour (the project's) at
+   low alpha, the glyph in that colour at full strength. Never the accent; with
+   no colour it is the ink at a ladder alpha. */
+.needt-v3 .dp-hue {
+  display: contents;
+}
+.needt-v3 .dp-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: var(--hue, var(--dp-ink-2, var(--v2p-ink-2)));
+  background: color-mix(
+    in srgb,
+    var(--hue, var(--dp-ink, var(--v2p-ink))) 16%,
+    transparent
+  );
+}
+.needt-v3 .dp-list .pk-row.is-compact .dp-glyph {
+  width: 34px;
+  height: 34px;
+}
+.needt-v3 .dp-sheet .dp-glyph {
+  width: 28px;
+  height: 28px;
+}
+
+/* the second line under a plan row's title: the time range or the length */
+.needt-v3 .dp-list .pk-row .pk-row-meta {
+  font: 400 13px/18px var(--font-sans);
+  color: var(--dp-ink-2);
+}
+/* the check ring at the end: outlined, and a check when done */
+.needt-v3 .pk-check.is-end {
+  margin-left: 0;
+  margin-right: -6px;
+}
+.needt-v3 .dp-list .pk-row.is-big .pk-check-ring {
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+}
+
+/* Needs a decision: folded, outside the limit */
+.needt-v3 .dp-fold {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--dp-ink-2);
+  font: 500 13px/1 var(--font-sans);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.needt-v3 .dp-fold-n {
+  color: var(--dp-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .dp-fold-ch {
+  margin-left: auto;
+  color: var(--dp-ink-3);
+  transition: transform 0.22s var(--dp-ease);
+}
+.needt-v3 .dp-fold-ch[data-open="1"] {
+  transform: rotate(180deg);
+}
+.needt-v3 .dp-orphan {
+  padding: 12px 2px;
+  font: 500 15px/20px var(--font-sans);
+  color: var(--dp-ink-2);
+}
+
+/* the way to the full list and to Someday, one tap */
+.needt-v3 .dp-links {
+  margin-top: 12px;
+  border-top: 1px solid var(--dp-line);
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .dp-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 1px solid var(--dp-line);
+  background: none;
+  color: var(--dp-ink);
+  font: 500 15px/1 var(--font-sans);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.needt-v3 .dp-link svg {
+  color: var(--dp-ink-3);
+}
+
+/* ── The evening close and Someday: one type, one row geometry ───────────── */
+.needt-v3 .dp-sh {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+.needt-v3 .dp-sh h3 {
+  margin: 0;
+  font: 600 26px/1.15 var(--font-sans);
+  letter-spacing: -0.03em;
+  color: var(--dp-ink);
+}
+.needt-v3 .dp-sh-meta {
+  font: 400 13px/1.35 var(--font-sans);
+  color: var(--dp-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .dp-lab {
+  margin: 22px 2px 8px;
+  display: flex;
+  justify-content: space-between;
+  font: 600 12px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dp-ink-2);
+}
+.needt-v3 .dp-lab span {
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.needt-v3 .dp-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--dp-line);
+}
+.needt-v3 .dp-row.dp-some {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.needt-v3 .dp-row-t {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.needt-v3 .dp-row-t b {
+  flex: 1;
+  min-width: 0;
+  font: 500 15px/20px var(--font-sans);
+  color: var(--dp-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* three actions per leftover: 32 px, the one form row */
+.needt-v3 .dp-seg {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--dp-fill);
+}
+.needt-v3 .dp-seg button {
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--dp-ink-2);
+  font: 500 13px/1 var(--font-sans);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 90ms;
+  -webkit-tap-highlight-color: transparent;
+}
+.needt-v3 .dp-seg button:active {
+  transform: scale(0.97);
+}
+.needt-v3 .dp-seg button[aria-pressed="true"] {
+  background: var(--dp-fill-on);
+  color: var(--dp-ink);
+}
+
+.needt-v3 .dp-ghost {
+  flex: none;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--dp-fill);
+  color: var(--dp-ink);
+  font: 500 13px/1 var(--font-sans);
+  cursor: pointer;
+  transition: transform 90ms;
+}
+.needt-v3 .dp-ghost:active {
+  transform: scale(0.97);
+}
+.needt-v3 .dp-ghost:disabled {
+  opacity: 0.4;
+}
+
+.needt-v3 .dp-note {
+  min-height: 96px;
+  scroll-margin-bottom: 24px;
+}
+
+.needt-v3 .dp-prev {
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .dp-prev-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  font: 400 15px/20px var(--font-sans);
+  color: var(--dp-ink-2);
+}
+.needt-v3 .dp-prev-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .dp-more {
+  padding: 4px 2px 0 38px;
+  font: 400 13px/1.35 var(--font-sans);
+  color: var(--dp-ink-3);
+}
+.needt-v3 .dp-quiet {
+  margin: 0;
+  padding: 4px 2px;
+  font: 400 13px/1.35 var(--font-sans);
+  color: var(--dp-ink-2);
+}
+.needt-v3 .dp-alert {
+  margin: 12px 2px 0;
+  font: 400 13px/1.35 var(--font-sans);
+  color: var(--v2p-alert);
+}
+
+.needt-v3 .dp-foot {
+  margin-top: 22px;
+  display: flex;
+}
+/* Close the day: not filled. A hairline ring in the ink, the accent as one mark. */
+.needt-v3 .dp-primary {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--dp-ink-3);
+  color: var(--dp-ink);
+  font: 600 15px/1 var(--font-sans);
+  cursor: pointer;
+  transition:
+    transform 90ms,
+    background-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.needt-v3 .dp-primary:active {
+  transform: scale(0.985);
+  background: var(--dp-fill);
+}
+.needt-v3 .dp-primary:disabled {
+  opacity: 0.4;
+}
+
+/* ── Motion: the thing that arrives rises and settles, 55 ms apart ───────── */
+@keyframes dp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.needt-v3 .dp-rise {
+  animation: dp-rise 0.42s var(--pk-ease, cubic-bezier(0.2, 0.9, 0.24, 1))
+    backwards;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+.needt-v3 :is(.dp-main, .dp-part) > .pk-rw {
+  animation: dp-rise 0.42s var(--pk-ease, cubic-bezier(0.2, 0.9, 0.24, 1))
+    backwards;
+}
+.needt-v3 :is(.dp-main, .dp-part) > .pk-rw:nth-child(2) {
+  animation-delay: 55ms;
+}
+.needt-v3 :is(.dp-main, .dp-part) > .pk-rw:nth-child(3) {
+  animation-delay: 110ms;
+}
+.needt-v3 :is(.dp-main, .dp-part) > .pk-rw:nth-child(4) {
+  animation-delay: 165ms;
+}
+.needt-v3 :is(.dp-main, .dp-part) > .pk-rw:nth-child(n + 5) {
+  animation-delay: 220ms;
+}
+.needt-v3 .dp-hello {
+  animation: dp-rise 0.42s var(--pk-ease, cubic-bezier(0.2, 0.9, 0.24, 1))
+    backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 :is(.dp-rise, .dp-hello, .dp-main > .pk-rw, .dp-part > .pk-rw) {
+    animation: none;
+  }
+  .needt-v3 .dp-fold-ch {
+    transition: none;
+  }
+}
