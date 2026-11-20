@@ -227,3 +227,8 @@
   padding: 18px 16px 24px;
   box-shadow: none;
 }
+/* Docs as folders on the phone: the screen already pads the page, so the
+   folder grid takes no side padding of its own */
+.needt-v3 .pd-home .ptk-plist.is-folders {
+  padding: 8px 0 24px;
+}
