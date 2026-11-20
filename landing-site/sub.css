@@ -183,7 +183,7 @@ body.sub main { background: #fff; }
 .bx-ph { flex: 0 1 270px; margin: 0 0 -60px; }
 .bx-ph:nth-child(2) { margin-bottom: -20px; }
 .bx-ph .lv-phone { max-width: none; }
-.bx-ph .lv-scr img { position: absolute; top: 0; left: 0; width: 100%; height: auto; opacity: 1; transform: translateY(0); transition: none; }
+.bx-ph .lv-scr img { position: absolute; top: 4.6%; left: 0; width: 100%; height: auto; opacity: 1; transform: translateY(0); transition: none; }
 .bx-ph figcaption { display: none; }
 .bx-stage.play .bx-ph .lv-scr img { animation: bxScroll var(--t, 22s) var(--sx-ease) infinite alternate; }
 .bx-stage.play .bx-ph:hover .lv-scr img { animation-play-state: paused; }
