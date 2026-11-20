@@ -10,12 +10,13 @@ import {
   type Checkin,
   addDays,
   daysBetween,
+  habitColor,
   habitDoneOn,
   habitWeek,
   liveHabits,
 } from "@/lib/needt3/derive";
 import type { Weather } from "@/lib/needt3/hooks/weather";
-import type { V3Habit, V3Task } from "@/lib/needt3/map";
+import type { V3Habit, V3Project, V3Task } from "@/lib/needt3/map";
 import { weekStartOf } from "@/lib/needt3/week-focus";
 import type { PersonalTone } from "@/lib/personal-time";
 import { type DayBand, bandTimeLabel } from "@/lib/personal-time-days";
@@ -48,7 +49,9 @@ export function habitEmoji(icon: string | null | undefined): string {
 export function haHabitsOf(
   habits: readonly V3Habit[],
   checkins: readonly Checkin[],
-  today: string
+  today: string,
+  /** With the projects, each habit carries its own colour (`hue`). */
+  projects?: readonly V3Project[]
 ): HaHabit[] {
   return liveHabits(habits).map((h) => {
     const target = h.schedule.perWeek;
@@ -57,6 +60,7 @@ export function haHabitsOf(
       id: h.id,
       name: h.title,
       emoji: habitEmoji(h.icon),
+      ...(projects ? { hue: habitColor(h, projects) || null } : {}),
       kind: weekly ? "week" : "daily",
       ...(weekly
         ? { target, count: Math.min(target, habitWeek(h.id, checkins, today)) }
