@@ -700,6 +700,17 @@ export function PhoneHome({
       <SampleBanner />
       <FirstReplanCard />
       {ready && !v2 ? aux : null}
+      {ready && planOn && dayPlan.snapshot ? (
+        <PlanToday
+          snapshot={dayPlan.snapshot}
+          byId={taskById}
+          row={(t, o) => row(t, o)}
+          allCount={lateRows.length + inboxRows.length}
+          allOpen={fullList}
+          onAll={() => setFullList((o) => !o)}
+          onSomeday={() => setSomedayOpen(true)}
+        />
+      ) : null}
       {ready ? (
         <div className="ha-phone ha-ph-stack" data-ha-stack="">
           {v.dayClosed ? (
@@ -817,18 +828,6 @@ export function PhoneHome({
       {ready ? <StarterGameSlot screen="home" /> : null}
       {ready && v.empty && !starter.show && !starter.hold ? (
         <PkEmpty line={copy.V2pHome.a_clear_day_nothing_is_due_and_nothing_i} />
-      ) : null}
-
-      {ready && planOn && dayPlan.snapshot ? (
-        <PlanToday
-          snapshot={dayPlan.snapshot}
-          byId={taskById}
-          row={(t) => row(t)}
-          allCount={lateRows.length + inboxRows.length}
-          allOpen={fullList}
-          onAll={() => setFullList((o) => !o)}
-          onSomeday={() => setSomedayOpen(true)}
-        />
       ) : null}
       {ready ? (
         <div className="v2p-day">
