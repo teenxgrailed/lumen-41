@@ -59,6 +59,7 @@ import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useWeather } from "@/lib/needt3/hooks/weather";
 import { useWeekFocus } from "@/lib/needt3/hooks/week-focus";
 import type { V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { showsTask } from "@/lib/needt3/task-view";
 import { todayLine } from "@/lib/needt3/today";
 import { weekStartOf } from "@/lib/needt3/week-focus";
@@ -406,8 +407,10 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
     nowHour,
     hidden: closedDay || finish.open,
   });
-  const hueOf = (id: string | null) =>
-    project(id, projects.data ?? [])?.color ?? "var(--text-muted)";
+  const hueOf = (id: string | null) => {
+    const p = project(id, projects.data ?? []);
+    return p ? projectColor(p.id, p.color) : "var(--text-muted)";
+  };
 
   const open = useCallback(
     (id: string) => router.push(`/tasks?task=${id}`),

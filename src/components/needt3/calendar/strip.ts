@@ -81,6 +81,25 @@ export function nowScrollTop(
   return Math.min(Math.max(0, want), Math.max(0, contentH - viewportH));
 }
 
+/** The hour the week grid opens on (critique 15.11). */
+export const OPEN_HOUR = 8;
+
+/**
+ * Where the week grid opens vertically: 08:00, a few px below the top edge so
+ * its hour line shows. Every open lands on the same place, whatever the clock
+ * says; the "now" line is a scroll away, and the working day starts here for
+ * most people. Clamped for a short grid.
+ */
+export function openAtHour(
+  hourH: number,
+  viewportH: number,
+  contentH: number,
+  hour: number = OPEN_HOUR
+) {
+  const want = hour * hourH - 6;
+  return Math.min(Math.max(0, want), Math.max(0, contentH - viewportH));
+}
+
 /** The first working hour of the week (earliest range start), or null. */
 export function workStartHour(hours: WorkHours | null | undefined) {
   if (!hours) return null;

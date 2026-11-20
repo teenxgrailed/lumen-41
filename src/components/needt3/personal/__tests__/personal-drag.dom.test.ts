@@ -16,6 +16,7 @@ import { type Root, createRoot } from "react-dom/client";
 import type { DayBand } from "@/lib/personal-time-days";
 
 import { type WeekHandle, WeekView } from "../../calendar/WeekView";
+import { C2_H } from "../../calendar/layout";
 import { useDrag } from "../../drag/useDrag";
 import {
   type ResizeRequest,
@@ -61,10 +62,10 @@ beforeEach(() => {
     configurable: true,
     get: () => 600,
   });
-  // the band is drawn one hour tall (52px)
+  // the band is drawn one hour tall (64px)
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
     configurable: true,
-    get: () => 52,
+    get: () => C2_H,
   });
   Element.prototype.scrollTo = function scrollTo() {} as never;
   Element.prototype.scrollIntoView = function scrollIntoView() {} as never;
@@ -203,39 +204,39 @@ describe("pulling the bottom edge", () => {
   it("grows the band with the hand, snapped, and reports the distance on release", () => {
     mount([band({ blockId: "lunch" })]);
     const el = bandEl("lunch");
-    el.style.height = "52px";
+    el.style.height = `${C2_H}px`;
     act(() => {
       handle().dispatchEvent(pointer("pointerdown", { clientY: 100 }));
     });
-    // 30px down is about half an hour: 26px at 52px an hour
+    // 30px down is about half an hour: 32px at 64px an hour
     act(() => {
-      window.dispatchEvent(pointer("pointermove", { clientY: 130 }));
+      window.dispatchEvent(pointer("pointermove", { clientY: 100 + C2_H / 2 }));
     });
     flush();
-    expect(el.style.height).toBe("78px");
+    expect(el.style.height).toBe(`${C2_H * 1.5}px`);
     // the pull is not a drag of the band itself
     expect(document.querySelector(".shell-drag-lift")).toBeNull();
     act(() => {
-      window.dispatchEvent(pointer("pointerup", { clientY: 152 }));
+      window.dispatchEvent(pointer("pointerup", { clientY: 100 + C2_H }));
     });
     expect(resized).toHaveLength(1);
     expect(resized[0]).toMatchObject({ blockId: "lunch", deltaHours: 1 });
-    expect(el.style.height).toBe("104px");
+    expect(el.style.height).toBe(`${C2_H * 2}px`);
     // the host can give the old height back
     resized[0].revert();
-    expect(el.style.height).toBe("52px");
+    expect(el.style.height).toBe(`${C2_H}px`);
   });
 
   it("never draws the band shorter than 15 minutes", () => {
     mount([band({ blockId: "lunch" })]);
     const el = bandEl("lunch");
-    el.style.height = "52px";
+    el.style.height = `${C2_H}px`;
     act(() => {
       handle().dispatchEvent(pointer("pointerdown", { clientY: 300 }));
       window.dispatchEvent(pointer("pointermove", { clientY: 100 }));
     });
     flush();
-    expect(el.style.height).toBe("13px");
+    expect(el.style.height).toBe(`${C2_H / 4}px`);
     act(() => {
       window.dispatchEvent(pointer("pointerup", { clientY: 100 }));
     });
@@ -245,7 +246,7 @@ describe("pulling the bottom edge", () => {
   it("is a click, not a pull, until the hand has travelled 4px", () => {
     mount([band({ blockId: "lunch" })]);
     const el = bandEl("lunch");
-    el.style.height = "52px";
+    el.style.height = `${C2_H}px`;
     act(() => {
       handle().dispatchEvent(pointer("pointerdown", { clientY: 100 }));
       window.dispatchEvent(pointer("pointermove", { clientY: 102 }));
@@ -255,25 +256,25 @@ describe("pulling the bottom edge", () => {
       window.dispatchEvent(pointer("pointerup", { clientY: 102 }));
     });
     expect(resized).toHaveLength(0);
-    expect(el.style.height).toBe("52px");
+    expect(el.style.height).toBe(`${C2_H}px`);
   });
 
   it("puts the band back on Escape and writes nothing", () => {
     mount([band({ blockId: "lunch" })]);
     const el = bandEl("lunch");
-    el.style.height = "52px";
+    el.style.height = `${C2_H}px`;
     act(() => {
       handle().dispatchEvent(pointer("pointerdown", { clientY: 100 }));
       window.dispatchEvent(pointer("pointermove", { clientY: 180 }));
     });
     flush();
-    expect(el.style.height).not.toBe("52px");
+    expect(el.style.height).not.toBe(`${C2_H}px`);
     act(() => {
       window.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
       );
     });
-    expect(el.style.height).toBe("52px");
+    expect(el.style.height).toBe(`${C2_H}px`);
     act(() => {
       window.dispatchEvent(pointer("pointerup", { clientY: 180 }));
     });
@@ -283,7 +284,7 @@ describe("pulling the bottom edge", () => {
   it("gives the height back when the hand ends where it began", () => {
     mount([band({ blockId: "lunch" })]);
     const el = bandEl("lunch");
-    el.style.height = "52px";
+    el.style.height = `${C2_H}px`;
     act(() => {
       handle().dispatchEvent(pointer("pointerdown", { clientY: 100 }));
       window.dispatchEvent(pointer("pointermove", { clientY: 160 }));
@@ -293,6 +294,6 @@ describe("pulling the bottom edge", () => {
       window.dispatchEvent(pointer("pointerup", { clientY: 101 }));
     });
     expect(resized).toHaveLength(0);
-    expect(el.style.height).toBe("52px");
+    expect(el.style.height).toBe(`${C2_H}px`);
   });
 });

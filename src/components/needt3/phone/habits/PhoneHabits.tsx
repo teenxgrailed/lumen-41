@@ -14,6 +14,7 @@ import { newDate } from "@/lib/date-utils";
 import { type Checkin, habitColor } from "@/lib/needt3/derive";
 import type { QuitGate } from "@/lib/needt3/habits-quit";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
@@ -526,8 +527,10 @@ function HabitSheet({
                         aria-pressed={on}
                         onClick={() => onChange({ projectId: p?.id ?? null })}
                         style={
-                          p?.color
-                            ? ({ "--hue": p.color } as CSSProperties)
+                          p
+                            ? ({
+                                "--hue": projectColor(p.id, p.color),
+                              } as CSSProperties)
                             : undefined
                         }
                       >

@@ -43,6 +43,7 @@ import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useWeather } from "@/lib/needt3/hooks/weather";
 import { useWeekFocus } from "@/lib/needt3/hooks/week-focus";
 import type { V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { todayLine } from "@/lib/needt3/today";
 import { weekStartOf } from "@/lib/needt3/week-focus";
 import type { DayBand } from "@/lib/personal-time-days";
@@ -416,7 +417,7 @@ export function PhoneHome({
 
   const projOf = (t: V3Task) => {
     const p = project(t.projectId, projects ?? []);
-    return p ? { name: p.name, color: p.color } : null;
+    return p ? { name: p.name, color: projectColor(p.id, p.color) } : null;
   };
   const actionsOf = useTaskActions(X.exit);
   const row = (

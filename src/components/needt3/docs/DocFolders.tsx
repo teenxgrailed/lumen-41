@@ -38,7 +38,9 @@ export function DocFolders({
             label={m.label}
             caption={m.caption}
             count={m.count}
-            hue={projectHue({ color: m.hue })}
+            hue={
+              m.hue ? projectHue({ id: m.key, color: m.hue }) : projectHue(null)
+            }
             sticker={
               m.key === UNSORTED ? (
                 <LuFileText size={40} aria-hidden />

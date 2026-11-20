@@ -30,6 +30,7 @@ import { newDate } from "@/lib/date-utils";
 import { useDocs } from "@/lib/needt3/hooks/docs";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import type { V3Doc } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 
 import { DocFolders } from "../../docs/DocFolders";
 import { useDocTokens } from "../../docs/DocParts";
@@ -125,7 +126,7 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
     const byId = new Map((projects.data ?? []).map((p) => [p.id, p] as const));
     return (d: V3Doc) => {
       const p = d.projectId ? byId.get(d.projectId) : null;
-      return p ? { name: p.name, color: p.color } : null;
+      return p ? { name: p.name, color: projectColor(p.id, p.color) } : null;
     };
   }, [projects.data]);
 

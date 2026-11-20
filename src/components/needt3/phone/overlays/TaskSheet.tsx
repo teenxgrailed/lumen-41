@@ -54,6 +54,7 @@ import {
   useUpdateTask,
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Task, V3TaskPatch } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { REPEAT_CHOICES, repeatKey, repeatLabel } from "@/lib/needt3/repeat";
 import { notify } from "@/lib/notifications";
 
@@ -446,7 +447,7 @@ function TaskSheetBody({
             className="pov-hue"
             style={
               {
-                "--hue": project.color ?? "var(--text-muted)",
+                "--hue": projectColor(project.id, project.color),
               } as React.CSSProperties
             }
             aria-hidden="true"
@@ -646,7 +647,7 @@ function TaskSheetBody({
             {projects.map((p) => (
               <PovOpt
                 key={p.id}
-                hue={p.color ?? "var(--text-muted)"}
+                hue={projectColor(p.id, p.color)}
                 on={t.projectId === p.id}
                 onClick={() => void edit({ projectId: p.id })}
               >
