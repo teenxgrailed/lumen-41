@@ -396,3 +396,14 @@
 .needt-v3 .pk-sheet-layer .ha-sheet { background: transparent; box-shadow: none; border-radius: 0; padding: 0; }
 .needt-v3 .pk-sheet-layer .ha-grab { display: none; }
 .needt-v3 .ha-band .ha-band-e { margin-left: 0; }
+
+/* ── 7b · Streak card ──────────────────────────────────────────────────── */
+.needt-v3 .ha-streak { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px; }
+.needt-v3 .ha-streak-n { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.needt-v3 .ha-streak-n b { font: var(--ha-t-title); font-variant-numeric: tabular-nums; color: var(--ha-ink); }
+.needt-v3 .ha-streak-n span { font: var(--ha-t-meta); color: var(--ha-ink-2); white-space: nowrap; }
+.needt-v3 .ha-streak-days { display: flex; align-items: center; gap: 6px; flex: none; }
+.needt-v3 .ha-streak-d { width: 20px; height: 20px; border-radius: 10px; display: grid; place-items: center; box-sizing: border-box; flex: none; }
+.needt-v3 .ha-streak-d.is-done { background: var(--ha-mark); color: var(--ha-ground); }
+.needt-v3 .ha-streak-d.is-missed { background: var(--ha-raise); color: var(--ha-ink-3); }
+.needt-v3 .ha-streak-d.is-today { box-shadow: inset 0 0 0 1.5px var(--ha-mark-ring); }
