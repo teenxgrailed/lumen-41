@@ -900,7 +900,7 @@ model Task {
   id          String  @id @default(cuid())
   title       String
   description String?
-  // One emoji the person (or the phone composer's keyword map) gave the task.
+  // The icon the person picked, a key of src/lib/needt3/task-icon.ts; null = automatic (the keyword map reads the title).
   icon        String?
   status      String // enum: 'todo', 'in_progress', 'completed'
 

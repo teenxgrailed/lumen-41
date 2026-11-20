@@ -1,8 +1,7 @@
 import * as Sentry from "@sentry/node";
 
-import { APP_NAME } from "@/lib/app-config";
 import { EmailService } from "@/lib/email/email-service";
-import { renderEmail } from "@/lib/email/templates/layout";
+import { getOpsAlertTemplate } from "@/lib/email/templates/ops-alert";
 import { logger } from "@/lib/logger";
 import { getRedisConnection } from "@/lib/queue/connection";
 
@@ -42,18 +41,9 @@ async function claimAlertSlot(key: string, level: AlertLevel) {
 async function emailOwner(level: AlertLevel, message: string) {
   const to = alertRecipient();
   if (!to) return;
-  const subject = `${APP_NAME} ${level === "critical" ? "critical" : "warning"}: ${message.slice(0, 80)}`;
   try {
-    // Owner-only mail, but it wears the same layout so it renders the same
-    // in every client; renderEmail escapes the message.
-    const mail = renderEmail({
-      subject,
-      preheader: message.slice(0, 120),
-      heading: level === "critical" ? "Critical alert" : "Warning",
-      paragraphs: [message],
-      kind: "security",
-      footerNote: "Needt operations alert.",
-    });
+    const mail = getOpsAlertTemplate(level, message);
+    const subject = mail.subject;
     await EmailService.sendEmail({
       to,
       subject,

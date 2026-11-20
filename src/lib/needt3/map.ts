@@ -285,7 +285,7 @@ export interface V3Task {
   title: string;
   /** Plain text, newlines kept (Data.js NOTES 09.10.26). */
   notes: string | null;
-  /** One emoji (`Task.icon`); absent or null = none. */
+  /** The icon key the person picked (`Task.icon`, see task-icon.ts); null = automatic, from the title. */
   icon?: string | null;
   done: boolean;
   /** Raw lifecycle status ("todo" | "in_progress" | "completed"). */

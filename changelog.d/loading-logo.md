@@ -1,0 +1,1 @@
+- The loading screen is now just the Needt logo, softly breathing, instead of the word filling. It still appears only for an update reload and while Budget opens.

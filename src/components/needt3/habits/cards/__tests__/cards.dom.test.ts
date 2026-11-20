@@ -602,13 +602,15 @@ describe("goal cards", () => {
         onSelect,
       })
     );
-    const card = q('[data-gl-card="g1"]');
+    const card = q('[data-gl-select="g1"]');
     expect(q('[data-gl-progress="g1"]').textContent).toBe("1 of 5 tasks");
     expect(q('[data-gl-next="g1"]').textContent).toContain(
       "Write the announcement"
     );
     expect(q('[data-gl-due="g1"]').textContent).toBe("by 30 Nov 2026");
-    expect(q("[data-gl-risk]").getAttribute("data-gl-risk")).toBe("behind");
+    // behind with a deadline inside 30 days: at risk, with the days left
+    expect(q("[data-gl-risk]").getAttribute("data-gl-risk")).toBe("at-risk");
+    expect(q("[data-gl-risk]").textContent).toMatch(/^At risk · \d+d left$/);
     act(() => card.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(onSelect).toHaveBeenCalledWith("g1");
   });
@@ -629,7 +631,7 @@ describe("goal cards", () => {
     expect(q('[data-gl-next="g2"]').textContent).not.toContain("No open task");
   });
 
-  it("has no risk hint for a goal that is on track", () => {
+  it("calls a goal that keeps up with the time on track", () => {
     mount(
       h(GoalCards, {
         goals: [
@@ -643,7 +645,8 @@ describe("goal cards", () => {
         onSelect: jest.fn(),
       })
     );
-    expect(host.querySelector("[data-gl-risk]")).toBeNull();
+    expect(q("[data-gl-risk]").getAttribute("data-gl-risk")).toBe("on-track");
+    expect(q("[data-gl-risk]").textContent).toBe("On track");
   });
 
   it("folds closed goals away", () => {

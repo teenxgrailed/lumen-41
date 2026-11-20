@@ -14,10 +14,12 @@
  *   sticker    ReactNode?      Sits on the front wall (icon, emoji, mark).
  *   hue        string?         Any CSS colour. A tint on the panels and the
  *                              sticker ring, never a solid fill (PORT.md 0.3).
- *   peeks      Peek[]          0 to 3 sheets, `{ key, title, meta? }`. A sheet
- *                              shows only a mark, never text; the titles go
- *                              to a hidden description. More than 3 are ignored.
- *                              None: an empty folder.
+ *   peeks      Peek[]          0 to 3 sheets, `{ key, title, meta?, muted? }`.
+ *                              A sheet shows a status circle and its title on
+ *                              one truncated line; the titles also go to a
+ *                              hidden description. `muted` is a placeholder
+ *                              line ("No open tasks"). More than 3 are
+ *                              ignored. None: an empty folder.
  *   caption    string?         A second line under the label, 12px, one line,
  *                              truncated ("Next: German vocabulary").
  *   href       string?         Renders a Next link. Wins over `onClick`.
@@ -43,6 +45,8 @@ export interface FolderPeek {
   key: string;
   title: string;
   meta?: string;
+  /** A placeholder line ("No open tasks"): quieter, left out of the description. */
+  muted?: boolean;
 }
 
 export interface FolderProps {
@@ -66,8 +70,9 @@ export const FOLDER_MAX_PEEKS = 3;
 
 /**
  * Where each sheet sits (% of the folder), its width, tilt and tint. The
- * first sheet is the front one (left of centre, upright, no tint); the others
- * lean out behind it, narrower, one each side.
+ * sheets climb like a deck: the first is the lowest and nearest, each next
+ * one sits a row higher and a little narrower, so every sheet shows its top
+ * line (a status circle and a title) above the one in front of it.
  */
 const FAN: readonly {
   left: number;
@@ -77,15 +82,15 @@ const FAN: readonly {
   tint: number;
 }[][] = [
   [],
-  [{ left: 18, top: 12, w: 40, rot: 0, tint: 0 }],
+  [{ left: 14, top: 26, w: 72, rot: -1, tint: 0 }],
   [
-    { left: 18, top: 12, w: 40, rot: 0, tint: 0 },
-    { left: 3, top: 17, w: 32, rot: -9, tint: 16 },
+    { left: 10, top: 28, w: 72, rot: -1, tint: 0 },
+    { left: 18, top: 14, w: 68, rot: 2, tint: 10 },
   ],
   [
-    { left: 18, top: 12, w: 40, rot: 0, tint: 0 },
-    { left: 3, top: 17, w: 32, rot: -9, tint: 16 },
-    { left: 48, top: 18, w: 32, rot: 6, tint: 8 },
+    { left: 10, top: 28, w: 72, rot: -1, tint: 0 },
+    { left: 18, top: 14, w: 68, rot: 2, tint: 10 },
+    { left: 12, top: 1, w: 64, rot: -3, tint: 16 },
   ],
 ];
 
@@ -106,6 +111,7 @@ export function Folder({
   const descId = useId();
   const shown = peeks.slice(0, FOLDER_MAX_PEEKS);
   const fan = FAN[shown.length];
+  const real = shown.filter((p) => !p.muted);
   const cls = `nx-folder${className ? ` ${className}` : ""}`;
   const style = {
     ...(hue ? { "--nx-folder-hue": hue } : null),
@@ -133,6 +139,11 @@ export function Folder({
             }
           >
             <span className="nx-folder-peek-mark" />
+            <span
+              className={`nx-folder-peek-title${p.muted ? " is-muted" : ""}`}
+            >
+              {p.title}
+            </span>
           </span>
         ))}
         <span className="nx-folder-front" />
@@ -150,14 +161,14 @@ export function Folder({
         )}
       </span>
       {caption ? <span className="nx-folder-caption">{caption}</span> : null}
-      {shown.length ? (
+      {real.length ? (
         <span className="nx-folder-desc" id={descId}>
-          {`Next: ${shown.map((p) => (p.meta ? `${p.title} (${p.meta})` : p.title)).join("; ")}`}
+          {`Next: ${real.map((p) => (p.meta ? `${p.title} (${p.meta})` : p.title)).join("; ")}`}
         </span>
       ) : null}
     </>
   );
-  const description = shown.length > 0;
+  const description = real.length > 0;
   if (href)
     return (
       <Link

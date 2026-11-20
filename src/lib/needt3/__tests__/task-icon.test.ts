@@ -1,26 +1,39 @@
-import { TASK_ICON_CHOICES, taskIconFor } from "../task-icon";
+import { taskIconKey } from "../task-icon";
 
-describe("taskIconFor", () => {
-  it("picks an icon from a keyword in the title", () => {
-    expect(taskIconFor("Call mum")).toBe("📞");
-    expect(taskIconFor("buy oat milk")).toBe("🛒");
-    expect(taskIconFor("Pay the rent")).toBe("💳");
-    expect(taskIconFor("Fix login bug")).toBe("💻");
+describe("taskIconKey", () => {
+  it.each([
+    ["Reply to Anna's email", "mail"],
+    ["Call the bank", "call"],
+    ["Team standup", "meeting"],
+    ["Pay the invoice", "money"],
+    ["Buy groceries", "shop"],
+    ["Gym", "workout"],
+    ["Fix the login bug", "code"],
+    ["Draft the newsletter", "write"],
+    ["Edit the photo set", "camera"],
+    ["Learn German", "study"],
+    ["Read chapter 4", "read"],
+    ["Cook dinner", "cook"],
+    ["Flight to Kyiv", "travel"],
+    ["Weekly review", "plan"],
+    ["Позвонить врачу", "health"],
+  ])("%s -> %s", (title, key) => {
+    // "Fix the login bug": code; "Call the bank": call comes before money
+    expect(taskIconKey(title)).toBe(key);
   });
-  it("matches whole words only", () => {
-    expect(taskIconFor("Recall the brief")).not.toBe("📞");
-    expect(taskIconFor("Prune the hedge")).toBeNull();
+
+  it("falls back to generic", () => {
+    expect(taskIconKey("Thing")).toBe("generic");
+    expect(taskIconKey("")).toBe("generic");
   });
-  it("gives nothing for an empty or unknown title", () => {
-    expect(taskIconFor("")).toBeNull();
-    expect(taskIconFor("   ")).toBeNull();
-    expect(taskIconFor("Zzz qqq")).toBeNull();
+
+  it("matches word starts, not the middle of a word", () => {
+    expect(taskIconKey("Airmail stamps")).toBe("generic");
+    expect(taskIconKey("Prune the roses")).toBe("generic");
+    expect(taskIconKey("Running")).toBe("workout");
   });
-  it("only suggests icons the picker also offers", () => {
-    for (const t of ["call", "email", "meeting", "gym", "doctor", "design"]) {
-      const icon = taskIconFor(t);
-      expect(icon).not.toBeNull();
-      expect(TASK_ICON_CHOICES).toContain(icon);
-    }
+
+  it("is not case sensitive", () => {
+    expect(taskIconKey("EMAIL ANNA")).toBe("mail");
   });
 });

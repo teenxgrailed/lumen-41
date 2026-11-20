@@ -1,0 +1,1 @@
+- Project folders are fuller: the papers show the next tasks by name, the sticker is the project emoji or its first letter, and the folders carry the project colour more strongly (smaller, six per row).

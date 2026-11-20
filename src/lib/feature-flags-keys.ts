@@ -170,9 +170,9 @@ export const DAY_PLAN = "day_plan";
 export const SOMEDAY_SWEEP = "someday_sweep";
 
 /**
- * The two daily day-plan touches and the morning digest skip. Ships OFF with
- * no data migration: before the day plan screen exists they would be a
- * user-visible change. The UI release (PR D) turns it on.
+ * The two daily day-plan touches and the morning digest skip. On at 100% for
+ * every account with the phone day plan screen (migration
+ * 20261120120000_day_plan_touches_on); it stays a kill switch.
  */
 export const DAY_PLAN_TOUCHES = "day_plan_touches";
 

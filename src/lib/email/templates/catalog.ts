@@ -1,3 +1,4 @@
+import { getEmailCodeTemplate } from "./email-code";
 import { getEmailVerificationTemplate } from "./email-verification";
 import type { EmailFooter } from "./layout";
 import {
@@ -6,6 +7,7 @@ import {
   getDigestTemplate,
   getWelcomeTemplate,
 } from "./notifications";
+import { getOpsAlertTemplate } from "./ops-alert";
 import { getPasswordResetTemplate } from "./password-reset";
 import {
   getStudentPriceEndingTemplate,
@@ -39,6 +41,11 @@ const UNSUBSCRIBE_SAMPLE =
 export function sampleEmails() {
   const url = "https://use.needt.app/auth/confirm-email?token=SAMPLE";
   return {
+    "sign-in-code": getEmailCodeTemplate({ code: "208670" }),
+    "ops-alert": getOpsAlertTemplate(
+      "critical",
+      "Worker queue calendar-sync has 240 waiting jobs for over 10 minutes."
+    ),
     "verify-email": getEmailVerificationTemplate({
       name: "Alex",
       verificationUrl: url,

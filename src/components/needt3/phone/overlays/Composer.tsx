@@ -15,7 +15,6 @@ import {
   LuClock,
   LuFlag,
   LuFolder,
-  LuSmilePlus,
   LuTimer,
 } from "react-icons/lu";
 
@@ -26,10 +25,15 @@ import { addedLabel } from "@/lib/needt3/day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useCreateTask, useTaskParts } from "@/lib/needt3/hooks/tasks";
 import type { V3Project } from "@/lib/needt3/map";
-import { TASK_ICON_CHOICES, taskIconFor } from "@/lib/needt3/task-icon";
+import {
+  TASK_ICON_KEYS,
+  type TaskIconKey,
+  taskIconKey,
+} from "@/lib/needt3/task-icon";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { TASK_GLYPH } from "../home/TaskGlyph";
 import { PkButton, PkSheet, pkCx } from "../kit";
 import {
   CHIP_ROWS,
@@ -92,10 +96,9 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
   const partsApi = useTaskParts();
   const [text, setText] = useState("");
   const [pick, setPick] = useState<ChipKind | "icon" | null>(null);
-  /* The icon the person chose; undefined = the keyword map's pick, null = none. */
-  const [iconPick, setIconPick] = useState<string | null | undefined>(
-    undefined
-  );
+  /* The icon the person chose; undefined = automatic (the keyword map reads
+     the title, on screen and later in every row). Only a pick is stored. */
+  const [iconPick, setIconPick] = useState<TaskIconKey | undefined>(undefined);
   /* A create is in flight: Add and Enter do nothing until it settles. */
   const [sending, setSending] = useState(false);
   const inflight = useRef(false);
@@ -143,8 +146,8 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
           : k === "project"
             ? found.project
             : found.priority;
-  const suggested = useMemo(() => taskIconFor(parse.title), [parse.title]);
-  const icon = iconPick === undefined ? suggested : iconPick;
+  const shownKey = iconPick ?? taskIconKey(parse.title);
+  const ShownGlyph = TASK_GLYPH[shownKey];
 
   const write = (k: ChipKind, words: string) => {
     setText((cur) =>
@@ -157,7 +160,7 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
   const commit = useCallback(async () => {
     const composed = composeFromParse(parse, today);
     if (!canCommit(composed, inflight.current)) return;
-    if (icon) composed.draft.icon = icon;
+    if (iconPick) composed.draft.icon = iconPick;
     inflight.current = true;
     setSending(true);
     try {
@@ -184,7 +187,7 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
       inflight.current = false;
       setSending(false);
     }
-  }, [parse, today, icon, onClose, create, partsApi]);
+  }, [parse, today, iconPick, onClose, create, partsApi]);
 
   /* The sheet has shut: forget the line, unless a send is still running, in
      which case a failure must find its text where it was. */
@@ -236,7 +239,7 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
           onPointerDown={(e) => e.preventDefault()}
           onClick={() => setPick((x) => (x === "icon" ? null : "icon"))}
         >
-          {icon ?? <LuSmilePlus size={22} />}
+          <ShownGlyph size={20} aria-hidden="true" />
         </button>
         <textarea
           ref={input}
@@ -295,29 +298,37 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
       </div>
       {pick === "icon" ? (
         <div className="pov-icons pk-no-drag" data-pov-pick="icon">
-          {TASK_ICON_CHOICES.map((e) => (
-            <button
-              key={e}
-              type="button"
-              className={pkCx("pov-icon-opt", icon === e && "is-on")}
-              aria-label={e}
-              onPointerDown={(ev) => ev.preventDefault()}
+          {TASK_ICON_KEYS.map((k) => {
+            const Glyph = TASK_GLYPH[k];
+            return (
+              <button
+                key={k}
+                type="button"
+                className={pkCx("pov-icon-opt", iconPick === k && "is-on")}
+                aria-label={k}
+                aria-pressed={iconPick === k}
+                data-pov-icon-key={k}
+                onPointerDown={(ev) => ev.preventDefault()}
+                onClick={() => {
+                  setIconPick(k);
+                  setPick(null);
+                }}
+              >
+                <Glyph size={20} aria-hidden="true" />
+              </button>
+            );
+          })}
+          <div className="pov-icons-auto">
+            <PovOpt
+              on={iconPick === undefined}
               onClick={() => {
-                setIconPick(e);
+                setIconPick(undefined);
                 setPick(null);
               }}
             >
-              {e}
-            </button>
-          ))}
-          <PovOpt
-            onClick={() => {
-              setIconPick(null);
-              setPick(null);
-            }}
-          >
-            No icon
-          </PovOpt>
+              Automatic
+            </PovOpt>
+          </div>
         </div>
       ) : pick ? (
         <div className="pov-opts is-composer pk-no-drag" data-pov-pick={pick}>

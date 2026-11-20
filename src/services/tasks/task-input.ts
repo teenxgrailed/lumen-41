@@ -42,8 +42,8 @@ const nullableDate = z
 /** Columns a client may write on a task of its own. */
 const taskColumns = {
   description: nullableString,
-  /** One emoji. */
-  icon: z.string().max(16).nullable(),
+  /** An icon key the person picked; null = automatic. */
+  icon: z.string().max(32).nullable(),
   status: z.string(),
   dueDate: nullableDate,
   startDate: nullableDate,
