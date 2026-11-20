@@ -23,6 +23,7 @@ import { type Checkin, daysBetween, habitColor } from "@/lib/needt3/derive";
 import type { QuitGate } from "@/lib/needt3/habits-quit";
 import { useCheckinHistory } from "@/lib/needt3/hooks/habits";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { notify } from "@/lib/notifications";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
@@ -565,8 +566,10 @@ function HabitSheet({
                     <span
                       className="pl-habit-sheet-row-5"
                       style={
-                        p?.color
-                          ? ({ "--pl-project": p.color } as CSSProperties)
+                        p
+                          ? ({
+                              "--pl-project": projectColor(p.id, p.color),
+                            } as CSSProperties)
                           : undefined
                       }
                     >

@@ -1,19 +1,30 @@
 "use client";
 
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import Link from "next/link";
 
-import { LuPlus } from "react-icons/lu";
+import { LuCheck, LuChevronDown } from "react-icons/lu";
+
+import { proFromPlan } from "@/components/needt3/home/derive";
 
 import { addDays, addMinutes, project, stamp } from "@/lib/needt3/derive";
 import { cvDur } from "@/lib/needt3/derive";
 import { useCalendars, useEvents } from "@/lib/needt3/hooks/events";
+import {
+  useCheckins,
+  useHabits,
+  useToggleHabitToday,
+} from "@/lib/needt3/hooks/habits";
+import { useHomeBlocks } from "@/lib/needt3/hooks/home-blocks";
+import { usePlan } from "@/lib/needt3/hooks/plan";
+import { usePlanDay } from "@/lib/needt3/hooks/plan-day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { useTasks, useToggleTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Event, V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { showsTask } from "@/lib/needt3/task-view";
 import type { DayBand } from "@/lib/personal-time-days";
 
@@ -25,6 +36,8 @@ import {
 } from "../../calendar/blocks";
 import { CAL_EMPTY_COPY, calendarEmptyState } from "../../calendar/empty";
 import { c2Time, calDay, freeSlot, isoWeek } from "../../calendar/layout";
+import { HaHabits, haHabitsOf } from "../../home/ha";
+import { openPaywall } from "../../paywall/store";
 import { PersonalDayBands } from "../../personal/PersonalBand";
 import { PersonalQuickAdd } from "../../personal/PersonalQuickAdd";
 import {
@@ -42,14 +55,17 @@ import {
   pkCx,
 } from "../kit";
 import { PersonalBandSheet } from "../overlays/PersonalBandSheet";
+import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
 import { MonthGrid, Step, WeekStrip } from "./Strips";
 import {
   type CalView,
+  type FreeWindow,
   combineQueries,
   dayMeta,
   dayPlan,
   eventFacts,
+  freeWindows,
   itemLabel,
   monthGrid,
   nowProgress,
@@ -64,7 +80,7 @@ import { useSwipeStep } from "./useSwipeStep";
 
 const copy = strings["mobile-v2-plates.jsx"].V2pCalendar;
 const VIEWS: readonly [CalView, string][] = [
-  ["schedule", copy.schedule],
+  ["schedule", copy.day],
   ["month", copy.month],
 ];
 
@@ -72,7 +88,10 @@ const VIEWS: readonly [CalView, string][] = [
  * CALENDAR on the phone (mobile-v2-plates.jsx `V2pCalendar`): the week strip
  * over one day's schedule, or the month grid over the picked day's items.
  * Today shows what is on now or next on a sky plate, then what is coming; the
- * past folds under "Earlier today" and items with no time under "No time".
+ * past folds into one row above it ("Earlier today") and items with no time
+ * sit under "No time", with an Auto-fit pill that runs Plan my day. Gaps of
+ * 30 min or more between blocks say "1 h free · + Schedule" (critique 15.11).
+ * The header is one row: the month with its ▾ menu and Day | Month.
  * Items that collide with a calendar event say so. A task opens the task
  * sheet, an event the event sheet (read-only: a synced or recurring event
  * cannot be changed here, and the sheet only reads). Add event writes a
@@ -92,6 +111,40 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   /* Personal time: the day's rows, a tapped one's sheet, the presets. */
   const [band, setBand] = useState<DayBand | null>(null);
   const [keeping, setKeeping] = useState(false);
+  /* The month name's ▾ menu: Today, Add event, Keep time for you. */
+  const [menu, setMenu] = useState(false);
+  const menuBtn = useRef<HTMLButtonElement>(null);
+  // an outside tap, and a day swipe (the picked day changing), close the menu
+  useEffect(() => {
+    if (!menu) return undefined;
+    const away = (e: Event) => {
+      const t = e.target as Element | null;
+      if (!t?.closest("[data-v2p-calmenu], [data-v2p-month-menu]"))
+        setMenu(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMenu(false);
+      menuBtn.current?.focus();
+    };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    // the first item takes focus, so the arrow keys have somewhere to start
+    document
+      .querySelector<HTMLElement>('[data-v2p-calmenu] [role^="menuitem"]')
+      ?.focus();
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [menu]);
+  const planQuery = usePlan();
+  const planner = usePlanDay();
+  const toggleTask = useToggleTask();
+  const toggleHabit = useToggleHabitToday();
+  const habitsQuery = useHabits();
+  const checkinsQuery = useCheckins();
+  const blocks = useHomeBlocks();
 
   const tasksQuery = useTasks();
   const range = visibleRange(day, startDay);
@@ -167,11 +220,106 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
     openNewEvent({ startAt, endAt: addMinutes(startAt, 60) ?? startAt });
   };
 
-  const hueOf = (b: CalItem) =>
-    b.event
-      ? "var(--v2p-ink-3)"
-      : (project((b.entry as V3Task).projectId, projects ?? [])?.color ??
-        "var(--text-muted)");
+  /* A free window, tapped: the new-event sheet on that slot, 30 minutes of it.
+     (The quick-add composer takes a sentence, not a time, so it cannot be
+     seeded; the event sheet can.) */
+  const scheduleIn = (g: FreeWindow) => {
+    const startAt = stamp(day, g.from) ?? `${day}T09:00`;
+    openNewEvent({
+      startAt,
+      endAt: addMinutes(startAt, Math.min(g.len, 30)) ?? startAt,
+    });
+  };
+  /* The free gaps between the day's blocks, drawn above the block they run up to. */
+  const free = freeWindows(plan.timed, plan.isToday, plan.isPast, hour);
+  const freeBefore = new Map(free.map((g) => [g.before, g]));
+  const freeRow = (b: CalTimed) => {
+    const g = freeBefore.get(b.id);
+    return g ? (
+      <button
+        key={`free:${b.id}`}
+        type="button"
+        className="v2p-free"
+        onClick={() => scheduleIn(g)}
+        data-v2p-free={b.id}
+        data-v2p-free-add={b.id}
+      >
+        <span className="v2p-free-text">{cvDur(g.len)} free</span>
+        <span className="v2p-free-add">+ Schedule</span>
+      </button>
+    ) : null;
+  };
+
+  /* Auto-fit: Plan my day, the scheduler that places what has no time into
+     the free hours (a Pro action; a Free person is shown the plans). */
+  // a plan that failed to load is not "Free": the server decides on the tap
+  // (it refuses a Free account itself), so a Pro person is never sent to the
+  // plans because of a failed read
+  const pro = planQuery.isError ? true : proFromPlan(planQuery.data?.kind);
+  const unplaced = plan.allDay.filter((b) => !b.event && !b.done).length;
+  const autoFit = () => {
+    if (pro === false) openPaywall("Plan my day");
+    else if (pro) void planner.plan();
+  };
+
+  const hueOf = (b: CalItem) => {
+    if (b.event) return "var(--v2p-ink-3)";
+    const p = project((b.entry as V3Task).projectId, projects ?? []);
+    return p ? projectColor(p.id, p.color) : "var(--text-muted)";
+  };
+
+  /* The round check: a task is done in one tap, with the same Undo as
+     everywhere (an event has none). */
+  const completeTask = (b: CalItem) => {
+    const t = b.entry as V3Task;
+    void toggleTask
+      .toggle(t)
+      .then(({ undo }) => snack(t.done ? "Reopened" : "Done", undo))
+      .catch(() => undefined);
+  };
+  const withCheck = (b: CalItem, row: ReactNode) =>
+    b.event ? (
+      row
+    ) : (
+      <div key={`${b.id}:${b.date}`} className="v2p-tlw">
+        {row}
+        <button
+          type="button"
+          className={pkCx("pk-check v2p-tl-check", b.done && "is-on")}
+          aria-pressed={!!b.done}
+          aria-label={b.done ? "Mark not done" : "Mark done"}
+          onClick={() => completeTask(b)}
+          data-v2p-check={b.id}
+        >
+          <span className="pk-check-ring">
+            {b.done ? <LuCheck size={13} /> : null}
+          </span>
+        </button>
+      </div>
+    );
+
+  /* Today's habits, one compact strip at the top of the day: tap to mark. */
+  const haHabits = haHabitsOf(
+    habitsQuery.data ?? [],
+    checkinsQuery.data ?? [],
+    today
+  );
+  const habitStrip =
+    plan.isToday && blocks.habits && haHabits.length ? (
+      <div className="ha-phone v2p-habstrip" data-v2p-habits="">
+        <HaHabits
+          habits={haHabits}
+          onToggle={(id, done) =>
+            void toggleHabit
+              .mutateAsync({ id, done })
+              .then(({ undo }) =>
+                snack(done ? "Habit done" : "Habit unmarked", undo)
+              )
+              .catch(() => undefined)
+          }
+        />
+      </div>
+    ) : null;
 
   const overlap = (b: CalItem) =>
     plan.clash[b.id] ? (
@@ -183,7 +331,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       </span>
     ) : null;
   const ended = (b: CalTimed) => plan.isToday && b.at + b.len / 60 <= hour;
-  const line = (b: CalTimed) => (
+  const rowOf = (b: CalTimed) => (
     <button
       key={b.id}
       type="button"
@@ -208,7 +356,8 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       </span>
     </button>
   );
-  const looseLine = (b: CalItem) => (
+  const line = (b: CalTimed) => withCheck(b, rowOf(b));
+  const looseRow = (b: CalItem) => (
     <button
       key={`${b.id}:${b.date}`}
       type="button"
@@ -229,6 +378,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       </span>
     </button>
   );
+  const looseLine = (b: CalItem) => withCheck(b, looseRow(b));
   const nowLine = (
     <div key="now" className="v2p-now" data-v2p-now="">
       <span className="v2p-now-dot" />
@@ -256,18 +406,85 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       ))}
     </span>
   );
-  const sub = (
-    <>
-      {view === "schedule"
-        ? `Week ${isoWeek(week[3].date)} · ${weekRange(week)}`
-        : `${grid.year} · tap a day`}
-      {day !== today ? (
-        <PkButton kind="inline" onClick={() => setPicked(null)}>
-          {copy.today}
-        </PkButton>
-      ) : null}
-    </>
+  /* The title is the month with its ▾: the header is one row, the month and
+     the Day | Month switch. What used to sit in the day heading as "+ Event"
+     and "Personal", and the Today jump, live in the menu the ▾ opens. */
+  const title = (
+    <button
+      type="button"
+      className="v2p-monthbtn"
+      aria-haspopup="menu"
+      aria-expanded={menu}
+      ref={menuBtn}
+      onClick={() => setMenu((on) => !on)}
+      data-v2p-month-menu=""
+    >
+      {grid.month}
+      <LuChevronDown
+        size={18}
+        aria-hidden="true"
+        className={pkCx("v2p-monthbtn-chev", menu && "is-open")}
+      />
+    </button>
   );
+  const pick = (run: () => void) => () => {
+    setMenu(false);
+    run();
+  };
+  const menuPanel = menu ? (
+    <div
+      className="v2p-calmenu"
+      role="menu"
+      data-v2p-calmenu=""
+      onKeyDown={(e) => {
+        if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+        e.preventDefault();
+        const items = Array.from(
+          e.currentTarget.querySelectorAll<HTMLElement>('[role^="menuitem"]')
+        );
+        const at = items.indexOf(document.activeElement as HTMLElement);
+        const step = e.key === "ArrowDown" ? 1 : -1;
+        items[(at + step + items.length) % items.length]?.focus();
+      }}
+    >
+      <p className="v2p-calmenu-cap">
+        {view === "schedule"
+          ? `Week ${isoWeek(week[3].date)} · ${weekRange(week)}`
+          : `${grid.year} · tap a day`}
+      </p>
+      {day !== today ? (
+        <button
+          type="button"
+          role="menuitem"
+          className="v2p-calmenu-item"
+          onClick={pick(() => setPicked(null))}
+          data-v2p-menu-today=""
+        >
+          {copy.today}
+        </button>
+      ) : null}
+      {/* Not in the prototype: its phone had no way to make an event. */}
+      <button
+        type="button"
+        role="menuitem"
+        className="v2p-calmenu-item"
+        onClick={pick(newEvent)}
+        data-p5-new-event=""
+      >
+        Add event
+      </button>
+      <button
+        type="button"
+        role="menuitemcheckbox"
+        className="v2p-calmenu-item"
+        aria-checked={keeping}
+        onClick={pick(() => setKeeping((on) => !on))}
+        data-p5-personal=""
+      >
+        {keeping ? "Stop keeping time" : "Keep time for you"}
+      </button>
+    </div>
+  ) : null;
 
   const head = (name: string) => (
     <div className="v2p-dayhead">
@@ -279,25 +496,6 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
             {` · ${plan.pairs} ${plan.pairs === 1 ? "overlap" : "overlaps"}`}
           </span>
         ) : null}
-        {/* Not in the prototype: its phone had no way to make an event. */}
-        <PkButton
-          kind="inline"
-          icon={<LuPlus size={13} />}
-          onClick={newEvent}
-          aria-label="Add event"
-          data-p5-new-event=""
-        >
-          Event
-        </PkButton>
-        <PkButton
-          kind="inline"
-          onClick={() => setKeeping((on) => !on)}
-          aria-expanded={keeping}
-          aria-label="Keep time for you"
-          data-p5-personal=""
-        >
-          Personal
-        </PkButton>
       </span>
       {keeping ? (
         <PersonalQuickAdd date={day} label="Kept for you. No task goes there" />
@@ -377,9 +575,10 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   return (
     <PkScreen
       screen="calendar"
-      title={grid.month}
+      title={title}
+      headClass="is-cal"
       right={seg}
-      sub={sub}
+      head={menuPanel}
     >
       {/* a list skeleton: the "calendar" one is the desktop's seven-column week grid */}
       <PhoneState query={query} screen="calendar" />
@@ -402,7 +601,22 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
 
               <div key={day} className="v2p-swap">
                 {head(dayName)}
+                {habitStrip}
 
+                {/* what is over folds into one quiet row above the Now line */}
+                {plan.earlier.length ? (
+                  <PkSection
+                    className="v2p-fold is-earlier"
+                    title={copy.earlier_today}
+                    count={plan.earlier.length}
+                    folded={fold.past}
+                    onFold={flip("past")}
+                  >
+                    <div data-v2p-earlier="">{plan.earlier.map(line)}</div>
+                  </PkSection>
+                ) : null}
+
+                {plateB ? freeRow(plateB) : null}
                 {plateB ? (
                   <PkSkyPlate
                     as="button"
@@ -453,25 +667,30 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
                 {plan.coming.length || (plan.isToday && plateB) ? (
                   <div className="v2p-timeline" data-v2p-coming="">
                     {plan.coming.map((b, i) =>
-                      i === plan.nowAt ? [nowLine, line(b)] : line(b)
+                      i === plan.nowAt
+                        ? [nowLine, b === plateB ? null : freeRow(b), line(b)]
+                        : [b === plateB ? null : freeRow(b), line(b)]
                     )}
                     {plan.isToday && plan.nowAt < 0 ? nowLine : null}
                   </div>
                 ) : null}
                 {noTime}
-                {plan.earlier.length ? (
-                  <PkSection
-                    className="v2p-fold"
-                    title={copy.earlier_today}
-                    count={plan.earlier.length}
-                    folded={fold.past}
-                    onFold={flip("past")}
-                  >
-                    <div data-v2p-earlier="">{plan.earlier.map(line)}</div>
-                  </PkSection>
-                ) : null}
                 {empty}
               </div>
+              {unplaced && plan.isToday && pro !== null ? (
+                <div className="v2p-autofit" data-v2p-autofit="">
+                  <button
+                    type="button"
+                    className="v2p-autofit-pill"
+                    onClick={autoFit}
+                    disabled={planner.busy}
+                    aria-busy={planner.busy || undefined}
+                    data-v2p-autofit-go=""
+                  >
+                    Auto-fit
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div key="month" className="v2p-swap" {...swipe}>
@@ -495,7 +714,9 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
               >
                 {head(`${plan.isToday ? copy.today : d.wd} ${d.n} ${d.mo}`)}
                 {plan.timed.length ? (
-                  <div className="v2p-timeline">{plan.timed.map(line)}</div>
+                  <div className="v2p-timeline">
+                    {plan.timed.map((b) => [freeRow(b), line(b)])}
+                  </div>
                 ) : null}
                 {noTime}
                 {empty}
