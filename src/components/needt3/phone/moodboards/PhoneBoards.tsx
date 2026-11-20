@@ -151,7 +151,6 @@ export function PhoneBoards({ ctl }: { ctl: BoardsController }) {
         <PkScreen
           screen="moodboards-list"
           title={t.PhbBoards.moodboards}
-          glyph="moodboards"
           className="phb-mb-list"
           sub={boardCountLine(live.length)}
           head={

@@ -613,7 +613,6 @@ export function PhoneHome({
   return (
     <PkScreen
       screen="home"
-      glyph="home"
       title={copy.V2pHome.today}
       sub={
         v2 && ready && !v.dayClosed ? (

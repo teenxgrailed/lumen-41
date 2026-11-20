@@ -670,7 +670,6 @@ export function PhoneHabits({
       <PkScreen
         screen="habits"
         title={t.PhbHabits.habits}
-        glyph="habits"
         sub={dayLine(today)}
         head={head}
         right={

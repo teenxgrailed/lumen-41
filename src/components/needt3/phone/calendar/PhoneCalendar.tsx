@@ -377,9 +377,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   return (
     <PkScreen
       screen="calendar"
-      glyph="calendar"
       title={grid.month}
-      headClass="is-cal"
       right={seg}
       sub={sub}
     >
