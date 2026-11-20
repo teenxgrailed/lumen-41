@@ -128,6 +128,27 @@ describe("Task under a CompletionScope", () => {
     expect(gone.style.opacity).toBe("0");
   });
 
+  it("a calendar block of a task carries its ○; an event's block carries none", () => {
+    mount("block", scope({}), { box: { h: 61, w: 150 } });
+    expect(host.querySelectorAll(".tk-block button.tk-check")).toHaveLength(1);
+    const event = {
+      kind: "event",
+      id: "e",
+      title: "Standup",
+      startAt: "2026-10-16T10:00",
+      endAt: "2026-10-16T10:45",
+      calendarName: "Work",
+    };
+    mount("block", scope({}), { task: event, box: { h: 61, w: 150 } });
+    expect(host.querySelectorAll(".tk-block")).toHaveLength(1);
+    expect(host.querySelectorAll(".tk-block .tk-check")).toHaveLength(0);
+  });
+
+  it("a block too narrow for it drops the ○ rather than clip the title", () => {
+    mount("block", scope({}), { box: { h: 61, w: 50 } });
+    expect(host.querySelectorAll(".tk-block .tk-check")).toHaveLength(0);
+  });
+
   it("the check goes to the screen's completion, not to its own toggle", () => {
     const check = jest.fn();
     mount("row", scope({}, check));

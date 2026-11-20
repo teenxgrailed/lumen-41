@@ -23,6 +23,7 @@ import { addedLabel } from "@/lib/needt3/day";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useCreateTask, useTaskParts } from "@/lib/needt3/hooks/tasks";
 import type { V3Project } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import {
   TASK_ICON_KEYS,
   type TaskIconKey,
@@ -267,7 +268,7 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
               key={p.id}
               on={f?.text.toLowerCase() === p.name.toLowerCase()}
               onClick={() => write(k, p.name)}
-              hue={p.color ?? "var(--text-muted)"}
+              hue={projectColor(p.id, p.color)}
             >
               {p.name}
             </PovOpt>

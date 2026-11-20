@@ -11,8 +11,8 @@ import { createV3User, signInAs } from "./helpers/v3-user";
  * gear; a horizontal wheel (or ←/→ on the focused grid) moves a day.
  */
 const TZ = "Europe/Zurich";
-/** An hour of the grid is 52px; a quarter hour is 13px. */
-const HOUR = 52;
+/** An hour of the grid is 64px; a quarter hour is 16px. */
+const HOUR = 64;
 
 interface ApiTask {
   id: string;

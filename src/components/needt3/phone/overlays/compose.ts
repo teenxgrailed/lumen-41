@@ -16,6 +16,7 @@ import { toLocalDateKey } from "@/lib/date-utils";
 import { createDraft } from "@/lib/needt3/day";
 import { toDate } from "@/lib/needt3/derive";
 import type { V3Project, V3TaskPatch } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 
 /**
  * The words this person's projects are known by. Labels stay out of the
@@ -27,7 +28,7 @@ export function vocabularyOf(projects: readonly V3Project[]): CoVocabulary {
     projects: projects.map((p) => ({
       id: p.id,
       name: p.name,
-      hue: p.color ?? "",
+      hue: projectColor(p.id, p.color),
       glyph: p.icon ?? "",
     })),
     aliases: {},

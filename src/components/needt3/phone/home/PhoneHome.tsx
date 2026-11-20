@@ -37,11 +37,13 @@ import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useStreak } from "@/lib/needt3/hooks/streak";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useWeather } from "@/lib/needt3/hooks/weather";
 import { useWeekFocus } from "@/lib/needt3/hooks/week-focus";
 import type { V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { todayLine } from "@/lib/needt3/today";
 import { weekStartOf } from "@/lib/needt3/week-focus";
 import type { DayBand } from "@/lib/personal-time-days";
@@ -84,6 +86,7 @@ import {
   HaHabits,
   HaHighlight,
   HaReviewSheet,
+  HaStreak,
   HaTimeLeft,
   HaWeather,
   haAllDoneOf,
@@ -200,6 +203,7 @@ export function PhoneHome({
 
   const taskView = useTaskView();
   const stats = useHomeStats(all.filter((t) => t.done).length);
+  const streak = useStreak(all.filter((t) => t.done).length);
   const schedule = useSchedule();
   const energyHours = useMemo(
     () => highEnergyHours(schedule.data),
@@ -413,7 +417,7 @@ export function PhoneHome({
 
   const projOf = (t: V3Task) => {
     const p = project(t.projectId, projects ?? []);
-    return p ? { name: p.name, color: p.color } : null;
+    return p ? { name: p.name, color: projectColor(p.id, p.color) } : null;
   };
   const actionsOf = useTaskActions(X.exit);
   const row = (
@@ -814,6 +818,7 @@ export function PhoneHome({
               spreadBusy={spreader.busy}
             />
           ) : null}
+          <HaStreak streak={streak.data} />
         </div>
       ) : null}
 

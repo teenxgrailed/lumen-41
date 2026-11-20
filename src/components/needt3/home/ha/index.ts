@@ -18,6 +18,7 @@ export {
 } from "./HaReview";
 export { HaSchedule } from "./HaSchedule";
 export { HaTimeLeft, type HaTime } from "./HaTimeLeft";
+export { HaStreak } from "./HaStreak";
 export {
   HaBand,
   HaTimeline,

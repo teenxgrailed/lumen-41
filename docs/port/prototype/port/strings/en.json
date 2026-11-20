@@ -2676,6 +2676,7 @@
       "september": "September"
     },
     "V2pCalendar": {
+      "day": "Day",
       "your_events": "Your events",
       "work_calendar": "Work calendar",
       "task": "Task",
