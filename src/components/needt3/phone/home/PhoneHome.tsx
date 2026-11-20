@@ -135,6 +135,7 @@ import { usePhoneOverlays } from "../overlays/store";
 import { PlanCloseSheet } from "./PlanCloseSheet";
 import { PlanDate, PlanHello, PlanToday, PlanWeekday } from "./PlanToday";
 import { SomedaySheet } from "./SomedaySheet";
+import { TaskGlyph } from "./TaskGlyph";
 import { usePhoneClock } from "./clock";
 import { homeView, moveLate, nextUpWhy } from "./model";
 import { CappedRows, PhoneState, hasContent } from "./parts";
@@ -420,6 +421,11 @@ export function PhoneHome({
     return p ? { name: p.name, color: projectColor(p.id, p.color) } : null;
   };
   const actionsOf = useTaskActions(X.exit);
+  /** A task's own colour and icon for the textured Next plate. */
+  const plateOf = (t: V3Task) => ({
+    hue: projOf(t)?.color ?? null,
+    mark: <TaskGlyph title={t.title} size={22} />,
+  });
   const row = (
     t: V3Task,
     o: {
@@ -546,6 +552,7 @@ export function PhoneHome({
   const chrono = chronological(dayParts);
   const nowNode = !nowPick ? null : nowPick.event ? (
     <HaHighlight
+      hue={null}
       phone
       state="nextup"
       kicker={nowKicker(nowPick)}
@@ -580,6 +587,7 @@ export function PhoneHome({
     />
   ) : nowTask ? (
     <HaHighlight
+      {...plateOf(nowTask)}
       phone
       state="nextup"
       kicker={nowKicker(nowPick)}
@@ -645,7 +653,12 @@ export function PhoneHome({
       </div>
     ) : null;
 
-  const haHabits = haHabitsOf(habitsQuery.data ?? [], checkins, today);
+  const haHabits = haHabitsOf(
+    habitsQuery.data ?? [],
+    checkins,
+    today,
+    projects ?? []
+  );
   const showHabits = !v2 && blocks.habits && haHabits.length > 0;
   // The day plan's header: the weekday big with a dot, the date at the right,
   // then the greeting sentence and the stats line, filled from data.
@@ -683,7 +696,6 @@ export function PhoneHome({
   return (
     <PkScreen
       screen="home"
-      glyph={hdr ? undefined : "home"}
       className={hdr ? "dp-screen" : undefined}
       title={hdr ? <PlanWeekday weekday={hdr.weekday} /> : copy.V2pHome.today}
       right={hdr ? <PlanDate date={hdr.date} year={hdr.year} /> : undefined}
@@ -741,6 +753,7 @@ export function PhoneHome({
             nowNode
           ) : hlTask && !hlTask.done ? (
             <HaHighlight
+              {...plateOf(hlTask)}
               phone
               state="set"
               card={haTaskCard(
@@ -758,6 +771,7 @@ export function PhoneHome({
             />
           ) : suggest.pick ? (
             <HaHighlight
+              {...plateOf(suggest.pick)}
               phone
               state="suggest"
               card={haTaskCard(suggest.pick, today, suggest.reason)}
@@ -770,6 +784,7 @@ export function PhoneHome({
             />
           ) : nu ? (
             <HaHighlight
+              {...plateOf(nu)}
               phone
               state="nextup"
               late={N.lateOpen.includes(nu)}
