@@ -94,3 +94,46 @@ export function budgetFrameSrc(
 export function budgetThemeMessage(theme: "light" | "dark") {
   return { type: "needt:theme", theme } as const;
 }
+
+/** What Budget posts to Needt once its embedded page has drawn. */
+export const BUDGET_READY_TYPE = "needt:budget-ready";
+
+/** How long the frame may stay without that message before the way out shows. */
+export const BUDGET_FALLBACK_MS = 8_000;
+
+/** `localStorage` key: this device has heard the ready message from Budget. */
+export const BUDGET_READY_SEEN_KEY = "needt.budgetReadySeen";
+
+/** Whether a window message is Budget saying its embedded page is up. */
+export function isBudgetReadyMessage(event: {
+  origin: string;
+  data: unknown;
+}): boolean {
+  if (event.origin !== BUDGET_ORIGIN) return false;
+  const data = event.data as { type?: unknown } | null;
+  return !!data && typeof data === "object" && data.type === BUDGET_READY_TYPE;
+}
+
+/**
+ * Budget opened as its own page (no `embed`): the way out when the frame
+ * stays blank. Its own sign-in through Needt runs top-level, where Needt's
+ * pages can render.
+ */
+export function budgetOpenHref(origin: string = BUDGET_ORIGIN): string {
+  return `${origin}/dashboard`;
+}
+
+/**
+ * Whether the way out shows. The ready message is the proof the frame works.
+ * Until Budget is known to send it (heard once on this device), only the phone
+ * shows the way out, so a working desktop frame is never second-guessed.
+ */
+export function budgetFallbackVisible(args: {
+  ready: boolean;
+  waited: boolean;
+  phone: boolean;
+  readySeenBefore: boolean;
+}): boolean {
+  if (args.ready || !args.waited) return false;
+  return args.phone || args.readySeenBefore;
+}

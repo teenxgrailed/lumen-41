@@ -26,8 +26,19 @@ describe("getEmailCodeTemplate", () => {
     expect(mail.html).toMatch(/display:none[^>]*>208670 is your Needt code/);
   });
 
-  it("loads no image", () => {
-    expect(mail.html).not.toMatch(/<img/i);
+  it("shows the logo with alt text and no other image", () => {
+    const imgs = mail.html.match(/<img[^>]*>/gi) ?? [];
+    expect(imgs).toHaveLength(1);
+    expect(imgs[0]).toContain('alt="Needt"');
+  });
+
+  it("does not split the code with spaces or markup", () => {
+    expect(mail.html).not.toMatch(/2\s+0\s+8\s+6\s+7\s+0/);
+    expect(mail.html).toContain("user-select:all");
+  });
+
+  it("wears the shared 560 px layout", () => {
+    expect(mail.html).toContain("max-width:560px");
   });
 
   it("declares light and dark support", () => {

@@ -2,6 +2,8 @@ import { ACTIVATION_EVENTS } from "@/lib/activation-events";
 import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
+import { NOT_QA_USER } from "./internal-accounts";
+
 export interface ActivationCount {
   name: (typeof ACTIVATION_EVENTS)[number];
   /** Distinct non-founder users who did it in the last 7 days. */
@@ -16,7 +18,7 @@ export interface AdminActivation {
 
 /**
  * Distinct users per activation event over 7 and 14 days. Founder (admin) and
- * sandbox accounts are left out, so the figure is external users only. Counts
+ * sandbox and QA bot accounts are left out, so the figure is external users only. Counts
  * only: nothing about who they are leaves the database.
  */
 export async function getAdminActivation(
@@ -28,7 +30,7 @@ export async function getAdminActivation(
     by: ["name", "userId"],
     where: {
       createdAt: { gte: since14 },
-      user: { role: { not: "admin" }, sandboxKind: null },
+      user: { role: { not: "admin" }, sandboxKind: null, ...NOT_QA_USER },
     },
     _max: { createdAt: true },
   });

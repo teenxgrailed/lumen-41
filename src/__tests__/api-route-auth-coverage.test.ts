@@ -15,7 +15,7 @@ const API_ROOT = join(__dirname, "..", "app", "api");
 
 /** Helpers that reject an unauthenticated request. */
 const AUTH_CALL =
-  /\b(authenticateRequest|authenticateAccountRequest|authenticateBlockingRequest|authenticateAgentRequest|authenticateConnectorRequest|authenticateConnectorToken|authenticateBearer|authenticateHubAgent|authenticateHubOwner|requireAuth|requireAdmin|requireCronSecret|getServerSession|getToken)\s*\(/;
+  /\b(authenticateRequest|authenticateAccountRequest|authenticateBlockingRequest|authenticateAgentRequest|authenticateConnectorRequest|authenticateConnectorToken|authenticateBearer|authenticateHubAgent|authenticateHubOwner|learnAuth|requireAuth|requireAdmin|requireCronSecret|getServerSession|getToken)\s*\(/;
 
 const HANDLER =
   /^export\s+(?:(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b|const\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b)/gm;
@@ -67,6 +67,8 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "auth/email-verification/confirm/route.ts": "single-use token",
   "account/export/download/route.ts": "single-use hashed token, expires",
   "billing/webhook/route.ts": "Creem webhook, signature verified by SDK",
+  "channels/telegram/webhook/route.ts":
+    "Telegram webhook: the secret_token header is compared in constant time before anything is read; 404 and inert without the bot secrets",
   "billing/apple/notifications/route.ts":
     "App Store Server Notifications V2, JWS chain verified to Apple's root",
   "csp-report/route.ts":

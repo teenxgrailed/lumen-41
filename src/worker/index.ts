@@ -14,6 +14,8 @@ import {
   sweepPendingDeliveries,
 } from "@/services/agent-hub/webhooks";
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
+import { sweepSomeday } from "@/services/day-plan/someday";
+import { runDayPlanTouchSweep } from "@/services/day-plan/touches";
 import { sendDueBroadcasts } from "@/services/email-broadcasts/send";
 import {
   applySunset,
@@ -56,6 +58,7 @@ import {
   CALDAV_SYNC_INTERVAL_MS,
   sweepCalDavFeeds,
 } from "@/worker/caldav-sweep";
+import { sweepChannelRows } from "@/worker/channel-update-cleanup";
 import { startExternalHeartbeat } from "@/worker/external-heartbeat";
 import {
   STALE_FEED_SWEEP_INTERVAL_MS,
@@ -67,6 +70,7 @@ import {
   stopWorkerHealthServer,
 } from "@/worker/health-server";
 import { startWorkerTick } from "@/worker/liveness";
+import { describeFailedJob, processMailSyncJob } from "@/worker/mail-sync";
 import { runWorkerStartupChecks } from "@/worker/startup";
 import {
   STALE_TASK_MAPPING_SWEEP_INTERVAL_MS,
@@ -99,10 +103,8 @@ import { logger } from "@/lib/logger";
 import { listActiveMailAccountIds } from "@/lib/mail-db";
 import {
   closeImapIdleWatchers,
-  ensureImapIdleWatcher,
   startImapIdleWatchers,
 } from "@/lib/mail/imap-idle";
-import { syncMailAccount } from "@/lib/mail/sync";
 import {
   closeRedisConnection,
   getRedisConnection,
@@ -262,11 +264,6 @@ async function processWebhookRenew(job: Job<WebhookRenewJobData>) {
   await renewCalendarWebhooks(job.data);
 }
 
-async function processMailSync(job: Job<MailSyncJobData>) {
-  await syncMailAccount(job.data.accountId);
-  await ensureImapIdleWatcher(job.data.accountId);
-}
-
 async function processBugReportSync(job: Job<BugReportSyncJobData>) {
   await syncBugReportToGithub(job.data.reportId);
 }
@@ -291,6 +288,21 @@ async function processReminder(job: Job<ReminderJobData>) {
   }
   if (job.data.kind === "habit-evening") {
     await runHabitEveningPush();
+    return;
+  }
+  if (job.data.kind === "day-plan-touch") {
+    // One flag row read while `day_plan` is off for everybody.
+    await runDayPlanTouchSweep();
+    return;
+  }
+  if (job.data.kind === "someday-sweep") {
+    // A no-op while `someday_sweep` is off (it ships off until the launch
+    // migration); `day_plan` is the kill switch on top.
+    await sweepSomeday();
+    return;
+  }
+  if (job.data.kind === "channel-update-cleanup") {
+    await sweepChannelRows();
     return;
   }
   const reminderIds = await findDueReminderIds();
@@ -439,7 +451,7 @@ const workers = [
     processWebhookRenew,
     { connection, concurrency: 1 }
   ),
-  new Worker<MailSyncJobData>(QUEUE_NAMES.mailSync, processMailSync, {
+  new Worker<MailSyncJobData>(QUEUE_NAMES.mailSync, processMailSyncJob, {
     connection,
     concurrency: 3,
   }),
@@ -517,11 +529,7 @@ for (const worker of workers) {
   worker.on("failed", (job, error) => {
     void logger.error(
       "Background job failed",
-      {
-        queue: worker.name,
-        jobId: job?.id ?? "unknown",
-        error: error.message,
-      },
+      describeFailedJob(worker.name, job, error),
       LOG_SOURCE
     );
   });
@@ -621,6 +629,29 @@ export async function start(): Promise<void> {
     "habit-evening-push-sweep",
     { every: 5 * 60_000 },
     { name: "sweep-habit-evening", data: { kind: "habit-evening" } }
+  );
+  // Every 5 minutes: the morning and evening touches are due in a 5-minute
+  // window of each person's own clock; the sweep decides who is inside it.
+  await getReminderQueue().upsertJobScheduler(
+    "day-plan-touch-sweep",
+    { every: 5 * 60_000 },
+    { name: "sweep-day-plan-touch", data: { kind: "day-plan-touch" } }
+  );
+  // Daily at 03:00 UTC. Registered always; the sweep itself checks both flags,
+  // so with `someday_sweep` off it reads two flag rows and returns.
+  await getReminderQueue().upsertJobScheduler(
+    "someday-sweep",
+    { pattern: "0 3 * * *", tz: "UTC" },
+    { name: "sweep-someday", data: { kind: "someday-sweep" } }
+  );
+  // Daily at 03:30 UTC: old messenger update ids and expired link codes.
+  await getReminderQueue().upsertJobScheduler(
+    "channel-update-cleanup",
+    { pattern: "30 3 * * *", tz: "UTC" },
+    {
+      name: "cleanup-channel-updates",
+      data: { kind: "channel-update-cleanup" },
+    }
   );
   await getNudgeQueue().upsertJobScheduler(
     "proactive-nudge-sweep",

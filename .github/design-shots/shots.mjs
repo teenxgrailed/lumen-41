@@ -28,7 +28,22 @@ const screens = screenList.split(",").map((s) => s.trim()).filter(Boolean).map((
   const route = i < 0 ? "/" + name : s.slice(i + 1);
   if (!/^[a-z0-9_-]+$/i.test(name)) throw new Error(`bad screen name: ${name}`);
   if (!route.startsWith("/") || route.startsWith("//")) throw new Error(`route must start with one /: ${route}`);
-  return { name, route };
+  // Shot options in the fragment, joined by "&": bar=classic|float sets the phone's
+  // bottom bar (prefs.barStyle) for this screen; chrome keeps the fixed layers (the
+  // dock, a sheet, a full-screen setup) and shoots the viewport instead of unrolling
+  // the page; click=<css> taps that element, then wait=<css> waits for one, before
+  // the shot. The other parts are the route's real #anchor and stay on it
+  // ("/settings#appearance&chrome" opens Settings at Appearance).
+  const h = route.indexOf("#");
+  const frag = h < 0 ? "" : route.slice(h + 1);
+  const isOpt = (p) => p === "chrome" || p.startsWith("bar=") || p.startsWith("wait=") || p.startsWith("click=");
+  const parts = frag ? frag.split("&") : [];
+  const opts = new URLSearchParams(parts.filter(isOpt).join("&"));
+  const anchor = parts.filter((p) => !isOpt(p)).join("&");
+  const bar = opts.get("bar");
+  if (bar && bar !== "classic" && bar !== "float") throw new Error(`bad bar: ${bar}`);
+  const path_ = h < 0 ? route : route.slice(0, h) + (anchor ? "#" + anchor : "");
+  return { name, route: path_, bar, chrome: opts.has("chrome"), wait: opts.get("wait"), click: opts.get("click") };
 });
 
 const sizes = [
@@ -72,6 +87,7 @@ fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 let warned = 0;
 let signedOut = 0;
+let failed = 0;
 try {
   for (const size of sizes) {
     const ctx = await browser.newContext({ ...size.options, colorScheme: scheme, locale: "en-US", timezoneId: "Europe/Zurich" });
@@ -83,6 +99,12 @@ try {
       await route.fulfill({ response: res, json: { ...body, hostedAvailable: true } });
     });
     for (const s of screens) {
+      // The CI user is shared by every screen: each screen sets its own bar style, and
+      // one without #bar= removes it (null), so no screen inherits the last one's.
+      const res = await ctx.request
+        .patch(HOST + "/api/user-settings", { data: { prefs: { barStyle: s.bar ?? null } } })
+        .catch((e) => ({ ok: () => false, status: () => e.message }));
+      if (!res.ok()) { failed++; console.log("FAIL bar style not set", s.name, size.tag, res.status()); }
       const page = await ctx.newPage();
       const started = Date.now();
       await page.goto(HOST + s.route, { waitUntil: "domcontentloaded", timeout: 60_000 }).catch((e) => console.log("WARN goto", s.name, e.message));
@@ -93,10 +115,27 @@ try {
         .then(() => true)
         .catch(() => false);
       if (!settled) { warned++; console.log("WARN still loading", s.name, size.tag); }
+      if (s.click) {
+        // a page inside a sheet (Settings -> Menu) has no URL of its own: tap its row
+        const tapped = await page.click(s.click, { timeout: 15_000 }).then(() => true).catch(() => false);
+        if (!tapped) { warned++; console.log("WARN could not tap", s.click, s.name, size.tag); }
+      }
+      if (s.wait) {
+        const seen = await page.waitForSelector(s.wait, { state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
+        if (!seen) { warned++; console.log("WARN never showed", s.wait, s.name, size.tag); }
+      }
       await page.waitForTimeout(1200);
+      const file = path.join(out, `${s.name}-${size.tag}.png`);
+      if (s.chrome) {
+        // fixed layers (the dock, a sheet, a full-screen setup) are the subject: shoot
+        // the screen as a person sees it, nothing hidden or unrolled
+        await page.screenshot({ path: file, timeout: 30_000 }).catch((err) => console.log("FAIL shot", s.name, size.tag, err.message.split("\n")[0]));
+        console.log("shot", file, `${Date.now() - started}ms`, page.url().replace(HOST, ""), "viewport");
+        await page.close();
+        continue;
+      }
       const grown = await unroll(page, size.tag === "phone");
       await page.waitForTimeout(500);
-      const file = path.join(out, `${s.name}-${size.tag}.png`);
       // A very tall page (a 24-hour grid unrolled) can exceed what Chromium captures:
       // fall back to the viewport rather than lose the screen.
       try {
@@ -118,3 +157,4 @@ try {
 }
 console.log(`done, ${warned} screen(s) never settled`);
 if (signedOut) { console.log(`${signedOut} shot(s) landed on the sign-in page: the session did not take`); process.exit(1); }
+if (failed) { console.log(`${failed} screen(s) could not set the bottom bar style: their shots show the wrong bar`); process.exit(1); }

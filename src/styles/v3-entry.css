@@ -47,6 +47,7 @@
 @import "./v3-overrides/home-extras.css";
 @import "./v3-overrides/starter-game.css";
 @import "./v3-overrides/ha-home.css";
+@import "./v3-overrides/day-plan.css";
 @import "./v3-overrides/home-v2.css";
 @import "./v3-overrides/ha-weather.css";
 @import "./v3-overrides/fd-focus.css";
@@ -58,6 +59,7 @@
 @import "./v3-overrides/widget-preview.css";
 @import "./v3-overrides/whats-new.css";
 @import "./v3-overrides/goals.css";
+@import "./v3-overrides/learn.css";
 @import "./v3-overrides/habits-quit.css";
 @import "./v3-overrides/touch-hover.css";
 @import "./v3-overrides/dvh.css";
@@ -68,3 +70,5 @@
 @import "./v3-overrides/budget.css";
 @import "./v3-overrides/habit-cards.css";
 @import "./v3-overrides/folder.css";
+@import "./v3-overrides/bottom-bar-float.css";
+@import "./v3-overrides/idle-pause.css";

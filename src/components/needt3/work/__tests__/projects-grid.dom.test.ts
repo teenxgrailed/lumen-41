@@ -55,6 +55,7 @@ const task = (id: string, projectId: string, dueDate: string | null) =>
   }) as unknown as V3Task;
 
 const projects = [project("p1", "Operations"), project("p2", "Empty one")];
+const withEmoji = { ...project("p3", "Rocket"), icon: "🚀" };
 const tasks = [
   task("a", "p1", "2026-11-20"),
   task("b", "p1", "2026-11-16"),
@@ -94,15 +95,49 @@ describe("ProjectsGrid", () => {
     expect(first.querySelector("[data-folder-count]")?.textContent).toBe("4");
     // three sheets, the soonest in front
     expect(first.querySelectorAll("[data-folder-peek]")).toHaveLength(3);
-    expect(first.querySelector(".nx-folder-caption")?.textContent).toBe(
-      "Next: Task b"
-    );
-    expect(first.querySelector(".nx-folder-peek-title")).toBeNull();
+    expect(
+      [...first.querySelectorAll(".nx-folder-peek-title")].map(
+        (e) => e.textContent
+      )
+    ).toEqual(["Task b", "Task d", "Task a"]);
+    expect(first.querySelector(".nx-folder-caption")).toBeNull();
     expect((folders[1] as HTMLElement).style.animationDelay).toBe("40ms");
-    // a project with no tasks is an empty folder with a zero
+    // a project with no open tasks has one paper saying so, and a zero
     const empty = folders[1];
-    expect(empty.querySelectorAll("[data-folder-peek]")).toHaveLength(0);
+    expect(
+      [...empty.querySelectorAll("[data-folder-peek]")].map(
+        (e) => e.textContent
+      )
+    ).toEqual(["No open tasks"]);
     expect(empty.querySelector(".nx-folder-caption")).toBeNull();
     expect(empty.querySelector("[data-folder-count]")?.textContent).toBe("0");
+  });
+
+  it("sticker: the first letter in the project colour, or the emoji when icon is one", () => {
+    render(true);
+    const letter = host.querySelector("[data-sticker=letter]");
+    expect(letter?.textContent).toBe("O");
+    act(() =>
+      root.render(
+        h(ProjectsGrid, {
+          folders: true,
+          projects: [
+            withEmoji,
+            { ...project("p4", "Glyph"), icon: "LuRocket" },
+          ],
+          tasks,
+          today: "2026-11-15",
+          onOpenTask: jest.fn(),
+          onPick: jest.fn(),
+        })
+      )
+    );
+    const stickers = [...host.querySelectorAll("[data-sticker]")];
+    expect(stickers.map((e) => e.getAttribute("data-sticker"))).toEqual([
+      "emoji",
+      "letter",
+    ]);
+    expect(stickers[0].textContent).toBe("🚀");
+    expect(stickers[1].textContent).toBe("G");
   });
 });

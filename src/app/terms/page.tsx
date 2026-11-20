@@ -12,6 +12,7 @@ import {
 import { APPLE_IAP } from "@/lib/feature-flags-keys";
 import { termsMarkdown } from "@/lib/legal/documents/terms";
 import { logger } from "@/lib/logger";
+import { indexablePageSeo } from "@/lib/seo/indexable-paths";
 
 const LOG_SOURCE = "TermsPage";
 
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
   title: "Terms of Service | Needt",
   description:
     "The agreement between you and the operator of Needt: plans, payment, refunds, your content and acceptable use.",
+  ...indexablePageSeo("/terms"),
 };
 
 // DMCA_AGENT_REG_NO is read when the page is served, not when it is built, so

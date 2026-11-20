@@ -12,6 +12,7 @@ import {
   TaskReminderKind,
 } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { addCalendarDays, formatInTimeZone, newDate } from "@/lib/date-utils";
 import { canCreateHabit } from "@/lib/entitlements";
@@ -440,6 +441,11 @@ export async function commitOnboarding(input: {
     where: { id: userId },
     data: { onboardingUses: a.areas, onboardingCompletedAt: now },
   });
+  /* Once, after the commit has written: the week's tasks are the account's
+     first. Not per task, and not before the write succeeded. */
+  if (tasks > 0) {
+    recordActivation("task_created", userId, { source: "onboarding" });
+  }
 
   /* The account's own scheduler places what was written. */
   let placed = 0;

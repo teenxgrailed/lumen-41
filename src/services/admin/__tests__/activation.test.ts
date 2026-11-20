@@ -2,6 +2,7 @@ import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 import { getAdminActivation } from "../activation";
+import { NOT_QA_USER } from "../internal-accounts";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: { activationEvent: { groupBy: jest.fn() } },
@@ -33,7 +34,7 @@ describe("getAdminActivation", () => {
     expect(by.keep_applied).toMatchObject({ users7Days: 2, users14Days: 3 });
     expect(by.task_created).toMatchObject({ users7Days: 0, users14Days: 1 });
     expect(by.account_created).toMatchObject({ users7Days: 0, users14Days: 0 });
-    expect(result.events).toHaveLength(9);
+    expect(result.events).toHaveLength(14);
   });
 
   it("asks only for external users: no admin, no sandbox, 14 days back", async () => {
@@ -44,6 +45,7 @@ describe("getAdminActivation", () => {
     expect(arg.where.user).toEqual({
       role: { not: "admin" },
       sandboxKind: null,
+      ...NOT_QA_USER,
     });
     const days = Math.round(
       (NOW.getTime() - arg.where.createdAt.gte.getTime()) / (24 * 3_600_000)

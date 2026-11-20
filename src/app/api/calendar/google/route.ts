@@ -160,11 +160,11 @@ export async function GET(request: NextRequest) {
             userId: auth.userId,
           },
         }));
-      if (!existingFeed) {
-        recordActivation("calendar_connected", auth.userId, {
-          provider: "google",
-        });
-      }
+      /* Also on re-auth (the feed already exists): the event is once-keyed
+         per account, so a repeat is a no-op and a reconnect still counts. */
+      recordActivation("calendar_connected", auth.userId, {
+        provider: "google",
+      });
       feedIds.push(feed.id);
     }
 

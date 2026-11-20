@@ -1,13 +1,13 @@
-import { listStaleWebhookFeedIds } from "@/lib/calendar-db";
-import { syncGoogleCalendar } from "@/lib/google-sync";
-import { enqueueCalendarSync } from "@/lib/queue/enqueue";
-
 import {
   STALE_FEED_AFTER_MS,
   STALE_FEED_BATCH,
   sweepStaleFeeds,
 } from "@/worker/feed-sweep";
 import { type SyncableFeed, syncFeedByType } from "@/worker/feed-sync";
+
+import { listStaleWebhookFeedIds } from "@/lib/calendar-db";
+import { syncGoogleCalendar } from "@/lib/google-sync";
+import { enqueueCalendarSync } from "@/lib/queue/enqueue";
 
 jest.mock("@/lib/calendar-db", () => ({
   listStaleWebhookFeedIds: jest.fn(),

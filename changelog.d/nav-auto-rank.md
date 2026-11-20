@@ -1,0 +1,2 @@
+- The phone menu and the desktop sidebar arrange themselves by what you open most: once a week the places you use move up, applied the next time you open the app, with a one-time note and Undo. Pin a place in Settings (General on the desktop, Menu on the phone) to keep it where it is. The Menu picker and Customize Sidebar are gone.
+- `GET /api/nav/usage` returns the order, pins and the last 14 days of opens; `POST /api/nav/usage` counts one open.

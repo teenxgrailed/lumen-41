@@ -22,6 +22,7 @@ const STEP_LABELS: Record<string, string> = {
   keep_applied: "Keep pressed",
   undo_applied: "Undo pressed",
   fill_applied: "Fill it used",
+  plan_applied: "Plan my day used",
   first_replan_card_shown: "First replan card shown",
   first_replan_skipped: "First replan skipped",
 };

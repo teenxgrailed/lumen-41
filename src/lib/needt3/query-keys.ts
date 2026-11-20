@@ -56,6 +56,11 @@ export const qk = {
   docs: (sort?: DocsSort) =>
     sort ? ([V3, "docs", sort] as const) : ([V3, "docs"] as const),
   doc: (id: string) => [V3, "doc", id] as const,
+  /** The day plan of a date (`GET /api/day-plan?date=`). */
+  dayPlan: (date?: string) =>
+    date ? ([V3, "day-plan", date] as const) : ([V3, "day-plan"] as const),
+  /** The Someday list (`GET /api/someday`). */
+  someday: () => [V3, "someday"] as const,
   /** Whether the day's note exists (`useDailyNote`). */
   dailyNote: (day: string) => [V3, "daily-note", day] as const,
   /** The day's highlight (`GET /api/highlight?date=`). */
@@ -113,6 +118,9 @@ export const qk = {
   budgetNav: () => [V3, "budget-nav"] as const,
   /** Whether the 20:00 habit push exists for this account (`GET /api/habits/evening-push`). */
   habitEveningPush: () => [V3, "habit-evening-push"] as const,
+  /** Topics, lessons and today's count (`GET /api/learn`). */
+  learn: () => [V3, "learn"] as const,
+  learnTopic: (id: string) => [V3, "learn", "topic", id] as const,
   settings: () => [V3, "settings"] as const,
   /** The changelog feed and what is unseen (`GET /api/whats-new`). */
   whatsNew: () => [V3, "whats-new"] as const,

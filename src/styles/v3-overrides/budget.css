@@ -50,6 +50,11 @@
 .needt-v3 .shell-sidebar-sb-budget.is-locked .sb-row-label {
   color: var(--text-muted);
 }
+/* Its place mark is drawn in hues, not currentColor: grey it the same way. */
+.needt-v3 .shell-sidebar-sb-budget.is-locked .sb-row-icon svg {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
 
 .needt-v3 .nva-row.is-locked .nva-row-word {
   color: var(--text-muted);
@@ -57,4 +62,29 @@
 /* The mark is a drawing, not text: it fades instead. */
 .needt-v3 .nva-row.is-locked .nva-glyph {
   opacity: 0.55;
+}
+
+/* The way out when Budget's frame stays blank (no ready message in 8 s): a
+   plain row over the frame's foot, above the phone's menu pill. */
+.needt-v3 .bd-fallback {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--background);
+  border: 1px solid var(--fill-3);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.needt-v3[data-ui="phone"] .bd-fallback {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+}
+.needt-v3 .bd-fallback-text {
+  margin: 0;
 }

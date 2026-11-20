@@ -36,14 +36,18 @@ describe("next.config.js headers()", () => {
 
   it("keeps the global noindex, the OAuth framing guard and the font cache", async () => {
     const rules = await nextConfig.headers();
+    const noindexSource = "/:path((?!terms$|privacy$).*)";
     expect(rules.map((rule) => rule.source)).toEqual([
+      noindexSource,
       "/:path*",
       "/oauth/:path*",
       "/fonts/ds/:file*",
     ]);
-    expect(headerFor(rules, "/:path*", "X-Robots-Tag")).toBe(
+    // Every path but the legal pages (/terms, /privacy) is noindex.
+    expect(headerFor(rules, noindexSource, "X-Robots-Tag")).toBe(
       "noindex, nofollow"
     );
+    expect(headerFor(rules, "/:path*", "X-Robots-Tag")).toBeUndefined();
     expect(headerFor(rules, "/oauth/:path*", "X-Frame-Options")).toBe("DENY");
     expect(headerFor(rules, "/oauth/:path*", "Content-Security-Policy")).toBe(
       "frame-ancestors 'none'"

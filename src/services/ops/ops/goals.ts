@@ -6,6 +6,7 @@ import {
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
+import { recordActivation } from "@/lib/activation-events";
 import { newDate } from "@/lib/date-utils";
 import { canUseGoals } from "@/lib/entitlements";
 import {
@@ -855,6 +856,14 @@ export const goalConvertFromTask = defineOp({
       afterCommit: [
         ...(archived.afterCommit ?? []),
         publishTasksUpdated(ctx.userId),
+        /* After commit: an op that throws and rolls back records nothing. */
+        () => {
+          if (created.length > 0) {
+            recordActivation("task_created", ctx.userId, {
+              source: ctx.actor,
+            });
+          }
+        },
       ],
     };
   },

@@ -10,6 +10,8 @@ import { APPLE_PERIOD_SLACK_MS } from "@/lib/entitlements";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
+import { NOT_QA_USER } from "./internal-accounts";
+
 const LOG_SOURCE = "AdminOverview";
 
 export interface AdminOverview {
@@ -42,12 +44,16 @@ export async function getAdminSignupStats(
   );
   const [signupsToday, signupsLast7Days, verified, unverified, signupsOpen] =
     await Promise.all([
-      prisma.user.count({ where: { createdAt: { gte: midnight } } }),
       prisma.user.count({
-        where: { createdAt: { gte: addCalendarDays(now, -7) } },
+        where: { ...NOT_QA_USER, createdAt: { gte: midnight } },
       }),
-      prisma.user.count({ where: { emailVerified: { not: null } } }),
-      prisma.user.count({ where: { emailVerified: null } }),
+      prisma.user.count({
+        where: { ...NOT_QA_USER, createdAt: { gte: addCalendarDays(now, -7) } },
+      }),
+      prisma.user.count({
+        where: { ...NOT_QA_USER, emailVerified: { not: null } },
+      }),
+      prisma.user.count({ where: { ...NOT_QA_USER, emailVerified: null } }),
       areSignupsOpen(),
     ]);
   return { signupsToday, signupsLast7Days, verified, unverified, signupsOpen };
@@ -103,15 +109,16 @@ export async function getAdminOverview(
 ): Promise<AdminOverview> {
   const [total, newLast7Days, activeTrials, pro, lifetime, waitlist] =
     await Promise.all([
-      prisma.user.count(),
+      prisma.user.count({ where: NOT_QA_USER }),
       prisma.user.count({
-        where: { createdAt: { gte: addCalendarDays(now, -7) } },
+        where: { ...NOT_QA_USER, createdAt: { gte: addCalendarDays(now, -7) } },
       }),
       prisma.trialGrant.count({
         where: {
           endsAt: { gt: now },
           userId: { not: null },
           user: {
+            AND: [NOT_QA_USER],
             OR: [
               { subscription: { is: null } },
               { subscription: { is: { plan: SubscriptionPlan.FREE } } },
@@ -120,10 +127,13 @@ export async function getAdminOverview(
         },
       }),
       prisma.subscription.count({
-        where: holdsPlan(SubscriptionPlan.PRO, now),
+        where: { ...holdsPlan(SubscriptionPlan.PRO, now), user: NOT_QA_USER },
       }),
       prisma.subscription.count({
-        where: holdsPlan(SubscriptionPlan.LIFETIME, now),
+        where: {
+          ...holdsPlan(SubscriptionPlan.LIFETIME, now),
+          user: NOT_QA_USER,
+        },
       }),
       prisma.waitlist.count(),
     ]);

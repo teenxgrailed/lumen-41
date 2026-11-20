@@ -9,9 +9,9 @@ import { APPLE_LINKS } from "./terms";
 
 /** The Privacy Notice, as Markdown. Rendered by `src/app/privacy/page.tsx`. */
 export function privacyMarkdown(): string {
-  /* Last changed 14 November 2026: product events (Section 3). The Terms and
+  /* Last changed 15 November 2026: cookie banner and cookie table (Section 11). The Terms and
      the subprocessor list keep the shared LEGAL_EFFECTIVE_DATE. */
-  const date = formatLegalDate("2026-11-14");
+  const date = formatLegalDate("2026-11-15");
   return `# Needt Privacy Notice
 
 Last updated and effective: ${date}
@@ -124,6 +124,8 @@ If you send a bug report from inside Needt, we store what you wrote, any file yo
 - **Error monitoring.** When something breaks, an error report goes to Sentry. Reports are reduced before they leave to the error type and code, the place in our code and the app version: request data, messages, local variables, breadcrumbs and user details are removed, and Sentry's collection of personal data is turned off. Reports from your browser go to Sentry directly, so Sentry sees your IP address when it receives them; the report itself does not contain it.
 - **Browser notifications.** If you allow notifications, we store your browser's push subscription (an endpoint address and keys) and its user-agent string.
 - **Notifications in the iOS app.** If you allow notifications in the app, we store the device token Apple gives that install of the app, the app it belongs to, and whether it is a test build. The token identifies that install of the app, is linked to your account so notifications reach you, and changes when the app is reinstalled.
+
+Our analytics is cookieless and aggregate: self-hosted Umami, no cookies, no personal identifiers, and your IP address is not stored.
 
 The only analytics script is **Umami**, self-hosted on our own server at stats.needt.app. It sets no cookies, keeps no personal profile, and counts aggregate page views (page address, referrer, browser, operating system, device type and country, derived from the request). The page-view counter does not collect your name, email or account, does not follow you across sites, and honours your browser's Do Not Track setting; Do Not Track applies to this counter only, because the product events below are recorded on our server and are not affected by it. It runs on needt.app and can run in the app. Fonts are served from our own server.
 
@@ -293,7 +295,7 @@ No system is perfectly secure. If a personal-data breach is likely to put you at
 
 ## 11. Cookies and storage on your device
 
-We use only what is needed to run Needt: no advertising or cross-site tracking cookies, no cookies for analytics, and so no cookie banner. Our self-hosted Umami counter (stats.needt.app, Section 2) sets no cookie and stores nothing on your device, and the product events (Section 3) are recorded on our server and set no cookie either.
+We use only what is needed to run Needt: no advertising or cross-site tracking cookies, no cookies for analytics. A cookie banner appears only for the one optional cookie in the table below (campaign tags). Our self-hosted Umami counter (stats.needt.app, Section 2) sets no cookie and stores nothing on your device, and the product events (Section 3) are recorded on our server and set no cookie either.
 
 | Name | Type | Purpose | Lifetime |
 | --- | --- | --- | --- |
@@ -303,6 +305,8 @@ We use only what is needed to run Needt: no advertising or cross-site tracking c
 | \`needt-calendar-oauth-state-google\`, \`needt-calendar-oauth-state-outlook\` | Cookie, essential | Protects the calendar connection flow | 10 minutes |
 | \`needt_import_oauth\` | Cookie, essential | Protects the connection flow when you import from another app | 10 minutes |
 | \`needt-account-reauth\` | Cookie, essential | Confirms it is you before account deletion and similar actions | 15 minutes |
+| \`needt_consent\` | Cookie, essential | Stores your choice in the cookie banner (accepted or declined), shared by needt.app and use.needt.app | 180 days |
+| \`needt_utm\` | Cookie, optional | Remembers the campaign tags (utm_source and similar) you arrived with, so we know which campaign led to your sign-up; set only after you accept the banner, and removed if you decline | 30 days |
 | \`needt-ui\` | Cookie, preference | Remembers whether you chose the phone or desktop layout, if you choose one | Until you change it or clear site data |
 | \`theme\` and interface settings (calendar, task list, focus timer and similar) | Local storage | Remembers your interface preferences | Until you sign out or clear site data |
 | \`needt.dl.boost\` | Local storage, needt.app only | Keeps a decorative counter on the download page; it stays on your device | Until you clear site data |

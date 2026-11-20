@@ -21,6 +21,7 @@ describe("menu places and the route map", () => {
       if (id === "connections") expect(a.href).toBe(CONNECTIONS_HREF);
       else if (id === "agents") expect(a.href).toBe(AGENTS_HREF);
       else if (id === "budget") expect(a.href).toBe("/budget");
+      else if (id === "learn") expect(a.href).toBe("/learn");
       else expect(PLACES.map((p) => p.href)).toContain(a.href);
     }
   });
@@ -43,9 +44,9 @@ describe("menu places and the route map", () => {
     expect(menuAction("settings")).toEqual({ kind: "settings" });
   });
 
-  it("the order is the prototype's plus Goals, Agents and Budget: 17 entries, Settings last", () => {
-    expect(MENU_ORDER).toHaveLength(17);
-    expect(new Set(MENU_ORDER).size).toBe(17);
+  it("the order is the prototype's plus Goals, Agents, Budget and Learn: 18 entries, Settings last", () => {
+    expect(MENU_ORDER).toHaveLength(18);
+    expect(new Set(MENU_ORDER).size).toBe(18);
     expect(MENU_ORDER[MENU_ORDER.length - 1]).toBe("settings");
     expect(MENU_ORDER.slice(0, 6)).toEqual([
       "home",

@@ -97,9 +97,9 @@ describe("Resend webhook", () => {
       })
     );
     expect(response.status).toBe(400);
-    expect(logger.warn).toHaveBeenCalledWith(
+    expect(logger.error).toHaveBeenCalledWith(
       "Resend webhook rejected",
-      { reason: "missing_headers", skewSeconds: null },
+      expect.objectContaining({ reason: "missing_headers", skewSeconds: null }),
       "ResendWebhookRoute"
     );
   });
@@ -109,14 +109,17 @@ describe("Resend webhook", () => {
       signed(bounce("Permanent"), { secret: Buffer.from("another-secret") })
     );
     expect(response.status).toBe(400);
-    expect(logger.warn).toHaveBeenCalledTimes(1);
-    const [message, data] = jest.mocked(logger.warn).mock.calls[0];
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    const [message, data] = jest.mocked(logger.error).mock.calls[0];
     expect(message).toBe("Resend webhook rejected");
     expect(data).toEqual({
       reason: "no_match",
       skewSeconds: expect.any(Number),
+      svixTimestamp: expect.any(String),
+      bodyLength: expect.any(Number),
+      signatureCount: 1,
     });
-    const logged = JSON.stringify(jest.mocked(logger.warn).mock.calls);
+    const logged = JSON.stringify(jest.mocked(logger.error).mock.calls);
     expect(logged).not.toContain(SECRET);
     expect(logged).not.toContain("Person@Example.com");
   });
@@ -124,7 +127,7 @@ describe("Resend webhook", () => {
   it("logs stale_timestamp with the skew for an old delivery", async () => {
     const old = Math.floor(Date.now() / 1000) - 6 * 60;
     await POST(signed(bounce("Permanent"), { timestamp: old }));
-    const [, data] = jest.mocked(logger.warn).mock.calls[0];
+    const [, data] = jest.mocked(logger.error).mock.calls[0];
     expect(data).toMatchObject({ reason: "stale_timestamp" });
     expect(
       (data as { skewSeconds: number }).skewSeconds
@@ -139,7 +142,7 @@ describe("Resend webhook", () => {
     );
     expect(response.status).toBe(200);
     expect(prisma.emailSuppression.upsert).toHaveBeenCalledTimes(1);
-    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it("suppresses the address on a hard bounce, matching case-insensitively", async () => {

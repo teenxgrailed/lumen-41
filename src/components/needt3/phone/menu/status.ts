@@ -44,6 +44,7 @@ export interface MenuCounts {
    * row that says Pro).
    */
   budget?: { locked: boolean };
+  learn?: { locked: boolean };
 }
 
 export interface MenuStatus {
@@ -125,6 +126,8 @@ export function menuStatus(id: MenuPlaceId, c: MenuCounts = {}): MenuStatus {
         : sub;
     case "budget":
       return c.budget?.locked ? { text: "Pro" } : sub;
+    case "learn":
+      return c.learn?.locked ? { text: "One lesson a day" } : sub;
     default:
       // ask, templates, shared, trash, settings: what the place is for
       return sub;

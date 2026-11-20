@@ -16,10 +16,10 @@ import { routeSkeletonKind } from "./status";
  * invisible for the first 150 ms, so a switch that is quick never shows it and
  * a slow one shows the shape of the place instead of the old screen frozen.
  *
- * The Needt word (`NeedtLoading`) is deliberately NOT used here (owner,
- * 15.11.26: the word only for real waits, cold start, a new-version reload and
+ * The Needt logo screen (`NeedtLoading`) is deliberately NOT used here (owner,
+ * 15.11.26: the loading logo only for real waits, cold start, a new-version reload and
  * the Budget frame). A place switch is a skeleton or nothing; a skeleton that
- * turned into the word at 600 ms would be two things replacing each other.
+ * turned into the logo at 600 ms would be two things replacing each other.
  */
 export function RouteLoading() {
   const kind = routeSkeletonKind(usePathname() ?? "");

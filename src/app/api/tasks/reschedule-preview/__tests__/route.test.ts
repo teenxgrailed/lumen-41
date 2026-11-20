@@ -94,3 +94,69 @@ describe("reschedule-preview route: via", () => {
     );
   });
 });
+
+describe("reschedule-preview route: taskIds", () => {
+  it("passes taskIds to the preview and leaves them out when not given", async () => {
+    await call({ action: "preview", taskIds: ["a", "b"] });
+    expect(createReschedulePreview).toHaveBeenLastCalledWith(
+      "u1",
+      expect.anything(),
+      { via: "chat", taskIds: ["a", "b"] }
+    );
+    await call({ action: "preview" });
+    const options = (createReschedulePreview as jest.Mock).mock.calls.at(
+      -1
+    )?.[2];
+    expect(options).toEqual({ via: "chat" });
+    expect("taskIds" in options).toBe(false);
+  });
+
+  it("rejects an empty list, more than 100 ids and non-string ids", async () => {
+    for (const taskIds of [
+      [],
+      Array.from({ length: 101 }, (_, i) => `t${i}`),
+      [1],
+    ]) {
+      const res = await call({ action: "preview", taskIds });
+      expect(res?.status).toBe(400);
+    }
+    expect(createReschedulePreview).not.toHaveBeenCalled();
+  });
+
+  it("does not take taskIds on apply: the token holds the set", async () => {
+    await call({ action: "apply", token: "t", taskIds: ["x"] });
+    expect(applyReschedulePreview).toHaveBeenCalledWith(
+      "u1",
+      expect.anything(),
+      "t",
+      { via: "chat" }
+    );
+  });
+});
+
+describe("reschedule-preview route: home_missed", () => {
+  it("accepts via home_missed on all three steps and rejects unknown values", async () => {
+    await call({ action: "preview", via: "home_missed", taskIds: ["a"] });
+    await call({ action: "apply", token: "t", via: "home_missed" });
+    await call({ action: "undo", token: "t", via: "home_missed" });
+    expect(createReschedulePreview).toHaveBeenCalledWith(
+      "u1",
+      expect.anything(),
+      { via: "home_missed", taskIds: ["a"] }
+    );
+    expect(applyReschedulePreview).toHaveBeenCalledWith(
+      "u1",
+      expect.anything(),
+      "t",
+      { via: "home_missed" }
+    );
+    expect(undoReschedulePreview).toHaveBeenCalledWith(
+      "u1",
+      expect.anything(),
+      "t",
+      { via: "home_missed" }
+    );
+    const res = await call({ action: "preview", via: "nope" });
+    expect(res?.status).toBe(400);
+  });
+});

@@ -40,6 +40,15 @@ async function fetchWithTimeout(
   }
 }
 
+/** The request's own token budget, never above a cap the config sets. */
+export function cappedTokens(
+  configCap: number | undefined,
+  requested: number | undefined
+): number | undefined {
+  if (requested === undefined) return configCap;
+  return configCap === undefined ? requested : Math.min(configCap, requested);
+}
+
 export function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -280,7 +289,7 @@ export class AnthropicProvider implements SchedulerAI {
         },
         body: JSON.stringify({
           model: this.config.model || "claude-sonnet-4-6",
-          max_tokens: 1600,
+          max_tokens: input.maxTokens ?? 1600,
           temperature: 0.2,
           stream: true,
           system: input.systemPrompt,
@@ -536,7 +545,7 @@ export class OpenAIProvider implements SchedulerAI {
         body: JSON.stringify({
           ...(this.config.extraBody ?? {}),
           model: this.config.model || this.defaultModel,
-          max_tokens: this.config.maxTokens,
+          max_tokens: cappedTokens(this.config.maxTokens, input.maxTokens),
           temperature: 0.2,
           stream: true,
           // Z.ai reports usage on its own; OpenAI-style hosts need asking.

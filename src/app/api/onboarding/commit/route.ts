@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { seedFirstReplanDemoAfterStart } from "@/services/onboarding/sample-http";
 import { WorkspaceRole } from "@prisma/client";
 import { z } from "zod";
 
@@ -61,6 +62,13 @@ export async function POST(request: NextRequest) {
     });
     // The week is written: /start is finished (Today stops guarding).
     await markOnboardingComplete(auth.userId);
+    // The first-replan demo (#702) for Today; /start has no sample day, so
+    // this is where these accounts get it. Never fails the commit.
+    await seedFirstReplanDemoAfterStart({
+      userId: auth.userId,
+      workspaceId: auth.workspace!.workspaceId,
+      timeZone: parsed.data.timeZone,
+    });
     return NextResponse.json(result);
   } catch (error) {
     logger.error(

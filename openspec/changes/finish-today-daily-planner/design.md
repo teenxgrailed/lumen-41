@@ -145,3 +145,162 @@ Keep prose in the small editor and render all tasks in fixed React sections belo
 ## Open Decisions
 
 None. The requested Motion/Notes behavior is treated as approval for inline task-reference blocks and the document-first desktop split.
+
+---
+
+# Stage 2 — The day plan system (2026-11-19)
+
+## Outcome
+
+The phone home becomes a limited plan of the day built the evening before. The person gets two touches a day, closes each day explicitly, and old tasks leave the home screen for Someday. One plan core serves the app, the API/MCP and messenger channels; Telegram is the first channel.
+
+## Repository Reality (checked on origin/main, 2026-11-19)
+
+- `/` redirects to `/today`. `src/app/(app)/today/page.tsx` renders `HomeScreen` (`src/components/needt3/home/`). `home_v2` is on for 100% of users and the owner keeps it on.
+- An end-of-day flow already exists: `EndDayNudge.tsx`, `useEndDayNudge.ts`, `finish.ts`, `useFinishDay.ts`. Pick sources are `overdue | tomorrow | inbox`, with `FINISH_PICKS = 3`. Its moves happen only on user action. D builds the evening screen on this flow rather than beside it.
+- `DailyHighlight` stores one highlighted task per user, workspace and date. Main tasks generalise this to at most 3; the highlight row stays readable.
+- `DailyAgenda` is the free-text note for each date. It holds the evening note as-is, with no new storage for prose.
+- `Task.lastTouchedAt` exists and is "age without updatedAt's reschedule noise". Someday staleness uses it. `Task` has no someday flag, but it has `isArchived` and `archivedAt`.
+- `SchedulingPreferences` has `maxDeepWorkPerDay` (180 minutes) and `autoRescheduleOnMiss` (default true). The scheduler re-places missed auto-scheduled tasks, which is the only implicit carry-over today.
+- `NotificationSettings` already has:
+  - `dailyPlan` and `dailyPlanTime`, default "08:30"
+  - `habitCheckinTime`, default "21:00"
+  - `quietHours`, `nudges` and `digest`
+
+  Push goes through `deliverPush` (`src/services/reminders/reminder-delivery.ts`) to web and APNs targets.
+- The worker runs global sweeps, not per-user repeatable jobs. `src/services/habits/evening-push.ts` is the template: it reads `UserSettings.timeZone`, never guesses one, computes a local clock, and applies quiet hours. `digest.ts` shows idempotence with a compare-and-set on a last-sent timestamp.
+- `ai/parse-tasks` is text only, has a deterministic fallback, and is rate-limited. Speech-to-text does not exist server-side.
+- Analytics use `recordActivation(name, userId, props)` writing `ActivationEvent`, with names in `ACTIVATION_EVENTS`. The call is fire-and-forget.
+- Flags: a constant in `feature-flags-keys.ts` plus a wrapper in `feature-flags.ts`. Default-on is set by a data migration that upserts the row at 100% (`20261115160000_home_v2_for_everyone`).
+- There is no messenger code or model; the channel layer is greenfield. MCP tools live in `src/services/connectors/mcp/tools.ts`.
+
+## Data (additive, expand/contract)
+
+- **`DayPlan`** — `id`, `userId`, `date @db.Date`, `status` (`draft | active | closed`), `source` (`note | no_note | fallback`), `builtAt`, `closedAt`, `editedByUserAt`, unique on (`userId`, `date`).
+- **`DayPlanItem`** — `planId`, `taskId`, `position`, `isMain`, `addedBy` (`draft | user | review | channel`), and `resolution` (`done | tomorrow | someday | deleted | null`), unique on (`planId`, `taskId`).
+- **`PlanSettings`** (1:1 user):
+  - `taskLimit` (default 5, range 3–10) and `mainLimit` (fixed 3, at most `taskLimit`)
+  - `focusMinutes` (default `min(maxDeepWorkPerDay, 300)`, at most 300)
+  - `morningTime` "08:00", `eveningTime` "21:00", `morningOn`, `eveningOn`
+  - `lastMorningAt` and `lastEveningAt`, for compare-and-set idempotence
+  - `limitSuggestion` and `limitSuggestionDismissedAt`
+
+  New fields are used instead of reusing `dailyPlanTime`, because that default (08:30) belongs to the existing digest-style daily plan and changing it would silently move existing users.
+- **`Task`** gains `somedayAt DateTime?` and `somedayReason String?`. Someday means `somedayAt != null` and the task is still open. Returning it clears `somedayAt` and sets `lastTouchedAt = now`.
+- **`SomedayMigrationMove`** — `userId`, `taskId`, `movedAt`, `restoredAt`, `batch`. "Return all" restores exactly these rows.
+- **`ChannelLink`** — `userId`, `channel` (`telegram`), `externalChatId` (unique per channel), `linkedAt`, `unlinkedAt`.
+- **`ChannelLinkCode`** — a hashed code with a 10-minute expiry and `usedAt`.
+- **`ChannelUpdate`** — `channel` and `externalUpdateId`, unique, for dedupe; it has a TTL cleanup.
+
+All tables are new and every `Task` column is nullable, so there are no backfills except E.
+
+## Core boundaries
+
+- **`src/services/day-plan/`** is pure plan logic with no HTTP and no messenger:
+  - `buildDraft(userId, date, note?)` — candidates are tasks dated for the date, open main tasks, and deadlines within 3 days. Note items go through the parse-tasks service and are matched to existing open tasks by normalised title. Ranking: deadline, main flag, priority, age. The draft is cut at `taskLimit` and `focusMinutes`, with a 30-minute default estimate. A user-edited plan (`editedByUserAt` set) is never overwritten. New candidates go to a "suggested" list instead.
+  - `closeDay(userId, date, resolutions)` — resolutions must cover every unfinished item. All of it runs in one transaction.
+  - `suggestLimit(userId)` — the median of done planned items over the last 14 closed or past plans, clamped to 3–10.
+  - `sweepSomeday(now)` and `restoreSomeday(...)`.
+- **`src/services/channels/`**:
+  - The `core.ts` interface: `ChannelAdapter { channel; send(link, OutgoingMessage); parseUpdate(req): IncomingEvent | null; verify(req): boolean }`. `OutgoingMessage` is `{kind: "morning" | "evening", text, actions: {taskId, action: "done" | "later"}[]}`. `IncomingEvent` is `{text} | {voiceFileRef} | {action, taskId}`.
+  - The `telegram/` adapter uses the Bot API, an inline keyboard and the `secret_token` header on the webhook.
+  - Voice goes through a `transcribe(audio)` service behind the AI settings layer, with hosted or user key. The provider is chosen in PR C. If none is configured, the bot asks for text.
+- **API** — all routes use `authenticateRequest` and per-user scoping:
+  - `GET/PUT /api/day-plan?date=` and `POST /api/day-plan/draft`
+  - `POST /api/day-plan/close`
+  - `GET/PUT /api/day-plan/settings`
+  - `GET /api/someday`, `POST /api/someday/restore`, `POST /api/someday/cleanup`
+  - `POST /api/channels/link-code`, `DELETE /api/channels/:channel`
+  - `POST /api/channels/telegram/webhook`, verified by the secret and not by session
+
+  The matching MCP tools go in `tools.ts`.
+- **Worker** — three global sweeps:
+  - `day-plan-touch-sweep`, every 5 minutes. It computes local time per user and, inside the window, does a compare-and-set on `lastMorningAt` or `lastEveningAt`, then sends to all targets. The morning send activates the plan; the evening send builds tomorrow's draft if it does not exist.
+  - `someday-sweep`, daily at 03:00 UTC.
+  - `channel-update-cleanup`, daily.
+- **Scheduler** — while a plan is `active`, the reschedule-on-miss path keeps a planned task on the plan's date: it re-places within the day or leaves the task unscheduled, and never moves it to a later date.
+
+## Kill switch
+
+There is one flag, `day_plan`, turned on by a data migration at 100% in PR A. Off means:
+- home renders the current `HomeV2` without the plan
+- the touch sweep and the Someday sweep do nothing
+- the API answers but no UI calls it
+
+No flag gates rollout. A second flag, `someday_sweep`, ships OFF. Running the nightly sweep on existing data would be the launch migration (E) without the owner's yes, so it is turned on together with E. Until D merges, `day_plan` at 100% changes nothing visible to users.
+
+## Existing notifications vs D7
+
+D7 says the plan system sends nothing else. The existing `nudges`, `digest` and habit evening pushes are separate systems that some users already rely on. This change does not turn them off: changing what existing users receive needs the owner's yes, and that question is sent to Main. The plan touches never stack with the digest. When `day_plan` is on and the morning touch is on, the morning digest is skipped for that user.
+
+## Rollout and Recovery
+
+- Merge order: A → B → C. D lands after the owner approves the screenshots. E runs last.
+- A, B and C each ship alone:
+  - A adds the API, data and the `day_plan` flag, with no new home UI.
+  - B sends touches that open the existing `/today`.
+  - C needs `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET` from the owner. Without them the adapter stays inert.
+- E runs in four steps:
+  1. A dry-run on a fresh production copy prints the number of tasks and users that would move.
+  2. The owner says yes.
+  3. A database backup is taken (Coolify) and recorded.
+  4. The real run follows, reversible through `SomedayMigrationMove`.
+- Rollback for A, B and C is the kill switch, then a code revert. No column is dropped in this change.
+
+## D — UI brief (for the design chat; built there, merged after the owner's ok)
+
+- **Phone home:**
+  - three main tasks on top, the rest below
+  - "needs a decision" leftovers, collapsible and outside the limit
+  - one line showing the limit and focus total
+  - the full list one tap away
+
+  The data comes from `GET /api/day-plan?date=today`.
+- **Evening screen:**
+  - the leftover list with three actions per row (tomorrow, later, delete)
+  - a note field ("what's on tomorrow?") and a tomorrow preview that fills as the draft builds
+  - "Close the day"
+
+  It builds on the existing EndDayNudge/finish flow.
+- **Someday:**
+  - a list with return and clear, plus the weekly one-tap card
+  - the one-time migration screen ("We moved 37 old tasks to Someday", with "Return all")
+- **Desktop `/today`:** the plan as a panel beside the existing document and timeline. There is no new desktop layout.
+- **Settings:** task limit (3–10), focus hours (≤ 5), morning and evening times with toggles, Telegram link and unlink.
+- Design authority is `docs/handoff/PORT.md` first. Every visual change is shown to the owner before and after.
+
+### D — owner decisions (grill, 2026-11-20, "да на всё")
+
+1. **"AI picks the day"** means the morning draft from `/api/day-plan/draft`. There is no live AI call when the screen opens. The greeting sentence (ref 1: "3 meetings, 2 tasks, 1 habit, mostly free after 4 pm") is a template filled from data.
+2. **No sheet under the whole Today screen.** The PORT rule stands. The greeting sits on top and the list continues on the same surface, separated by air and a hairline.
+3. **Texture versus accent.**
+   - Texture is the object's own colour (project or task) at low alpha on a surface, plus grain, as on the project folders (ref 6).
+   - The Needt accent stays a mark only: a dot, the timer ring, a check. It is never a fill.
+4. **Task icons** come from a local keyword map, with no AI. The user can change one per task.
+5. **Ship order, one PR each.** Each PR goes to everyone after the owner's ok on the shots. Flags stay only as kill switches.
+   1. Streak card.
+   2. Today plan, evening close and Someday.
+   3. Task creation sheet and the sheet fix.
+   4. Menu tiles.
+   5. Focus full screen.
+   6. Home icons and texture.
+   7. New pop-up sheets, with the current one kept as an option.
+6. **Sheets follow the frame theme (dark on dark).** Remove the inverse plate on `.pk-sheet-morph` (`kit/util.ts` pkInverse/pkPlateClass and the morph in `Sheet.tsx`). That plate caused four bugs:
+   - a white flash on open and close;
+   - portaled menus in the wrong theme;
+   - the keyboard in the wrong colour scheme;
+   - an untinted Safari bar.
+
+   A white sheet may come back later, but only as an option in PR 7.
+7. **Focus sound is free for now.**
+   - The default is brown or pink noise generated in the browser with Web Audio.
+   - 3–5 CC0 lo-fi tracks come alongside it.
+   - Buying exclusive tracks (about $500–1000, Fiverr) waits for a separate yes on the money.
+8. **Menu tiles (ref 11).**
+   - Tile catalogue: Today, Focus (ring), Habits, Inbox, Calendar next event, Mail, Docs, Ask Needt, Streak, Project folder (textured).
+   - A tile's glow is the object's own colour, never the accent.
+   - The default set is Today, Focus, Calendar and Habits.
+   - Tiles come in two sizes, 1x1 and 2x1.
+   - A long-press enters edit mode. There the tiles jiggle; the user can remove (−), add and reorder them, and ✕ exits.
+   - The set is stored on the server, one per account, and can be read and written through the API.
+   - The current app sheet stays available as an option.

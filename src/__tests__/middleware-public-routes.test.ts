@@ -53,4 +53,13 @@ describe("public route middleware", () => {
     expect(response.headers.get("location")).toBeNull();
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });
+
+  it("serves sitemap.xml without a session instead of redirecting to sign-in", async () => {
+    const response = await middleware(
+      new NextRequest("http://needt.test/sitemap.xml")
+    );
+
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
 });

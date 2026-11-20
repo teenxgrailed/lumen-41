@@ -31,6 +31,23 @@ type SvixInput = {
 };
 
 /**
+ * The base64 part of a signing secret, tolerant of how it reaches the
+ * environment: surrounding quotes, whitespace, a literal or escaped newline
+ * and an upper-case `whsec_` prefix are all dropped.
+ */
+export function signingKeyText(secret: string): string {
+  let text = secret.trim();
+  for (let i = 0; i < 2; i += 1) {
+    text = text
+      .replace(/(\\n|\\r)+$/g, "")
+      .trim()
+      .replace(/^(["'])([\s\S]*)\1$/, "$2")
+      .trim();
+  }
+  return text.replace(/^whsec_/i, "");
+}
+
+/**
  * Verifies a Svix-signed webhook (what Resend sends): HMAC-SHA256 over
  * `${svix-id}.${svix-timestamp}.${raw body}` with the base64 secret that
  * follows `whsec_`, compared against every `v1,<signature>` in the header.
@@ -52,8 +69,7 @@ export function checkSvixSignature(input: SvixInput): SvixVerification {
     return { ok: false, reason: "stale_timestamp", skewSeconds };
   }
 
-  const raw = secret.startsWith("whsec_") ? secret.slice(6) : secret;
-  const key = Buffer.from(raw, "base64");
+  const key = Buffer.from(signingKeyText(secret), "base64");
   const expected = createHmac("sha256", key)
     .update(`${id}.${timestamp}.${body}`)
     .digest();

@@ -1,21 +1,19 @@
-/* The loading screen (NeedtLoading): the word "Needt" in the display face,
- * grey, filled with the full text colour from the left by progress. Nothing
- * else on it.
+/* The loading screen (NeedtLoading): only the Needt logo in the middle of the
+ * app background, fading in softly and breathing gently. Nothing else.
  *
- * The grey is the one text colour at a ladder alpha (--text-disabled), the
- * fill is --text-primary; no accent. It appears after 150 ms so a quick load
- * never flashes it (the delay the route skeleton had).
+ * It appears after 150 ms so a quick load never flashes it. The breathe is
+ * opacity and a 0.98 to 1 scale over 2.4 s, nothing more.
  *
  * Scoped under `.needt-v3`. The one place it draws outside that scope (the new
  * version reload on a page with no v3 frame) sits in `.nl-host`, which states
- * literal colours so the overlay is never transparent. */
+ * a literal ground so the overlay is never transparent. */
 :is(.needt-v3, .nl-host) .nl-root {
   flex: 1;
   min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: nl-in 160ms ease-out 150ms backwards;
+  animation: nl-in 400ms ease-out 150ms backwards;
 }
 :is(.needt-v3, .nl-host) .nl-cover {
   position: absolute;
@@ -30,45 +28,56 @@
   z-index: 2147483000;
   background: var(--background, #fcfdfe);
 }
-:is(.needt-v3, .nl-host) .nl-word {
-  position: relative;
-  display: inline-block;
-  font-family: var(--font-v3-exposure), Georgia, serif;
-  font-size: 44px;
-  line-height: 1;
-  white-space: pre;
-  user-select: none;
+:is(.needt-v3, .nl-host) .nl-logo {
+  display: inline-flex;
 }
-:is(.needt-v3, .nl-host) .nl-base {
-  color: var(--text-disabled, rgba(26, 28, 30, 0.25));
+/* The breathe starts once the icon (or the fallback tile) is on screen. */
+:is(.needt-v3, .nl-host) .nl-logo.nl-loaded {
+  animation: nl-breathe 2.4s ease-in-out infinite;
 }
-:is(.needt-v3, .nl-host) .nl-fill {
-  position: absolute;
-  inset: 0;
-  color: var(--text-primary, #1a1c1e);
-  clip-path: inset(0 var(--nl-inset, 100%) 0 0);
-  transition: clip-path 240ms linear;
+/* The last fallback: a rounded tile in the text colour at a ladder alpha. */
+:is(.needt-v3, .nl-host) .nl-tile {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 22%;
+  background: var(--text-disabled, rgba(26, 28, 30, 0.25));
 }
-/* Outside the v3 scope there are no tokens: literal light, literal dark. */
+/* Outside the v3 scope there are no tokens: a literal light and dark ground. */
 .nl-host .nl-fixed {
   background: #fcfdfe;
-}
-.nl-host .nl-base {
-  color: rgba(26, 28, 30, 0.25);
-}
-.nl-host .nl-fill {
-  color: #1a1c1e;
 }
 @media (prefers-color-scheme: dark) {
   .nl-host .nl-fixed {
     background: #111214;
   }
-  .nl-host .nl-base {
-    color: rgba(249, 249, 249, 0.25);
+  .nl-host .nl-tile {
+    background: rgba(249, 249, 249, 0.25);
   }
-  .nl-host .nl-fill {
-    color: #f9f9f9;
-  }
+}
+/* An explicit theme on <html> (ThemeProvider writes data-theme) beats the OS
+ * preference above. */
+html[data-theme="light"] .nl-host .nl-fixed,
+html[data-theme="paper"] .nl-host .nl-fixed {
+  background: #fcfdfe;
+}
+html[data-theme="warm"] .nl-host .nl-fixed {
+  background: #f7f1e4;
+}
+html[data-theme="dark"] .nl-host .nl-fixed {
+  background: #111214;
+}
+html[data-theme="dim"] .nl-host .nl-fixed {
+  background: #1d1f22;
+}
+html[data-theme="light"] .nl-host .nl-tile,
+html[data-theme="paper"] .nl-host .nl-tile,
+html[data-theme="warm"] .nl-host .nl-tile {
+  background: rgba(26, 28, 30, 0.25);
+}
+html[data-theme="dark"] .nl-host .nl-tile,
+html[data-theme="dim"] .nl-host .nl-tile {
+  background: rgba(249, 249, 249, 0.25);
 }
 @keyframes nl-in {
   from {
@@ -78,7 +87,18 @@
     opacity: 1;
   }
 }
-/* The same 150 ms wait, then the word simply appears. */
+@keyframes nl-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/* The same 150 ms wait, then the logo simply appears. */
 @keyframes nl-appear {
   from {
     opacity: 0;
@@ -87,24 +107,24 @@
     opacity: 1;
   }
 }
-/* Reduced motion: no fade and no fill; the 150 ms entry delay stays so a quick
+/* Reduced motion: no fade and no breathe; the 150 ms delay stays so a quick
  * load is still clean. */
 :is(.needt-v3, .nl-host) .nl-still {
   animation: nl-appear 1ms linear 150ms backwards;
 }
-:is(.needt-v3, .nl-host) .nl-still .nl-fill {
-  display: none;
+:is(.needt-v3, .nl-host) .nl-still .nl-logo.nl-loaded {
+  animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
   :is(.needt-v3, .nl-host) .nl-root {
     animation: nl-appear 1ms linear 150ms backwards;
   }
-  :is(.needt-v3, .nl-host) .nl-fill {
-    transition: none;
+  :is(.needt-v3, .nl-host) .nl-logo.nl-loaded {
+    animation: none;
   }
 }
-/* A word that takes over from one already on screen (route word to Suspense
- * word, Budget word to the frame cover) does not fade in again. */
+/* A screen that takes over from one already on screen does not fade in again
+ * (the breathe carries on, so it is not a restart either). */
 :is(.needt-v3, .nl-host) .nl-root[data-continued] {
   animation: none;
 }

@@ -1,3 +1,4 @@
+import { isQaTestEmail } from "@/services/admin/internal-accounts";
 import { createHmac } from "crypto";
 
 import { authSecret } from "@/lib/auth/auth-secret";
@@ -28,6 +29,18 @@ export const ACTIVATION_EVENTS = [
      from a low keep_applied count. */
   "first_replan_card_shown",
   "first_replan_skipped",
+  /* "Plan my day" / schedule.auto: the scheduler applied a schedule with no
+     preview and no Keep. Counted apart so it never inflates replan_shown or
+     keep_applied. */
+  "plan_applied",
+  /* The day plan (openspec finish-today-daily-planner). Props are counts, dates
+     and short kinds only: never a task title, note text or message text. */
+  "plan_built",
+  "day_closed",
+  "task_to_someday",
+  /* A handled message in a linked messenger chat. Props: channel, kind
+     (text | voice | button) and tasksCreated; never the message text. */
+  "channel_reply",
 ] as const;
 
 /** Events that count once per account; a unique index enforces it. */
@@ -80,10 +93,18 @@ async function record(
   const once = ONCE_EVENTS.has(name);
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, sandboxKind: true },
+    select: { role: true, sandboxKind: true, email: true },
   });
   /* Reviewer and demo logins are not people trying the product. */
-  if (!user || user.sandboxKind) return;
+  /* QA bot accounts (`qa+...`) are skipped for the same reason. */
+  if (!user || user.sandboxKind || isQaTestEmail(user.email)) {
+    logger.debug(
+      "Activation event skipped",
+      { name, reason: !user ? "no_user" : user.sandboxKind ? "sandbox" : "qa" },
+      LOG_SOURCE
+    );
+    return;
+  }
   const uid = pseudonymousId(userId);
   if (once) {
     /* The unique (userId, onceKey) index decides: only the insert that wins
@@ -116,14 +137,26 @@ export function recordActivation(
   props: ActivationProps = {}
 ): void {
   if (!userId) return;
-  void record(name, userId, props).catch((error: unknown) => {
-    logger.warn(
-      "Activation event failed",
-      {
-        name,
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      LOG_SOURCE
-    );
-  });
+  const pending: Promise<void> = record(name, userId, props)
+    .catch((error: unknown) => {
+      logger.warn(
+        "Activation event failed",
+        {
+          name,
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+        LOG_SOURCE
+      );
+    })
+    .finally(() => {
+      inFlight.delete(pending);
+    });
+  inFlight.add(pending);
+}
+
+const inFlight = new Set<Promise<void>>();
+
+/** Waits for the events still being written. For scripts that exit after a run. */
+export async function settleActivationEvents(): Promise<void> {
+  while (inFlight.size > 0) await Promise.all([...inFlight]);
 }

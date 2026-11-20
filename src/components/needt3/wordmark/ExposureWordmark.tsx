@@ -19,6 +19,8 @@
  */
 import * as React from "react";
 
+import { onPageActive } from "@/lib/needt3/page-activity";
+
 import {
   EW_BREATHE,
   EW_BUSY_CEILING,
@@ -141,19 +143,10 @@ export function ExposureWordmark({
     return () => q.removeEventListener("change", read);
   }, []);
 
-  React.useEffect(() => {
-    const read = () =>
-      setAwake(!document.hidden && document.visibilityState !== "hidden");
-    read();
-    document.addEventListener("visibilitychange", read);
-    window.addEventListener("focus", read);
-    window.addEventListener("pageshow", read);
-    return () => {
-      document.removeEventListener("visibilitychange", read);
-      window.removeEventListener("focus", read);
-      window.removeEventListener("pageshow", read);
-    };
-  }, []);
+  /* Awake = the tab is visible AND the page was touched lately (the shared
+     idle state): a word left alone holds its pose and costs nothing, the next
+     input or the tab coming back lets it breathe on. */
+  React.useEffect(() => onPageActive(setAwake), []);
 
   /* Visibility is measured from the node's own rect and only ever PARKS the
      word on a confirmed off-screen reading; IntersectionObserver is one more

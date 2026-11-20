@@ -9,11 +9,14 @@
  *   hours     the per-day working hours of Settings, prefilled Mon-Fri 9-17,
  *             and the time zone
  *   import    Todoist / Notion, only when the server can run them
+ *   bar       the phone only: which bottom bar, the classic pill or the
+ *             floating one (`prefs.barStyle`); written on tap, so the
+ *             choice holds even when setup is skipped right after it
  *
  * The sidebar game below is no longer a step; its helpers stay because the
  * sidebar tiles are still arranged with them elsewhere.
  */
-export const STEP_IDS = ["use", "calendar", "hours", "import"] as const;
+export const STEP_IDS = ["use", "calendar", "hours", "import", "bar"] as const;
 export type StepId = (typeof STEP_IDS)[number];
 
 export const STEPS: ReadonlyArray<readonly [StepId, string, string]> = [
@@ -37,6 +40,11 @@ export const STEPS: ReadonlyArray<readonly [StepId, string, string]> = [
     "Bring your work",
     "Already keep tasks or notes somewhere else? Import them now, or any time from Settings.",
   ],
+  [
+    "bar",
+    "Your bottom bar",
+    "Pick how the bar at the bottom looks. Switch any time in Settings.",
+  ],
 ];
 
 /** Which sky layout each step stands on. */
@@ -45,11 +53,17 @@ export const STEP_SKY: Record<StepId, "a" | "b" | "c" | "d"> = {
   calendar: "c",
   hours: "b",
   import: "d",
+  bar: "a",
 };
 
-/** The steps shown: Import only when the server can run an importer. */
-export function stepsFor(showImport: boolean): StepId[] {
-  return STEP_IDS.filter((id) => id !== "import" || showImport);
+/**
+ * The steps shown: Import only when the server can run an importer, the
+ * bottom bar only on a phone (the desktop has no bottom bar).
+ */
+export function stepsFor(showImport: boolean, phone = false): StepId[] {
+  return STEP_IDS.filter(
+    (id) => (id !== "import" || showImport) && (id !== "bar" || phone)
+  );
 }
 
 export const stepIndex = (id: string, ids: readonly string[] = STEP_IDS) =>

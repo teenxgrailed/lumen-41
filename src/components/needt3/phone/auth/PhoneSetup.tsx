@@ -2,7 +2,8 @@
 
 /* FIRST-RUN SETUP, ON A PHONE. The desktop's steps, one per screen: what you
    use Needt for, your calendar, your working hours, and (only when this
-   server can run an importer) an import. Then Today with a sample day.
+   server can run an importer) an import, and, the phone's own, which bottom
+   bar (BarStyleStep). Then Today with a sample day.
    Progress is a strip of dots and a count: a phone has no room for a step
    list beside the step.
 
@@ -38,6 +39,7 @@ import { BrandIcon, brandIdForConnection } from "../../brand";
 import { ICloudGuide } from "../../connections/ICloudGuide";
 import { PxDots } from "../../scenes";
 import { pkCx } from "../kit";
+import { BarStyleStep } from "./BarStyleStep";
 import { MaButton, MaHead, MaNote, MaPaper, MaScene, MaTile } from "./Scene";
 
 /** Each step's title: the first words in ink, the last quiet. */
@@ -46,6 +48,7 @@ const HEAD: Record<string, readonly [string, string]> = {
   calendar: ["Your", "calendar"],
   hours: ["Working", "hours"],
   import: ["Bring your", "work"],
+  bar: ["Your bottom", "bar"],
 };
 
 /** The phone's own one-line brief per step. */
@@ -54,6 +57,7 @@ const LINE: Record<string, string> = {
   calendar: "Needt plans around your events. You can skip this.",
   hours: "Needt only places work inside these hours.",
   import: "Optional. You can also do this later in Settings.",
+  bar: "Pick the one you like. Switch any time in Settings.",
 };
 
 /** Each step's tile, beside its kicker. */
@@ -62,6 +66,7 @@ const TILE: Record<string, { place?: string; kind?: string }> = {
   calendar: { place: "calendar" },
   hours: { place: "settings" },
   import: { kind: "doc" },
+  bar: { place: "settings" },
 };
 
 const THEME_ICON = {
@@ -306,6 +311,8 @@ export function PhoneSetup({ ob }: { ob: Onboarding }) {
             ) : null}
 
             {id === "hours" ? <HoursStep ob={ob} /> : null}
+
+            {id === "bar" ? <BarStyleStep /> : null}
 
             {id === "import" ? (
               <div className="mau-picks">
