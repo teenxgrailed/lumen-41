@@ -33,9 +33,9 @@ import {
   stackRemove,
   trapTab,
 } from "./focus";
+import { usePkKeyboard } from "./keyboard";
 import { type EndReason, onGestureAbort, pkTrack } from "./pointer";
 import { pkEdgeInset, pkLockScroll } from "./scroll";
-import { usePkInverse } from "./theme";
 import { pkClamp, pkCx, pkMarkMoving, pkReduced } from "./util";
 
 /** A rect in the sheet layer's px, or a function that measures it (menu A's pill). */
@@ -60,6 +60,8 @@ export interface PkSheetProps {
   from?: SheetFrom;
   /** Called once the sheet is fully put away (after the slide or the morph back). */
   onShut?: () => void;
+  /** The sheet holds a text field: it rises with the on-screen keyboard (`--pk-kb`). */
+  keyboard?: boolean;
   children?: ReactNode;
 }
 
@@ -116,6 +118,7 @@ export function PkSheet({
   bodyClass,
   from,
   onShut,
+  keyboard,
   children,
 }: PkSheetProps) {
   const layer = useRef<HTMLDivElement>(null);
@@ -123,8 +126,7 @@ export function PkSheet({
   const scrim = useRef<HTMLDivElement>(null);
   const bodyEl = useRef<HTMLDivElement>(null);
   const footEl = useRef<HTMLDivElement>(null);
-  const morphEl = useRef<HTMLSpanElement>(null);
-  const plateCls = usePkInverse();
+  usePkKeyboard(layer, !!keyboard && open);
   const fromRef = useRef(from);
   fromRef.current = from;
   /* An open sheet takes the screen: the dock steps down and away under it
@@ -244,7 +246,9 @@ export function PkSheet({
   /* The morph (`from`): the sheet grows out of a rect on the screen — menu A's
      pill for the composer — and goes back into it. k 0 = the rect, 1 = the
      sheet; the sheet sits at its open position while the clip and corners
-     travel, the plate-coloured wash fades as it grows. */
+     travel and its content arrives late. The sheet wears the frame's theme
+     the whole way: no inverse plate (a light wash on a dark frame flashed
+     white on open and close). */
   const morphPaint = useCallback(() => {
     const el = sheet.current;
     const M = S.m;
@@ -253,7 +257,6 @@ export function PkSheet({
     if (!r || M.k.x >= 0.999) {
       el.style.clipPath = "";
       el.style.setProperty("-webkit-clip-path", "");
-      if (morphEl.current) morphEl.current.style.opacity = "0";
       el.style.removeProperty("--pk-morph-k");
       return;
     }
@@ -265,8 +268,6 @@ export function PkSheet({
       "--pk-morph-k",
       pkClamp((k - 0.35) / 0.55, 0, 1).toFixed(3)
     );
-    if (morphEl.current)
-      morphEl.current.style.opacity = pkClamp(1 - k * 1.3, 0, 1).toFixed(3);
     scrim.current?.style.setProperty(
       "--pk-scrim-k",
       pkClamp(k, 0, 1).toFixed(3)
@@ -661,13 +662,6 @@ export function PkSheet({
         onPointerDown={onPointerDown}
         onClickCapture={swallow}
       >
-        {from ? (
-          <span
-            ref={morphEl}
-            className={`pk-sheet-morph ${plateCls}`}
-            aria-hidden="true"
-          />
-        ) : null}
         <span className="pk-sheet-grab" aria-hidden="true" />
         {head ?? null}
         {title ? (

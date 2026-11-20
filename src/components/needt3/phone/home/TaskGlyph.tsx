@@ -22,9 +22,13 @@ import {
   LuWallet,
 } from "react-icons/lu";
 
-import { type TaskIconKey, taskIconKey } from "@/lib/needt3/task-icon";
+import {
+  type TaskIconKey,
+  isTaskIconKey,
+  taskIconKey,
+} from "@/lib/needt3/task-icon";
 
-const GLYPH: Record<TaskIconKey, typeof LuMail> = {
+export const TASK_GLYPH: Record<TaskIconKey, typeof LuMail> = {
   mail: LuMail,
   call: LuPhone,
   meeting: LuUsers,
@@ -53,13 +57,16 @@ const GLYPH: Record<TaskIconKey, typeof LuMail> = {
  */
 export function TaskGlyph({
   title,
+  icon,
   size = 18,
 }: {
   title: string;
+  /** The icon the person chose (`Task.icon`); without one the title decides. */
+  icon?: string | null;
   size?: number;
 }) {
-  const key = taskIconKey(title);
-  const Icon = GLYPH[key];
+  const key = isTaskIconKey(icon) ? icon : taskIconKey(title);
+  const Icon = TASK_GLYPH[key];
   return (
     <span className="dp-glyph" data-task-icon={key}>
       <Icon size={size} aria-hidden="true" />
