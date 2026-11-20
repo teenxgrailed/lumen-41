@@ -251,9 +251,8 @@
 .needt-v3 .pk-sheet-layer:not(.is-open) .pk-sheet { pointer-events: none; }
 /* A sheet with a text field rises with the on-screen keyboard (--pk-kb, written
    from the visual viewport) and never grows taller than what is left. */
-.needt-v3 .pk-sheet-layer[data-pk-kb] .pk-sheet { bottom: var(--pk-kb, 0px); max-height: calc(100% - var(--pk-kb, 0px) - 12px); transition: bottom 0.26s cubic-bezier(0.22, 0.8, 0.2, 1), max-height 0.26s cubic-bezier(0.22, 0.8, 0.2, 1); }
+.needt-v3 .pk-sheet-layer[data-pk-kb] .pk-sheet { bottom: var(--pk-kb, 0px); max-height: calc(100% - var(--pk-kb, 0px) - 12px) }
 .needt-v3 .pk-sheet-layer[data-pk-kb] .pk-sheet-foot { padding-bottom: 12px; }
-@media (prefers-reduced-motion: reduce) { .needt-v3 .pk-sheet-layer[data-pk-kb] .pk-sheet { transition: none; } }
 /* The keyboard and the field's own chrome follow the frame's theme, not the system's. */
 .needt-v3:is([data-theme="light"], [data-theme="paper"], [data-theme="warm"]) .pk-sheet :is(input, textarea) { color-scheme: light; }
 .needt-v3:is([data-theme="dark"], [data-theme="dim"]) .pk-sheet :is(input, textarea) { color-scheme: dark; }
