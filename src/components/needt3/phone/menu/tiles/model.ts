@@ -3,6 +3,8 @@
  * arithmetic of the editor. Pure: nothing here reads a clock, the DOM or a
  * store (the facts come in as numbers and strings).
  */
+import { addDays } from "@/lib/needt3/derive";
+import type { V3Doc, V3Event, V3MailThread, V3Task } from "@/lib/needt3/map";
 import {
   type MenuTile,
   type MenuTileId,
@@ -12,6 +14,32 @@ import {
 
 import { type MenuPlaceId, menuSub } from "../places";
 import { type MenuCounts, menuStatus } from "../status";
+
+/** One line of the Today tile: a task, with its clock time when it has one. */
+export interface TodayRow {
+  time: string | null;
+  title: string;
+}
+/** A timed event of today, in minutes from midnight (the day strip). */
+export interface DayEvent {
+  title: string;
+  at: string;
+  start: number;
+  end: number;
+}
+export interface HabitRow {
+  id: string;
+  title: string;
+  color: string | null;
+  done: boolean;
+}
+export interface MailRow {
+  from: string;
+  subject: string;
+  preview: string;
+  unread: boolean;
+}
+export type WeekDot = "closed" | "open" | "quiet";
 
 /** What the live tiles need beyond the shared counts. */
 export interface TileFacts {
@@ -28,13 +56,133 @@ export interface TileFacts {
   streak?: number;
   /** The own colour of the first habit, when it has one. */
   habitHue?: string | null;
-  /** Active projects by id. */
-  projects: ReadonlyMap<string, { name: string; hue: string | null; open: number }>;
+  /** Active projects by id, with the titles of their first open tasks. */
+  projects: ReadonlyMap<
+    string,
+    { name: string; hue: string | null; open: number; titles?: string[] }
+  >;
+  /** Open tasks of today, in the order of the day. */
+  today?: TodayRow[];
+  /** Timed events of today still ahead or running, soonest first. */
+  events?: DayEvent[];
+  /** Minutes from midnight, now (the day strip's marker). */
+  nowMin?: number;
+  habitRows?: HabitRow[];
+  /** Titles of the tasks that have no time yet. */
+  inboxTitles?: string[];
+  mailRows?: MailRow[];
+  /** The documents edited last, newest first, and how long ago each was. */
+  docs?: V3Doc[];
+  docsAgo?: ReadonlyMap<string, string>;
+  /** The last seven days, oldest first, today last. */
+  week?: WeekDot[];
+}
+
+/* ---------- reading the app's own data into what a tile shows ---------- */
+
+const hm = (stamp: string) => stamp.slice(11, 16);
+const toMin = (stamp: string) =>
+  Number(stamp.slice(11, 13)) * 60 + Number(stamp.slice(14, 16));
+
+/** Open tasks of today: placed ones by their start, then the ones only due today. */
+export function todayRows(
+  tasks: readonly Pick<
+    V3Task,
+    "title" | "done" | "noSlot" | "dueDate" | "scheduledStart"
+  >[],
+  today: string,
+  limit = 9
+): TodayRow[] {
+  const placed: { at: string; title: string }[] = [];
+  const due: string[] = [];
+  for (const t of tasks) {
+    if (t.done || t.noSlot) continue;
+    if (t.scheduledStart && t.scheduledStart.slice(0, 10) === today)
+      placed.push({ at: t.scheduledStart, title: t.title });
+    else if (t.dueDate === today) due.push(t.title);
+  }
+  placed.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  return [
+    ...placed.map((p) => ({ time: hm(p.at), title: p.title || "Untitled" })),
+    ...due.map((title) => ({ time: null, title: title || "Untitled" })),
+  ].slice(0, limit);
+}
+
+/** Timed events of today that have not ended, soonest first. */
+export function dayEvents(
+  events: readonly Pick<V3Event, "title" | "startAt" | "endAt" | "isAllDay">[],
+  now: string,
+  limit = 6
+): DayEvent[] {
+  const today = now.slice(0, 10);
+  return events
+    .filter(
+      (e) => !e.isAllDay && e.startAt.slice(0, 10) === today && e.endAt > now
+    )
+    .sort((a, b) =>
+      a.startAt < b.startAt ? -1 : a.startAt > b.startAt ? 1 : 0
+    )
+    .slice(0, limit)
+    .map((e) => ({
+      title: e.title || "Event",
+      at: hm(e.startAt),
+      start: toMin(e.startAt),
+      end: e.endAt.slice(0, 10) === today ? toMin(e.endAt) : 24 * 60,
+    }));
+}
+
+/** Seven days ending today: closed (everything due was done), open, or nothing due. */
+export function weekDots(
+  tasks: readonly Pick<V3Task, "dueDate" | "done">[],
+  today: string
+): WeekDot[] {
+  const byDay = new Map<string, boolean>();
+  for (const t of tasks) {
+    if (!t.dueDate) continue;
+    byDay.set(t.dueDate, (byDay.get(t.dueDate) ?? true) && t.done);
+  }
+  const out: WeekDot[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const v = byDay.get(addDays(today, -i));
+    out.push(v === undefined ? "quiet" : v ? "closed" : "open");
+  }
+  return out;
+}
+
+/** Unread threads first, then the newest read ones; at most `limit`. */
+export function mailRows(
+  threads: readonly Pick<
+    V3MailThread,
+    | "from"
+    | "subject"
+    | "preview"
+    | "isRead"
+    | "isArchived"
+    | "trashedAt"
+    | "receivedAt"
+  >[],
+  limit = 3
+): MailRow[] {
+  const live = threads
+    .filter((m) => !m.isArchived && !m.trashedAt)
+    .sort((a, b) =>
+      a.receivedAt < b.receivedAt ? 1 : a.receivedAt > b.receivedAt ? -1 : 0
+    );
+  const unread = live.filter((m) => !m.isRead);
+  const rest = live.filter((m) => m.isRead);
+  return [...unread, ...rest].slice(0, limit).map((m) => ({
+    from: m.from || "Unknown",
+    subject: m.subject || "(no subject)",
+    preview: m.preview || "",
+    unread: !m.isRead,
+  }));
 }
 
 /** What a tile draws, and what a tap on it does. */
 export interface TileView {
-  /** The small kind line, top left. */
+  /** The one name a tile carries (a project folder carries the project's). */
+  name: string;
+  /** The kind, for the spoken label only: it is not drawn. */
   label: string;
   /** The one big word. */
   word: string;
@@ -57,6 +205,19 @@ const plural = (n: number, one: string, many: string) =>
 
 /** A tile of the catalogue, said from the facts. */
 export function tileView(tile: MenuTile, f: TileFacts): TileView {
+  return { ...tileSay(tile, f), name: nameOf(tile, f) };
+}
+
+function nameOf(tile: MenuTile, f: TileFacts): string {
+  if (tile.id === "project")
+    return (
+      (tile.projectId && f.projects.get(tile.projectId)?.name) ||
+      tileName("project")
+    );
+  return tileName(tile.id);
+}
+
+function tileSay(tile: MenuTile, f: TileFacts): Omit<TileView, "name"> {
   const c = f.counts;
   switch (tile.id) {
     case "today": {
@@ -90,7 +251,11 @@ export function tileView(tile: MenuTile, f: TileFacts): TileView {
       return {
         label: "Calendar",
         word: n ? n.at : n === null ? "Free" : "Calendar",
-        sub: n ? n.title : n === null ? "Nothing else today" : menuSub("calendar"),
+        sub: n
+          ? n.title
+          : n === null
+            ? "Nothing else today"
+            : menuSub("calendar"),
         hue: null,
         alert: false,
         go: { kind: "place", id: "calendar" },
@@ -169,7 +334,8 @@ export function tileView(tile: MenuTile, f: TileFacts): TileView {
         label: "Streak",
         word:
           f.streak === undefined ? "Streak" : plural(f.streak, "day", "days"),
-        sub: f.streak === undefined ? "Days closed in a row" : "closed in a row",
+        sub:
+          f.streak === undefined ? "Days closed in a row" : "closed in a row",
         hue: null,
         alert: false,
         go: { kind: "place", id: "home" },
@@ -298,4 +464,62 @@ export function resized(tiles: readonly MenuTile[], key: string): MenuTile[] {
 /** The list without the tile with `key`. */
 export function removed(tiles: readonly MenuTile[], key: string): MenuTile[] {
   return tiles.filter((t) => tileKey(t) !== key);
+}
+
+/* ---------- the grid, for the live reflow of a drag ---------- */
+
+/** A tile's cell in the two-column grid: the column it starts in and its row. */
+export interface Slot {
+  col: 0 | 1;
+  row: number;
+  span: 1 | 2;
+}
+
+/**
+ * Where each tile sits when the tiles are laid out in order, the way the CSS
+ * grid places them (no back-filling: a wide tile that does not fit beside a
+ * half tile starts the next row). Pure, so the drag can say where every other
+ * tile will be before the finger lets go.
+ */
+export function packTiles(tiles: readonly MenuTile[]): Slot[] {
+  let col = 0;
+  let row = 0;
+  return tiles.map((t) => {
+    const span = t.size === "2x1" ? 2 : 1;
+    if (col + span > 2) {
+      row += 1;
+      col = 0;
+    }
+    const slot: Slot = { col: col as 0 | 1, row, span };
+    col += span;
+    if (col >= 2) {
+      row += 1;
+      col = 0;
+    }
+    return slot;
+  });
+}
+
+/**
+ * How far (in whole columns and rows) each tile moves when the tile with
+ * `key` is dropped at index `to`, the dragged one included (it settles there).
+ */
+export function reflow(
+  tiles: readonly MenuTile[],
+  key: string,
+  to: number
+): Map<string, { dc: number; dr: number }> {
+  const next = dragTo(tiles, key, to);
+  const before = packTiles(tiles);
+  const after = packTiles(next);
+  const out = new Map<string, { dc: number; dr: number }>();
+  tiles.forEach((t, i) => {
+    const k = tileKey(t);
+    const j = next.findIndex((n) => tileKey(n) === k);
+    out.set(k, {
+      dc: (after[j]?.col ?? 0) - (before[i]?.col ?? 0),
+      dr: (after[j]?.row ?? 0) - (before[i]?.row ?? 0),
+    });
+  });
+  return out;
 }

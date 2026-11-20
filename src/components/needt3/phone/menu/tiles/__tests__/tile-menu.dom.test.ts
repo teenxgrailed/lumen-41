@@ -4,8 +4,12 @@
  * The tile menu, mounted for real with its data mocked:
  * - it draws the account's tiles in order, a 2x1 tile wide;
  * - a tap closes the menu and goes where the tile goes;
+ * - each tile carries one name and the real things (tasks, papers) of its object;
+ * - a tile with several pages turns through them on the shared timer;
  * - editing (Edit tiles, or a hold on a tile) shows a minus, a size button
- *   and the Add list; each change is one save of the whole ordered list;
+ *   and Add (the catalogue of real previews); each change is one save of the
+ *   whole ordered list;
+ * - every place stays reachable under Places;
  * - Escape ends editing first and only then closes;
  * - behind it the screen is inert while it is open.
  */
@@ -17,6 +21,7 @@ import type { MenuLayout } from "@/lib/phone-menu/layout";
 
 import { phoneCover } from "../../../shell/cover";
 import { TileMenu, type TileMenuProps } from "../TileMenu";
+import { __beat } from "../beat";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -42,7 +47,29 @@ jest.mock("../useTileFacts", () => ({
     counts,
     focus: null,
     streak: 4,
-    projects: new Map([["p1", { name: "Resale", hue: "#c05", open: 2 }]]),
+    projects: new Map([
+      [
+        "p1",
+        {
+          name: "Resale",
+          hue: "#c05",
+          open: 2,
+          titles: ["Photos", "List", "Ship"],
+        },
+      ],
+    ]),
+    today: [
+      { time: "09:00", title: "Plan the week" },
+      { time: "10:30", title: "Call the factory" },
+      { time: null, title: "Pay rent" },
+      { time: null, title: "Stretch" },
+    ],
+    events: [],
+    nowMin: 600,
+    habitRows: [],
+    inboxTitles: [],
+    mailRows: [],
+    docs: [],
   }),
 }));
 
@@ -125,25 +152,66 @@ afterEach(() => {
 const pointer = (el: Element, type: string, x = 10, y = 10) =>
   act(() => {
     el.dispatchEvent(
-      Object.assign(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y }), {
-        pointerId: 1,
-      })
+      Object.assign(
+        new MouseEvent(type, { bubbles: true, clientX: x, clientY: y }),
+        {
+          pointerId: 1,
+        }
+      )
     );
   });
 
 describe("the tile menu", () => {
   it("draws the account's tiles in order, the 2x1 one wide", () => {
     mount();
-    expect(qa("[data-ntm-tile]").map((n) => n.getAttribute("data-ntm-tile"))).toEqual([
-      "today",
-      "ask",
-      "project:p1",
-    ]);
+    expect(
+      qa("[data-ntm-tile]").map((n) => n.getAttribute("data-ntm-tile"))
+    ).toEqual(["today", "ask", "project:p1"]);
     expect(q('[data-tile="ask"]')!.className).toContain("is-wide");
     expect(q('[data-tile="today"]')!.className).not.toContain("is-wide");
-    expect(q('[data-tile="today"]')!.textContent).toContain("3 left today");
+    expect(q('[data-tile="today"]')!.textContent).toContain("3 left");
     expect(q('[data-tile="project"]')!.textContent).toContain("Resale");
     expect(q('[data-tile="project"]')!.textContent).toContain("2 open");
+  });
+
+  it("every tile carries one name, and shows its real things", () => {
+    mount();
+    for (const t of qa("[data-ntm-tile]"))
+      expect(t.querySelectorAll(".ntm-name")).toHaveLength(1);
+    const today = q('[data-tile="today"]')!;
+    expect(today.textContent).toContain("Plan the week");
+    expect(today.textContent).toContain("09:00");
+    expect(today.textContent).not.toContain("Stretch"); // the fourth is on the next page
+    expect(q('[data-tile="ask"] .ntm-name')!.textContent).toBe("Ask Needt");
+    const papers = qa('[data-tile="project"] .ntm-paper').map(
+      (n) => n.textContent
+    );
+    expect(papers).toEqual(["Photos", "List", "Ship"]);
+  });
+
+  it("a tile with several pages turns to the next on the shared timer, and stands still when the menu is edited", () => {
+    mount();
+    const today = () => q('[data-tile="today"]')!.textContent ?? "";
+    expect(today()).toContain("Plan the week");
+    act(() => {
+      jest.advanceTimersByTime(4100); // the fourth beat: the next page is due
+    });
+    act(() => {
+      jest.advanceTimersByTime(400); // the old one blurs out, the next goes in
+    });
+    expect(today()).toContain("Stretch");
+    expect(today()).not.toContain("Plan the week");
+    // editing: nothing listens, so the clock stops
+    act(() => q<HTMLButtonElement>("[data-ntm-customize]")!.click());
+    expect(__beat.listeners()).toBe(0);
+  });
+
+  it("leaves no listener on the shared timer once it is gone", () => {
+    mount();
+    expect(__beat.listeners()).toBeGreaterThan(0);
+    act(() => root.unmount());
+    expect(__beat.listeners()).toBe(0);
+    root = createRoot(host);
   });
 
   it("is a labelled modal dialog, and the screen behind is inert while it is open", () => {
@@ -166,20 +234,28 @@ describe("the tile menu", () => {
 
   it("a tap closes the menu and goes to the place, the project or the Focus sheet", () => {
     const c = mount();
-    act(() => q<HTMLButtonElement>('[data-tile="today"] [data-ntm-hit]')!.click());
-    act(() => q<HTMLButtonElement>('[data-tile="project"] [data-ntm-hit]')!.click());
+    act(() =>
+      q<HTMLButtonElement>('[data-tile="today"] [data-ntm-hit]')!.click()
+    );
+    act(() =>
+      q<HTMLButtonElement>('[data-tile="project"] [data-ntm-hit]')!.click()
+    );
     expect(c.pick).toEqual(["home"]);
     expect(c.project).toEqual(["p1"]);
     expect(c.close).toBe(2);
     layout = { style: "tiles", tiles: [{ id: "focus", size: "1x1" }] };
     const f = mount();
-    act(() => q<HTMLButtonElement>('[data-tile="focus"] [data-ntm-hit]')!.click());
+    act(() =>
+      q<HTMLButtonElement>('[data-tile="focus"] [data-ntm-hit]')!.click()
+    );
     expect(f.focus).toBe(1);
   });
 
-  it("lists every place that has no tile under the grid", () => {
+  it("the default view is the objects only; every place is under Places", () => {
     const c = mount();
-    expect(q('[data-ntm-place="home"]')).toBeNull(); // Today is a tile
+    expect(q("[data-ntm-place]")).toBeNull();
+    act(() => q<HTMLButtonElement>("[data-ntm-places]")!.click());
+    expect(q(".ntm-grid")).toBeNull();
     expect(q('[data-ntm-place="projects"]')).not.toBeNull();
     expect(q('[data-ntm-place="settings"]')).not.toBeNull();
     act(() => q<HTMLButtonElement>('[data-ntm-place="settings"]')!.click());
@@ -211,23 +287,29 @@ describe("the tile menu", () => {
       ],
     });
 
+    // Add opens the catalogue: real previews of what is not on the menu yet
+    act(() => q<HTMLButtonElement>("[data-ntm-open-add]")!.click());
+    expect(q(".ntm-cat")).not.toBeNull();
     act(() => q<HTMLButtonElement>('[data-ntm-add="streak"]')!.click());
     expect((save.mock.lastCall as unknown[])[0]).toEqual({
       tiles: [...layout.tiles, { id: "streak", size: "1x1" }],
     });
 
-    // a tile already on the grid is not offered again; a free project is
+    // a tile already on the grid is not offered again
     expect(q('[data-ntm-add="today"]')).toBeNull();
-    expect(qa('[data-ntm-add="project"]').map((n) => n.textContent)).toEqual([]);
+    expect(q('[data-ntm-add="streak"] .ntm-name')!.textContent).toBe("Streak");
+    act(() => q<HTMLButtonElement>("[data-ntm-cat-done]")!.click());
+    expect(q(".ntm-cat")).toBeNull();
   });
 
   it("offers a project that is not on the grid yet, and never an archived one", () => {
     layout = { style: "tiles", tiles: [{ id: "today", size: "1x1" }] };
     mount();
     act(() => q<HTMLButtonElement>("[data-ntm-customize]")!.click());
-    expect(qa('[data-ntm-add="project"]').map((n) => n.textContent)).toEqual([
-      "Resale",
-    ]);
+    act(() => q<HTMLButtonElement>("[data-ntm-open-add]")!.click());
+    expect(
+      qa('[data-ntm-add="project"] .ntm-name').map((n) => n.textContent)
+    ).toEqual(["Resale"]);
     act(() => q<HTMLButtonElement>('[data-ntm-add="project"]')!.click());
     expect((save.mock.lastCall as unknown[])[0]).toEqual({
       tiles: [
@@ -248,9 +330,7 @@ describe("the tile menu", () => {
     };
     mount();
     act(() => q<HTMLButtonElement>("[data-ntm-customize]")!.click());
-    expect(qa("[data-ntm-add]").every((n) => (n as HTMLButtonElement).disabled)).toBe(
-      true
-    );
+    expect(q<HTMLButtonElement>("[data-ntm-open-add]")!.disabled).toBe(true);
   });
 
   it("arrow keys move a tile and Delete removes it, while editing", () => {
@@ -285,7 +365,9 @@ describe("the tile menu", () => {
   it("a tap on a tile while editing goes nowhere", () => {
     const c = mount();
     act(() => q<HTMLButtonElement>("[data-ntm-customize]")!.click());
-    act(() => q<HTMLButtonElement>('[data-tile="today"] [data-ntm-hit]')!.click());
+    act(() =>
+      q<HTMLButtonElement>('[data-tile="today"] [data-ntm-hit]')!.click()
+    );
     expect(c.pick).toEqual([]);
     expect(c.close).toBe(0);
   });
@@ -349,19 +431,22 @@ describe("the tile menu", () => {
     mount();
     expect(q(".ntm-empty")!.textContent).toBe("No tiles yet.");
     act(() => q<HTMLButtonElement>("[data-ntm-customize]")!.click());
-    expect(q(".ntm-empty")!.textContent).toBe("No tiles. Add one below.");
+    expect(q(".ntm-empty")!.textContent).toBe("No tiles. Add one.");
+    act(() => q<HTMLButtonElement>("[data-ntm-open-add]")!.click());
     expect(q('[data-ntm-add="today"]')).not.toBeNull();
   });
 
   it("Reset puts the four default tiles back", () => {
     mount();
     act(() => q<HTMLButtonElement>("[data-ntm-customize]")!.click());
-    const reset = qa(".ntm-link").find((n) => /Reset/.test(n.textContent ?? ""))!;
+    const reset = qa(".ntm-link").find((n) =>
+      /Reset/.test(n.textContent ?? "")
+    )!;
     act(() => (reset as HTMLButtonElement).click());
     expect(
-      ((save.mock.lastCall as unknown[])[0] as { tiles: { id: string }[] }).tiles.map(
-        (t) => t.id
-      )
+      (
+        (save.mock.lastCall as unknown[])[0] as { tiles: { id: string }[] }
+      ).tiles.map((t) => t.id)
     ).toEqual(["today", "focus", "calendar", "habits"]);
   });
 

@@ -4,7 +4,6 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -14,9 +13,7 @@ import {
 } from "react";
 
 import {
-  LuFlame,
-  LuFolder,
-  LuInbox,
+  LuLayoutGrid,
   LuMaximize2,
   LuMinimize2,
   LuMinus,
@@ -25,6 +22,8 @@ import {
   LuX,
 } from "react-icons/lu";
 
+import { usePhoneMenu, useSavePhoneMenu } from "@/lib/needt3/hooks/phone-menu";
+import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
   DEFAULT_MENU_TILES,
   DEFAULT_TILE_SIZE,
@@ -34,10 +33,7 @@ import {
   addableTiles,
   tileKey,
 } from "@/lib/phone-menu/layout";
-import { usePhoneMenu, useSavePhoneMenu } from "@/lib/needt3/hooks/phone-menu";
-import { useProjects } from "@/lib/needt3/hooks/projects";
 
-import { Glyph, type GlyphName } from "../../../glyphs/Glyph";
 import { PkScrim } from "../../kit/Scrim";
 import { pkTrack } from "../../kit/pointer";
 import { pkCx } from "../../kit/util";
@@ -45,16 +41,14 @@ import { usePhoneCover } from "../../shell/cover";
 import { setInert } from "../a11y";
 import { MENU_ORDER, type MenuPlaceId, menuRows, menuWord } from "../places";
 import type { MenuCounts } from "../status";
+import { TileFace } from "./faces";
 import {
   type TileBox,
-  type TileFacts,
-  type TileView,
   dragTo,
   dropIndex,
-  placesOnGrid,
+  reflow,
   removed,
   resized,
-  tileName,
   tileView,
 } from "./model";
 import { useTileFacts } from "./useTileFacts";
@@ -65,6 +59,10 @@ const HOLD_MS = 450;
 const SLOP = 8;
 /** The layer stays mounted this long after it shuts, for the way out. */
 const OUT_MS = 260;
+/** The dragged tile's flight to its slot when the finger lets go. */
+const SETTLE_MS = 200;
+/** The grid's gap (menu-tiles.css), for the step from one cell to the next. */
+const GAP = 12;
 
 export interface TileMenuProps {
   open: boolean;
@@ -92,97 +90,17 @@ function useLinger(open: boolean, ms: number) {
   return open || lingering;
 }
 
-const GLYPH: Partial<Record<MenuTileId, GlyphName>> = {
-  today: "home",
-  calendar: "calendar",
-  habits: "habits",
-  mail: "mail",
-  docs: "docs",
-  ask: "ai",
-};
-
-/** The mark on a tile's plate. */
-function TileMark({ id }: { id: MenuTileId }) {
-  const g = GLYPH[id];
-  if (g) return <Glyph name={g} size={24} />;
-  if (id === "streak") return <LuFlame size={20} aria-hidden />;
-  if (id === "inbox") return <LuInbox size={20} aria-hidden />;
-  return <LuFolder size={20} aria-hidden />;
-}
-
-/** The focus tile's ring: the accent is the ring's mark, never a fill. */
-function FocusRing({ pct, paused }: { pct: number; paused: boolean }) {
-  const R = 17;
-  const C = 2 * Math.PI * R;
-  return (
-    <svg
-      className={pkCx("ntm-ring", paused && "is-paused")}
-      width="44"
-      height="44"
-      viewBox="0 0 44 44"
-      aria-hidden="true"
-    >
-      <circle
-        cx="22"
-        cy="22"
-        r={R}
-        fill="none"
-        stroke="var(--v2p-line)"
-        strokeWidth="3"
-      />
-      <circle
-        className="ntm-ring-arc"
-        cx="22"
-        cy="22"
-        r={R}
-        fill="none"
-        stroke="var(--accent)"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeDasharray={C}
-        strokeDashoffset={C * (1 - Math.max(pct, 0.001))}
-        transform="rotate(-90 22 22)"
-      />
-    </svg>
-  );
-}
-
-function TileBody({
-  tile,
-  view,
-  facts,
-}: {
-  tile: MenuTile;
-  view: TileView;
-  facts: TileFacts;
-}) {
-  return (
-    <>
-      <span className="ntm-label">{view.label}</span>
-      <span className="ntm-word">{view.word}</span>
-      <span className={pkCx("ntm-sub", view.alert && "is-alert")}>
-        {view.sub}
-      </span>
-      <span className="ntm-plate" aria-hidden="true">
-        {tile.id === "focus" ? (
-          <FocusRing pct={facts.focus?.pct ?? 0} paused={!!facts.focus?.paused} />
-        ) : (
-          <TileMark id={tile.id} />
-        )}
-      </span>
-    </>
-  );
-}
-
 /**
- * The tile menu (owner decisions 2026-11-20, ref 11): the app menu as a grid
- * of tiles over a blurred screen. Each tile is a live card (Today, Focus's
- * ring, the next event, mail, a project folder) glowing in the colour of the
- * object it stands for, never the accent. Hold a tile and the menu turns to
- * editing: the tiles jiggle, − removes, the corner button changes a tile's
- * size, a drag reorders, Add brings one back, and ✕ ends it. The set is the
- * account's (`/api/phone-menu`). Every place that has no tile stays one tap
- * away under the grid.
+ * The tile menu (owner decisions 2026-11-20, ref 11): the objects the person
+ * chose, each one a live miniature of itself (the next tasks, the ring of a
+ * focus session, the next event, the latest mail, a project folder with its
+ * own papers), glowing in the colour of what it stands for, never the accent.
+ * Tiles with several things to show turn through them, Craft-style, on one
+ * shared timer. Hold a tile and the menu turns to editing: the tiles jiggle,
+ * a drag reorders them while the others make room, − removes, the corner
+ * button changes a tile's size and Add opens the catalogue of what can be
+ * added. The set is the account's (`/api/phone-menu`). Every place stays one
+ * tap away under Places.
  */
 export function TileMenu({
   open,
@@ -208,6 +126,13 @@ export function TileMenu({
   );
 }
 
+function tileStyle(hue: string | null | undefined, i: number): CSSProperties {
+  return {
+    "--ntm-i": i,
+    ...(hue ? { "--ntm-hue": hue } : null),
+  } as CSSProperties;
+}
+
 function TileMenuLayer({
   open,
   onClose,
@@ -227,6 +152,8 @@ function TileMenuLayer({
   const [edit, setEdit] = useState(false);
   const [entered, setEntered] = useState(false);
   const [dragging, setDragging] = useState<string | null>(null);
+  const [places, setPlaces] = useState(false);
+  const [catalogue, setCatalogue] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const scrim = useRef<HTMLDivElement>(null);
   const grid = useRef<HTMLUListElement>(null);
@@ -234,17 +161,23 @@ function TileMenuLayer({
     off: null,
     hold: 0,
   });
+  const settle = useRef(0);
   const swallow = useRef(0);
   const close = useRef(onClose);
   close.current = onClose;
   const editRef = useRef(edit);
   editRef.current = edit;
+  const catalogueRef = useRef(catalogue);
+  catalogueRef.current = catalogue;
+  const tilesRef = useRef(tiles);
+  tilesRef.current = tiles;
 
   // In on the frame after it mounts, out as soon as it is told to shut.
   useEffect(() => {
     if (!open) {
       setEntered(false);
       setEdit(false);
+      setCatalogue(false);
       return undefined;
     }
     const raf = window.requestAnimationFrame(() => setEntered(true));
@@ -269,7 +202,8 @@ function TileMenuLayer({
     const key = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.stopPropagation();
-      if (editRef.current) setEdit(false);
+      if (catalogueRef.current) setCatalogue(false);
+      else if (editRef.current) setEdit(false);
       else close.current();
     };
     window.addEventListener("keydown", key);
@@ -280,14 +214,19 @@ function TileMenuLayer({
         before.focus({ preventScroll: true });
     };
   }, [open]);
-
   const clearPress = useCallback(() => {
     window.clearTimeout(press.current.hold);
     press.current.hold = 0;
     press.current.off?.();
     press.current.off = null;
   }, []);
-  useEffect(() => clearPress, [clearPress]);
+  useEffect(
+    () => () => {
+      clearPress();
+      window.clearTimeout(settle.current);
+    },
+    [clearPress]
+  );
 
   const commit = useCallback(
     (next: MenuTile[]) => {
@@ -314,27 +253,48 @@ function TileMenuLayer({
     else onPick(v.go.id);
   };
 
-  /* A press on a tile. At rest a hold turns to editing; while editing a
-     drag moves the tile (measured once, when it starts: no observers, and
-     nothing reflows under the finger). */
+  /** Puts every tile's drag offsets back (nothing is left on the DOM). */
+  const wipe = () => {
+    grid.current
+      ?.querySelectorAll<HTMLElement>("[data-ntm-tile]")
+      .forEach((n) => {
+        n.style.removeProperty("--ntm-dx");
+        n.style.removeProperty("--ntm-dy");
+        n.style.removeProperty("--ntm-rx");
+        n.style.removeProperty("--ntm-ry");
+      });
+  };
+
+  /* A press on a tile. At rest a hold turns to editing, and the same press goes
+     on as a drag if the finger moves; while editing a drag moves the tile and
+     the others make room for it at once. The grid is measured once, when the
+     drag starts (no observers), and then only transforms move: the order is
+     committed after the tile has settled into its slot. */
   const onTilePointerDown = (
     e: ReactPointerEvent<HTMLButtonElement>,
     tile: MenuTile
   ) => {
     if (e.button > 0) return;
+    if (settle.current) return;
     clearPress();
     const key = tileKey(tile);
     const el = e.currentTarget.closest<HTMLElement>("[data-ntm-tile]");
     const x0 = e.clientX;
     const y0 = e.clientY;
     let moved = false;
+    let armed = editRef.current;
     let boxes: TileBox[] = [];
+    let els = new Map<string, HTMLElement>();
+    let colStep = 0;
+    let rowStep = 0;
     let to = -1;
-    const wasEditing = editRef.current;
-    if (!wasEditing) {
+    if (!armed) {
       press.current.hold = window.setTimeout(() => {
         press.current.hold = 0;
-        if (!moved) enterEdit();
+        if (!moved) {
+          armed = true;
+          enterEdit();
+        }
       }, HOLD_MS);
     }
     const move = (m: PointerEvent) => {
@@ -342,13 +302,18 @@ function TileMenuLayer({
       const dy = m.clientY - y0;
       if (!moved && Math.hypot(dx, dy) < SLOP) return;
       if (!moved) {
-        moved = true;
         window.clearTimeout(press.current.hold);
         press.current.hold = 0;
-        if (!wasEditing) return; // a scroll, not a drag
-        boxes = Array.from(
+        if (!armed) {
+          moved = true; // a scroll, not a drag
+          return;
+        }
+        moved = true;
+        const list = Array.from(
           grid.current?.querySelectorAll<HTMLElement>("[data-ntm-tile]") ?? []
-        ).map((n) => {
+        );
+        els = new Map(list.map((n) => [n.dataset.ntmTile ?? "", n]));
+        boxes = list.map((n) => {
           const r = n.getBoundingClientRect();
           return {
             key: n.dataset.ntmTile ?? "",
@@ -358,37 +323,58 @@ function TileMenuLayer({
             h: r.height,
           };
         });
+        const g = grid.current?.getBoundingClientRect();
+        colStep = ((g?.width ?? 0) + GAP) / 2;
+        rowStep = (boxes[0]?.h ?? 164) + GAP;
+        to = tilesRef.current.findIndex((t) => tileKey(t) === key);
         setDragging(key);
       }
-      if (!wasEditing || !el) return;
+      if (!armed || !el) return;
       el.style.setProperty("--ntm-dx", `${dx}px`);
       el.style.setProperty("--ntm-dy", `${dy}px`);
       const at = dropIndex(boxes, m.clientX, m.clientY);
-      if (at !== to) {
+      if (at !== to && at >= 0) {
         to = at;
-        grid.current
-          ?.querySelectorAll("[data-ntm-drop]")
-          .forEach((n) => n.removeAttribute("data-ntm-drop"));
-        if (boxes[at] && boxes[at].key !== key)
-          grid.current
-            ?.querySelector(`[data-ntm-tile="${CSS.escape(boxes[at].key)}"]`)
-            ?.setAttribute("data-ntm-drop", "");
+        // the others take their new places, by translation only
+        for (const [k, s] of reflow(tilesRef.current, key, at)) {
+          if (k === key) continue;
+          const n = els.get(k);
+          if (!n) continue;
+          n.style.setProperty("--ntm-rx", `${s.dc * colStep}px`);
+          n.style.setProperty("--ntm-ry", `${s.dr * rowStep}px`);
+        }
       }
     };
     const end = (_: PointerEvent | null, reason: "up" | "cancel") => {
       window.clearTimeout(press.current.hold);
       press.current.hold = 0;
       press.current.off = null;
-      grid.current
-        ?.querySelectorAll("[data-ntm-drop]")
-        .forEach((n) => n.removeAttribute("data-ntm-drop"));
-      el?.style.removeProperty("--ntm-dx");
-      el?.style.removeProperty("--ntm-dy");
       if (moved) swallow.current = performance.now();
-      if (wasEditing && moved) {
+      if (!armed || !moved) return;
+      if (reason !== "up" || to < 0) {
+        wipe();
         setDragging(null);
-        if (reason === "up" && to >= 0) commit(dragTo(tiles, key, to));
+        return;
       }
+      // fly to the slot, then commit the order with nothing animating
+      const mine = reflow(tilesRef.current, key, to).get(key);
+      el?.style.setProperty("--ntm-dx", `${(mine?.dc ?? 0) * colStep}px`);
+      el?.style.setProperty("--ntm-dy", `${(mine?.dr ?? 0) * rowStep}px`);
+      grid.current?.setAttribute("data-ntm-settle", "");
+      const next = dragTo(tilesRef.current, key, to);
+      settle.current = window.setTimeout(() => {
+        grid.current?.setAttribute("data-ntm-flush", "");
+        grid.current?.removeAttribute("data-ntm-settle");
+        wipe();
+        commit(next);
+        setDragging(null);
+        window.requestAnimationFrame(() =>
+          window.requestAnimationFrame(() => {
+            grid.current?.removeAttribute("data-ntm-flush");
+            settle.current = 0;
+          })
+        );
+      }, SETTLE_MS);
     };
     press.current.off = pkTrack(move, end, e.pointerId);
   };
@@ -428,13 +414,12 @@ function TileMenuLayer({
     commit([...tiles, tile]);
   };
 
-  const onGrid = placesOnGrid(tiles);
-  const places = menuRows([], {
+  const rows = menuRows([], {
     agents: counts.agents !== undefined,
     budget: counts.budget !== undefined,
     learn: counts.learn !== undefined,
-  }).filter((id) => !onGrid.has(id));
-  const more = MENU_ORDER.filter((id) => places.includes(id));
+  });
+  const allPlaces = MENU_ORDER.filter((id) => rows.includes(id));
   const onProjects = new Set(
     tiles.filter((t) => t.id === "project").map((t) => t.projectId)
   );
@@ -443,74 +428,55 @@ function TileMenuLayer({
   );
   const full = tiles.length >= MENU_TILE_MAX;
   const free = addableTiles(tiles).filter((id) => id !== "project");
+  // Nothing turns while the menu is shut, being edited, dragged or covered.
+  const live = open && !edit && !dragging && !places && !catalogue;
 
-  let scrap: ReactNode = null;
-  if (edit) {
-    scrap = (
-      <section className="ntm-add" aria-label="Add a tile">
-        <span className="ntm-cap">
-          {full ? `${MENU_TILE_MAX} tiles is the most` : "Add"}
-        </span>
-        <div className="ntm-chips">
-          {free.map((id) => (
-            <button
-              key={id}
-              type="button"
-              className="ntm-chip"
-              data-ntm-add={id}
-              disabled={full}
-              onClick={() => add(id)}
-            >
-              <LuPlus size={14} aria-hidden />
-              {tileName(id)}
-            </button>
-          ))}
-          {freeProjects.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="ntm-chip"
-              data-ntm-add="project"
-              disabled={full}
-              onClick={() => add("project", p.id)}
-            >
-              <LuFolder size={14} aria-hidden />
-              {p.name}
-            </button>
-          ))}
-        </div>
+  const preview = (tile: MenuTile, i: number) => {
+    const v = tileView(tile, facts);
+    return (
+      <li
+        key={tileKey(tile)}
+        className={pkCx(
+          "ntm-tile",
+          "ntm-cat-tile",
+          tile.size === "2x1" && "is-wide"
+        )}
+        data-tile={tile.id}
+        style={tileStyle(v.hue, i)}
+      >
         <button
           type="button"
-          className="ntm-link"
-          onClick={() => commit([...DEFAULT_MENU_TILES])}
+          className="ntm-hit"
+          data-ntm-add={tile.id}
+          aria-label={`Add ${v.name}`}
+          disabled={full}
+          onClick={() => add(tile.id, tile.projectId)}
         >
-          Reset to the default tiles
+          <TileFace
+            tile={tile}
+            view={v}
+            facts={facts}
+            offset={i}
+            active={false}
+          />
         </button>
-      </section>
+        <span className="ntm-plus" aria-hidden="true">
+          <LuPlus size={16} strokeWidth={2.4} />
+        </span>
+      </li>
     );
-  } else {
-    scrap = (
-      <section className="ntm-more" aria-label="Every place">
-        <span className="ntm-cap">All places</span>
-        <div className="ntm-chips">
-          {more.map((id) => (
-            <button
-              key={id}
-              type="button"
-              className="ntm-chip"
-              data-ntm-place={id}
-              onClick={() => {
-                close.current();
-                onPick(id);
-              }}
-            >
-              {menuWord(id)}
-            </button>
-          ))}
-        </div>
-      </section>
-    );
-  }
+  };
+
+  const catalogueTiles: MenuTile[] = [
+    ...free.map((id): MenuTile => ({ id, size: DEFAULT_TILE_SIZE[id] })),
+    ...freeProjects.map(
+      (p): MenuTile => ({
+        id: "project",
+        size: DEFAULT_TILE_SIZE.project,
+        projectId: p.id,
+      })
+    ),
+  ];
 
   return (
     <div
@@ -527,92 +493,167 @@ function TileMenuLayer({
       data-ntm={open ? "open" : "shut"}
       data-assistant-avoid=""
     >
-      <PkScrim scrimRef={scrim} open={open} onClick={() => !edit && onClose()} />
+      <PkScrim
+        scrimRef={scrim}
+        open={open}
+        onClick={() => !edit && onClose()}
+      />
       <header className="ntm-head">
-        <h2 className="ntm-title">{edit ? "Edit tiles" : "Menu"}</h2>
-        {edit ? (
+        <h2 className="ntm-title">
+          {catalogue ? "Add" : places ? "Places" : edit ? "Edit tiles" : "Menu"}
+        </h2>
+        {edit && !catalogue ? (
           <p className="ntm-hint">Hold and drag to reorder.</p>
         ) : null}
       </header>
-      <div className="ntm-body" onClick={(e) => e.currentTarget === e.target && !edit && onClose()}>
-        <ul ref={grid} className="ntm-grid" data-ntm-grid="">
-          {tiles.map((tile, i) => {
-            const key = tileKey(tile);
-            const v = tileView(tile, facts);
-            const style = {
-              "--ntm-i": i,
-              ...(v.hue ? { "--ntm-hue": v.hue } : null),
-            } as CSSProperties;
-            return (
-              <li
-                key={key}
-                className={pkCx(
-                  "ntm-tile",
-                  tile.size === "2x1" && "is-wide",
-                  v.quiet && "is-quiet",
-                  dragging === key && "is-lifted"
-                )}
-                data-ntm-tile={key}
-                data-tile={tile.id}
-                style={style}
-              >
+      <div
+        className="ntm-body"
+        onClick={(e) => e.currentTarget === e.target && !edit && onClose()}
+      >
+        {places ? (
+          <section className="ntm-more" aria-label="Every place">
+            <div className="ntm-chips">
+              {allPlaces.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  className="ntm-chip"
+                  data-ntm-place={id}
+                  onClick={() => {
+                    close.current();
+                    onPick(id);
+                  }}
+                >
+                  {menuWord(id)}
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <>
+            <ul ref={grid} className="ntm-grid" data-ntm-grid="">
+              {tiles.map((tile, i) => {
+                const key = tileKey(tile);
+                const v = tileView(tile, facts);
+                return (
+                  <li
+                    key={key}
+                    className={pkCx(
+                      "ntm-tile",
+                      tile.size === "2x1" && "is-wide",
+                      v.quiet && "is-quiet",
+                      dragging === key && "is-lifted"
+                    )}
+                    data-ntm-tile={key}
+                    data-tile={tile.id}
+                    style={tileStyle(v.hue, i)}
+                  >
+                    <button
+                      type="button"
+                      className="ntm-hit"
+                      data-ntm-hit=""
+                      aria-label={
+                        edit
+                          ? `${v.name}. Arrow keys move it, Delete removes it.`
+                          : `${v.label}, ${v.word}, ${v.sub}`
+                      }
+                      onPointerDown={(e) => onTilePointerDown(e, tile)}
+                      onClick={() => onTileClick(tile)}
+                      onKeyDown={(e) => onTileKey(e, tile, i)}
+                      onContextMenu={(e) => e.preventDefault()}
+                    >
+                      <TileFace
+                        tile={tile}
+                        view={v}
+                        facts={facts}
+                        offset={i}
+                        active={live}
+                      />
+                    </button>
+                    {edit ? (
+                      <>
+                        <button
+                          type="button"
+                          className="ntm-minus"
+                          aria-label={`Remove ${v.name}`}
+                          data-ntm-remove={key}
+                          onClick={() => commit(removed(tiles, key))}
+                        >
+                          <LuMinus size={16} strokeWidth={2.4} aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          className="ntm-size"
+                          aria-label={
+                            tile.size === "1x1"
+                              ? `Make ${v.name} wide`
+                              : `Make ${v.name} square`
+                          }
+                          data-ntm-size={key}
+                          onClick={() => commit(resized(tiles, key))}
+                        >
+                          {tile.size === "1x1" ? (
+                            <LuMaximize2 size={13} aria-hidden />
+                          ) : (
+                            <LuMinimize2 size={13} aria-hidden />
+                          )}
+                        </button>
+                      </>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+            {!tiles.length ? (
+              <p className="ntm-empty">
+                {edit ? "No tiles. Add one." : "No tiles yet."}
+              </p>
+            ) : null}
+            {edit ? (
+              <div className="ntm-editbar">
                 <button
                   type="button"
-                  className="ntm-hit"
-                  data-ntm-hit=""
-                  aria-label={
-                    edit
-                      ? `${tileName(tile.id)}${tile.id === "project" ? ` ${v.word}` : ""}. Arrow keys move it, Delete removes it.`
-                      : `${v.label}, ${v.word}, ${v.sub}`
-                  }
-                  onPointerDown={(e) => onTilePointerDown(e, tile)}
-                  onClick={() => onTileClick(tile)}
-                  onKeyDown={(e) => onTileKey(e, tile, i)}
-                  onContextMenu={(e) => e.preventDefault()}
+                  className="ntm-pill"
+                  data-ntm-open-add=""
+                  disabled={full || !catalogueTiles.length}
+                  onClick={() => setCatalogue(true)}
                 >
-                  <TileBody tile={tile} view={v} facts={facts} />
+                  <LuPlus size={15} aria-hidden />
+                  {full ? `${MENU_TILE_MAX} tiles is the most` : "Add"}
                 </button>
-                {edit ? (
-                  <>
-                    <button
-                      type="button"
-                      className="ntm-minus"
-                      aria-label={`Remove ${tileName(tile.id)}`}
-                      data-ntm-remove={key}
-                      onClick={() => commit(removed(tiles, key))}
-                    >
-                      <LuMinus size={16} strokeWidth={2.4} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      className="ntm-size"
-                      aria-label={
-                        tile.size === "1x1"
-                          ? `Make ${tileName(tile.id)} wide`
-                          : `Make ${tileName(tile.id)} square`
-                      }
-                      data-ntm-size={key}
-                      onClick={() => commit(resized(tiles, key))}
-                    >
-                      {tile.size === "1x1" ? (
-                        <LuMaximize2 size={13} aria-hidden />
-                      ) : (
-                        <LuMinimize2 size={13} aria-hidden />
-                      )}
-                    </button>
-                  </>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-        {!tiles.length ? (
-          <p className="ntm-empty">
-            {edit ? "No tiles. Add one below." : "No tiles yet."}
-          </p>
-        ) : null}
-        {scrap}
+                <button
+                  type="button"
+                  className="ntm-link"
+                  onClick={() => commit([...DEFAULT_MENU_TILES])}
+                >
+                  Reset
+                </button>
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
+      {catalogue ? (
+        <section className="ntm-cat" aria-label="Add a tile">
+          <div className="ntm-cat-body">
+            {catalogueTiles.length ? (
+              <ul className="ntm-grid ntm-cat-grid">
+                {catalogueTiles.map((t, i) => preview(t, i))}
+              </ul>
+            ) : (
+              <p className="ntm-empty">Everything is already on the menu.</p>
+            )}
+          </div>
+          <button
+            type="button"
+            className="ntm-pill ntm-cat-done"
+            data-ntm-cat-done=""
+            onClick={() => setCatalogue(false)}
+          >
+            Done
+          </button>
+        </section>
+      ) : null}
       <footer className="ntm-foot">
         {edit ? (
           <button
@@ -626,15 +667,29 @@ function TileMenuLayer({
           </button>
         ) : (
           <>
-            <button
-              type="button"
-              className="ntm-link"
-              data-ntm-customize=""
-              onClick={() => setEdit(true)}
-            >
-              <LuSlidersHorizontal size={16} aria-hidden />
-              Edit tiles
-            </button>
+            <div className="ntm-foot-row">
+              <button
+                type="button"
+                className="ntm-link"
+                data-ntm-customize=""
+                onClick={() => {
+                  setPlaces(false);
+                  setEdit(true);
+                }}
+              >
+                <LuSlidersHorizontal size={16} aria-hidden />
+                Edit tiles
+              </button>
+              <button
+                type="button"
+                className="ntm-link"
+                data-ntm-places=""
+                onClick={() => setPlaces((p) => !p)}
+              >
+                <LuLayoutGrid size={16} aria-hidden />
+                {places ? "Tiles" : "Places"}
+              </button>
+            </div>
             <button
               type="button"
               className="ntm-round"

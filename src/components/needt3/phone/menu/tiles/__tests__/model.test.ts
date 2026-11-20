@@ -1,7 +1,7 @@
 import {
   DEFAULT_MENU_TILES,
-  type MenuTile,
   MENU_TILE_IDS,
+  type MenuTile,
   addableTiles,
   layoutFromRow,
   moveTile,
@@ -11,13 +11,19 @@ import {
 import {
   type TileBox,
   type TileFacts,
+  dayEvents,
   dragTo,
   dropIndex,
+  mailRows,
+  packTiles,
   placesOnGrid,
+  reflow,
   removed,
   resized,
   tileName,
   tileView,
+  todayRows,
+  weekDots,
 } from "../model";
 
 const facts = (over: Partial<TileFacts> = {}): TileFacts => ({
@@ -122,7 +128,9 @@ describe("tileView", () => {
     expect(
       tileView(
         tile("calendar"),
-        facts({ counts: { nextEvent: { title: "Standup", at: "09:30", inMin: 5 } } })
+        facts({
+          counts: { nextEvent: { title: "Standup", at: "09:30", inMin: 5 } },
+        })
       ).word
     ).toBe("09:30");
     expect(
@@ -156,24 +164,27 @@ describe("tileView", () => {
   it("Streak and a project folder use their own facts; a habit's colour is the habits tile's", () => {
     expect(tileView(tile("streak"), facts({ streak: 1 })).word).toBe("1 day");
     expect(tileView(tile("streak"), facts({ streak: 9 })).word).toBe("9 days");
-    const projects = new Map([["p1", { name: "Resale", hue: "#c05", open: 4 }]]);
-    const p = tileView(tile("project", { projectId: "p1" }), facts({ projects }));
+    const projects = new Map([
+      ["p1", { name: "Resale", hue: "#c05", open: 4 }],
+    ]);
+    const p = tileView(
+      tile("project", { projectId: "p1" }),
+      facts({ projects })
+    );
     expect(p.word).toBe("Resale");
     expect(p.sub).toBe("4 open");
     expect(p.hue).toBe("#c05");
     expect(p.go).toEqual({ kind: "project", id: "p1" });
-    expect(
-      tileView(tile("habits"), facts({ habitHue: "#7a5" })).hue
-    ).toBe("#7a5");
+    expect(tileView(tile("habits"), facts({ habitHue: "#7a5" })).hue).toBe(
+      "#7a5"
+    );
   });
 
   it("a tile's hue is the object's own and never the accent", () => {
     for (const id of MENU_TILE_IDS)
       expect(
-        tileView(
-          tile(id, id === "project" ? { projectId: "p" } : {}),
-          facts()
-        ).hue ?? ""
+        tileView(tile(id, id === "project" ? { projectId: "p" } : {}), facts())
+          .hue ?? ""
       ).not.toMatch(/accent/);
   });
 });
@@ -211,7 +222,10 @@ describe("the editor's arithmetic", () => {
   });
 
   it("offers a project again but a tile already on the grid not at all", () => {
-    const free = addableTiles([tile("today"), tile("project", { projectId: "a" })]);
+    const free = addableTiles([
+      tile("today"),
+      tile("project", { projectId: "a" }),
+    ]);
     expect(free).not.toContain("today");
     expect(free).toContain("project");
     expect(free).toContain("streak");
@@ -235,5 +249,154 @@ describe("the editor's arithmetic", () => {
     expect(on.has("home")).toBe(true);
     expect(on.has("tasks")).toBe(true);
     expect(on.has("mail")).toBe(false);
+  });
+});
+
+describe("one name per tile", () => {
+  it("every tile has a name, and a project folder carries the project's", () => {
+    for (const id of MENU_TILE_IDS)
+      expect(tileView(tile(id), facts()).name).toBe(tileName(id));
+    const projects = new Map([["p1", { name: "Resale", hue: null, open: 1 }]]);
+    expect(
+      tileView(tile("project", { projectId: "p1" }), facts({ projects })).name
+    ).toBe("Resale");
+  });
+});
+
+describe("reading the app's data into tiles", () => {
+  const t = (over: object) => ({
+    title: "T",
+    done: false,
+    noSlot: false,
+    dueDate: null,
+    scheduledStart: null,
+    ...over,
+  });
+
+  it("todayRows: placed tasks by their start, then the ones only due today; done ones never", () => {
+    const rows = todayRows(
+      [
+        t({ title: "B", scheduledStart: "2026-11-20T10:30" }),
+        t({ title: "A", scheduledStart: "2026-11-20T09:00" }),
+        t({ title: "Due", dueDate: "2026-11-20" }),
+        t({ title: "Done", dueDate: "2026-11-20", done: true }),
+        t({ title: "Later", scheduledStart: "2026-11-21T09:00" }),
+      ],
+      "2026-11-20"
+    );
+    expect(rows).toEqual([
+      { time: "09:00", title: "A" },
+      { time: "10:30", title: "B" },
+      { time: null, title: "Due" },
+    ]);
+  });
+
+  it("dayEvents: timed events of today that have not ended, soonest first, in minutes", () => {
+    const e = (
+      title: string,
+      startAt: string,
+      endAt: string,
+      isAllDay = false
+    ) => ({
+      title,
+      startAt,
+      endAt,
+      isAllDay,
+    });
+    const ev = dayEvents(
+      [
+        e("Late", "2026-11-20T16:00", "2026-11-20T17:00"),
+        e("Over", "2026-11-20T08:00", "2026-11-20T09:00"),
+        e("Day", "2026-11-20T00:00", "2026-11-21T00:00", true),
+        e("Next", "2026-11-20T12:15", "2026-11-20T13:00"),
+      ],
+      "2026-11-20T11:00"
+    );
+    expect(ev.map((x) => x.title)).toEqual(["Next", "Late"]);
+    expect(ev[0]).toMatchObject({ at: "12:15", start: 735, end: 780 });
+  });
+
+  it("weekDots: seven days ending today, closed when everything due was done", () => {
+    const dots = weekDots(
+      [
+        { dueDate: "2026-11-20", done: true },
+        { dueDate: "2026-11-19", done: true },
+        { dueDate: "2026-11-19", done: false },
+        { dueDate: "2026-11-18", done: true },
+      ],
+      "2026-11-20"
+    );
+    expect(dots).toHaveLength(7);
+    expect(dots.slice(-3)).toEqual(["closed", "open", "closed"]);
+    expect(dots[0]).toBe("quiet");
+  });
+
+  it("mailRows: unread first, then the newest read; never archived", () => {
+    const m = (over: object) => ({
+      from: "x",
+      subject: "s",
+      preview: "p",
+      isRead: true,
+      isArchived: false,
+      trashedAt: null,
+      receivedAt: "2026-11-20T08:00",
+      ...over,
+    });
+    const rows = mailRows([
+      m({ from: "Old read", receivedAt: "2026-11-19T08:00" }),
+      m({ from: "New read", receivedAt: "2026-11-20T09:00" }),
+      m({ from: "Unread", isRead: false, receivedAt: "2026-11-18T08:00" }),
+      m({ from: "Gone", isArchived: true }),
+    ]);
+    expect(rows.map((r) => r.from)).toEqual(["Unread", "New read", "Old read"]);
+  });
+});
+
+describe("the live reflow of a drag", () => {
+  const set = [
+    tile("today"),
+    tile("focus"),
+    tile("ask", { size: "2x1" }),
+    tile("habits"),
+    tile("mail"),
+  ];
+
+  it("packTiles lays tiles out in order, two columns, a wide one on its own row", () => {
+    expect(packTiles(set)).toEqual([
+      { col: 0, row: 0, span: 1 },
+      { col: 1, row: 0, span: 1 },
+      { col: 0, row: 1, span: 2 },
+      { col: 0, row: 2, span: 1 },
+      { col: 1, row: 2, span: 1 },
+    ]);
+  });
+
+  it("a wide tile that does not fit beside a half tile starts the next row (no back-filling)", () => {
+    expect(
+      packTiles([tile("today"), tile("ask", { size: "2x1" }), tile("focus")])
+    ).toEqual([
+      { col: 0, row: 0, span: 1 },
+      { col: 0, row: 1, span: 2 },
+      { col: 0, row: 2, span: 1 },
+    ]);
+  });
+
+  it("reflow to where it already is moves nothing", () => {
+    for (const d of reflow(set, "focus", 1).values())
+      expect(d).toEqual({ dc: 0, dr: 0 });
+  });
+
+  it("reflow: dragging the first tile to the end shifts every other tile to the place before", () => {
+    const r = reflow(set, "today", 4);
+    const after = packTiles(dragTo(set, "today", 4));
+    const before = packTiles(set);
+    set.forEach((x, i) => {
+      const j = dragTo(set, "today", 4).findIndex((n) => n.id === x.id);
+      expect(r.get(x.id)).toEqual({
+        dc: after[j].col - before[i].col,
+        dr: after[j].row - before[i].row,
+      });
+    });
+    expect(r.get("today")).toEqual({ dc: 0, dr: 3 });
   });
 });
