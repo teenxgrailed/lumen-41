@@ -32,6 +32,8 @@ const updateSchema = z.object({
       chat: chatSchema,
       text: z.string().optional(),
       voice: z.object({ file_id: z.string() }).optional(),
+      // The emoji is read defensively: a malformed one must not drop the update.
+      sticker: z.object({ emoji: z.unknown().optional() }).optional(),
     })
     .optional(),
   callback_query: z
@@ -107,8 +109,18 @@ function keyboardOf(message: OutgoingMessage): InlineButton[][] {
 export function createTelegramAdapter(options: {
   client: TelegramClient;
   secret: string;
+  /** Telegram file_id of the sticker sent after a task is done; unset = none. */
+  doneStickerFileId?: string | null;
 }): ChannelAdapter {
-  const { client, secret } = options;
+  const { client, secret, doneStickerFileId } = options;
+
+  const celebrate = async (target: ChannelTarget, message: OutgoingMessage) => {
+    if (!message.celebrate || !doneStickerFileId) return;
+    // The sticker is a bonus: its failure never undoes the text confirmation.
+    await client
+      .sendSticker(target.externalChatId, doneStickerFileId)
+      .catch(() => undefined);
+  };
 
   return {
     channel: TELEGRAM_CHANNEL,
@@ -164,6 +176,18 @@ export function createTelegramAdapter(options: {
           event: { kind: "voice", voiceFileRef: message.voice.file_id },
         };
       }
+      if (message.sticker) {
+        const { emoji } = message.sticker;
+        return {
+          ...base,
+          event: {
+            kind: "sticker",
+            ...(typeof emoji === "string" && emoji.trim()
+              ? { emoji: emoji.trim() }
+              : {}),
+          },
+        };
+      }
       if (typeof message.text === "string" && message.text.trim()) {
         return { ...base, event: eventOfText(message.text) };
       }
@@ -200,9 +224,11 @@ export function createTelegramAdapter(options: {
           message.text,
           keyboard
         );
+        await celebrate(target, message);
         return;
       }
       await client.sendMessage(target.externalChatId, message.text, keyboard);
+      await celebrate(target, message);
     },
 
     async loadVoice(voiceFileRef): Promise<AudioPayload | null> {
