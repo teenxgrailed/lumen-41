@@ -19,7 +19,7 @@ import {
 let grainUrl: string | null = null;
 
 /** Paper grain: one static 128px tile, built once and shared. */
-function paperGrain(): string {
+export function paperGrain(): string {
   if (grainUrl !== null) return grainUrl;
   try {
     const c = document.createElement("canvas");

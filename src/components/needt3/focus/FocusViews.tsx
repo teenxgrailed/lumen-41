@@ -21,8 +21,6 @@ import { cvDur, cvProject, project } from "@/lib/needt3/derive";
 import {
   LENGTHS,
   type LengthChoice,
-  SOUNDS,
-  type Sound,
   clockOf,
   endsAt,
   lengthMinutes,
@@ -34,6 +32,7 @@ import { useTaskParts, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
 
 import { GlassCard } from "../scenes";
+import { FcSoundPicker } from "./FcSoundPicker";
 import { FdEarlyAsk } from "./FdEarlyAsk";
 import * as copy from "./strings";
 import type { FocusController } from "./useFocusController";
@@ -208,15 +207,6 @@ function FcSeg<T extends string>({
   );
 }
 
-const soundLabel = (v: Sound) =>
-  v === "off"
-    ? copy.sounds.off
-    : v === "rain"
-      ? copy.sounds.rain
-      : v === "cafe"
-        ? copy.sounds.caf
-        : copy.sounds.white_noise;
-
 /* ---------- setup ---------- */
 
 function FcSetup({ ctl }: { ctl: FocusController }) {
@@ -374,13 +364,7 @@ function FcSetup({ ctl }: { ctl: FocusController }) {
       >
         <div className="fc-opt">
           <span className="fc-label">{copy.setup.ambient_sound}</span>
-          <FcSeg
-            items={SOUNDS.map((v) => [v, soundLabel(v)] as const)}
-            value={ctl.sound}
-            onChange={ctl.setSound}
-            label={copy.setup.ambient_sound}
-            icons
-          />
+          <FcSoundPicker sound={ctl.sound} onPick={ctl.setSound} inline />
         </div>
         <button
           type="button"
@@ -503,7 +487,7 @@ function FcTaskCard({ task }: { task: V3Task }) {
 
 /** End session's one confirm: takes the focus when it appears, so Enter ends
  *  and Esc (the window's) keeps going. */
-function FcEndConfirm({
+export function FcEndConfirm({
   onEnd,
   onKeep,
 }: {
@@ -545,10 +529,6 @@ function FcRun({ ctl }: { ctl: FocusController }) {
     !run.isBreak && run.intention && task && run.intention !== task.title
       ? run.intention
       : null;
-  const cycle = () => {
-    const i = SOUNDS.indexOf(ctl.sound);
-    ctl.setSound(SOUNDS[(i + 1) % SOUNDS.length]);
-  };
   const clock = clockOf(run);
   const ends = endsAt(run, ctl.nowMs, ctl.tz);
   const planned = run.plannedMinutes;
@@ -627,17 +607,7 @@ function FcRun({ ctl }: { ctl: FocusController }) {
           <FcGlyph name="stop" size={13} />
           {stopLabel}
         </button>
-        <button
-          type="button"
-          className="px-chip-btn fc-chip"
-          onClick={cycle}
-          data-fc-sound={ctl.sound}
-          title={copy.run.ambient_sound_click_to_change}
-          aria-label={`${copy.run.ambient_sound} ${soundLabel(ctl.sound)}`}
-        >
-          <FcGlyph name={ctl.sound} size={14} />
-          {soundLabel(ctl.sound)}
-        </button>
+        <FcSoundPicker sound={ctl.sound} onPick={ctl.setSound} />
       </div>
 
       {confirming ? (
