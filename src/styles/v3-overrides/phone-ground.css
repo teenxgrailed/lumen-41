@@ -84,7 +84,7 @@ html[data-ground="page"]:has(
    * above the display edge (additions-2/phone-shell .ps-dock); 10 px of that
    * is the menu's own margin, the rest is the lift. With Safari's tab bar at
    * the bottom of a tab it lifts 54 px more (below). */
-  --v3-dock-lift: 20px;
+  --v3-dock-lift: max(20px, calc(var(--v3-sab) - 6px));
   /* How far a full-screen fixed layer stands in from the top and bottom edge. */
   --v3-edge: 8px;
   /* Height of the fog under the dock, from the display edge: 128 px, or the

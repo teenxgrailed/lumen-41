@@ -1,0 +1,490 @@
+/*
+ * The phone's tile menu (TileMenu.tsx) and the classic dock's restyle.
+ *
+ * Owner refs, 2026-11-20 (ref 11, day-plan-2026-11): a grid of raised tiles
+ * over a blurred screen, each tile a live card with a small kind line, one big
+ * word, a grey line and a round plate; editing blurs the head, jiggles the
+ * tiles, puts a round minus on each and swaps the dock for a round close.
+ *
+ * PORT.md: every grey is the one ink at a ladder alpha, chrome type is 13px
+ * and 12px (the one big word on a tile is a display figure, like the rows of
+ * the card), elevation is a ring, the accent is a mark only (the focus ring),
+ * and a tile's glow is the colour of the object it stands for.
+ */
+
+/* ── the layer ── */
+.needt-v3 .ntm {
+  --ntm-glow: 30%;
+  --ntm-grain: 0.32;
+  position: absolute;
+  inset: 0;
+  z-index: 52;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  color: var(--v2p-ink);
+  font-family: var(--font-sans);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.needt-v3[data-theme="dark"] .ntm,
+.needt-v3[data-theme="dim"] .ntm {
+  --ntm-glow: 54%;
+  --ntm-grain: 0.5;
+}
+.needt-v3 .ntm.is-in {
+  opacity: 1;
+  pointer-events: auto;
+}
+.needt-v3 .ntm > .pk-scrim {
+  z-index: 0;
+}
+.needt-v3 .ntm > :not(.pk-scrim) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── the head: it blurs back while editing, as in the ref ── */
+.needt-v3 .ntm-head {
+  flex: none;
+  padding-top: calc(var(--v3-top, 52px) + 8px);
+  padding-bottom: 12px;
+  transition: opacity 0.2s ease;
+}
+.needt-v3 .ntm.is-edit .ntm-head {
+  opacity: 0.55;
+}
+.needt-v3 .ntm-title {
+  margin: 0;
+  font: 600 28px/32px var(--font-sans);
+  letter-spacing: -0.02em;
+}
+.needt-v3 .ntm-hint {
+  margin: 4px 0 0;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+
+/* ── the body: the grid sits low, in reach of the thumb ── */
+.needt-v3 .ntm-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* room for a tile's wobble at the edges */
+  margin: 0 -6px;
+  padding: 6px;
+}
+.needt-v3 .ntm-body::-webkit-scrollbar {
+  display: none;
+}
+.needt-v3 .ntm-grid {
+  /* the first child: auto margin pushes the grid down without hiding the top
+     of a grid taller than the body (flex-end would) */
+  margin: auto 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: dense;
+  gap: 12px;
+}
+.needt-v3 .ntm-empty {
+  margin: 12px 0 0;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--v2p-ink-2);
+  text-align: center;
+}
+
+/* ── a tile ── */
+.needt-v3 .ntm-tile {
+  position: relative;
+  grid-column: span 1;
+  height: 164px;
+  border-radius: 28px;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--v2p-raise);
+  box-shadow: inset 0 0 0 1px var(--v2p-line);
+  /* in: a short rise, staggered; individual transform properties, so the
+     editing wobble (rotate) and a lift (translate, scale) never fight it */
+  translate: 0 14px;
+  scale: 0.97;
+  opacity: 0;
+  transition:
+    translate 0.32s cubic-bezier(0.2, 0.9, 0.25, 1),
+    scale 0.32s cubic-bezier(0.2, 0.9, 0.25, 1),
+    opacity 0.2s ease,
+    box-shadow 0.15s ease;
+  transition-delay: calc(var(--ntm-i, 0) * 26ms);
+}
+.needt-v3 .ntm.is-in .ntm-tile {
+  translate: 0 0;
+  scale: 1;
+  opacity: 1;
+}
+.needt-v3 .ntm-tile.is-wide {
+  grid-column: span 2;
+}
+/* the glow: the object's own colour, low in the tile where the plate sits */
+.needt-v3 .ntm-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(
+    95% 85% at 18% 108%,
+    color-mix(in oklab, var(--ntm-hue, var(--v2p-ink-3)) var(--ntm-glow), transparent),
+    transparent 72%
+  );
+  pointer-events: none;
+}
+.needt-v3 .ntm-tile.is-quiet::before {
+  opacity: 0.55;
+}
+/* the colours of the objects (never the accent) */
+.needt-v3 .ntm-tile[data-tile="today"] {
+  --ntm-hue: var(--info);
+}
+.needt-v3 .ntm-tile[data-tile="focus"] {
+  --ntm-hue: oklch(0.72 0.13 200);
+}
+.needt-v3 .ntm-tile[data-tile="calendar"] {
+  --ntm-hue: var(--success);
+}
+.needt-v3 .ntm-tile[data-tile="habits"] {
+  --ntm-hue: oklch(0.7 0.15 305);
+}
+.needt-v3 .ntm-tile[data-tile="inbox"] {
+  --ntm-hue: oklch(0.74 0.11 235);
+}
+.needt-v3 .ntm-tile[data-tile="mail"] {
+  --ntm-hue: oklch(0.74 0.13 15);
+}
+.needt-v3 .ntm-tile[data-tile="docs"] {
+  --ntm-hue: oklch(0.82 0.13 100);
+}
+.needt-v3 .ntm-tile[data-tile="ask"] {
+  --ntm-hue: oklch(0.72 0.14 300);
+}
+.needt-v3 .ntm-tile[data-tile="streak"] {
+  --ntm-hue: oklch(0.7 0.19 38);
+}
+/* a project folder: its own colour as a wash, with grain, as on the folders;
+   an inline --ntm-hue (the project's colour) wins over the fallback */
+.needt-v3 .ntm-tile[data-tile="project"] {
+  --ntm-hue: var(--v2p-ink-3);
+  background:
+    linear-gradient(
+      color-mix(in oklab, var(--ntm-hue) 18%, transparent),
+      color-mix(in oklab, var(--ntm-hue) 8%, transparent)
+    ),
+    var(--v2p-raise);
+}
+.needt-v3 .ntm-tile[data-tile="project"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: var(--ntm-grain);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* what the tile says */
+.needt-v3 .ntm-hit {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 16px 16px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.needt-v3 .ntm.is-edit .ntm-hit {
+  touch-action: none;
+}
+.needt-v3 .ntm-hit:focus-visible {
+  outline: 2px solid var(--v2p-ink-3);
+  outline-offset: -3px;
+  border-radius: 28px;
+}
+.needt-v3 .ntm-label {
+  font: 400 12px/16px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-word {
+  max-width: 100%;
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 24px/28px var(--font-sans);
+  letter-spacing: -0.02em;
+}
+.needt-v3 .ntm-sub {
+  max-width: 100%;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-sub.is-alert {
+  color: var(--destructive);
+}
+.needt-v3 .ntm-plate {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--v2p-ink) 8%, transparent);
+  box-shadow: inset 0 0 0 1px var(--v2p-line);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-tile[data-tile="focus"] .ntm-plate {
+  background: none;
+  box-shadow: none;
+}
+.needt-v3 .ntm-ring {
+  display: block;
+}
+.needt-v3 .ntm-ring.is-paused {
+  opacity: 0.5;
+}
+.needt-v3 .ntm-ring-arc {
+  transition: stroke-dashoffset 1s linear;
+}
+.needt-v3 .ntm-tile:has(.ntm-hit:active):not(.is-lifted) {
+  scale: 0.97;
+  transition-delay: 0s;
+}
+
+/* ── editing ── */
+.needt-v3 .ntm-minus,
+.needt-v3 .ntm-size {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+/* the minus is the ink's own disc (the page's ground in it): a mark, not the accent */
+.needt-v3 .ntm-minus {
+  top: 10px;
+  right: 10px;
+  background: var(--v2p-ink);
+  color: var(--v2p-ground);
+}
+.needt-v3 .ntm-size {
+  right: 10px;
+  bottom: 10px;
+  background: var(--v2p-raise-2);
+  color: var(--v2p-ink);
+  box-shadow: inset 0 0 0 1px var(--v2p-line);
+}
+.needt-v3 .ntm-minus::before,
+.needt-v3 .ntm-size::before {
+  /* a 44px target around a 28px disc */
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+.needt-v3 .ntm-minus:focus-visible,
+.needt-v3 .ntm-size:focus-visible,
+.needt-v3 .ntm-chip:focus-visible,
+.needt-v3 .ntm-link:focus-visible,
+.needt-v3 .ntm-round:focus-visible {
+  outline: 2px solid var(--v2p-ink-3);
+  outline-offset: 2px;
+}
+@keyframes ntm-jig {
+  from {
+    rotate: -0.9deg;
+  }
+  to {
+    rotate: 0.9deg;
+  }
+}
+.needt-v3 .ntm.is-edit .ntm-tile:not(.is-lifted) {
+  animation: ntm-jig 0.24s ease-in-out infinite alternate;
+  animation-delay: calc(var(--ntm-i, 0) * -41ms);
+}
+.needt-v3 .ntm.is-edit .ntm-tile:nth-child(even):not(.is-lifted) {
+  animation-direction: alternate-reverse;
+}
+.needt-v3 .ntm-tile.is-lifted {
+  z-index: 3;
+  translate: var(--ntm-dx, 0px) var(--ntm-dy, 0px);
+  scale: 1.04;
+  transition: none;
+  box-shadow: inset 0 0 0 1.5px var(--v2p-ink-3);
+}
+.needt-v3 .ntm-tile[data-ntm-drop] {
+  box-shadow: inset 0 0 0 1.5px var(--v2p-ink-3);
+}
+
+/* ── under the grid: every place without a tile, or the Add list ── */
+.needt-v3 .ntm-more,
+.needt-v3 .ntm-add {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 20px;
+}
+.needt-v3 .ntm-cap {
+  font: 400 12px/16px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.needt-v3 .ntm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--v2p-raise);
+  box-shadow: inset 0 0 0 1px var(--v2p-line);
+  color: var(--v2p-ink);
+  font: 500 13px/18px var(--font-sans);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.15s ease;
+}
+.needt-v3 .ntm-chip:active:not(:disabled) {
+  scale: 0.96;
+}
+.needt-v3 .ntm-chip:disabled {
+  opacity: 0.4;
+}
+
+/* ── the foot: where the dock was, so the close is under the thumb ── */
+.needt-v3 .ntm-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 8px;
+  /* the same height the dock stands at, and never under the home indicator */
+  padding-bottom: calc(var(--v3-dock-lift, 20px) + 10px);
+}
+.needt-v3 .ntm-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--v2p-ink-2);
+  font: 400 13px/18px var(--font-sans);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+.needt-v3 .ntm-add .ntm-link {
+  padding-left: 0;
+}
+.needt-v3 .ntm-round {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--v2p-raise);
+  box-shadow: inset 0 0 0 1px var(--v2p-line);
+  color: var(--v2p-ink);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.15s ease;
+}
+.needt-v3 .ntm-round:active {
+  scale: 0.92;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ntm,
+  .needt-v3 .ntm-head,
+  .needt-v3 .ntm-tile,
+  .needt-v3 .ntm-chip,
+  .needt-v3 .ntm-round,
+  .needt-v3 .ntm-ring-arc {
+    transition-duration: 0.01s;
+    transition-delay: 0s;
+  }
+  .needt-v3 .ntm-tile {
+    translate: none;
+    scale: none;
+  }
+  /* no wobble: editing reads as a ring on each tile instead */
+  .needt-v3 .ntm.is-edit .ntm-tile:not(.is-lifted) {
+    animation: none;
+    box-shadow: inset 0 0 0 1.5px var(--v2p-ink-3);
+  }
+}
+
+/* ── the classic dock, restyled (menu A's pill; ref 11's bar) ──
+ * The place you are in sits in a round raised ground of the pill, not under a
+ * small dot: a ground shift, never the accent. The pill and the + beside it
+ * keep their own geometry (menu-a.ts), so the card still grows out of them.
+ * The circle is gone by the time the card has opened (--nva-k), so the tiles
+ * of the card are untouched. */
+.needt-v3 .nva-icon.is-on::before,
+.needt-v3 .nva-dots.is-here::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: var(--nva-raise-2, rgba(128, 128, 140, 0.2));
+  box-shadow: inset 0 0 0 1px var(--nva-line, transparent);
+  opacity: calc(1 - var(--nva-k, 0) * 12);
+}
+.needt-v3 .nva-icon .nva-glyph,
+.needt-v3 .nva-dots svg {
+  position: relative;
+}
+.needt-v3 .nva-icon.is-on .nva-icon-dot,
+.needt-v3 .nva-dots.is-here::after {
+  display: none;
+}

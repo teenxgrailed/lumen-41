@@ -282,6 +282,7 @@ model User {
   HabitPush                    HabitPush[]
   activationEvents             ActivationEvent[]
   dayPlans                     DayPlan[]
+  phoneMenuLayout              PhoneMenuLayout?
   planSettings                 PlanSettings?
   somedayMigrationMoves        SomedayMigrationMove[]
   channelLinks                 ChannelLink[]
@@ -4770,4 +4771,18 @@ model ChannelUpdate {
 
   @@unique([channel, externalUpdateId])
   @@index([createdAt])
+}
+
+// The phone app menu: one row per account, absent until the person changes
+// something (the API then answers with the default set). `tiles` is the ordered
+// list the zod schema in src/services/phone-menu/layout.ts validates;
+// `style` is "tiles" or the older "card" menu.
+model PhoneMenuLayout {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  style     String   @default("tiles")
+  tiles     Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

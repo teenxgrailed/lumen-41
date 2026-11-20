@@ -126,6 +126,11 @@ export interface MenuProps {
   variant?: "classic" | "float";
   /** Each new value (> 0) opens the card, as a tap on the dot grid does. */
   openRequest?: number;
+  /**
+   * The tile menu is the app menu: the dot grid, a tap on the pill and a swipe
+   * up on it call this instead of growing the card.
+   */
+  onOpenTiles?: () => void;
   /** The card opened (card or full) or closed to the pill. */
   onOpenChange?: (open: boolean) => void;
 }
@@ -842,6 +847,18 @@ export function Menu(props: MenuProps) {
         scrollTop: sc ? sc.scrollTop : 0,
         t: S.t.x,
       });
+      // a swipe up on the pill opens the tile menu, not the card
+      if (
+        d.kind === "drag" &&
+        d.m === "pill" &&
+        dy < 0 &&
+        propsRef.current.onOpenTiles
+      ) {
+        d.kind = "none";
+        S.gestureEnd = performance.now();
+        propsRef.current.onOpenTiles();
+        return;
+      }
       d.yk = d.y0;
       d.px0 = nvaSpringsToTrack(g, S.p.x, S.t.x); // count from the touch-down
       S.dragging = true;
@@ -973,6 +990,13 @@ export function Menu(props: MenuProps) {
     }
   };
 
+  /** The card, or the tile menu where that is the app menu. */
+  const openCard = () => {
+    const tiles = propsRef.current.onOpenTiles;
+    if (tiles) tiles();
+    else go("card");
+  };
+
   const pick = (id: MenuPlaceId) => {
     if (id === "settings") propsRef.current.onSettings();
     else propsRef.current.onPick(id);
@@ -981,7 +1005,7 @@ export function Menu(props: MenuProps) {
   const onShapeClick = (e: React.MouseEvent) => {
     // the pill's ground (not one of the three) opens; the handle comes back
     if ((e.target as Element).closest("button")) return;
-    if (modeRef.current === "pill") go("card");
+    if (modeRef.current === "pill") openCard();
     else if (modeRef.current === "hidden") go("pill");
   };
 
@@ -1304,7 +1328,7 @@ export function Menu(props: MenuProps) {
               type="button"
               className={"nva-dots" + (!here ? " is-here" : "")}
               tabIndex={mode === "pill" ? 0 : -1}
-              onClick={() => go("card")}
+              onClick={openCard}
               aria-expanded={open}
               aria-controls={cardId}
               aria-label={

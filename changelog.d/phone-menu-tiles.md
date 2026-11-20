@@ -1,0 +1,2 @@
+- On the phone, the menu is now a grid of tiles you choose: Today, Focus, Habits, Inbox, Calendar, Mail, Docs, Ask Needt, Streak and project folders. Hold a tile to rearrange, resize or remove it. The set is saved to your account and is available through the API (`/api/phone-menu`). The old menu card is still there under Settings, App menu.
+- The bottom bar keeps clear of the screen's rounded corners and the home indicator, and the active place sits in a round plate.
