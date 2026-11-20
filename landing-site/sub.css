@@ -268,3 +268,13 @@ body.sx-students .sx-btn.acc { color: #3a1a05; }
 @media (max-width: 760px) { .st-steps { grid-template-columns: 1fr; } }
 .bx-plan.on .pr s { color: rgba(255,255,255,.5); }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* One device frame (20.11.26): same proportions as .dphone in styles.css */
+.lv-phone, .sx-trio .lv-phone { aspect-ratio: 402 / 874; background: #0b0c10; padding: 2.6%; box-sizing: border-box; border-radius: 12% / 5.52%; transform: none;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.1) inset, 0 0 0 1.5px #2a2b2f, 0 34px 60px -28px rgba(10,14,40,.55); }
+.lv-scr, .sx-trio .lv-scr { border-radius: 9.9% / 4.43%; isolation: isolate; background: #141517; }
+.sx-trio .lv-phone:nth-child(2) { transform: translateY(-40px); }
+.bx-stage { padding-bottom: 0; }
+.bx-ph, .bx-ph:nth-child(2) { margin: 0; }
+.bx-ph .lv-phone { max-width: none; background: #0b0c10; }
+.bx-caps { background: none; padding-top: 22px; }

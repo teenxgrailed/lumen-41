@@ -501,37 +501,14 @@ body.is-night .soon { background: rgba(255,255,255,.1); color: rgba(244,243,251,
 }
 
 /* ── Phone menu ──────────────────────────────────────── */
-.nav-burger { display: none; width: 38px; height: 38px; border: 0; border-radius: 11px; background: rgba(10,13,18,.05); cursor: pointer; place-items: center; }
-.nav-burger span { display: block; width: 16px; height: 1.6px; background: var(--ink); border-radius: 2px; box-shadow: 0 -5px 0 var(--ink), 0 5px 0 var(--ink); }
 @media (max-width: 860px) {
   .nav-links { display: none; }
-  .nav-burger { display: grid; }
-  body.nav-open .nav-links { display: flex; position: fixed; top: 76px; left: 12px; right: 12px; flex-direction: column; align-items: stretch; gap: 2px; padding: 10px; border-radius: 20px; background: #fff; box-shadow: var(--shadow-floating); }
   .nav-pill { width: auto; min-height: 0; padding: 6px 6px 6px 14px; border-radius: 22px; }
   .nav-pill .nav-right .btn-sm { height: 38px; padding: 0 14px; font-size: 14px; }
   .nav-pill .brand-word { font-size: 25px; } .nav-pill .brand img { width: 28px; height: 28px; }
   .nav-pill .nav-link .chev { display: inline; }
   .nav-pill::before { height: 100% !important; border-radius: 22px; }
   .nav-links { flex: none; }
-  body.nav-open .nav-item .menu { position: static; transform: none; opacity: 1; visibility: visible; pointer-events: auto; padding: 0; margin: 2px 0 6px; }
-  body.nav-open .mega, body.nav-open .mega-main { display: block; }
-  body.nav-open .menu a { display: grid; grid-template-columns: 36px 1fr; column-gap: 12px; align-items: center; min-height: 0; padding: 8px; background: none; box-shadow: none; row-gap: 0; }
-  body.nav-open .menu a span { grid-column: 2; }
-  body.nav-open .menu .mi { grid-row: span 2; }
-  body.nav-open .menu .ms .mi { grid-row: auto; width: 36px; height: 36px; }
-  /* Phone menu (v21): a few big tiles with the app's glyphs, like the app's places grid —
-     no descriptions, no secondary links (they live in the footer and on the hubs). */
-  body.nav-open .menu .mega-side { display: none; }
-  body.nav-open .mega-main { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
-  body.nav-open .menu a.mc { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; border-radius: 18px; background: #f6f4f0; min-height: 0; }
-  body.nav-open .menu a.mc span { display: none; }
-  body.nav-open .menu a.mc b { font-size: 17px; }
-  body.nav-open .menu a.mc .mi { width: 40px; height: 40px; background: #fff; border-radius: 12px; }
-  body.nav-open .menu a.mc .mi svg { width: 26px; height: 26px; }
-  body.nav-open .nav-links > .nav-link { font-size: 18px; font-weight: 600; height: 48px; }
-  body.nav-open .nav-item > .nav-trigger { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); height: 34px; pointer-events: none; }
-  body.nav-open .nav-item > .nav-trigger .chev { display: none; }
-  body.nav-open .nav-links { max-height: calc(100dvh - 92px); overflow-y: auto; overscroll-behavior: contain; }
 }
 
 /* ── Responsive ──────────────────────────────────────── */
@@ -848,12 +825,6 @@ drives --nt on the veil, which ::before inherits. */
 .xp-soon em { background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); }
 @media (max-width: 860px) {
   .nav-x .nav-x-btn { display: none; }
-  body.nav-open .xpanel { position: static; transform: none; width: auto; visibility: visible; pointer-events: auto; clip-path: none; margin-top: 8px; }
-  body.nav-open .xp-in { padding: 14px; border-radius: 18px; }
-  body.nav-open .xp-head { padding: 4px 4px 10px; } body.nav-open .xp-head b { font-size: 20px; }
-  body.nav-open .xp-card { opacity: 1; transform: none; min-height: 120px; padding: 14px; }
-  body.nav-open .xp-soon { display: none; } body.nav-open .xp-deck { grid-template-columns: 1fr 1fr; }
-  body.nav-open .xp-ic { width: 36px; height: 36px; border-radius: 11px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .xpanel, .xpanel.is-open { transition: none; clip-path: none; }
@@ -1116,9 +1087,6 @@ drives --nt on the veil, which ::before inherits. */
   .hero .cta-row { margin-top: 26px; }
   .hero-phone { margin-top: 36px; margin-bottom: -60px; }
   .hero-phone video { clip-path: inset(0 round 13% / 6%); }
-  body.nav-open .nav-links { flex-direction: row; flex-wrap: wrap; column-gap: 8px; }
-  body.nav-open .nav-links > .nav-item, body.nav-open .nav-links > .nav-x { flex: 1 1 100%; }
-  body.nav-open .nav-links > .nav-link { flex: 1 1 calc(50% - 4px); justify-content: center; text-align: center; height: 52px; margin: 6px 0 4px; border-radius: 16px; background: #f6f4f0; font-size: 17px; }
 }
 @media (max-width: 860px) { .hero::after { display: block !important; height: 70px; z-index: 4; } }
 
@@ -1624,3 +1592,69 @@ div.up-row { cursor: default; }
 /* v47: the brand name in the footer line links home, in the line's own colour */
 .foot-base a { color: inherit; text-decoration: none; }
 .foot-base a:hover { color: #fff; }
+
+/* ── One device frame (20.11.26) ─────────────────────────────────
+   Every CSS-drawn phone uses these proportions: outer radius 12% of the width (≈46px at 390),
+   even 2.6% bezel, screen radius = outer − bezel, screen clipped to it. Percent radii keep the
+   proportions at every size. Screens are shown whole (object-fit: contain), never cropped at the sides. */
+.dphone { position: relative; display: block; aspect-ratio: 402 / 874; background: #0b0c10; padding: 2.6%; box-sizing: border-box;
+  border-radius: 12% / 5.52%; box-shadow: 0 0 0 1px rgba(255,255,255,.1) inset, 0 0 0 1.5px #2a2b2f, 0 34px 60px -28px rgba(10,14,40,.55); transform: none; }
+.dphone-scr { position: relative; display: block; width: 100%; height: 100%; overflow: hidden; background: #141517;
+  border-radius: 9.9% / 4.43%; isolation: isolate; }
+.dphone-scr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0; box-shadow: none; transform: none; }
+.mx-bud > .dphone { position: absolute; right: 30px; bottom: -130px; width: 200px; transform: rotate(4deg); transition: transform .4s var(--ease); }
+.mx-bud:hover > .dphone { transform: rotate(2deg) translateY(-8px); }
+@media (max-width: 860px) {
+  .mx-bud, .mx-bud.mx { padding-bottom: 30px; min-height: 0; }
+  .mx-bud .mx-txt { flex: none; max-width: none; }
+  .mx-bud .mx-go { margin-top: 0; padding-top: 18px; }
+  .mx-bud > .dphone, .mx-bud:hover > .dphone { position: relative; right: auto; bottom: auto; width: min(64%, 236px); margin: 28px auto 0; transform: none; }
+  /* Budget page: two whole phones side by side, level, with their own bottom edge */
+  .bx-ph, .bx-ph:nth-child(2) { margin: 0; }
+  .bx-caps { background: none; padding-top: 22px; }
+  /* Header: nothing reads through or around the pill */
+  .nav::before { content: ""; position: fixed; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top) + 84px); z-index: -1; pointer-events: none;
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+  .nav-pill::before, body.is-night .nav-pill::before { background-color: #fff; }
+  body.is-night .nav-pill::before { background-color: rgb(28,27,50); }
+}
+.bx-stage { padding-bottom: 0; }
+.bx-ph { margin: 0 0 0; }
+.bx-ph:nth-child(2) { margin-bottom: 0; }
+.bx-caps { background: none; padding-top: 22px; }
+.bx-ph .lv-phone { max-width: none; }
+.bx-ph .lv-scr img { object-fit: cover; object-position: top left; }
+
+/* ── Alive (20.11.26): transform and opacity only, off under reduced motion ── */
+.rl-chip p { transition: opacity .22s var(--ease); }
+.rl-chip.swap p { opacity: 0; }
+.scr-sec { overflow: hidden; }
+.scr-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(14px, 2.4vw, 32px); max-width: 1080px; margin: clamp(36px, 5vw, 64px) auto 0; align-items: start; }
+.scr { margin: 0; text-align: center; }
+.scr .scr-par { will-change: transform; transform: translate3d(0, calc(var(--p, 0) * var(--k, -14px)), 0); }
+.scr .dphone { width: 100%; }
+.scr figcaption { margin-top: 18px; font: 600 14px/1.3 var(--sans); color: rgba(14,21,32,.62); }
+.scr:nth-child(2) { --k: -26px; } .scr:nth-child(3) { --k: -8px; } .scr:nth-child(4) { --k: -20px; }
+.scr-desk { margin: clamp(30px, 4vw, 52px) auto 0; max-width: 1080px; border-radius: 22px; overflow: hidden; background: #fff;
+  box-shadow: 0 0 0 1px rgba(10,13,18,.09), 0 50px 100px -50px rgba(30,30,90,.4); }
+.scr-desk img { display: block; width: 100%; height: auto; }
+.am-ticks { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 26px 0 0; padding: 0; position: relative; }
+.am-ticks li { display: inline-flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 999px; background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); color: rgba(244,243,251,.86); font: 600 13.5px/1 var(--sans); }
+.am-st { position: relative; display: inline-block; min-width: 4.6em; height: 1em; }
+.am-st span { position: absolute; left: 0; top: 0; white-space: nowrap; opacity: 0; }
+.am-st .a { color: #9bb6ff; animation: amA 9s ease-in-out infinite; }
+.am-st .b { color: #ffb27a; animation: amB 9s ease-in-out infinite; }
+.am-st .c { color: #7de3a8; animation: amC 9s ease-in-out infinite; }
+.am-ticks li:nth-child(2) .am-st span { animation-delay: -3s; } .am-ticks li:nth-child(3) .am-st span { animation-delay: -6s; }
+@keyframes amA { 0%, 28% { opacity: 1; } 34%, 100% { opacity: 0; } }
+@keyframes amB { 0%, 30% { opacity: 0; } 36%, 61% { opacity: 1; } 67%, 100% { opacity: 0; } }
+@keyframes amC { 0%, 63% { opacity: 0; } 69%, 94% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes scrFloat { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -7px, 0); } }
+.scr .dphone { animation: scrFloat 7s ease-in-out infinite; }
+.scr:nth-child(2) .dphone { animation-delay: -1.7s; } .scr:nth-child(3) .dphone { animation-delay: -3.4s; } .scr:nth-child(4) .dphone { animation-delay: -5.1s; }
+@media (max-width: 860px) { .scr-row { grid-template-columns: 1fr 1fr; max-width: 420px; } .scr .scr-par { transform: none; } .scr-desk { border-radius: 16px; } }
+@media (prefers-reduced-motion: reduce) {
+  .scr .dphone, .am-st span { animation: none !important; } .scr .scr-par { transform: none; }
+  .am-st .c { opacity: 1; } .am-st .a, .am-st .b { opacity: 0; }
+}
