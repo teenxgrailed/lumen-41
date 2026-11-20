@@ -49,10 +49,27 @@
 
 /* ── the head: it blurs back while editing, as in the ref ── */
 .needt-v3 .ntm-head {
+  position: relative;
+  z-index: 1;
   flex: none;
-  padding-top: calc(var(--v3-top, 52px) + 8px);
+  padding-top: calc(max(var(--v3-top, 0px), 20px) + 12px);
   padding-bottom: 12px;
   transition: opacity 0.2s ease;
+}
+/* The screen's own title is still readable through the scrim; a fade of the
+   ground colour keeps it from colliding with ours. */
+.needt-v3 .ntm::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: calc(max(var(--v3-top, 0px), 20px) + 120px);
+  background: linear-gradient(
+    to bottom,
+    var(--v2p-ground) 0%,
+    var(--v2p-ground) 80%,
+    transparent 100%
+  );
+  pointer-events: none;
 }
 .needt-v3 .ntm.is-edit .ntm-head {
   opacity: 0.55;
@@ -142,7 +159,11 @@
   z-index: -1;
   background: radial-gradient(
     95% 85% at 18% 108%,
-    color-mix(in oklab, var(--ntm-hue, var(--v2p-ink-3)) var(--ntm-glow), transparent),
+    color-mix(
+      in oklab,
+      var(--ntm-hue, var(--v2p-ink-3)) var(--ntm-glow),
+      transparent
+    ),
     transparent 72%
   );
   pointer-events: none;
