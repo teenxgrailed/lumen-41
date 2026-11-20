@@ -1,0 +1,1 @@
+- Every email (sign-in code and sign-in alerts included) now uses one calm layout: the Needt logo, one heading, one dark button with a plain link under it, a very large sign-in code that selects in one tap, and a small footer. It holds up in dark mode and forced inversion.

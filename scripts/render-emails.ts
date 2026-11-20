@@ -7,10 +7,20 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { sampleEmails } from "../src/lib/email/templates/catalog";
+import { lifecycleSamples } from "../src/lib/email/templates/lifecycle-catalog";
 
 const outDir = process.argv[2] ?? "/tmp/needt-emails";
 mkdirSync(outDir, { recursive: true });
-const emails = Object.entries(sampleEmails());
+const emails: Array<[string, { subject: string; html: string; text: string }]> =
+  [
+    ...Object.entries(sampleEmails()),
+    ...lifecycleSamples().map(
+      (sample): [string, { subject: string; html: string; text: string }] => [
+        `lifecycle-${sample.key}`,
+        sample.email,
+      ]
+    ),
+  ];
 for (const [name, mail] of emails) {
   writeFileSync(join(outDir, `${name}.html`), mail.html);
   writeFileSync(join(outDir, `${name}.txt`), `${mail.subject}\n\n${mail.text}`);
