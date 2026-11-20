@@ -180,13 +180,18 @@ describe("PkTaskSheet", () => {
 
 describe("PkComposer", () => {
   const out = html(h(PkComposer, { open: true, onClose: none }));
-  it("one big field, the three chips, Add disabled while empty", () => {
+  it("one big field with its mirror, the form rows, Add and Add another", () => {
     expect(out).toContain("data-pov-line");
-    for (const c of ["date", "time", "duration", "project", "priority"])
-      expect(out).toContain(`data-pov-chip="${c}"`);
+    expect(out).toContain("pov-mirror");
+    for (const r of ["when", "duration", "project", "priority", "more"])
+      expect(out).toContain(`data-pov-fact="${r}"`);
+    expect(out).not.toContain("data-pov-chip");
     expect(out).not.toContain("data-pov-attach-btn");
     expect(out).toMatch(
       /<button[^>]*disabled[^>]*data-pov-add|data-pov-add[^>]*disabled/
+    );
+    expect(out).toMatch(
+      /<button[^>]*disabled[^>]*data-pov-another|data-pov-another[^>]*disabled/
     );
     expect(out).toContain("Say when, which project, how urgent");
   });
