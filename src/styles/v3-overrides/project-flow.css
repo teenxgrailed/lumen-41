@@ -215,8 +215,8 @@
 
 /* Projects as folders (folders_v1): the grid of folders; the cards keep .wk-pgrid */
 .needt-v3 .wk-pgrid.is-folders {
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 30px 26px;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: 24px 16px;
   padding: 14px 0 2px;
 }
 /* phone: two folders across */
@@ -226,4 +226,9 @@
   gap: 22px 14px;
   padding: 18px 16px 24px;
   box-shadow: none;
+}
+/* Docs as folders on the phone: the screen already pads the page, so the
+   folder grid takes no side padding of its own */
+.needt-v3 .pd-home .ptk-plist.is-folders {
+  padding: 8px 0 24px;
 }

@@ -94,7 +94,13 @@ export interface GoalsViewProps {
    * `habits_cards_v1`: goals as cards, with their next step and risk hint.
    * Absent = the list as before.
    */
-  cards?: Pick<GoalCardsProps, "nextSteps" | "hues" | "today">;
+  cards?: Pick<
+    GoalCardsProps,
+    "nextSteps" | "hues" | "today" | "stepDays" | "planned"
+  >;
+  /** Cards: place a goal's next step; `scheduling` is true while it runs. */
+  onSchedule?: (taskId: string) => void;
+  scheduling?: boolean;
 }
 
 function dayLabel(iso: string | null) {
@@ -658,25 +664,40 @@ export function GoalsView(props: GoalsViewProps) {
   const list = goals ?? [];
   const active = list.filter((g) => g.status === "active").length;
   const meta = pro ? (
-    `${active} active ${active === 1 ? "goal" : "goals"} · never scheduled`
+    `${active} active ${active === 1 ? "goal" : "goals"}`
   ) : (
     <ProBadge locked feature="Goals" />
   );
   return (
     <div className="scroll-inner gl-screen" data-v3-screen="goals">
       <header className="pl-place-header-row">
-        <button
-          type="button"
-          aria-label="New goal"
-          title="New goal"
-          data-page-add=""
-          className="nx-btn nx-btn-secondary page-add"
-          onClick={pro ? props.onNew : props.onUpgrade}
-        >
-          <LuPlus size={18} aria-hidden />
-        </button>
+        {pro ? null : (
+          // Pro has "+ New goal" at the right end; Free's + opens the paywall
+          <button
+            type="button"
+            aria-label="New goal"
+            title="New goal"
+            data-page-add=""
+            className="nx-btn nx-btn-secondary page-add"
+            onClick={props.onUpgrade}
+          >
+            <LuPlus size={18} aria-hidden />
+          </button>
+        )}
         <h1 className="pl-place-header-text">Goals</h1>
         <span className="pl-place-header-text-2">{meta}</span>
+        {pro && list.length ? (
+          // with no goals yet the empty state has its own New goal
+          <button
+            type="button"
+            className="nx-btn nx-btn-secondary nx-btn-sm gl-new"
+            data-gl-new=""
+            onClick={props.onNew}
+          >
+            <LuPlus size={14} aria-hidden />
+            New goal
+          </button>
+        ) : null}
       </header>
       {props.loading && !goals ? null : !list.length ? (
         pro ? (
@@ -688,6 +709,7 @@ export function GoalsView(props: GoalsViewProps) {
               <button
                 type="button"
                 className="nx-btn nx-btn-primary"
+                data-gl-new=""
                 onClick={props.onNew}
               >
                 <LuPlus size={14} aria-hidden />
@@ -723,6 +745,14 @@ export function GoalsView(props: GoalsViewProps) {
               nextSteps={props.cards.nextSteps}
               hues={props.cards.hues}
               today={props.cards.today}
+              stepDays={props.cards.stepDays}
+              planned={props.cards.planned}
+              busy={props.scheduling}
+              onSchedule={props.onSchedule}
+              onPlan={(id) => {
+                // the goal's own panel is where its tasks are added
+                if (id !== selectedId) props.onSelect(id);
+              }}
               onSelect={(id) => props.onSelect(id === selectedId ? null : id)}
             />
           ) : (
