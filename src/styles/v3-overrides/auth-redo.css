@@ -1,0 +1,201 @@
+/* THE AUTH REDO (design review 2026-11-20): the static sky, the plan chip, the
+ * 16+ line, the "Soon" mark. Rules of PORT.md hold: every grey is one text
+ * colour at a ladder alpha, chrome type is 13 / 12 px, the accent is never a
+ * fill. Nothing here animates, so there is nothing to switch off for
+ * prefers-reduced-motion; the sky is painted once. */
+
+/* The sky: day is the lavender sky of the product, night its dark pair. Four
+   soft glows stand in for the clouds; a different set per screen so sign-up
+   is not sign-in. No canvas, no rAF, no grain image. */
+.needt-v3 .px-sky.auth-sky {
+  --auth-sky-top: var(--sky-lavender-top);
+  --auth-sky-mid: var(--sky-lavender-mid);
+  --auth-sky-low: var(--sky-lavender-low);
+  --auth-sky-sun: var(--sky-lavender-sun);
+  --auth-sky-cloud: rgba(255, 255, 255, 0.55);
+  background:
+    radial-gradient(
+      46% 34% at 80% 10%,
+      var(--auth-sky-sun),
+      rgba(255, 248, 246, 0) 72%
+    ),
+    radial-gradient(
+      40% 22% at 14% 78%,
+      var(--auth-sky-cloud),
+      rgba(255, 255, 255, 0) 72%
+    ),
+    radial-gradient(
+      34% 16% at 90% 66%,
+      var(--auth-sky-cloud),
+      rgba(255, 255, 255, 0) 72%
+    ),
+    radial-gradient(
+      30% 14% at 30% 22%,
+      var(--auth-sky-cloud),
+      rgba(255, 255, 255, 0) 72%
+    ),
+    linear-gradient(
+      var(--auth-sky-top),
+      var(--auth-sky-mid) 55%,
+      var(--auth-sky-low)
+    );
+}
+.needt-v3 .px-sky.auth-sky[data-auth-sky="c"] {
+  background-position:
+    0 0,
+    0 0,
+    0 0,
+    0 0,
+    0 0;
+  background-image:
+    radial-gradient(
+      42% 32% at 18% 12%,
+      var(--auth-sky-sun),
+      rgba(255, 248, 246, 0) 72%
+    ),
+    radial-gradient(
+      40% 20% at 84% 80%,
+      var(--auth-sky-cloud),
+      rgba(255, 255, 255, 0) 72%
+    ),
+    radial-gradient(
+      32% 16% at 8% 62%,
+      var(--auth-sky-cloud),
+      rgba(255, 255, 255, 0) 72%
+    ),
+    radial-gradient(
+      30% 14% at 70% 24%,
+      var(--auth-sky-cloud),
+      rgba(255, 255, 255, 0) 72%
+    ),
+    linear-gradient(
+      var(--auth-sky-top),
+      var(--auth-sky-mid) 55%,
+      var(--auth-sky-low)
+    );
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .px-sky.auth-sky {
+  --auth-sky-top: var(--sky-night-top);
+  --auth-sky-mid: var(--sky-night-mid);
+  --auth-sky-low: var(--sky-night-low);
+  --auth-sky-sun: rgba(157, 151, 196, 0.34);
+  --auth-sky-cloud: rgba(157, 151, 196, 0.16);
+}
+
+/* The 16+ / Terms line: one 12px row right above the button that makes the
+   account, with room above and below so it never touches a neighbour. */
+.needt-v3 .auth-age.auth-age-line {
+  margin: 6px 0 2px;
+  padding: 0 2px;
+  align-items: flex-start;
+}
+.needt-v3 .auth-age.auth-age-line.mau-age {
+  color: var(--ppl-auth-ink-2, var(--text-secondary));
+}
+
+/* The plan that rode along (variant A). A quiet bordered block on the card:
+   the chip is a mark (ink on a ladder fill), never an accent fill. */
+.needt-v3 .auth-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--fill-1);
+  box-shadow: inset 0 0 0 1px var(--border);
+  text-align: left;
+}
+.needt-v3 .auth-plan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.needt-v3 .auth-plan-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  font: 500 13px/1 var(--font-sans);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    var(--black-a6) 0 1px 2px;
+}
+.needt-v3 .auth-plan-chip b {
+  font-weight: 650;
+}
+.needt-v3 .auth-plan-chip span {
+  color: var(--text-secondary);
+}
+.needt-v3 .auth-plan-free {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.needt-v3 .auth-plan-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+.needt-v3 .auth-plan-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.needt-v3 .auth-plan-list li {
+  display: flex;
+  gap: 8px;
+}
+.needt-v3 .auth-plan-list li::before {
+  content: "";
+  flex: none;
+  width: 4px;
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--text-quaternary);
+}
+/* On the phone the list is left out: the chip and its one line say it, and
+   the form stays in the first screen. */
+.needt-v3 .auth-plan.mau-plan .auth-plan-list {
+  display: none;
+}
+/* On the phone plate the ink colours are the plate's own. */
+.needt-v3 .auth-plan.mau-plan {
+  margin: 0;
+  background: var(--white-a40);
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .auth-plan.mau-plan {
+  background: var(--white-a8);
+}
+
+/* The ChatGPT slot while it is not live: drawn, disabled, "Soon" at the end. */
+.needt-v3 .auth-oauth-soon {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.needt-v3 .auth-oauth[data-provider="openai"][disabled] {
+  opacity: 0.55;
+}
+
+/* Apple button: the row inside keeps the button ink so the mono mark shows. */
+.needt-v3 .auth-oauth[data-provider="apple"] .auth-raised-row {
+  color: inherit;
+}

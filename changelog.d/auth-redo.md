@@ -1,0 +1,1 @@
+- Sign-in and sign-up get a still sky instead of the animated one, Google / Apple / Microsoft in that order above an "or" and the email form, and the 16+ line right above the button that makes the account. Review variants: ?v=a (a plan rides along) and ?v=b (plain). /start?preview=map shows the proposed five-step onboarding.

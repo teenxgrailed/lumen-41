@@ -15,6 +15,8 @@
 @import "./v3-overrides/scenes.css";
 @import "./v3-overrides/paywall.css";
 @import "./v3-overrides/auth-sky.css";
+@import "./v3-overrides/auth-redo.css";
+@import "./v3-overrides/onboarding-map.css";
 @import "./v3-overrides/settings-phone.css";
 @import "./v3-overrides/phone-perf.css";
 @import "./v3-overrides/doc-opened.css";

@@ -21,6 +21,7 @@ export function EmailCodeBlock({
   signup,
   offline,
   onUsePassword,
+  beforeSubmit,
 }: {
   flow: EmailCodeFlow;
   mail: string;
@@ -29,6 +30,8 @@ export function EmailCodeBlock({
   offline: boolean;
   /** Reveals the old email + password form; absent on the sign-up tab. */
   onUsePassword?: () => void;
+  /** Sits right above the "Send code" button (the sign-up's 16+ line). */
+  beforeSubmit?: React.ReactNode;
 }) {
   if (flow.step === "code") {
     return (
@@ -126,6 +129,7 @@ export function EmailCodeBlock({
           {CODE_TEXT.net}
         </span>
       ) : null}
+      {beforeSubmit}
       <button
         type="button"
         onClick={() => void flow.send()}

@@ -27,18 +27,12 @@ import {
 import { useOnline } from "@/lib/needt3/use-online";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
-import {
-  GlassCard,
-  PwDateCard,
-  PwMiniEvent,
-  PwMiniHabit,
-  PwMiniTask,
-  PwMoodPrint,
-  PxSky,
-} from "../scenes";
+import { GlassCard } from "../scenes";
 import { NeedtLockup } from "../wordmark";
 import { AgeConfirm, type AgeState, useAgeState } from "./AgeConfirm";
+import { AuthSky } from "./AuthSky";
 import { EmailCodeBlock } from "./EmailCodeBlock";
+import { PlanChip } from "./PlanChip";
 import {
   type AuthMode,
   MORE_SIGN_IN_WAYS_LABEL,
@@ -51,10 +45,11 @@ import {
   refusalText,
   resendClock,
   showWaitlist,
-  splitSignInProviders,
   submitLabel,
   submitStep,
 } from "./auth-logic";
+import { redoProviders } from "./auth-redo";
+import { REDO_ICONS } from "./auth-redo-icons";
 import { CODE_TEXT, type EmailCodeApi } from "./email-code-logic";
 import {
   type AuthFields,
@@ -62,6 +57,7 @@ import {
   useAuthFields,
   useAuthSteps,
 } from "./use-auth-fields";
+import { useAuthRedo } from "./use-auth-redo";
 import { useCodeInstead, useEmailCodeFlow } from "./use-email-code-flow";
 
 export type { AuthMode } from "./auth-logic";
@@ -215,83 +211,9 @@ export function Field({
   );
 }
 
-function Print({
-  at,
-  caption,
-  width,
-  delay,
-  children,
-}: React.PropsWithChildren<{
-  at: React.CSSProperties;
-  caption: string;
-  width: number;
-  delay?: number;
-}>) {
-  return (
-    <span
-      className="nx-swap"
-      style={{
-        position: "absolute",
-        animationDelay: (delay || 0) + "ms",
-        ...at,
-      }}
-    >
-      <GlassCard caption={caption} width={width} pad={10} radius={20}>
-        <span className="auth-stack-6">{children}</span>
-      </GlassCard>
-    </span>
-  );
-}
-
-/** A few glass cards of the product, placed around the form. */
-function Collage() {
-  return (
-    <div className="axs-collage" aria-hidden="true">
-      <Print
-        at={{ left: "calc(50% - 560px)", top: "15%" }}
-        caption="Today · 3 left"
-        width={250}
-        delay={80}
-      >
-        <PwMiniTask title="Reply to Tom" chip="Mailbox" />
-        <PwMiniTask title="Charge the flash" done />
-        <PwMiniTask title="List the boots on Ricardo" chip="Resale" />
-      </Print>
-      <Print
-        at={{ left: "calc(50% - 520px)", top: "58%" }}
-        caption="Habit · day 6"
-        width={262}
-        delay={160}
-      >
-        <PwMiniHabit title="Shoot one roll" streak="6 days" />
-      </Print>
-      <span
-        className="nx-swap auth-ax-collage-abs"
-        style={{ animationDelay: "120ms" }}
-      >
-        <PwDateCard width={118} />
-      </span>
-      <Print
-        at={{ left: "calc(50% + 296px)", top: "45%" }}
-        caption="Calendar · Tue"
-        width={236}
-        delay={200}
-      >
-        <PwMiniEvent time="09:30" title="Standup" hue="var(--hue-blue)" />
-        <PwMiniEvent time="14:00" title="Shoot · Kreis 4" />
-      </Print>
-      <span
-        className="nx-swap auth-ax-collage-abs-2"
-        style={{ animationDelay: "260ms" }}
-      >
-        <PwMoodPrint width={140} height={88} />
-      </span>
-    </div>
-  );
-}
-
-/** The sky, the collage, the lockup and the frosted card every auth screen
-    on the desktop sits on. The reset-link and confirm-email routes use it too. */
+/** The static sky, the lockup and the frosted card every auth screen on the
+    desktop sits on (the product collage and the live sky are gone: the card
+    is the whole screen). The reset-link and confirm-email routes use it too. */
 export function AuthFrame({
   variant,
   screen,
@@ -312,8 +234,7 @@ export function AuthFrame({
       data-auth-screen={screen}
       style={{ position: "fixed", inset: 0, zIndex: 950 }}
     >
-      <PxSky variant={variant}>
-        <Collage />
+      <AuthSky variant={variant}>
         <div className="scroll-inner auth-signin-abs">
           <div className="auth-signin-col">
             <NeedtLockup />
@@ -330,7 +251,7 @@ export function AuthFrame({
             {foot}
           </div>
         </div>
-      </PxSky>
+      </AuthSky>
     </div>
   );
 }
@@ -380,11 +301,17 @@ export function AuthScreen({
   const withPass = passAsked || pass.length > 0;
   /* Google, Apple and GitHub show; the rest wait behind "More ways". */
   const [moreWays, setMoreWays] = React.useState(false);
-  const { main: mainProviders, more: moreProviders } =
-    splitSignInProviders(providers);
+  const redo = useAuthRedo();
+  const { main: mainProviders, more: moreProviders } = redoProviders(
+    providers,
+    REDO_ICONS,
+    redo
+  );
   const shownProviders = moreWays
     ? [...mainProviders, ...moreProviders]
     : mainProviders;
+  /* A button with no provider behind it (review only) says so, once. */
+  const [previewNote, setPreviewNote] = React.useState(false);
   const [netErr, setNetErr] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
   const [limited, setLimited] = React.useState(false);
@@ -568,6 +495,18 @@ export function AuthScreen({
     </p>
   ) : null;
 
+  /* The 16+ / Terms box, one 12px line right above the button that makes the
+     account (nothing sits between it and the providers any more). */
+  const ageLine = signup ? (
+    <AgeConfirm
+      age={age}
+      missing={ageMissing}
+      termsHref={termsHref}
+      privacyHref={privacyHref}
+      className="auth-age auth-age-line"
+    />
+  ) : null;
+
   const frame = (
     variant: "a" | "c",
     screen: string,
@@ -689,7 +628,10 @@ export function AuthScreen({
   return frame(
     signup ? "c" : "a",
     signup ? "signup" : "login",
-    <div className="auth-signin-col-2">
+    <div className="auth-signin-col-2" data-auth-variant={redo.variant}>
+      {redo.variant === "a" && redo.plan ? (
+        <PlanChip plan={redo.plan} onFree={redo.dismissPlan} />
+      ) : null}
       <span className="px-kicker auth-signin-el">
         {signup ? "New account" : "Sign in"}
       </span>
@@ -715,26 +657,20 @@ export function AuthScreen({
         </p>
       ) : null}
 
-      {signup ? (
-        <AgeConfirm
-          age={age}
-          missing={ageMissing}
-          termsHref={termsHref}
-          privacyHref={privacyHref}
-        />
-      ) : null}
-
-      {providers.length ? (
+      {mainProviders.length ? (
         <>
           <div className="auth-stack-8">
-            {shownProviders.map((p) => (
+            {(moreWays ? shownProviders : mainProviders).map((p) => (
               <button
                 key={p.id}
                 type="button"
                 data-provider={p.id}
-                disabled={offline || providerBusy !== null}
+                data-visual-only={p.visualOnly ? "true" : undefined}
+                disabled={offline || providerBusy !== null || p.soon}
                 onClick={() => {
-                  if (ageOk()) onProvider?.(p.id);
+                  if (!ageOk()) return;
+                  if (p.visualOnly) setPreviewNote(true);
+                  else onProvider?.(p.id);
                 }}
                 className="ax-btn ax-raised auth-oauth"
               >
@@ -742,8 +678,14 @@ export function AuthScreen({
                   <p.icon size={16} aria-hidden="true" />
                 </span>
                 {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
+                {p.soon ? <span className="auth-oauth-soon">Soon</span> : null}
               </button>
             ))}
+            {previewNote ? (
+              <span className="auth-recover-resend" role="status">
+                Review build: this button is not connected to a provider yet.
+              </span>
+            ) : null}
             {moreProviders.length && !moreWays ? (
               <button
                 type="button"
@@ -771,6 +713,7 @@ export function AuthScreen({
           signup={signup}
           offline={offline}
           onUsePassword={() => emailCode?.setUsePassword(true)}
+          beforeSubmit={ageLine}
         />
       ) : (
         <div className="auth-signin-col-4">
@@ -852,6 +795,7 @@ export function AuthScreen({
           ) : null}
           {!signup && withPass ? aside : null}
           {netRow}
+          {ageLine}
           <button
             type="button"
             onClick={submit}

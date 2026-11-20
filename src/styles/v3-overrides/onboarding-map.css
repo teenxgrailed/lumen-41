@@ -1,0 +1,249 @@
+/* THE ONBOARDING MAP mocks (OnboardingMap.tsx): static review screens, not
+ * the shipped flow. Same rules as the rest: 13 / 12px chrome, one text colour
+ * at ladder alphas, no accent fill. */
+.needt-v3 .omap {
+  position: fixed;
+  inset: 0;
+}
+.needt-v3 .omap-scroll {
+  height: 100%;
+  overflow-y: auto;
+  padding: 32px 20px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+.needt-v3 .omap-head {
+  width: 100%;
+  max-width: 880px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+  align-items: center;
+}
+.needt-v3 .omap-head h1 {
+  margin: 0;
+  font-size: 40px;
+  color: var(--text-primary);
+}
+.needt-v3 .omap-head h1 em,
+.needt-v3 .omap-h em {
+  font-style: italic;
+  font-variation-settings: "EXPO" 8;
+  padding-right: 0.04em;
+}
+.needt-v3 .omap-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+  max-width: 560px;
+  border-radius: 16px;
+  background: var(--surface-raised);
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    var(--black-a6) 0 1px 2px;
+  text-align: left;
+}
+.needt-v3 .omap-list li {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.needt-v3 .omap-list li + li {
+  border-top: 1px solid var(--border);
+}
+.needt-v3 .omap-list li span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.needt-v3 .omap-list li em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.needt-v3 .omap-grid {
+  width: 100%;
+  max-width: 1360px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+.needt-v3 .omap-card {
+  border-radius: 22px;
+  background: var(--surface-raised);
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    var(--black-a8) 0 10px 30px -14px;
+  padding: 20px 18px 18px;
+  display: flex;
+}
+.needt-v3 .omap-card-one {
+  width: 100%;
+  max-width: 420px;
+  margin: auto 0;
+  padding: 26px 24px 22px;
+}
+.needt-v3 .omap-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+.needt-v3 .omap-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.needt-v3 .omap-progress-bar {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.needt-v3 .omap-progress-bar i {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--fill-3);
+}
+.needt-v3 .omap-progress-bar i[data-on="true"] {
+  background: var(--text-secondary);
+}
+.needt-v3 .omap-progress-n {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.needt-v3 .omap-h {
+  margin: 6px 0 0;
+  font-size: 30px;
+  color: var(--text-primary);
+}
+.needt-v3 .omap-line {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+  text-wrap: pretty;
+}
+.needt-v3 .omap-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 6px;
+}
+.needt-v3 .omap-input {
+  width: 100%;
+  box-shadow: var(--shadow-ring);
+  padding: 0 14px;
+}
+.needt-v3 .omap-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+.needt-v3 .omap-row,
+.needt-v3 .omap-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--fill-1);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.needt-v3 .omap-row-t {
+  flex: 1;
+  min-width: 0;
+}
+.needt-v3 .omap-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--text-quaternary);
+}
+.needt-v3 .omap-chip {
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.needt-v3 .omap-add {
+  align-self: flex-start;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.needt-v3 .omap-days {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.needt-v3 .omap-day {
+  padding: 6px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.needt-v3 .omap-day[data-on="true"] {
+  color: var(--text-primary);
+  background: var(--fill-3);
+}
+.needt-v3 .omap-hours {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.needt-v3 .omap-slot .omap-meta {
+  margin-left: 8px;
+  text-align: right;
+}
+.needt-v3 .omap-time {
+  width: 44px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .omap-meta {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.needt-v3 .omap-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.needt-v3 .omap-foot .axs-go {
+  width: 100%;
+}
+.needt-v3 .omap-skip {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+@media (max-width: 700px) {
+  .needt-v3 .omap-head h1 {
+    font-size: 30px;
+  }
+  .needt-v3 .omap-list li {
+    grid-template-columns: 1fr auto;
+  }
+  .needt-v3 .omap-list li span {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
