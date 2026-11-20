@@ -25,8 +25,11 @@
   --ntm-grain: 0.12;
   --ntm-surf: var(--v2p-raise);
   --ntm-lit: rgba(255, 255, 255, 0.7);
-  --ntm-drop: 0 10px 22px -12px rgba(30, 30, 50, 0.28), 0 1px 3px rgba(30, 30, 50, 0.1);
-  position: absolute;
+  --ntm-drop:
+    0 10px 22px -12px rgba(30, 30, 50, 0.28), 0 1px 3px rgba(30, 30, 50, 0.1);
+  /* fixed to the screen, not the page: the phone app's document can be taller
+     than the display (the other layers, .pk-scrim and .nva, are fixed too) */
+  position: fixed;
   inset: 0;
   z-index: 52;
   display: flex;
@@ -37,8 +40,6 @@
   color: var(--v2p-ink);
   font-family: var(--font-sans);
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease;
 }
 .needt-v3[data-theme="dark"] .ntm,
 .needt-v3[data-theme="dim"] .ntm {
@@ -47,18 +48,33 @@
   /* deeper than the page's raised surface: the tiles sit in the dark */
   --ntm-surf: color-mix(in oklab, var(--v2p-raise) 52%, #000);
   --ntm-lit: rgba(255, 255, 255, 0.09);
-  --ntm-drop: 0 18px 30px -14px rgba(0, 0, 0, 0.75), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --ntm-drop:
+    0 18px 30px -14px rgba(0, 0, 0, 0.75), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 .needt-v3 .ntm.is-in {
-  opacity: 1;
   pointer-events: auto;
 }
 .needt-v3 .ntm > .pk-scrim {
   z-index: 0;
 }
+/* The layer itself carries no opacity (an ancestor with opacity would be the
+   scrim blur's backdrop root, and the blur would see nothing): the scrim fades
+   by --pk-scrim-k, everything else by its own opacity. */
 .needt-v3 .ntm > :not(.pk-scrim) {
   position: relative;
   z-index: 1;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.needt-v3 .ntm.is-in > :not(.pk-scrim) {
+  opacity: 1;
+}
+/* the whole screen is blurred, not only the edges: the menu is a layer of its own */
+.needt-v3 .ntm .pk-scrim-blur.is-2 {
+  -webkit-backdrop-filter: blur(26px);
+  backdrop-filter: blur(26px);
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 /* ── the head: it blurs back while editing, as in the ref ── */
@@ -69,21 +85,6 @@
   padding-top: calc(max(var(--v3-top, 0px), 20px) + 12px);
   padding-bottom: 12px;
   transition: opacity 0.2s ease;
-}
-/* The screen's own title is still readable through the scrim; a fade of the
-   ground colour keeps it from colliding with ours. */
-.needt-v3 .ntm::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: calc(max(var(--v3-top, 0px), 20px) + 120px);
-  background: linear-gradient(
-    to bottom,
-    var(--v2p-ground) 0%,
-    var(--v2p-ground) 80%,
-    transparent 100%
-  );
-  pointer-events: none;
 }
 .needt-v3 .ntm.is-edit .ntm-head {
   opacity: 0.55;
@@ -178,12 +179,20 @@
   background:
     radial-gradient(
       80% 70% at 100% 0%,
-      color-mix(in oklab, var(--ntm-hue, var(--v2p-ink-3)) calc(var(--ntm-glow) * 0.8), transparent),
+      color-mix(
+        in oklab,
+        var(--ntm-hue, var(--v2p-ink-3)) calc(var(--ntm-glow) * 0.8),
+        transparent
+      ),
       transparent 70%
     ),
     radial-gradient(
       90% 80% at 0% 110%,
-      color-mix(in oklab, var(--ntm-hue, var(--v2p-ink-3)) var(--ntm-glow), transparent),
+      color-mix(
+        in oklab,
+        var(--ntm-hue, var(--v2p-ink-3)) var(--ntm-glow),
+        transparent
+      ),
       transparent 72%
     );
   pointer-events: none;
@@ -591,12 +600,11 @@
   justify-content: center;
   gap: 1px;
   padding: 0 14px;
-  background:
-    linear-gradient(
-      to bottom,
-      color-mix(in oklab, var(--ntm-hue) 44%, var(--ntm-surf)),
-      color-mix(in oklab, var(--ntm-hue) 30%, var(--ntm-surf))
-    );
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--ntm-hue) 44%, var(--ntm-surf)),
+    color-mix(in oklab, var(--ntm-hue) 30%, var(--ntm-surf))
+  );
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     0 -8px 14px -6px rgba(0, 0, 0, 0.35);

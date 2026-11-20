@@ -84,7 +84,8 @@ export function FocusRing({
           strokeWidth="4"
           strokeLinecap="round"
           strokeDasharray={C}
-          strokeDashoffset={C * (1 - Math.max(pct, 0.001))}
+          strokeDashoffset={C * (1 - pct)}
+          opacity={pct > 0 ? 1 : 0}
           transform="rotate(-90 34 34)"
         />
       </svg>
@@ -229,11 +230,7 @@ export function TileFace({
                 {f ? (f.paused ? "Paused" : "Time left") : "Start"}
               </span>
               <span className="ntm-sub">
-                {f
-                  ? /:/.test(f.label)
-                    ? "elapsed"
-                    : "minutes"
-                  : "25 min session"}
+                {f ? (/:/.test(f.label) ? "elapsed" : "minutes") : "25 min"}
               </span>
             </span>
           </div>
