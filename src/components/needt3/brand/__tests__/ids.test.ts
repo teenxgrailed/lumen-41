@@ -73,6 +73,13 @@ describe("brand ids", () => {
     expect(ids).toEqual(["gcal", "ical", "ocal"]);
   });
 
+  it("has real marks for Grok and the Model Context Protocol", () => {
+    expect(brandIdFor("grok")).toBe("grok");
+    expect(brandIdFor("mcp")).toBe("mcp");
+    expect(hasBrandIcon("grok")).toBe(true);
+    expect(hasBrandIcon("mcp")).toBe(true);
+  });
+
   it("has no mark for Fastmail: its only free-licence artwork is CC BY / CC BY-SA, so it takes the generic tile", () => {
     expect(brandIdFor("fastmail")).toBeNull();
     expect(hasBrandIcon("fastmail")).toBe(false);

@@ -20,7 +20,7 @@ import {
 /**
  * Icon-only at rest; the label slides out on hover and focus (shell.css
  * `.sb-reveal`). Notion and Todoist rows appear while Import is on and the
- * server has them set up; a CSV of tasks always works; Markdown, Google Docs
+ * server has them set up; a CSV of tasks always works; Markdown
  * and .ics are listed as "Soon".
  */
 export function ImportMenu() {

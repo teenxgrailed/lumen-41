@@ -6,7 +6,7 @@
  * SVG node trees so the app never fetches a logo from a CDN at runtime.
  *
  * Run:  node scripts/gen-brand-icons.mjs
- * Needs network (Iconify API + jsDelivr). The output is committed; this script
+ * Needs network (Iconify API + jsDelivr; github raw for grok and mcp). The output is committed; this script
  * is how it was made and how a mark is changed or added.
  *
  * Sources and licences of the SOURCE ARTWORK (the marks themselves remain the
@@ -16,6 +16,7 @@
  *   thesvg-color:*   theSVG Color                              MIT
  *   devicon:*        Devicon                                   MIT
  *   iconoir:*        Iconoir                                   MIT
+ *   svgl:*           svgl (Grok)                               MIT
  *
  * A mark is drawn one of three ways (see `look`):
  *   tile  - the mark inset on a rounded-square tile (white for full-colour
@@ -117,6 +118,16 @@ const SPEC = {
   chatgpt: ["ChatGPT", "logos:openai-icon", "#74AA9C", 0.6, W],
   openai: ["OpenAI", "logos:openai-icon", W, 0.6, "#000000"],
   perplexity: ["Perplexity", "si:perplexity", "#091717", 0.56, "#20B8CD"],
+  /* Grok's mark ships with no Simple Icons entry: svgl's copy of xAI's own SVG. */
+  grok: ["Grok", "svgl:grok-light", W, 0.6, "#0A0A0A"],
+  /* The Model Context Protocol's own logo (what "Other MCP" client means). */
+  mcp: [
+    "Model Context Protocol",
+    "sigit:modelcontextprotocol",
+    W,
+    0.6,
+    "#000000",
+  ],
 };
 
 const SOURCES = {
@@ -126,6 +137,11 @@ const SOURCES = {
   iconoir: (n) => `https://api.iconify.design/iconoir/${n}.svg`,
   si: (n) =>
     `https://cdn.jsdelivr.net/npm/simple-icons@${SI_VERSION}/icons/${n}.svg`,
+  // Same Simple Icons release, straight from its git tag (no CDN needed).
+  sigit: (n) =>
+    `https://raw.githubusercontent.com/simple-icons/simple-icons/${SI_VERSION}/icons/${n}.svg`,
+  svgl: (n) =>
+    `https://raw.githubusercontent.com/pheralb/svgl/main/static/library/${n}.svg`,
 };
 const LICENCE = {
   logos: "CC0-1.0",
@@ -133,6 +149,8 @@ const LICENCE = {
   "thesvg-color": "MIT",
   devicon: "MIT",
   iconoir: "MIT",
+  sigit: "CC0-1.0",
+  svgl: "MIT",
 };
 
 const ALLOWED = new Set([
@@ -237,8 +255,18 @@ async function fetchText(url) {
   }
 }
 
+/*
+ * `--only grok,mcp` regenerates just those marks and splices them into the
+ * committed data.ts (replacing an entry of the same id). Use it to add a mark
+ * when not every artwork source is reachable.
+ */
+const onlyArg = process.argv.indexOf("--only");
+const ONLY =
+  onlyArg > -1 ? new Set(process.argv[onlyArg + 1].split(",")) : null;
+
 const out = [];
 for (const [id, [label, src, bg, scale, over]] of Object.entries(SPEC)) {
+  if (ONLY && !ONLY.has(id)) continue;
   const [kind, name] = src.split(":");
   const url = SOURCES[kind](name);
   const svg = parse(await fetchText(url));
@@ -285,6 +313,27 @@ for (const [id, [label, src, bg, scale, over]] of Object.entries(SPEC)) {
   out.push(
     `  /* ${label}: ${src} (${LICENCE[kind]}) */\n  ${JSON.stringify(id)}: ${JSON.stringify(entry)},`
   );
+}
+
+if (ONLY) {
+  const { readFileSync } = await import("node:fs");
+  let file = readFileSync(OUT, "utf8");
+  for (const id of ONLY) {
+    // Drop an existing entry (comment line + object) so it is replaced.
+    const re = new RegExp(
+      `\\n  /\\* [^\\n]*\\*/\\n  "?${id}"?: \\{[\\s\\S]*?\\n  \\},`
+    );
+    file = file.replace(re, "");
+  }
+  const marker = "\n} as const satisfies";
+  file = file.replace(marker, () => `\n${out.join("\n")}${marker}`);
+  writeFileSync(OUT, file);
+  execFileSync("npx", ["prettier", "--write", OUT], {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
+  process.stdout.write(`spliced ${ONLY.size} marks into ${OUT}\n`);
+  process.exit(0);
 }
 
 const body = `/**

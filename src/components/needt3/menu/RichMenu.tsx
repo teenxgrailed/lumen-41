@@ -6,6 +6,7 @@ import * as Dropdown from "@radix-ui/react-dropdown-menu";
 
 import { useShortcutHint } from "@/lib/needt3/shortcut-hint";
 
+import { BrandIcon, type BrandId } from "../brand";
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { useExit } from "../ctx/useExit";
 import { Art, type ArtName } from "./Art";
@@ -18,6 +19,8 @@ export type RichMenuItem =
       art?: ArtName;
       /** An emoji in the picture's place (personal time presets). */
       glyph?: string;
+      /** A third-party app's real mark in the picture's place (never a drawing). */
+      brand?: BrandId;
       /** A small row inside a big menu (a list of presets under the main choices). */
       compact?: boolean;
       title: string;
@@ -53,7 +56,9 @@ function RichRow({ it, i, last }: { it: Row; i: number; last: boolean }) {
         className="nx-art shell-sidebar-toggle-row-2"
         style={{ transform: hot ? "translateY(-1px) scale(1.04)" : "none" }}
       >
-        {it.glyph ? (
+        {it.brand ? (
+          <BrandIcon id={it.brand} size={36} />
+        ) : it.glyph ? (
           <span className="pb-glyph" aria-hidden="true">
             {it.glyph}
           </span>
@@ -107,7 +112,9 @@ function SmallRow({ it, i }: { it: Row; i: number }) {
         className="shell-small-row-row"
         style={{ transform: hot ? "scale(1.08)" : "none" }}
       >
-        {it.glyph ? (
+        {it.brand ? (
+          <BrandIcon id={it.brand} size={20} />
+        ) : it.glyph ? (
           <span className="pb-glyph" aria-hidden="true">
             {it.glyph}
           </span>
