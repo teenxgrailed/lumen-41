@@ -90,6 +90,9 @@ describe("Goals screen", () => {
     const out = render({ pro: false });
     expect(out).toContain("Goals are part of Pro");
     expect(out).toContain('data-pro-badge="locked"');
+    // Free keeps the round +, which opens the plans
+    expect(out).toContain("data-page-add");
+    expect(out).not.toContain("data-gl-new");
     expect(out).toContain("data-gl-upgrade");
     expect(out).not.toContain("No goals yet");
   });
@@ -97,6 +100,9 @@ describe("Goals screen", () => {
   it("shows Pro an empty state that starts a goal", () => {
     const out = render({});
     expect(out).toContain("No goals yet");
+    // one New goal only: the empty state's, none in the header
+    expect(out.match(/data-gl-new/g)).toHaveLength(1);
+    expect(out).not.toContain("data-page-add");
     expect(out).not.toContain("data-pro-badge");
   });
 
@@ -119,7 +125,11 @@ describe("Goals screen", () => {
         goal({ id: "g3", title: "Old idea", status: "dropped" }),
       ],
     });
-    expect(out).toContain("2 active goals · never scheduled");
+    expect(out).toContain("2 active goals");
+    expect(out).not.toContain("never scheduled");
+    // "+ New goal" ends the header; Pro has no second, round +
+    expect(out).toContain("data-gl-new");
+    expect(out).not.toContain("data-page-add");
     expect(out).toContain("1 000 / 2 500 CHF");
     expect(out).toContain("1 of 2 tasks");
     expect(out).toContain('class="gl-row nx-press nx-focus is-sub"');
@@ -254,5 +264,76 @@ describe("Goal cards (habits_cards_v1)", () => {
     expect(out).toContain("by 31 Dec 2026");
     expect(out).toContain("1 000 / 2 500 CHF");
     expect(out).not.toContain("data-gl-list");
+  });
+
+  // 40 days from creation to deadline, 30 gone, 20% done: behind, 10 days left
+  const risky = goal({
+    id: "g2",
+    title: "Ship the report",
+    deadline: "2026-11-25T00:00:00.000Z",
+    createdAt: "2026-10-16T00:00:00.000Z",
+    progress: { ...goal().progress, percent: 20, ratio: 0.2 },
+  });
+
+  it("puts a goal at risk first, with the days left; the others are on track", () => {
+    const out = render({
+      goals: [goal(), risky],
+      cards: { ...cards, nextSteps: {} },
+    });
+    expect(out.indexOf('data-gl-card="g2"')).toBeLessThan(
+      out.indexOf('data-gl-card="g1"')
+    );
+    expect(out).toContain("At risk · 10d left");
+    expect(out).toContain('data-gl-risk="at-risk"');
+    expect(out).toContain("On track");
+    expect(out).toContain('data-gl-risk="on-track"');
+  });
+
+  it("does not call a far deadline at risk, however far behind", () => {
+    const far = goal({
+      deadline: "2027-03-01T00:00:00.000Z",
+      progress: { ...goal().progress, percent: 0, ratio: 0 },
+    });
+    const out = render({ goals: [far], cards });
+    expect(out).not.toContain("At risk");
+    expect(out).toContain("On track");
+  });
+
+  it("shows the next step with Schedule, or the day it is already on", () => {
+    const withSchedule = {
+      goals: [goal()],
+      cards,
+      onSchedule: noop,
+    };
+    const open = render(withSchedule);
+    expect(open).toContain("Open the account");
+    expect(open).toContain('data-gl-schedule="g1"');
+    expect(open).toContain("Schedule");
+
+    const placed = render({
+      ...withSchedule,
+      cards: { ...cards, stepDays: { t1: "2026-11-16" } },
+    });
+    expect(placed).toContain("Tomorrow");
+    expect(placed).not.toContain("data-gl-schedule");
+  });
+
+  it("offers Plan a task only when nothing is planned this week", () => {
+    const props = { goals: [goal()], onSchedule: noop };
+    const none = render({
+      ...props,
+      cards: { ...cards, planned: { g1: false } },
+    });
+    expect(none).toContain('data-gl-plan="g1"');
+    expect(none).toContain("Plan a task");
+
+    const some = render({
+      ...props,
+      cards: { ...cards, planned: { g1: true } },
+    });
+    expect(some).not.toContain("data-gl-plan");
+
+    // not known yet: no flash of the button before the tasks are read
+    expect(render({ ...props, cards })).not.toContain("data-gl-plan");
   });
 });

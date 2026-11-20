@@ -7,10 +7,18 @@
  * The new-goal sheet reuses the habit sheet's form geometry (pl-*).
  */
 .needt-v3 .gl-screen {
+  /* a reading width on a wide window: cards and the open goal's panel */
+  width: 100%;
+  max-width: 920px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   padding-bottom: 48px;
+}
+/* "+ New goal" ends the header row */
+.needt-v3 .gl-new {
+  flex: none;
+  margin-left: auto;
 }
 .needt-v3 .gl-body {
   display: grid;

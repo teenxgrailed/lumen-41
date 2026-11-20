@@ -62,12 +62,15 @@ export function Fold({
   onToggle,
   tone,
   note,
+  action,
   children,
 }: {
   title: string;
   count?: number;
   open: boolean;
   onToggle: () => void;
+  /** Sits at the head's right end (Overdue: Move to today). */
+  action?: ReactNode;
   tone?: "late";
   note?: string;
   children: ReactNode;
@@ -92,7 +95,7 @@ export function Fold({
           {title}
         </span>
         {count ? <span className="hd-fold-count">{count}</span> : null}
-        <span className="hd-fold-action" />
+        <span className="hd-fold-action">{action}</span>
       </header>
       {note ? <p className="hd-fold-note">{note}</p> : null}
       <div
