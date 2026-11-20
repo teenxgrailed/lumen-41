@@ -601,9 +601,9 @@ sup.ref a { text-decoration: none; font: 600 11px/1 var(--sans); color: var(--in
 .realshot { position: relative; max-width: 1060px; margin: 0 auto; }
 .realshot.has-phone { padding-right: 9%; }
 .realshot .rs-desk { width: 100%; border-radius: 18px; box-shadow: var(--shadow-ui); background: #fff; }
-.realshot .rs-phone { position: absolute; right: 0; bottom: -6%; width: 23%; border-radius: 30px; box-shadow: 0 0 0 1px rgba(10,13,18,.08), 0 30px 60px -20px rgba(30,30,80,.55); background: #f6f5f2; }
+.realshot .rs-phone { position: absolute; right: 0; bottom: -6%; width: 23%; }
 .realshot figcaption, .prose figure figcaption { text-align: center; font-size: 14px; color: var(--ink-3); margin-top: 26px; }
-@media (max-width: 640px) { .realshot.has-phone { padding-right: 14%; } .realshot .rs-phone { width: 30%; border-radius: 18px; } .realshot .rs-desk { border-radius: 12px; } }
+@media (max-width: 640px) { .realshot.has-phone { padding-right: 14%; } .realshot .rs-phone { width: 30%; } .realshot .rs-desk { border-radius: 12px; } }
 
 /* Pricing v18: the 14-day gift on its own row, then "or buy now". */
 .pw-gift { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; margin: 34px 0 6px; padding: 18px 18px 18px 20px; border-radius: 22px;

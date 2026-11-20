@@ -33,8 +33,6 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     const h = a.getAttribute("href"); if (/^(https?:|mailto:|#)/.test(h)) return;
     const [p, hash] = h.split("#"); if (p && p.endsWith("/")) a.setAttribute("href", p + "index.html" + (hash ? "#" + hash : ""));
   });
-  const burger = document.querySelector(".nav-burger");
-  if (burger) burger.addEventListener("click", (e) => { e.stopPropagation(); const on = document.body.classList.toggle("nav-open"); burger.setAttribute("aria-expanded", String(on)); });
 
   /* Smooth scroll */
   /* Native scrolling (v17): Lenis drove the scroll from the main thread, so
@@ -193,6 +191,9 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   const tiles = $$(".rl-tile", rl), core = $(".rl-core", rl), svg = $(".rl-lines", rl);
   const chipA = $('.rl-chip[data-k="a"]', rl), chipB = $('.rl-chip[data-k="b"]', rl);
   const narrow = matchMedia("(max-width: 640px)");
+  /* The ask card shows a few example requests in turn while it waits for you (opacity only). */
+  const ASKS = [["Send the invoice batch", "Codex wants to send 3 emails"], ["Move Friday’s review", "Claude wants to reschedule 2 tasks"], ["Archive the old board", "Grok Bot wants to archive 12 done tasks"]];
+  let askI = 0;
   /* positions in % of the stage: the arc of agents, the Needt mark, where a task sits on the board */
   const L = () => narrow.matches
     ? { t: [[14, 22], [38, 9], [62, 9], [86, 22]], c: [50, 42], board: [50, 86], near: () => [50, 66] }
@@ -201,7 +202,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   const layout = () => {
     const l = L();
     tiles.forEach((t, i) => at(t, l.t[i])); at(core, l.c);
-    svg.innerHTML = l.t.map(([x, y]) => `<path d="M${l.c[0]} ${l.c[1]} Q ${(x + l.c[0]) / 2} ${y + 14} ${x} ${y}"/>`).join("");
+    svg.innerHTML = l.t.map(([x, y]) => `<path d="M${x} ${y} Q ${(x + l.c[0]) / 2} ${y + 14} ${l.c[0]} ${l.c[1]}"/>`).join("");
   };
   layout(); narrow.addEventListener("change", () => { layout(); last = -1; onFold(); });
   const set = (chip, o) => {
@@ -225,10 +226,10 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
       { on: true, at: l.near(1), pill: ["ok", "Done ✓"], sub: "14 orders sorted", done: true },
     ];
     set(chipA, a[Math.min(n, 4)].on && n > 4 ? { on: false, done: true } : a[Math.min(n, 4)]);
-    const b = n < 5 ? { on: false, at: l.near(2), pill: ["ask", "Needs you"], sub: "Codex wants to send 3 emails" }
-      : n === 5 ? { on: true, at: l.near(2), pill: ["ask", "Needs you"], sub: "Codex wants to send 3 emails", asking: true }
-      : n === 6 ? { on: true, at: l.board, pill: ["ask", "Needs you"], sub: "Codex wants to send 3 emails", asking: true }
-      : n === 7 ? { on: true, at: l.board, pill: ["ask", "Needs you"], sub: "Codex wants to send 3 emails", asking: true, tap: true }
+    const b = n < 5 ? { on: false, at: l.near(2), pill: ["ask", "Needs you"], sub: ASKS[askI][1] }
+      : n === 5 ? { on: true, at: l.near(2), pill: ["ask", "Needs you"], sub: ASKS[askI][1], asking: true }
+      : n === 6 ? { on: true, at: l.board, pill: ["ask", "Needs you"], sub: ASKS[askI][1], asking: true }
+      : n === 7 ? { on: true, at: l.board, pill: ["ask", "Needs you"], sub: ASKS[askI][1], asking: true, tap: true }
       : { on: true, at: l.board, pill: ["ok", "Approved ✓"], sub: "Codex sends them now", answered: true };
     set(chipB, b);
     fold.classList.toggle("done", n >= 5);
@@ -241,6 +242,22 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     if (n !== last) { last = n; show(n); }
   };
 
+  if (!calm) setInterval(() => {
+    if (!chipB.classList.contains("asking") || chipB.classList.contains("tap") || document.hidden) return;
+    chipB.classList.add("swap");
+    setTimeout(() => { askI = (askI + 1) % ASKS.length; $("b", chipB).textContent = ASKS[askI][0]; $("[data-s]", chipB).textContent = ASKS[askI][1]; chipB.classList.remove("swap"); }, 240);
+  }, 3600);
+
+
+  /* Screens: a gentle parallax while a phone is on screen (transform only, skipped for reduced motion and phones). */
+  (() => {
+    const figs = $$(".scr"); if (!figs.length || calm || matchMedia("(max-width: 860px)").matches) return;
+    const vis = new Set(); let raf = 0;
+    const io2 = new IntersectionObserver((es) => { es.forEach((e) => (e.isIntersecting ? vis.add(e.target) : vis.delete(e.target))); if (vis.size && !raf) raf = requestAnimationFrame(tick); });
+    figs.forEach((f) => io2.observe(f));
+    function tick() { raf = 0; vis.forEach((f) => { const r = f.getBoundingClientRect(), p = clamp((r.top + r.height / 2 - innerHeight / 2) / innerHeight, -1, 1); f.style.setProperty("--p", p.toFixed(3)); }); }
+    addEventListener("scroll", () => { if (vis.size && !raf) raf = requestAnimationFrame(tick); }, { passive: true });
+  })();
   /* ── Composer ──────────────────────────────────────── */
   const line = $("#cmp-line"), chips = $("#cmp-chips"), add = $("#cmp-add"), landed = $("#landed");
   const TYPES = { Task: "Add task", Event: "Add event", Doc: "Create doc" };
