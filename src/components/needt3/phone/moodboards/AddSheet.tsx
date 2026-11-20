@@ -7,6 +7,7 @@ import { LuImage, LuLink, LuPalette, LuText } from "react-icons/lu";
 import { ProBadge } from "@/components/needt3/paywall/Pro";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { BrandIcon } from "../../brand";
 import { PkButton, PkField, PkGlass, PkHueTile, PkSheet, pkCx } from "../kit";
 import {
   type AddAsk,
@@ -175,11 +176,7 @@ export function AddSheet({
               onClick={pinterest.onPick}
               data-phb-kind="pinterest"
             >
-              <PkHueTile
-                icon={<LuLink size={20} aria-hidden />}
-                hue="var(--brand-pinterest)"
-                size={44}
-              />
+              <BrandIcon id="pinterest" size={44} />
               <span className="phb-kind-text">
                 <span className="phb-kind-label">
                   Pinterest{" "}

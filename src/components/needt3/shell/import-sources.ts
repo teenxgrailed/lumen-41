@@ -14,18 +14,19 @@ export interface ImportsState {
  * the entries drawn; the prototype's Notion label is kept, Todoist follows it.
  * The menu also lists the prototype's other rows (`importMenuItems`): a CSV of
  * tasks is backed (read in the browser, sent to `/api/import/tasks`); Markdown
- * files, Google Docs and a calendar file are shown disabled as "Soon" rather
+ * files and a calendar file are shown disabled as "Soon" rather
  * than pretending.
  * //todo: Markdown, Google Docs and .ics once pages take a body and a
  * calendar-file route exists.
+ * Google Docs is not listed: we hold no real Google Docs mark, and a third-party
+ * app is drawn with its own icon or not at all (owner, 20.11.26).
  */
 const SOURCES: ReadonlyArray<{
   id: SourceId;
   title: string;
-  art: "stack" | "task";
 }> = [
-  { id: "notion", title: "From Notion", art: "stack" },
-  { id: "todoist", title: "From Todoist", art: "task" },
+  { id: "notion", title: "From Notion" },
+  { id: "todoist", title: "From Todoist" },
 ];
 
 /** Import sources worth showing: the feature is on and the server has them set up. */
@@ -35,13 +36,13 @@ export function importItems(
 ): RichMenuItem[] {
   if (!state?.enabled) return [];
   return SOURCES.filter((s) => state.sources[s.id]?.configured).map((s) => ({
-    art: s.art,
+    brand: s.id,
     title: s.title,
     onClick: () => start(s.id),
   }));
 }
 
-const soon = (art: "markdown" | "gdoc" | "calendarfile", title: string) =>
+const soon = (art: "markdown" | "calendarfile", title: string) =>
   ({ art, title, kbd: "Soon", disabled: true }) satisfies RichMenuItem;
 
 /**
@@ -56,7 +57,6 @@ export function importMenuItems(
   return [
     soon("markdown", "From Markdown files"),
     ...importItems(state, handlers.start),
-    soon("gdoc", "From Google Docs"),
     soon("calendarfile", "From a calendar file (.ics)"),
     { art: "sheet", title: "From a CSV of tasks", onClick: handlers.csv },
   ];

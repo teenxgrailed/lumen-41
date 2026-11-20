@@ -10,19 +10,12 @@ import {
 
 import { newDate } from "@/lib/date-utils";
 
-import {
-  type PkSide,
-  type SkyMood,
-  pkInverse,
-  pkPlateClass,
-  pkSkyMood,
-} from "./util";
+import { type PkSide, type SkyMood, pkPlateClass, pkSkyMood } from "./util";
 
 /** The theme side the phone wears, "light" | "dark". */
 export const PkTheme = createContext<PkSide>("light");
 
 export const usePkSide = () => useContext(PkTheme);
-export const usePkInverse = () => pkInverse(usePkSide());
 export const usePkPlate = () => pkPlateClass(usePkSide());
 
 function readSide(): PkSide {

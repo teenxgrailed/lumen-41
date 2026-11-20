@@ -21,6 +21,7 @@ const baseRow: NeedtTaskRow = {
   id: "task_1",
   title: "Draft the launch brief",
   description: null,
+  icon: null,
   status: "todo",
 
   dueDate: null,

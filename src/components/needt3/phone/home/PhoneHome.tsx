@@ -37,6 +37,7 @@ import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useStreak } from "@/lib/needt3/hooks/streak";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useWeather } from "@/lib/needt3/hooks/weather";
@@ -85,6 +86,7 @@ import {
   HaHabits,
   HaHighlight,
   HaReviewSheet,
+  HaStreak,
   HaTimeLeft,
   HaWeather,
   haAllDoneOf,
@@ -201,6 +203,7 @@ export function PhoneHome({
 
   const taskView = useTaskView();
   const stats = useHomeStats(all.filter((t) => t.done).length);
+  const streak = useStreak(all.filter((t) => t.done).length);
   const schedule = useSchedule();
   const energyHours = useMemo(
     () => highEnergyHours(schedule.data),
@@ -814,6 +817,7 @@ export function PhoneHome({
               spreadBusy={spreader.busy}
             />
           ) : null}
+          <HaStreak streak={streak.data} />
         </div>
       ) : null}
 
