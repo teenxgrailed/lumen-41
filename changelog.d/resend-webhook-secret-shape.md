@@ -1,0 +1,1 @@
+- The Resend webhook accepts a signing secret saved with quotes, a trailing newline or an upper-case prefix, and logs a failed event-ledger write instead of throwing unlogged.
