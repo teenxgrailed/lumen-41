@@ -31,24 +31,20 @@ describe("plan choice", () => {
   });
 });
 
-describe("variant", () => {
-  it("is plain B with no plan and no param", () => {
+describe("the arrival state", () => {
+  it("has no plan without ?plan, and draws the unwired providers", () => {
     expect(authRedoFromSearch("")).toMatchObject({
-      variant: "b",
       plan: null,
-      preview: false,
+      preview: true,
     });
   });
-  it("is A when a plan rode along, and keeps it", () => {
-    const s = authRedoFromSearch("?plan=pro-year");
-    expect(s.variant).toBe("a");
-    expect(s.plan?.id).toBe("pro-year");
-    expect(s.preview).toBe(false);
+  it("carries the plan that rode along", () => {
+    expect(authRedoFromSearch("?plan=pro-year").plan?.id).toBe("pro-year");
+    expect(authRedoFromSearch("?plan=lifetime").plan?.trial).toContain("300");
   });
-  it("?v=a without a plan shows the yearly plan; ?v=b drops it", () => {
-    expect(authRedoFromSearch("?v=a").plan?.id).toBe("pro-year");
-    expect(authRedoFromSearch("?v=b&plan=lifetime").plan).toBeNull();
-    expect(authRedoFromSearch("?v=b").preview).toBe(true);
+  it("has no ?v= switch any more", () => {
+    expect(authRedoFromSearch("?v=a").plan).toBeNull();
+    expect(authRedoFromSearch("?v=b&plan=lifetime").plan?.id).toBe("lifetime");
   });
 });
 

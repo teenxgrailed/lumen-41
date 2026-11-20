@@ -1,44 +1,34 @@
 "use client";
 
-import { PRO_ADDS } from "@/components/onboarding/ob3-steps";
+import { NEEDT_PRICING } from "@/lib/creem/config";
 
 import type { PlanChoice } from "./auth-redo";
 
-/** Variant A's top of card: the plan that was picked, what it adds, and the
-    way out ("Start free instead"). The three lines are the first of
-    `PRO_ADDS`, the same list the pricing page shows. */
+/** The plan that was picked, as one quiet row inside the card above the email:
+    "Pro · $59/year · 14 days free" and the way out ("Start with {NEEDT_PRICING.trialDays} days free").
+    A card in the card (the usage card of the Craft reference), not a chip. */
 export function PlanChip({
   plan,
   onFree,
-  className = "auth-plan",
 }: {
   plan: PlanChoice;
   onFree: () => void;
-  className?: string;
 }) {
   return (
-    <div className={className} data-auth-plan={plan.id}>
-      <div className="auth-plan-head">
-        <span className="auth-plan-chip">
-          <b>{plan.name}</b>
-          <span aria-hidden="true">·</span>
-          <span>{plan.price}</span>
-        </span>
-        <button
-          type="button"
-          className="ax-link auth-plan-free"
-          data-auth-plan-free
-          onClick={onFree}
-        >
-          Start free instead
-        </button>
-      </div>
-      <p className="auth-plan-note">{plan.note}</p>
-      <ul className="auth-plan-list">
-        {PRO_ADDS.slice(0, 3).map(([key, title]) => (
-          <li key={key}>{title}</li>
-        ))}
-      </ul>
+    <div className="ac-plan" data-auth-plan={plan.id}>
+      <p className="ac-plan-line">
+        <b>{plan.name}</b>
+        <span aria-hidden="true">·</span>
+        <span>{plan.price}</span>
+      </p>
+      <button
+        type="button"
+        className="ax-link ac-plan-free"
+        data-auth-plan-free
+        onClick={onFree}
+      >
+        Start with {NEEDT_PRICING.trialDays} days free
+      </button>
     </div>
   );
 }

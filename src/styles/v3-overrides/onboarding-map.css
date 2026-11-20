@@ -1,6 +1,7 @@
 /* THE ONBOARDING MAP mocks (OnboardingMap.tsx): static review screens, not
- * the shipped flow. Same rules as the rest: 13 / 12px chrome, one text colour
- * at ladder alphas, no accent fill. */
+ * the shipped flow. They wear the sign-in's card (auth-redo.css: `.ac-card`,
+ * `.ac-icon`, `.ac-title`). Same rules as the rest: 13 / 12px chrome, one text
+ * colour at ladder alphas, no accent fill. */
 .needt-v3 .omap {
   position: fixed;
   inset: 0;
@@ -8,51 +9,51 @@
 .needt-v3 .omap-scroll {
   height: 100%;
   overflow-y: auto;
-  padding: 32px 20px 48px;
+  padding: 52px 16px 40px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 28px;
+  gap: 40px;
+}
+.needt-v3 .omap-col {
+  margin: auto 0;
 }
 .needt-v3 .omap-head {
-  width: 100%;
-  max-width: 880px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  text-align: center;
-  align-items: center;
-}
-.needt-v3 .omap-head h1 {
   margin: 0;
-  font-size: 40px;
-  color: var(--text-primary);
 }
-.needt-v3 .omap-head h1 em,
-.needt-v3 .omap-h em {
-  font-style: italic;
-  font-variation-settings: "EXPO" 8;
-  padding-right: 0.04em;
+.needt-v3 .omap-card-one {
+  padding: 40px 32px 24px;
+}
+.needt-v3 .omap-card-one .omap-screen {
+  gap: 10px;
+}
+@media (max-width: 440px) {
+  .needt-v3 .omap-card-one {
+    padding: 40px 20px 24px;
+  }
 }
 .needt-v3 .omap-list {
-  margin: 8px 0 0;
+  margin: 18px 0 0;
   padding: 0;
   list-style: none;
   width: 100%;
-  max-width: 560px;
   border-radius: 16px;
-  background: var(--surface-raised);
+  background: var(--white-a55);
   box-shadow:
     inset 0 0 0 1px var(--border),
-    var(--black-a6) 0 1px 2px;
+    0 1px 2px var(--black-a6);
   text-align: left;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .omap-list {
+  background: var(--white-a8);
 }
 .needt-v3 .omap-list li {
   display: grid;
-  grid-template-columns: 120px 1fr auto;
+  grid-template-columns: 112px 1fr auto;
   gap: 12px;
   align-items: baseline;
-  padding: 10px 16px;
+  padding: 10px 14px;
   font-size: 13px;
   color: var(--text-primary);
 }
@@ -76,19 +77,9 @@
   gap: 14px;
 }
 .needt-v3 .omap-card {
-  border-radius: 22px;
-  background: var(--surface-raised);
-  box-shadow:
-    inset 0 0 0 1px var(--border),
-    var(--black-a8) 0 10px 30px -14px;
-  padding: 20px 18px 18px;
+  padding: 22px 18px 18px;
   display: flex;
-}
-.needt-v3 .omap-card-one {
-  width: 100%;
-  max-width: 420px;
-  margin: auto 0;
-  padding: 26px 24px 22px;
+  border-radius: 24px;
 }
 .needt-v3 .omap-screen {
   display: flex;
@@ -120,33 +111,83 @@
   color: var(--text-tertiary);
 }
 .needt-v3 .omap-h {
-  margin: 6px 0 0;
-  font-size: 30px;
-  color: var(--text-primary);
+  margin: 8px 0 0;
 }
 .needt-v3 .omap-line {
   margin: 0;
+  text-align: center;
   font-size: 13px;
   line-height: 1.45;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   text-wrap: pretty;
+}
+.needt-v3 .omap-line-c {
+  margin-top: 8px;
 }
 .needt-v3 .omap-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 8px 0 6px;
+  margin: 10px 0 6px;
 }
 .needt-v3 .omap-input {
   width: 100%;
   box-shadow: var(--shadow-ring);
   padding: 0 14px;
+  background: var(--white-a55);
 }
 .needt-v3 .omap-hint {
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
   color: var(--text-tertiary);
+}
+
+/* "Choose a service": a grid of tiles, mark, name and one line each (the
+   import grid of the Craft reference). */
+.needt-v3 .omap-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+.needt-v3 .omap-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 8px 12px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--white-a40);
+  box-shadow: inset 0 0 0 1px var(--border);
+  text-align: center;
+  cursor: default;
+  font: inherit;
+  transition: background-color var(--transition-hover);
+}
+.needt-v3 .omap-tile:hover {
+  background: var(--white-a70);
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .omap-tile {
+  background: transparent;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .omap-tile:hover {
+  background: var(--white-a8);
+}
+.needt-v3 .omap-tile > :first-child {
+  margin-bottom: 4px;
+}
+.needt-v3 .omap-tile b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.needt-v3 .omap-tile span {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  text-wrap: balance;
 }
 .needt-v3 .omap-row,
 .needt-v3 .omap-slot {
@@ -156,9 +197,14 @@
   min-height: 40px;
   padding: 0 12px;
   border-radius: 12px;
-  background: var(--fill-1);
+  background: var(--white-a40);
+  box-shadow: inset 0 0 0 1px var(--border);
   font-size: 13px;
   color: var(--text-primary);
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .omap-row,
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .omap-slot {
+  background: var(--white-a8);
 }
 .needt-v3 .omap-row-t {
   flex: 1;
@@ -175,7 +221,7 @@
   border-radius: 9999px;
   font-size: 12px;
   color: var(--text-secondary);
-  background: var(--surface-raised);
+  background: var(--white-a55);
   box-shadow: inset 0 0 0 1px var(--border);
 }
 .needt-v3 .omap-add {
@@ -200,11 +246,98 @@
   background: var(--fill-3);
 }
 .needt-v3 .omap-hours {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  font-size: 13px;
+}
+.needt-v3 .omap-hours label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.needt-v3 .omap-seg {
+  display: grid;
+  gap: 8px;
+}
+.needt-v3 .omap-seg button,
+.needt-v3 .omap-tile {
+  cursor: default;
+}
+.needt-v3 .omap-seg button {
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  font: 500 13px / 1 var(--font-sans);
+  color: var(--text-secondary);
+  background: var(--white-a40);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.needt-v3 .omap-seg button[data-on="true"],
+.needt-v3 .omap-tile[data-on="true"] {
+  color: var(--text-primary);
+  box-shadow: inset 0 0 0 1.5px var(--text-secondary);
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .omap-seg button {
+  background: transparent;
+}
+.needt-v3 .omap-text {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  padding: 12px 14px;
+  border: 0;
+  outline: none;
+  border-radius: 12px;
+  background: var(--white-a55);
+  box-shadow: var(--shadow-ring);
+  font: 400 13px / 1.5 var(--font-sans);
+  color: var(--text-primary);
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .omap-text {
+  background: var(--white-a8);
+}
+.needt-v3 .omap-text::placeholder {
   color: var(--text-tertiary);
+}
+.needt-v3 .omap-go {
+  width: 100%;
+  height: 44px;
+}
+.needt-v3 .omap-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.needt-v3 .omap-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+.needt-v3 .omap-nav .axs-go {
+  width: 100%;
+  height: 44px;
+}
+.needt-v3 .omap-card-one .omap-skip {
+  display: block;
+  margin: 14px auto 0;
+}
+/* The thin progress line across the top of the screen. */
+.needt-v3 .omap-topline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 3;
+  background: var(--border);
+}
+.needt-v3 .omap-topline i {
+  display: block;
+  height: 100%;
+  background: var(--text-secondary);
 }
 .needt-v3 .omap-slot .omap-meta {
   margin-left: 8px;
@@ -230,15 +363,13 @@
 }
 .needt-v3 .omap-foot .axs-go {
   width: 100%;
+  height: 44px;
 }
 .needt-v3 .omap-skip {
   font-size: 12px;
   color: var(--text-secondary);
 }
 @media (max-width: 700px) {
-  .needt-v3 .omap-head h1 {
-    font-size: 30px;
-  }
   .needt-v3 .omap-list li {
     grid-template-columns: 1fr auto;
   }

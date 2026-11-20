@@ -1,5 +1,7 @@
 "use client";
 
+// todo(auth-redo): unused since the one-card sign-in (V3SignInRoute always renders AuthScreen). Delete this file and its tests in a follow-up.
+
 /* SIGN-IN / SIGN-UP / PASSWORD RECOVERY, ON A PHONE (prototype MobileAuth.jsx
    MbAuth). The desktop pairs a form with a live plate of the day; a phone has
    no room for that, so the persuasion is one line and a small mark and the
@@ -139,7 +141,7 @@ export function PhoneAuth({
   const { main: mainProviders, more: moreProviders } = redoProviders(
     providers,
     REDO_ICONS,
-    redo
+    { ...redo, preview: false }
   );
   /* A button with no provider behind it (review only) says so, once. */
   const [previewNote, setPreviewNote] = React.useState(false);
@@ -443,7 +445,6 @@ export function PhoneAuth({
           <form
             className="mau-form"
             noValidate
-            data-auth-variant={redo.variant}
             onSubmit={(e) => {
               e.preventDefault();
               if (codeMode) {
@@ -455,12 +456,8 @@ export function PhoneAuth({
             }}
           >
             {offlineNote}
-            {redo.variant === "a" && redo.plan ? (
-              <PlanChip
-                plan={redo.plan}
-                onFree={redo.dismissPlan}
-                className="auth-plan mau-plan"
-              />
+            {redo.plan ? (
+              <PlanChip plan={redo.plan} onFree={redo.dismissPlan} />
             ) : null}
             {notice ? (
               <MaNote tone="attention" icon={LuCircleAlert}>

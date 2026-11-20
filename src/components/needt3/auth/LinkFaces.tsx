@@ -1,28 +1,18 @@
 "use client";
 
-/* The pieces the two link screens (set a new password, confirm your email)
-   draw on each face. Desktop: the sign-in's sky, collage and frosted card
-   (`AuthFrame`, `Field`). Phone: the sign-in's pixel sky and glass plate
-   (`MaScene`, `MaPaper`, `MaField`). Same copy tone as sign-in; nothing here
-   decides anything, the routes do. */
+/* The pieces the link screens (set a new password, confirm your email, the
+   desktop hand-off) draw: the sign-in's sky and its one frosted card
+   (`AuthFrame`, `Field`), at every width. The routes still pass `face` (they
+   resolve it for the host); the card is the same on both, so it is only
+   written to `data-face`. Same copy tone as sign-in; nothing here decides
+   anything, the routes do. */
 import * as React from "react";
 
 import type { IconType } from "react-icons";
-import { LuCircleAlert, LuCloudOff, LuLock } from "react-icons/lu";
+import { LuCircleAlert, LuCloudOff } from "react-icons/lu";
 
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 
-import {
-  MaBrand,
-  MaButton,
-  MaField,
-  MaHead,
-  MaInput,
-  MaNote,
-  MaPaper,
-  MaScene,
-  MaTile,
-} from "../phone/auth/Scene";
 import { AuthFrame, Eye, Field } from "./AuthScreen";
 
 export type Face = PhoneUi;
@@ -30,9 +20,6 @@ export type Face = PhoneUi;
 export function LinkShell({
   face,
   screen,
-  kicker,
-  icon,
-  hue,
   a,
   b,
   line,
@@ -44,9 +31,10 @@ export function LinkShell({
   face: Face;
   /** `data-auth-screen`, e.g. "reset-set". */
   screen: string;
-  kicker: string;
-  icon: IconType;
-  hue: string;
+  /** The routes still pass these; the card has no kicker or tile any more. */
+  kicker?: string;
+  icon?: IconType;
+  hue?: string;
   a: string;
   b: string;
   line: string;
@@ -60,36 +48,11 @@ export function LinkShell({
     </LinkNote>
   ) : null;
 
-  if (face === "phone") {
-    return (
-      <MaScene variant="a">
-        <div className="mau-scroll" data-auth-screen={screen}>
-          <MaBrand />
-          <MaHead
-            kicker={kicker}
-            tile={<MaTile icon={icon} hue={hue} size={32} />}
-            a={a}
-            b={b}
-            line={line}
-          />
-          <MaPaper>
-            <div key={screen} className="mau-form nx-swap">
-              {offlineNote}
-              {children}
-            </div>
-          </MaPaper>
-          {foot}
-        </div>
-      </MaScene>
-    );
-  }
-
   return (
     <AuthFrame variant="a" screen={screen} below={offlineNote} foot={foot}>
-      <div key={screen} className="auth-signin-col-2 nx-swap">
-        <span className="px-kicker auth-signin-el">{kicker}</span>
-        <h1 className="px-display">
-          {a} <em>{b}</em>
+      <div key={screen} data-face={face} className="auth-signin-col-2 nx-swap">
+        <h1 className="ac-title">
+          {a} {b}
         </h1>
         <p className="auth-signin-text">{line}</p>
         <div className="auth-signin-col-4">{children}</div>
@@ -114,24 +77,12 @@ export function LinkButton({
   icon?: IconType;
 }> &
   Record<`data-${string}`, string | boolean | undefined>) {
-  if (face === "phone") {
-    return (
-      <MaButton
-        primary={primary}
-        onClick={onClick}
-        disabled={disabled}
-        {...data}
-      >
-        {Icon ? <Icon size={16} aria-hidden /> : null}
-        {children}
-      </MaButton>
-    );
-  }
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      data-face={face}
       className={
         primary
           ? "nx-btn nx-btn-primary axs-go auth-signin-btn"
@@ -139,6 +90,7 @@ export function LinkButton({
       }
       {...data}
     >
+      {Icon ? <Icon size={14} aria-hidden /> : null}
       {children}
     </button>
   );
@@ -155,21 +107,19 @@ export function LinkNote({
   tone?: "attention";
   icon?: IconType;
 }>) {
-  if (face === "phone") {
-    return (
-      <MaNote tone={tone} icon={icon}>
-        {children}
-      </MaNote>
-    );
-  }
   const Icon = icon;
   return tone === "attention" ? (
-    <span className="refusal auth-signin-row-3" role="alert">
+    <span className="refusal auth-signin-row-3" role="alert" data-face={face}>
       <Icon size={13} />
       {children}
     </span>
   ) : (
-    <p className="axs-note auth-offline" data-px-calm role="status">
+    <p
+      className="axs-note auth-offline"
+      data-px-calm
+      role="status"
+      data-face={face}
+    >
       <Icon size={13} />
       <span>{children}</span>
     </p>
@@ -181,8 +131,9 @@ export function LinkFoot({
   face,
   lead,
   href,
-  icon: Icon,
   children,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  icon: _icon,
   ...data
 }: React.PropsWithChildren<{
   face: Face;
@@ -191,22 +142,8 @@ export function LinkFoot({
   icon: IconType;
 }> &
   Record<`data-${string}`, string | boolean | undefined>) {
-  if (face === "phone") {
-    return (
-      <a
-        href={href}
-        className="mau-chip"
-        style={{ textDecoration: "none" }}
-        data-px-calm
-        {...data}
-      >
-        <Icon size={15} aria-hidden />
-        {lead} <u>{children}</u>
-      </a>
-    );
-  }
   return (
-    <p className="axs-switch" data-px-calm>
+    <p className="axs-switch" data-px-calm data-face={face}>
       {lead}{" "}
       <a className="ax-link auth-signin-text-4" href={href} {...data}>
         {children}
@@ -216,7 +153,6 @@ export function LinkFoot({
 }
 
 export function NewPasswordField({
-  face,
   value,
   onChange,
   invalid,
@@ -231,32 +167,6 @@ export function NewPasswordField({
   onEnter: () => void;
 }) {
   const [show, setShow] = React.useState(false);
-  if (face === "phone") {
-    return (
-      <form
-        style={{ display: "contents" }}
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
-          onEnter();
-        }}
-      >
-        <MaField label="New password" error={invalid} hint={hint}>
-          <MaInput
-            label="New password"
-            type="password"
-            value={value}
-            onChange={onChange}
-            placeholder="New password"
-            icon={LuLock}
-            autoComplete="new-password"
-            enterKeyHint="done"
-            invalid={invalid}
-          />
-        </MaField>
-      </form>
-    );
-  }
   return (
     <span className="auth-stack-6">
       <Field

@@ -1,184 +1,253 @@
-/* THE AUTH REDO (design review 2026-11-20): the static sky, the plan chip, the
- * 16+ line, the "Soon" mark. Rules of PORT.md hold: every grey is one text
- * colour at a ladder alpha, chrome type is 13 / 12 px, the accent is never a
- * fill. Nothing here animates, so there is nothing to switch off for
- * prefers-reduced-motion; the sky is painted once. */
+/* THE AUTH REDO (design review 2026-11-20, rebuilt on the Craft references):
+ * a calm sky with a few static halftone clouds at the edges, and ONE frosted
+ * card with the app icon half over its top edge. Every auth screen, the link
+ * screens and the onboarding map wear it. Rules of PORT.md hold: every grey is
+ * one text colour at a ladder alpha, chrome type is 13 / 12 px (the card title
+ * is a title, not chrome), the accent is never a fill. Nothing here animates
+ * and the sky is one prerendered picture (public/auth/sky-*.webp, painted
+ * once), so there is nothing to switch off for prefers-reduced-motion. */
 
-/* The sky: day is the lavender sky of the product, night its dark pair. Four
-   soft glows stand in for the clouds; a different set per screen so sign-up
-   is not sign-in. No canvas, no rAF, no grain image. */
+/* The sky. Wide and tall pictures, day and night; the flat colour shows while
+   the picture loads. No gradients, no glows, no canvas. */
 .needt-v3 .px-sky.auth-sky {
-  --auth-sky-top: var(--sky-lavender-top);
-  --auth-sky-mid: var(--sky-lavender-mid);
-  --auth-sky-low: var(--sky-lavender-low);
-  --auth-sky-sun: var(--sky-lavender-sun);
-  --auth-sky-cloud: rgba(255, 255, 255, 0.55);
-  background:
-    radial-gradient(
-      46% 34% at 80% 10%,
-      var(--auth-sky-sun),
-      rgba(255, 248, 246, 0) 72%
-    ),
-    radial-gradient(
-      40% 22% at 14% 78%,
-      var(--auth-sky-cloud),
-      rgba(255, 255, 255, 0) 72%
-    ),
-    radial-gradient(
-      34% 16% at 90% 66%,
-      var(--auth-sky-cloud),
-      rgba(255, 255, 255, 0) 72%
-    ),
-    radial-gradient(
-      30% 14% at 30% 22%,
-      var(--auth-sky-cloud),
-      rgba(255, 255, 255, 0) 72%
-    ),
-    linear-gradient(
-      var(--auth-sky-top),
-      var(--auth-sky-mid) 55%,
-      var(--auth-sky-low)
-    );
-}
-.needt-v3 .px-sky.auth-sky[data-auth-sky="c"] {
-  background-position:
-    0 0,
-    0 0,
-    0 0,
-    0 0,
-    0 0;
-  background-image:
-    radial-gradient(
-      42% 32% at 18% 12%,
-      var(--auth-sky-sun),
-      rgba(255, 248, 246, 0) 72%
-    ),
-    radial-gradient(
-      40% 20% at 84% 80%,
-      var(--auth-sky-cloud),
-      rgba(255, 255, 255, 0) 72%
-    ),
-    radial-gradient(
-      32% 16% at 8% 62%,
-      var(--auth-sky-cloud),
-      rgba(255, 255, 255, 0) 72%
-    ),
-    radial-gradient(
-      30% 14% at 70% 24%,
-      var(--auth-sky-cloud),
-      rgba(255, 255, 255, 0) 72%
-    ),
-    linear-gradient(
-      var(--auth-sky-top),
-      var(--auth-sky-mid) 55%,
-      var(--auth-sky-low)
-    );
+  --auth-sky-flat: #bfe0f4;
+  --auth-sky-img: url("/auth/sky-light-wide.webp");
+  background: var(--auth-sky-img) center / cover no-repeat var(--auth-sky-flat);
 }
 .needt-v3:is([data-theme="dark"], [data-theme="dim"]) .px-sky.auth-sky {
-  --auth-sky-top: var(--sky-night-top);
-  --auth-sky-mid: var(--sky-night-mid);
-  --auth-sky-low: var(--sky-night-low);
-  --auth-sky-sun: rgba(157, 151, 196, 0.34);
-  --auth-sky-cloud: rgba(157, 151, 196, 0.16);
+  --auth-sky-flat: #1a2244;
+  --auth-sky-img: url("/auth/sky-dark-wide.webp");
+}
+@media (max-aspect-ratio: 1 / 1) {
+  .needt-v3 .px-sky.auth-sky {
+    --auth-sky-img: url("/auth/sky-light-tall.webp");
+  }
+  .needt-v3:is([data-theme="dark"], [data-theme="dim"]) .px-sky.auth-sky {
+    --auth-sky-img: url("/auth/sky-dark-tall.webp");
+  }
 }
 
-/* The 16+ / Terms line: one 12px row right above the button that makes the
-   account, with room above and below so it never touches a neighbour. */
+/* The column: scrolls on a short screen, centres the card on a tall one. The
+   top padding leaves room for the half of the icon that sits above the card. */
+.needt-v3 .ac-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 52px 16px 28px;
+  box-sizing: border-box;
+}
+.needt-v3 .ac-col {
+  margin: auto 0;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* The card: a frosted white (a deep blue at night), a large radius, a thin
+   light border, a soft shadow. */
+.needt-v3 .ac-card {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.46);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+  backdrop-filter: blur(22px) saturate(1.15);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72),
+    0 2px 6px rgba(30, 70, 120, 0.08),
+    0 34px 70px -34px rgba(30, 70, 120, 0.45);
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .ac-card {
+  background: rgba(24, 31, 66, 0.55);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 2px 6px rgba(0, 0, 0, 0.2),
+    0 34px 70px -34px rgba(0, 0, 0, 0.6);
+}
+.needt-v3 .ac-card .auth-signin-col-2 {
+  padding: 40px 32px 24px;
+}
+@media (max-width: 440px) {
+  .needt-v3 .ac-card .auth-signin-col-2 {
+    padding: 40px 20px 24px;
+  }
+}
+
+/* The app icon, half over the top edge. */
+.needt-v3 .ac-icon {
+  position: absolute;
+  left: 50%;
+  top: -28px;
+  width: 56px;
+  height: 56px;
+  transform: translateX(-50%);
+  display: block;
+  z-index: 1;
+}
+.needt-v3 .ac-icon .needt-app-icon {
+  display: block;
+  width: 56px;
+  height: 56px;
+  filter: drop-shadow(0 8px 14px rgba(20, 45, 90, 0.3));
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .ac-icon .needt-app-icon {
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.5));
+}
+
+/* Title and the one grey line. */
+.needt-v3 .ac-title {
+  margin: 0;
+  text-align: center;
+  font: 600 20px / 1.25 var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.needt-v3 .ac-card .auth-signin-text {
+  margin: 8px 0 24px;
+  color: var(--text-secondary);
+}
+.needt-v3 .ac-card .auth-signin-col-4 {
+  gap: 8px;
+}
+.needt-v3 .ac-notice {
+  margin: -8px 0 12px;
+  text-align: center;
+}
+
+/* Fields: a soft white (a faint fill at night) on the glass. The hairline and
+   the focus ring are the field's own tokens (inline). */
+.needt-v3 .ac-card .auth-field-input {
+  background: var(--white-a55);
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])
+  .ac-card
+  .auth-field-input {
+  background: var(--white-a8);
+}
+.needt-v3 .ac-card .auth-field-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* The one primary button: the existing primary style, full width, the field's
+   own height. */
+.needt-v3 .ac-card .nx-btn.auth-signin-btn {
+  height: 44px;
+  margin-top: 0;
+}
+
+/* "or" between the email form and the providers. */
+.needt-v3 .ac-or {
+  margin: 16px 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-tertiary);
+}
+
+/* Providers: outlined, never filled. */
+.needt-v3 .ac-card .ax-btn.auth-oauth {
+  background: var(--white-a40);
+  box-shadow: inset 0 0 0 1px var(--border) !important;
+  color: var(--text-primary);
+}
+.needt-v3 .ac-card .ax-btn.auth-oauth:hover:not([disabled]) {
+  background: var(--white-a70);
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])
+  .ac-card
+  .ax-btn.auth-oauth {
+  background: transparent;
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"])
+  .ac-card
+  .ax-btn.auth-oauth:hover:not([disabled]) {
+  background: var(--white-a8);
+}
+/* Apple draws its mark in the button ink, on the same outline. */
+.needt-v3 .ac-card .ax-btn.auth-oauth[data-provider="apple"] {
+  color: var(--text-primary);
+}
+.needt-v3 .ac-card .auth-oauth[data-provider="apple"] .auth-raised-row {
+  color: inherit;
+}
+
+/* The terms line at the foot of the card. */
+.needt-v3 .ac-terms {
+  margin: 24px 0 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  text-wrap: pretty;
+}
+.needt-v3 .ac-terms .ax-link {
+  color: var(--text-secondary);
+}
+
+/* The line under the card ("New to Needt? Create one"): plain text on the
+   sky, no chip. */
+.needt-v3 .ac-col .axs-switch {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  color: var(--text-secondary);
+}
+
+/* The 16+ / Terms line of sign-up: one 12px row right above Continue, with
+   room above and below so it never touches a neighbour. */
 .needt-v3 .auth-age.auth-age-line {
   margin: 6px 0 2px;
   padding: 0 2px;
   align-items: flex-start;
 }
-.needt-v3 .auth-age.auth-age-line.mau-age {
-  color: var(--ppl-auth-ink-2, var(--text-secondary));
-}
 
-/* The plan that rode along (variant A). A quiet bordered block on the card:
-   the chip is a mark (ink on a ladder fill), never an accent fill. */
-.needt-v3 .auth-plan {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 0 18px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--fill-1);
-  box-shadow: inset 0 0 0 1px var(--border);
-  text-align: left;
-}
-.needt-v3 .auth-plan-head {
+/* The plan that rode along: a small card in the card, above the email. */
+.needt-v3 .ac-plan {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
   flex-wrap: wrap;
-}
-.needt-v3 .auth-plan-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 9999px;
-  font: 500 13px/1 var(--font-sans);
-  color: var(--text-primary);
-  background: var(--surface-raised);
+  gap: 4px 12px;
+  margin: 0 0 24px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--white-a55);
   box-shadow:
     inset 0 0 0 1px var(--border),
-    var(--black-a6) 0 1px 2px;
+    0 1px 2px var(--black-a6);
+  text-align: left;
 }
-.needt-v3 .auth-plan-chip b {
-  font-weight: 650;
-}
-.needt-v3 .auth-plan-chip span {
-  color: var(--text-secondary);
-}
-.needt-v3 .auth-plan-free {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-.needt-v3 .auth-plan-note {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--text-tertiary);
-}
-.needt-v3 .auth-plan-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--text-secondary);
-}
-.needt-v3 .auth-plan-list li {
-  display: flex;
-  gap: 8px;
-}
-.needt-v3 .auth-plan-list li::before {
-  content: "";
-  flex: none;
-  width: 4px;
-  height: 4px;
-  margin-top: 6px;
-  border-radius: 50%;
-  background: var(--text-quaternary);
-}
-/* On the phone the list is left out: the chip and its one line say it, and
-   the form stays in the first screen. */
-.needt-v3 .auth-plan.mau-plan .auth-plan-list {
-  display: none;
-}
-/* On the phone plate the ink colours are the plate's own. */
-.needt-v3 .auth-plan.mau-plan {
-  margin: 0;
-  background: var(--white-a40);
-}
-.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .auth-plan.mau-plan {
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]) .ac-plan {
   background: var(--white-a8);
+}
+.needt-v3 .ac-plan-line {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.needt-v3 .ac-plan-line b {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.needt-v3 .ac-plan-free {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 /* The ChatGPT slot while it is not live: drawn, disabled, "Soon" at the end. */
@@ -193,9 +262,4 @@
 }
 .needt-v3 .auth-oauth[data-provider="openai"][disabled] {
   opacity: 0.55;
-}
-
-/* Apple button: the row inside keeps the button ink so the mono mark shows. */
-.needt-v3 .auth-oauth[data-provider="apple"] .auth-raised-row {
-  color: inherit;
 }

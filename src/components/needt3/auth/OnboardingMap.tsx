@@ -1,14 +1,26 @@
 "use client";
 
-/* THE ONBOARDING MAP (design review, 2026-11-20): the proposed short flow
-   that replaces the 19-screen /start, drawn as static mocks. Nothing here
-   reads or writes anything: `/start?preview=map` shows all five steps with
-   the list beside them, `/start?preview=map&step=3` one step full size (what
-   the review shots use). The goal it is built to: "my plan for today" in
-   about two minutes, every step skippable, no paywall on the way. */
+/* THE ONBOARDING MAP (design review, 2026-11-20): the proposed short flow that
+   replaces the 19-screen /start, as a clickable mock in the sign-in's card
+   language (the sky, one frosted card, the app icon on its edge; a "choose a
+   service" step is a grid of tiles with a line each, as in the Craft import
+   reference). Nothing here reads or writes the account: `/start?preview=map`
+   runs the four steps (the step you are on survives a reload, in this
+   browser), `&step=3` pins one step for the review shots, `&step=4&plan=1`
+   shows the plan.
+
+   The rules it is built to (the Sunsama onboarding the owner reviewed): about
+   two minutes from sign-up to a first plan, one question per screen with one
+   grey line under it, Back and Next on every screen, everything skippable, a
+   thin progress line across the top, no paywall on the way (the trial is one
+   line on the last screen). */
 import * as React from "react";
 
+import { addCalendarDays, newDate } from "@/lib/date-utils";
+import { keepProDate } from "@/lib/needt3/paywall";
+
 import { BrandIcon } from "../brand";
+import { NeedtAppIcon } from "../wordmark";
 import { AuthScope } from "./AuthScope";
 import { AuthSky } from "./AuthSky";
 
@@ -23,100 +35,53 @@ export interface MapStep {
 export const MAP_STEPS: readonly MapStep[] = [
   {
     n: 1,
-    title: "Name",
-    what: "What to call you; time zone detected",
-    seconds: 8,
+    title: "Your hours",
+    what: "When you work and when to plan, pre-filled",
+    seconds: 12,
   },
   {
     n: 2,
-    title: "Your calendar",
-    what: "Connect Google or Outlook, or skip and add by hand",
-    seconds: 25,
+    title: "Where your work lives",
+    what: "Pick the calendar and tools you already use",
+    seconds: 20,
   },
   {
     n: 3,
-    title: "Today's tasks",
-    what: "Two or three tasks with a rough length",
-    seconds: 30,
+    title: "Your AI",
+    what: "Claude, ChatGPT or Codex can use Needt",
+    seconds: 15,
   },
   {
     n: 4,
-    title: "Your hours",
-    what: "Work days and hours, pre-filled",
-    seconds: 10,
-  },
-  {
-    n: 5,
     title: "Your day",
-    what: "Needt lays out today; the trial in one line",
-    seconds: 12,
+    what: "Say what you want to do today, get a timed plan",
+    seconds: 35,
   },
 ];
 
 export const MAP_TOTAL_SECONDS = MAP_STEPS.reduce((a, s) => a + s.seconds, 0);
 
-function Progress({ n }: { n: number }) {
-  return (
-    <div className="omap-progress" role="img" aria-label={`Step ${n} of 5`}>
-      <span className="omap-progress-bar" aria-hidden="true">
-        {MAP_STEPS.map((s) => (
-          <i key={s.n} data-on={s.n <= n ? "true" : undefined} />
-        ))}
-      </span>
-      <span className="omap-progress-n">{n} of 5</span>
-    </div>
-  );
-}
+const STORE_KEY = "needt-onboarding-map-step";
 
-function Foot({
-  primary,
-  skip = "Skip",
-}: {
-  primary: string;
-  skip?: string | null;
-}) {
-  return (
-    <div className="omap-foot">
-      <button type="button" className="nx-btn nx-btn-primary axs-go">
-        {primary}
-      </button>
-      {skip ? (
-        <button type="button" className="ax-link omap-skip">
-          {skip}
-        </button>
-      ) : null}
-    </div>
-  );
-}
+/** What each tile in "Where your work lives" is. Only providers Needt has
+    code for (the integration catalog): the three calendars, Google Tasks and
+    the Composio toolkits. */
+const WORK_TOOLS: ReadonlyArray<readonly [string, string, string]> = [
+  ["gcal", "Google Calendar", "Your events, live"],
+  ["ocal", "Outlook", "Work or school calendar"],
+  ["ical", "Apple Calendar", "iCloud, through CalDAV"],
+  ["gtasks", "Google Tasks", "Import your task lists"],
+  ["todoist", "Todoist", "Tasks and projects"],
+  ["notion", "Notion", "Pages and databases"],
+  ["linear", "Linear", "Issues assigned to you"],
+  ["gmail", "Gmail", "Turn mail into tasks"],
+  ["slack", "Slack", "Messages and updates"],
+];
 
-function Screen({
-  n,
-  title,
-  em,
-  line,
-  children,
-}: React.PropsWithChildren<{
-  n: number;
-  title: string;
-  em: string;
-  line: string;
-}>) {
-  return (
-    <section className="omap-screen" data-omap-step={n}>
-      <Progress n={n} />
-      <h2 className="px-display omap-h">
-        {title} <em>{em}</em>
-      </h2>
-      <p className="omap-line">{line}</p>
-      {children}
-    </section>
-  );
-}
-
-const TASKS: ReadonlyArray<readonly [string, string]> = [
-  ["Draft the proposal", "90 min"],
-  ["Reply to Anna", "15 min"],
-  ["Gym", "45 min"],
+const AI_TOOLS: ReadonlyArray<readonly [string, string, string]> = [
+  ["claude", "Claude", "Plan and edit from a chat"],
+  ["chatgpt", "ChatGPT", "Add Needt as a connector"],
+  ["codex", "Codex", "Give your agent a token"],
 ];
 
 const DAY: ReadonlyArray<readonly [string, string, string]> = [
@@ -127,169 +92,313 @@ const DAY: ReadonlyArray<readonly [string, string, string]> = [
   ["14:00", "Gym", "45 min"],
 ];
 
-function StepBody({ n }: { n: number }) {
-  if (n === 1)
-    return (
-      <Screen
-        n={1}
-        title="What should we"
-        em="call you?"
-        line="Only your first name. You can change it later."
-      >
-        <div className="omap-body">
-          <span className="auth-field-row">
-            <input
-              className="auth-field-input omap-input"
-              aria-label="Name"
-              defaultValue="Alex"
-              readOnly
-            />
-          </span>
-          <p className="omap-hint">Time zone: Europe/Zurich, detected.</p>
-        </div>
-        <Foot primary="Continue" />
-      </Screen>
-    );
-  if (n === 2)
-    return (
-      <Screen
-        n={2}
-        title="Bring your day"
-        em="in"
-        line="Needt plans around what is already booked. Read only."
-      >
-        <div className="omap-body">
-          <button type="button" className="ax-btn ax-raised auth-oauth">
-            <BrandIcon id="gcal" size={18} />
-            Connect Google Calendar
-          </button>
-          <button type="button" className="ax-btn ax-raised auth-oauth">
-            <BrandIcon id="ocal" size={18} />
-            Connect Outlook
-          </button>
-        </div>
-        <Foot primary="Continue" skip="No calendar, I will add tasks by hand" />
-      </Screen>
-    );
-  if (n === 3)
-    return (
-      <Screen
-        n={3}
-        title="What is on your"
-        em="plate today?"
-        line="Two or three is enough. Needt guesses the time."
-      >
-        <div className="omap-body">
-          {TASKS.map(([t, d]) => (
-            <div key={t} className="omap-row">
-              <span className="omap-dot" aria-hidden="true" />
-              <span className="omap-row-t">{t}</span>
-              <span className="omap-chip">{d}</span>
-            </div>
-          ))}
-          <button type="button" className="ax-link omap-add">
-            Add another
-          </button>
-        </div>
-        <Foot primary="Plan my day" skip="Use examples" />
-      </Screen>
-    );
-  if (n === 4)
-    return (
-      <Screen
-        n={4}
-        title="When do you"
-        em="work?"
-        line="Pre-filled from your calendar. Tap to change."
-      >
-        <div className="omap-body">
-          <div className="omap-days" role="group" aria-label="Work days">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => (
-              <span
-                key={d}
-                className="omap-day"
-                data-on={i < 5 ? "true" : undefined}
-              >
-                {d}
-              </span>
-            ))}
-          </div>
-          <div className="omap-hours">
-            <span className="omap-chip">09:00</span>
-            <span aria-hidden="true">to</span>
-            <span className="omap-chip">17:30</span>
-          </div>
-        </div>
-        <Foot primary="Looks right" />
-      </Screen>
-    );
+function Tiles({
+  items,
+  picked,
+  onPick,
+  label,
+}: {
+  items: ReadonlyArray<readonly [string, string, string]>;
+  picked: ReadonlySet<string>;
+  onPick: (id: string) => void;
+  label: string;
+}) {
   return (
-    <Screen
-      n={5}
-      title="Here is"
-      em="your day"
-      line="Moves on its own when something changes."
-    >
-      <div className="omap-body">
-        {DAY.map(([time, t, meta]) => (
-          <div key={time} className="omap-slot">
-            <span className="omap-time">{time}</span>
-            <span className="omap-row-t">{t}</span>
-            <span className="omap-meta">{meta}</span>
-          </div>
-        ))}
-        <p className="omap-hint">
-          You are on a 14-day Pro trial. After that Free, unless you pick a
-          plan.
-        </p>
-      </div>
-      <Foot primary="Open Today" skip={null} />
-    </Screen>
+    <div className="omap-tiles" role="group" aria-label={label}>
+      {items.map(([id, name, what]) => (
+        <button
+          key={id}
+          type="button"
+          className="omap-tile"
+          aria-pressed={picked.has(id)}
+          data-on={picked.has(id) ? "true" : undefined}
+          onClick={() => onPick(id)}
+        >
+          <BrandIcon id={id} size={30} />
+          <b>{name}</b>
+          <span>{what}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
-export function OnboardingMap({ step }: { step?: string }) {
-  const one = MAP_STEPS.find((s) => String(s.n) === step);
+function Hours() {
+  const [when, setWhen] = React.useState<"morning" | "night">("morning");
+  return (
+    <>
+      <div className="omap-hours">
+        <label>
+          <span>Start</span>
+          <input
+            className="auth-field-input omap-input"
+            defaultValue="09:00"
+            inputMode="numeric"
+            aria-label="Start time"
+          />
+        </label>
+        <label>
+          <span>Wrap up</span>
+          <input
+            className="auth-field-input omap-input"
+            defaultValue="17:30"
+            inputMode="numeric"
+            aria-label="Wrap-up time"
+          />
+        </label>
+      </div>
+      <div className="omap-seg" role="group" aria-label="When to plan">
+        {(
+          [
+            ["morning", "Plan in the morning"],
+            ["night", "Plan the night before"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={when === id}
+            data-on={when === id ? "true" : undefined}
+            onClick={() => setWhen(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function Today({
+  planned,
+  onPlan,
+  noCalendar,
+}: {
+  planned: boolean;
+  onPlan: () => void;
+  noCalendar: boolean;
+}) {
+  return (
+    <>
+      <textarea
+        className="omap-text"
+        aria-label="What you want to do today"
+        placeholder="Draft the proposal, reply to Anna, gym after lunch"
+        defaultValue={planned ? "Draft the proposal, reply to Anna, gym" : ""}
+        rows={3}
+      />
+      {planned ? (
+        <div className="omap-plan" aria-label="Your plan for today">
+          {DAY.map(([time, t, meta]) => (
+            <div key={time} className="omap-slot">
+              <span className="omap-time">{time}</span>
+              <span className="omap-row-t">{t}</span>
+              <span className="omap-meta">{meta}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="nx-btn nx-btn-primary axs-go omap-go"
+          onClick={onPlan}
+        >
+          Plan my day
+        </button>
+      )}
+      {noCalendar ? (
+        <p className="omap-hint">Better with a calendar and a task tool.</p>
+      ) : null}
+      <GiftLine />
+    </>
+  );
+}
+
+/** The end of onboarding: the trial as a gift, one quiet line, the date from
+    the trial grant (`trialEndsAt`). The mock has no account, so it counts 14
+    days from now, after mount (a server date would not match the browser's). */
+function GiftLine() {
+  const [until, setUntil] = React.useState("");
+  React.useEffect(() => {
+    setUntil(keepProDate(addCalendarDays(newDate(), 14).toISOString()));
+  }, []);
+  return (
+    <p className="omap-hint omap-gift" data-onboarding-gift="">
+      Pro is yours for 14 days{until ? ` · until ${until}` : ""}
+    </p>
+  );
+}
+
+const COPY: Record<number, readonly [string, string]> = {
+  1: ["When do you work?", "Pre-filled. You can change it any time."],
+  2: ["Where does your work live?", "Needt plans around what is booked."],
+  3: ["Connect your AI", "Use Needt from your assistant."],
+  4: ["What do you want to do today?", "Needt turns it into a timed plan."],
+};
+
+function StepCard({
+  n,
+  planned,
+  onPlan,
+  onBack,
+  onNext,
+  picked,
+  onPick,
+  aiPicked,
+  onAiPick,
+}: {
+  n: number;
+  planned: boolean;
+  onPlan: () => void;
+  onBack: (() => void) | null;
+  onNext: () => void;
+  picked: ReadonlySet<string>;
+  onPick: (id: string) => void;
+  aiPicked: ReadonlySet<string>;
+  onAiPick: (id: string) => void;
+}) {
+  const [title, line] = COPY[n];
+  const calendar = ["gcal", "ocal", "ical"].some((id) => picked.has(id));
+  return (
+    <div className="ac-card omap-card-one" data-omap-step={n}>
+      <span className="ac-icon" data-px-calm>
+        <NeedtAppIcon size={56} />
+      </span>
+      <h1 className="ac-title">{title}</h1>
+      <p className="auth-signin-text">{line}</p>
+      <div className="omap-body">
+        {n === 1 ? <Hours /> : null}
+        {n === 2 ? (
+          <Tiles
+            items={WORK_TOOLS}
+            picked={picked}
+            onPick={onPick}
+            label="Calendars and tools"
+          />
+        ) : null}
+        {n === 3 ? (
+          <Tiles
+            items={AI_TOOLS}
+            picked={aiPicked}
+            onPick={onAiPick}
+            label="AI assistants"
+          />
+        ) : null}
+        {n === 4 ? (
+          <Today planned={planned} onPlan={onPlan} noCalendar={!calendar} />
+        ) : null}
+      </div>
+      <div className="omap-nav">
+        {onBack ? (
+          <button
+            type="button"
+            className="nx-btn nx-btn-secondary axs-go"
+            data-omap-back
+            onClick={onBack}
+          >
+            Back
+          </button>
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          className="nx-btn nx-btn-primary axs-go"
+          data-omap-next
+          onClick={onNext}
+        >
+          {n === 4 ? "Open Today" : "Next"}
+        </button>
+      </div>
+      {n < 4 ? (
+        <button
+          type="button"
+          className="ax-link omap-skip"
+          data-omap-skip
+          onClick={onNext}
+        >
+          Skip
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function toSet(v: Iterable<string>): Set<string> {
+  return new Set(v);
+}
+
+export function OnboardingMap({
+  step,
+  plan,
+}: {
+  step?: string;
+  plan?: string;
+}) {
+  const pinned = MAP_STEPS.find((s) => String(s.n) === step)?.n ?? null;
+  const [n, setN] = React.useState<number>(pinned ?? 1);
+  const [planned, setPlanned] = React.useState(plan === "1");
+  const [picked, setPicked] = React.useState<Set<string>>(
+    () => new Set(pinned ? ["gcal", "todoist"] : [])
+  );
+  const [aiPicked, setAiPicked] = React.useState<Set<string>>(
+    () => new Set(pinned === 3 ? ["claude"] : [])
+  );
+
+  /* The step survives a reload (this browser only: the mock has no account). */
+  React.useEffect(() => {
+    if (pinned) return;
+    try {
+      const saved = Number(window.localStorage.getItem(STORE_KEY));
+      if (saved >= 1 && saved <= 4) setN(saved);
+    } catch {
+      /* private window: start at the first step */
+    }
+  }, [pinned]);
+  const go = React.useCallback((to: number) => {
+    setN(to);
+    try {
+      window.localStorage.setItem(STORE_KEY, String(to));
+    } catch {
+      /* nothing to keep it in */
+    }
+  }, []);
+  const toggle =
+    (set: React.Dispatch<React.SetStateAction<Set<string>>>) => (id: string) =>
+      set((cur) => {
+        const next = toSet(cur);
+        if (!next.delete(id)) next.add(id);
+        return next;
+      });
+
   return (
     <AuthScope>
-      <div className="omap" data-omap={one ? "one" : "all"}>
+      <div className="omap" data-omap={pinned ? "one" : "flow"}>
         <AuthSky variant="b">
+          <div
+            className="omap-topline"
+            role="progressbar"
+            aria-label="Setup progress"
+            aria-valuemin={1}
+            aria-valuemax={4}
+            aria-valuenow={n}
+          >
+            <i style={{ width: `${(n / 4) * 100}%` }} />
+          </div>
           <div className="omap-scroll">
-            {one ? (
-              <div className="omap-card omap-card-one">
-                <StepBody n={one.n} />
-              </div>
-            ) : (
-              <>
-                <header className="omap-head">
-                  <span className="px-kicker">Proposal</span>
-                  <h1 className="px-display">
-                    Sign up to <em>your day</em> in about two minutes
-                  </h1>
-                  <p className="omap-line">
-                    Five steps after the account, every one skippable, no
-                    paywall in between. About {MAP_TOTAL_SECONDS} seconds of
-                    typing and tapping, plus the sign-up (about 25).
-                  </p>
-                  <ol className="omap-list">
-                    {MAP_STEPS.map((s) => (
-                      <li key={s.n}>
-                        <b>{s.title}</b>
-                        <span>{s.what}</span>
-                        <em>{s.seconds}s</em>
-                      </li>
-                    ))}
-                  </ol>
-                </header>
-                <div className="omap-grid">
-                  {MAP_STEPS.map((s) => (
-                    <div key={s.n} className="omap-card">
-                      <StepBody n={s.n} />
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+            <div className="ac-col omap-col">
+              <StepCard
+                n={n}
+                planned={planned}
+                onPlan={() => setPlanned(true)}
+                onBack={n > 1 ? () => go(n - 1) : null}
+                onNext={() => go(Math.min(4, n + 1))}
+                picked={picked}
+                onPick={toggle(setPicked)}
+                aiPicked={aiPicked}
+                onAiPick={toggle(setAiPicked)}
+              />
+            </div>
           </div>
         </AuthSky>
       </div>

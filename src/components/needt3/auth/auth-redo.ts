@@ -1,19 +1,15 @@
 /**
- * THE AUTH REDO (design review, 2026-11-20): which card variant a visitor
- * sees, which plan they arrived with, and which provider buttons the card
- * draws. Pure logic, no DOM, so it is testable.
+ * THE AUTH REDO (design review, 2026-11-20, redone on the Craft references):
+ * which plan a visitor arrived with and which provider buttons the card draws.
+ * Pure logic, no DOM, so it is testable.
  *
- * Variant A is "sign in with a plan": the plan that was picked (a billing
- * deep link, or `?plan=`) rides on top of the card as a chip. Variant B is the
- * plain card. `?v=a` / `?v=b` force one for review; without it the card is A
- * when a plan came along and B otherwise. TEMPORARY: the param goes once the
- * owner has picked.
+ * One card. When a plan was picked (a billing deep link, or `?plan=`) a quiet
+ * row on the card says which; "Start free instead" drops it.
  */
 import { NEEDT_PRICING, formatBillingPriceExact } from "@/lib/creem/config";
 
 import type { AuthProvider } from "./AuthScreen";
 
-export type AuthCardVariant = "a" | "b";
 export type PlanId = "pro-year" | "pro-month" | "lifetime";
 
 export interface PlanChoice {
@@ -22,8 +18,8 @@ export interface PlanChoice {
   readonly name: string;
   /** "$59/year", "$7/month", "$149 once". */
   readonly price: string;
-  /** The line under the chip. */
-  readonly note: string;
+  /** "14 days free", "first 300 buyers". */
+  readonly trial: string;
 }
 
 const price = formatBillingPriceExact;
@@ -35,20 +31,20 @@ export function planChoice(id: PlanId): PlanChoice {
       id,
       name: NEEDT_PRICING.pro.name,
       price: `${price(NEEDT_PRICING.pro.month.amountCents)}/month`,
-      note: `${days} days of Pro first. Billing starts after the trial.`,
+      trial: `${days} days free`,
     };
   if (id === "lifetime")
     return {
       id,
       name: NEEDT_PRICING.lifetime.name,
       price: `${price(NEEDT_PRICING.lifetime.amountCents)} once`,
-      note: `Pay once, keep Pro. First ${NEEDT_PRICING.lifetime.cap} buyers.`,
+      trial: `first ${NEEDT_PRICING.lifetime.cap} buyers`,
     };
   return {
     id: "pro-year",
     name: NEEDT_PRICING.pro.name,
     price: `${price(NEEDT_PRICING.pro.year.amountCents)}/year`,
-    note: `${days} days of Pro first. Billing starts after the trial.`,
+    trial: `${days} days free`,
   };
 }
 
@@ -78,35 +74,26 @@ export function planFromSearch(search: string): PlanChoice | null {
 }
 
 export interface AuthRedoState {
-  readonly variant: AuthCardVariant;
   readonly plan: PlanChoice | null;
-  /** `?v=` was given: draw the provider buttons the server has not wired yet. */
+  /** Draw the provider buttons the server has not wired yet (visual only). */
   readonly preview: boolean;
   /** "soon": the ChatGPT slot is drawn, disabled. */
   readonly chatgpt: "hidden" | "soon";
 }
 
 export const AUTH_REDO_DEFAULT: AuthRedoState = {
-  variant: "b",
   plan: null,
-  preview: false,
+  // todo(auth-redo): Apple and Microsoft are drawn for review before they are
+  // wired; drop `preview` once both providers are configured.
+  preview: true,
   chatgpt: "hidden",
 };
 
 export function authRedoFromSearch(search: string): AuthRedoState {
   const params = new URLSearchParams(search);
-  const forced = params.get("v");
-  const found = planFromSearch(search);
-  const variant: AuthCardVariant =
-    forced === "a" ? "a" : forced === "b" ? "b" : found ? "a" : "b";
-  const plan =
-    variant === "a"
-      ? (found ?? (forced === "a" ? planChoice("pro-year") : null))
-      : null;
   return {
-    variant,
-    plan,
-    preview: forced === "a" || forced === "b",
+    plan: planFromSearch(search),
+    preview: true,
     chatgpt: params.get("chatgpt") === "soon" ? "soon" : "hidden",
   };
 }
@@ -140,9 +127,9 @@ export function redoProviders(
     else if (opts.preview)
       main.push({ id, label: LABELS[id], icon: icons[id], visualOnly: true });
   }
-  const openai = byId.get("openai");
-  if (openai) main.push(openai);
-  else if (opts.chatgpt === "soon")
+  // ChatGPT stays out of the visible card for now (owner, 2026-11-20); the
+  // slot is kept: `?chatgpt=soon` draws it disabled.
+  if (opts.chatgpt === "soon")
     main.push({
       id: "openai",
       label: LABELS.openai,

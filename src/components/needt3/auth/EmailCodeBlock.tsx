@@ -74,7 +74,7 @@ export function EmailCodeBlock({
           className="auth-recover-resend"
           data-auth-resend={flow.resendIn > 0 ? flow.resendIn : "ready"}
         >
-          {"Didn’t get it? Check spam, or "}
+          {"Check spam, or "}
           {flow.resendIn > 0 ? (
             <span className="auth-recover-wait">
               resend in {resendClock(flow.resendIn)}
@@ -109,7 +109,8 @@ export function EmailCodeBlock({
       <Field
         value={mail}
         label="Email"
-        placeholder="you@example.com"
+        type="email"
+        placeholder="Your email"
         autoComplete="email"
         inputMode="email"
         invalid={flow.mailBad}

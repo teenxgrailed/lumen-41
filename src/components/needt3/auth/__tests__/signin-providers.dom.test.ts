@@ -108,7 +108,8 @@ describe.each([
 
   it("shows Google, Apple, Microsoft and ChatGPT, then More ways for the rest", async () => {
     await mount();
-    expect(shown()).toEqual(["google", "apple", "azure-ad", "openai"]);
+    // ChatGPT stays out of the visible card for now (owner, 2026-11-20).
+    expect(shown()).toEqual(["google", "apple", "azure-ad"]);
     expect(moreWays()).toBeDefined();
 
     await act(async () => {
@@ -118,7 +119,6 @@ describe.each([
       "google",
       "apple",
       "azure-ad",
-      "openai",
       "github",
       "discord",
       "twitter",
@@ -126,20 +126,20 @@ describe.each([
     ]);
     expect(moreWays()).toBeUndefined();
     expect(host.textContent).toContain("Sign in with Apple");
-    expect(host.textContent).toContain("Sign in with ChatGPT");
     expect(host.textContent).toContain("Sign in with Microsoft");
   });
 
   it("draws only what the server reports; GitHub waits behind More ways", async () => {
+    // Apple and Microsoft are drawn visual-only until they are wired.
     available = reported(["credentials", "google", "github"]);
     await mount();
-    expect(shown()).toEqual(["google"]);
+    expect(shown()).toEqual(["google", "apple", "azure-ad"]);
     expect(moreWays()).toBeDefined();
     available = reported(["credentials", "google"]);
     await act(async () => root.unmount());
     root = createRoot(host);
     await mount();
-    expect(shown()).toEqual(["google"]);
+    expect(shown()).toEqual(["google", "apple", "azure-ad"]);
     expect(moreWays()).toBeUndefined();
   });
 

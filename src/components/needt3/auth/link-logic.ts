@@ -92,38 +92,36 @@ export const CONFIRM_COPY: Readonly<
   ready: {
     a: "Confirm your",
     b: "email",
-    line: (mail) => `Confirm ${mail} to start 14 days of Pro.`,
+    line: (mail) => `Confirm ${mail}.`,
   },
   confirming: {
     a: "Confirm your",
     b: "email",
-    line: (mail) => `Confirm ${mail} to start 14 days of Pro.`,
+    line: (mail) => `Confirm ${mail}.`,
   },
   password: {
     a: "Set a",
     b: "password",
-    line: (mail) =>
-      `Choose the password for ${mail}. Anything signed in before is signed out.`,
+    line: (mail) => `Choose a password for ${mail}.`,
   },
   confirmed: {
     a: "Email",
     b: "confirmed",
-    line: (mail) => `${mail} is confirmed. Your 14 days of Pro have started.`,
+    line: (mail) => `${mail} is confirmed.`,
   },
   expired: {
     a: "This link has",
     b: "expired",
-    line: () => "Confirmation links work for a limited time. Send a new one.",
+    line: () => "Send yourself a new link.",
   },
   invalid: {
     a: "This link doesn’t",
     b: "work",
-    line: () =>
-      "It is incomplete or has already been used. Send a new one if you still need to confirm.",
+    line: () => "It was already used. Send a new one.",
   },
   error: {
     a: "Confirm your",
     b: "email",
-    line: () => "Email confirmation is temporarily unavailable. Try again.",
+    line: () => "Try again in a moment.",
   },
 };

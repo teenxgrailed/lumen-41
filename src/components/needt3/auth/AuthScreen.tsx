@@ -27,8 +27,7 @@ import {
 import { useOnline } from "@/lib/needt3/use-online";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
-import { GlassCard } from "../scenes";
-import { NeedtLockup } from "../wordmark";
+import { NeedtAppIcon } from "../wordmark";
 import { AgeConfirm, type AgeState, useAgeState } from "./AgeConfirm";
 import { AuthSky } from "./AuthSky";
 import { EmailCodeBlock } from "./EmailCodeBlock";
@@ -211,9 +210,9 @@ export function Field({
   );
 }
 
-/** The static sky, the lockup and the frosted card every auth screen on the
-    desktop sits on (the product collage and the live sky are gone: the card
-    is the whole screen). The reset-link and confirm-email routes use it too. */
+/** The static sky and the one frosted card every auth screen sits on, the
+    app icon half over its top edge (the Craft sign-in language). The
+    reset-link and confirm-email routes use it too. */
 export function AuthFrame({
   variant,
   screen,
@@ -235,18 +234,14 @@ export function AuthFrame({
       style={{ position: "fixed", inset: 0, zIndex: 950 }}
     >
       <AuthSky variant={variant}>
-        <div className="scroll-inner auth-signin-abs">
-          <div className="auth-signin-col">
-            <NeedtLockup />
-            <GlassCard
-              className="axs-card"
-              pad={0}
-              radius={24}
-              width="100%"
-              strong
-            >
+        <div className="scroll-inner ac-scroll">
+          <div className="ac-col">
+            <div className="ac-card">
+              <span className="ac-icon" data-px-calm>
+                <NeedtAppIcon size={56} />
+              </span>
               {children}
-            </GlassCard>
+            </div>
             {below}
             {foot}
           </div>
@@ -528,16 +523,10 @@ export function AuthScreen({
       "a",
       "recover-" + recover,
       <div key={recover} className="auth-signin-col-2 nx-swap">
-        <span className="px-kicker auth-signin-el">Reset password</span>
         {recover === "ask" ? (
           <>
-            <h1 className="px-display">
-              Forgot your <em>password</em>?
-            </h1>
-            <p className="auth-signin-text">
-              Enter the email you sign in with. We’ll send a link to set a new
-              password.
-            </p>
+            <h1 className="ac-title">Reset your password</h1>
+            <p className="auth-signin-text">We’ll email you a reset link.</p>
             <div className="auth-signin-col-4">
               <Field
                 value={mail}
@@ -565,12 +554,10 @@ export function AuthScreen({
           </>
         ) : (
           <>
-            <h1 className="px-display">
-              Check your <em>email</em>
-            </h1>
+            <h1 className="ac-title">Check your email</h1>
             <p className="auth-signin-text">
-              If <b className="auth-recover-mail">{mail}</b> has an account, a
-              reset link is on its way. It works for 1 hour.
+              If <b className="auth-recover-mail">{mail}</b> has an account, we
+              sent a link.
             </p>
             <div className="auth-signin-col-4">
               {limitRow}
@@ -579,7 +566,7 @@ export function AuthScreen({
                 className="auth-recover-resend"
                 data-auth-resend={resendIn > 0 ? resendIn : "ready"}
               >
-                {"Didn’t get it? Check spam, or "}
+                {"Check spam, or "}
                 {resendIn > 0 ? (
                   <span className="auth-recover-wait">
                     resend in {resendClock(resendIn)}
@@ -625,84 +612,69 @@ export function AuthScreen({
     );
   }
 
+  const providerStack = mainProviders.length ? (
+    <>
+      <div className="ac-or" aria-hidden="true">
+        or
+      </div>
+      <div className="auth-stack-8">
+        {shownProviders.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            data-provider={p.id}
+            data-visual-only={p.visualOnly ? "true" : undefined}
+            disabled={offline || providerBusy !== null || p.soon}
+            onClick={() => {
+              if (!ageOk()) return;
+              if (p.visualOnly) setPreviewNote(true);
+              else onProvider?.(p.id);
+            }}
+            className="ax-btn ax-raised auth-oauth"
+          >
+            <span className="auth-raised-row">
+              <p.icon size={16} aria-hidden="true" />
+            </span>
+            {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
+            {p.soon ? <span className="auth-oauth-soon">Soon</span> : null}
+          </button>
+        ))}
+        {previewNote ? (
+          <span className="auth-recover-resend" role="status">
+            Review build: this button is not connected to a provider yet.
+          </span>
+        ) : null}
+        {moreProviders.length && !moreWays ? (
+          <button
+            type="button"
+            className="ax-link auth-more-ways"
+            aria-expanded={false}
+            onClick={() => setMoreWays(true)}
+          >
+            {MORE_SIGN_IN_WAYS_LABEL}
+          </button>
+        ) : null}
+      </div>
+    </>
+  ) : null;
+
   return frame(
     signup ? "c" : "a",
     signup ? "signup" : "login",
-    <div className="auth-signin-col-2" data-auth-variant={redo.variant}>
-      {redo.variant === "a" && redo.plan ? (
+    <div className="auth-signin-col-2">
+      {redo.plan ? (
         <PlanChip plan={redo.plan} onFree={redo.dismissPlan} />
       ) : null}
-      <span className="px-kicker auth-signin-el">
-        {signup ? "New account" : "Sign in"}
-      </span>
-      <h1 className="px-display">
-        {signup ? (
-          <>
-            Create your <em>account</em>
-          </>
-        ) : (
-          <>
-            Welcome <em>back</em>
-          </>
-        )}
+      <h1 className="ac-title">
+        {signup ? "Create your Needt account" : "Welcome to Needt"}
       </h1>
       <p className="auth-signin-text">
-        {signup
-          ? "One planner for your calendar, your tasks and your projects."
-          : "Sign in — your day is where you left it."}
+        {signup ? "One planner for your whole day." : "Sign in to continue."}
       </p>
       {notice ? (
-        <p className="auth-error-text" role="alert">
+        <p className="auth-error-text ac-notice" role="alert">
           {notice}
         </p>
-      ) : null}
-
-      {mainProviders.length ? (
-        <>
-          <div className="auth-stack-8">
-            {(moreWays ? shownProviders : mainProviders).map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                data-provider={p.id}
-                data-visual-only={p.visualOnly ? "true" : undefined}
-                disabled={offline || providerBusy !== null || p.soon}
-                onClick={() => {
-                  if (!ageOk()) return;
-                  if (p.visualOnly) setPreviewNote(true);
-                  else onProvider?.(p.id);
-                }}
-                className="ax-btn ax-raised auth-oauth"
-              >
-                <span className="auth-raised-row">
-                  <p.icon size={16} aria-hidden="true" />
-                </span>
-                {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
-                {p.soon ? <span className="auth-oauth-soon">Soon</span> : null}
-              </button>
-            ))}
-            {previewNote ? (
-              <span className="auth-recover-resend" role="status">
-                Review build: this button is not connected to a provider yet.
-              </span>
-            ) : null}
-            {moreProviders.length && !moreWays ? (
-              <button
-                type="button"
-                className="ax-link auth-more-ways"
-                aria-expanded={false}
-                onClick={() => setMoreWays(true)}
-              >
-                {MORE_SIGN_IN_WAYS_LABEL}
-              </button>
-            ) : null}
-          </div>
-          <div className="auth-signin-row-2">
-            <span className="auth-signin-el-2" />
-            <span className="auth-signin-text-2">or</span>
-            <span className="auth-signin-el-2" />
-          </div>
-        </>
       ) : null}
 
       {codeMode ? (
@@ -720,7 +692,8 @@ export function AuthScreen({
           <Field
             value={mail}
             label="Email"
-            placeholder="you@example.com"
+            type="email"
+            placeholder="Your email"
             autoComplete="email"
             invalid={!!mProblem || refused?.reason === "taken"}
             onChange={(v) => {
@@ -817,6 +790,21 @@ export function AuthScreen({
           ) : null}
         </div>
       )}
+
+      {providerStack}
+
+      {signup ? null : (
+        <p className="ac-terms">
+          By clicking continue, you accept our{" "}
+          <a className="ax-link" href={termsHref}>
+            Terms
+          </a>{" "}
+          and{" "}
+          <a className="ax-link" href={privacyHref}>
+            Privacy Policy
+          </a>
+        </p>
+      )}
     </div>,
     <>
       {allowSignup || signup ? (
@@ -845,19 +833,6 @@ export function AuthScreen({
           .
         </p>
       ) : null}
-      {signup ? null : (
-        <p className="axs-note" data-px-calm>
-          By continuing you agree to Needt&apos;s{" "}
-          <a className="ax-link" href={termsHref}>
-            Terms
-          </a>{" "}
-          and{" "}
-          <a className="ax-link" href={privacyHref}>
-            Privacy Policy
-          </a>
-          .
-        </p>
-      )}
     </>
   );
 }
