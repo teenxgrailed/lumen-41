@@ -8,6 +8,8 @@ export type IncomingEvent =
   | { kind: "text"; text: string }
   /** A voice note; the adapter fetches the audio when the core asks for it. */
   | { kind: "voice"; voiceFileRef: string }
+  /** A sticker; only its emoji is read. Absent when the sticker has none. */
+  | { kind: "sticker"; emoji?: string }
   | {
       kind: "action";
       action: PlanActionKind;
@@ -42,6 +44,8 @@ export interface OutgoingMessage {
   kind: "morning" | "evening" | "reply" | "update";
   text: string;
   actions: PlanAction[];
+  /** A task was just done: the adapter may add a celebratory sticker. */
+  celebrate?: boolean;
 }
 
 /** An incoming update after an adapter translated it. */
