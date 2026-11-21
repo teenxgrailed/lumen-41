@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * The sign-in route owns what must survive a face swap: the typed values, the
+ * The sign-in route owns what must survive a re-render: the typed values, the
  * redirect after a good sign-in (even when the screen that sent the request
  * has been replaced meanwhile), and the sign-up switch, where an error is
  * "unknown" and never "closed".
@@ -102,10 +102,6 @@ const mount = async (props: { startMode?: "signup" } = {}) => {
     q<HTMLElement>("[data-auth-use-password]")?.click();
   });
 };
-const swap = (narrow: boolean) =>
-  act(() => {
-    narrowListeners.forEach((fn) => fn({ matches: narrow }));
-  });
 const q = <T extends Element>(sel: string) => host.querySelector<T>(sel);
 const type = (el: HTMLInputElement, value: string) =>
   act(() => {
@@ -115,8 +111,6 @@ const type = (el: HTMLInputElement, value: string) =>
     )!.set!.call(el, value);
     el.dispatchEvent(new Event("input", { bubbles: true }));
   });
-const face = () =>
-  q("[data-auth-screen]")?.closest(".mau-scene") ? "phone" : "desktop";
 
 describe("the sign-up switch", () => {
   it("closed: the waitlist line", async () => {
@@ -142,77 +136,34 @@ describe("the sign-up switch", () => {
   });
 });
 
-describe("crossing 700px", () => {
-  it("keeps the typed address and password", async () => {
-    await mount();
-    expect(face()).toBe("phone");
-    type(q<HTMLInputElement>('input[aria-label="Email"]')!, "ana@x.ch");
-    type(q<HTMLInputElement>('input[aria-label="Password"]')!, "12345678");
-    await swap(false);
-    expect(face()).toBe("desktop");
-    expect(q<HTMLInputElement>('input[aria-label="Email"]')!.value).toBe(
-      "ana@x.ch"
-    );
-    expect(q<HTMLInputElement>('input[aria-label="Password"]')!.value).toBe(
-      "12345678"
-    );
-  });
-
-  it("keeps the open recovery step and the server's last refusal", async () => {
+describe("a password sign-in", () => {
+  it("a refused sign-in does not redirect", async () => {
     signIn.mockResolvedValue({ error: "CredentialsSignin" });
     await mount();
-    // a refusal on the phone face is still on screen after the swap
-    type(q<HTMLInputElement>('input[type="email"]')!, "ana@x.ch");
-    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await fill("ana@x.ch", "12345678");
+    await submitForm();
+    expect(location.href).toBe(START);
+    expect(host.textContent).toContain("That email and password do not match.");
+  });
+
+  it("an open recovery step stays open", async () => {
+    await mount();
     await act(async () => {
-      q<HTMLFormElement>("form")!.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true })
+      q<HTMLButtonElement>("[data-auth-forgot]")?.dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
       );
     });
-    expect(host.textContent).toContain("That email and password do not match.");
-    await swap(false);
-    expect(face()).toBe("desktop");
-    expect(host.textContent).toContain("That email and password do not match.");
-    // an open "Forgot password?" survives the way back
+    type(q<HTMLInputElement>('input[type="email"]')!, "ana@x.ch");
+    await act(async () => {
+      q<HTMLElement>("[data-auth-submit]")!.click();
+    });
+    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
     await act(async () => {
       q<HTMLButtonElement>("[data-auth-forgot]")!.dispatchEvent(
         new MouseEvent("click", { bubbles: true })
       );
     });
     expect(q('[data-auth-screen="recover-ask"]')).not.toBeNull();
-    await swap(true);
-    expect(face()).toBe("phone");
-    expect(q('[data-auth-screen="recover-ask"]')).not.toBeNull();
-  });
-
-  it("a sign-in that finishes after the swap still redirects, once", async () => {
-    let resolve!: (v: unknown) => void;
-    signIn.mockReturnValue(new Promise((r) => (resolve = r)));
-    await mount();
-    type(q<HTMLInputElement>('input[type="email"]')!, "ana@x.ch");
-    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
-    await act(async () => {
-      q<HTMLFormElement>("form")!.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true })
-      );
-    });
-    expect(signIn).toHaveBeenCalledTimes(1);
-    await swap(false);
-    await act(async () => resolve({ ok: true }));
-    expect(location.href).toBe("/calendar");
-  });
-
-  it("a refused sign-in does not redirect", async () => {
-    signIn.mockResolvedValue({ error: "CredentialsSignin" });
-    await mount();
-    type(q<HTMLInputElement>('input[type="email"]')!, "ana@x.ch");
-    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
-    await act(async () => {
-      q<HTMLFormElement>("form")!.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true })
-      );
-    });
-    expect(location.href).toBe(START);
   });
 });
 
@@ -221,11 +172,19 @@ const tickAge = () =>
     q<HTMLInputElement>("[data-auth-age] input")!.click();
   });
 
+/* Email first; the password field arrives under it once Continue is pressed. */
+const fill = async (email: string, pass: string) => {
+  type(q<HTMLInputElement>('input[type="email"]')!, email);
+  await act(async () => {
+    q<HTMLElement>("[data-auth-submit]")!.click();
+  });
+  type(q<HTMLInputElement>('input[type="password"]')!, pass);
+};
+
+/* The card has no <form>: the one primary button is the submit. */
 const submitForm = () =>
   act(async () => {
-    q<HTMLFormElement>("form")!.dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true })
-    );
+    q<HTMLElement>("[data-auth-submit]")!.click();
   });
 
 describe("where a sign-in lands", () => {
@@ -260,8 +219,7 @@ describe("where a sign-in lands", () => {
         new MouseEvent("click", { bubbles: true })
       );
     });
-    type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
-    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await fill("new@x.ch", "12345678");
     await tickAge();
     await submitForm();
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -282,8 +240,7 @@ describe("where a sign-in lands", () => {
       );
     });
     expect(q("[data-auth-age]")).not.toBeNull();
-    type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
-    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await fill("new@x.ch", "12345678");
     await submitForm();
     const registered = (globalThis.fetch as jest.Mock).mock.calls.filter(
       ([url]) => url === "/api/auth/register"
@@ -318,8 +275,7 @@ describe("where a sign-in lands", () => {
         new MouseEvent("click", { bubbles: true })
       );
     });
-    type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
-    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await fill("new@x.ch", "12345678");
     await tickAge();
     await submitForm();
     expect(went).toBe("/start");
@@ -337,8 +293,7 @@ describe("where a sign-in lands", () => {
         new MouseEvent("click", { bubbles: true })
       );
     });
-    type(q<HTMLInputElement>('input[type="email"]')!, "new@x.ch");
-    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await fill("new@x.ch", "12345678");
     await tickAge();
     await submitForm();
     expect(went).toBe("/api/onboarding/resume");
@@ -347,8 +302,7 @@ describe("where a sign-in lands", () => {
   it("a returning person goes where they were going, never through setup", async () => {
     signIn.mockResolvedValue({ ok: true });
     await mount();
-    type(q<HTMLInputElement>('input[type="email"]')!, "ana@x.ch");
-    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await fill("ana@x.ch", "12345678");
     await submitForm();
     expect(went).toBe("/calendar");
   });
@@ -389,8 +343,7 @@ describe("a refused password", () => {
   const refuse = async () => {
     signIn.mockResolvedValue({ error: "CredentialsSignin" });
     await mount();
-    type(q<HTMLInputElement>('input[type="email"]')!, "ana@x.ch");
-    type(q<HTMLInputElement>('input[type="password"]')!, "12345678");
+    await fill("ana@x.ch", "12345678");
     await submitForm();
   };
   const codeRequests = () =>
@@ -398,38 +351,34 @@ describe("a refused password", () => {
       ([url]) => url === "/api/auth/email-code/request"
     );
 
-  it.each([
-    ["phone", true],
-    ["desktop", false],
-  ] as const)(
-    "%s: says the way out and sends a code to the same address",
-    async (_face, narrow) => {
-      await refuse();
-      await swap(narrow);
-      // the same line for every refusal: it does not say which account it was
-      expect(host.textContent).toContain(
-        "That email and password do not match."
+  it("says the way out and sends a code to the same address", async () => {
+    await refuse();
+    // the same line for every refusal: it does not say which account it was
+    expect(host.textContent).toContain("That email and password do not match.");
+    expect(host.textContent).toContain("Signed up with Google or a code?");
+    await act(async () => {
+      q<HTMLButtonElement>("[data-auth-wrong-code]")!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true })
       );
-      expect(host.textContent).toContain("Signed up with Google or a code?");
-      await act(async () => {
-        q<HTMLButtonElement>("[data-auth-wrong-code]")!.dispatchEvent(
-          new MouseEvent("click", { bubbles: true })
-        );
-      });
-      expect(codeRequests()).toHaveLength(1);
-      expect(JSON.parse(codeRequests()[0][1].body)).toEqual({
-        email: "ana@x.ch",
-      });
-      expect(q("[data-auth-code-step]")).not.toBeNull();
-      expect(q('input[type="password"]')).toBeNull();
-      expect(host.textContent).not.toContain("do not match");
-    }
-  );
+    });
+    expect(codeRequests()).toHaveLength(1);
+    expect(JSON.parse(codeRequests()[0][1].body)).toEqual({
+      email: "ana@x.ch",
+    });
+    expect(q("[data-auth-code-step]")).not.toBeNull();
+    expect(q('input[type="password"]')).toBeNull();
+    expect(host.textContent).not.toContain("do not match");
+  });
 
   it("shows the resend answer on the page, not in a toast", async () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { notify } = require("@/lib/notifications");
     await mount();
+    type(q<HTMLInputElement>('input[type="email"]')!, "ana@x.ch");
+    await act(async () => {
+      q<HTMLElement>("[data-auth-submit]")!.click();
+    });
+    type(q<HTMLInputElement>('input[type="email"]')!, "");
     await act(async () => {
       for (const b of host.querySelectorAll<HTMLButtonElement>("button"))
         if (b.textContent === "Resend confirmation") b.click();

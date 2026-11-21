@@ -62,13 +62,13 @@ export function sampleEmails() {
     }),
     "trial-ending": getTrialEmailTemplate({
       milestone: "day11",
-      payUrl: "https://use.needt.app/settings#billing",
+      payUrl: "https://use.needt.app/upgrade",
       unsubscribeUrl: UNSUBSCRIBE_SAMPLE,
       footer: CATALOG_FOOTER,
     }),
     "trial-ended": getTrialEmailTemplate({
       milestone: "day14",
-      payUrl: "https://use.needt.app/settings#billing",
+      payUrl: "https://use.needt.app/upgrade",
       unsubscribeUrl: UNSUBSCRIBE_SAMPLE,
       footer: CATALOG_FOOTER,
     }),

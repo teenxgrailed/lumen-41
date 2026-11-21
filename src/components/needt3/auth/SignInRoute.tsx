@@ -41,8 +41,6 @@ import {
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { brandGlyph, brandMonoGlyph } from "../brand";
-import { PhoneAuth } from "../phone/auth";
-import { useResolvedPhoneUi } from "../root/phone-ui-context";
 import { AuthScope } from "./AuthScope";
 import {
   type AuthMode,
@@ -100,8 +98,6 @@ export function V3SignInRoute({
   callbackUrl,
   error,
   autoProvider,
-  initialUi = "desktop",
-  uiForced = false,
   startRecover = false,
   startMode,
 }: {
@@ -113,14 +109,12 @@ export function V3SignInRoute({
   startRecover?: boolean;
   /** `?mode=signup` (the needt.app links): open on the create-account form. */
   startMode?: "signup";
-  /** The server's pick for the first render (`phoneUiFrom`). */
+  /** The server's pick for the first render (`phoneUiFrom`). The card is the
+      same at every width now; the page still passes it. */
   initialUi?: PhoneUi;
-  /** The `needt-ui` cookie pinned a side: the width never overrides it. */
+  /** The `needt-ui` cookie pinned a side. */
   uiForced?: boolean;
 }) {
-  /* A signed-out visitor has no frame around the page, so this route reads the
-     same server pick and width listener the frame does. */
-  const ui = useResolvedPhoneUi(initialUi, uiForced);
   const store = useStoreDistribution();
   const safeCallbackUrl = safeCallbackPath(callbackUrl);
   /* An OAuth return that would have made an account without the 16+ / Terms
@@ -529,11 +523,9 @@ export function V3SignInRoute({
     );
   }
 
-  const Screen = ui === "phone" ? PhoneAuth : AuthScreen;
-
   return (
     <AuthScope>
-      <Screen
+      <AuthScreen
         mode={mode}
         onMode={setMode}
         onDone={leave}

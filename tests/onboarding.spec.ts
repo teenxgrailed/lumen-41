@@ -140,10 +140,16 @@ test.describe("clean-database first run", () => {
       /* The code is the main path now; this walk uses the password form. */
       await page.getByRole("button", { name: "Use password" }).click();
       await page.getByRole("textbox", { name: "Email" }).fill(email);
+      /* The card asks for the address first; the password arrives under it. */
+      await page
+        .getByRole("button", { name: "Continue", exact: true })
+        .click();
       await page
         .getByRole("textbox", { name: "Password", exact: true })
         .fill(password);
-      await page.getByRole("button", { name: "Create the account" }).click();
+      await page
+        .getByRole("button", { name: "Create account", exact: true })
+        .click();
       await expect(page).toHaveURL(/\/start$/, { timeout: 30_000 });
       await expect(
         page.getByRole("button", { name: "Get started" })

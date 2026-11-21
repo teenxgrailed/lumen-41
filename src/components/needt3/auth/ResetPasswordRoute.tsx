@@ -121,7 +121,7 @@ export function V3ResetPasswordRoute({
         hue="var(--success)"
         a="Password"
         b="saved"
-        line="Sign in with your new password. Devices signed in with the old one have been signed out."
+        line="Sign in with your new password."
       >
         <LinkButton
           face={face}
@@ -143,7 +143,7 @@ export function V3ResetPasswordRoute({
         hue="var(--v2p-lav)"
         a="This link doesn’t"
         b="work"
-        line="It has expired or has already been used. Ask for a new one; it works for 1 hour."
+        line="Ask for a new one."
         foot={back}
       >
         <LinkButton
@@ -167,7 +167,7 @@ export function V3ResetPasswordRoute({
         hue="var(--v2p-lav)"
         a="Set a new"
         b="password"
-        line="Choose the password you’ll sign in with. Devices signed in with the old one are signed out."
+        line="Choose one you’ll remember."
         foot={back}
         offline={offline}
         offlineText="You’re offline — resetting a password needs a connection."

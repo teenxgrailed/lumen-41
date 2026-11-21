@@ -1,278 +1,49 @@
 "use client";
 
-/* THE PAYWALL (prototype paywall-sheet.jsx `Paywall`, desktop). The sheet
-   stands on the printed sky: headline and a few glass prints of the product on
-   top; below, Free as a quiet "current plan" line, a Pro card with a
-   Monthly / Yearly switch (the price always reads per month), a Lifetime card
-   with the server's seats-left count, one call to action, and what Pro
-   includes. Prices come from `priceStrings()` (the one NEEDT_PRICING module);
-   nothing here is a literal.
+/* THE PAYWALL, worn as "Keep Pro" (owner 20.11): one frosted card on the sky,
+   see KeepProCard. Prices come from `priceStrings()` (the one NEEDT_PRICING
+   module); nothing here is a literal.
 
    The button: for a Free account that can still have a trial it says "Start
    14-day free trial" and starts it (`POST /api/billing/trial`, no card).
    Otherwise it goes to `POST /api/billing/checkout` and follows the URL it
    returns. Nothing pretends to succeed: when checkout is not
    configured, or the server's `billing_checkout` switch is off, the button
-   is off and says checkout opens soon; when it fails the sheet says
+   is off and says checkout opens soon; when it fails the card says
    "Checkout couldn't start" with a Retry. */
 import { useEffect, useRef, useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  LuCheck,
-  LuCircleAlert,
-  LuCloudOff,
-  LuLock,
-  LuX,
-} from "react-icons/lu";
+import { LuCircleAlert, LuCloudOff } from "react-icons/lu";
 
 import { logger } from "@/lib/logger";
 import { startTrial } from "@/lib/needt3/hooks/account";
 import { sendJson } from "@/lib/needt3/hooks/core";
-import { type V3Plan, usePlan } from "@/lib/needt3/hooks/plan";
+import { usePlan } from "@/lib/needt3/hooks/plan";
 import {
   type PaywallPick,
   checkoutSelection,
-  freeIncludes,
-  lifetimeLeftPct,
-  offersTrial,
+  keepProCopy,
+  keepProItems,
   paywallCta,
   paywallNeedsWaiver,
   paywallPick,
-  proIncludes,
 } from "@/lib/needt3/paywall";
-import { lifetimeLeftLine, priceStrings } from "@/lib/needt3/pricing";
+import { priceStrings } from "@/lib/needt3/pricing";
 import { qk } from "@/lib/needt3/query-keys";
 import { showsStudentPrices } from "@/lib/needt3/student-prices";
 import { useOnline } from "@/lib/needt3/use-online";
 import { notify } from "@/lib/notifications";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
-import {
-  GlassCard,
-  PwDateCard,
-  PwMiniTask,
-  PwMoodPrint,
-  PwNoteCard,
-  PxBadge,
-  PxSky,
-} from "../scenes";
-import { NeedtAppIcon } from "../wordmark";
+import { KeepProCard } from "./KeepProCard";
 import { StoreProSheet } from "./StoreProSheet";
 import { WithdrawalWaiver } from "./WithdrawalWaiver";
 
 const LOG_SOURCE = "needt3-paywall";
 
-/* Both lists come from PLAN_LIMITS, the numbers the server enforces. */
-const FREE = freeIncludes();
-const PRO = proIncludes();
-
-function Plans({
-  pick,
-  onPick,
-  plan,
-}: {
-  pick: PaywallPick;
-  onPick: (p: PaywallPick) => void;
-  plan: V3Plan | undefined;
-}) {
-  const D = priceStrings(undefined, { student: showsStudentPrices(plan) });
-  const lastPro = useRef<"monthly" | "annual">(
-    pick === "monthly" ? "monthly" : "annual"
-  );
-  if (pick === "monthly" || pick === "annual") lastPro.current = pick;
-  const cyc = lastPro.current;
-  const proOn = pick !== "lifetime";
-  const pct = lifetimeLeftPct(plan?.lifetimeLeft);
-  const radio = (on: boolean) => (
-    <span className={"pw-radio" + (on ? " is-on" : "")} aria-hidden="true" />
-  );
-  const seg = (
-    id: "monthly" | "annual",
-    label: string,
-    extra?: React.ReactNode
-  ) => (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={cyc === id}
-      data-pw-cycle={id}
-      className={"pw-seg-b" + (cyc === id ? " is-on" : "")}
-      onClick={(e) => {
-        e.stopPropagation();
-        lastPro.current = id;
-        onPick(id);
-      }}
-    >
-      {label}
-      {extra}
-    </button>
-  );
-  return (
-    <div className="pw-plans" role="group" aria-label="Plans">
-      <GlassCard
-        best={proOn}
-        pad={22}
-        radius={24}
-        className={"pw-plan pw-plan-pro" + (proOn ? " is-picked" : "")}
-        data-pw-plan={cyc}
-        onClick={() => onPick(cyc)}
-        label={"Pro " + (cyc === "monthly" ? "monthly" : "yearly")}
-        aria-pressed={proOn}
-      >
-        <span className="pw-name">
-          {radio(proOn)}Pro
-          <span className="pw-seg" role="radiogroup" aria-label="Billing">
-            {seg("monthly", "Monthly")}
-            {seg(
-              "annual",
-              "Yearly",
-              <span className="pw-seg-save" data-pw-save>
-                −{D.savePct}%
-              </span>
-            )}
-          </span>
-        </span>
-        <span className="pw-price">
-          <span className="px-display" data-pw-price={cyc}>
-            {cyc === "monthly" ? D.monthly : D.yearlyPerMonth}
-          </span>
-          <span className="pw-per">/ month</span>
-        </span>
-        <span className="pw-sub">
-          {cyc === "monthly" ? (
-            "Billed monthly · cancel any time"
-          ) : (
-            <>
-              Billed {D.yearly} yearly ·{" "}
-              <b className="pw-save">save {D.saveAmount}</b>
-            </>
-          )}
-        </span>
-      </GlassCard>
-      <GlassCard
-        best={pick === "lifetime"}
-        pad={22}
-        radius={24}
-        className={"pw-plan" + (pick === "lifetime" ? " is-picked" : "")}
-        data-pw-plan="lifetime"
-        onClick={() => onPick("lifetime")}
-        label="Lifetime"
-        aria-pressed={pick === "lifetime"}
-      >
-        <span className="pw-name">
-          {radio(pick === "lifetime")}Lifetime
-          <PxBadge style={{ marginLeft: "auto" }}>Limited</PxBadge>
-        </span>
-        <span className="pw-price">
-          <span className="px-display" data-pw-price="lifetime">
-            {D.lifetime}
-          </span>
-          <span className="pw-per">one-time</span>
-        </span>
-        <span className="pw-sub">For the first {D.lifetimeCap} people</span>
-        <span className="pw-meter" data-pw-left>
-          {pct !== null ? (
-            <span className="pw-meter-bar">
-              <span style={{ width: pct + "%" }} />
-            </span>
-          ) : null}
-          <span className="pw-meter-t">
-            {lifetimeLeftLine(plan?.lifetimeLeft, D.lifetimeCap)}
-          </span>
-        </span>
-      </GlassCard>
-    </div>
-  );
-}
-
-function Scene({
-  onClose,
-  feature,
-  trial,
-}: {
-  onClose: () => void;
-  feature: string | null;
-  /** The account can still start the free trial (`offersTrial`). */
-  trial: boolean;
-}) {
-  const D = priceStrings();
-  return (
-    <div className="pw-top">
-      <div className="pw-scene-abs">
-        <button
-          type="button"
-          className="pw-x px-chip-btn"
-          aria-label="Close"
-          data-pw-close
-          onClick={onClose}
-          style={{ top: 14, right: 14 }}
-        >
-          <LuX size={15} />
-        </button>
-        <div className="pw-scene-abs-7">
-          <div data-px-calm className="pw-scene-col">
-            {feature ? (
-              <span className="pw-feature" data-pw-feature={feature}>
-                <LuLock size={12} />
-                <span>
-                  Unlock <b>{feature}</b> with Pro
-                </span>
-              </span>
-            ) : null}
-            <span className="pw-brand">
-              <NeedtAppIcon size={44} />
-              <span className="px-kicker">Needt Pro</span>
-            </span>
-            <h2 className="px-display px-on-sky pw-h pw-h-desk">
-              Get <em>more</em>
-              <br />
-              out of Needt
-            </h2>
-            <span className="px-on-sky pw-scene-text-2">
-              {trial
-                ? `AI planning and Pro limits — free for ${D.trialDays} days, no card needed. Then back to Free unless you choose a plan.`
-                : `AI planning and Pro limits. ${D.plansShort}, or Lifetime for ${D.lifetime}.`}
-            </span>
-          </div>
-          <div className="pw-collage pw-scene-box" aria-hidden="true">
-            <span
-              className="pw-print-in pw-scene-abs-8"
-              style={{ animationDelay: "80ms" }}
-            >
-              <PwMoodPrint width={138} height={96} />
-            </span>
-            <span
-              className="pw-print-in pw-scene-abs-9"
-              style={{ animationDelay: "160ms" }}
-            >
-              <PwNoteCard width={164} />
-            </span>
-            <span
-              className="pw-print-in pw-scene-abs-10"
-              style={{ animationDelay: "240ms" }}
-            >
-              <PwDateCard width={96} event={false} />
-            </span>
-            <span
-              className="pw-print-in pw-scene-abs-11"
-              style={{ animationDelay: "300ms" }}
-            >
-              <PwMiniTask
-                title="Plan my day"
-                chip="AI"
-                style={{
-                  boxShadow:
-                    "var(--mock-shadow-a30) 0 12px 24px -8px, var(--mock-shadow-a12) 0 0 0 .5px",
-                }}
-              />
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+/* The list comes from PLAN_LIMITS, the numbers the server enforces. */
+const ITEMS = keepProItems();
 
 export interface PaywallProps {
   open: boolean;
@@ -309,10 +80,14 @@ function PurchasePaywall({
   /* Terms 5.5: unticked on every open; checkout stays off until it is ticked. */
   const [waiver, setWaiver] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  /* What failed, so the sheet names the right thing. */
+  /* What failed, so the card names the right thing. */
   const [failedWhat, setFailedWhat] = useState<"trial" | "checkout">(
     "checkout"
   );
+  const lastPro = useRef<"monthly" | "annual">(
+    pick === "monthly" ? "monthly" : "annual"
+  );
+  if (pick === "monthly" || pick === "annual") lastPro.current = pick;
 
   /* Mounted on open, kept for the 170 ms exit, then unmounted. */
   useEffect(() => {
@@ -426,131 +201,77 @@ function PurchasePaywall({
   }
 
   if (!shown) return null;
+  const copy = keepProCopy(plan, feature);
+  const status = !online ? (
+    <div className="pw-state is-offline" role="status" data-pw-offline>
+      <LuCloudOff size={14} />
+      <span>You’re offline. Your plan hasn’t changed.</span>
+    </div>
+  ) : failed ? (
+    <div className="pw-state is-error" role="alert" data-pw-error>
+      <LuCircleAlert size={14} />
+      <span className="pw-state-t">
+        {failedWhat === "trial" ? (
+          <>
+            <b>The trial couldn’t start.</b> {failed}
+          </>
+        ) : (
+          <>
+            <b>Checkout couldn’t start.</b> You haven’t been charged.
+          </>
+        )}
+      </span>
+      <button
+        type="button"
+        className="pw-btn is-secondary pw-state-btn"
+        data-pw-retry
+        onClick={go}
+      >
+        Retry
+      </button>
+    </div>
+  ) : null;
   return (
     <div
-      className={"pw-scrim" + (leaving ? " is-leaving" : "")}
+      className={"kp-scrim kp-sky" + (leaving ? " is-leaving" : "")}
       data-pw-open="1"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
-      <div
-        className="pw-sheet"
-        data-px-scope
-        role="dialog"
-        aria-modal="true"
-        aria-label="Needt Pro"
-      >
-        <div className="pw-sky">
-          <PxSky variant="b" intensity={1.05} />
-        </div>
-        <Scene onClose={onClose} feature={feature} trial={offersTrial(plan)} />
-        <div className="pw-body scroll-inner">
-          <div className="pw-freeline" data-pw-free>
-            <span className="pw-freeline-tag">
-              {plan?.kind === "free" || !plan ? "Current plan" : "Included"}
-            </span>
-            <span>
-              <b>Free</b> —{" "}
-              {FREE.join(", ")
-                .toLowerCase()
-                .replace(/^./, (c) => c.toUpperCase())}
-              . Yours to keep.
-            </span>
-          </div>
-          <Plans pick={pick} onPick={setPick} plan={plan} />
-          <div className="pw-go">
-            {needsWaiver ? (
+      <div className="kp-col">
+        <KeepProCard
+          title={copy.title}
+          line={copy.line}
+          feature={feature}
+          pick={pick}
+          onPick={setPick}
+          cycle={lastPro.current}
+          prices={D}
+          lifetimeLeft={plan?.lifetimeLeft}
+          lifetimeOpen={plan ? plan.lifetimeAvailable !== false : true}
+          items={ITEMS}
+          status={status}
+          waiver={
+            needsWaiver ? (
               <WithdrawalWaiver
                 checked={waiver}
                 onChange={setWaiver}
                 product={pick === "lifetime" ? "Lifetime" : "Pro"}
-                className="auth-age pw-waiver"
+                className="auth-age kp-waiver"
               />
-            ) : null}
-            <button
-              type="button"
-              className="pw-btn is-primary pw-btn-lg"
-              data-pw-cta={pick}
-              disabled={off}
-              onClick={go}
-            >
-              {busy
-                ? cta.action === "trial"
-                  ? "Starting your trial…"
-                  : "Opening checkout…"
-                : cta.label}
-            </button>
-            {!online ? (
-              <div
-                className="pw-state is-offline"
-                role="status"
-                data-pw-offline
-              >
-                <LuCloudOff size={14} />
-                <span>
-                  You’re offline — checkout needs a connection. Your plan hasn’t
-                  changed.
-                </span>
-              </div>
-            ) : failed ? (
-              <div className="pw-state is-error" role="alert" data-pw-error>
-                <LuCircleAlert size={14} />
-                <span className="pw-state-t">
-                  {failedWhat === "trial" ? (
-                    <>
-                      <b>The trial couldn’t start.</b> {failed} Nothing has been
-                      charged.
-                    </>
-                  ) : (
-                    <>
-                      <b>Checkout couldn’t start.</b> Check your connection and
-                      try again — you haven’t been charged.
-                    </>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  className="pw-btn is-secondary pw-state-btn"
-                  data-pw-retry
-                  onClick={go}
-                >
-                  Retry
-                </button>
-              </div>
-            ) : (
-              <span className="pw-go-sub" data-pw-cta-sub>
-                {cta.blocked ?? cta.sub}
-              </span>
-            )}
-            {cta.terms && cta.blocked === null ? (
-              <span className="pw-go-sub" data-pw-terms>
-                {cta.terms}
-              </span>
-            ) : null}
-          </div>
-          <div className="pw-paywall-text-2">
-            <GlassCard pad={20} radius={24} className="pw-feats-card">
-              <span className="pw-kick">Every Pro plan includes</span>
-              <ul className="pw-list pw-feats">
-                {PRO.map(([t, n]) => (
-                  <li key={t}>
-                    <span className="pw-ck">
-                      <LuCheck size={11} />
-                    </span>
-                    <span>
-                      {t}
-                      {n ? <span className="pw-note"> — {n}</span> : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </GlassCard>
-          </div>
-        </div>
-        <div className="pw-foot" data-pw-foot>
-          {D.footnote}
-        </div>
+            ) : null
+          }
+          cta={{
+            label: busy
+              ? cta.action === "trial"
+                ? "Starting your trial…"
+                : "Opening checkout…"
+              : cta.label,
+            disabled: off,
+            onClick: go,
+            sub: cta.blocked ?? (status ? null : cta.sub),
+            terms: cta.terms && cta.blocked === null ? cta.terms : null,
+          }}
+          onClose={onClose}
+        />
       </div>
     </div>
   );

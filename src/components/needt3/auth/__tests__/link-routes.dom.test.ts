@@ -84,6 +84,7 @@ afterEach(() => {
 
 const q = <T extends Element>(sel: string) => host.querySelector<T>(sel);
 const screen = () => q("[data-auth-screen]")?.getAttribute("data-auth-screen");
+/* One card on both faces: the phone no longer has its own scene. */
 const face = () =>
   q("[data-auth-screen]")?.closest(".mau-scene") ? "phone" : "desktop";
 const click = (sel: string) =>
@@ -128,7 +129,7 @@ describe.each(["desktop", "phone"] as const)("on the %s face", (ui) => {
     it("draws the v3 step on this face", async () => {
       await mountReset();
       expect(screen()).toBe("reset-set");
-      expect(face()).toBe(ui);
+      expect(face()).toBe("desktop");
       expect(host.textContent).toContain("Set a new");
     });
 
@@ -181,7 +182,7 @@ describe.each(["desktop", "phone"] as const)("on the %s face", (ui) => {
     it("waits for the press: opening the link spends nothing", async () => {
       await mountConfirm();
       expect(screen()).toBe("confirm-ready");
-      expect(face()).toBe(ui);
+      expect(face()).toBe("desktop");
       expect(host.textContent).toContain("ana@x.ch");
       expect(fetchMock).not.toHaveBeenCalled();
     });

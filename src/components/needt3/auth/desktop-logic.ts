@@ -28,13 +28,12 @@ export const HANDOFF_COPY: Record<
     a: "This link",
     b: "is not valid",
     line: (_email, app) =>
-      `Start signing in again from the Needt ${app === "ios" ? "app" : "desktop app"}.`,
+      `Start again from the ${app === "ios" ? "app" : "desktop app"}.`,
   },
   ready: {
     a: "Open",
     b: "Needt",
-    line: (email, app) =>
-      `You are signed in as ${email}. Open the Needt ${app === "ios" ? "app" : "desktop app"} with this account?`,
+    line: (email) => `Signed in as ${email}.`,
   },
   working: {
     a: "Opening",
@@ -44,13 +43,12 @@ export const HANDOFF_COPY: Record<
   sent: {
     a: "Switch to",
     b: "the app",
-    line: () =>
-      "If your browser asks, allow it to open Needt. Then you can close this tab.",
+    line: () => "You can close this tab.",
   },
   error: {
     a: "That didn’t",
     b: "go through",
-    line: () => "Nothing was shared with the app. Try again.",
+    line: () => "Nothing was shared. Try again.",
   },
 };
 
@@ -93,11 +91,11 @@ export const COMPLETE_COPY: Record<
   failed: {
     a: "That link",
     b: "has expired",
-    line: "Sign-in links work once and only for a minute. Start again from the browser.",
+    line: "Start again from the browser.",
   },
   invalid: {
     a: "This page is",
     b: "for the app",
-    line: "Open Needt on your desktop and choose Sign in.",
+    line: "Open the desktop app to sign in.",
   },
 };

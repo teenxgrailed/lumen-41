@@ -43,17 +43,19 @@ test("Sign-in wears the design and still signs you in", async ({ page }) => {
   await page.goto("/auth/signin");
 
   await expect(
-    page.getByText("Sign in — your day is where you left it.")
+    page.getByRole("heading", { name: "Welcome to Needt" })
   ).toBeVisible();
 
   /* v3 leads with a mailed code; the password form sits behind "Use
      password", and there it asks for the address first, the password under it. */
-  await expect(page.getByRole("button", { name: "Send code" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Continue", exact: true })
+  ).toBeVisible();
   const usePassword = page.getByRole("button", { name: "Use password" });
   await usePassword.click();
-  const email = page.getByPlaceholder("you@example.com");
+  const email = page.getByPlaceholder("Your email");
   const password = page.getByPlaceholder("Password", { exact: true });
-  const next = page.getByRole("button", { name: "Continue" });
+  const next = page.getByRole("button", { name: "Continue", exact: true });
 
   // The design's own refusals, both decided in the page.
   await email.fill("nobody");
@@ -93,7 +95,9 @@ test("Sign-up offers itself only where it is allowed", async ({ page }) => {
     route.fulfill({ json: { enabled: false } })
   );
   await page.goto("/auth/signin");
-  await expect(page.getByText("Sign in — your day")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Welcome to Needt" })
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Create one" })).toHaveCount(0);
   // Closed registration points to the waitlist instead.
   await expect(page.locator("[data-auth-waitlist]")).toBeVisible();
@@ -107,11 +111,11 @@ test("Sign-up offers itself only where it is allowed", async ({ page }) => {
   // Sign-up leads with the code too; the password form is behind the link.
   await page.getByRole("button", { name: "Use password" }).click();
 
-  await page.getByPlaceholder("you@example.com").fill("new@example.com");
-  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByPlaceholder("Your email").fill("new@example.com");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByPlaceholder("At least 8 characters")).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Create account" })
+    page.getByRole("button", { name: "Create account", exact: true })
   ).toBeVisible();
   // The design drops both of these; the onboarding suite must not look for them.
   await expect(page.getByLabel("Confirm password")).toHaveCount(0);

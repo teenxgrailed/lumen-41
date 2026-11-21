@@ -616,7 +616,7 @@ export function notifyHabitsBlocked() {
   notify.info(`Free keeps ${FREE_HABITS} habits. Upgrade to Pro for more.`, {
     action: {
       label: "See plans",
-      onClick: () => window.location.assign("/settings#billing"),
+      onClick: () => openPaywall(),
     },
   });
 }

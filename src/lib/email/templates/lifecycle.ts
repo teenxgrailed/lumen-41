@@ -105,7 +105,7 @@ export function getTrialEnding3dTemplate(
       `Your ${APP_NAME} Pro trial ends on ${longDate(base.endsAt)}. After that your account moves to Free, and everything you made stays where it is.`,
       base.priceLine ?? "Pro is $7 a month. The early $7 price is still open.",
     ],
-    button: { label: "Choose Pro", url: at(base, "/settings#billing") },
+    button: { label: "Choose Pro", url: at(base, "/upgrade") },
   });
 }
 
@@ -131,7 +131,7 @@ export function getTrialEnding0dTemplate(
         ? `If you would like to keep Pro, use the code ${promo} at checkout for 20% off your first year.`
         : "If you would like to keep Pro, it is $7 a month, and the early $7 price is still open.",
     ],
-    button: { label: "Choose Pro", url: at(base, "/settings#billing") },
+    button: { label: "Choose Pro", url: at(base, "/upgrade") },
   });
 }
 
