@@ -384,7 +384,20 @@ for (const app of ["light", "dark"] as const) {
     // the menu open (its scrim and card are the biggest fixed layer)
     await page.locator("[data-nva-pill]").click({ force: true });
     await page.waitForTimeout(900);
-    expect(await edgeCandidates(page), "menu").toEqual([]);
+    // the tile menu is one full-screen layer (owner ref 2026-11-21): it paints
+    // the page ground, solid, so nothing tinted can show at an edge. It is the
+    // only candidate and its ground is the page one.
+    const menuEdges = await edgeCandidates(page);
+    expect(menuEdges, "menu").toHaveLength(1);
+    expect(menuEdges[0]).toMatch(/^top div#\.ntm /);
+    expect(
+      await page.evaluate(
+        () =>
+          getComputedStyle(document.querySelector(".ntm")!, "::before")
+            .backgroundColor
+      ),
+      "menu ground"
+    ).toBe(GROUND[app]);
     await shot("menu");
     await browser.close();
   });
