@@ -48,7 +48,9 @@ test("Sign-in wears the design and still signs you in", async ({ page }) => {
 
   /* v3 leads with a mailed code; the password form sits behind "Use
      password", and there it asks for the address first, the password under it. */
-  await expect(page.getByRole("button", { name: "Send code" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Continue", exact: true })
+  ).toBeVisible();
   const usePassword = page.getByRole("button", { name: "Use password" });
   await usePassword.click();
   const email = page.getByPlaceholder("Your email");
