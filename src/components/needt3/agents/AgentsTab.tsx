@@ -17,7 +17,6 @@ import { PLAN_LIMITS } from "@/lib/plan-limits";
 
 import { ProLimit } from "../paywall/Pro";
 import {
-  AgAvatar,
   AgBtn,
   AgEmpty,
   AgRow,
@@ -25,6 +24,7 @@ import {
   shortWhen,
   useAgentHue,
 } from "./AgParts";
+import { AgentIcon } from "./AgentIcon";
 import { AgentLimits, type AgentLimitsValue, limitsLine } from "./AgentLimits";
 import { ConnectGuide } from "./ConnectGuide";
 import { WebhooksSection } from "./WebhooksSection";
@@ -256,7 +256,7 @@ function AgentCard({
       }
     >
       <div className="ag-card-top">
-        <AgAvatar name={agent.name} hue={hue} />
+        <AgentIcon name={agent.name} size={40} />
         <span className="ag-card-name">
           <b>{agent.name}</b>
           <span>{`${agent.kind} · ${agent.connection}`}</span>

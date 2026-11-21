@@ -191,3 +191,30 @@ describe("adding a task", () => {
     expect((await run).clear).toBe(true);
   });
 });
+
+describe("the form rows of the composer", () => {
+  const parseOf = (line: string) => coParse(line, NOW, vocabularyOf(PROJECTS));
+
+  it("a deadline pick is written into the line and read back", () => {
+    const line = "Send report";
+    const next = writeFacet(line, parseOf(line), "deadline", "by friday");
+    expect(next).toBe("Send report by friday");
+    expect(parseOf(next).found.deadline).not.toBeNull();
+    expect(compose(next)?.draft.deadline).toBe("2026-09-04");
+  });
+
+  it("a second deadline pick replaces the first and none removes it", () => {
+    const one = "Send report by friday";
+    const two = writeFacet(one, parseOf(one), "deadline", "by sunday");
+    expect(two).toBe("Send report by sunday");
+    expect(writeFacet(two, parseOf(two), "deadline", "")).toBe("Send report");
+  });
+
+  it("the notes go to the task, trimmed, and an empty note adds nothing", () => {
+    const p = parseOf("Call Anna");
+    expect(
+      composeFromParse(p, TODAY, "  ask about the invoice ")?.draft.notes
+    ).toBe("ask about the invoice");
+    expect(composeFromParse(p, TODAY, "   ")?.draft.notes).toBeUndefined();
+  });
+});

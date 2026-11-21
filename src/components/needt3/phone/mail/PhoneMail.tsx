@@ -286,7 +286,6 @@ export function PhoneMail({ box }: { box: Mailbox }) {
       <PkScreen
         screen="mail"
         title="Mailbox"
-        glyph="mail"
         sub={sub}
         right={
           <PkButton

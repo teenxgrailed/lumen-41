@@ -12,7 +12,6 @@ import {
 
 import { joinRest } from "../../scenes/sky-rest";
 import { PhoneOfflineIndicator } from "../../sync/PhoneOfflineIndicator";
-import { PkGlyph } from "./Material";
 import { pkAdoptDocumentScroll } from "./scroll";
 import { pkClamp, pkCx } from "./util";
 
@@ -158,13 +157,13 @@ export interface PkScreenProps {
    * all of them.
    */
   status?: ReactNode;
-  glyph?: string;
-  glyphKind?: string;
   children?: ReactNode;
 }
 
 /**
- * The phone screen: content that the document scrolls (momentum, nothing
+ * The phone screen (owner decision 20.11.26: every top-level header looks like
+ * Projects: a large title, no section tile before it, a small meta line):
+ * content that the document scrolls (momentum, nothing
  * fixed at the top) from under a 52 px status bar, a large title in the page
  * flow, and a bottom fog behind the menu pill. Scroll only changes a custom
  * property on the root (no layout), and only when the clamped value changes.
@@ -180,8 +179,6 @@ export function PkScreen({
   tail,
   className,
   status,
-  glyph,
-  glyphKind,
   children,
 }: PkScreenProps) {
   const root = useRef<HTMLDivElement>(null);
@@ -231,7 +228,6 @@ export function PkScreen({
     };
   }, [scroller]);
 
-  const hasGlyph = !!(glyph || glyphKind);
   return (
     <div
       ref={root}
@@ -245,33 +241,8 @@ export function PkScreen({
           {status ? <div className="pk-sync-row">{status}</div> : null}
           {title != null || sub || head ? (
             <header className={pkCx("pk-head", headClass)}>
-              {title != null && hasGlyph && right ? (
-                // a glyph and a control: the tile and the control share a row
-                // above the title, so a long title keeps the full width
-                <>
-                  <div className="pk-head-row is-top">
-                    <PkGlyph
-                      place={glyph}
-                      kind={glyphKind}
-                      size="m"
-                      className="pk-head-glyph"
-                    />
-                    {right}
-                  </div>
-                  <div className="pk-head-row">
-                    <h1 className="pk-title">{title}</h1>
-                  </div>
-                </>
-              ) : title != null ? (
+              {title != null ? (
                 <div className="pk-head-row">
-                  {hasGlyph ? (
-                    <PkGlyph
-                      place={glyph}
-                      kind={glyphKind}
-                      size="l"
-                      className="pk-head-glyph"
-                    />
-                  ) : null}
                   <h1 className="pk-title">{title}</h1>
                   {right ?? null}
                 </div>

@@ -238,7 +238,6 @@ export function DocsPhone({ ctl }: { ctl: DocsController }) {
         <PkScreen
           screen="docs"
           title="Docs"
-          glyph="docs"
           sub={
             state !== "content"
               ? null

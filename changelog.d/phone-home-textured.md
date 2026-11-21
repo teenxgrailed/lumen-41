@@ -1,0 +1,1 @@
+- Phone Home: the plan's tasks are textured cards in their project's colour (low alpha on the raised ground plus grain, like the project folders) with a bigger icon per task; the Next card is the same textured plate in the task's colour with its icon, instead of the sky; habit chips take their habit's colour; the header has no icon tile. The accent stays a mark.

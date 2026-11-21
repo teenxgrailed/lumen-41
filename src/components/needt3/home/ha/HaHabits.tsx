@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 
 import { HaG, HaI, haCx } from "./ui";
 
@@ -9,6 +9,8 @@ export interface HaHabit {
   name: string;
   /** The habit's emoji; empty draws the habits glyph. */
   emoji: string;
+  /** The habit's own colour (phone): its pill is a textured chip in it. */
+  hue?: string | null;
   /** "week": N times a week, with a count ring; "daily": once a day. */
   kind: "daily" | "week";
   target?: number;
@@ -76,6 +78,7 @@ export function HaHabits({
             )}
             aria-pressed={h.done}
             aria-label={label}
+            style={h.hue ? ({ "--hue": h.hue } as CSSProperties) : undefined}
             data-ha-habit={h.id}
             data-ctx="habit"
             data-ctx-id={h.id}

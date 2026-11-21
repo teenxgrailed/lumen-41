@@ -77,7 +77,6 @@ export function SharedPhone() {
       <PkScreen
         screen="shared"
         title="Shared"
-        glyph="shared"
         sub={sharedMeta(list.length)}
       >
         <PhoneState query={shared} screen="shared">

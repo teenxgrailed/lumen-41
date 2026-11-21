@@ -402,13 +402,13 @@ export function BoardPage({ id, ctl }: { id: string; ctl: BoardsController }) {
           { sep: true },
           !pin.configured
             ? {
-                art: "stack",
+                brand: "pinterest",
                 title: "Import from Pinterest",
                 badge: <span className="pl-meta">Not set up</span>,
                 disabled: true,
               }
             : {
-                art: "stack",
+                brand: "pinterest",
                 title: linked
                   ? "Change Pinterest board"
                   : "Import from Pinterest",
