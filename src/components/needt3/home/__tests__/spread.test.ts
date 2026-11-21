@@ -1,5 +1,6 @@
 import {
   anytimeOpen,
+  lateActions,
   lateMovable,
   spreadDay,
   spreadLeads,
@@ -31,6 +32,31 @@ describe("what a spread takes", () => {
     expect(spreadLeads(true, 3)).toBe(true);
     expect(spreadLeads(false, 3)).toBe(false);
     expect(spreadLeads(true, 0)).toBe(false);
+  });
+});
+
+describe("the Overdue actions under the day plan", () => {
+  it("nothing overdue and open: no actions", () => {
+    expect(lateActions([], false)).toBeNull();
+    expect(lateActions([task({ done: true })], true)).toBeNull();
+  });
+
+  it("Move to today counts every open overdue task, Spread all but the fixed", () => {
+    const late = task({ dueDate: "2026-08-28" });
+    const fixed = task({ dueDate: "2026-08-28", isFixed: true });
+    const done = task({ dueDate: "2026-08-28", done: true });
+    const a = lateActions([late, fixed, done], false);
+    expect(a?.count).toBe(2);
+    expect(a?.spreadIds).toEqual([late.id]);
+    expect(a?.spreadFirst).toBe(false);
+  });
+
+  it("Spread leads on an overbooked day, and never when it has nothing to move", () => {
+    const late = task({ dueDate: "2026-08-28" });
+    const fixed = task({ dueDate: "2026-08-28", isFixed: true });
+    expect(lateActions([late], true)?.spreadFirst).toBe(true);
+    expect(lateActions([fixed], true)?.spreadFirst).toBe(false);
+    expect(lateActions([fixed], true)?.spreadIds).toEqual([]);
   });
 });
 
