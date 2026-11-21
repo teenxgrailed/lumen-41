@@ -1,0 +1,1 @@
+- Home on the phone has a small streak card: the number of days in a row you closed a task or kept a habit, and the last seven days as circles. The same numbers are available at `GET /api/streak`.

@@ -434,7 +434,6 @@ export function ConnectionsPhone({ c }: { c: ConnectionsController }) {
       <PkScreen
         screen="connections"
         title="Connections"
-        glyph="connections"
         sub={connectionsSub(c.items, c.tab, loaded, c.mcp.apps?.length ?? 0)}
         head={tabs}
       >

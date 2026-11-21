@@ -22,7 +22,6 @@
 .needt-v3 .v2p-swap { animation: v3-v2p-in 0.32s var(--pk-ease, ease) both; }
 @keyframes v3-v2p-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-.needt-v3 .pk-head.is-cal { padding-bottom: 14px; }
 
 /* Dark theme: plates are the kit's muted surface (.pk-muted, phone-kit.css);
    what is particular here is the picked day in the week strip / month. */

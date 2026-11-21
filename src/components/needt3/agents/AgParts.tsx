@@ -55,27 +55,6 @@ export function useAgentHue() {
     (key ? map.get(key) : undefined) ?? NEUTRAL_HUE;
 }
 
-/** A square avatar in the agent's hue with its first letter. */
-export function AgAvatar({
-  name,
-  hue,
-  size = 40,
-}: {
-  name: string;
-  hue: string;
-  size?: number;
-}) {
-  return (
-    <span
-      className="ag-av"
-      aria-hidden="true"
-      style={{ background: hue, width: size, height: size }}
-    >
-      {name.slice(0, 1).toUpperCase()}
-    </span>
-  );
-}
-
 export type AgTone =
   | "none"
   | "muted"

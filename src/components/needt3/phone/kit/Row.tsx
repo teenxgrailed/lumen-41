@@ -111,6 +111,11 @@ export interface PkRowProps {
   size?: "big" | "compact";
   /** The check ring at the end of the row instead of the start. */
   checkEnd?: boolean;
+  /**
+   * The object's own colour (the task's project): the row becomes a textured
+   * card (`.is-tex`), its colour at low alpha on the raised ground plus grain.
+   */
+  hue?: string | null;
 }
 
 /**
@@ -149,6 +154,7 @@ export function PkRow({
   icon,
   size,
   checkEnd,
+  hue,
 }: PkRowProps) {
   const plate = usePkPlate();
   const wrap = useRef<HTMLDivElement>(null);
@@ -404,6 +410,7 @@ export function PkRow({
         thrown && "is-thrown"
       )}
       data-pk-row={id}
+      style={hue ? ({ "--hue": hue } as React.CSSProperties) : undefined}
     >
       <div className="pk-rw-in">
         {phase === "check" || phase === "done" ? <PkSweep kind="row" /> : null}
@@ -460,7 +467,8 @@ export function PkRow({
             late && "is-late",
             check === false && !lead && "is-flat",
             size === "big" && "is-big",
-            size === "compact" && "is-compact"
+            size === "compact" && "is-compact",
+            hue !== undefined && "is-tex"
           )}
           onPointerDown={onPointerDown}
         >
@@ -622,6 +630,7 @@ export function PkTaskRow({
       }
       checkEnd={planRow}
       size={size}
+      hue={planRow ? (project?.color ?? null) : undefined}
       below={
         <PhoneStepsSlot task={t} hideSteps={hideSteps} close={onStepClose} />
       }

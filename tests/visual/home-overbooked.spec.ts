@@ -51,6 +51,9 @@ async function seedOverbookedDay() {
     "Draft the Q3 roadmap",
     "Answer the support backlog",
   ];
+  // A day plan left by an earlier spec must not outlive the seed it was drawn
+  // from; the plan rows are not part of the sign-in reset.
+  await prisma.dayPlan.deleteMany({ where: { userId: user.id } });
   // the visual user's tasks are reset on every sign-in, these with them
   await prisma.task.createMany({
     data: [
@@ -90,8 +93,28 @@ async function seedOverbookedDay() {
   });
 }
 
+/**
+ * This spec is about the old Today (the overdue row, Spread, the time-left
+ * card), so the day plan is answered as switched off, the way the server does
+ * when the `day_plan` kill switch is off (404 "disabled"). Left live, the phone
+ * asks for a draft once the page has loaded and Today swaps to the plan view
+ * whenever that answer lands: before the screenshot (the Spread buttons are
+ * gone and the plan's four fixture tasks are drawn) or after it (the old
+ * Today), so the run depended on the server's speed.
+ */
+async function switchDayPlanOff(page: Page) {
+  await page.route("**/api/day-plan**", (route) =>
+    route.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "disabled" }),
+    })
+  );
+}
+
 async function openHome(page: Page) {
   await page.clock.setFixedTime(new Date(NOW));
+  await switchDayPlanOff(page);
   await page.addInitScript(() => {
     localStorage.setItem("needt:quick-tip:last-shown-at", "9999999999999");
     localStorage.setItem("needt-visit-count", "0");
