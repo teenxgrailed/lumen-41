@@ -182,9 +182,9 @@ export function mailRows(
 export interface TileView {
   /** The one name a tile carries (a project folder carries the project's). */
   name: string;
-  /** The kind, for the spoken label only: it is not drawn. */
+  /** The small grey category over the title ("Plan", "Focus · Timer"). */
   label: string;
-  /** The one big word. */
+  /** The one big word: the live value or the name, never the label again. */
   word: string;
   /** The grey line under it. */
   sub: string;
@@ -225,7 +225,13 @@ function tileSay(tile: MenuTile, f: TileFacts): Omit<TileView, "name"> {
       return {
         label: "Plan",
         word: "Today",
-        sub: s.text,
+        sub: c.overdue
+          ? `${c.overdue} overdue`
+          : c.today === undefined
+            ? menuSub("home")
+            : c.today
+              ? `${plural(c.today, "task", "tasks")} left`
+              : "Nothing left",
         hue: null,
         alert: !!s.alert,
         go: { kind: "place", id: "home" },
@@ -234,25 +240,25 @@ function tileSay(tile: MenuTile, f: TileFacts): Omit<TileView, "name"> {
     }
     case "focus":
       return {
-        label: "Focus",
-        word: f.focus ? f.focus.label : "Focus",
+        label: "Focus · Timer",
+        word: f.focus ? f.focus.label : "25 min",
         sub: f.focus
           ? f.focus.paused
             ? "Paused"
             : "Time left"
-          : "Start a session",
+          : "Tap to start",
         hue: null,
         alert: false,
         go: { kind: "focus" },
-        quiet: !f.focus,
+        quiet: false,
       };
     case "calendar": {
       const n = c.nextEvent;
       return {
         label: "Calendar",
-        word: n ? n.at : n === null ? "Free" : "Calendar",
+        word: n ? n.at : n === null ? "Free" : "–",
         sub: n
-          ? n.title
+          ? `Next: ${n.title}`
           : n === null
             ? "Nothing else today"
             : menuSub("calendar"),
@@ -267,7 +273,7 @@ function tileSay(tile: MenuTile, f: TileFacts): Omit<TileView, "name"> {
         label: "Habits",
         word:
           c.habits === undefined
-            ? "Habits"
+            ? "–"
             : c.habits
               ? `${c.habitsDone ?? 0} of ${c.habits}`
               : "None yet",
@@ -282,7 +288,7 @@ function tileSay(tile: MenuTile, f: TileFacts): Omit<TileView, "name"> {
         label: "Inbox",
         word:
           c.unplaced === undefined
-            ? "Inbox"
+            ? "–"
             : c.unplaced
               ? String(c.unplaced)
               : "Clear",
@@ -301,7 +307,7 @@ function tileSay(tile: MenuTile, f: TileFacts): Omit<TileView, "name"> {
       const s = menuStatus("mail", c);
       return {
         label: "Mail",
-        word: c.mail ? String(c.mail) : c.mail === 0 ? "All read" : "Mail",
+        word: c.mail ? String(c.mail) : c.mail === 0 ? "All read" : "–",
         sub: c.mail ? "unread" : s.text,
         hue: null,
         alert: !!s.alert,
@@ -312,7 +318,7 @@ function tileSay(tile: MenuTile, f: TileFacts): Omit<TileView, "name"> {
     case "docs":
       return {
         label: "Docs",
-        word: c.docs === undefined ? "Docs" : plural(c.docs, "page", "pages"),
+        word: c.docs === undefined ? "–" : plural(c.docs, "page", "pages"),
         sub: c.docs ? `edited ${c.docsEdited || "today"}` : menuSub("docs"),
         hue: null,
         alert: false,
@@ -332,8 +338,7 @@ function tileSay(tile: MenuTile, f: TileFacts): Omit<TileView, "name"> {
     case "streak":
       return {
         label: "Streak",
-        word:
-          f.streak === undefined ? "Streak" : plural(f.streak, "day", "days"),
+        word: f.streak === undefined ? "–" : plural(f.streak, "day", "days"),
         sub:
           f.streak === undefined ? "Days closed in a row" : "closed in a row",
         hue: null,
@@ -345,7 +350,7 @@ function tileSay(tile: MenuTile, f: TileFacts): Omit<TileView, "name"> {
       const p = tile.projectId ? f.projects.get(tile.projectId) : undefined;
       return {
         label: "Project",
-        word: p ? p.name : "Project",
+        word: p ? p.name : "Folder",
         sub: p ? `${p.open} open` : "Not found",
         hue: p?.hue ?? null,
         alert: false,

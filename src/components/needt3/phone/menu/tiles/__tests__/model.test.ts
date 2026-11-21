@@ -74,6 +74,7 @@ describe("the catalogue and the default set", () => {
         facts()
       );
       expect(v.word).toBeTruthy();
+      expect(v.word).not.toBe(v.label); // the category is never the title
       expect(v.go).toBeTruthy();
     }
   });
@@ -107,14 +108,19 @@ describe("tileView", () => {
       facts({ counts: { overdue: 2, today: 3 } })
     );
     expect(v.word).toBe("Today");
-    expect(v.sub).toBe("2 overdue · 3 left today");
+    expect(v.sub).toBe("2 overdue");
     expect(v.alert).toBe(true);
+    expect(v.label).toBe("Plan");
+    expect(tileView(tile("today"), facts({ counts: { today: 3 } })).sub).toBe(
+      "3 tasks left"
+    );
     expect(v.go).toEqual({ kind: "place", id: "home" });
   });
 
   it("Focus shows the clock while a session runs, and opens the Focus sheet", () => {
     const idle = tileView(tile("focus"), facts());
-    expect(idle.sub).toBe("Start a session");
+    expect(idle.sub).toBe("Tap to start");
+    expect(idle.label).toBe("Focus \u00b7 Timer");
     expect(idle.go).toEqual({ kind: "focus" });
     const live = tileView(
       tile("focus"),

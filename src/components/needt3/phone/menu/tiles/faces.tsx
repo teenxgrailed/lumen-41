@@ -6,63 +6,64 @@ import type { MenuTile } from "@/lib/phone-menu/layout";
 
 import { DocThumb, useDocTokens } from "../../../docs/DocParts";
 import { Glyph } from "../../../glyphs/Glyph";
+import { initialsOf } from "../../../shell/Avatar";
 import { pkCx } from "../../kit/util";
 import { Swap, pages } from "./Swap";
 import type { DayEvent, TileFacts, TileView } from "./model";
 
 /**
- * What a tile draws: the object itself in miniature, from the user's own data
- * (the next tasks, today's habits, the latest mail, the last document...),
- * under the tile's one name. The faces take their size from the tile (a wide
- * tile just has more room) and move only through <Swap>.
+ * What a tile draws (owner ref 2026-11-21, menu-tiles-2011/ref-tiles-profile):
+ * top left a small grey category, under it the big live value or name, under
+ * that one grey line of detail; below, a real object of the thing (a ring with
+ * its pause button, habit dots, an event chip, a folder with its papers),
+ * glowing in its own colour from a corner (the CSS, never the accent). The
+ * category is never the title again. Faces take their size from the tile and
+ * move only through <Swap>.
  */
 
 /** Hours the day strip spans: 07:00 to 22:00. */
 const STRIP_FROM = 7 * 60;
 const STRIP_TO = 22 * 60;
 
-function Top({
-  name,
-  meta,
-  alert,
-}: {
-  name: string;
-  meta?: string | null;
-  alert?: boolean;
-}) {
+/** The three lines at the top of every tile. */
+function Lines({ view }: { view: TileView }) {
+  const n = view.word.length;
   return (
-    <div className="ntm-top">
-      <span className="ntm-name">{name}</span>
-      {meta ? (
-        <span className={pkCx("ntm-meta", alert && "is-alert")}>{meta}</span>
-      ) : null}
+    <div className="ntm-lines">
+      <span className="ntm-kind">{view.label}</span>
+      <span className="ntm-title" data-fit={n > 12 ? "s" : n > 8 ? "m" : "l"}>
+        {view.word}
+      </span>
+      <span className={pkCx("ntm-sub", view.alert && "is-alert")}>
+        {view.sub}
+      </span>
     </div>
   );
 }
 
-const Skel = ({ n = 3 }: { n?: number }) => (
-  <div className="ntm-skel" aria-hidden="true">
+const Skel = ({ n = 2 }: { n?: number }) => (
+  <div className="ntm-obj ntm-skel" aria-hidden="true">
     {Array.from({ length: n }, (_, i) => (
-      <span key={i} style={{ width: `${88 - i * 18}%` }} />
+      <span key={i} style={{ width: `${92 - i * 22}%` }} />
     ))}
   </div>
 );
 
 const Empty = ({ children }: { children: ReactNode }) => (
-  <p className="ntm-none">{children}</p>
+  <p className="ntm-obj ntm-none">{children}</p>
 );
 
-/** The focus tile's ring: the accent is the ring's mark, never a fill. */
+/** The focus ring: the accent is the arc's mark, never a fill. */
 export function FocusRing({
   pct,
   paused,
-  children,
+  running,
 }: {
   pct: number;
   paused: boolean;
-  children?: ReactNode;
+  running: boolean;
 }) {
-  const R = 27;
+  const R = 29;
   const C = 2 * Math.PI * R;
   return (
     <span className={pkCx("ntm-ring", paused && "is-paused")}>
@@ -73,7 +74,7 @@ export function FocusRing({
           r={R}
           fill="none"
           stroke="var(--v2p-line)"
-          strokeWidth="4"
+          strokeWidth="3.5"
         />
         <circle
           cx="34"
@@ -81,15 +82,25 @@ export function FocusRing({
           r={R}
           fill="none"
           stroke="var(--accent)"
-          strokeWidth="4"
+          strokeWidth="3.5"
           strokeLinecap="round"
           strokeDasharray={C}
           strokeDashoffset={C * (1 - pct)}
           opacity={pct > 0 ? 1 : 0}
           transform="rotate(-90 34 34)"
         />
+        {running ? (
+          <g fill="var(--v2p-ink)">
+            <rect x="27" y="25" width="4.5" height="18" rx="1.6" />
+            <rect x="36.5" y="25" width="4.5" height="18" rx="1.6" />
+          </g>
+        ) : (
+          <path
+            d="M29 25.5v17a1.6 1.6 0 0 0 2.4 1.4l14-8.5a1.6 1.6 0 0 0 0-2.8l-14-8.5A1.6 1.6 0 0 0 29 25.5z"
+            fill="var(--v2p-ink)"
+          />
+        )}
       </svg>
-      <span className="ntm-ring-n">{children}</span>
     </span>
   );
 }
@@ -119,49 +130,51 @@ function DayStrip({ events, nowMin }: { events: DayEvent[]; nowMin: number }) {
   );
 }
 
-function DocsFace({
-  facts,
-  offset,
-  active,
-}: {
-  facts: TileFacts;
-  offset: number;
-  active: boolean;
-}) {
+function Flame({ n }: { n: number }) {
+  return (
+    <span className="ntm-flame" aria-hidden="true">
+      <svg width="54" height="64" viewBox="0 0 54 64">
+        <defs>
+          <linearGradient id="ntm-flame-g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="oklch(0.82 0.16 70)" />
+            <stop offset="1" stopColor="oklch(0.66 0.2 35)" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M27 2c3 11 18 18 18 36 0 12-8 22-18 22S9 50 9 38c0-7 4-11 7-15 1 5 4 8 7 9-2-11-1-22 4-30z"
+          fill="url(#ntm-flame-g)"
+        />
+      </svg>
+      <span className="ntm-flame-n">{n}</span>
+    </span>
+  );
+}
+
+function DocsFace({ view, facts }: { view: TileView; facts: TileFacts }) {
   const read = useDocTokens();
   const docs = facts.docs;
   return (
     <>
-      <Top
-        name="Docs"
-        meta={facts.counts.docs ? `${facts.counts.docs}` : null}
-      />
+      <Lines view={view} />
       {docs === undefined ? (
         <Skel />
       ) : docs.length === 0 ? (
         <Empty>No pages yet</Empty>
       ) : (
-        <Swap
-          className="ntm-fill"
-          items={docs}
-          offset={offset}
-          active={active}
-          render={(d) => (
-            <div className="ntm-doc">
-              <DocThumb doc={d} read={read} w={74} h={86} />
-              <span className="ntm-doc-t">
-                <span className="ntm-txt ntm-strong">
-                  {d.title || "Untitled"}
-                </span>
-                <span className="ntm-sub">
-                  {facts.docsAgo?.get(d.id)
-                    ? `edited ${facts.docsAgo.get(d.id)}`
-                    : ""}
-                </span>
+        <div className="ntm-obj ntm-pages" aria-hidden="true">
+          {docs
+            .slice(0, 2)
+            .reverse()
+            .map((d, i, a) => (
+              <span
+                key={d.id}
+                className="ntm-page"
+                data-front={i === a.length - 1 ? "" : undefined}
+              >
+                <DocThumb doc={d} read={read} w={50} h={62} />
               </span>
-            </div>
-          )}
-        />
+            ))}
+        </div>
       )}
     </>
   );
@@ -180,32 +193,27 @@ export function TileFace({
   offset: number;
   active: boolean;
 }) {
-  const c = facts.counts;
   switch (tile.id) {
     case "today": {
       const rows = facts.today;
-      const meta = c.overdue
-        ? `${c.overdue} overdue`
-        : c.today !== undefined
-          ? `${c.today} left`
-          : null;
       return (
         <>
-          <Top name="Today" meta={meta} alert={!!c.overdue} />
+          <Lines view={view} />
           {rows === undefined ? (
             <Skel />
           ) : rows.length === 0 ? (
             <Empty>Nothing planned</Empty>
           ) : (
             <Swap
-              items={pages(rows, 4)}
+              className="ntm-obj"
+              items={pages(rows, 2)}
               offset={offset}
               active={active}
               render={(pg) => (
-                <ul className="ntm-rows">
+                <ul className="ntm-chips-col">
                   {pg.map((r, i) => (
-                    <li key={i}>
-                      <span className="ntm-dot" aria-hidden="true" />
+                    <li key={i} className="ntm-chip-row">
+                      <span className="ntm-check" aria-hidden="true" />
                       <span className="ntm-time">{r.time ?? "any"}</span>
                       <span className="ntm-txt">{r.title}</span>
                     </li>
@@ -221,89 +229,84 @@ export function TileFace({
       const f = facts.focus;
       return (
         <>
-          <Top name="Focus" />
-          <div className="ntm-focus">
-            <FocusRing pct={f?.pct ?? 0} paused={!!f?.paused}>
-              {f ? f.label.replace(" min", "") : "25"}
-            </FocusRing>
-            <span className="ntm-focus-t">
-              <span className="ntm-txt ntm-strong">
-                {f ? (f.paused ? "Paused" : "Time left") : "Start"}
-              </span>
-              <span className="ntm-sub">
-                {f ? (/:/.test(f.label) ? "elapsed" : "minutes") : "25 min"}
-              </span>
-            </span>
-          </div>
+          <Lines view={view} />
+          <span className="ntm-obj ntm-focus">
+            <FocusRing
+              pct={f?.pct ?? 0}
+              paused={!!f?.paused}
+              running={!!f && !f.paused}
+            />
+          </span>
         </>
       );
     }
     case "calendar": {
       const ev = facts.events;
+      const later = ev?.slice(1, 3) ?? [];
       return (
         <>
-          <Top name="Calendar" />
+          <Lines view={view} />
           {ev === undefined ? (
-            <Skel n={2} />
-          ) : ev.length === 0 ? (
-            <div className="ntm-next">
-              <span className="ntm-big">Free</span>
-              <span className="ntm-sub">Nothing else today</span>
-            </div>
+            <Skel />
           ) : (
-            <Swap
-              items={ev.slice(0, 3)}
-              offset={offset}
-              active={active}
-              render={(e) => (
-                <div className="ntm-next">
-                  <span className="ntm-big">{e.at}</span>
-                  <span className="ntm-txt">{e.title}</span>
-                </div>
-              )}
-            />
+            <div className="ntm-obj ntm-cal">
+              {later.length ? (
+                <ul className="ntm-chips-col">
+                  {later.map((e, i) => (
+                    <li key={i} className="ntm-chip-row is-event">
+                      <span className="ntm-evbar" aria-hidden="true" />
+                      <span className="ntm-time">{e.at}</span>
+                      <span className="ntm-txt">{e.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <DayStrip events={ev} nowMin={facts.nowMin ?? 0} />
+            </div>
           )}
-          {ev ? <DayStrip events={ev} nowMin={facts.nowMin ?? 0} /> : null}
         </>
       );
     }
     case "habits": {
       const rows = facts.habitRows;
-      const done = rows?.filter((h) => h.done).length ?? 0;
       return (
         <>
-          <Top
-            name="Habits"
-            meta={rows && rows.length ? `${done} of ${rows.length}` : null}
-          />
+          <Lines view={view} />
           {rows === undefined ? (
-            <Skel />
+            <Skel n={1} />
           ) : rows.length === 0 ? (
             <Empty>No habits yet</Empty>
           ) : (
-            <Swap
-              items={pages(rows, 4)}
-              offset={offset}
-              active={active}
-              render={(pg) => (
-                <ul className="ntm-rows">
-                  {pg.map((h) => (
-                    <li key={h.id}>
-                      <span
-                        className="ntm-dot"
-                        data-done={h.done ? "" : undefined}
-                        style={
-                          h.color
-                            ? ({ "--dot": h.color } as CSSProperties)
-                            : undefined
-                        }
+            <div className="ntm-obj ntm-stack" aria-hidden="true">
+              {rows.slice(0, 4).map((h) => (
+                <span
+                  key={h.id}
+                  className="ntm-av"
+                  data-done={h.done ? "" : undefined}
+                  style={
+                    h.color
+                      ? ({ "--dot": h.color } as CSSProperties)
+                      : undefined
+                  }
+                >
+                  {h.done ? (
+                    <svg width="14" height="14" viewBox="0 0 14 14">
+                      <path
+                        d="M3 7.4l2.5 2.5L11 4.3"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
-                      <span className="ntm-txt">{h.title}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            />
+                    </svg>
+                  ) : null}
+                </span>
+              ))}
+              {rows.length > 4 ? (
+                <span className="ntm-av is-more">+{rows.length - 4}</span>
+              ) : null}
+            </div>
           )}
         </>
       );
@@ -312,24 +315,23 @@ export function TileFace({
       const titles = facts.inboxTitles;
       return (
         <>
-          <Top name="Inbox" />
-          {c.unplaced === undefined || titles === undefined ? (
-            <Skel n={2} />
-          ) : c.unplaced === 0 ? (
-            <div className="ntm-next">
-              <span className="ntm-big">Clear</span>
-              <span className="ntm-sub">Everything has a time</span>
-            </div>
+          <Lines view={view} />
+          {facts.counts.unplaced === undefined || titles === undefined ? (
+            <Skel />
+          ) : titles.length === 0 ? (
+            <Empty>Everything has a time</Empty>
           ) : (
-            <>
-              <span className="ntm-big">{c.unplaced}</span>
-              <Swap
-                items={titles}
-                offset={offset}
-                active={active}
-                render={(t) => <span className="ntm-txt">{t}</span>}
-              />
-            </>
+            <div className="ntm-obj ntm-papers-col" aria-hidden="true">
+              {titles.slice(0, 2).map((t, i) => (
+                <span
+                  key={i}
+                  className="ntm-paper"
+                  style={{ "--pi": i } as CSSProperties}
+                >
+                  <span className="ntm-txt">{t}</span>
+                </span>
+              ))}
+            </div>
           )}
         </>
       );
@@ -338,25 +340,29 @@ export function TileFace({
       const rows = facts.mailRows;
       return (
         <>
-          <Top
-            name="Mail"
-            meta={c.mail ? `${c.mail} unread` : null}
-            alert={false}
-          />
+          <Lines view={view} />
           {rows === undefined ? (
             <Skel />
           ) : rows.length === 0 ? (
             <Empty>No mail</Empty>
           ) : (
             <Swap
+              className="ntm-obj"
               items={rows}
               offset={offset}
               active={active}
               render={(m) => (
                 <div className="ntm-mail">
-                  <span className="ntm-txt ntm-strong">{m.from}</span>
-                  <span className="ntm-txt">{m.subject}</span>
-                  <span className="ntm-sub ntm-clamp">{m.preview}</span>
+                  <span
+                    className="ntm-av is-sm"
+                    data-unread={m.unread ? "" : undefined}
+                  >
+                    {initialsOf(m.from)}
+                  </span>
+                  <span className="ntm-mail-t">
+                    <span className="ntm-txt ntm-strong">{m.from}</span>
+                    <span className="ntm-txt ntm-soft">{m.subject}</span>
+                  </span>
                 </div>
               )}
             />
@@ -365,14 +371,26 @@ export function TileFace({
       );
     }
     case "docs":
-      return <DocsFace facts={facts} offset={offset} active={active} />;
+      return <DocsFace view={view} facts={facts} />;
     case "ask":
       return (
         <>
-          <Top name="Ask Needt" />
-          <span className="ntm-ask">
-            <Glyph name="ai" size={20} />
-            <span className="ntm-sub">Ask anything about your day</span>
+          <Lines view={view} />
+          <span className="ntm-obj ntm-ask" aria-hidden="true">
+            <Glyph name="ai" size={18} />
+            <span className="ntm-txt">Ask anything about your day</span>
+            <span className="ntm-send">
+              <svg width="14" height="14" viewBox="0 0 14 14">
+                <path
+                  d="M7 11.5V3M3.2 6.6L7 2.8l3.8 3.8"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
           </span>
         </>
       );
@@ -380,20 +398,16 @@ export function TileFace({
       const n = facts.streak;
       return (
         <>
-          <Top name="Streak" />
-          {n === undefined ? (
-            <Skel n={2} />
-          ) : (
-            <span className="ntm-big">
-              {n} {n === 1 ? "day" : "days"}
+          <Lines view={view} />
+          <span className="ntm-obj ntm-streak" aria-hidden="true">
+            <span className="ntm-week">
+              {(
+                facts.week ?? Array.from({ length: 7 }, () => "quiet" as const)
+              ).map((s, i) => (
+                <span key={i} className="ntm-wd" data-s={s} />
+              ))}
             </span>
-          )}
-          <span className="ntm-week" aria-hidden="true">
-            {(
-              facts.week ?? Array.from({ length: 7 }, () => "quiet" as const)
-            ).map((s, i) => (
-              <span key={i} className="ntm-wd" data-s={s} />
-            ))}
+            {n === undefined ? null : <Flame n={n} />}
           </span>
         </>
       );
@@ -402,44 +416,35 @@ export function TileFace({
       const p = tile.projectId ? facts.projects.get(tile.projectId) : undefined;
       const titles = p?.titles ?? [];
       return (
-        <div className="ntm-folder">
-          {p ? (
-            titles.length ? (
-              <Swap
-                className="ntm-papers-swap"
-                items={pages(titles, 3)}
-                offset={offset}
-                active={active}
-                render={(pg) => (
-                  <div className="ntm-papers">
-                    {pg.map((t, i) => (
-                      <span
-                        key={i}
-                        className="ntm-paper"
-                        style={{ "--pi": i } as CSSProperties}
-                      >
-                        <span className="ntm-txt">{t}</span>
-                      </span>
-                    ))}
-                  </div>
-                )}
-              />
-            ) : (
-              <div className="ntm-papers">
-                <span
-                  className="ntm-paper"
-                  style={{ "--pi": 0 } as CSSProperties}
-                >
-                  <span className="ntm-txt">Nothing open</span>
-                </span>
-              </div>
-            )
-          ) : null}
-          <span className="ntm-flap">
-            <span className="ntm-name">{view.name}</span>
-            {p ? <span className="ntm-meta">{p.open} open</span> : null}
+        <>
+          <Lines view={view} />
+          <span className="ntm-obj ntm-folder" aria-hidden="true">
+            {p ? (
+              titles.length ? (
+                <Swap
+                  className="ntm-papers-swap"
+                  items={pages(titles, 2)}
+                  offset={offset}
+                  active={active}
+                  render={(pg) => (
+                    <span className="ntm-papers">
+                      {pg.map((t, i) => (
+                        <span
+                          key={i}
+                          className="ntm-paper"
+                          style={{ "--pi": i } as CSSProperties}
+                        >
+                          <span className="ntm-txt">{t}</span>
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                />
+              ) : null
+            ) : null}
+            <span className="ntm-fbody" />
           </span>
-        </div>
+        </>
       );
     }
   }

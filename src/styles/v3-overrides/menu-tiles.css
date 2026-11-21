@@ -2,42 +2,31 @@
  * The phone's tile menu (TileMenu.tsx, faces.tsx) and the classic dock's
  * restyle.
  *
- * Owner refs, 2026-11-20 (menu-tiles-2011, auth-2011: Craft's floating
- * document and dashboard cards over a calm sky): each tile is a clean, light
- * object card (a white surface, a 1px hairline, a soft realistic drop shadow,
- * a 20px radius) holding a real miniature of the object under ONE small name:
- * tasks with their times, a focus ring, the next event on a day strip, habit
- * dots, a project's papers, week circles, the latest mail, a document's page.
- * The layer behind is a static, calm sky; in the dark themes the sky is a
- * dimmed blue-grey and the cards are dimmed light cards, never black slabs.
- * No glow, no grain, no live backdrop blur (it cost the frame budget).
+ * Owner ref, 2026-11-21 (menu-tiles-2011/ref-tiles-profile): the menu is a
+ * profile. Back, the avatar and one round button on top, the name and plan,
+ * then the tiles, a grey Customize link and the pill bar. A tile is a dark
+ * grey card one surface step above the ground (no border, no blur, no shadow):
+ * a small grey category top left, the live value or name in big bold type, one
+ * grey line of detail, and at the bottom a real object of the thing (a ring
+ * with its pause button, habit dots, event chips, a folder with its papers),
+ * with a soft glow in the OBJECT's own colour bleeding from a corner. While
+ * editing the profile blurs back, every tile gets a white round minus in a
+ * notch cut out of its corner, and a round X takes the place of the bar.
  *
- * PORT.md: every grey is the one ink at a ladder alpha, chrome type is 13px
- * and 12px (the one big figure on a tile is a display figure), the accent is a
- * mark only (the focus ring).
+ * PORT.md: every grey is the one ink at a ladder alpha, chrome type is 13px and
+ * 12px (the live value on a tile is content, so it is big), the accent is a
+ * mark only (the focus ring's arc), never a fill.
  *
- * Motion: only transform (translate, scale, rotate), opacity and filter ever
- * move. Nothing here runs a frame loop; the turning of a tile's items is one
- * shared timer in beat.ts and the classes below.
+ * Motion: only transform (translate, scale, rotate), opacity and a one-off
+ * filter on the profile ever move. Nothing here runs a frame loop; the turning
+ * of a tile's items is one shared timer in beat.ts and the classes below. No
+ * backdrop-filter anywhere (it cost the frame budget).
  */
 
 /* ── the layer ── */
 .needt-v3 .ntm {
-  /* the card: paper, and the ink on it (the card carries its own ink so it
-     reads the same over a light or a dark sky) */
-  --ntm-surf: #fff;
-  --ntm-lit: rgba(255, 255, 255, 0.9);
-  --ntm-ink: #1b1e25;
-  --ntm-ink-2: rgba(27, 30, 37, 0.62);
-  --ntm-ink-3: rgba(27, 30, 37, 0.4);
-  --ntm-line: rgba(27, 30, 37, 0.1);
-  --ntm-drop:
-    0 1px 2px rgba(24, 40, 70, 0.1), 0 8px 18px -8px rgba(24, 40, 70, 0.22),
-    0 22px 36px -22px rgba(24, 40, 70, 0.28);
-  --ntm-sky:
-    radial-gradient(60% 22% at 18% 30%, rgba(255, 255, 255, 0.55), transparent),
-    radial-gradient(55% 18% at 86% 62%, rgba(255, 255, 255, 0.45), transparent),
-    linear-gradient(180deg, #b9dcf3 0%, #d4e9f6 55%, #e8f2f8 100%);
+  --ntm-bg: var(--v2p-raise-2);
+  --ntm-chip: color-mix(in oklab, var(--v2p-ink) 8%, transparent);
   /* fixed to the screen, not the page: the phone app's document can be taller
      than the display (the other layers, .pk-scrim and .nva, are fixed too) */
   position: fixed;
@@ -52,19 +41,6 @@
   font-family: var(--font-sans);
   pointer-events: none;
 }
-.needt-v3[data-theme="dark"] .ntm,
-.needt-v3[data-theme="dim"] .ntm {
-  /* dimmed, desaturated light cards over a frosted dark blue-grey sky */
-  --ntm-surf: #d9dde6;
-  --ntm-lit: rgba(255, 255, 255, 0.55);
-  --ntm-drop:
-    0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 20px -8px rgba(0, 0, 0, 0.45),
-    0 24px 38px -22px rgba(0, 0, 0, 0.5);
-  --ntm-sky:
-    radial-gradient(60% 22% at 18% 30%, rgba(160, 185, 220, 0.16), transparent),
-    radial-gradient(55% 18% at 86% 62%, rgba(160, 185, 220, 0.12), transparent),
-    linear-gradient(180deg, #232a39 0%, #2b3547 55%, #232a38 100%);
-}
 .needt-v3 .ntm.is-in {
   pointer-events: auto;
 }
@@ -73,8 +49,8 @@
   background: none;
 }
 /* The layer itself carries no opacity (an ancestor with opacity would be the
-   scrim blur's backdrop root, and the blur would see nothing): the scrim fades
-   by --pk-scrim-k, everything else by its own opacity. */
+   scrim blur's backdrop root): the scrim fades by --pk-scrim-k, everything
+   else by its own opacity. */
 .needt-v3 .ntm > :not(.pk-scrim) {
   position: relative;
   z-index: 1;
@@ -84,9 +60,6 @@
 .needt-v3 .ntm.is-in > :not(.pk-scrim) {
   opacity: 1;
 }
-/* A live backdrop blur over the whole screen made open, jiggle and drag
-   repaint a blurred layer every frame (16 fps at 4x CPU). The menu is a layer
-   of its own: a static sky, no backdrop-filter anywhere in it. */
 .needt-v3 .ntm .pk-scrim-blur {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -94,13 +67,13 @@
   mask-image: none;
   background: none;
 }
-/* the sky is the layer's own: full screen, in step with the catalogue */
+/* the ground: the page's own, solid */
 .needt-v3 .ntm::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: var(--ntm-sky);
+  background: var(--v2p-ground);
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
@@ -109,30 +82,7 @@
   opacity: 1;
 }
 
-/* ── the head: it blurs back while editing, as in the ref ── */
-.needt-v3 .ntm-head {
-  position: relative;
-  z-index: 1;
-  flex: none;
-  padding-top: calc(max(var(--v3-top, 0px), 20px) + 12px);
-  padding-bottom: 12px;
-  transition: opacity 0.2s ease;
-}
-.needt-v3 .ntm.is-edit .ntm-head {
-  opacity: 0.55;
-}
-.needt-v3 .ntm-title {
-  margin: 0;
-  font: 600 28px/32px var(--font-sans);
-  letter-spacing: -0.02em;
-}
-.needt-v3 .ntm-hint {
-  margin: 4px 0 0;
-  font: 400 13px/18px var(--font-sans);
-  color: var(--v2p-ink-2);
-}
-
-/* ── the body: the grid sits low, in reach of the thumb ── */
+/* ── the body scrolls, the profile with it ── */
 .needt-v3 .ntm-body {
   flex: 1;
   min-height: 0;
@@ -143,23 +93,83 @@
   overscroll-behavior: contain;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  /* room for a tile's shadow and wobble at the edges */
+  /* room for a tile's wobble at the edges */
   margin: 0 -10px;
-  padding: 6px 10px 18px;
+  padding: calc(max(var(--v3-top, 0px), 20px) + 8px) 10px 12px;
 }
 .needt-v3 .ntm-body::-webkit-scrollbar {
   display: none;
 }
+
+/* ── the profile ── */
+.needt-v3 .ntm-profile {
+  flex: none;
+  margin: 0 6px 22px;
+  text-align: center;
+  transition:
+    opacity 0.25s ease,
+    filter 0.25s ease;
+}
+.needt-v3 .ntm.is-edit .ntm-profile {
+  opacity: 0.4;
+  filter: blur(7px);
+  pointer-events: none;
+}
+.needt-v3 .ntm-profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.needt-v3 .ntm-avatar {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--v2p-raise-2);
+  color: var(--v2p-ink-2);
+  font: 600 20px/24px var(--font-sans);
+}
+.needt-v3 .ntm-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.needt-v3 .ntm-who {
+  margin: 14px 0 4px;
+  font: 700 28px/32px var(--font-sans);
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .ntm-who-sub {
+  margin: 0;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-who-sub > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── the grid: square cells, measured from the grid's own width ── */
+.needt-v3 .ntm-gridwrap {
+  flex: none;
+  container-type: inline-size;
+}
 .needt-v3 .ntm-grid {
-  /* the first child: auto margin pushes the grid down without hiding the top
-     of a grid taller than the body (flex-end would). No dense back-filling:
-     packTiles() (model.ts) lays tiles out the way this does, in order, so a
-     drag can say where every other tile goes. */
-  margin: auto 0 0;
+  /* No dense back-filling: packTiles() (model.ts) lays tiles out the way this
+     does, in order, so a drag can say where every other tile goes. */
+  margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: calc((100cqw - 12px) / 2);
   gap: 12px;
 }
 .needt-v3 .ntm-empty {
@@ -170,29 +180,13 @@
 }
 
 /* ── a tile ── */
-.needt-v3 .ntm-tile,
-.needt-v3 .ntm-chip,
-.needt-v3 .ntm-pill,
-.needt-v3 .ntm-round {
-  --v2p-ink: var(--ntm-ink);
-  --v2p-ink-2: var(--ntm-ink-2);
-  --v2p-ink-3: var(--ntm-ink-3);
-  --v2p-line: var(--ntm-line);
-  --v2p-ground: var(--ntm-surf);
-  --v2p-raise-2: rgba(27, 30, 37, 0.07);
-  color: var(--ntm-ink);
-}
 .needt-v3 .ntm-tile {
   position: relative;
   grid-column: span 1;
-  height: 164px;
-  border-radius: 20px;
+  border-radius: 24px;
   overflow: hidden;
   isolation: isolate;
-  background: var(--ntm-surf);
-  box-shadow:
-    inset 0 0 0 1px var(--ntm-line),
-    var(--ntm-drop);
+  background: var(--ntm-bg);
   /* in: a short rise, staggered; individual transform properties, so the
      editing wobble (rotate) and a lift (translate, scale) never fight it */
   translate: 0 14px;
@@ -212,49 +206,101 @@
 .needt-v3 .ntm-tile.is-wide {
   grid-column: span 2;
 }
+/* the glow: the object's own colour, bleeding in from a corner. A static
+   gradient, painted once with the tile. */
+.needt-v3 .ntm-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    90% 90% at var(--gx, 100%) var(--gy, 100%),
+    color-mix(
+      in oklab,
+      var(--ntm-hue, transparent) var(--ga, 38%),
+      transparent
+    ),
+    transparent 72%
+  );
+}
+.needt-v3 .ntm-tile.is-quiet::before {
+  opacity: 0.35;
+}
 /* the colours of the objects (never the accent) */
 .needt-v3 .ntm-tile[data-tile="today"] {
   --ntm-hue: var(--info);
+  --gx: 0%;
+  --gy: 100%;
+  --ga: 30%;
 }
 .needt-v3 .ntm-tile[data-tile="focus"] {
   --ntm-hue: oklch(0.72 0.13 200);
+  --gx: 100%;
+  --gy: 100%;
+  --ga: 46%;
 }
 .needt-v3 .ntm-tile[data-tile="calendar"] {
   --ntm-hue: var(--success);
+  --gx: 100%;
+  --gy: 100%;
+  --ga: 30%;
 }
 .needt-v3 .ntm-tile[data-tile="habits"] {
   --ntm-hue: oklch(0.7 0.15 305);
+  --gx: 0%;
+  --gy: 100%;
+  --ga: 40%;
 }
 .needt-v3 .ntm-tile[data-tile="inbox"] {
   --ntm-hue: oklch(0.74 0.11 235);
+  --gx: 100%;
+  --gy: 100%;
+  --ga: 30%;
 }
 .needt-v3 .ntm-tile[data-tile="mail"] {
   --ntm-hue: oklch(0.74 0.13 15);
+  --gx: 0%;
+  --gy: 100%;
+  --ga: 30%;
 }
 .needt-v3 .ntm-tile[data-tile="docs"] {
   --ntm-hue: oklch(0.82 0.13 100);
+  --gx: 100%;
+  --gy: 100%;
+  --ga: 42%;
 }
 .needt-v3 .ntm-tile[data-tile="ask"] {
   --ntm-hue: oklch(0.72 0.14 300);
+  --gx: 50%;
+  --gy: 120%;
+  --ga: 38%;
 }
 .needt-v3 .ntm-tile[data-tile="streak"] {
   --ntm-hue: oklch(0.7 0.19 38);
+  --gx: 100%;
+  --gy: 100%;
+  --ga: 50%;
 }
 /* a project folder: its own colour (an inline --ntm-hue wins over the fallback) */
 .needt-v3 .ntm-tile[data-tile="project"] {
   --ntm-hue: var(--v2p-ink-3);
+  --gx: 50%;
+  --gy: 110%;
+  --ga: 40%;
 }
 
 /* what the tile holds */
 .needt-v3 .ntm-hit {
   position: absolute;
   inset: 0;
+  z-index: 1;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
   align-items: stretch;
-  gap: 8px;
   width: 100%;
-  padding: 14px 14px 12px;
+  padding: 16px 16px 14px;
   border: 0;
   background: none;
   color: inherit;
@@ -274,64 +320,65 @@
 .needt-v3 .ntm-hit:focus-visible {
   outline: 2px solid var(--v2p-ink-3);
   outline-offset: -3px;
-  border-radius: 20px;
+  border-radius: 24px;
 }
 .needt-v3 .ntm-hit:disabled {
   opacity: 0.45;
 }
-.needt-v3 .ntm-top {
-  flex: none;
+.needt-v3 .ntm-lines {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
   min-width: 0;
 }
-.needt-v3 .ntm-name {
-  min-width: 0;
+.needt-v3 .ntm-kind {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 600 13px/18px var(--font-sans);
-  letter-spacing: -0.005em;
-}
-.needt-v3 .ntm-meta {
-  flex: none;
   font: 400 12px/16px var(--font-sans);
   color: var(--v2p-ink-2);
-  font-variant-numeric: tabular-nums;
 }
-.needt-v3 .ntm-meta.is-alert {
-  color: var(--destructive);
-}
-.needt-v3 .ntm-big {
-  font: 600 26px/30px var(--font-sans);
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-}
-.needt-v3 .ntm-txt {
-  min-width: 0;
+.needt-v3 .ntm-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 400 13px/18px var(--font-sans);
+  margin-top: 2px;
+  font: 700 28px/32px var(--font-sans);
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
 }
-.needt-v3 .ntm-strong {
-  font-weight: 600;
+/* the name is sized to the tile: the longer it is, the smaller the type */
+.needt-v3 .ntm-title[data-fit="m"] {
+  font-size: 23px;
+  line-height: 32px;
+}
+.needt-v3 .ntm-title[data-fit="s"] {
+  font-size: 19px;
+  line-height: 32px;
+  letter-spacing: -0.015em;
+}
+.needt-v3 .ntm-sub.is-alert {
+  color: var(--destructive);
 }
 .needt-v3 .ntm-sub {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 400 12px/16px var(--font-sans);
+  font: 400 13px/18px var(--font-sans);
   color: var(--v2p-ink-2);
 }
-.needt-v3 .ntm-clamp {
-  white-space: normal;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+.needt-v3 .ntm-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 12px/16px var(--font-sans);
+}
+.needt-v3 .ntm-strong {
+  font-weight: 600;
+}
+.needt-v3 .ntm-soft {
+  color: var(--v2p-ink-2);
 }
 .needt-v3 .ntm-none {
   margin: 0;
@@ -341,25 +388,30 @@
 .needt-v3 .ntm-skel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 4px;
+  gap: 6px;
 }
 .needt-v3 .ntm-skel > span {
-  height: 10px;
-  border-radius: 5px;
-  background: color-mix(in oklab, var(--v2p-ink) 9%, transparent);
+  height: 24px;
+  border-radius: 9px;
+  background: var(--ntm-chip);
+}
+
+/* the object: the real thing at the bottom of the tile */
+.needt-v3 .ntm-hit > .ntm-obj {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* the items that take turns: Craft-style, the old one blurs out, the next is
    put in behind the blur and sharpens. opacity, filter and transform only. */
 .needt-v3 .ntm-swap {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  min-width: 0;
 }
 .needt-v3 .ntm-swap.is-out {
   opacity: 0;
@@ -387,94 +439,58 @@
     transform: none;
   }
 }
-.needt-v3 .ntm-fill {
-  flex: 1;
-}
 
-/* Today and Habits: rows of the real things */
-.needt-v3 .ntm-rows {
+/* Today and Calendar: chips of the real things */
+.needt-v3 .ntm-chips-col {
   margin: 0;
   padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
-.needt-v3 .ntm-rows li {
+.needt-v3 .ntm-chip-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  height: 20px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 9px;
+  background: var(--ntm-chip);
 }
 .needt-v3 .ntm-time {
   flex: none;
-  min-width: 36px;
   font: 400 12px/16px var(--font-sans);
   color: var(--v2p-ink-2);
   font-variant-numeric: tabular-nums;
 }
-.needt-v3 .ntm-dot {
+.needt-v3 .ntm-check {
   flex: none;
   box-sizing: border-box;
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
-  border: 1.5px solid var(--dot, var(--v2p-ink-3));
-  opacity: 0.9;
+  border: 1.5px solid var(--v2p-ink-3);
 }
-.needt-v3 .ntm-dot[data-done] {
-  background: var(--dot, var(--v2p-ink-3));
-  box-shadow: inset 0 0 0 2px var(--ntm-surf);
-}
-
-/* Focus: the ring */
-.needt-v3 .ntm-focus {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 0;
-}
-.needt-v3 .ntm-focus-t {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.needt-v3 .ntm-ring {
-  position: relative;
+.needt-v3 .ntm-evbar {
   flex: none;
-  display: grid;
-  place-items: center;
-  width: 68px;
-  height: 68px;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--ntm-hue);
 }
-.needt-v3 .ntm-ring > svg {
-  position: absolute;
-  inset: 0;
-}
-.needt-v3 .ntm-ring.is-paused {
-  opacity: 0.55;
-}
-.needt-v3 .ntm-ring-n {
-  position: relative;
-  font: 600 16px/20px var(--font-sans);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Calendar: the next event over the day */
-.needt-v3 .ntm-next {
+.needt-v3 .ntm-cal {
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  gap: 8px;
 }
 .needt-v3 .ntm-strip {
   position: relative;
   flex: none;
   height: 6px;
-  margin-top: auto;
   border-radius: 3px;
-  background: color-mix(in oklab, var(--v2p-ink) 9%, transparent);
+  background: var(--ntm-chip);
 }
 .needt-v3 .ntm-strip-ev {
   position: absolute;
@@ -493,62 +509,153 @@
   background: var(--v2p-ink);
 }
 
-/* Mail, Docs, Ask */
-.needt-v3 .ntm-mail {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
+/* Focus: the ring with its pause button, bottom right */
+.needt-v3 .ntm-hit > .ntm-focus {
+  left: auto;
+  right: 10px;
+  bottom: 10px;
+  display: block;
+  width: 68px;
+  height: 68px;
 }
-.needt-v3 .ntm-doc {
+.needt-v3 .ntm-ring {
+  position: relative;
+  display: block;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--v2p-ink) 12%, transparent);
+}
+.needt-v3 .ntm-ring > svg {
+  position: absolute;
+  inset: 0;
+}
+.needt-v3 .ntm-ring.is-paused {
+  opacity: 0.7;
+}
+
+/* Habits: the habits as a stack of round marks, each in its own colour */
+.needt-v3 .ntm-stack {
   display: flex;
   align-items: center;
-  gap: 10px;
+}
+.needt-v3 .ntm-av {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  margin-right: -10px;
+  border-radius: 50%;
+  background: var(--ntm-bg);
+  box-shadow: 0 0 0 3px var(--ntm-bg);
+  border: 2px solid var(--dot, var(--v2p-ink-3));
+  color: var(--v2p-ground);
+}
+.needt-v3 .ntm-av[data-done] {
+  background: var(--dot, var(--v2p-ink-2));
+}
+.needt-v3 .ntm-av.is-more {
+  border-color: transparent;
+  background: color-mix(in oklab, var(--v2p-ink) 16%, var(--ntm-bg));
+  color: var(--v2p-ink);
+  font: 600 12px/16px var(--font-sans);
+}
+.needt-v3 .ntm-av.is-sm {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  background: color-mix(in oklab, var(--ntm-hue) 38%, var(--ntm-bg));
+  color: var(--v2p-ink);
+  font: 600 12px/16px var(--font-sans);
+}
+
+/* Mail: the latest thread */
+.needt-v3 .ntm-mail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
-.needt-v3 .ntm-doc > :first-child {
-  flex: none;
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow:
-    0 0 0 1px var(--v2p-line),
-    0 6px 12px -6px rgba(24, 40, 70, 0.35);
-}
-.needt-v3[data-theme="dark"] .ntm-doc > :first-child,
-.needt-v3[data-theme="dim"] .ntm-doc > :first-child {
-  /* the page's tokens are dark here: the thumb is a paper page on a paper card */
-  filter: invert(1) hue-rotate(180deg);
-}
-.needt-v3 .ntm-doc-t {
+.needt-v3 .ntm-mail-t {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
+
+/* Docs: pages standing in the corner, cut off by the bottom edge */
+.needt-v3 .ntm-hit > .ntm-pages {
+  left: auto;
+  right: 12px;
+  bottom: 0;
+  width: 84px;
+  height: 64px;
+}
+.needt-v3 .ntm-page {
+  position: absolute;
+  bottom: -16px;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 6px 14px -4px rgba(0, 0, 0, 0.5);
+}
+.needt-v3 .ntm-page:not([data-front]) {
+  right: 26px;
+  rotate: -7deg;
+  transform-origin: 50% 100%;
+}
+.needt-v3 .ntm-page[data-front] {
+  right: 0;
+  rotate: 4deg;
+  transform-origin: 50% 100%;
+}
+
+/* Ask: the field itself */
 .needt-v3 .ntm-ask {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: auto;
-  padding: 10px 12px;
-  border-radius: 18px;
-  background: color-mix(in oklab, var(--v2p-ink) 7%, transparent);
-  box-shadow: inset 0 0 0 1px var(--v2p-line);
+  height: 40px;
+  padding: 0 5px 0 12px;
+  border-radius: 20px;
+  background: var(--ntm-chip);
   color: var(--v2p-ink-2);
 }
+.needt-v3 .ntm-ask > .ntm-txt {
+  flex: 1;
+}
+.needt-v3 .ntm-send {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--v2p-ink);
+  color: var(--v2p-ground);
+}
 
-/* Streak: the week as circles */
+/* Streak: the flame with the number, the week as circles */
+.needt-v3 .ntm-streak {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
 .needt-v3 .ntm-week {
   display: flex;
-  gap: 5px;
-  margin-top: auto;
+  gap: 3px;
+  padding-bottom: 2px;
 }
 .needt-v3 .ntm-wd {
   box-sizing: border-box;
-  flex: 1;
-  max-width: 16px;
-  aspect-ratio: 1;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: color-mix(in oklab, var(--v2p-ink) 9%, transparent);
+  background: var(--ntm-chip);
 }
 .needt-v3 .ntm-wd[data-s="closed"] {
   background: var(--ntm-hue);
@@ -557,66 +664,102 @@
   background: none;
   box-shadow: inset 0 0 0 1.5px var(--ntm-hue);
 }
-
-/* A project: the name over its real tasks, as papers lying on the card */
-.needt-v3 .ntm-tile[data-tile="project"] .ntm-hit {
-  padding: 0;
-  gap: 0;
+.needt-v3 .ntm-flame {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 54px;
+  height: 64px;
+  margin-bottom: -4px;
 }
-.needt-v3 .ntm-folder {
+.needt-v3 .ntm-flame > svg {
   position: absolute;
   inset: 0;
 }
-.needt-v3 .ntm-flap {
+.needt-v3 .ntm-flame-n {
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
-  box-sizing: border-box;
+  bottom: 12px;
+  text-align: center;
+  font: 800 22px/24px var(--font-sans);
+  letter-spacing: -0.03em;
+  color: #1d1208;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inbox and a project: papers lying on the tile */
+.needt-v3 .ntm-papers-col {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 14px 14px 0;
-}
-.needt-v3 .ntm-flap::before {
-  /* the project's own colour, as a small mark */
-  content: "";
-  position: absolute;
-  right: 14px;
-  top: 17px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ntm-hue);
-}
-.needt-v3 .ntm-papers-swap {
-  position: absolute;
-  inset: 52px 12px 12px;
-  flex: none;
-}
-.needt-v3 .ntm-papers {
-  position: relative;
-  height: 100%;
+  gap: 4px;
 }
 .needt-v3 .ntm-paper {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(var(--pi, 0) * 22px);
-  height: 40px;
+  display: block;
   box-sizing: border-box;
-  padding: 7px 10px 0;
-  border-radius: 10px;
-  background: #fff;
-  color: var(--ntm-ink);
-  box-shadow:
-    inset 0 0 0 1px var(--ntm-line),
-    0 3px 8px -4px rgba(24, 40, 70, 0.3);
-  rotate: calc((var(--pi, 0) - 1) * 1.4deg);
+  height: 26px;
+  padding: 5px 10px 0;
+  border-radius: 9px;
+  background: color-mix(in oklab, var(--v2p-ink) 12%, var(--ntm-bg));
 }
 .needt-v3 .ntm-paper .ntm-txt {
   display: block;
-  font: 500 12px/16px var(--font-sans);
+  font-weight: 500;
+}
+.needt-v3 .ntm-hit > .ntm-folder {
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 70px;
+}
+.needt-v3 .ntm-papers-swap {
+  position: absolute;
+  inset: 0 0 20px;
+}
+.needt-v3 .ntm-papers {
+  position: relative;
+  display: block;
+  height: 100%;
+}
+.needt-v3 .ntm-folder .ntm-paper {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: calc(var(--pi, 0) * -9px + 9px);
+  z-index: calc(3 - var(--pi, 0));
+  height: 40px;
+  rotate: calc((var(--pi, 0) - 0.5) * 2.4deg);
+}
+.needt-v3 .ntm-fbody {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 38px;
+  border-radius: 14px 14px 0 0;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in oklab, #fff 7%, transparent) 0 1px,
+      transparent 1px 5px
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--ntm-hue) 62%, var(--ntm-bg)),
+      color-mix(in oklab, var(--ntm-hue) 38%, var(--ntm-bg))
+    );
+  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 22%, transparent);
+}
+.needt-v3 .ntm-fbody::before {
+  /* the folder's tab */
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -9px;
+  width: 46px;
+  height: 12px;
+  border-radius: 8px 8px 0 0;
+  background: color-mix(in oklab, var(--ntm-hue) 62%, var(--ntm-bg));
 }
 .needt-v3 .ntm-tile:has(.ntm-hit:active):not(.is-lifted) {
   scale: 0.97;
@@ -624,15 +767,26 @@
 }
 
 /* ── editing ── */
+.needt-v3 .ntm-notch {
+  /* the bite out of the card's corner: the ground's own colour, a little
+     larger than the minus it frames */
+  position: absolute;
+  z-index: 2;
+  top: -6px;
+  right: -6px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--v2p-ground);
+  pointer-events: none;
+}
 .needt-v3 .ntm-minus,
 .needt-v3 .ntm-size,
 .needt-v3 .ntm-plus {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -642,8 +796,10 @@
 /* the minus is the ink's own disc (the page's ground in it): a mark, not the accent */
 .needt-v3 .ntm-minus,
 .needt-v3 .ntm-plus {
-  top: 10px;
-  right: 10px;
+  top: 4px;
+  right: 4px;
+  width: 30px;
+  height: 30px;
   background: var(--v2p-ink);
   color: var(--v2p-ground);
 }
@@ -652,14 +808,15 @@
 }
 .needt-v3 .ntm-size {
   right: 10px;
-  bottom: 10px;
-  background: var(--v2p-raise-2);
+  top: 46px;
+  width: 28px;
+  height: 28px;
+  background: color-mix(in oklab, var(--v2p-ink) 14%, transparent);
   color: var(--v2p-ink);
-  box-shadow: inset 0 0 0 1px var(--v2p-line);
 }
 .needt-v3 .ntm-minus::before,
 .needt-v3 .ntm-size::before {
-  /* a 44px target around a 28px disc */
+  /* a 44px target around the disc */
   content: "";
   position: absolute;
   inset: -8px;
@@ -669,6 +826,7 @@
 .needt-v3 .ntm-chip:focus-visible,
 .needt-v3 .ntm-link:focus-visible,
 .needt-v3 .ntm-pill:focus-visible,
+.needt-v3 .ntm-tab:focus-visible,
 .needt-v3 .ntm-round:focus-visible {
   outline: 2px solid var(--v2p-ink-3);
   outline-offset: 2px;
@@ -704,10 +862,7 @@
   translate: var(--ntm-dx, 0px) var(--ntm-dy, 0px);
   scale: 1.05;
   transition: none;
-  box-shadow:
-    inset 0 1px 0 var(--ntm-lit),
-    inset 0 0 0 1.5px var(--v2p-ink-3),
-    0 26px 38px -14px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 24px 34px -12px rgba(0, 0, 0, 0.6);
 }
 /* let go: the lifted tile flies into its slot, then the order is committed
    with nothing animating (the flush frame) so nothing moves twice */
@@ -720,14 +875,28 @@
   transition: none !important;
 }
 
-/* ── under the grid: the edit bar, every place, the catalogue ── */
+/* ── under the grid: Customize, the edit bar, every place, the catalogue ── */
+.needt-v3 .ntm-customize {
+  align-self: center;
+  margin-top: 6px;
+}
 .needt-v3 .ntm-editbar {
   flex: none;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+.needt-v3 .ntm-hint {
+  margin: 0;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-editrow {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  margin-top: 16px;
 }
 .needt-v3 .ntm-more {
   flex: none;
@@ -735,7 +904,6 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  margin-top: auto;
 }
 .needt-v3 .ntm-chips {
   display: flex;
@@ -752,10 +920,7 @@
   padding: 0 14px;
   border: 0;
   border-radius: 18px;
-  background: var(--ntm-surf);
-  box-shadow:
-    inset 0 1px 0 var(--ntm-lit),
-    inset 0 0 0 1px var(--v2p-line);
+  background: var(--v2p-raise-2);
   color: var(--v2p-ink);
   font: 500 13px/18px var(--font-sans);
   cursor: default;
@@ -783,15 +948,15 @@
   left: 0;
   right: 0;
   top: 0;
-  padding-top: calc(max(var(--v3-top, 0px), 20px) + 56px);
   bottom: 0;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  padding-top: calc(max(var(--v3-top, 0px), 20px) + 12px);
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-left, 0px));
-  /* opaque: the sky again, so the tiles behind do not show through */
-  background: var(--ntm-sky);
+  /* opaque: the ground again, so the tiles behind do not show through */
+  background: var(--v2p-ground);
   animation: ntm-cat-in 0.28s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
 @keyframes ntm-cat-in {
@@ -803,6 +968,13 @@
     opacity: 1;
     transform: none;
   }
+}
+.needt-v3 .ntm-cat-title {
+  flex: none;
+  margin: 0;
+  text-align: center;
+  font: 700 22px/28px var(--font-sans);
+  letter-spacing: -0.02em;
 }
 .needt-v3 .ntm-cat-body {
   flex: 1;
@@ -831,21 +1003,44 @@
   margin-bottom: calc(var(--v3-dock-lift, 20px) + 10px);
 }
 
-/* ── the foot: where the dock was, so the close is under the thumb ── */
+/* ── the foot: where the dock was, so the bar is under the thumb ── */
 .needt-v3 .ntm-foot {
   flex: none;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
+  justify-content: center;
   padding-top: 8px;
   /* the same height the dock stands at, and never under the home indicator */
   padding-bottom: calc(var(--v3-dock-lift, 20px) + 10px);
 }
-.needt-v3 .ntm-foot-row {
+.needt-v3 .ntm-bar {
   display: flex;
   align-items: center;
   gap: 4px;
+  height: 64px;
+  padding: 0 8px;
+  border-radius: 32px;
+  background: var(--v2p-raise);
+}
+.needt-v3 .ntm-tab {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--v2p-ink-2);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.15s ease;
+}
+.needt-v3 .ntm-tab.is-on {
+  background: var(--v2p-ink);
+  color: var(--v2p-ground);
+}
+.needt-v3 .ntm-tab:active {
+  scale: 0.92;
 }
 .needt-v3 .ntm-link {
   display: inline-flex;
@@ -863,20 +1058,22 @@
 .needt-v3 .ntm-round {
   display: grid;
   place-items: center;
+  flex: none;
   width: 56px;
   height: 56px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: var(--ntm-surf);
-  box-shadow:
-    inset 0 1px 0 var(--ntm-lit),
-    inset 0 0 0 1px var(--v2p-line),
-    var(--ntm-drop);
+  background: var(--v2p-raise-2);
   color: var(--v2p-ink);
   cursor: default;
   -webkit-tap-highlight-color: transparent;
   transition: scale 0.15s ease;
+}
+.needt-v3 .ntm-round.is-sm {
+  width: 44px;
+  height: 44px;
+  background: var(--v2p-raise);
 }
 .needt-v3 .ntm-round:active {
   scale: 0.92;
@@ -884,10 +1081,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   .needt-v3 .ntm,
-  .needt-v3 .ntm-head,
+  .needt-v3 .ntm-profile,
   .needt-v3 .ntm-tile,
   .needt-v3 .ntm-chip,
   .needt-v3 .ntm-pill,
+  .needt-v3 .ntm-tab,
   .needt-v3 .ntm-round {
     transition-duration: 0.01s;
     transition-delay: 0s;
@@ -908,9 +1106,7 @@
   /* no wobble: editing reads as a ring on each tile instead */
   .needt-v3 .ntm.is-edit .ntm-tile:not(.is-lifted) {
     animation: none;
-    box-shadow:
-      inset 0 0 0 1.5px var(--v2p-ink-3),
-      var(--ntm-drop);
+    box-shadow: inset 0 0 0 1.5px var(--v2p-ink-3);
   }
 }
 
@@ -947,17 +1143,7 @@
   will-change: transform, translate;
 }
 
-/* while editing, the minus sits where a tile's count would be */
-.needt-v3 .ntm.is-edit .ntm-meta {
-  opacity: 0;
-}
-
-/* above the catalogue, which now covers the whole screen */
-.needt-v3 .ntm > .ntm-head {
-  z-index: 5;
-}
-
-/* the page\x27s own dimming tint would grey the sky */
+/* the page's own dimming tint would grey the ground */
 .needt-v3 .ntm .pk-scrim-tint {
   background: none;
 }

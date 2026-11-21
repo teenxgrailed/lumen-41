@@ -12,17 +12,25 @@ import {
   useState,
 } from "react";
 
+import { useSession } from "next-auth/react";
+
 import {
+  LuArrowLeft,
+  LuHouse,
   LuLayoutGrid,
+  LuList,
   LuMaximize2,
   LuMinimize2,
   LuMinus,
   LuPlus,
+  LuSettings,
   LuSlidersHorizontal,
+  LuSparkles,
   LuX,
 } from "react-icons/lu";
 
 import { usePhoneMenu, useSavePhoneMenu } from "@/lib/needt3/hooks/phone-menu";
+import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
   DEFAULT_MENU_TILES,
@@ -34,6 +42,7 @@ import {
   tileKey,
 } from "@/lib/phone-menu/layout";
 
+import { initialsOf } from "../../../shell/Avatar";
 import { PkScrim } from "../../kit/Scrim";
 import { pkTrack } from "../../kit/pointer";
 import { pkCx } from "../../kit/util";
@@ -91,16 +100,18 @@ function useLinger(open: boolean, ms: number) {
 }
 
 /**
- * The tile menu (owner decisions 2026-11-20, ref 11): the objects the person
- * chose, each one a live miniature of itself (the next tasks, the ring of a
- * focus session, the next event, the latest mail, a project folder with its
- * own papers), glowing in the colour of what it stands for, never the accent.
- * Tiles with several things to show turn through them, Craft-style, on one
- * shared timer. Hold a tile and the menu turns to editing: the tiles jiggle,
- * a drag reorders them while the others make room, − removes, the corner
- * button changes a tile's size and Add opens the catalogue of what can be
- * added. The set is the account's (`/api/phone-menu`). Every place stays one
- * tap away under Places.
+ * The tile menu, laid out as a profile (owner ref 2026-11-21,
+ * menu-tiles-2011/ref-tiles-profile): back, the person's avatar and a round
+ * button on top, the name and plan under them, then the grid of tiles (a small
+ * category, the live value, one grey line, and a real object of the thing,
+ * glowing in its own colour, never the accent), a grey Customize link and the
+ * pill bar. Tiles with several things to show turn through them, Craft-style,
+ * on one shared timer. Hold a tile or tap Customize and the menu turns to
+ * editing: the profile blurs back, the tiles jiggle, a drag reorders them
+ * while the others make room, the white − (in a notch of the corner) removes,
+ * the small corner button changes a tile's size, Add opens the catalogue and
+ * the round X ends it. The set is the account's (`/api/phone-menu`). Every
+ * place stays one tap away under the list button of the bar.
  */
 export function TileMenu({
   open,
@@ -144,6 +155,9 @@ function TileMenuLayer({
   const layout = usePhoneMenu();
   const save = useSavePhoneMenu();
   const projects = useProjects().data;
+  const user = useSession().data?.user;
+  const plan = usePlan();
+  const [brokenImg, setBrokenImg] = useState(false);
   const facts = useTileFacts(counts);
   const tiles = useMemo<readonly MenuTile[]>(
     () => layout.data?.tiles ?? DEFAULT_MENU_TILES,
@@ -478,6 +492,63 @@ function TileMenuLayer({
     ),
   ];
 
+  const kind = plan.data?.kind ?? "free";
+  const days = plan.data?.trialDaysLeft ?? null;
+  const subLines = [
+    kind === "free"
+      ? "Free plan"
+      : kind === "trial"
+        ? `Pro trial \u00b7 ${days ?? 0} days left`
+        : "Pro",
+    user?.email ?? "",
+  ].filter(Boolean);
+  const userName = user?.name || user?.email?.split("@")[0] || "Account";
+  const dim = edit
+    ? ({ tabIndex: -1, "aria-hidden": true, disabled: true } as const)
+    : null;
+
+  const profile = (
+    <header className="ntm-profile">
+      <div className="ntm-profile-row">
+        <button
+          type="button"
+          className="ntm-round is-sm"
+          aria-label="Close menu"
+          {...(edit ? dim : { "data-ntm-close": "" })}
+          onClick={onClose}
+        >
+          <LuArrowLeft size={20} aria-hidden />
+        </button>
+        <span className="ntm-avatar" aria-hidden="true">
+          {user?.image && !brokenImg ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.image} alt="" onError={() => setBrokenImg(true)} />
+          ) : (
+            initialsOf(userName)
+          )}
+        </span>
+        <button
+          type="button"
+          className="ntm-round is-sm"
+          aria-label="Settings"
+          {...(edit ? dim : { "data-ntm-settings": "" })}
+          onClick={() => {
+            close.current();
+            onPick("settings");
+          }}
+        >
+          <LuSettings size={19} aria-hidden />
+        </button>
+      </div>
+      <h2 className="ntm-who">{userName}</h2>
+      <p className="ntm-who-sub">
+        {subLines.map((l, i) => (
+          <span key={i}>{l}</span>
+        ))}
+      </p>
+    </header>
+  );
+
   return (
     <div
       ref={root}
@@ -498,18 +569,11 @@ function TileMenuLayer({
         open={open}
         onClick={() => !edit && onClose()}
       />
-      <header className="ntm-head">
-        <h2 className="ntm-title">
-          {catalogue ? "Add" : places ? "Places" : edit ? "Edit tiles" : "Menu"}
-        </h2>
-        {edit && !catalogue ? (
-          <p className="ntm-hint">Hold and drag to reorder.</p>
-        ) : null}
-      </header>
       <div
         className="ntm-body"
         onClick={(e) => e.currentTarget === e.target && !edit && onClose()}
       >
+        {profile}
         {places ? (
           <section className="ntm-more" aria-label="Every place">
             <div className="ntm-chips">
@@ -531,79 +595,82 @@ function TileMenuLayer({
           </section>
         ) : (
           <>
-            <ul ref={grid} className="ntm-grid" data-ntm-grid="">
-              {tiles.map((tile, i) => {
-                const key = tileKey(tile);
-                const v = tileView(tile, facts);
-                return (
-                  <li
-                    key={key}
-                    className={pkCx(
-                      "ntm-tile",
-                      tile.size === "2x1" && "is-wide",
-                      v.quiet && "is-quiet",
-                      dragging === key && "is-lifted"
-                    )}
-                    data-ntm-tile={key}
-                    data-tile={tile.id}
-                    style={tileStyle(v.hue, i)}
-                  >
-                    <button
-                      type="button"
-                      className="ntm-hit"
-                      data-ntm-hit=""
-                      aria-label={
-                        edit
-                          ? `${v.name}. Arrow keys move it, Delete removes it.`
-                          : `${v.label}, ${v.word}, ${v.sub}`
-                      }
-                      onPointerDown={(e) => onTilePointerDown(e, tile)}
-                      onClick={() => onTileClick(tile)}
-                      onKeyDown={(e) => onTileKey(e, tile, i)}
-                      onContextMenu={(e) => e.preventDefault()}
+            <div className="ntm-gridwrap">
+              <ul ref={grid} className="ntm-grid" data-ntm-grid="">
+                {tiles.map((tile, i) => {
+                  const key = tileKey(tile);
+                  const v = tileView(tile, facts);
+                  return (
+                    <li
+                      key={key}
+                      className={pkCx(
+                        "ntm-tile",
+                        tile.size === "2x1" && "is-wide",
+                        v.quiet && "is-quiet",
+                        dragging === key && "is-lifted"
+                      )}
+                      data-ntm-tile={key}
+                      data-tile={tile.id}
+                      style={tileStyle(v.hue, i)}
                     >
-                      <TileFace
-                        tile={tile}
-                        view={v}
-                        facts={facts}
-                        offset={i}
-                        active={live}
-                      />
-                    </button>
-                    {edit ? (
-                      <>
-                        <button
-                          type="button"
-                          className="ntm-minus"
-                          aria-label={`Remove ${v.name}`}
-                          data-ntm-remove={key}
-                          onClick={() => commit(removed(tiles, key))}
-                        >
-                          <LuMinus size={16} strokeWidth={2.4} aria-hidden />
-                        </button>
-                        <button
-                          type="button"
-                          className="ntm-size"
-                          aria-label={
-                            tile.size === "1x1"
-                              ? `Make ${v.name} wide`
-                              : `Make ${v.name} square`
-                          }
-                          data-ntm-size={key}
-                          onClick={() => commit(resized(tiles, key))}
-                        >
-                          {tile.size === "1x1" ? (
-                            <LuMaximize2 size={13} aria-hidden />
-                          ) : (
-                            <LuMinimize2 size={13} aria-hidden />
-                          )}
-                        </button>
-                      </>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+                      <button
+                        type="button"
+                        className="ntm-hit"
+                        data-ntm-hit=""
+                        aria-label={
+                          edit
+                            ? `${v.name}. Arrow keys move it, Delete removes it.`
+                            : `${v.label}, ${v.word}, ${v.sub}`
+                        }
+                        onPointerDown={(e) => onTilePointerDown(e, tile)}
+                        onClick={() => onTileClick(tile)}
+                        onKeyDown={(e) => onTileKey(e, tile, i)}
+                        onContextMenu={(e) => e.preventDefault()}
+                      >
+                        <TileFace
+                          tile={tile}
+                          view={v}
+                          facts={facts}
+                          offset={i}
+                          active={live}
+                        />
+                      </button>
+                      {edit ? (
+                        <>
+                          <span className="ntm-notch" aria-hidden="true" />
+                          <button
+                            type="button"
+                            className="ntm-minus"
+                            aria-label={`Remove ${v.name}`}
+                            data-ntm-remove={key}
+                            onClick={() => commit(removed(tiles, key))}
+                          >
+                            <LuMinus size={16} strokeWidth={2.6} aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            className="ntm-size"
+                            aria-label={
+                              tile.size === "1x1"
+                                ? `Make ${v.name} wide`
+                                : `Make ${v.name} square`
+                            }
+                            data-ntm-size={key}
+                            onClick={() => commit(resized(tiles, key))}
+                          >
+                            {tile.size === "1x1" ? (
+                              <LuMaximize2 size={13} aria-hidden />
+                            ) : (
+                              <LuMinimize2 size={13} aria-hidden />
+                            )}
+                          </button>
+                        </>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
             {!tiles.length ? (
               <p className="ntm-empty">
                 {edit ? "No tiles. Add one." : "No tiles yet."}
@@ -611,35 +678,54 @@ function TileMenuLayer({
             ) : null}
             {edit ? (
               <div className="ntm-editbar">
-                <button
-                  type="button"
-                  className="ntm-pill"
-                  data-ntm-open-add=""
-                  disabled={full || !catalogueTiles.length}
-                  onClick={() => setCatalogue(true)}
-                >
-                  <LuPlus size={15} aria-hidden />
-                  {full ? `${MENU_TILE_MAX} tiles is the most` : "Add"}
-                </button>
-                <button
-                  type="button"
-                  className="ntm-link"
-                  onClick={() => commit([...DEFAULT_MENU_TILES])}
-                >
-                  Reset
-                </button>
+                <p className="ntm-hint">Hold and drag to reorder.</p>
+                <div className="ntm-editrow">
+                  <button
+                    type="button"
+                    className="ntm-pill"
+                    data-ntm-open-add=""
+                    disabled={full || !catalogueTiles.length}
+                    onClick={() => setCatalogue(true)}
+                  >
+                    <LuPlus size={15} aria-hidden />
+                    {full ? `${MENU_TILE_MAX} tiles is the most` : "Add"}
+                  </button>
+                  <button
+                    type="button"
+                    className="ntm-link"
+                    onClick={() => commit([...DEFAULT_MENU_TILES])}
+                  >
+                    Reset
+                  </button>
+                </div>
               </div>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                className="ntm-link ntm-customize"
+                data-ntm-customize=""
+                onClick={() => {
+                  setPlaces(false);
+                  setEdit(true);
+                }}
+              >
+                <LuSlidersHorizontal size={16} aria-hidden />
+                Customize
+              </button>
+            )}
           </>
         )}
       </div>
       {catalogue ? (
         <section className="ntm-cat" aria-label="Add a tile">
+          <h2 className="ntm-cat-title">Add a tile</h2>
           <div className="ntm-cat-body">
             {catalogueTiles.length ? (
-              <ul className="ntm-grid ntm-cat-grid">
-                {catalogueTiles.map((t, i) => preview(t, i))}
-              </ul>
+              <div className="ntm-gridwrap">
+                <ul className="ntm-grid ntm-cat-grid">
+                  {catalogueTiles.map((t, i) => preview(t, i))}
+                </ul>
+              </div>
             ) : (
               <p className="ntm-empty">Everything is already on the menu.</p>
             )}
@@ -666,40 +752,52 @@ function TileMenuLayer({
             <LuX size={22} aria-hidden />
           </button>
         ) : (
-          <>
-            <div className="ntm-foot-row">
-              <button
-                type="button"
-                className="ntm-link"
-                data-ntm-customize=""
-                onClick={() => {
-                  setPlaces(false);
-                  setEdit(true);
-                }}
-              >
-                <LuSlidersHorizontal size={16} aria-hidden />
-                Edit tiles
-              </button>
-              <button
-                type="button"
-                className="ntm-link"
-                data-ntm-places=""
-                onClick={() => setPlaces((p) => !p)}
-              >
-                <LuLayoutGrid size={16} aria-hidden />
-                {places ? "Tiles" : "Places"}
-              </button>
-            </div>
+          <nav className="ntm-bar" aria-label="Places">
             <button
               type="button"
-              className="ntm-round"
-              aria-label="Close menu"
-              data-ntm-close=""
-              onClick={onClose}
+              className="ntm-tab"
+              aria-label="Today"
+              data-ntm-tab="home"
+              onClick={() => {
+                close.current();
+                onPick("home");
+              }}
             >
-              <LuX size={22} aria-hidden />
+              <LuHouse size={22} aria-hidden />
             </button>
-          </>
+            <button
+              type="button"
+              className={pkCx("ntm-tab", !places && "is-on")}
+              aria-label="Menu"
+              aria-pressed={!places}
+              data-ntm-tab="menu"
+              onClick={() => setPlaces(false)}
+            >
+              <LuLayoutGrid size={22} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className={pkCx("ntm-tab", places && "is-on")}
+              aria-label="All places"
+              aria-pressed={places}
+              data-ntm-places=""
+              onClick={() => setPlaces((p) => !p)}
+            >
+              <LuList size={22} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="ntm-tab"
+              aria-label="Ask Needt"
+              data-ntm-tab="ask"
+              onClick={() => {
+                close.current();
+                onPick("ask");
+              }}
+            >
+              <LuSparkles size={22} aria-hidden />
+            </button>
+          </nav>
         )}
       </footer>
     </div>
