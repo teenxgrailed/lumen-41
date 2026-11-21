@@ -72,6 +72,20 @@ the data layer `apps/shared/NeedtKit` (snapshot, models, timelines, cache).
   extension, and checks the `.appex` is inside; `widgets.yml` renders every
   style and state to PNG (artifact `needt-widget-snapshots`).
 
+## Quit blocker (feature `habits_quit`, off)
+
+Screen Time shield for «quit» habits. Not in the Xcode project until you run
+`ruby scripts/enable-habits-quit.rb` (needs `gem install xcodeproj`); with it
+not run the app is unchanged, because every quit line in the app target sits
+behind `#if HABITS_QUIT`. Sources: `ios/App/NeedtQuit` (FamilyControls
+individual authorization, `FamilyActivityPicker`, `ManagedSettingsStore`
+shield, `DeviceActivity` window; extensions Shield, ShieldAction, Monitor) and
+`apps/shared/NeedtKit/Sources/NeedtKit/Quit` (summary client for
+`GET /api/habits/[id]/quit-summary`, App Group store, deep link, copy; unit
+tests in `QuitTests`). Distribution needs Apple's approval of
+`com.apple.developer.family-controls`: `docs/release/family-controls-request.md`.
+The plugin is `window.Capacitor.Plugins.NeedtQuit`.
+
 ## Waiting for the Apple Developer account
 
 | Item                      | Why it waits                                                                                                                                                       |

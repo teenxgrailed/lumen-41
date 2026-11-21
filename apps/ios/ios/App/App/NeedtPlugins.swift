@@ -14,6 +14,9 @@ class NeedtViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(NeedtAppIconPlugin())
         bridge?.registerPluginInstance(NeedtAuthPlugin())
         bridge?.registerPluginInstance(NeedtStorePlugin())
+        #if HABITS_QUIT
+        bridge?.registerPluginInstance(NeedtQuitPlugin())
+        #endif
         if let webView = webView {
             let coordinator = OfflineCoordinator(host: self, webView: webView)
             coordinator.install()
