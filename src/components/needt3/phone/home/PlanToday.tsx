@@ -110,6 +110,58 @@ export function PlanHello({
 }
 
 /**
+ * Overdue work, when the plan hides it behind "All tasks": the two actions
+ * that clear it in one tap. Spread gives each task the next day with room this
+ * week; Move to today puts them all on today. The one that suits the day leads
+ * in full ink, the other in ladder grey; neither is a fill.
+ */
+function PlanLate({
+  count,
+  spreadFirst,
+  canSpread,
+  busy,
+  onSpread,
+  onMove,
+}: {
+  count: number;
+  spreadFirst: boolean;
+  canSpread: boolean;
+  busy: boolean;
+  onSpread: () => void;
+  onMove: () => void;
+}) {
+  return (
+    <div className="dp-late" data-day-late="">
+      <span className="dp-late-n">{`${count} overdue`}</span>
+      <span className="dp-late-acts">
+        {canSpread ? (
+          <button
+            type="button"
+            className="dp-late-btn"
+            data-lead={spreadFirst ? "1" : "0"}
+            data-day-spread=""
+            disabled={busy}
+            aria-busy={busy || undefined}
+            onClick={onSpread}
+          >
+            Spread
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="dp-late-btn"
+          data-lead={spreadFirst ? "0" : "1"}
+          data-day-move-today=""
+          onClick={onMove}
+        >
+          Move to today
+        </button>
+      </span>
+    </div>
+  );
+}
+
+/**
  * Today from the plan, on the same surface as the greeting above it, parted
  * from it by air and a hairline: the main tasks first as larger rows with an
  * icon, then the rest in compact rows, a folded "Needs a decision" group
@@ -124,6 +176,7 @@ export function PlanToday({
   allOpen,
   onAll,
   onSomeday,
+  late,
 }: {
   snapshot: DayPlanSnapshot;
   byId: ReadonlyMap<string, V3Task>;
@@ -136,6 +189,15 @@ export function PlanToday({
   allOpen: boolean;
   onAll: () => void;
   onSomeday: () => void;
+  /** Overdue actions; left out when nothing is overdue. */
+  late?: {
+    count: number;
+    spreadFirst: boolean;
+    canSpread: boolean;
+    busy: boolean;
+    onSpread: () => void;
+    onMove: () => void;
+  } | null;
 }) {
   const [decideFolded, setDecideFolded] = useState(true);
   const { main, rest, needsDecision } = planSections(snapshot);
@@ -205,6 +267,7 @@ export function PlanToday({
           )}
         </div>
       ) : null}
+      {late && !allOpen ? <PlanLate {...late} /> : null}
       <nav className="dp-links" data-day-plan-links="" aria-label="More tasks">
         {allCount ? (
           <button type="button" className="dp-link" onClick={onAll}>
