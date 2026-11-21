@@ -1,0 +1,413 @@
+/* Design v3 - the full-screen Focus session on the phone, and the sound picker
+ * (both faces). HAND-WRITTEN, after focus.css.
+ *
+ * PORT.md: every grey is the text colour at a ladder alpha, chrome type is 13 /
+ * 12, the accent is a mark (here the ring and its tip) and never a fill, the
+ * task's colour is a tint and a mark. Motion: transform and opacity only, one
+ * living period (5.2 s), and it stops while paused, while the tab is hidden
+ * and under reduced motion.
+ */
+
+/* ---- the ground: the task's own colour plus grain -------------------- */
+.needt-v3 .fcg {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--background);
+  --fcg: var(--fc-hue, var(--text-tertiary));
+}
+.needt-v3 .fcg-tint {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      120% 62% at 50% 0%,
+      color-mix(in oklab, var(--fcg) 30%, transparent),
+      transparent 72%
+    ),
+    linear-gradient(
+      color-mix(in oklab, var(--fcg) 14%, transparent),
+      color-mix(in oklab, var(--fcg) 14%, transparent)
+    );
+}
+.needt-v3 .fcg-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.085;
+  background-size: 128px 128px;
+  mix-blend-mode: overlay;
+}
+.needt-v3[data-theme="dark"] .fcg-grain {
+  opacity: 0.11;
+}
+.needt-v3 .fcg .fc-scroll {
+  z-index: 1;
+}
+
+/* ---- the running screen ---------------------------------------------- */
+.needt-v3 .fcr {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  box-sizing: border-box;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  gap: 12px;
+}
+.needt-v3 .fcr-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+}
+.needt-v3 .fcr-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 0;
+  text-align: center;
+}
+.needt-v3 .fcr-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--px-ink-2);
+}
+.needt-v3 .fcr-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  /* the task's colour is a tint and a mark: the tile is its tint at a step */
+  background: color-mix(
+    in oklab,
+    var(--fc-hue, var(--text-tertiary)) 26%,
+    transparent
+  );
+  box-shadow: inset 0 0 0 1px
+    color-mix(in oklab, var(--fc-hue, var(--text-tertiary)) 40%, transparent);
+  color: var(--text-primary);
+}
+.needt-v3 .fcr-kicker {
+  font: var(--type-meta-medium);
+  color: var(--px-ink-2);
+}
+.needt-v3 .fcr-title {
+  margin: 0;
+  max-width: 100%;
+  font-size: 30px;
+  line-height: 1.04;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.needt-v3 .fcr-sub {
+  font: var(--type-meta);
+  color: var(--px-ink-2);
+  max-width: 28ch;
+  text-wrap: pretty;
+}
+
+/* the ring */
+.needt-v3 .fcr-ringwrap {
+  position: relative;
+  width: min(300px, 76vw);
+  aspect-ratio: 1;
+  margin-top: 14px;
+  flex: none;
+}
+.needt-v3 .fcr-halo {
+  position: absolute;
+  inset: -14%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--fc-hue, var(--text-tertiary)) 32%, transparent),
+    transparent 100%
+  );
+  opacity: 0.55;
+  transform: scale(0.97);
+  animation: v3-fcr-breathe 5.2s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+@keyframes v3-fcr-breathe {
+  from {
+    opacity: 0.4;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+}
+.needt-v3 .fcr-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.needt-v3 .fcr-track,
+.needt-v3 .fcr-arc {
+  fill: none;
+  stroke-width: 8;
+}
+.needt-v3 .fcr-track {
+  stroke: var(--fill-5);
+}
+/* the one accent mark: the arc and its tip, never a fill */
+.needt-v3 .fcr-arc {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 150px 150px;
+}
+.needt-v3 .fcr-tip {
+  transform-origin: 150px 150px;
+  transition: transform 1s linear;
+}
+.needt-v3 .fcr-tip circle {
+  fill: var(--accent);
+}
+.needt-v3 .fcr-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.needt-v3 .fcr-clock {
+  font-size: 76px;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.needt-v3 .fcr-meta {
+  font: var(--type-meta-medium);
+  color: var(--px-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .fcr[data-paused] .fcr-clock {
+  opacity: 0.55;
+}
+.needt-v3 .fcr[data-paused] .fcr-halo,
+.needt-v3 .fcr[data-hidden] .fcr-halo {
+  animation-play-state: paused;
+}
+.needt-v3 .fcr[data-paused] .fcr-halo {
+  opacity: 0.3;
+}
+.needt-v3 .fcr[data-hidden] .fcr-tip {
+  transition: none;
+}
+
+/* controls */
+.needt-v3 .fcr-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .fcr-controls {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.needt-v3 .fcr-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 48px;
+  justify-content: center;
+  border-radius: 14px;
+}
+.needt-v3 .fcr-pause {
+  flex: 1.5 1 0;
+}
+.needt-v3 .fcr-end {
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  font: var(--type-ui);
+  color: var(--px-ink-2);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.needt-v3 .fcr-end:active {
+  color: var(--px-ink);
+}
+.needt-v3 .fcr-confirm {
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .fcr-halo {
+    animation: none;
+    opacity: 0.55;
+    transform: none;
+  }
+  .needt-v3 .fcr-tip {
+    transition: none;
+  }
+}
+/* short phones: the ring gives way before the controls do */
+@media (max-height: 700px) {
+  .needt-v3 .fcr-ringwrap {
+    width: min(240px, 62vw);
+  }
+  .needt-v3 .fcr-clock {
+    font-size: 60px;
+  }
+}
+
+/* ---- the sound picker (both faces) ------------------------------------ */
+.needt-v3 .fc-snd {
+  position: relative;
+  display: inline-flex;
+}
+.needt-v3 .fc-snd-panel {
+  position: absolute;
+  z-index: 40;
+  width: 224px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 16px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-ring);
+  animation: v3-fc-snd-in 160ms var(--nx-ease) backwards;
+}
+.needt-v3 .fc-snd[data-placement="up"] .fc-snd-panel {
+  bottom: calc(100% + 8px);
+  left: 50%;
+  margin-left: -112px;
+}
+.needt-v3 .fc-snd[data-placement="down"] .fc-snd-panel {
+  top: calc(100% + 8px);
+  right: 0;
+}
+@keyframes v3-fc-snd-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .fc-snd-panel {
+    animation: none;
+  }
+}
+.needt-v3 .fc-snd-group + .fc-snd-group {
+  margin-top: 4px;
+  padding-top: 4px;
+  box-shadow: inset 0 1px 0 var(--fill-4);
+}
+.needt-v3 .fc-snd-label {
+  display: block;
+  padding: 6px 10px 2px;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .fc-snd-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+  cursor: default;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.needt-v3 .fc-snd-row:hover {
+  background: var(--fill-2);
+  color: var(--text-primary);
+}
+.needt-v3 .fc-snd-row.is-on {
+  background: var(--fill-4);
+  color: var(--text-primary);
+}
+.needt-v3 .fc-snd-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.needt-v3 .fc-snd-row svg {
+  flex: none;
+}
+/* in the setup card: the rows laid out in the card, two to a line */
+.needt-v3 .fc-snd-panel.is-inline {
+  position: static;
+  width: auto;
+  max-width: none;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  animation: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 8px;
+}
+.needt-v3 .fc-snd-panel.is-inline .fc-snd-group {
+  display: contents;
+}
+.needt-v3 .fc-snd-panel.is-inline .fc-snd-group + .fc-snd-group {
+  margin: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.needt-v3 .fc-snd-panel.is-inline .fc-snd-label {
+  display: none;
+}
+.needt-v3 .fc-snd-panel.is-inline .fc-snd-row {
+  background: var(--fill-3);
+}
+.needt-v3 .fc-snd-panel.is-inline .fc-snd-row.is-on {
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+/* the phone's panel sits over the glass: a little firmer */
+.needt-v3 .fc-phone .fc-snd-row {
+  height: 40px;
+}
+
+/* TaskGlyph brings its own disc; inside the run tile it is just the mark */
+.needt-v3 .fcr-icon .dp-glyph {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: none;
+  color: var(--text-primary);
+}
+/* the focus sheet is the whole screen, not 92% of it */
+.needt-v3 .pk-sheet:has(.fcg) {
+  max-height: 100%;
+}
