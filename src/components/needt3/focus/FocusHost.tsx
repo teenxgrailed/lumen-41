@@ -8,6 +8,7 @@ import { usePhoneUi } from "../root/phone-ui-context";
 import { FocusWindow } from "./FocusWindow";
 import { PhoneFocus } from "./PhoneFocus";
 import { useFocusController } from "./useFocusController";
+import { useFocusSound } from "./useFocusSound";
 
 /**
  * The Focus window's host. The controller lives here, above the desktop /
@@ -21,6 +22,7 @@ import { useFocusController } from "./useFocusController";
  */
 export function FocusHost() {
   const ctl = useFocusController();
+  useFocusSound(ctl);
   const phone = usePhoneUi() === "phone";
   // A running (or paused) session is work in progress: the automatic reload
   // for a new version waits until it ends. This host is mounted once, so it
