@@ -19,6 +19,7 @@ const NODE_TO_BLOCK: Record<string, PageBlockType> = {
   needtToggle: "TOGGLE",
   needtCallout: "CALLOUT",
   needtColumns: "COLUMNS",
+  needtLiveTable: "LIVE_TABLE",
 };
 
 export function blockTypeForNode(node: JSONContent): PageBlockType {
