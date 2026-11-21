@@ -14,6 +14,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { useFocusSession } from "@/lib/needt3/hooks/focus";
 import { useRankedPlaces } from "@/lib/needt3/hooks/nav-rank";
+import { usePhoneMenu } from "@/lib/needt3/hooks/phone-menu";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 import { initialsOf } from "@/lib/needt3/initials";
@@ -35,6 +36,7 @@ import {
   menuAction,
   menuIdForPath,
 } from "../menu/places";
+import { TileMenu } from "../menu/tiles/TileMenu";
 import { usePhoneCounts } from "../menu/usePhoneCounts";
 import { PhoneOverlays } from "../overlays/PhoneOverlays";
 import { PageSnapshot } from "./PageSnapshot";
@@ -157,6 +159,9 @@ export function PhoneShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuMoving, setMenuMoving] = useState(false);
   const [openRequest, setOpenRequest] = useState(0);
+  /* The app menu: tiles (the default) or the older card, the account's choice. */
+  const tilesOn = (usePhoneMenu().data?.style ?? "tiles") === "tiles";
+  const [tilesOpen, setTilesOpen] = useState(false);
 
   const away = askOpen || covered;
   const morph = useLinger(composerOpen, MORPH_SETTLE_MS);
@@ -273,7 +278,28 @@ export function PhoneShell() {
     () => useNeedt3Ui.getState().setComposerOpen(true),
     []
   );
-  const onMenu = useCallback(() => setOpenRequest((n) => n + 1), []);
+  const openTiles = useCallback(() => setTilesOpen(true), []);
+  const closeTiles = useCallback(() => setTilesOpen(false), []);
+  const onMenu = useCallback(
+    () => (tilesOn ? openTiles() : setOpenRequest((n) => n + 1)),
+    [tilesOn, openTiles]
+  );
+  const onProject = useCallback(
+    (id: string) => {
+      scrollNotePush();
+      pageMotionCapture();
+      router.push(`/projects/${encodeURIComponent(id)}`);
+    },
+    [router]
+  );
+  const onFocus = useCallback(
+    () => useNeedt3Ui.getState().setFocusOpen(true),
+    []
+  );
+  // A style switched in Settings closes a menu that is no longer the app menu.
+  useEffect(() => {
+    if (!tilesOn) setTilesOpen(false);
+  }, [tilesOn]);
 
   return (
     <>
@@ -310,6 +336,15 @@ export function PhoneShell() {
         variant={barStyle}
         openRequest={openRequest}
         onOpenChange={setMenuOpen}
+        onOpenTiles={tilesOn ? openTiles : undefined}
+      />
+      <TileMenu
+        open={tilesOn && tilesOpen}
+        onClose={closeTiles}
+        counts={counts}
+        onPick={onPick}
+        onProject={onProject}
+        onFocus={onFocus}
       />
       <PhoneOverlays />
       <PageSnapshot pathname={pathname} />

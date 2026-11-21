@@ -124,6 +124,8 @@ export const qk = {
   learn: () => [V3, "learn"] as const,
   learnTopic: (id: string) => [V3, "learn", "topic", id] as const,
   settings: () => [V3, "settings"] as const,
+  /** The phone app menu of this account (`GET /api/phone-menu`). */
+  phoneMenu: () => [V3, "phone-menu"] as const,
   /** The changelog feed and what is unseen (`GET /api/whats-new`). */
   whatsNew: () => [V3, "whats-new"] as const,
   plan: () => [V3, "plan"] as const,

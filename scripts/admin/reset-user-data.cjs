@@ -293,6 +293,7 @@ function buildPlan(userId, workspaceId) {
     ["CalendarSettings", "calendarSettings", uid],
     ["NotificationSettings", "notificationSettings", uid],
     ["UserCustomization", "userCustomization", uid],
+    ["PhoneMenuLayout", "phoneMenuLayout", uid],
     ["IntegrationSettings", "integrationSettings", uid],
     ["DataSettings", "dataSettings", uid],
     ["AutoScheduleSettings", "autoScheduleSettings", uid],

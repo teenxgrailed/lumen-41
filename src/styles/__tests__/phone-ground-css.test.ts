@@ -191,7 +191,9 @@ describe("phone page ground", () => {
     expect(rule('.needt-v3[data-ui="phone"] .nva')).toContain(
       "padding-bottom: var(--v3-dock-lift)"
     );
-    expect(css).toContain("--v3-dock-lift: 20px");
+    expect(css).toContain(
+      "--v3-dock-lift: max(20px, calc(var(--v3-sab) - 6px))"
+    );
     // lifted only with Safari's tab bar at the bottom (Compact / Bottom); the
     // Top layout, the installed app and unknown keep the design's 30 px
     expect(

@@ -3,6 +3,7 @@
 import { LuCheck } from "react-icons/lu";
 
 import { useNavPins, useRankedPlaces } from "@/lib/needt3/hooks/nav-rank";
+import { usePhoneMenu, useSavePhoneMenu } from "@/lib/needt3/hooks/phone-menu";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import { type NavId, isNavId } from "@/lib/needt3/nav-rank";
 
@@ -52,8 +53,44 @@ export function MenuPage() {
     void saveBarStyle(setPref, style, "settings").then((ok) => ok && mark());
   };
 
+  const phoneMenu = usePhoneMenu();
+  const savePhoneMenu = useSavePhoneMenu();
+  const menuStyle = phoneMenu.data?.style ?? "tiles";
+  const pickMenu = (style: "tiles" | "card") => {
+    if (!phoneMenu.data || style === menuStyle) return;
+    void savePhoneMenu({ style }).then((ok) => ok && mark());
+  };
+
   return (
     <>
+      <PsGroup
+        title="App menu"
+        hint="Tiles are live cards you arrange yourself: hold one to edit. The card lists every place."
+      >
+        {(
+          [
+            ["tiles", "Tiles"],
+            ["card", "Card"],
+          ] as const
+        ).map(([style, word]) => (
+          <PsRow
+            key={style}
+            title={word}
+            chevron={false}
+            disabled={!phoneMenu.data}
+            onOpen={() => pickMenu(style)}
+            data={{
+              "data-ps-menu-style": style,
+              "aria-pressed": String(menuStyle === style),
+            }}
+            value={
+              <span className={pkCx("ps-tick", menuStyle === style && "is-on")}>
+                {menuStyle === style ? <LuCheck size={14} aria-hidden /> : null}
+              </span>
+            }
+          />
+        ))}
+      </PsGroup>
       <PsGroup title="Bottom bar">
         <div className="ps-bar-style" data-ps-bar-style={barStyle}>
           <BarStylePicker
