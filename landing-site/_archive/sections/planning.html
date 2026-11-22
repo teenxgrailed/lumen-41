@@ -1,0 +1,45 @@
+<!-- ── 4 · AI rebuilds the day (sky) — desktop only (v25) ── -->
+<section class="ai" id="ai" aria-labelledby="ai-h" data-px-scope>
+  <div class="sky-wrap"><div class="sky" data-sky="lavender" data-variant="a"></div></div>
+  <div class="wrap ai-grid">
+    <div class="ai-copy">
+      <span class="eyebrow on-sky rv">Planning</span>
+      <h2 id="ai-h" class="h2 split" data-split data-px-calm>Something runs long? <i>The rest re-slots.</i></h2>
+      <p class="lead rv">Needt moves only what’s affected and shows you every move. Nothing is saved until you press Keep.</p>
+      <ul class="ai-points rv" style="--d:.15s">
+        <li><em class="mi"><svg class="g" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="rgba(91,91,228,0.22)"/><path d="M18.2 9.2A6.6 6.6 0 0 0 6.4 8.4" fill="none" stroke="#5a5ce2" stroke-width="2.2" stroke-linecap="round"/><path d="M5.8 14.8a6.6 6.6 0 0 0 11.8.8" fill="none" stroke="#5a5ce2" stroke-width="2.2" stroke-linecap="round"/><path d="M18.6 5.4v4.2h-4.2" fill="none" stroke="#5a5ce2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.4 18.6v-4.2h4.2" fill="none" stroke="#5a5ce2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></em><span><b>Only what’s affected moves</b>The rest of your day stays where you put it.</span></li>
+        <li><em class="mi"><svg class="g" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M10 2.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5Z" fill="#9964e5"/><path d="M17.5 13c.35 2.2 1.45 3.3 3.5 3.5-2.05.35-3.15 1.45-3.5 3.5-.35-2.05-1.45-3.15-3.5-3.5 2.05-.2 3.15-1.3 3.5-3.5Z" fill="rgba(153,100,228,0.451)"/></svg></em><span><b>Every move has a reason</b>“Your 11:00 opened up when Sam moved the call.”</span></li>
+        <li><em class="mi"><svg class="g" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M12 2.6 19.5 5.4v6.2c0 4.6-3.2 8.2-7.5 9.8-4.3-1.6-7.5-5.2-7.5-9.8V5.4z" fill="#098926"/><path d="M8.4 12.2l2.5 2.5 4.8-5.2" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></em><span><b>Nothing is saved until you apply</b>One Undo puts all of it back.</span></li>
+      </ul>
+      <figure class="ai-claude rv" style="--d:.25s"><img src="assets/upd/plugin.webp" alt="/needt in Claude: the client call moves to the morning with a needt_reschedule tool call" width="940" height="472" loading="lazy" decoding="async"><figcaption>Or from Claude: type <b>/needt</b> and the same planner moves the day.</figcaption></figure>
+    </div>
+    <div class="ai-stage rv" style="--d:.1s" data-px-calm>
+      <div class="ai-win">
+        <div class="ai-win-bar"><span class="ai-dots"><i></i><i></i><i></i></span><b>Tuesday, 13 October</b><small id="ai-clock">Sam moved the call to 14:00</small></div>
+        <div class="day" id="day">
+          <div class="hr" style="top:0">09:00</div><div class="hr" style="top:40px">10:00</div><div class="hr" style="top:80px">11:00</div><div class="hr" style="top:120px">12:00</div>
+          <div class="hr" style="top:160px">13:00</div><div class="hr" style="top:200px">14:00</div><div class="hr" style="top:240px">15:00</div><div class="hr" style="top:280px">16:00</div><div class="hr" style="top:320px">17:00</div>
+          <div class="blk ev" style="top:60px;height:18px;--c:#8a8fa8">Standup <small>10:30</small></div>
+          <div class="blk ghost" id="b-ghost" style="top:82px;height:36px;opacity:0">Call with Sam <small>was 11:00</small></div>
+          <div class="blk ev" id="b-call" data-a="82" data-b="202" style="top:82px;height:36px;--c:#8a8fa8">Call with Sam <small id="b-call-t">11:00–12:00</small></div>
+          <div class="blk ev" style="top:162px;height:28px;--c:#8a8fa8">Lunch with Mia <small>13:00</small></div>
+          <div class="blk" id="b-rev" data-a="202" data-b="82" style="top:202px;height:36px;--c:#3b82f6">Review the homepage draft <small id="b-rev-t">14:00–15:00</small></div>
+          <div class="blk" id="b-deck" style="top:242px;height:56px;--c:#f07a3a">Finish the pitch deck <small>15:00–16:30</small></div>
+          <div class="blk" id="b-inv" data-a="-60" data-b="302" style="top:-60px;height:18px;--c:#f07a3a">Send invoices for August <small>16:30</small></div>
+        </div>
+      </div>
+      <div class="ai-agent">
+        <div class="ai-agent-h"><em class="mi"><svg class="g" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M10 2.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5Z" fill="#9964e5"/><path d="M17.5 13c.35 2.2 1.45 3.3 3.5 3.5-2.05.35-3.15 1.45-3.5 3.5-.35-2.05-1.45-3.15-3.5-3.5 2.05-.2 3.15-1.3 3.5-3.5Z" fill="rgba(153,100,228,0.451)"/></svg></em><b>Needt agent</b><small id="ai-count">2 moves</small></div>
+        <div class="changes">
+          <div class="chg" id="c1"><b>Review the homepage draft</b><span class="tm"><s>14:00</s> → 11:00</span><span class="why">Your 11:00 opened up when Sam moved the call.</span></div>
+          <div class="chg" id="c2"><b>Send invoices for August</b><span class="tm">overdue → 16:30</span><span class="why">Oldest overdue task; fits after the deck, 30 min.</span></div>
+        </div>
+        <div class="ai-acts">
+          <button class="btn btn-primary" id="ai-apply">Apply 2</button>
+          <button class="btn btn-raised" id="ai-undo" disabled>Undo</button>
+        </div>
+        <p class="ai-status" id="ai-status">Nothing is saved until you apply.</p>
+      </div>
+    </div>
+  </div>
+</section>
