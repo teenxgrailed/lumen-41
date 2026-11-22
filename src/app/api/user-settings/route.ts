@@ -11,6 +11,7 @@ import {
   PREFS_MAX_BYTES,
   PREFS_MAX_KEYS,
 } from "@/lib/needt3/prefs-limits";
+import { SHEET_STYLE_PREF, isSheetStyle } from "@/lib/needt3/sheet-style";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "UserSettingsAPI";
@@ -75,6 +76,14 @@ export async function PATCH(request: NextRequest) {
       Object.keys(rawPrefs).some((k) => PREFS_FORBIDDEN_KEYS.includes(k))
     )
       return NextResponse.json({ error: "Invalid prefs key" }, { status: 400 });
+    const sheetStyle = (rawPrefs as Record<string, unknown> | undefined)?.[
+      SHEET_STYLE_PREF
+    ];
+    if (sheetStyle != null && !isSheetStyle(sheetStyle))
+      return NextResponse.json(
+        { error: "Invalid sheetStyle" },
+        { status: 400 }
+      );
     const v3 = parseV3Fields(userSettingsV3FieldsSchema, updates);
     if (!v3.ok) {
       return NextResponse.json({ error: v3.error }, { status: 400 });

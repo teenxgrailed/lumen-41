@@ -22,6 +22,7 @@ import {
   sheetStops,
   velocity,
 } from "@/lib/needt3/gesture";
+import { SHEET_STYLE_ATTR, sheetStyleFrom } from "@/lib/needt3/sheet-style";
 import { springStep } from "@/lib/needt3/spring";
 
 import { usePhoneCover } from "../shell/cover";
@@ -78,6 +79,8 @@ interface SheetState {
   ds: readonly number[] | null;
   pin: number;
   pinned: boolean;
+  /** Timer of a pop-up transition in flight (0 = none). */
+  pop: number;
   m: {
     k: { x: number; v: number };
     raf: number;
@@ -94,6 +97,18 @@ interface Drag {
 }
 
 const SHUT_FROM_START = 9999;
+
+/** How long the pop-up look takes to arrive and to leave (ms), see phone-sheet-style.css. */
+const POP_IN_MS = 280;
+const POP_OUT_MS = 200;
+
+/** The sheet look the frame wears now: "popup" unless the account chose another. */
+function frameSheetStyle(from: Element | null) {
+  const frame = from?.closest(".needt-v3");
+  // outside the v3 frame (a bare mount) the sheet keeps its docked look
+  if (!frame) return "classic";
+  return sheetStyleFrom({ sheetStyle: frame.getAttribute(SHEET_STYLE_ATTR) });
+}
 
 /**
  * A frosted sheet over a scrim that blurs the screen, stronger at the edges.
@@ -150,6 +165,7 @@ export function PkSheet({
     ds: null,
     pin: 0,
     pinned: false,
+    pop: 0,
     m: { k: { x: 1, v: 0 }, raf: 0, rect: null },
   }).current;
   const ds =
@@ -162,9 +178,10 @@ export function PkSheet({
     if (!el) return;
     const y = S.y.x;
     el.style.transform = `translate3d(0,${y.toFixed(1)}px,0)`;
+    el.style.opacity = y >= S.H + 23 && !S.drag ? "0" : "";
     const k = S.H ? pkClamp(1 - y / (S.H + 24), 0, 1) : 0;
     scrim.current?.style.setProperty("--pk-scrim-k", k.toFixed(3));
-    const hidden = y >= S.H + 23 && !S.open && !S.drag && !S.m.raf;
+    const hidden = y >= S.H + 23 && !S.open && !S.drag && !S.m.raf && !S.pop;
     // (a `data-pk-y` mirror of `y` was written here every frame; nothing read it)
     if (layer.current)
       layer.current.style.visibility = hidden ? "hidden" : "visible";
@@ -228,6 +245,47 @@ export function PkSheet({
   const go = useCallback(
     (target: number, vel?: number) => {
       S.target = target;
+      const el = sheet.current;
+      const ly = layer.current;
+      /* The pop-up look: no spring. The sheet's transform and opacity move on a
+         plain CSS ease (phone-sheet-style.css); a drag still follows the finger
+         and lets go onto the same ease. Reduced motion jumps. */
+      if (el && ly && frameSheetStyle(ly) === "popup") {
+        cancelAnimationFrame(S.raf);
+        S.raf = 0;
+        window.clearTimeout(S.pop);
+        S.pop = 0;
+        S.y.v = 0;
+        const opening = S.open;
+        const jump = pkReduced();
+        if (!jump) {
+          // the start position is painted first, so the change below animates
+          if (opening && S.wasHidden) {
+            ly.classList.remove("is-pop-anim");
+            paint();
+            void el.offsetWidth;
+          }
+          ly.style.setProperty(
+            "--pk-pop-ms",
+            `${opening ? POP_IN_MS : POP_OUT_MS}ms`
+          );
+          ly.classList.add("is-pop-anim");
+          S.pop = window.setTimeout(
+            () => {
+              S.pop = 0;
+              ly.classList.remove("is-pop-anim");
+              paint();
+              syncMoving();
+            },
+            (opening ? POP_IN_MS : POP_OUT_MS) + 30
+          );
+        } else ly.classList.remove("is-pop-anim");
+        S.y.x = target;
+        paint();
+        syncMoving();
+        return;
+      }
+      ly?.classList.remove("is-pop-anim");
       if (vel != null) S.y.v = vel;
       if (pkReduced()) {
         cancelAnimationFrame(S.raf);
@@ -346,7 +404,14 @@ export function PkSheet({
     measure();
     const was = S.open;
     S.open = !!open;
+    // The white plate wears the light theme's tokens in either theme.
+    sheet.current?.classList.toggle(
+      "paper",
+      frameSheetStyle(layer.current) === "white"
+    );
     const rectOf = () => {
+      // The pop-up look has no clip morph (a clip-path is not a compositor property).
+      if (frameSheetStyle(layer.current) === "popup") return null;
       const f = fromRef.current;
       const r = typeof f === "function" ? f(layer.current) : f;
       return r && r.w ? r : null;
@@ -490,6 +555,8 @@ export function PkSheet({
     return () => {
       cancelAnimationFrame(S.raf);
       cancelAnimationFrame(m.raf);
+      window.clearTimeout(S.pop);
+      S.pop = 0;
       // Forget the frames and that the sheet was open: React's StrictMode (dev)
       // unmounts and remounts a sheet that mounts already open (the composer,
       // opened from the pill), and the layout effect must then start the
@@ -534,6 +601,9 @@ export function PkSheet({
       cancelAnimationFrame(S.raf);
       S.raf = 0;
       if (S.m.raf) stopMorph();
+      window.clearTimeout(S.pop);
+      S.pop = 0;
+      layer.current?.classList.remove("is-pop-anim");
       layer.current?.classList.add("is-dragging");
       syncMoving();
     }
