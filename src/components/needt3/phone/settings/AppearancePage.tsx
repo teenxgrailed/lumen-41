@@ -7,6 +7,11 @@ import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSetPref, useSettings } from "@/lib/needt3/hooks/settings";
 import { useUpdateSettings } from "@/lib/needt3/hooks/settings";
 import {
+  SHEET_STYLE_PREF,
+  type SheetStyle,
+  sheetStyleFrom,
+} from "@/lib/needt3/sheet-style";
+import {
   ACCENTS,
   type Accent,
   type AccentId,
@@ -23,6 +28,14 @@ import { useMark } from "../../settings/SettingsContext";
 import { accentLocked, isPro, themeLocked } from "../../settings/derive";
 import { pkCx } from "../kit";
 import { PsGroup, PsProTag, PsRow, usePs } from "./parts";
+
+const SHEET_WORDS: readonly (readonly [SheetStyle, string])[] = [
+  ["popup", "Pop-up"],
+  ["classic", "Docked"],
+  ["white", "White"],
+];
+const SHEET_HINT =
+  "Pop-up floats clear of the edges and follows your theme. Docked is the frosted sheet on the bottom edge. White is a white sheet in either theme.";
 
 const noop = () => undefined;
 
@@ -62,6 +75,13 @@ export function AppearancePage() {
     if (themeLocked(id, kind)) return upgrade("Time theme");
     setLook({ theme: id });
     void update.mutateAsync({ theme: id }).then(mark).catch(noop);
+  };
+  const sheetStyle = sheetStyleFrom(settings.data?.prefs);
+  const pickSheet = (id: SheetStyle) => {
+    if (!settings.data || id === sheetStyle) return;
+    void setPref(SHEET_STYLE_PREF, id)
+      .then((saved) => saved && mark())
+      .catch(noop);
   };
   const pickAccent = (id: AccentId) => {
     if (accentLocked(id, kind)) return upgrade("Accent colours");
@@ -162,6 +182,26 @@ export function AppearancePage() {
             data={{ "data-ps-accent-up": "" }}
           />
         )}
+      </PsGroup>
+      <PsGroup title="Sheets" hint={SHEET_HINT}>
+        {SHEET_WORDS.map(([id, word]) => (
+          <PsRow
+            key={id}
+            title={word}
+            chevron={false}
+            disabled={!settings.data}
+            onOpen={() => pickSheet(id)}
+            data={{
+              "data-ps-sheet-style": id,
+              "aria-pressed": String(sheetStyle === id),
+            }}
+            value={
+              <span className={pkCx("ps-tick", sheetStyle === id && "is-on")}>
+                {sheetStyle === id ? <LuCheck size={14} aria-hidden /> : null}
+              </span>
+            }
+          />
+        ))}
       </PsGroup>
       <PsGroup
         title="App icon"
