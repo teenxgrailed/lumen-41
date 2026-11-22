@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 
 import { FiX } from "react-icons/fi";
 
+import { NeedtPicker } from "@/components/ui/needt-picker";
+
 import { sendJson } from "@/lib/needt3/hooks/core";
 
 import { Sheet } from "../ctx/Sheet";
@@ -129,19 +131,17 @@ export function NewTaskSheet({
           </label>
           <label className="ag-field">
             <span>Agent</span>
-            <select
-              className="nt-input"
+            <NeedtPicker
+              mode="plain"
+              ariaLabel="Agent"
               value={form.agent}
-              data-ag-new-agent=""
-              onChange={(e) => set("agent", e.target.value)}
-            >
-              <option value="any">Any capable agent</option>
-              {offered.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+              testId="ag-new-agent"
+              onValueChange={(v) => set("agent", v)}
+              options={[
+                { value: "any", label: "Any capable agent" },
+                ...offered.map((a) => ({ value: a.id, label: a.name })),
+              ]}
+            />
           </label>
           {form.agent === "any" ? (
             <label className="ag-field">

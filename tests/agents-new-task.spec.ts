@@ -53,7 +53,8 @@ test.describe("Agents: New task", () => {
       .locator("[data-ag-new-goal]")
       .fill("Write the launch thread for the brand account, five posts.");
     await form.locator("[data-ag-new-done]").fill("Five posts are drafted");
-    await form.locator("[data-ag-new-agent]").selectOption(agent.id);
+    await form.getByTestId("ag-new-agent").click();
+    await page.getByRole("option", { name: agent.name }).click();
     await form.getByRole("button", { name: "Publishes" }).click();
     await form.locator("[data-ag-new-submit]").click();
 
