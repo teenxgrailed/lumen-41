@@ -119,3 +119,17 @@ test("check-dev-files: fails when nginx stops denying a dev file or the Dockerfi
   const r3 = check({ dir: site, nginxFile: broad, dockerFile });
   assert.ok(r3.problems.some((p) => p.includes("is needed by the site but nginx answers 404")));
 });
+
+test("check-dev-files: an nginx regex location it does not know fails the gate", async () => {
+  const { UnknownRegexLocation } = await import("../../scripts/seo/check-dev-files.mjs");
+  const tmp = mkdtempSync(join(tmpdir(), "devfiles-"));
+  const site = join(tmp, "site");
+  mkdirSync(site, { recursive: true });
+  writeFileSync(join(site, "index.html"), "<main>hi</main>");
+  const conf = join(tmp, "new.conf");
+  writeFileSync(conf, "server { location ~ ^/new$ { return 404; } location / { } }");
+  assert.throws(
+    () => check({ dir: site, nginxFile: conf, dockerFile: join(root, "docker/landing/Dockerfile") }),
+    UnknownRegexLocation
+  );
+});

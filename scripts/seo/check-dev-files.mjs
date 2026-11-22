@@ -93,10 +93,44 @@ export function parseLocations(conf) {
       mod: m[1] || "",
       pattern: m[2],
       deny: /(?:^|[;\s])return\s+404\s*;/.test(body),
-      re: m[1] === "~" || m[1] === "~*" ? new RegExp(m[2], m[1] === "~*" ? "i" : "") : null,
+      re: m[1] === "~" || m[1] === "~*" ? knownRegex(m[1], m[2]) : null,
     });
   }
   return out;
+}
+
+// The regex locations of docker/landing/nginx.conf as literal JS regexes, so
+// this gate never compiles a pattern read from a file (semgrep:
+// detect-non-literal-regexp). A new or changed regex location in the config
+// fails the gate until it is added here.
+const KNOWN_REGEX = new Map([
+  ["~* ^/(?!templates/).*\\.md$", /^\/(?!templates\/).*\.md$/i],
+  ["~* \\.(?:orig|bak|old|tmp|swp|map|log|mjs)$", /\.(?:orig|bak|old|tmp|swp|map|log|mjs)$/i],
+  ["~ /\\.(?!well-known/)", /\/\.(?!well-known\/)/],
+  ["~ ^/(privacy|terms)(?:/|/index\\.html)?$", /^\/(privacy|terms)(?:\/|\/index\.html)?$/],
+  ["~ ^/refunds?(?:/|/index\\.html)?$", /^\/refunds?(?:\/|\/index\.html)?$/],
+  ["~* \\.html$", /\.html$/i],
+  // Used by the gate's own test (a deny rule that is too broad).
+  ["~ \\.html$", /\.html$/],
+  [
+    "~* ^/(?:favicon\\.(?:ico|svg)|apple-touch-icon\\.png|icon-(?:48|96|192|512)\\.png|assets/(?:icon(?:-dark)?\\.svg|icon-(?:48|96|192|512)\\.png|favicon\\.ico|apple-touch-icon\\.png))$",
+    /^\/(?:favicon\.(?:ico|svg)|apple-touch-icon\.png|icon-(?:48|96|192|512)\.png|assets\/(?:icon(?:-dark)?\.svg|icon-(?:48|96|192|512)\.png|favicon\.ico|apple-touch-icon\.png))$/i,
+  ],
+  ["~* ^/assets/og/[^/]+\\.jpg$", /^\/assets\/og\/[^/]+\.jpg$/i],
+  ["~* \\.(?:csv|md|plugin)$", /\.(?:csv|md|plugin)$/i],
+  ["~* \\.(?:css|js|svg|ico|png|jpg|jpeg|webp|woff2?)$", /\.(?:css|js|svg|ico|png|jpg|jpeg|webp|woff2?)$/i],
+]);
+
+export class UnknownRegexLocation extends Error {}
+
+function knownRegex(mod, pattern) {
+  const re = KNOWN_REGEX.get(`${mod} ${pattern}`);
+  if (!re) {
+    throw new UnknownRegexLocation(
+      `nginx regex location "${mod} ${pattern}" is not in KNOWN_REGEX (scripts/seo/check-dev-files.mjs): add it as a literal`
+    );
+  }
+  return re;
 }
 
 // The location nginx would pick for a URI path (decoded, no query).

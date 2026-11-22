@@ -67,7 +67,9 @@ jobs:
         with:
           node-version: 22
       - name: Check the sitemap lastmod values
-        run: node scripts/seo/sitemap-lastmod.mjs --check --since "origin/${{ github.base_ref }}"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node scripts/seo/sitemap-lastmod.mjs --check --since "origin/$BASE_REF"
 
   nginx:
     runs-on: ubuntu-latest
