@@ -1051,6 +1051,11 @@ model Task {
   /// in the Someday bucket. null = on the normal lists.
   somedayAt              DateTime?
   somedayReason          String? // stale | review | button | migration | manual | cleanup
+  /// Always easy start: how often the scheduler gave this task another day.
+  /// Reset when the task is made smaller (see src/services/easy-start).
+  rescheduleCount        Int                    @default(0)
+  /// When Always easy start last rewrote this task's entry and title; a 7-day cooldown.
+  simplifiedAt           DateTime?
   dayPlanItems           DayPlanItem[]
   somedayMigrationMoves  SomedayMigrationMove[]
   previousScheduledStart DateTime? // Backs `movedFrom`: where the scheduler moved it from.
@@ -2869,6 +2874,9 @@ model UserSettings {
   learnedContentAt  DateTime?
   // Learned lines the person deleted (`workspaceId:sourceKey`); not recomputed until Forget all.
   learnedSkips      String[]  @default([])
+  // Always easy start: Needt gives new tasks an easy first step and makes stuck
+  // ones smaller. On for everyone; the person's own switch.
+  alwaysEasyStart   Boolean   @default(true)
   // Onboarding v3 (ob3): the answers behind the first week, as the API validates
   // them (src/lib/onboarding/answers.ts). Null until someone has saved a week.
   onboarding        Json?

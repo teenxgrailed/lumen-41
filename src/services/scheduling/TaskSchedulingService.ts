@@ -6,8 +6,8 @@ import {
   pushedBlockExternalIds,
   resolveBusyFeedIds,
 } from "@/services/scheduling/busy-feeds";
-import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
 import { NOT_IN_SOMEDAY } from "@/services/scheduling/candidates";
+import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
 import { AutoScheduleSettingsMissingError } from "@/services/scheduling/errors";
 import { withUserScheduleLock } from "@/services/scheduling/user-schedule-lock";
 import { getCalibrationContext } from "@/services/time-tracking/calibration";
@@ -616,9 +616,23 @@ async function scheduleAllTasksForUserLocked(
     }
 
     const atRiskIds = new Set((result.atRisk ?? []).map((t) => t.taskId));
+    // Always easy start counts a task given another calendar day; a new time
+    // on the same day is not a reschedule.
+    const previousStart = new Map(
+      dbTasks
+        .filter(
+          (task) =>
+            task.scheduledStart && !task.scheduleLocked && !task.isFrozen
+        )
+        .map((task) => [task.id, task.scheduledStart as Date])
+    );
     await Promise.all(
-      [...firstBlockByTask.values()].map((block) =>
-        prisma.task.update({
+      [...firstBlockByTask.values()].map((block) => {
+        const before = previousStart.get(block.taskId);
+        const movedDay =
+          before !== undefined &&
+          movedToAnotherDay(before, block.start, timeZone);
+        return prisma.task.update({
           where: { id: block.taskId, assigneeId: userId },
           data: {
             scheduledStart: block.start,
@@ -628,9 +642,15 @@ async function scheduleAllTasksForUserLocked(
             scheduleScore: 1,
             scheduleAtRisk: atRiskIds.has(block.taskId),
             lastScheduled: now,
+            ...(movedDay
+              ? {
+                  rescheduleCount: { increment: 1 },
+                  previousScheduledStart: before,
+                }
+              : {}),
           },
-        })
-      )
+        });
+      })
     );
     if (result.blocks.length > 0) {
       await prisma.scheduledBlock.createMany({
@@ -694,6 +714,14 @@ async function scheduleAllTasksForUserLocked(
     );
     throw error;
   }
+}
+
+/** True when `next` falls on a different calendar day than `before` in `timeZone`. */
+export function movedToAnotherDay(before: Date, next: Date, timeZone: string) {
+  return (
+    formatInTimeZone(before, timeZone, "yyyy-MM-dd") !==
+    formatInTimeZone(next, timeZone, "yyyy-MM-dd")
+  );
 }
 
 export async function scheduleAllTasksForUser(

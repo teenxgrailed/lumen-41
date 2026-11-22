@@ -19,6 +19,8 @@ export interface V3Settings {
   timeZone: string;
   weekStartDay: string;
   timeFormat: string;
+  /** Always easy start: new tasks get an easy first step, stuck ones get smaller. */
+  alwaysEasyStart: boolean;
   /** UI-only keys: sidebarTiles, docsSort, boardsSort, accent, … */
   prefs: Record<string, unknown>;
   /** When the settings row was made (read-only): the account's age. */
@@ -42,6 +44,7 @@ export function useSettings() {
         timeZone: row.timeZone || browserTimeZone(),
         weekStartDay: row.weekStartDay ?? "monday",
         timeFormat: row.timeFormat ?? "24h",
+        alwaysEasyStart: row.alwaysEasyStart !== false,
         prefs:
           row.prefs && typeof row.prefs === "object"
             ? (row.prefs as Record<string, unknown>)
@@ -156,4 +159,18 @@ export function useSetPrefs() {
     serialByKey("user-settings-prefs", () =>
       update.mutateAsync({ prefs: patch })
     );
+}
+
+/**
+ * "Always easy start" (`UserSettings.alwaysEasyStart`, a typed column the
+ * worker reads, so not a prefs key). On until the stored value says otherwise.
+ */
+export function useAlwaysEasyStart() {
+  const settings = useSettings();
+  const update = useUpdateSettings();
+  return {
+    loaded: Boolean(settings.data),
+    on: settings.data?.alwaysEasyStart ?? true,
+    set: (value: boolean) => update.mutateAsync({ alwaysEasyStart: value }),
+  };
 }

@@ -28,6 +28,7 @@ const CHILDREN: Record<
       foreignKey: "taskId",
       orderBy: "createdAt",
     },
+    parts: { model: "taskPart", foreignKey: "taskId", orderBy: "position" },
   },
 };
 const HAS_UPDATED_AT = new Set([
@@ -198,6 +199,18 @@ export function createFakePrisma() {
     }
     const select = args.select as Where | undefined;
     if (select) {
+      // A child list asked for in `select` (parts: { select, orderBy }).
+      for (const key of Object.keys(select)) {
+        const child = CHILDREN[model]?.[key];
+        if (child && select[key] && out[key] === undefined) {
+          out[key] = tables[child.model]
+            .filter((candidate) => candidate[child.foreignKey] === row.id)
+            .sort((a, b) =>
+              child.orderBy ? compare(a[child.orderBy], b[child.orderBy]) : 0
+            )
+            .map((candidate) => clone(candidate));
+        }
+      }
       out = Object.fromEntries(
         Object.keys(select)
           .filter((key) => select[key])
@@ -274,6 +287,17 @@ export function createFakePrisma() {
           completedAt: null,
           isRecurring: false,
           recurrenceRule: null,
+          // Always easy start reads these; a real row always has them.
+          entry: null,
+          isSample: false,
+          somedayAt: null,
+          isFrozen: false,
+          hardDeadline: false,
+          habitId: null,
+          recurrenceMasterId: null,
+          externalTaskId: null,
+          rescheduleCount: 0,
+          simplifiedAt: null,
           assigneeId: null,
           workspaceId: null,
           userId: null,

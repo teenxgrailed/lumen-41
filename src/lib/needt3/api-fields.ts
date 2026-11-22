@@ -77,6 +77,8 @@ export const moodboardV3FieldsSchema = z.object({
 
 export const userSettingsV3FieldsSchema = z.object({
   timeFormat: z.enum(["12h", "24h"]).optional(),
+  // Always easy start: the person's switch (a typed column the worker reads).
+  alwaysEasyStart: z.boolean().optional(),
   // `prefs.taskView` is the one task-list view setting (task-view.ts); when
   // present it must be a valid one, so a bad write is a 400, not a stored typo
   // A patch: the server merges it into the stored map, and a key sent as

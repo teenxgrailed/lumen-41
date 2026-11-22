@@ -64,7 +64,11 @@ export type ReminderJobData =
   | { kind: "someday-sweep" }
   | { kind: "channel-update-cleanup" }
   /** The two day plan touches (flag `day_plan_touches`), every 5 minutes. */
-  | { kind: "day-plan-touch" };
+  | { kind: "day-plan-touch" }
+  /** Always easy start: an easy first step for a task just created. */
+  | { kind: "easy-start-create"; taskId: string }
+  /** Always easy start: stuck tasks made smaller, overloaded days eased. */
+  | { kind: "easy-start-sweep" };
 
 /** A delayed job per running Focus session, due at its planned end. */
 export interface FocusJobData {

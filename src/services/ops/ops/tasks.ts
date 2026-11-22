@@ -1,4 +1,5 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
+import { queueEasyStart } from "@/services/easy-start/queue";
 import {
   SPREAD_DEFAULT_DAYS,
   spreadAcrossDays,
@@ -19,6 +20,7 @@ import {
   upsertRecurringOccurrence,
 } from "@/services/tasks/recurring-completion";
 import {
+  MAX_SUBTASKS,
   checkBlocker,
   entrySchema,
   normalizeSubtasks,
@@ -110,6 +112,8 @@ const blockSnapshot = z
 const restorableFields = z
   .object({
     title: z.string(),
+    /** The task's first small step (Always easy start). */
+    entry: z.string().nullable(),
     description: z.string().nullable(),
     status: z.string(),
     dueDate: isoOrNull,
@@ -466,6 +470,8 @@ export const taskCreate = defineOp({
         /* After commit: an op that throws and rolls back records nothing. */
         () =>
           recordActivation("task_created", ctx.userId, { source: ctx.actor }),
+        // Always easy start: a task made with no entry gets one.
+        () => queueEasyStart(task),
       ],
     };
   },
@@ -1038,6 +1044,8 @@ export const taskRestore = defineOp({
       removeOccurrenceAt: z.string().datetime({ offset: true }).optional(),
       blocks: z.array(blockSnapshot).optional(),
       blocksUserId: z.string().optional(),
+      /** Undo of `task.simplify`: the subtasks it added. */
+      removePartIds: z.array(z.string()).max(MAX_SUBTASKS).optional(),
     })
     .strict(),
   async run(ctx, input) {
@@ -1051,6 +1059,11 @@ export const taskRestore = defineOp({
       : undefined;
     const currentTagIds = task.tags.map((tag) => tag.id);
 
+    if (input.removePartIds?.length) {
+      await ctx.tx.taskPart.deleteMany({
+        where: { id: { in: input.removePartIds }, taskId: task.id },
+      });
+    }
     if (input.removeOccurrenceAt) {
       await ctx.tx.task.deleteMany({
         where: {
@@ -1141,6 +1154,83 @@ export const taskRestoreMany = defineOp({
   },
 });
 
+/**
+ * Always easy start (openspec always-easy-start): make one task easier to
+ * start. Sets the entry, optionally a simpler title, and appends subtasks, in
+ * one write with one inverse. A task already at the subtask cap gets only the
+ * entry.
+ */
+export const taskSimplify = defineOp({
+  name: "task.simplify",
+  description:
+    "Make a task easier to start: set its entry (the first small step), optionally a simpler title, and add up to 3 subtasks. Undo puts the old title and entry back and removes the subtasks it added.",
+  risk: "reversible",
+  input: z
+    .object({
+      taskId,
+      entry: entrySchema,
+      title: z.string().trim().min(1).max(160).optional(),
+      subtasks: subtaskListSchema.max(3).optional(),
+      reason: z.enum(["create", "rescheduled", "not_started"]),
+    })
+    .strict(),
+  async run(ctx, input) {
+    const task = await findScopedTask(ctx, input.taskId);
+    assertProjectActive(task);
+    const fields = pickRestorable(
+      task,
+      input.title ? ["title", "entry"] : ["entry"]
+    );
+    const drafts = normalizeSubtasks(input.subtasks);
+    const existing = await ctx.tx.taskPart.findMany({
+      where: { taskId: task.id },
+      orderBy: { position: "desc" },
+      select: { position: true },
+    });
+    const room = Math.max(0, MAX_SUBTASKS - existing.length);
+    const start = existing.length ? existing[0].position + 1 : 0;
+    const addedIds: string[] = [];
+    for (const [index, draft] of drafts.slice(0, room).entries()) {
+      const part = await ctx.tx.taskPart.create({
+        data: {
+          taskId: task.id,
+          title: draft.title,
+          done: false,
+          position: start + index,
+        },
+        select: { id: true },
+      });
+      addedIds.push(part.id);
+    }
+    const updated = await ctx.tx.task.update({
+      where: { id: task.id },
+      data: {
+        entry: input.entry,
+        ...(input.title ? { title: input.title } : {}),
+        simplifiedAt: newDate(),
+        rescheduleCount: 0,
+        ...activity(ctx, "UPDATED", task.workspaceId),
+      },
+      include: taskInclude,
+    });
+    return {
+      result: {
+        task: taskView(updated),
+        entry: input.entry,
+        addedSubtasks: addedIds.length,
+        reason: input.reason,
+      },
+      before: { fields, addedPartIds: addedIds },
+      inverse: {
+        op: "task.restore",
+        input: { taskId: task.id, fields, removePartIds: addedIds },
+      },
+      touched: [touched("task", updated, task)],
+      afterCommit: [publishTasksUpdated(ctx.userId)],
+    };
+  },
+});
+
 type SpreadRow = { taskId: string; title: string; date: string };
 
 export const taskSpread = defineOp({
@@ -1153,6 +1243,8 @@ export const taskSpread = defineOp({
       taskIds: z.array(taskId).min(1).max(SPREAD_MAX_TASKS).optional(),
       scope: z.enum(["today", "overdue"]).optional(),
       days: z.number().int().min(1).max(14).optional(),
+      /** Only days after this one take a task (Always easy start eases a day). */
+      afterDay: dayKeySchema.optional(),
     })
     .strict()
     .refine((value) => !value.taskIds !== !value.scope, {
@@ -1207,15 +1299,18 @@ export const taskSpread = defineOp({
         : candidates
     );
 
-    const days = await loadSpreadDays({
-      userId: ctx.userId,
-      workspace: ctx.workspace,
-      timeZone,
-      today,
-      days: input.days ?? SPREAD_DEFAULT_DAYS,
-      now,
-      exclude: new Set(ordered.map((task) => task.id)),
-    });
+    const afterDay = input.afterDay;
+    const days = (
+      await loadSpreadDays({
+        userId: ctx.userId,
+        workspace: ctx.workspace,
+        timeZone,
+        today,
+        days: input.days ?? SPREAD_DEFAULT_DAYS,
+        now,
+        exclude: new Set(ordered.map((task) => task.id)),
+      })
+    ).filter((day) => !afterDay || day.date > afterDay);
     const plan = spreadAcrossDays(
       ordered.map((task) => ({ id: task.id, minutes: spreadMinutes(task) })),
       days
@@ -1406,6 +1501,7 @@ export const taskOps = [
   taskRestore,
   taskRestoreMany,
   taskSpread,
+  taskSimplify,
   taskAttach,
   taskDetach,
   taskAttachmentRemove,

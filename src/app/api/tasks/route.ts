@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { queueEasyStart } from "@/services/easy-start/queue";
 import { hasForeignTagIds } from "@/services/tasks/labels";
 import { partsWaitsInclude } from "@/services/tasks/parts-waits";
 import {
@@ -300,6 +301,7 @@ export async function POST(request: NextRequest) {
       },
     });
     recordActivation("task_created", userId, { source: "app" });
+    await queueEasyStart(task);
 
     // The app creates tasks with `defaultReminders: false`: its reminders and
     // priority are the person's choice. Other clients keep the defaults.

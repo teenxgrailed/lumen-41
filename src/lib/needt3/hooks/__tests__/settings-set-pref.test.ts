@@ -19,6 +19,7 @@ const settings: V3Settings = {
   timeZone: "Europe/Zurich",
   weekStartDay: "monday",
   timeFormat: "24h",
+  alwaysEasyStart: true,
   prefs: { accent: "green", docsSort: "viewed" },
 };
 

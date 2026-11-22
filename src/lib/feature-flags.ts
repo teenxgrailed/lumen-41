@@ -5,6 +5,7 @@ import { canUseAgentHub, canUseQuitHabits } from "@/lib/entitlements";
 import {
   AGENT_HUB,
   AI_CHATGPT_PLAN,
+  ALWAYS_EASY_START,
   BUDGET_MODULE,
   DAY_PLAN,
   DAY_PLAN_TOUCHES,
@@ -169,6 +170,28 @@ export async function somedaySweepEnabled(userId: string | null | undefined) {
   if (!userId) return false;
   try {
     return await isFeatureEnabled(SOMEDAY_SWEEP, userId);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Always easy start is on for this account: the `always_easy_start` kill
+ * switch, then the person's own `UserSettings.alwaysEasyStart`. Fails closed:
+ * no user, or a read that throws, is "off", so no task is ever changed on a
+ * doubt. A person with no settings row yet has the default, on.
+ */
+export async function alwaysEasyStartEnabled(
+  userId: string | null | undefined
+) {
+  if (!userId) return false;
+  try {
+    if (!(await isFeatureEnabled(ALWAYS_EASY_START, userId))) return false;
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { alwaysEasyStart: true },
+    });
+    return settings?.alwaysEasyStart ?? true;
   } catch {
     return false;
   }

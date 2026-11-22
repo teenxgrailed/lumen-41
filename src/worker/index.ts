@@ -16,6 +16,8 @@ import {
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
 import { sweepSomeday } from "@/services/day-plan/someday";
 import { runDayPlanTouchSweep } from "@/services/day-plan/touches";
+import { simplifyTask } from "@/services/easy-start/service";
+import { runEasyStartSweep } from "@/services/easy-start/sweep";
 import { sendDueBroadcasts } from "@/services/email-broadcasts/send";
 import {
   applySunset,
@@ -293,6 +295,16 @@ async function processReminder(job: Job<ReminderJobData>) {
   if (job.data.kind === "day-plan-touch") {
     // One flag row read while `day_plan` is off for everybody.
     await runDayPlanTouchSweep();
+    return;
+  }
+  if (job.data.kind === "easy-start-create") {
+    // A no-op while `always_easy_start` or the person's setting is off.
+    await simplifyTask({ taskId: job.data.taskId, reason: "create" });
+    return;
+  }
+  if (job.data.kind === "easy-start-sweep") {
+    // One flag row read while the kill switch is off.
+    await runEasyStartSweep();
     return;
   }
   if (job.data.kind === "someday-sweep") {
@@ -636,6 +648,13 @@ export async function start(): Promise<void> {
     "day-plan-touch-sweep",
     { every: 5 * 60_000 },
     { name: "sweep-day-plan-touch", data: { kind: "day-plan-touch" } }
+  );
+  // Every 30 minutes: stuck tasks made smaller, overloaded days eased. The
+  // sweep reads one flag row while `always_easy_start` is off.
+  await getReminderQueue().upsertJobScheduler(
+    "easy-start-sweep",
+    { every: 30 * 60_000 },
+    { name: "sweep-easy-start", data: { kind: "easy-start-sweep" } }
   );
   // Daily at 03:00 UTC. Registered always; the sweep itself checks both flags,
   // so with `someday_sweep` off it reads two flag rows and returns.

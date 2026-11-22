@@ -21,11 +21,11 @@ When a task is created without an entry step, Needt SHALL give it an entry step 
 
 ### Requirement: A stuck task is made smaller
 
-An open task that was moved to another day 2 or more times, or that was not started 3 days after it was due to start, SHALL be split again: a new smaller entry step and a simpler title. After a rewrite the task SHALL NOT be rewritten again for 7 days.
+An open task that was moved to another day once or more, or that was not started 2 days after it was due to start, SHALL be split again: a new smaller entry step and a simpler title (the title rewrite is allowed and undoable). After a rewrite the task SHALL NOT be rewritten again for 7 days.
 
-#### Scenario: Moved twice
+#### Scenario: Moved once
 
-- **WHEN** the scheduler has moved a task to a different day twice and it is still open
+- **WHEN** the scheduler has moved a task to a different day and it is still open
 - **THEN** the next sweep gives it a smaller entry and a simpler title, and records a before and after for undo
 
 #### Scenario: Not started
@@ -45,12 +45,12 @@ An open task that was moved to another day 2 or more times, or that was not star
 
 ### Requirement: An overloaded day is eased
 
-When more than 8 open tasks sit on one day, the overflow SHALL move to the following days through the existing task spread. Pinned, locked, frozen and hard-deadline tasks SHALL stay where they are. A task that fits on no later day stays where it is.
+When more than 6 open tasks sit on one day, the overflow SHALL move to the following days through the existing task spread. Only auto-scheduled tasks move: pinned, hand-placed, locked, frozen and hard-deadline tasks SHALL stay where they are. A task that fits on no later day stays where it is.
 
-#### Scenario: Ten tasks on one day
+#### Scenario: Eight tasks on one day
 
-- **WHEN** a day holds 10 open tasks
-- **THEN** 2 of them, the lowest priority first, move to later days and the day keeps 8
+- **WHEN** a day holds 8 open auto-scheduled tasks
+- **THEN** 2 of them, the lowest priority first, move to later days and the day keeps 6
 
 #### Scenario: Undone
 
@@ -96,9 +96,9 @@ Each automatic change SHALL be recorded with its before and after state as an ag
 
 ### Requirement: AI use is metered
 
-Each AI generation SHALL count as one action against the person's plan through the hosted AI claim. When the allowance is spent or no AI is available, Needt SHALL use the fallback entry "Open it and do the first 10 minutes." without subtasks and without an error.
+Free accounts SHALL NOT get an AI breakdown here: they always get the fallback entry, and nothing is claimed, so it never counts against their 20 monthly actions. Pro, Lifetime and trial accounts get the AI breakdown, and each generation SHALL count as one action against the plan through the hosted AI claim. When the allowance is spent or no AI is available, Needt SHALL use the fallback entry "Open it and do the first 10 minutes." without subtasks and without an error.
 
-#### Scenario: Free plan out of actions
+#### Scenario: Free plan
 
-- **WHEN** a Free account has used its 20 actions for the month and creates a task
-- **THEN** the task gets the fallback entry and no action is claimed
+- **WHEN** a Free account creates a task
+- **THEN** the task gets the fallback entry, no AI is called and no action is claimed

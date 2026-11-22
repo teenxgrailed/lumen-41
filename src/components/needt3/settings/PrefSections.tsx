@@ -7,6 +7,7 @@ import { useNavPins, useRankedPlaces } from "@/lib/needt3/hooks/nav-rank";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
+  useAlwaysEasyStart,
   useSetPref,
   useSetPrefs,
   useSettings,
@@ -167,6 +168,24 @@ function BudgetGroup({ p }: { p: ReturnType<typeof usePrefs> }) {
   );
 }
 
+function EasyStartRow() {
+  const easy = useAlwaysEasyStart();
+  const mark = useMark();
+  return (
+    <SRow
+      title="Always easy start"
+      desc="New tasks get an easy first step, and a task that keeps slipping is made smaller. Every change can be undone."
+    >
+      <V3Switch
+        label="Always easy start"
+        checked={easy.on}
+        disabled={!easy.loaded}
+        onChange={(v) => void easy.set(v).then(mark, () => undefined)}
+      />
+    </SRow>
+  );
+}
+
 export function TasksSection() {
   const p = usePrefs();
   const projects = useProjects();
@@ -197,6 +216,7 @@ export function TasksSection() {
             onChange={(v) => p.set("project", v)}
           />
         </SRow>
+        <EasyStartRow />
       </SGroup>
       <SGroup title="Display">
         <SRow

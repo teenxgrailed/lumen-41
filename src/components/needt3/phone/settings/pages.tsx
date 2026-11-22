@@ -14,6 +14,7 @@ import { useEveningPushSwitch } from "@/lib/needt3/hooks/habit-evening";
 import { useFreshQuitGate } from "@/lib/needt3/hooks/habits-quit";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
+  useAlwaysEasyStart,
   useSetPref,
   useSetPrefs,
   useSettings,
@@ -114,6 +115,8 @@ export function GeneralPage() {
 
 export function TasksPage() {
   const p = usePrefs();
+  const easy = useAlwaysEasyStart();
+  const mark = useMark();
   const projects = useProjects();
   const list = (projects.data ?? []).filter((x) => !x.archived);
   return (
@@ -135,6 +138,18 @@ export function TasksPage() {
           ]}
           disabled={p.off}
           onChange={(v) => p.set("project", v)}
+        />
+        <PsRow
+          title="Always easy start"
+          desc="New tasks get an easy first step, and a task that keeps slipping is made smaller. Every change can be undone."
+          control={
+            <PsSwitch
+              label="Always easy start"
+              on={easy.on}
+              disabled={!easy.loaded}
+              onChange={(v) => void easy.set(v).then(mark, noop)}
+            />
+          }
         />
       </PsGroup>
       <PsGroup title="Display">

@@ -108,6 +108,8 @@ const OP_PHRASE: Record<string, string> = {
   "task.archive": "archived a task",
   "task.unarchive": "restored a task",
   "task.restore": "restored a task",
+  "task.simplify": "simplified a task",
+  "task.spread": "moved tasks to later days",
   "task.move_to_day": "moved a task to another day",
   "schedule.auto": "rescheduled your tasks",
   "schedule.restore": "put your schedule back",
