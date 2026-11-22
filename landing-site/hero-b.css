@@ -134,3 +134,46 @@ body.home-b .final::after { background: linear-gradient(to bottom, rgba(5,6,10,.
   body.home-b .foot-top { padding: 36px 24px; }
 }
 @media (prefers-reduced-motion: reduce) { .hb-final-bg video { display: none; } .hb-final-bg { background: url("assets/hero/garden.jpg?v=2") 50% 60% / cover; } }
+
+/* ── Unslop pass (22.11.26) ────────────────────────────────────────────────
+   Home only. Craft details, no layout or content changes:
+   sentence-case labels, no coloured glows, one grey for the hero text,
+   4px-scale gaps, no looping float on the closing icon. */
+
+/* Hero brand: the pill above the H1 (SEO: the hero names the product). */
+body.home-b .hero .hb-eyebrow { margin: 0 0 20px; background: rgba(255,255,255,.12); color: rgba(255,255,255,.85); box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+body.home-b .hero { padding-top: calc(22vh - 48px); }
+@media (max-width: 640px) { body.home-b .hero { padding-top: 92px; } }
+
+/* Labels: sentence case, no wide tracking, nothing under 12px. */
+body.home-b .eyebrow { font: 500 13px/1 var(--sans); letter-spacing: 0; text-transform: none; }
+body.home-b .soon, body.home-b .menu i, body.home-b .foot-cols i { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+body.home-b .fh { font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+body.home-b .foot-featured-label, body.home-b .xp-head span { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+body.home-b .xp-card em { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+body.home-b .ag-more-l { font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+body.home-b .hb-float h4 { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; opacity: .7; }
+body.home-b.nav-open .nav-item > .nav-trigger { letter-spacing: 0; text-transform: none; }
+
+/* Surfaces: hairlines instead of coloured glows and washes. */
+body.home-b .ag-glass::before { display: none; }
+body.home-b .ag-chip { box-shadow: inset 0 0 0 1px rgba(255,255,255,.9), 0 0 0 1px rgba(10,13,18,.07); }
+body.home-b .ag-ci { box-shadow: 0 0 0 1px color-mix(in srgb, var(--g) 30%, transparent); }
+body.home-b .map-sec::before { display: none; }
+body.home-b .am-frame { box-shadow: 0 0 0 1px rgba(255,255,255,.08); }
+body.home-b .xp-in { background: #0b0c10; }
+
+/* Hero text: one step brighter (ladder 85) so it holds over the photo. */
+body.home-b .hero .lead, body.home-b .hero .cta-note { color: rgba(255,255,255,.85); }
+
+/* Rhythm: one gap under every section head, one gap above every lead. */
+body.home-b .sec-head, body.home-b .integ .sec-head, body.home-b .devs .sec-head, body.home-b #more-needt .sec-head { margin-bottom: 16px; }
+body.home-b .sec-head .lead, body.home-b .sec-head .sub { margin-top: 20px; }
+@media (max-width: 860px) {
+  body.home-b .h2 { margin-top: 16px; }
+  body.home-b .three, body.home-b .bento { gap: 16px; }
+  body.home-b .card { padding: 24px; }
+}
+
+/* Motion: the closing icon sits still (nothing about it is live). */
+body.home-b .final .icon3d { animation: none; }
