@@ -65,17 +65,48 @@ Already set up for the calendar connection; sign-in reuses the same client.
    application_).
 2. **Authorized redirect URIs**: make sure
    `https://use.needt.app/api/auth/callback/google` is listed (next to the
-   calendar one, `https://use.needt.app/api/calendar/google`, the Gmail one,
-   `https://use.needt.app/api/mail/oauth/google/callback`, and the Google Tasks
-   one, `https://use.needt.app/api/task-sync/google/callback`).
+   calendar one, `https://use.needt.app/api/calendar/google`, and the Google
+   Tasks one, `https://use.needt.app/api/task-sync/google/callback`). The Gmail
+   callback is **not** on this client any more; it lives in the Needt Mail
+   project below.
 3. **OAuth consent screen**: sign-in uses only `openid`, `email`, `profile`
    (non-sensitive). Button: "Continue with Google". Google Tasks has its own
    consent (`https://www.googleapis.com/auth/tasks.readonly`), asked only when a person
-   connects Google Tasks in Connections.
+   connects Google Tasks in Connections. **Remove `gmail.readonly`** from the
+   consent screen's scopes: it is a restricted scope and blocks verification
+   (CASA) of the whole app. The main project is verified with Calendar and
+   Tasks only.
 4. System Settings → _Google Calendar Integration_: **Google Client ID**,
    **Google Client Secret** (already filled if calendar works).
 
 Env fallback: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+
+### Needt Mail project (Gmail, beta)
+
+Gmail's `gmail.readonly` is a restricted scope, so Mail has its own Google
+Cloud project and OAuth client, apart from the main one above. (Decision
+14.11.2026; Mail is labelled Beta in Connections.)
+
+1. <https://console.cloud.google.com> → create a new project, e.g. **Needt
+   Mail**. Enable the **Gmail API**.
+2. **APIs & Services → OAuth consent screen**: app name Needt, support email,
+   scopes `https://www.googleapis.com/auth/gmail.readonly` and
+   `https://www.googleapis.com/auth/userinfo.email`. Publishing status:
+   **Testing** / unverified (people see an unverified-app warning; that is the
+   beta caveat shown in the Gmail card). Add test users while in Testing.
+3. **Credentials → Create credentials → OAuth client ID**, type _Web
+   application_. **Authorized redirect URI**:
+   `https://use.needt.app/api/mail/oauth/google/callback`.
+4. In Coolify, production env of the app: set `GOOGLE_MAIL_CLIENT_ID` and
+   `GOOGLE_MAIL_CLIENT_SECRET`, then redeploy.
+
+Until both are set, Mail falls back to the main Google client (one
+`AuthCredentials` warning in the log). Each connection records which client issued
+it (`ConnectedAccount.oauthClient`: `main` or `mail`, null = `main`) and token
+refresh uses that same client, so mailboxes connected before the switch keep
+working on the main client until the person reconnects. A grant from the mail
+client is stored as its own `GOOGLE_MAIL` connection row, so it never
+overwrites the same address's calendar tokens.
 
 ### Google One Tap
 

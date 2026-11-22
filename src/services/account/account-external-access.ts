@@ -111,6 +111,34 @@ async function stopCalendarWebhooks(
 }
 
 /**
+ * Google revokes per identity and OAuth client. Rows issued by the mail client
+ * (`GOOGLE_MAIL`) and rows issued by the main client (calendar, tasks, and
+ * Gmail before the mail client existed) are separate grants, so one never
+ * keeps the other alive.
+ */
+type GoogleClientFamily = "main" | "mail";
+
+function googleClientFamily(account: {
+  provider: string;
+  oauthClient?: string | null;
+}): GoogleClientFamily {
+  return account.provider === "GOOGLE_MAIL" || account.oauthClient === "mail"
+    ? "mail"
+    : "main";
+}
+
+function googleClientFamilyWhere(family: GoogleClientFamily) {
+  return family === "mail"
+    ? {
+        OR: [{ provider: "GOOGLE_MAIL" }, { oauthClient: "mail" }],
+      }
+    : {
+        provider: "GOOGLE",
+        OR: [{ oauthClient: null }, { oauthClient: "main" }],
+      };
+}
+
+/**
  * Google revokes a grant for the Google identity and our OAuth client
  * together, not for one Needt account. When another Needt account holds the
  * same Google identity (a shared calendar, an owner's test accounts), a revoke
@@ -119,21 +147,29 @@ async function stopCalendarWebhooks(
  */
 async function googleIdentityUsedElsewhere(
   userId: string,
-  email: string | null
+  email: string | null,
+  family: GoogleClientFamily = "main"
 ): Promise<boolean> {
   if (!email) return false;
   const insensitive = { equals: email, mode: "insensitive" as const };
   const [connected, signIn] = await Promise.all([
     prisma.connectedAccount.count({
-      where: { provider: "GOOGLE", email: insensitive, NOT: { userId } },
-    }),
-    prisma.account.count({
       where: {
-        provider: "google",
+        ...googleClientFamilyWhere(family),
+        email: insensitive,
         NOT: { userId },
-        user: { email: insensitive },
       },
     }),
+    // NextAuth sign-in grants belong to the main client only.
+    family === "main"
+      ? prisma.account.count({
+          where: {
+            provider: "google",
+            NOT: { userId },
+            user: { email: insensitive },
+          },
+        })
+      : Promise.resolve(0),
   ]);
   return connected + signIn > 0;
 }
@@ -144,12 +180,18 @@ async function revokeGoogleGrants(
 ) {
   const tokens: string[] = [];
   const connected = await prisma.connectedAccount.findMany({
-    where: { userId, provider: "GOOGLE" },
-    select: { id: true, email: true },
+    where: { userId, provider: { in: ["GOOGLE", "GOOGLE_MAIL"] } },
+    select: { id: true, email: true, provider: true, oauthClient: true },
   });
   for (const account of connected) {
     try {
-      if (await googleIdentityUsedElsewhere(userId, account.email)) {
+      if (
+        await googleIdentityUsedElsewhere(
+          userId,
+          account.email,
+          googleClientFamily(account)
+        )
+      ) {
         report.sharedAccessKept += 1;
         continue;
       }
@@ -237,18 +279,21 @@ export interface GoogleDisconnectReport {
 async function googleIdentityUsedByOtherConnection(
   userId: string,
   accountId: string,
-  email: string | null
+  email: string | null,
+  family: GoogleClientFamily
 ): Promise<boolean> {
   if (!email) return false;
   const sameUser = await prisma.connectedAccount.count({
     where: {
       userId,
-      provider: "GOOGLE",
+      ...googleClientFamilyWhere(family),
       email: { equals: email, mode: "insensitive" },
       NOT: { id: accountId },
     },
   });
-  return sameUser > 0 || (await googleIdentityUsedElsewhere(userId, email));
+  return (
+    sameUser > 0 || (await googleIdentityUsedElsewhere(userId, email, family))
+  );
 }
 
 /**
@@ -277,9 +322,14 @@ export async function revokeGoogleConnectionOnDisconnect(
   const run = async () => {
     const account = await prisma.connectedAccount.findFirst({
       where: { id: accountId, userId },
-      select: { id: true, provider: true, email: true },
+      select: { id: true, provider: true, email: true, oauthClient: true },
     });
-    if (!account || account.provider !== "GOOGLE") return;
+    if (
+      !account ||
+      (account.provider !== "GOOGLE" && account.provider !== "GOOGLE_MAIL")
+    ) {
+      return;
+    }
     if (options.stopWebhooks) {
       const webhookReport: ExternalAccessRevocationReport = {
         webhooksStopped: 0,
@@ -297,7 +347,8 @@ export async function revokeGoogleConnectionOnDisconnect(
       await googleIdentityUsedByOtherConnection(
         userId,
         accountId,
-        account.email
+        account.email,
+        googleClientFamily(account)
       )
     ) {
       report.grantKept = true;

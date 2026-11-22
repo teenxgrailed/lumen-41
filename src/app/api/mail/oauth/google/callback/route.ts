@@ -5,7 +5,7 @@ import { google } from "googleapis";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { newDate } from "@/lib/date-utils";
 import { canAddMailbox } from "@/lib/entitlements";
-import { createGoogleOAuthClient } from "@/lib/google";
+import { createGoogleMailOAuthClient } from "@/lib/google";
 import { logger } from "@/lib/logger";
 import { createOAuthMailAccount } from "@/lib/mail-db";
 import {
@@ -16,7 +16,7 @@ import {
 import { GMAIL_OAUTH_SCOPES } from "@/lib/mail/scopes";
 import { publicAppUrl } from "@/lib/public-url";
 import { enqueueMailSync, ensureMailSyncSchedule } from "@/lib/queue/enqueue";
-import { TokenManager } from "@/lib/token-manager";
+import { GOOGLE_MAIL_PROVIDER, TokenManager } from "@/lib/token-manager";
 
 const LOG_SOURCE = "GoogleMailOAuthCallback";
 
@@ -58,7 +58,9 @@ async function connectGoogleMailbox(
     const code = request.nextUrl.searchParams.get("code");
     if (!code) throw new Error("Google OAuth code is missing.");
     const redirectUrl = `${process.env.NEXTAUTH_URL}/api/mail/oauth/google/callback`;
-    const oauth2Client = await createGoogleOAuthClient({ redirectUrl });
+    const { oauth2Client, client } = await createGoogleMailOAuthClient({
+      redirectUrl,
+    });
     const { tokens } = await oauth2Client.getToken({ code, codeVerifier });
     oauth2Client.setCredentials(tokens);
     // Granular consent lets the person untick the mail box. Without the scope
@@ -84,8 +86,10 @@ async function connectGoogleMailbox(
         publicAppUrl("/mail?error=mailbox-limit", request)
       );
     }
+    // The mail client's grant gets its own row (it must not overwrite the
+    // calendar refresh token); the fallback to the main client shares it.
     const connectionRef = await TokenManager.getInstance().storeTokens(
-      "GOOGLE",
+      client === "mail" ? GOOGLE_MAIL_PROVIDER : "GOOGLE",
       profile.data.email,
       {
         accessToken: tokens.access_token,
@@ -94,7 +98,8 @@ async function connectGoogleMailbox(
           tokens.expiry_date || newDate().getTime() + 3_600_000
         ),
       },
-      userId
+      userId,
+      { oauthClient: client }
     );
     const account = await createOAuthMailAccount({
       userId,

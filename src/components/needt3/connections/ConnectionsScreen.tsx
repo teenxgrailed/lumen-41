@@ -189,6 +189,11 @@ function Card({
         <span className="cn-card-col">
           <span className="cn-card-row">
             <span className="cn-c-name">{item.name}</span>
+            {item.slug === "gmail" ? (
+              <span className="cn-c-beta" data-cn-beta="">
+                Beta
+              </span>
+            ) : null}
           </span>
           <span className="cn-card-row-2">
             {on || down || busy ? (
@@ -209,6 +214,11 @@ function Card({
         ) : null}
       </div>
       <p className="cn-c-gives">{item.description}</p>
+      {item.slug === "gmail" ? (
+        <p className="cn-c-hint" data-cn-beta-hint="">
+          Google may show an unverified-app warning while Mail is in beta.
+        </p>
+      ) : null}
       <div className="cn-c-foot">
         {on || down ? (
           <span className="cn-card-col-2">
