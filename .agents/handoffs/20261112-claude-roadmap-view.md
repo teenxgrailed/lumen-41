@@ -40,3 +40,6 @@ objective: Roadmap view (metro map of a project's tasks) for Projects and Agents
 ## Next action
 
 - Owner reviews FEATURE.md open questions; after 17.11 open a PR from feat/roadmap-view.
+
+## 2026-11-22
+Freeze is over. Merged origin/main, added GET /api/projects/<id>/roadmap, e2e (tests/roadmap-entry-points.spec.ts) and visual (tests/visual/roadmap.spec.ts) specs, //todo for map editing. FEATURE.md and the old screenshots are removed (shots go to hq/review/roadmap).

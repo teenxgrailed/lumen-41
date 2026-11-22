@@ -105,6 +105,7 @@ function metaOf(s: RoadmapStation) {
   return out;
 }
 
+//todo: edit the map in place (drag to reorder, Start / Done on a station, draw a wait between two stations). Today it is read-only: every change is made in the task itself.
 /**
  * The metro map ($skills/plan board.md): milestones are stations on a line in
  * board order, a lane forks where two milestones wait on the same one, and a
