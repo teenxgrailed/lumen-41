@@ -24,6 +24,8 @@ let search = new URLSearchParams();
 jest.mock("next/navigation", () => ({
   useSearchParams: () => search,
 }));
+// The picker pulls in lucide-react (ESM), which jest does not transform.
+jest.mock("@/components/ui/needt-picker", () => ({ NeedtPicker: () => null }));
 jest.mock("@/lib/notifications", () => ({
   notify: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
