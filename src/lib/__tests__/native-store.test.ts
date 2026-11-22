@@ -7,6 +7,7 @@ import {
   isAppleStoreAvailable,
   isPermanentAppleRefusal,
   manageAppleSubscriptions,
+  nativeMethodListed,
   purchaseStoreProduct,
   restoreApplePurchases,
   subscribeAppleTransactionUpdates,
@@ -504,5 +505,27 @@ describe("subscribeAppleTransactionUpdates", () => {
     } finally {
       delete (globalThis as unknown as { document?: unknown }).document;
     }
+  });
+});
+
+describe("nativeMethodListed", () => {
+  const headers = [
+    {
+      name: "NeedtStore",
+      methods: [{ name: "products" }, { name: "requestReview" }],
+    },
+    { name: "Other", methods: [{ name: "requestReview" }] },
+  ];
+  it("is true only when the native header lists the method", () => {
+    expect(nativeMethodListed(headers, "NeedtStore", "requestReview")).toBe(
+      true
+    );
+    expect(nativeMethodListed(headers, "NeedtStore", "purchase")).toBe(false);
+    expect(nativeMethodListed(headers, "Missing", "requestReview")).toBe(false);
+  });
+  it("is false with no header list (a proxy answers for any name)", () => {
+    expect(nativeMethodListed(undefined, "NeedtStore", "requestReview")).toBe(
+      false
+    );
   });
 });

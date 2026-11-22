@@ -14,6 +14,7 @@ import { useEveningPushSwitch } from "@/lib/needt3/hooks/habit-evening";
 import { useFreshQuitGate } from "@/lib/needt3/hooks/habits-quit";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
+  useFeedbackPromptsSwitch,
   useSetPref,
   useSetPrefs,
   useSettings,
@@ -253,6 +254,7 @@ export function AlertsPage() {
   const evening = useEveningPushSwitch();
   const alerts = useAlerts();
   const update = useUpdateAlerts();
+  const feedback = useFeedbackPromptsSwitch();
   const a = alerts.data;
   const save = (patch: Parameters<typeof update.mutateAsync>[0]) => {
     if (!a) return;
@@ -305,6 +307,24 @@ export function AlertsPage() {
       >
         {row("In the app", "channelInApp")}
         {row("Push", "channelPush")}
+      </PsGroup>
+      <PsGroup
+        title="Feedback"
+        hint="Now and then, one short question about Needt. At most once every two weeks."
+      >
+        <PsRow
+          title="Ask me for feedback"
+          control={
+            <PsSwitch
+              label="Ask me for feedback"
+              on={feedback.on}
+              disabled={feedback.disabled}
+              onChange={(v) =>
+                void feedback.set(v).then((saved) => saved && mark())
+              }
+            />
+          }
+        />
       </PsGroup>
       <PsGroup
         title="Quiet"

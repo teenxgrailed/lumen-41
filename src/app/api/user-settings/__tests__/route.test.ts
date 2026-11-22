@@ -91,6 +91,14 @@ describe("PATCH /api/user-settings prefs", () => {
     expect(upsert.mock.calls[0][0].update).toEqual({ theme: "light" });
   });
 
+  it("saves the feedback-prompt switch as a boolean and refuses anything else", async () => {
+    expect((await patch({ feedbackPrompts: false })).status).toBe(200);
+    expect(upsert.mock.calls[0][0].update).toEqual({ feedbackPrompts: false });
+    upsert.mockClear();
+    expect((await patch({ feedbackPrompts: "off" })).status).toBe(400);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
   it("a merge past the size or key cap writes nothing and answers 413", async () => {
     raw.mockResolvedValueOnce(0);
     const res = await patch({ theme: "dark", prefs: { big: "x" } });

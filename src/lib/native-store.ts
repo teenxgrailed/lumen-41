@@ -94,6 +94,7 @@ interface StorePlugin {
   entitlements?: () => Promise<{ transactions?: StoreTransaction[] }>;
   pendingTransactions?: () => Promise<{ transactions?: StoreTransaction[] }>;
   manageSubscriptions?: () => Promise<unknown>;
+  requestReview?: () => Promise<unknown>;
   addListener?: (
     event: string,
     cb: (t: StoreTransaction) => void
@@ -229,6 +230,48 @@ export function getPendingStoreTransactions(): Promise<StoreListResult> {
 /** Opens the system subscription management sheet. False when unavailable. */
 export async function manageAppleSubscriptions(): Promise<boolean> {
   const fn = plugin()?.manageSubscriptions;
+  if (!fn) return false;
+  try {
+    await fn();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when this iOS build can show the system rating prompt. An app installed
+ * before the `requestReview` method shipped has the plugin without it, so the
+ * feedback popup hides its review step there instead of promising one.
+ */
+export function canRequestNativeReview(): boolean {
+  if (typeof plugin()?.requestReview !== "function") return false;
+  // `registerPlugin` hands back a proxy that returns a function for any
+  // method name, so the native method list (PluginHeaders) is the real answer.
+  return nativeMethodListed(
+    (window as unknown as { Capacitor?: { PluginHeaders?: unknown } }).Capacitor
+      ?.PluginHeaders,
+    "NeedtStore",
+    "requestReview"
+  );
+}
+
+/** Whether a Capacitor `PluginHeaders` list names `method` on plugin `name`. */
+export function nativeMethodListed(
+  headers: unknown,
+  name: string,
+  method: string
+): boolean {
+  if (!Array.isArray(headers)) return false;
+  const header = headers.find(
+    (h: { name?: unknown }) => h && h.name === name
+  ) as { methods?: { name?: unknown }[] } | undefined;
+  return !!header?.methods?.some((m) => m?.name === method);
+}
+
+/** Asks iOS for the rating prompt; iOS may decide not to show it. */
+export async function requestNativeReview(): Promise<boolean> {
+  const fn = plugin()?.requestReview;
   if (!fn) return false;
   try {
     await fn();
