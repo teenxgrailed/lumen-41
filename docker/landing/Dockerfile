@@ -17,7 +17,15 @@ COPY docker/landing/nginx.conf /etc/nginx/conf.d/landing.conf
 COPY docker/landing/security-headers.conf /etc/nginx/landing/security-headers.conf
 COPY landing-site/ /usr/share/nginx/html/
 # Parked section fragments (landing-site/_archive) are notes, not pages: not served, not Umami-checked.
-RUN rm -rf /usr/share/nginx/html/_archive
+# Same for the repo-only files that live next to the pages: tests, notes (README.md, but not the
+# template downloads in templates/), editor leftovers and the Safari edge-debug helper. nginx.conf
+# also answers 404 for them; scripts/seo/check-dev-files.mjs keeps both layers in step in CI.
+RUN set -eu; \
+    H=/usr/share/nginx/html; \
+    rm -rf "$H/_archive" "$H/tests" "$H/edge-debug.js"; \
+    find "$H" -name '*.md' -not -path "$H/templates/*" -delete; \
+    find "$H" \( -name '*.orig' -o -name '*.bak' -o -name '*.old' -o -name '*.tmp' -o -name '*.swp' -o -name '*.map' -o -name '*.log' -o -name '*.mjs' \) -delete; \
+    find "$H" -mindepth 1 -name '.*' -not -name '.well-known' -prune -exec rm -rf {} +
 
 # Umami website ID, injected at build time and never committed.
 # Coolify: add UMAMI_SITE_ID in the application's Environment Variables and tick

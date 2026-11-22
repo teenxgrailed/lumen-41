@@ -9,8 +9,11 @@
 // internal link points at a file directly, so no link needs a redirect.
 // Fails (exit 1) when a listed URL: is not HTTP 200, redirects, has noindex
 // (meta robots or X-Robots-Tag), or declares a canonical that is not itself.
+// Dir mode also requires og:site_name "Needt" and hreflang en + x-default
+// pointing at the page itself.
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const args = process.argv.slice(2);
 const dirAt = args.indexOf("--dir");
@@ -49,6 +52,32 @@ function inspect(url, html, headers) {
   if (metaNoindex(html)) fail(url, "meta robots noindex");
   const c = canonicalOf(html);
   if (c !== null && c !== url) fail(url, `canonical is ${c}`);
+}
+
+// Brand and language signals every listed page carries in its <head>.
+export function hreflangs(html) {
+  const out = {};
+  for (const m of html.matchAll(/<link\b[^>]*>/gi)) {
+    if (!/rel=["']alternate["']/i.test(m[0])) continue;
+    const lang = (m[0].match(/hreflang=["']([^"']+)["']/i) || [])[1];
+    if (lang) out[lang] = (m[0].match(/href=["']([^"']*)["']/i) || [])[1] ?? "";
+  }
+  return out;
+}
+// What is missing from a page's brand signals, as short reasons (empty = fine).
+export function brandProblems(url, html) {
+  const out = [];
+  if (!/<meta property=["']og:site_name["'] content=["']Needt["']/i.test(html)) {
+    out.push("no og:site_name Needt");
+  }
+  const h = hreflangs(html);
+  for (const lang of ["en", "x-default"]) {
+    if (h[lang] !== url) out.push(`hreflang ${lang} is ${h[lang] ?? "missing"}`);
+  }
+  return out;
+}
+function brand(url, html) {
+  for (const why of brandProblems(url, html)) fail(url, why);
 }
 
 async function urlMode() {
@@ -102,7 +131,9 @@ function dirMode() {
       fail(url, "no such page");
       continue;
     }
-    inspect(url, readFileSync(file, "utf8"), null);
+    const html = readFileSync(file, "utf8");
+    inspect(url, html, null);
+    brand(url, html);
   }
   const pages = walk(dir);
   for (const file of pages) {
@@ -124,7 +155,7 @@ function dirMode() {
   console.log(`checked ${urls.length} URLs and the links on ${pages.length} pages in ${dir}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (!dir && !sitemapUrl) {
     console.error("usage: check-sitemap.mjs <sitemap-url> | --dir <folder> [--base <origin>]");
     process.exit(2);
