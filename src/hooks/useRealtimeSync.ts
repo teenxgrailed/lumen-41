@@ -12,7 +12,10 @@ import {
   announceEasyStart,
   parseEasyStart,
 } from "@/lib/needt3/easy-start-notice";
-import { useRecentSimplified } from "@/lib/needt3/easy-start-row";
+import {
+  loadProposals,
+  useRecentSimplified,
+} from "@/lib/needt3/easy-start-row";
 import { announceEarlyFinish, parseFocusEnded } from "@/lib/needt3/focus-early";
 import { sendJson } from "@/lib/needt3/hooks/core";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
@@ -112,7 +115,7 @@ export function useRealtimeSync(): void {
         useRecentSimplified
           .getState()
           .record(ev.taskId, ev.actionId, Date.now());
-      void queryClient.invalidateQueries({ queryKey: qk.easyStartProposals() });
+      void loadProposals();
       announceEasyStart(ev, {
         undo: async (actionId) => {
           await sendJson(`/api/agent/actions/${actionId}/undo`, "POST");
@@ -126,6 +129,15 @@ export function useRealtimeSync(): void {
         },
       });
     };
+
+    // The rows of Always easy start read their proposals and Undo from a store.
+    useRecentSimplified.setState({
+      refresh: async () => {
+        refreshTasks();
+        await loadProposals();
+      },
+    });
+    void loadProposals();
 
     const connect = () => {
       if (stopped) return;
