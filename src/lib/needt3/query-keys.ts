@@ -34,6 +34,8 @@ export const qk = {
 
   /** The person's labels (`GET /api/tags`). */
   labels: () => [V3, "labels"] as const,
+  /** Pending Always easy start proposals (`GET /api/easy-start/proposals`). */
+  easyStartProposals: () => [V3, "easy-start-proposals"] as const,
   /** The person's work schedules (`GET /api/work-schedules`), for a task's Hours. */
   workSchedules: () => [V3, "work-schedules"] as const,
 
