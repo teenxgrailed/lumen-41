@@ -117,3 +117,22 @@ describe("PATCH /api/user-settings prefs", () => {
     expect((await patch({ prefs: { taskView: "nonsense" } })).status).toBe(400);
   });
 });
+
+describe("PATCH /api/user-settings prefs.sheetStyle", () => {
+  it.each(["popup", "classic", "white"])("stores %s", async (value) => {
+    const res = await patch({ prefs: { sheetStyle: value } });
+    expect(res.status).toBe(200);
+    expect(raw).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(raw.mock.calls[0])).toContain(value);
+  });
+  it("refuses a value that is not one of the three, writing nothing", async () => {
+    const res = await patch({ prefs: { sheetStyle: "glass" } });
+    expect(res.status).toBe(400);
+    expect(raw).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+  it("lets the key be removed (back to the default)", async () => {
+    const res = await patch({ prefs: { sheetStyle: null } });
+    expect(res.status).toBe(200);
+  });
+});
