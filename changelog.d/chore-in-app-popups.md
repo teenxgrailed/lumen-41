@@ -1,0 +1,1 @@
+- One style for the in-app popups (What's new, the limit and trial upsell, the feedback prompt), built from the existing dialog and sheet. Admins can see them all in the popups lab.
