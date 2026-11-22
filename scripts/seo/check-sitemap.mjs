@@ -73,6 +73,7 @@ async function urlMode() {
 
 function walk(d, out = []) {
   for (const n of readdirSync(d)) {
+    if (n === "_archive") continue; // parked sections, not published pages
     const p = join(d, n);
     if (statSync(p).isDirectory()) walk(p, out);
     else if (n.endsWith(".html")) out.push(p);

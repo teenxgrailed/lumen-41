@@ -645,3 +645,39 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   });
 })();
 /* ⟦v42 end⟧ */
+
+/* v55 — Agents flow: the line and the five nodes follow the scroll (transform and opacity only). */
+(() => {
+  const flow = document.getElementById("ag-flow"); if (!flow) return;
+  const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const nodes = [...flow.querySelectorAll(".ag-n")], rail = flow.querySelector(".ag-rail");
+  if (RM) { flow.style.setProperty("--s", "1"); nodes.forEach((n) => n.classList.add("on")); flow.classList.add("is-done"); return; }
+  flow.classList.add("is-armed");
+  const vert = matchMedia("(max-width: 860px)");
+  let thr = [], c0 = 0, span = 1, seen = false, tick = 0, lastS = -1;
+  const measure = () => {
+    const fr = flow.getBoundingClientRect(), v = vert.matches;
+    const cs = nodes.map((n) => { const r = n.querySelector(".ag-num").getBoundingClientRect(); return v ? r.top + r.height / 2 - fr.top : r.left + r.width / 2 - fr.left; });
+    c0 = cs[0]; span = Math.max(1, cs[cs.length - 1] - c0);
+    thr = cs.map((c) => (c - c0) / span);
+    if (v) { rail.style.top = c0 + "px"; rail.style.height = span + "px"; flow.style.setProperty("--th", span + "px"); }
+    else { rail.style.top = rail.style.height = ""; flow.style.setProperty("--tw", fr.width * 0.8 + "px"); }
+    lastS = -1; frame();
+  };
+  const frame = () => {
+    tick = 0; const vh = innerHeight, fr = flow.getBoundingClientRect(); let s;
+    if (vert.matches) s = (vh * 0.6 - (fr.top + c0)) / span;   // the line reaches a node as it passes 60% of the screen
+    else s = (vh * 0.9 - fr.top - 24) / (vh * 0.42);           // desktop: it draws while the flow rises through the screen
+    s = Math.min(1, Math.max(0, s));
+    if (s === lastS) return; lastS = s;
+    flow.style.setProperty("--s", s.toFixed(4));
+    nodes.forEach((n, i) => n.classList.toggle("on", s >= thr[i] - 0.001 && (i > 0 || fr.top < vh * 0.92)));
+    flow.classList.toggle("is-live", s > 0 && s < 1); flow.classList.toggle("is-done", s >= 1);
+  };
+  const onScroll = () => { if (seen && !tick) tick = requestAnimationFrame(frame); };
+  new IntersectionObserver((es) => { seen = es[0].isIntersecting; if (seen) frame(); }, { rootMargin: "20% 0px" }).observe(flow);
+  addEventListener("scroll", onScroll, { passive: true });
+  addEventListener("resize", measure);
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(measure);
+  measure();
+})();
