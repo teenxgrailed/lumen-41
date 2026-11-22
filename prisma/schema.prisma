@@ -18,6 +18,10 @@ model ConnectedAccount {
   accessToken    String
   refreshToken   String?
   expiresAt      DateTime
+  // Which Google OAuth client issued this grant: "main" or "mail". Null means
+  // "main" (every grant before Mail got its own client). A refresh token only
+  // works with the client that issued it.
+  oauthClient    String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   calendars      CalendarFeed[]

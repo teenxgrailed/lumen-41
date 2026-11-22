@@ -6,7 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { encryptSecret } from "@/lib/security/secret-encryption";
 import { TokenManager } from "@/lib/token-manager";
 
-import { revokeExternalAccessForDeletion } from "../account-external-access";
+import {
+  revokeExternalAccessForDeletion,
+  revokeGoogleConnectionOnDisconnect,
+} from "../account-external-access";
 
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -33,7 +36,11 @@ jest.mock("@/services/integrations/composio-provider", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     calendarWebhook: { findMany: jest.fn(), count: jest.fn() },
-    connectedAccount: { findMany: jest.fn(), count: jest.fn() },
+    connectedAccount: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      count: jest.fn(),
+    },
     account: { findMany: jest.fn(), count: jest.fn() },
     externalIntegration: { findMany: jest.fn() },
     pushSubscription: { deleteMany: jest.fn() },
@@ -43,7 +50,11 @@ jest.mock("@/lib/prisma", () => ({
 
 const db = prisma as unknown as {
   calendarWebhook: { findMany: jest.Mock; count: jest.Mock };
-  connectedAccount: { findMany: jest.Mock; count: jest.Mock };
+  connectedAccount: {
+    findMany: jest.Mock;
+    findFirst: jest.Mock;
+    count: jest.Mock;
+  };
   account: { findMany: jest.Mock; count: jest.Mock };
   externalIntegration: { findMany: jest.Mock };
   pushSubscription: { deleteMany: jest.Mock };
@@ -233,6 +244,7 @@ describe("external access revocation on account deletion", () => {
     expect(db.connectedAccount.count).toHaveBeenCalledWith({
       where: {
         provider: "GOOGLE",
+        OR: [{ oauthClient: null }, { oauthClient: "main" }],
         email: { equals: "person@gmail.com", mode: "insensitive" },
         NOT: { userId: "user-1" },
       },
@@ -330,5 +342,104 @@ describe("external access revocation on account deletion", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(report.googleGrantsRevoked).toBe(0);
     expect(report.failures).toContain("google:decrypt");
+  });
+});
+
+describe("Google disconnect revocation per OAuth client", () => {
+  const fetchMock = jest.fn();
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => "",
+    });
+    db.connectedAccount.count.mockResolvedValue(0);
+    db.account.count.mockResolvedValue(0);
+    getTokens.mockResolvedValue({
+      accessToken: "mail-access",
+      refreshToken: "mail-refresh",
+      expiresAt: new Date(0),
+    });
+  });
+
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
+  it("revokes the token of a GOOGLE_MAIL mailbox", async () => {
+    db.connectedAccount.findFirst.mockResolvedValue({
+      id: "acct-m",
+      provider: "GOOGLE_MAIL",
+      email: "me@gmail.com",
+      oauthClient: "mail",
+    });
+
+    const report = await revokeGoogleConnectionOnDisconnect("user-1", "acct-m");
+
+    expect(report.revoked).toBe(true);
+    expect(report.grantKept).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((fetchMock.mock.calls[0][1] as RequestInit).body).toBe(
+      "token=mail-refresh"
+    );
+  });
+
+  it("only counts rows of the same OAuth client as sharing the grant", async () => {
+    db.connectedAccount.findFirst.mockResolvedValue({
+      id: "acct-m",
+      provider: "GOOGLE_MAIL",
+      email: "me@gmail.com",
+      oauthClient: "mail",
+    });
+
+    await revokeGoogleConnectionOnDisconnect("user-1", "acct-m");
+
+    const where = db.connectedAccount.count.mock.calls[0][0].where;
+    expect(where.OR).toEqual([
+      { provider: "GOOGLE_MAIL" },
+      { oauthClient: "mail" },
+    ]);
+    expect(where.provider).toBeUndefined();
+  });
+
+  it("revokes a calendar row even when a mail-client row exists", async () => {
+    db.connectedAccount.findFirst.mockResolvedValue({
+      id: "acct-c",
+      provider: "GOOGLE",
+      email: "me@gmail.com",
+      oauthClient: null,
+    });
+    // A mail-client row would match the mail family only; the main family
+    // query finds nothing.
+    db.connectedAccount.count.mockImplementation(
+      async ({ where }: { where: { provider?: string } }) =>
+        where.provider === "GOOGLE" ? 0 : 1
+    );
+
+    const report = await revokeGoogleConnectionOnDisconnect("user-1", "acct-c");
+
+    expect(report.revoked).toBe(true);
+    const where = db.connectedAccount.count.mock.calls[0][0].where;
+    expect(where.provider).toBe("GOOGLE");
+    expect(where.OR).toEqual([{ oauthClient: null }, { oauthClient: "main" }]);
+  });
+
+  it("keeps the grant when another row of the same client holds it", async () => {
+    db.connectedAccount.findFirst.mockResolvedValue({
+      id: "acct-m",
+      provider: "GOOGLE_MAIL",
+      email: "me@gmail.com",
+      oauthClient: "mail",
+    });
+    db.connectedAccount.count.mockResolvedValue(1);
+
+    const report = await revokeGoogleConnectionOnDisconnect("user-1", "acct-m");
+
+    expect(report.grantKept).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

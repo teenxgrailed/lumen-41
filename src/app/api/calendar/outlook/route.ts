@@ -97,6 +97,7 @@ export async function GET(req: NextRequest) {
       caldavUrl: null,
       caldavUsername: null,
       syncOptions: null,
+      oauthClient: null,
       userId: userId ?? null,
     };
 
