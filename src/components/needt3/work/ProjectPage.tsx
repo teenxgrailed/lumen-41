@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 
+import Link from "next/link";
+
 import * as Dropdown from "@radix-ui/react-dropdown-menu";
 import {
   LuArchive,
@@ -9,6 +11,7 @@ import {
   LuFolder,
   LuPencil,
   LuPlus,
+  LuRoute,
   LuTrash2,
 } from "react-icons/lu";
 
@@ -274,6 +277,15 @@ export function ProjectPage({
           >
             <Ring pct={s.pct} hue={hue} size={34} />
           </span>
+          <Link
+            href={`/projects/${encodeURIComponent(p.id)}/roadmap`}
+            aria-label="Roadmap"
+            title="Roadmap"
+            className="btn-icon btn-ghost"
+            data-wk-roadmap=""
+          >
+            <LuRoute size={17} aria-hidden />
+          </Link>
           <MoreMenu
             label="Project options"
             color={p.color}

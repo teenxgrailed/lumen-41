@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, type PropsWithChildren } from "react";
+import { type CSSProperties, type PropsWithChildren, useRef } from "react";
 
 import * as Dialog from "@radix-ui/react-dialog";
 
@@ -19,6 +19,12 @@ export interface SheetProps extends PropsWithChildren {
   style?: CSSProperties;
   /** Exit duration, matching the CSS `is-leaving` animation. */
   exitMs?: number;
+  /**
+   * Where focus goes when the sheet opens. "first" (the default) is the first
+   * control. "card" is the card itself: a popup nobody asked for does not
+   * start with a button already pressed, and Tab still goes in.
+   */
+  initialFocus?: "first" | "card";
 }
 
 /**
@@ -34,9 +40,11 @@ export function Sheet({
   className,
   style,
   exitMs = 170,
+  initialFocus = "first",
   children,
 }: SheetProps) {
   const container = useV3PortalContainer();
+  const cardRef = useRef<HTMLDivElement>(null);
   const [shown, leaving] = useExit(open, exitMs);
   if (!shown || !container) return null;
   const out = leaving ? " is-leaving" : "";
@@ -50,10 +58,21 @@ export function Sheet({
       <Dialog.Portal container={container} forceMount>
         <Dialog.Overlay className={scrimClassName + out} forceMount>
           <Dialog.Content
+            ref={cardRef}
             className={className + out}
             style={style}
             forceMount
             aria-describedby={undefined}
+            onOpenAutoFocus={
+              initialFocus === "card"
+                ? (event) => {
+                    event.preventDefault();
+                    cardRef.current?.focus({
+                      preventScroll: true,
+                    });
+                  }
+                : undefined
+            }
           >
             <Dialog.Title className="sr-only">{title}</Dialog.Title>
             {children}
