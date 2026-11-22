@@ -1,12 +1,16 @@
-import { readFileSync } from "node:fs";
-
 import { NextRequest } from "next/server";
 
 import * as tasksRoute from "@/app/api/tasks/route";
+import { readFileSync } from "node:fs";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { getPlan } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
+
+// Creating a task queues an easy start job; keep the real queue (Redis) out.
+jest.mock("@/services/easy-start/queue", () => ({
+  queueEasyStart: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock("@/lib/auth/api-auth");
 jest.mock("@/lib/entitlements", () => ({ getPlan: jest.fn() }));
@@ -66,7 +70,9 @@ describe("task workspace assignment API", () => {
     );
     taskModel.findMany.mockResolvedValue([]);
     (prisma.taskListMapping.findFirst as jest.Mock).mockResolvedValue(null);
-    (prisma.taskReminder.createMany as jest.Mock).mockResolvedValue({ count: 1 });
+    (prisma.taskReminder.createMany as jest.Mock).mockResolvedValue({
+      count: 1,
+    });
   });
 
   it("defaults a shared task to its creator and records activity", async () => {
@@ -140,7 +146,7 @@ describe("task workspace assignment API", () => {
 
     expect(migration).toContain('SET "assigneeId" = "userId"');
     expect(migration).toContain(
-      'CREATE TYPE "TaskBusyStatus" AS ENUM (\'BUSY\', \'FREE\')'
+      "CREATE TYPE \"TaskBusyStatus\" AS ENUM ('BUSY', 'FREE')"
     );
     expect(migration).toContain('ADD COLUMN "stageId" TEXT');
     expect(migration).toContain('CREATE TABLE "TaskActivity"');

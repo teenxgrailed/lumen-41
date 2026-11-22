@@ -12,6 +12,11 @@ import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
 
 import { MCP_TOOLS, listMcpTools } from "../tools";
 
+// Creating a task queues an easy start job; keep the real queue (Redis) out.
+jest.mock("@/services/easy-start/queue", () => ({
+  queueEasyStart: jest.fn().mockResolvedValue(undefined),
+}));
+
 const mockState = { db: createFakePrisma() };
 
 jest.mock("@/services/connectors/bearer", () => ({

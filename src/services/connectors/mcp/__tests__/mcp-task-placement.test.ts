@@ -14,6 +14,11 @@ import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { isTaskPlacementBlocked } from "@/lib/flexible-hours-guard-server";
 import { prisma } from "@/lib/prisma";
 
+// Creating a task queues an easy start job; keep the real queue (Redis) out.
+jest.mock("@/services/easy-start/queue", () => ({
+  queueEasyStart: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock("@/lib/realtime/publish", () => ({
   publishRealtimeEvent: jest.fn(),
   publishRealtimeEventSafe: jest.fn(),
@@ -153,12 +158,14 @@ describe("MCP and connector API: place and pin a task", () => {
       .mocked(prisma.userSettings.findUnique)
       .mockResolvedValue({ timeZone: "Europe/Berlin" } as never);
     jest.mocked(prisma.task.findFirst).mockResolvedValue(openTask as never);
-    jest
-      .mocked(prisma.task.update)
-      .mockImplementation((async ({ data }: { data: object }) => ({
-        ...openTask,
-        ...data,
-      })) as never);
+    jest.mocked(prisma.task.update).mockImplementation((async ({
+      data,
+    }: {
+      data: object;
+    }) => ({
+      ...openTask,
+      ...data,
+    })) as never);
     jest.mocked(prisma.$transaction).mockResolvedValue([] as never);
   });
 
@@ -276,12 +283,14 @@ describe("MCP and connector API: place and pin a task", () => {
   });
 
   it("needt_create_task with start creates the task pinned at that time", async () => {
-    jest
-      .mocked(prisma.task.create)
-      .mockImplementation((async ({ data }: { data: object }) => ({
-        id: "task-new",
-        ...data,
-      })) as never);
+    jest.mocked(prisma.task.create).mockImplementation((async ({
+      data,
+    }: {
+      data: object;
+    }) => ({
+      id: "task-new",
+      ...data,
+    })) as never);
     jest.mocked(prisma.task.findFirst).mockResolvedValue(null as never);
     const result = await call("needt_create_task", {
       title: "Call the printer",
@@ -302,12 +311,14 @@ describe("MCP and connector API: place and pin a task", () => {
   });
 
   it("needt_create_task with autoSchedule: false leaves it unplaced", async () => {
-    jest
-      .mocked(prisma.task.create)
-      .mockImplementation((async ({ data }: { data: object }) => ({
-        id: "task-new",
-        ...data,
-      })) as never);
+    jest.mocked(prisma.task.create).mockImplementation((async ({
+      data,
+    }: {
+      data: object;
+    }) => ({
+      id: "task-new",
+      ...data,
+    })) as never);
     jest.mocked(prisma.task.findFirst).mockResolvedValue(null as never);
     await call("needt_create_task", { title: "Someday", autoSchedule: false });
     const data = jest.mocked(prisma.task.create).mock.calls[0][0].data;

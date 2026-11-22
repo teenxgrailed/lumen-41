@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 
 import { POST } from "../route";
 
+// Creating a task queues an easy start job; keep the real queue (Redis) out.
+jest.mock("@/services/easy-start/queue", () => ({
+  queueEasyStart: jest.fn().mockResolvedValue(undefined),
+}));
+
 const create = jest.fn();
 const createReminders = jest.fn();
 
@@ -80,9 +85,7 @@ describe("POST /api/tasks status", () => {
     expect(res?.status).toBe(200);
     expect(createReminders).not.toHaveBeenCalled();
     // the opt-out is not a column: it never reaches the database
-    expect(create.mock.calls[0][0].data).not.toHaveProperty(
-      "defaultReminders"
-    );
+    expect(create.mock.calls[0][0].data).not.toHaveProperty("defaultReminders");
     expect(create.mock.calls[0][0].data.priority).toBe("none");
   });
 });

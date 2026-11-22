@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 
 import { POST } from "../route";
 
+// Creating a task queues an easy start job; keep the real queue (Redis) out.
+jest.mock("@/services/easy-start/queue", () => ({
+  queueEasyStart: jest.fn().mockResolvedValue(undefined),
+}));
+
 const create = jest.fn();
 const access = jest.fn();
 

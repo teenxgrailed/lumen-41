@@ -4,6 +4,11 @@ import { listOps, runOp, undoAction } from "..";
 import { createFakePrisma } from "./fake-prisma";
 import { OTHER_ID, OWNER_ID, access, opts, seedTask, taskRow } from "./harness";
 
+// Creating a task queues an easy start job; keep the real queue (Redis) out.
+jest.mock("@/services/easy-start/queue", () => ({
+  queueEasyStart: jest.fn().mockResolvedValue(undefined),
+}));
+
 const mockState = { db: createFakePrisma() };
 
 jest.mock("@/lib/prisma", () => ({
