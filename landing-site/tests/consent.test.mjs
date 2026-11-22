@@ -10,7 +10,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 function htmlFiles(dir) {
   const out = [];
   for (const name of readdirSync(dir)) {
-    if (name === "tests" || name === "node_modules" || name === "vendor") continue;
+    if (name === "tests" || name === "node_modules" || name === "vendor" || name === "_archive") continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) out.push(...htmlFiles(p));
     else if (name.endsWith(".html")) out.push(p);

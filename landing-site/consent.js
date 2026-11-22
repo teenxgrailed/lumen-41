@@ -203,7 +203,9 @@
   function decorate(a) {
     var h = a && a.getAttribute && a.getAttribute("href");
     if (!h || !SIGNIN.test(h)) return;
-    var next = signupUrl(h, LOGIN_TEXT.test(a.textContent || ""));
+    /* An explicit data-cta wins over the label: the sign-up CTAs read "Log in" since 22.11.2026. */
+    var cta = a.getAttribute("data-cta");
+    var next = signupUrl(h, cta === "signup" ? false : cta === "login" ? true : LOGIN_TEXT.test(a.textContent || ""));
     if (next !== h) a.setAttribute("href", next);
   }
 

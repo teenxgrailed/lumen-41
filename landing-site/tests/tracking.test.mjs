@@ -54,7 +54,7 @@ function browser({ cookie = "", search = "", store = new Map() } = {}) {
   ctx.window = ctx;
   doc.currentScript = { getAttribute: () => "site-id" };
   vm.runInContext(read("consent.js"), ctx, { filename: "consent.js" });
-  return { ctx, doc, calls, loadUmami: () => { ctx.umami = { track: (n, d) => calls.push([n, d]) }; doc.script?.onload?.(); } };
+  return { ctx, doc, calls, listeners, loadUmami: () => { ctx.umami = { track: (n, d) => calls.push([n, d]) }; doc.script?.onload?.(); } };
 }
 
 test("an event sent before Umami is ready is delivered when it loads", () => {
@@ -132,11 +132,12 @@ test("every .js-signup and .js-trial link goes to use.needt.app/auth/signin?mode
   for (const f of ["app.js", "site.js"]) {
     const src = read(f);
     assert.doesNotMatch(src, /new URL\("pricing\/", ROOT\)/, `${f}: Try it free must not open Pricing`);
-    const lines = src.split("\n").filter((l) => /const signupHref =|\$\$\("\.js-signup, \.js-trial"\)/.test(l));
+    const lines = src.split("\n").filter((l) => /const signupHref =|\$\$\("\.js-signup, \.js-trial, \[data-cta=signup\]"\)/.test(l));
     assert.equal(lines.length, 2, `${f}: signupHref and the .js-signup/.js-trial line`);
     for (const search of ["", "?utm_source=newsletter"]) {
       const b = browser({ search });
       const links = [{ href: "#" }, { href: "pricing/" }];
+      assert.match(src, /\[data-cta=signup\]/, `${f}: selector marks sign-up CTAs explicitly`);
       const run = new Function("window", "$$", lines.join("\n"));
       run(b.ctx, () => links);
       for (const a of links) {
@@ -164,4 +165,35 @@ test("login links stay plain, including 'Log in to the Needt app' (14.11.2026)",
   const re = new RegExp(m[1].slice(1, -2), "i");
   for (const t of ["Log in", "Login", "Sign in", "Log in to the Needt app", " log in "]) assert.ok(re.test(t), t);
   for (const t of ["Try it free", "Sign up", "Start free"]) assert.ok(!re.test(t), t);
+});
+
+test("every .js-signup anchor carries data-cta=\"signup\", whatever its label says (22.11.2026)", () => {
+  for (const p of htmlFiles(root)) {
+    if (p.includes("/_archive/")) continue;
+    const s = readFileSync(p, "utf8");
+    for (const m of s.matchAll(/<a [^>]*class="[^"]*js-signup[^"]*"[^>]*>/g)) {
+      assert.match(m[0], /data-cta="signup"/, `${p}: ${m[0]}`);
+    }
+  }
+});
+
+test("a data-cta=signup link labelled 'Log in' still opens sign-up; a plain 'Log in' link stays plain", () => {
+  const b = browser({ search: "?utm_source=ad" });
+  const link = (attrs, text) => {
+    const a = {
+      attrs: { href: "https://use.needt.app/auth/signin", ...attrs },
+      textContent: text,
+      getAttribute(n) { return n in this.attrs ? this.attrs[n] : null; },
+      setAttribute(n, v) { this.attrs[n] = v; },
+    };
+    a.closest = (sel) => (sel === "a" ? a : null);
+    return a;
+  };
+  const click = (a) => { for (const fn of b.listeners.click || []) fn({ target: a }); return new URL(a.attrs.href); };
+  const cta = click(link({ "data-cta": "signup" }, "Log in"));
+  assert.equal(cta.searchParams.get("mode"), "signup");
+  assert.equal(cta.searchParams.get("utm_source"), "ad");
+  const plain = click(link({}, "Log in"));
+  assert.equal(plain.searchParams.get("mode"), null);
+  assert.equal(plain.searchParams.get("utm_source"), "ad");
 });
