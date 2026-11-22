@@ -164,7 +164,7 @@ export const DAY_PLAN = "day_plan";
 /**
  * Always easy start (openspec always-easy-start): an easy first step on every
  * new task, smaller stuck tasks, eased overloaded days. On at 100% for every
- * account (migration 20261122090100_always_easy_start_on); it stays a kill
+ * account (migration 20261122215100_always_easy_start_on); it stays a kill
  * switch. Off stops all three rules; nothing already written is touched.
  */
 export const ALWAYS_EASY_START = "always_easy_start";
