@@ -147,6 +147,7 @@ public class NeedtStorePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "entitlements", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pendingTransactions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "manageSubscriptions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise),
     ]
 
     /// Verified transactions not finished yet, by transaction id.
@@ -424,6 +425,24 @@ public class NeedtStorePlugin: CAPPlugin, CAPBridgedPlugin {
             } catch {
                 call.reject(error.localizedDescription, "failed")
             }
+        }
+    }
+
+    // MARK: - Review
+
+    /// The system rating prompt (the feedback popup's "Leave a review?" step,
+    /// shown only after a 5 out of 5 or an NPS of 9 or 10). iOS decides whether
+    /// the sheet appears at all, so resolving does not mean it was shown.
+    @objc func requestReview(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let scene = self.bridge?.viewController?.view.window?.windowScene
+                ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+            guard let scene = scene else {
+                call.reject("No active window", "unavailable")
+                return
+            }
+            SKStoreReviewController.requestReview(in: scene)
+            call.resolve()
         }
     }
 }
