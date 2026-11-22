@@ -83,9 +83,9 @@ export interface AuthRedoState {
 
 export const AUTH_REDO_DEFAULT: AuthRedoState = {
   plan: null,
-  // todo(auth-redo): Apple and Microsoft are drawn for review before they are
-  // wired; drop `preview` once both providers are configured.
-  preview: true,
+  // A provider with no credentials on the server is not drawn at all. The
+  // review-only "draw the unwired ones" mode is `?providers=preview`.
+  preview: false,
   chatgpt: "hidden",
 };
 
@@ -93,7 +93,7 @@ export function authRedoFromSearch(search: string): AuthRedoState {
   const params = new URLSearchParams(search);
   return {
     plan: planFromSearch(search),
-    preview: true,
+    preview: params.get("providers") === "preview",
     chatgpt: params.get("chatgpt") === "soon" ? "soon" : "hidden",
   };
 }
