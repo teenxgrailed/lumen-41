@@ -54,6 +54,10 @@ describe("projects API", () => {
         ],
         stages: [],
         blockers: [{ id: "blocker-1" }],
+        taskListMappings: [
+          { provider: { type: "google" } },
+          { provider: { type: "google" } },
+        ],
       },
     ]);
 
@@ -72,8 +76,10 @@ describe("projects API", () => {
         completed: 1,
         total: 2,
         blockerCount: 1,
+        connectedApps: ["google"],
       })
     );
+    expect(body[0]).not.toHaveProperty("taskListMappings");
   });
 
   it("creates projects in the authorized workspace", async () => {
