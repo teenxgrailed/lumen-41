@@ -103,6 +103,37 @@ describe("runEasyStartSweep", () => {
     });
   });
 
+  it("leaves out a task that already has a pending suggestion", async () => {
+    await runEasyStartSweep(NOW);
+    expect(findMany.mock.calls[0][0].where.easyStartProposals).toEqual({
+      none: { status: "pending" },
+    });
+  });
+
+  it("keeps its place across runs: a run cut short by the cap resumes after the last task it reached, and a finished scan starts over", async () => {
+    findMany.mockResolvedValueOnce(
+      Array.from({ length: 25 }, (_, i) =>
+        row(`t${String(i).padStart(2, "0")}`, `u${i}`)
+      )
+    );
+    // Cap of rewrites per run is reached part-way through the page.
+    simplify.mockResolvedValue({
+      status: "simplified",
+      actionId: "a",
+      source: "ai",
+    });
+    const first = await runEasyStartSweep(NOW);
+    expect(first.rewritten).toBe(20);
+    findMany.mockResolvedValueOnce([]);
+    await runEasyStartSweep(NOW);
+    const second = findMany.mock.calls[1][0].where;
+    expect(second.id).toEqual({ gt: "t19" });
+    // The empty page ended the scan: the next run starts from the beginning.
+    findMany.mockResolvedValueOnce([]);
+    await runEasyStartSweep(NOW);
+    expect(findMany.mock.calls[2][0].where.id).toBeUndefined();
+  });
+
   it("re-splits a task moved once, and stamps the candidates it will not change", async () => {
     findMany.mockResolvedValue([
       row("stuck", "u1"),

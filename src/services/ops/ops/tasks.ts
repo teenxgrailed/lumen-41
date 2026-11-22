@@ -1084,6 +1084,9 @@ export const taskRestore = defineOp({
       blocksUserId: z.string().optional(),
       /** Undo of `task.simplify`: the subtasks it added. */
       removePartIds: z.array(z.string()).max(MAX_SUBTASKS).optional(),
+      /** Undo of `task.simplify`: start the cooldown now and clear the reschedule
+       *  count, so the next sweep or backfill leaves the task alone. */
+      startCooldown: z.boolean().optional(),
     })
     .strict(),
   async run(ctx, input) {
@@ -1114,6 +1117,9 @@ export const taskRestore = defineOp({
       where: { id: task.id },
       data: {
         ...restorableToData(input.fields),
+        ...(input.startCooldown
+          ? { simplifiedAt: newDate(), rescheduleCount: 0 }
+          : {}),
         ...(input.tagIds
           ? { tags: { set: input.tagIds.map((id) => ({ id })) } }
           : {}),
@@ -1249,8 +1255,6 @@ export const taskSimplify = defineOp({
     const fields = pickRestorable(task, [
       ...(input.title ? (["title"] as const) : []),
       "entry",
-      "rescheduleCount",
-      "simplifiedAt",
     ]);
     const drafts = normalizeSubtasks(input.subtasks);
     const existing = await ctx.tx.taskPart.findMany({
@@ -1296,7 +1300,12 @@ export const taskSimplify = defineOp({
       before: { fields, addedPartIds: addedIds },
       inverse: {
         op: "task.restore",
-        input: { taskId: task.id, fields, removePartIds: addedIds },
+        input: {
+          taskId: task.id,
+          fields,
+          removePartIds: addedIds,
+          startCooldown: true,
+        },
       },
       // The added subtasks are versioned too: undo refuses (a conflict) when the
       // person ticked, renamed or deleted one, instead of dropping their work.

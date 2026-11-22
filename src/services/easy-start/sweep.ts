@@ -38,10 +38,13 @@ const SWEEP_USER_MAX_PAGES = 3;
  * again from the first), so no account is starved by the ones before it.
  */
 let crowdedCursor: string | undefined;
+/** Where the stuck-task scan resumes (same idea, same memory). */
+let taskCursor: string | undefined;
 
 /** For tests: start the crowded-day scan from the beginning. */
 export function resetSweepCursor() {
   crowdedCursor = undefined;
+  taskCursor = undefined;
 }
 
 /* ---------- the sweep ---------- */
@@ -88,6 +91,8 @@ export async function runEasyStartSweep(
     externalTaskId: null,
     // A ticked subtask means the person has started.
     parts: { none: { done: true } },
+    // A suggestion is already waiting: nothing to do until it is answered.
+    easyStartProposals: { none: { status: "pending" } },
     user: { NOT: settingsOff },
     AND: [
       { OR: [{ simplifiedAt: null }, { simplifiedAt: { lt: cooldown } }] },
@@ -117,7 +122,9 @@ export async function runEasyStartSweep(
 
   let rewritten = 0;
   const perUser = new Map<string, number>();
-  let cursor: string | undefined;
+  let cursor = taskCursor;
+  let reachedEnd = false;
+  let resume = taskCursor;
   scan: for (let page = 0; page < SWEEP_MAX_PAGES; page += 1) {
     const candidates = await prisma.task.findMany({
       where: { ...candidateWhere, ...(cursor ? { id: { gt: cursor } } : {}) },
@@ -125,11 +132,15 @@ export async function runEasyStartSweep(
       orderBy: { id: "asc" },
       take: SWEEP_TASK_PAGE,
     });
-    if (candidates.length === 0) break;
+    if (candidates.length === 0) {
+      reachedEnd = true;
+      break;
+    }
     cursor = candidates[candidates.length - 1].id;
 
     for (const task of candidates) {
       if (rewritten >= SWEEP_MAX_REWRITES) break scan;
+      resume = task.id;
       const userId = task.userId;
       if (!userId) continue;
       if ((perUser.get(userId) ?? 0) >= SWEEP_MAX_REWRITES_PER_USER) continue;
@@ -161,8 +172,13 @@ export async function runEasyStartSweep(
         );
       }
     }
-    if (candidates.length < SWEEP_TASK_PAGE) break;
+    if (candidates.length < SWEEP_TASK_PAGE) {
+      reachedEnd = true;
+      break;
+    }
   }
+  // Resume here next run, or start over once the end was reached.
+  taskCursor = reachedEnd ? undefined : resume;
 
   // Only people with more than 6 open tasks in the next few days can have an
   // overloaded day, so a grouped read finds them, a page at a time from where

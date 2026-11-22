@@ -198,7 +198,7 @@ describe("undo does not drop the person's work", () => {
     expect(taskRow(db, task.id).entry).toBe("Open the tax site");
   });
 
-  it("undo puts the reschedule count and the stamp back too", async () => {
+  it("undo starts the cooldown and clears the count: sweep and backfill leave the task alone", async () => {
     const task = await seedTask(db, {
       title: "Do the whole tax return",
       entry: "Collect every document",
@@ -210,8 +210,34 @@ describe("undo does not drop the person's work", () => {
 
     await undoAction(actions()[0].id as string, OWNER_ID);
 
-    expect(taskRow(db, task.id).rescheduleCount).toBe(1);
-    expect(taskRow(db, task.id).simplifiedAt).toBeNull();
+    const back = taskRow(db, task.id);
+    expect(back.title).toBe("Do the whole tax return");
+    expect(back.rescheduleCount).toBe(0);
+    expect((back.simplifiedAt as Date).toISOString()).toBe(NOW.toISOString());
+
+    generate.mockClear();
+    expect(
+      await simplifyTask({ taskId: task.id, reason: "rescheduled" })
+    ).toEqual({ status: "skipped", why: "not_eligible" });
+    expect(await simplifyTask({ taskId: task.id, reason: "backfill" })).toEqual(
+      { status: "skipped", why: "not_eligible" }
+    );
+    expect(generate).not.toHaveBeenCalled();
+    expect(actions()).toHaveLength(1);
+  });
+
+  it("an undone first step is not given back by the backfill", async () => {
+    const task = await seedTask(db, { title: "Old open task" });
+    generate.mockResolvedValue(aiPlan());
+    await simplifyTask({ taskId: task.id, reason: "backfill", quiet: true });
+    await undoAction(actions()[0].id as string, OWNER_ID);
+    expect(taskRow(db, task.id).entry).toBeNull();
+
+    generate.mockClear();
+    expect(await simplifyTask({ taskId: task.id, reason: "backfill" })).toEqual(
+      { status: "skipped", why: "not_eligible" }
+    );
+    expect(generate).not.toHaveBeenCalled();
   });
 });
 
@@ -359,6 +385,43 @@ describe("suggest mode", () => {
     expect(result).toEqual({ status: "stale" });
     expect(taskRow(db, task.id).entry).toBe("My own step");
     expect(db.tables.easyStartProposal[0].status).toBe("stale");
+    expect(actions()).toHaveLength(0);
+  });
+
+  it("a task completed or archived since is stale: not applied", async () => {
+    for (const change of [{ status: "completed" }, { isArchived: true }]) {
+      db.tables.easyStartProposal.length = 0;
+      const task = await seedTask(db, { title: "Prepare tax return" });
+      generate.mockResolvedValue(aiPlan());
+      await simplifyTask({ taskId: task.id, reason: "create" });
+      await touchRow(db, "task", task.id, change);
+
+      const result = await applyProposal(
+        db.tables.easyStartProposal[0].id,
+        OWNER_ID
+      );
+
+      expect(result).toEqual({ status: "stale" });
+      expect(db.tables.easyStartProposal[0].status).toBe("stale");
+      expect(taskRow(db, task.id).entry ?? null).toBeNull();
+    }
+  });
+
+  it("a held (deferred) generation writes nothing and stamps nothing", async () => {
+    settingsMock.mockResolvedValue(AUTO);
+    const task = await seedTask(db, { title: "Prepare tax return" });
+    generate.mockResolvedValue(
+      aiPlan({ deferred: true, source: "fallback", entry: "x" })
+    );
+    const outcome = await simplifyTask({
+      taskId: task.id,
+      reason: "backfill",
+      holdHostedAi: true,
+    });
+    expect(outcome).toEqual({ status: "skipped", why: "deferred" });
+    expect(generate.mock.calls[0][0]).toMatchObject({ holdHostedAi: true });
+    expect(taskRow(db, task.id).simplifiedAt).toBeNull();
+    expect(taskRow(db, task.id).entry ?? null).toBeNull();
     expect(actions()).toHaveLength(0);
   });
 

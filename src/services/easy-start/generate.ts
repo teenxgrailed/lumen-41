@@ -45,6 +45,12 @@ export interface EntryRequest {
   /** A re-split: the entry and subtasks the task has now. */
   previousEntry?: string | null;
   previousSubtasks?: readonly string[];
+  /**
+   * Do not spend a hosted AI action on this one: the caller is over its own
+   * budget. A fixed fallback is not returned either; the result is `deferred`.
+   * Own-key and Free (fixed entry) accounts are not hosted and ignore this.
+   */
+  holdHostedAi?: boolean;
 }
 
 function userPrompt(input: EntryRequest): string {
@@ -86,6 +92,8 @@ function userPrompt(input: EntryRequest): string {
 export interface GeneratedPlan extends EntryPlan {
   /** Give a claimed hosted action back; a no-op when none was claimed. */
   release: () => Promise<void>;
+  /** Held back by `holdHostedAi`: nothing generated, nothing claimed. */
+  deferred?: boolean;
 }
 
 const NOTHING_CLAIMED = async () => undefined;
@@ -107,11 +115,18 @@ export async function generateEntryPlan(
     if (configured.usage?.plan === "FREE" && configured.source !== "byok") {
       return await fallback();
     }
+    // Over the monthly allowance, the next claim would land in the slow lane
+    // and wait; a background job never waits there, so it takes the fallback.
     if (
       configured.source === "none" ||
-      (configured.source === "hosted" && configured.usage.slowMode)
+      (configured.source === "hosted" &&
+        (configured.usage.slowMode ||
+          configured.usage.used + 1 > configured.usage.limit))
     ) {
       return await fallback();
+    }
+    if (configured.source === "hosted" && input.holdHostedAi) {
+      return { ...fallbackPlan(), release: NOTHING_CLAIMED, deferred: true };
     }
     const yearMonth = usageMonth();
     const prepared = await getPreparedSchedulerAI(input.userId, configured);

@@ -6,7 +6,7 @@ import {
   resetBackfillCursor,
   runEasyStartBackfill,
 } from "../backfill";
-import { simplifyTask } from "../service";
+import { simplifyTask, stampLookedAt } from "../service";
 
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -15,16 +15,22 @@ jest.mock("@/lib/prisma", () => ({
   prisma: {
     featureFlag: { findUnique: jest.fn() },
     task: { findMany: jest.fn(), groupBy: jest.fn() },
+    agentAction: { count: jest.fn() },
   },
 }));
 jest.mock("@/lib/realtime/publish", () => ({
   publishRealtimeEvent: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock("../service", () => ({ simplifyTask: jest.fn() }));
+jest.mock("../service", () => ({
+  simplifyTask: jest.fn(),
+  stampLookedAt: jest.fn().mockResolvedValue(undefined),
+}));
 
 const flag = prisma.featureFlag.findUnique as jest.Mock;
 const findMany = prisma.task.findMany as jest.Mock;
 const groupBy = prisma.task.groupBy as jest.Mock;
+const aiCount = prisma.agentAction.count as jest.Mock;
+const stamp = jest.mocked(stampLookedAt);
 const simplify = jest.mocked(simplifyTask);
 const publish = jest.mocked(publishRealtimeEvent);
 
@@ -39,6 +45,8 @@ beforeEach(() => {
   flag.mockResolvedValue({ enabled: true });
   groupBy.mockResolvedValue([]);
   findMany.mockResolvedValue([]);
+  aiCount.mockResolvedValue(0);
+  stamp.mockResolvedValue(undefined);
   simplify.mockResolvedValue({
     status: "simplified",
     actionId: "a",
@@ -98,6 +106,7 @@ describe("runEasyStartBackfill", () => {
       reason: "backfill",
       now: NOW,
       quiet: true,
+      holdHostedAi: false,
     });
     expect(result).toEqual({ skipped: null, tasks: 3, people: 1 });
     expect(publish).toHaveBeenCalledTimes(1);
@@ -130,6 +139,55 @@ describe("runEasyStartBackfill", () => {
     const result = await runEasyStartBackfill(NOW);
     expect(simplify).toHaveBeenCalledTimes(3);
     expect(result.tasks).toBe(2);
+  });
+
+  it("a task that throws is stamped, so it is not tried again every run", async () => {
+    groupBy.mockResolvedValue([{ userId: "u1" }]);
+    findMany.mockResolvedValue(ids(2));
+    simplify.mockRejectedValueOnce(new Error("boom"));
+    await runEasyStartBackfill(NOW);
+    expect(stamp).toHaveBeenCalledTimes(1);
+    expect(stamp).toHaveBeenCalledWith({ id: "t0", simplifiedAt: null }, NOW);
+  });
+
+  it("counts today's AI backfills (UTC day, reason backfill, not the fixed entry)", async () => {
+    groupBy.mockResolvedValue([{ userId: "u1" }]);
+    findMany.mockResolvedValue(ids(1));
+    await runEasyStartBackfill(NOW);
+    const arg = aiCount.mock.calls[0][0];
+    expect(arg.where).toMatchObject({
+      userId: "u1",
+      op: "task.simplify",
+      createdAt: { gte: new Date("2026-11-22T00:00:00.000Z") },
+    });
+    expect(JSON.stringify(arg.where.AND)).toContain("backfill");
+  });
+
+  it("hosted AI is held once 10 were made today, and the rest waits for tomorrow", async () => {
+    groupBy.mockResolvedValue([{ userId: "u1" }]);
+    findMany.mockResolvedValue(ids(25));
+    aiCount.mockResolvedValue(10);
+    simplify.mockResolvedValue({ status: "skipped", why: "deferred" });
+    const result = await runEasyStartBackfill(NOW);
+    expect(simplify).toHaveBeenCalledTimes(1);
+    expect(simplify.mock.calls[0][0]).toMatchObject({ holdHostedAi: true });
+    expect(stamp).not.toHaveBeenCalled();
+    expect(result.tasks).toBe(0);
+  });
+
+  it("the cap counts this run too: 4 done earlier + 6 now, then held", async () => {
+    groupBy.mockResolvedValue([{ userId: "u1" }]);
+    findMany.mockResolvedValue(ids(25));
+    aiCount.mockResolvedValue(4);
+    simplify.mockImplementation(async () =>
+      simplify.mock.calls.length > 6
+        ? { status: "skipped", why: "deferred" }
+        : { status: "simplified", actionId: "a", source: "ai" }
+    );
+    const result = await runEasyStartBackfill(NOW);
+    expect(simplify.mock.calls[6][0]).toMatchObject({ holdHostedAi: true });
+    expect(simplify.mock.calls[5][0]).toMatchObject({ holdHostedAi: false });
+    expect(result.tasks).toBe(6);
   });
 
   it("resumes after the last person of a full page on the next run", async () => {

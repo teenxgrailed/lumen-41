@@ -6,8 +6,8 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
 
-import { simplifiedLine } from "./rules";
-import { simplifyTask } from "./service";
+import { FALLBACK_ENTRY, simplifiedLine } from "./rules";
+import { simplifyTask, stampLookedAt } from "./service";
 
 const LOG_SOURCE = "easy-start-backfill";
 
@@ -18,6 +18,12 @@ const LOG_SOURCE = "easy-start-backfill";
  * fixed entry, Free with its own key and Pro get the AI one.
  */
 export const BACKFILL_PER_USER = 25;
+/**
+ * The most AI first steps the backfill makes for one person in a day. It is
+ * the allowance a Pro person also uses for Ask, so the backfill never drains
+ * it; above the cap the rest waits for tomorrow (no fallback is written).
+ */
+export const BACKFILL_AI_PER_DAY = 10;
 const BACKFILL_USERS_PER_PAGE = 50;
 const BACKFILL_MAX_PAGES = 2;
 
@@ -113,7 +119,27 @@ export async function runEasyStartBackfill(
   return { skipped: null, tasks, people };
 }
 
+/** AI backfill first steps already made for this person today (UTC day). */
+async function aiBackfilledToday(userId: string, now: Date): Promise<number> {
+  const dayStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
+  return prisma.agentAction.count({
+    where: {
+      userId,
+      op: "task.simplify",
+      actor: "agent",
+      createdAt: { gte: dayStart },
+      AND: [
+        { input: { path: ["reason"], equals: "backfill" } },
+        { NOT: { input: { path: ["entry"], equals: FALLBACK_ENTRY } } },
+      ],
+    },
+  });
+}
+
 async function backfillUser(userId: string, now: Date): Promise<number> {
+  let aiToday = await aiBackfilledToday(userId, now);
   const batch = await prisma.task.findMany({
     where: { ...candidateTasks, userId },
     select: { id: true },
@@ -128,10 +154,16 @@ async function backfillUser(userId: string, now: Date): Promise<number> {
         reason: "backfill",
         now,
         quiet: true,
+        holdHostedAi: aiToday >= BACKFILL_AI_PER_DAY,
       });
-      if (outcome.status === "simplified") simplified += 1;
+      if (outcome.status === "simplified") {
+        simplified += 1;
+        if (outcome.source === "ai") aiToday += 1;
+      }
       // The mode went off mid-batch: stop for this person.
       if (outcome.status === "skipped" && outcome.why === "off") break;
+      // Over today's AI cap: the rest waits for tomorrow.
+      if (outcome.status === "skipped" && outcome.why === "deferred") break;
     } catch (error) {
       logger.warn(
         "Easy start backfill of a task failed",
@@ -141,6 +173,8 @@ async function backfillUser(userId: string, now: Date): Promise<number> {
         },
         LOG_SOURCE
       );
+      // A task that keeps failing leaves the candidate set, like the sweep's.
+      await stampLookedAt({ id, simplifiedAt: null }, now);
     }
   }
   if (simplified > 0) {

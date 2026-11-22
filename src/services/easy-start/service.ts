@@ -26,6 +26,7 @@ import {
   DAY_TASK_LIMIT,
   SPREAD_PAUSE_HOURS,
   type StuckReason,
+  isPersonalOpenTask,
   needsBackfill,
   needsEntryOnCreate,
   overflowIds,
@@ -46,7 +47,13 @@ export type SimplifyOutcome =
   | { status: "proposed"; proposalId: string; source: "ai" | "fallback" }
   | {
       status: "skipped";
-      why: "off" | "not_found" | "not_eligible" | "no_access" | "failed";
+      why:
+        | "off"
+        | "not_found"
+        | "not_eligible"
+        | "no_access"
+        | "failed"
+        | "deferred";
     };
 
 export const taskSelect = {
@@ -154,6 +161,8 @@ export async function simplifyTask(input: {
   now?: Date;
   /** The caller announces (the backfill sums a batch into one line). */
   quiet?: boolean;
+  /** Over the caller's hosted AI budget: leave the task for a later run. */
+  holdHostedAi?: boolean;
 }): Promise<SimplifyOutcome> {
   const now = input.now ?? newDate();
   const task = await prisma.task.findUnique({
@@ -195,6 +204,7 @@ export async function simplifyTask(input: {
     userId: task.userId,
     title: task.title,
     notes: task.description,
+    ...(input.holdHostedAi ? { holdHostedAi: true } : {}),
     ...(resplit
       ? {
           previousEntry: task.entry ?? "",
@@ -202,6 +212,8 @@ export async function simplifyTask(input: {
         }
       : {}),
   });
+  // Held back by the caller's budget: no write, no stamp, tried again later.
+  if (plan.deferred) return { status: "skipped", why: "deferred" };
   // Nothing to change: the task already says what the fallback would.
   if (resplit && task.entry === plan.entry && !plan.title) {
     await plan.release();
@@ -348,9 +360,9 @@ export async function applyProposal(
     task.userId !== userId ||
     task.title !== (proposal.baseTitle ?? task.title) ||
     (task.entry ?? null) !== (proposal.baseEntry ?? null) ||
-    (settings.excludedProjectIds.length > 0 &&
-      task.projectId !== null &&
-      settings.excludedProjectIds.includes(task.projectId))
+    // No longer open work (done, archived, trashed, someday) or in an excluded
+    // project: the proposal is stale.
+    !isPersonalOpenTask(task, settings.excludedProjectIds)
   ) {
     await resolve("stale");
     return { status: "stale" };

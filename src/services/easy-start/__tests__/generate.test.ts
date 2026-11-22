@@ -60,6 +60,40 @@ describe("generateEntryPlan", () => {
     expect(release).not.toHaveBeenCalled();
   });
 
+  it("a hosted account at its allowance edge takes the fallback without waiting in the slow lane", async () => {
+    configured.mockResolvedValue({
+      source: "hosted",
+      usage: { slowMode: false, used: 500, limit: 500, plan: "PRO" },
+    } as never);
+    const plan = await generateEntryPlan(request);
+    expect(prepared).not.toHaveBeenCalled();
+    expect(plan).toMatchObject({ entry: FALLBACK_ENTRY, source: "fallback" });
+    expect(release).not.toHaveBeenCalled();
+  });
+
+  it("holdHostedAi on a hosted account: deferred, nothing claimed, nothing generated", async () => {
+    configured.mockResolvedValue({
+      source: "hosted",
+      usage: { slowMode: false, used: 3, limit: 500, plan: "PRO" },
+    } as never);
+    const plan = await generateEntryPlan({ ...request, holdHostedAi: true });
+    expect(plan.deferred).toBe(true);
+    expect(prepared).not.toHaveBeenCalled();
+    expect(release).not.toHaveBeenCalled();
+  });
+
+  it("holdHostedAi does not hold an own-key account (it costs nothing)", async () => {
+    const { ai, streamChat } = aiAnswering('{"entry":"Open it","subtasks":[]}');
+    configured.mockResolvedValue({
+      source: "byok",
+      usage: { slowMode: false, plan: "FREE" },
+    } as never);
+    prepared.mockResolvedValue({ ai, source: "byok" } as never);
+    const plan = await generateEntryPlan({ ...request, holdHostedAi: true });
+    expect(plan.deferred).toBeUndefined();
+    expect(streamChat).toHaveBeenCalledTimes(1);
+  });
+
   it("quotes the task as data, not as instructions", async () => {
     const { ai, streamChat } = aiAnswering('{"entry":"Open it","subtasks":[]}');
     configured.mockResolvedValue({
