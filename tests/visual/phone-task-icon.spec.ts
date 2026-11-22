@@ -116,7 +116,9 @@ for (const theme of ["dark", "light"] as const) {
     );
 
     await sheet.locator("[data-pov-icon]").click();
-    await expect(sheet.locator("[data-pov-pick='icon']")).toBeVisible();
+    await expect(
+      page.locator(".pov-task [data-pov-pick='icon']")
+    ).toBeVisible();
     await page.waitForTimeout(300);
     await expect(page.locator(".pov-task").first()).toHaveScreenshot(
       `task-sheet-icon-picker-390-${theme}.png`,

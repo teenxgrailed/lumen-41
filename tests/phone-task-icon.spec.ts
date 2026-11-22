@@ -89,13 +89,16 @@ test("the icon of a task is changed from its sheet and kept on the task", async 
   const button = sheet.locator("[data-pov-icon]");
   await expect(button).toHaveAttribute("data-task-icon", "write");
   await button.click();
-  await sheet.locator('[data-pov-icon-key="cook"]').click();
+  await page.locator('.pov-task [data-pov-icon-key="cook"]').click();
   await expect.poll(() => apiIcon(page, id), { timeout: 30_000 }).toBe("cook");
   await expect(button).toHaveAttribute("data-task-icon", "cook");
 
   // Automatic hands the choice back to the title
   await button.click();
-  await sheet.getByRole("button", { name: "Automatic" }).click();
+  await page
+    .locator(".pov-task")
+    .getByRole("button", { name: "Automatic" })
+    .click();
   await expect.poll(() => apiIcon(page, id), { timeout: 30_000 }).toBeNull();
   await expect(button).toHaveAttribute("data-task-icon", "write");
 
