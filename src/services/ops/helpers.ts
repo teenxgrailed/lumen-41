@@ -181,6 +181,8 @@ export function publishTasksUpdated(userId: string) {
 export function taskView(task: {
   id: string;
   title: string;
+  /** The first small step; read next to the title. */
+  entry?: string | null;
   description: string | null;
   status: string;
   dueDate: Date | null;
@@ -213,6 +215,7 @@ export function taskView(task: {
   return {
     id: task.id,
     title: task.title,
+    entry: task.entry ?? null,
     notes: task.description,
     status: task.status,
     dueDate: iso(task.dueDate),

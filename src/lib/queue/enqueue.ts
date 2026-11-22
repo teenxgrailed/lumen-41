@@ -173,6 +173,25 @@ export async function enqueueBugReportSync(reportId: string) {
   );
 }
 
+/**
+ * Always easy start: ask the worker to give a just-created task its first
+ * step. One job per task, so a double create is a no-op. The worker re-checks
+ * the setting and the task, so a late or stray job changes nothing.
+ */
+export async function enqueueEasyStartCreate(taskId: string) {
+  if (await skipWhenUnconfigured("easy-start-create")) return null;
+  return getReminderQueue().add(
+    "easy-start-create",
+    { kind: "easy-start-create", taskId },
+    {
+      jobId: `easy-start-${taskId}`,
+      attempts: 3,
+      backoff: { type: "exponential", delay: 30_000 },
+      removeOnComplete: true,
+    }
+  );
+}
+
 export async function enqueueReminderDelivery(reminderId: string) {
   if (await skipWhenUnconfigured("reminder-delivery")) return null;
   const queue = getReminderQueue();

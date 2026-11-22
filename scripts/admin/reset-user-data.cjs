@@ -137,6 +137,7 @@ function buildPlan(userId, workspaceId) {
 
     // Scheduling, focus, reminders
     ["SchedulingRun", "schedulingRun", any(ws, legacy)],
+    ["EasyStartProposal", "easyStartProposal", any(uid, { task: T })],
     ["ProactiveNudge", "proactiveNudge", any(uid, { task: T })],
     ["TaskReminder", "taskReminder", any(uid, { task: T })],
     ["ScheduledBlock", "scheduledBlock", any(uid, { task: T })],

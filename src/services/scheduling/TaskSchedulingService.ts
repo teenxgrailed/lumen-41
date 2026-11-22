@@ -1,13 +1,14 @@
 import { getLearnedDurationRatio } from "@/services/ai/memory";
 import { guardActiveDayPlans } from "@/services/day-plan/scheduler-guard";
+import { placedLater } from "@/services/easy-start/moves";
 import { personalBusyBlocks } from "@/services/personal-time/service";
 import {
   blockingEventWhere,
   pushedBlockExternalIds,
   resolveBusyFeedIds,
 } from "@/services/scheduling/busy-feeds";
-import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
 import { NOT_IN_SOMEDAY } from "@/services/scheduling/candidates";
+import { selectTasksWithinAutoScheduleLimit } from "@/services/scheduling/entitlement-selection";
 import { AutoScheduleSettingsMissingError } from "@/services/scheduling/errors";
 import { withUserScheduleLock } from "@/services/scheduling/user-schedule-lock";
 import { getCalibrationContext } from "@/services/time-tracking/calibration";
@@ -616,9 +617,22 @@ async function scheduleAllTasksForUserLocked(
     }
 
     const atRiskIds = new Set((result.atRisk ?? []).map((t) => t.taskId));
+    // Always easy start counts a task given a LATER calendar day; a new time
+    // on the same day, or an earlier day, is not a reschedule.
+    const previousStart = new Map(
+      dbTasks
+        .filter(
+          (task) =>
+            task.scheduledStart && !task.scheduleLocked && !task.isFrozen
+        )
+        .map((task) => [task.id, task.scheduledStart as Date])
+    );
     await Promise.all(
-      [...firstBlockByTask.values()].map((block) =>
-        prisma.task.update({
+      [...firstBlockByTask.values()].map((block) => {
+        const before = previousStart.get(block.taskId);
+        const movedDay =
+          before !== undefined && placedLater(before, block.start, timeZone);
+        return prisma.task.update({
           where: { id: block.taskId, assigneeId: userId },
           data: {
             scheduledStart: block.start,
@@ -628,9 +642,10 @@ async function scheduleAllTasksForUserLocked(
             scheduleScore: 1,
             scheduleAtRisk: atRiskIds.has(block.taskId),
             lastScheduled: now,
+            ...(movedDay ? { rescheduleCount: { increment: 1 } } : {}),
           },
-        })
-      )
+        });
+      })
     );
     if (result.blocks.length > 0) {
       await prisma.scheduledBlock.createMany({

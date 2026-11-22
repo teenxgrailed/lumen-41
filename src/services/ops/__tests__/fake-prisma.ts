@@ -28,6 +28,7 @@ const CHILDREN: Record<
       foreignKey: "taskId",
       orderBy: "createdAt",
     },
+    parts: { model: "taskPart", foreignKey: "taskId", orderBy: "position" },
   },
 };
 const HAS_UPDATED_AT = new Set([
@@ -39,6 +40,8 @@ const HAS_UPDATED_AT = new Set([
   "page",
   "personalBlock",
   "goal",
+  "taskPart",
+  "easyStartProposal",
 ]);
 
 function clone<T>(value: T): T {
@@ -91,6 +94,8 @@ export function createFakePrisma() {
     goalCheckIn: [],
     taskPart: [],
     taskListMapping: [],
+    workspaceMember: [],
+    easyStartProposal: [],
   };
   let clock = Date.parse("2026-10-01T00:00:00.000Z");
   let ids = 0;
@@ -198,6 +203,18 @@ export function createFakePrisma() {
     }
     const select = args.select as Where | undefined;
     if (select) {
+      // A child list asked for in `select` (parts: { select, orderBy }).
+      for (const key of Object.keys(select)) {
+        const child = CHILDREN[model]?.[key];
+        if (child && select[key] && out[key] === undefined) {
+          out[key] = tables[child.model]
+            .filter((candidate) => candidate[child.foreignKey] === row.id)
+            .sort((a, b) =>
+              child.orderBy ? compare(a[child.orderBy], b[child.orderBy]) : 0
+            )
+            .map((candidate) => clone(candidate));
+        }
+      }
       out = Object.fromEntries(
         Object.keys(select)
           .filter((key) => select[key])
@@ -218,6 +235,14 @@ export function createFakePrisma() {
           tags = [...tags, ...(value.connect as { id: string }[])];
         }
         row.tags = tags;
+        continue;
+      }
+      if (
+        isPlainObject(value) &&
+        Object.keys(value).length === 1 &&
+        typeof value.increment === "number"
+      ) {
+        row[key] = ((row[key] as number | null) ?? 0) + value.increment;
         continue;
       }
       row[key] = value instanceof Date ? new Date(value) : clone(value);
@@ -274,6 +299,17 @@ export function createFakePrisma() {
           completedAt: null,
           isRecurring: false,
           recurrenceRule: null,
+          // Always easy start reads these; a real row always has them.
+          entry: null,
+          isSample: false,
+          somedayAt: null,
+          isFrozen: false,
+          hardDeadline: false,
+          habitId: null,
+          recurrenceMasterId: null,
+          externalTaskId: null,
+          rescheduleCount: 0,
+          simplifiedAt: null,
           assigneeId: null,
           workspaceId: null,
           userId: null,
@@ -329,6 +365,18 @@ export function createFakePrisma() {
           lastCheckInAt: null,
           sourceTaskId: null,
           archivedAt: null,
+        });
+      }
+      if (model === "easyStartProposal") {
+        Object.assign(base, {
+          status: "pending",
+          workspaceId: null,
+          title: null,
+          baseTitle: null,
+          baseEntry: null,
+          actionId: null,
+          resolvedAt: null,
+          subtasks: [],
         });
       }
       if (model === "taskPart")

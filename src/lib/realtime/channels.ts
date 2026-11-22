@@ -3,7 +3,8 @@ export type RealtimeEventType =
   | "tasks-updated"
   | "docs-updated"
   | "schedule-run-updated"
-  | "focus-ended";
+  | "focus-ended"
+  | "easy-start";
 
 export interface RealtimeEvent {
   type: RealtimeEventType;
@@ -19,6 +20,10 @@ export interface RealtimeEvent {
   /** focus-ended: the task whose Done ended the focus (Undo opens it again). */
   taskId?: string;
   taskTitle?: string;
+  /** easy-start: the action Undo runs (POST /api/agent/actions/:id/undo). */
+  actionId?: string | null;
+  /** easy-start in "suggest" mode: the proposal Apply runs. */
+  proposalId?: string | null;
 }
 
 export function getUserRealtimeChannel(userId: string): string {

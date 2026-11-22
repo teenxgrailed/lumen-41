@@ -27,6 +27,7 @@ jest.mock("@/lib/prisma", () => ({
     taskListMapping: { findFirst: jest.fn() },
     workSchedule: { findFirst: jest.fn() },
     workspaceMember: { findUnique: jest.fn() },
+    userSettings: { findUnique: jest.fn() },
     project: { findFirst: jest.fn() },
     scheduledBlock: { deleteMany: jest.fn() },
     $transaction: jest.fn(),
@@ -245,6 +246,38 @@ describe("POST /api/tasks", () => {
     const linked = await post({ dependsOnId: "blocker" });
     expect(linked.status).toBe(200);
     expect(taskModel.create.mock.calls[0][0].data.dependsOnId).toBe("blocker");
+  });
+});
+
+describe("PUT /api/tasks/[id]: a move to a later day", () => {
+  beforeEach(() => {
+    (prisma.userSettings.findUnique as jest.Mock).mockResolvedValue({
+      timeZone: "Europe/Berlin",
+    });
+    taskModel.findUnique.mockResolvedValue({
+      ...stored,
+      dueDate: new Date("2026-10-25T23:00:00.000Z"), // 26.10 Berlin
+      scheduledStart: null,
+    });
+  });
+
+  it("counts toward rescheduleCount", async () => {
+    const response = await put({ dueDate: "2026-10-28T00:00:00.000Z" });
+    expect(response.status).toBe(200);
+    expect(taskModel.update.mock.calls[0][0].data.rescheduleCount).toEqual({
+      increment: 1,
+    });
+  });
+
+  it("an earlier day, or no date change, does not", async () => {
+    await put({ dueDate: "2026-10-24T00:00:00.000Z" });
+    expect(taskModel.update.mock.calls[0][0].data).not.toHaveProperty(
+      "rescheduleCount"
+    );
+    await put({ title: "Renamed" });
+    expect(taskModel.update.mock.calls[1][0].data).not.toHaveProperty(
+      "rescheduleCount"
+    );
   });
 });
 

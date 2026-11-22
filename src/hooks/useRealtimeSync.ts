@@ -8,7 +8,12 @@ import { useWorkspace } from "@/components/providers/WorkspaceProvider";
 import { useAppSession } from "@/components/providers/app-session-context";
 
 import { logger } from "@/lib/logger";
+import {
+  announceEasyStart,
+  parseEasyStart,
+} from "@/lib/needt3/easy-start-notice";
 import { announceEarlyFinish, parseFocusEnded } from "@/lib/needt3/focus-early";
+import { sendJson } from "@/lib/needt3/hooks/core";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
@@ -95,6 +100,25 @@ export function useRealtimeSync(): void {
       }
     };
 
+    // Always easy start changed a task or a day: one line with Undo, which
+    // runs the logged action's inverse and refreshes. In "suggest" mode the
+    // line is a proposal with Apply, which runs the same task.simplify.
+    const onEasyStart = (event: Event) => {
+      refreshTasks();
+      announceEasyStart(parseEasyStart((event as MessageEvent<string>).data), {
+        undo: async (actionId) => {
+          await sendJson(`/api/agent/actions/${actionId}/undo`, "POST");
+          refreshTasks();
+        },
+        apply: async (proposalId) => {
+          await sendJson(`/api/easy-start/proposals/${proposalId}`, "POST", {
+            action: "apply",
+          });
+          refreshTasks();
+        },
+      });
+    };
+
     const connect = () => {
       if (stopped) return;
       eventSource = new EventSource(
@@ -104,6 +128,7 @@ export function useRealtimeSync(): void {
       eventSource.addEventListener("tasks-updated", refreshTasks);
       eventSource.addEventListener("docs-updated", refreshDocs);
       eventSource.addEventListener("focus-ended", onFocusEnded);
+      eventSource.addEventListener("easy-start", onEasyStart);
       eventSource.onopen = () => {
         reconnectDelayMs = INITIAL_REALTIME_RECONNECT_DELAY_MS;
       };

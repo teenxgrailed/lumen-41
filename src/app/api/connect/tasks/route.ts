@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { authenticateConnectorRequest } from "@/services/connectors/auth";
+import { queueEasyStart } from "@/services/easy-start/queue";
 import { getPage } from "@/services/pages/page-service";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import {
@@ -307,6 +308,7 @@ export async function POST(request: NextRequest) {
     },
   });
   recordActivation("task_created", userId, { source: "api" });
+  await queueEasyStart(task);
 
   if (placement?.ok && placement.frozen) {
     await writeFrozenPlacement({

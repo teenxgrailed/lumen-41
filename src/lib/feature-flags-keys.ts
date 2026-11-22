@@ -162,6 +162,14 @@ export const HOME_V2 = "home_v2";
 export const DAY_PLAN = "day_plan";
 
 /**
+ * Always easy start (openspec always-easy-start): an easy first step on every
+ * new task, smaller stuck tasks, eased overloaded days. On at 100% for every
+ * account (migration 20261122215100_always_easy_start_on); it stays a kill
+ * switch. Off stops all three rules; nothing already written is touched.
+ */
+export const ALWAYS_EASY_START = "always_easy_start";
+
+/**
  * The nightly Someday sweep. Ships OFF with no data migration: run on existing
  * data it would be the one-time launch migration (PR E) without the owner's
  * yes. Only the launch migration turns it on. The job is registered and does
@@ -202,6 +210,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [FOLDERS_V1]: "Projects as folders with the next tasks sticking out.",
   [DAY_PLAN]:
     "Day plan kill switch: plan touches, Someday sweep and scheduler plan guard (on for everyone).",
+  [ALWAYS_EASY_START]:
+    "Always easy start kill switch: entry on new tasks, smaller stuck tasks, eased overloaded days (on for everyone).",
   [SOMEDAY_SWEEP]:
     "Nightly Someday sweep (off until the launch migration; per-user override for testing).",
   [DAY_PLAN_TOUCHES]:

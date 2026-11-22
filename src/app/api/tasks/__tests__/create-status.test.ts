@@ -80,9 +80,7 @@ describe("POST /api/tasks status", () => {
     expect(res?.status).toBe(200);
     expect(createReminders).not.toHaveBeenCalled();
     // the opt-out is not a column: it never reaches the database
-    expect(create.mock.calls[0][0].data).not.toHaveProperty(
-      "defaultReminders"
-    );
+    expect(create.mock.calls[0][0].data).not.toHaveProperty("defaultReminders");
     expect(create.mock.calls[0][0].data.priority).toBe("none");
   });
 });

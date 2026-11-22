@@ -103,6 +103,8 @@ const baseRow: NeedtTaskRow = {
   lastTouchedAt: null,
   somedayAt: null,
   somedayReason: null,
+  rescheduleCount: 0,
+  simplifiedAt: null,
   previousScheduledStart: null,
   valueCents: null,
   earnedCents: null,

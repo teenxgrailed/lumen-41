@@ -14,6 +14,9 @@ import { useEveningPushSwitch } from "@/lib/needt3/hooks/habit-evening";
 import { useFreshQuitGate } from "@/lib/needt3/hooks/habits-quit";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
+  EASY_START_HELP,
+  EASY_START_MODES,
+  useEasyStart,
   useFeedbackPromptsSwitch,
   useSetPref,
   useSetPrefs,
@@ -115,6 +118,8 @@ export function GeneralPage() {
 
 export function TasksPage() {
   const p = usePrefs();
+  const easy = useEasyStart();
+  const mark = useMark();
   const projects = useProjects();
   const list = (projects.data ?? []).filter((x) => !x.archived);
   return (
@@ -136,6 +141,43 @@ export function TasksPage() {
           ]}
           disabled={p.off}
           onChange={(v) => p.set("project", v)}
+        />
+        <PsPick
+          title="Always easy start"
+          desc={EASY_START_HELP}
+          value={easy.mode}
+          options={EASY_START_MODES}
+          disabled={!easy.loaded}
+          onChange={(v) =>
+            void easy
+              .setMode(v as (typeof EASY_START_MODES)[number][0])
+              .then(mark, noop)
+          }
+        />
+        <PsPick
+          title="Keep out of easy start"
+          desc="Tasks in a project you pick here are never changed. Pick it again to bring it back."
+          value="none"
+          options={[
+            [
+              "none",
+              easy.excluded.length
+                ? `${easy.excluded.length} selected`
+                : "None",
+            ],
+            ...list.map(
+              (x) =>
+                [
+                  x.id,
+                  x.name,
+                  easy.excluded.includes(x.id) ? "Kept out" : undefined,
+                ] as const
+            ),
+          ]}
+          disabled={!easy.loaded || list.length === 0 || easy.mode === "off"}
+          onChange={(id) => {
+            if (id !== "none") void easy.toggleExcluded(id).then(mark, noop);
+          }}
         />
       </PsGroup>
       <PsGroup title="Display">

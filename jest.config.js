@@ -23,6 +23,7 @@ const config = {
     "^marked$": markedUmd,
   },
   setupFiles: ["<rootDir>/jest.setup.cjs"],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup-after-env.cjs"],
   testMatch: [
     "<rootDir>/src/**/__tests__/**/*.test.ts",
     "<rootDir>/scripts/**/__tests__/**/*.test.ts",

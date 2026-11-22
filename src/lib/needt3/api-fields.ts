@@ -77,6 +77,14 @@ export const moodboardV3FieldsSchema = z.object({
 
 export const userSettingsV3FieldsSchema = z.object({
   timeFormat: z.enum(["12h", "24h"]).optional(),
+  // Always easy start (typed columns the worker reads): "auto" changes tasks
+  // itself and can be undone, "suggest" only proposes, "off" does nothing.
+  easyStartMode: z.enum(["auto", "suggest", "off"]).optional(),
+  // Projects whose tasks no easy start rule ever touches.
+  easyStartExcludedProjectIds: z
+    .array(z.string().min(1).max(64))
+    .max(200)
+    .optional(),
   // The occasional feedback prompt: on or off (src/services/feedback).
   feedbackPrompts: z.boolean().optional(),
   // `prefs.taskView` is the one task-list view setting (task-view.ts); when
