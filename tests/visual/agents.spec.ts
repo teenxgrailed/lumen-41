@@ -354,8 +354,9 @@ for (const theme of ["dark", "light"] as const) {
       await page.goto(`/agents?${query}`, { waitUntil: "domcontentloaded" });
       await expect(page.locator(".ag-night")).toBeVisible({ timeout: 45_000 });
       await expect(page.locator(ready).first()).toBeVisible();
-      // Chat is one column with no counts; every other tab shows them.
-      if (tab !== "chat")
+      // Only the Map carries the counts, on its bar; no tab has a hero.
+      await expect(page.locator(".ag-hero")).toHaveCount(0);
+      if (tab === "map")
         await expect(page.locator("[data-ag-status]")).toHaveText(
           "3 agents · 7 tasks this week · 2 working now"
         );
