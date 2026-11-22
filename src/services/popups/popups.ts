@@ -35,6 +35,33 @@ import { prisma } from "@/lib/prisma";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** A claim younger than this that never reached the screen may be released. */
+export const RELEASE_WINDOW_MS = 10 * 60 * 1000;
+
+/**
+ * A show that counts: drawn on screen, or claimed in the last 10 minutes and
+ * maybe still on its way. A claim older than that which never reached the
+ * screen (the app was killed, pagehide never fired, the popup waited out a
+ * long focus session) is stale and treated as if it did not exist: it does
+ * not count toward the cap, the once-ever rule or the 7-day repeat.
+ */
+export function countedShow(now: Date) {
+  return {
+    OR: [
+      { seenAt: { not: null } },
+      { shownAt: { gt: newDate(now.getTime() - RELEASE_WINDOW_MS) } },
+    ],
+  };
+}
+
+/** A claim that is stale by the rule above. */
+function staleClaim(now: Date) {
+  return {
+    seenAt: null,
+    shownAt: { lte: newDate(now.getTime() - RELEASE_WINDOW_MS) },
+  };
+}
+
 /** The newest history rows read for the cap and once-per-limit rules. */
 const HISTORY_DAYS = 30;
 
@@ -125,13 +152,16 @@ export async function loadPopupHistory(
   const since = newDate(now.getTime() - HISTORY_DAYS * DAY_MS);
   const [announcements, moments] = await Promise.all([
     db.announcementView.findMany({
-      where: { userId },
+      where: { userId, ...countedShow(now) },
       select: { announcementId: true, shownAt: true },
     }),
     db.popupMomentView.findMany({
       where: {
         userId,
-        OR: [{ shownAt: { gte: since } }, { source: "trial" }],
+        AND: [
+          { OR: [{ shownAt: { gte: since } }, { source: "trial" }] },
+          countedShow(now),
+        ],
       },
       select: { source: true, key: true, shownAt: true },
     }),
@@ -198,7 +228,7 @@ async function announcementCandidates(
         { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
         { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
       ],
-      views: { none: { userId: facts.user.id } },
+      views: { none: { userId: facts.user.id, ...countedShow(now) } },
     },
     orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
     take: 50,
@@ -250,11 +280,22 @@ async function writeShow(
       where: {
         userId_announcementId: { userId, announcementId: winner.key },
       },
-      select: { id: true },
+      select: { id: true, seenAt: true, shownAt: true },
     });
-    if (existing) return false;
-    await tx.announcementView.create({
-      data: { userId, announcementId: winner.key, shownAt: now },
+    if (!existing) {
+      await tx.announcementView.create({
+        data: { userId, announcementId: winner.key, shownAt: now },
+      });
+      return true;
+    }
+    const stale =
+      existing.seenAt === null &&
+      now.getTime() - existing.shownAt.getTime() >= RELEASE_WINDOW_MS;
+    if (!stale) return false;
+    // Re-claim the stale row: (userId, announcementId) is unique.
+    await tx.announcementView.update({
+      where: { id: existing.id },
+      data: { shownAt: now, dismissedAt: null, clickedAt: null },
     });
     return true;
   }
@@ -354,11 +395,25 @@ export async function recordPopupShown(
       source,
       key,
       ...(since ? { shownAt: { gt: since } } : {}),
+      ...countedShow(now),
     },
     orderBy: { shownAt: "desc" },
     select: { id: true },
   });
   if (existing) return { id: existing.id, created: false };
+  // A stale claim of the same moment is reused, not left beside a new one.
+  const stale = await db.popupMomentView.findFirst({
+    where: { userId, source, key, ...staleClaim(now) },
+    orderBy: { shownAt: "desc" },
+    select: { id: true },
+  });
+  if (stale) {
+    await db.popupMomentView.update({
+      where: { id: stale.id },
+      data: { shownAt: now, dismissedAt: null, clickedAt: null },
+    });
+    return { id: stale.id, created: true };
+  }
   const row = await db.popupMomentView.create({
     data: { userId, source, key, shownAt: now },
     select: { id: true },
@@ -440,9 +495,6 @@ export async function recordPopupEvent(
   });
   return "ok";
 }
-
-/** A claim younger than this that never reached the screen may be released. */
-export const RELEASE_WINDOW_MS = 10 * 60 * 1000;
 
 /** Claimed in the last 10 minutes and never drawn: the only rows a release removes. */
 function releasable<T extends object>(where: T, now: Date) {

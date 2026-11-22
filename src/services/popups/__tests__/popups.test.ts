@@ -24,6 +24,7 @@ jest.mock("@/lib/prisma", () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
       upsert: jest.fn(),
+      update: jest.fn(),
       deleteMany: jest.fn(),
     },
     popupMomentView: {
@@ -53,6 +54,7 @@ const db = prisma as unknown as {
     findUnique: jest.Mock;
     create: jest.Mock;
     upsert: jest.Mock;
+    update: jest.Mock;
     deleteMany: jest.Mock;
   };
   popupMomentView: {
@@ -170,7 +172,9 @@ describe("getNextPopup: announcements", () => {
     await getNextPopup("u1", params(), NOW);
     const where = db.announcement.findMany.mock.calls[0][0].where;
     expect(where.status).toBe("published");
-    expect(where.views).toEqual({ none: { userId: "u1" } });
+    expect(where.views.none.userId).toBe("u1");
+    // A stale unseen claim does not count as seen.
+    expect(where.views.none.OR).toHaveLength(2);
   });
 
   it("does not show one that history says was shown", async () => {
@@ -611,5 +615,86 @@ describe("release: a claimed slot that never reached the screen", () => {
       create: { userId: "u1", announcementId: "a1", shownAt: NOW, seenAt: NOW },
       update: { seenAt: NOW },
     });
+  });
+});
+
+describe("stale claims: claimed over 10 minutes ago and never drawn", () => {
+  const MIN = 60 * 1000;
+  type Row = { announcementId: string; shownAt: Date; seenAt: Date | null };
+
+  /** Applies the `countedShow` filter the way Postgres would. */
+  function counted(rows: Row[]) {
+    return ({
+      where,
+    }: {
+      where: { OR: [unknown, { shownAt: { gt: Date } }] };
+    }) =>
+      rows
+        .filter((r) => r.seenAt !== null || r.shownAt > where.OR[1].shownAt.gt)
+        .map(({ announcementId, shownAt }) => ({ announcementId, shownAt }));
+  }
+
+  beforeEach(() => {
+    db.announcement.findMany.mockResolvedValue([announcementRow()]);
+  });
+
+  it("a stale unseen claim does not block a re-offer", async () => {
+    const rows = [
+      { announcementId: "a1", shownAt: ago(30 * MIN), seenAt: null },
+    ];
+    db.announcementView.findMany.mockImplementation(counted(rows));
+    db.announcementView.findUnique.mockResolvedValue({ id: "v1", ...rows[0] });
+    const popup = await getNextPopup("u1", params(), NOW);
+    expect(popup?.id).toBe("a1");
+    // The unique (userId, announcementId) row is re-claimed, not duplicated.
+    expect(db.announcementView.create).not.toHaveBeenCalled();
+    expect(db.announcementView.update).toHaveBeenCalledWith({
+      where: { id: "v1" },
+      data: { shownAt: NOW, dismissedAt: null, clickedAt: null },
+    });
+  });
+
+  it("a seen row still blocks, however old", async () => {
+    const rows = [
+      { announcementId: "a1", shownAt: ago(30 * MIN), seenAt: ago(29 * MIN) },
+    ];
+    db.announcementView.findMany.mockImplementation(counted(rows));
+    expect(await getNextPopup("u1", params(), NOW)).toBeNull();
+  });
+
+  it("a fresh unseen claim still blocks (it may be on its way)", async () => {
+    const rows = [
+      { announcementId: "a1", shownAt: ago(2 * MIN), seenAt: null },
+    ];
+    db.announcementView.findMany.mockImplementation(counted(rows));
+    expect(await getNextPopup("u1", params(), NOW)).toBeNull();
+  });
+
+  it("does not let a stale claim count toward the 3-day cap", async () => {
+    const rows = [
+      { announcementId: "a0", shownAt: ago(30 * MIN), seenAt: null },
+    ];
+    db.announcementView.findMany.mockImplementation(counted(rows));
+    expect((await getNextPopup("u1", params(), NOW))?.id).toBe("a1");
+  });
+
+  it("re-claims a stale moment row instead of adding a second one", async () => {
+    db.popupMomentView.findFirst
+      .mockResolvedValueOnce(null) // no counted show
+      .mockResolvedValueOnce({ id: "m-stale" }); // a stale claim
+    expect(await recordPopupShown("u1", "trial", "trial:1d", NOW)).toEqual({
+      id: "m-stale",
+      created: true,
+    });
+    expect(db.popupMomentView.create).not.toHaveBeenCalled();
+    expect(db.popupMomentView.update).toHaveBeenCalledWith({
+      where: { id: "m-stale" },
+      data: { shownAt: NOW, dismissedAt: null, clickedAt: null },
+    });
+    const countedWhere = db.popupMomentView.findFirst.mock.calls[0][0].where;
+    expect(countedWhere.OR).toEqual([
+      { seenAt: { not: null } },
+      { shownAt: { gt: ago(10 * MIN) } },
+    ]);
   });
 });
