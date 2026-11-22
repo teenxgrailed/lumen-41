@@ -44,9 +44,9 @@ import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { getPlan } from "@/lib/entitlements";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
 import { defaultTaskReminderRows } from "@/lib/task-default-reminders";
-import { sanitizeTaskDescriptionForStorage } from "@/lib/task-description-format";
 import { normalizeRecurrenceRule } from "@/lib/utils/normalize-recurrence-rules";
 
+import { sanitizeDescriptionForStorage as sanitizeTaskDescriptionForStorage } from "../description-sanitizer";
 import { OpError } from "../errors";
 import {
   assertProjectActive,

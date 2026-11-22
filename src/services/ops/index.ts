@@ -1,3 +1,10 @@
+import { sanitizeTaskDescriptionForStorage } from "@/lib/task-description-format";
+
+import { setDescriptionSanitizer } from "./description-sanitizer";
+
+// The app (not the worker) owns the HTML sanitizer; see description-sanitizer.
+setDescriptionSanitizer(sanitizeTaskDescriptionForStorage);
+
 export { OpError } from "./errors";
 export {
   UNDO_WINDOW_DAYS,

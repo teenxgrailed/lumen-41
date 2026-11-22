@@ -21,8 +21,8 @@ import {
 } from "@/lib/goals";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { sanitizeTaskDescriptionForStorage } from "@/lib/task-description-format";
 
+import { sanitizeDescriptionForStorage as sanitizeTaskDescriptionForStorage } from "../description-sanitizer";
 import { OpError } from "../errors";
 import {
   assertProjectActive,
