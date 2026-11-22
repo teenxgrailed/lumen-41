@@ -1,0 +1,1 @@
+- Needt now shows an occasional popup: news about the app, and on the Free plan a short note with the ways to get more when you reach a limit or your trial is about to end. You see at most one every 3 days, never during onboarding or focus, and you can turn product news off in Settings → Notifications.

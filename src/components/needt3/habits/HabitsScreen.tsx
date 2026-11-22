@@ -25,6 +25,7 @@ import { useCheckinHistory } from "@/lib/needt3/hooks/habits";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
 import { projectColor } from "@/lib/needt3/project-color";
 import { notify } from "@/lib/notifications";
+import { reportLimitHit } from "@/lib/popups/client";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { type HabitForm, checkHabitForm } from "../phone/habits/model";
@@ -608,6 +609,8 @@ function HabitSheet({
 
 /** The desktop's notice when a new habit is refused by the Free allowance. */
 export function notifyHabitsBlocked() {
+  /* The popup shell offers the way out; the notice below stays for when it holds back. */
+  reportLimitHit("habits");
   /* A store build states the limit and points nowhere. */
   if (isStoreDistribution()) {
     notify.info(`Free keeps ${FREE_HABITS} habits.`);

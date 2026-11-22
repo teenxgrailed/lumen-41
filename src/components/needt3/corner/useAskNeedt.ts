@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { qk } from "@/lib/needt3/query-keys";
+import { reportLimitHit } from "@/lib/popups/client";
 
 import { runAgent } from "../cursor/hand";
 import { REACH_FAILED, refusalFor } from "./refusal";
@@ -238,6 +239,10 @@ export function useAskNeedt({ restore = true }: { restore?: boolean } = {}) {
           // panel learn it and lock instead of inviting another try.
           if (why.gated) {
             void qc.invalidateQueries({ queryKey: qk.plan() });
+          }
+          // Free has no hosted AI: offer the way out once (the server decides if it is due).
+          if (why.upgrade) {
+            reportLimitHit("ai");
           }
           patch(reply.id, {
             text: why.text,

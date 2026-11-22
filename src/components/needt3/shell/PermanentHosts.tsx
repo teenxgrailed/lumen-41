@@ -9,6 +9,7 @@ import { FeedbackPromptHost } from "../feedback/FeedbackPromptHost";
 import { FocusHost } from "../focus/FocusHost";
 import { HabitPresenceHost } from "../habits/quit/HabitPresenceHost";
 import { NativePushHost } from "../push/NativePushHost";
+import { PopupHost } from "../popups/PopupHost";
 import { usePhoneUi } from "../root/phone-ui-context";
 import { SettingsSheet } from "../settings/SettingsSheet";
 
@@ -42,6 +43,8 @@ export function PermanentHosts() {
       <ActionToasts />
       {/* One instance for both UIs; the controller inside survives the swap. */}
       <FocusHost />
+      {/* Announcements and plan moments: one shell, one set of rules. */}
+      <PopupHost />
       {/* The iOS app: notification taps and the APNs token. */}
       <NativePushHost />
       {ui === "phone" ? null : (
