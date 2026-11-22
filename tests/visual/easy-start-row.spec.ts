@@ -139,8 +139,26 @@ test("Easy start row, normal and suggest, then simplified", async ({
     clip: await rowsClip(page),
   });
 
+  const seen: string[] = [];
+  page.on("response", async (r) => {
+    if (r.url().includes("/api/easy-start/")) {
+      seen.push(
+        `${r.request().method()} ${r.url()} ${r.status()} ${(await r.text().catch(() => "")).slice(0, 200)}`
+      );
+    }
+  });
   await page.locator("[data-esr-suggest]").first().click();
-  await expect(page.locator("[data-esr-undo]").first()).toBeVisible();
+  await expect(page.locator("[data-esr-undo]").first())
+    .toBeVisible()
+    .catch(async (error: unknown) => {
+      const rowText = await rows
+        .first()
+        .innerText()
+        .catch(() => "(no row)");
+      throw new Error(
+        `Undo never showed. responses: ${JSON.stringify(seen)}; row: ${rowText}; ${String(error)}`
+      );
+    });
   await page.waitForTimeout(300);
   await expect(page).toHaveScreenshot(
     `easy-start-row-${tag}-simplified-dark.png`,
