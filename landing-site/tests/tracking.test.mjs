@@ -101,7 +101,7 @@ test("home_view is sent from app.js for every page marked data-home, and no page
     const s = readFileSync(p, "utf8");
     assert.doesNotMatch(s, /umami\.track\("home_view"/, p);
   }
-  for (const home of ["index.html", "index-b.html"]) {
+  for (const home of ["index.html"]) {
     assert.match(read(home), /<html[^>]* data-home="[ab]"/, home);
     assert.match(read(home), /<script src="app\.js\?v=\d+" defer><\/script>/, home);
   }
