@@ -5,7 +5,12 @@ import { PLACES } from "@/components/needt3/shell/places";
 
 import { getTitleFromPathname } from "@/lib/utils/page-title";
 
-import { SECTION_TITLES, itemTitle, sectionMetadata } from "../section-titles";
+import {
+  SECTION_TITLES,
+  SIGN_IN_PAGE_TITLE,
+  itemTitle,
+  sectionMetadata,
+} from "../section-titles";
 
 const APP_DIR = join(process.cwd(), "src/app/(app)");
 
@@ -46,7 +51,7 @@ describe("tab titles", () => {
 
   it("are the same in the legacy shell's route-driven title", () => {
     expect(getTitleFromPathname("/calendar")).toBe("Calendar");
-    expect(getTitleFromPathname("/auth/signin")).toBe("Sign in");
+    expect(getTitleFromPathname("/auth/signin")).toBe(SIGN_IN_PAGE_TITLE);
     expect(getTitleFromPathname("/pages/abc")).toBeNull();
   });
 
@@ -83,6 +88,13 @@ describe("tab titles", () => {
     };
     scan(APP_DIR);
     expect(offenders).toEqual([]);
+  });
+
+  it("make one exception: the public sign-in page says the brand", () => {
+    // Owner, 22.11.2026: a brand signal for search ("needt" is not a typo).
+    expect(SIGN_IN_PAGE_TITLE).toBe("Needt — Log in");
+    const page = readFileSync(join(APP_DIR, "auth/signin/page.tsx"), "utf8");
+    expect(page).toContain("title: { absolute: SIGN_IN_PAGE_TITLE }");
   });
 });
 

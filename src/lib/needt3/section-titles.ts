@@ -45,6 +45,14 @@ export const SECTION_TITLES = {
 export type SectionKey = keyof typeof SECTION_TITLES;
 
 /** `export const metadata = sectionMetadata("calendar")`. */
+/**
+ * The one route title that carries the product name: the sign-in page is the
+ * public way into the app, and the brand there tells search engines that
+ * "Needt" is a name, not a typo of "needn't" (owner, 22.11.2026). Every other
+ * route keeps the section name alone.
+ */
+export const SIGN_IN_PAGE_TITLE = "Needt — Log in";
+
 export function sectionMetadata(key: SectionKey): Metadata {
   return { title: SECTION_TITLES[key] };
 }

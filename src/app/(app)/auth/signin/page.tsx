@@ -8,13 +8,14 @@ import { getAuthOptions } from "@/lib/auth/auth-options";
 import { safeCallbackPath } from "@/lib/auth/callback-url";
 import { isSignInProviderId } from "@/lib/auth/sign-in-provider-ids";
 import { requestPhoneUi } from "@/lib/needt3/request-phone-ui";
-import { SECTION_TITLES } from "@/lib/needt3/section-titles";
+import { SIGN_IN_PAGE_TITLE } from "@/lib/needt3/section-titles";
 import { signInCallbackFor } from "@/lib/students/offer";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: SECTION_TITLES.signIn,
+  // The documented exception to "section name alone" (see SIGN_IN_PAGE_TITLE).
+  title: { absolute: SIGN_IN_PAGE_TITLE },
   description: `Sign in to your ${APP_NAME} account`,
 };
 
