@@ -87,11 +87,12 @@
   top: var(--nfb-pad);
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  /* the name stands right after the mark, as in the ref */
+  justify-content: flex-start;
   box-sizing: border-box;
   width: calc(var(--nfb-d) + var(--nfb-xw));
   height: var(--nfb-d);
-  padding-right: calc(var(--nfb-d) * 0.3);
+  padding: 0 10px 0 calc(var(--nfb-d) - 2px);
   border-radius: calc(var(--nfb-d) / 2);
   translate: calc(
       var(--nfb-pad) + var(--nfb-i) * (var(--nfb-d) + var(--nfb-gap))
@@ -105,7 +106,7 @@
   font: 600 13px/18px var(--font-sans);
   letter-spacing: -0.005em;
   white-space: nowrap;
-  max-width: calc(var(--nfb-xw) - 4px);
+  max-width: calc(var(--nfb-xw) - 8px);
   overflow: hidden;
   text-overflow: ellipsis;
 }
