@@ -105,7 +105,8 @@ export function FloatBar({
   const at = screen ? places.indexOf(screen) : -1;
   const inkAt = at >= 0 ? at : places.length + 1;
   const word = at >= 0 && screen ? menuWord(screen) : "More";
-  const slot = (j: number) => ({ "--nfb-j": j }) as React.CSSProperties;
+  const slot = (j: number) =>
+    ({ "--nfb-j": j, "--nfb-s": j > inkAt ? 1 : 0 }) as React.CSSProperties;
 
   const pill = (
     <span

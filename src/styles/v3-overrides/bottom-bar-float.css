@@ -129,7 +129,7 @@
   -webkit-tap-highlight-color: transparent;
   translate: calc(
       var(--nfb-pad) + var(--nfb-j) * (var(--nfb-d) + var(--nfb-gap)) +
-        clamp(0, var(--nfb-j) - var(--nfb-i), 1) * var(--nfb-xw)
+        var(--nfb-s) * var(--nfb-xw)
     )
     0;
   transition:
