@@ -11,6 +11,7 @@ import { PLAN_LIMITS } from "@/lib/plan-limits";
 import { ProGate, ProLimit, useIsPro } from "../paywall/Pro";
 import { AgBtn, AgEmpty, AgSection, shortWhen, useAgentHue } from "./AgParts";
 import { ItemFiles } from "./ItemFiles";
+import { approveLabel } from "./new-task";
 import { hasUnconfirmedRisk } from "./unconfirmed-risk";
 
 type Named = { id?: string; name?: string; kind?: string } | "any" | null;
@@ -359,6 +360,7 @@ export function TasksTab({
   focusId,
   onClearFocus,
   archived,
+  hasOlder = false,
   onArchived,
   run,
   markSeen,
@@ -369,6 +371,8 @@ export function TasksTab({
   focusId: string | null;
   onClearFocus: () => void;
   archived: boolean;
+  /** Items closed over 14 days ago exist, so there is something to show. */
+  hasOlder?: boolean;
   onArchived: (v: boolean) => void;
   run: Run;
   markSeen: (id: string) => Promise<unknown>;
@@ -460,6 +464,7 @@ export function TasksTab({
         .map((risk) => (
           <AgBtn
             key={risk}
+            title={`Approve ${risk.replace(/_/g, " ")}`}
             onClick={() =>
               run(
                 () =>
@@ -470,7 +475,7 @@ export function TasksTab({
               )
             }
           >
-            {`Approve ${risk}`}
+            {approveLabel(risk)}
           </AgBtn>
         ))}
       {repeatToggle(item)}
@@ -590,11 +595,13 @@ export function TasksTab({
           {group("Queued and done", rest, "data-ag-rest")}
         </>
       )}
-      <div className="ag-footer">
-        <AgBtn tone="text" onClick={() => onArchived(!archived)}>
-          {archived ? "Hide items older than 14 days" : "Show older"}
-        </AgBtn>
-      </div>
+      {archived || hasOlder ? (
+        <div className="ag-footer">
+          <AgBtn tone="text" onClick={() => onArchived(!archived)}>
+            {archived ? "Hide items older than 14 days" : "Show older"}
+          </AgBtn>
+        </div>
+      ) : null}
     </div>
   );
 }
