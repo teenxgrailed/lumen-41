@@ -26,7 +26,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
      which sent it to Pricing). Same target as the 14-day gift buttons (.js-trial),
      also on /pricing/. The sign-up helper adds ?mode=signup and stored utm_*. */
   const signupHref = (u) => (window.NeedtConsent && window.NeedtConsent.signupUrl ? window.NeedtConsent.signupUrl(u) : u);
-  $$(".js-signup, .js-trial").forEach((a) => (a.href = signupHref(window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin")));
+  $$(".js-signup, .js-trial, [data-cta=signup]").forEach((a) => (a.href = signupHref(window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin")));
   $$('a[aria-disabled="true"]').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
   /* Opened from disk (file://), a folder link shows a directory listing:
      point those links at the folder's index.html. On the server nothing changes. */
@@ -287,7 +287,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     const p = plan(h);
     if (p) return send("checkout_click", { plan: p, where });
     if (a.classList.contains("js-trial")) return send("trial_click", { where });
-    if (a.classList.contains("js-signup")) return send("try_free_click", { where });
+    if (a.classList.contains("js-signup") || a.dataset.cta === "signup") return send("try_free_click", { where });
     if (a.hasAttribute("data-dx-want")) return send("want_app_click", { app: (a.closest("[data-dx-soon]") || {}).dataset?.dxSoon || "" });
     if (/^https:\/\/use\.needt\.app\/?(auth|$)/.test(h)) return send("open_web_app", { where });
     if (/budget\.needt\.app/.test(h)) return send("budget_click", { where });

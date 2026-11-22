@@ -26,7 +26,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
      which sent it to Pricing). Same target as the 14-day gift buttons (.js-trial),
      also on /pricing/. The sign-up helper adds ?mode=signup and stored utm_*. */
   const signupHref = (u) => (window.NeedtConsent && window.NeedtConsent.signupUrl ? window.NeedtConsent.signupUrl(u) : u);
-  $$(".js-signup, .js-trial").forEach((a) => (a.href = signupHref(window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin")));
+  $$(".js-signup, .js-trial, [data-cta=signup]").forEach((a) => (a.href = signupHref(window.NEEDT_SIGNUP || "https://use.needt.app/auth/signin")));
   $$('a[aria-disabled="true"]').forEach((a) => a.addEventListener("click", (e) => e.preventDefault()));
   /* Opened from disk (file://), folder links would show a directory listing. */
   if (location.protocol === "file:") $$("a[href]").forEach((a) => {
@@ -400,7 +400,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     const p = plan(h);
     if (p) return send("checkout_click", { plan: p, where });
     if (a.classList.contains("js-trial")) return send("trial_click", { where });
-    if (a.classList.contains("js-signup")) return send("try_free_click", { where });
+    if (a.classList.contains("js-signup") || a.dataset.cta === "signup") return send("try_free_click", { where });
     if (a.hasAttribute("data-dx-want")) return send("want_app_click", { app: (a.closest("[data-dx-soon]") || {}).dataset?.dxSoon || "" });
     if (/^https:\/\/use\.needt\.app\/?(auth|$)/.test(h)) return send("open_web_app", { where });
     if (/budget\.needt\.app/.test(h)) return send("budget_click", { where });
@@ -412,7 +412,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   if (variant) {
     send("home_view", { variant });
     document.addEventListener("click", (e) => {
-      const a = e.target.closest && e.target.closest(".js-signup"); if (!a) return;
+      const a = e.target.closest && e.target.closest(".js-signup, [data-cta=signup]"); if (!a) return;
       send("signup_click", { variant, where: a.closest(".hero") ? "hero" : a.closest("header") ? "nav" : "page" });
     }, true);
   }
