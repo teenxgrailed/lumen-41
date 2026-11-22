@@ -1,5 +1,6 @@
 import { type Page, expect, test } from "@playwright/test";
 
+import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 import { VISUAL_TEST_EMAIL } from "./fixtures";
@@ -48,6 +49,10 @@ async function seed() {
     isAutoScheduled: false,
     estimatedMinutes: 45,
     duration: 45,
+    // due today, as the other task shots: an undated task is not on every list
+    dueDate: new Date(
+      `${formatInTimeZone(newDate(), "Europe/Zurich", "yyyy-MM-dd")}T00:00:00.000Z`
+    ),
   };
   await prisma.task.create({
     data: {
