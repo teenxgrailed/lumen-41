@@ -33,6 +33,8 @@ for (const theme of ["light", "dark"] as const) {
         data: { theme, prefs: { barStyle: "float" } },
       });
       expect(set.ok()).toBeTruthy();
+      // reduced motion drops the slot transitions, so the frame is the resting state
+      await page.emulateMedia({ reducedMotion: "reduce" });
       await page.goto(state.route);
       const bar = page.locator(".nfb-pill");
       await expect(bar).toBeVisible({ timeout: 30_000 });
