@@ -560,7 +560,10 @@ export function PkTaskRow({
   icon,
   size,
 }: PkTaskRowProps) {
-  const esrApi = useEasyStartRow({ id: t.id, entry: t.entry, done: t.done });
+  const esrAll = useEasyStartRow({ id: t.id, entry: t.entry, done: t.done });
+  // A project flow draws the first step itself (`hideSteps`): the row stays as
+  // it is, except for the Suggest button.
+  const esrApi = hideSteps && esrAll?.state !== "suggest" ? null : esrAll;
   const h = hourAt(t);
   // A plan row (it has an icon) says its time as a range under the title and
   // keeps the check ring at the end; other rows are unchanged.

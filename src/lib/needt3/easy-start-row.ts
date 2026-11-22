@@ -11,11 +11,9 @@
    A row with no entry and no proposal is drawn exactly as before. */
 import { useEffect, useState } from "react";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { create } from "zustand";
 
 import { fetchJson, sendJson } from "./hooks/core";
-import { qk } from "./query-keys";
 
 /** How long a row keeps its Undo after a simplification. */
 export const SIMPLIFIED_WINDOW_MS = 5 * 60_000;
@@ -50,13 +48,23 @@ export function easyStartRowState(
 
 interface RecentStore {
   byTask: Record<string, RecentSimplify>;
+  /** Pending proposals ("suggest" mode) by task id. */
+  proposals: Record<string, string>;
+  /** Reload the task lists and the proposals; the realtime hook registers it. */
+  refresh: () => Promise<void>;
   record: (taskId: string, actionId: string, at: number) => void;
   forget: (taskId: string) => void;
 }
 
-/** The tasks Easy start changed in this session, and the action that undoes each. */
+/**
+ * What the rows read, in one small store, so a row needs no query provider: the
+ * tasks Easy start changed in this session (and the action that undoes each)
+ * and the pending proposals. The realtime hook fills it.
+ */
 export const useRecentSimplified = create<RecentStore>((set) => ({
   byTask: {},
+  proposals: {},
+  refresh: async () => undefined,
   record: (taskId, actionId, at) =>
     set((s) => ({ byTask: { ...s.byTask, [taskId]: { actionId, at } } })),
   forget: (taskId) =>
@@ -72,21 +80,18 @@ interface ProposalRow {
   taskId: string;
 }
 
-/** Pending proposals by task id (`GET /api/easy-start/proposals`). */
-export function usePendingProposals(): Record<string, string> {
-  const q = useQuery({
-    queryKey: qk.easyStartProposals(),
-    queryFn: async () =>
-      (
-        await fetchJson<{ proposals: ProposalRow[] }>(
-          "/api/easy-start/proposals"
-        )
-      ).proposals,
-    staleTime: 60_000,
-  });
-  const out: Record<string, string> = {};
-  for (const p of q.data ?? []) out[p.taskId] ??= p.id;
-  return out;
+/** Read the pending proposals (`GET /api/easy-start/proposals`) into the store. */
+export async function loadProposals(): Promise<void> {
+  try {
+    const res = await fetchJson<{ proposals?: ProposalRow[] } | undefined>(
+      "/api/easy-start/proposals"
+    );
+    const proposals: Record<string, string> = {};
+    for (const p of res?.proposals ?? []) proposals[p.taskId] ??= p.id;
+    useRecentSimplified.setState({ proposals });
+  } catch {
+    /* the rows stay as they were */
+  }
 }
 
 export interface EasyStartRowApi {
@@ -101,11 +106,11 @@ export function useEasyStartRow(task: {
   entry?: string | null;
   done?: boolean;
 }): EasyStartRowApi | null {
-  const proposals = usePendingProposals();
+  const proposalId = useRecentSimplified((s) => s.proposals[task.id] ?? null);
+  const refreshAll = useRecentSimplified((s) => s.refresh);
   const recent = useRecentSimplified((s) => s.byTask[task.id]);
   const record = useRecentSimplified((s) => s.record);
   const forget = useRecentSimplified((s) => s.forget);
-  const qc = useQueryClient();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!recent) return;
@@ -113,7 +118,6 @@ export function useEasyStartRow(task: {
     const t = setTimeout(() => setNow(Date.now()), Math.max(left, 0) + 50);
     return () => clearTimeout(t);
   }, [recent]);
-  const proposalId = proposals[task.id] ?? null;
   const state = easyStartRowState({
     entry: task.entry,
     done: task.done,
@@ -122,19 +126,13 @@ export function useEasyStartRow(task: {
     now: Math.max(now, recent?.at ?? 0),
   });
   if (!state) return null;
-  const refresh = async () => {
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: qk.tasks() }),
-      qc.invalidateQueries({ queryKey: qk.easyStartProposals() }),
-    ]);
-  };
   return {
     state,
     undo: async () => {
       if (!recent) return;
       await sendJson(`/api/agent/actions/${recent.actionId}/undo`, "POST");
       forget(task.id);
-      await refresh();
+      await refreshAll();
     },
     apply: async () => {
       if (!proposalId) return;
@@ -144,7 +142,7 @@ export function useEasyStartRow(task: {
         { action: "apply" }
       );
       if (res?.actionId) record(task.id, res.actionId, Date.now());
-      await refresh();
+      await refreshAll();
     },
   };
 }

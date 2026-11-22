@@ -148,7 +148,12 @@ function TaskContent(props: TaskProps) {
     entry: isTaskEvent(task) ? null : v.entry,
     done: v.done,
   });
-  const esrOn = !isTaskEvent(task) && !!esrApi;
+  // A project page that draws the first step in its own flow (`hideEntry`)
+  // keeps the row as it is; only the Suggest button still shows there.
+  const esrOn =
+    !isTaskEvent(task) &&
+    !!esrApi &&
+    (!hideEntry || esrApi.state === "suggest");
   const density = props.density ?? (props.dense ? "mini" : "desk");
   const late = props.late ?? (layout === "card" && v.overdue);
   const canOpen = !!onOpen && !v.event;
