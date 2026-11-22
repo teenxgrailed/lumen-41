@@ -7,11 +7,6 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { getPlan } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 
-// Creating a task queues an easy start job; keep the real queue (Redis) out.
-jest.mock("@/services/easy-start/queue", () => ({
-  queueEasyStart: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock("@/lib/auth/api-auth");
 jest.mock("@/lib/entitlements", () => ({ getPlan: jest.fn() }));
 jest.mock("@/lib/prisma", () => ({

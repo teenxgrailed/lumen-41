@@ -15,11 +15,6 @@ import { POST as tasksPost } from "../[id]/tasks/route";
 import { POST as convertPost } from "../convert-task/route";
 import { GET, POST } from "../route";
 
-// Creating a task queues an easy start job; keep the real queue (Redis) out.
-jest.mock("@/services/easy-start/queue", () => ({
-  queueEasyStart: jest.fn().mockResolvedValue(undefined),
-}));
-
 const mockState = { db: createFakePrisma() };
 
 jest.mock("@/services/ops/http", () => ({

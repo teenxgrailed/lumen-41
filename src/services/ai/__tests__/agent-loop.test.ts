@@ -24,11 +24,6 @@ import { ChatGptPlanError } from "../chatgpt-plan/errors";
 import type { AgentTurnEvent, AgentTurnRequest, SchedulerAI } from "../types";
 import { unwrapUntrusted } from "../untrusted";
 
-// Creating a task queues an easy start job; keep the real queue (Redis) out.
-jest.mock("@/services/easy-start/queue", () => ({
-  queueEasyStart: jest.fn().mockResolvedValue(undefined),
-}));
-
 const mockState = { db: createFakePrisma() };
 
 jest.mock("@/lib/prisma", () => ({

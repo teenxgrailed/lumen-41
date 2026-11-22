@@ -14,11 +14,6 @@ import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { isTaskPlacementBlocked } from "@/lib/flexible-hours-guard-server";
 import { prisma } from "@/lib/prisma";
 
-// Creating a task queues an easy start job; keep the real queue (Redis) out.
-jest.mock("@/services/easy-start/queue", () => ({
-  queueEasyStart: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock("@/lib/realtime/publish", () => ({
   publishRealtimeEvent: jest.fn(),
   publishRealtimeEventSafe: jest.fn(),

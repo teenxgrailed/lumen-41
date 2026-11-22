@@ -6,11 +6,6 @@ import { POST } from "@/app/api/tasks/route";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
 
-// Creating a task queues an easy start job; keep the real queue (Redis) out.
-jest.mock("@/services/easy-start/queue", () => ({
-  queueEasyStart: jest.fn().mockResolvedValue(undefined),
-}));
-
 /**
  * The task routes used to spread the request body into Prisma behind a list of
  * keys to delete. A nested relation write (`reminders: { create: [...] }`)
