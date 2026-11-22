@@ -17,6 +17,7 @@ export { limitCards, trialCards } from "./copy";
 export { FeedbackPopup, type FeedbackPopupProps } from "./FeedbackPopup";
 export {
   FEEDBACK_COPY,
+  PRODUCT_HUNT_LABEL,
   asksForReview,
   canSend,
   reviewRoute,
