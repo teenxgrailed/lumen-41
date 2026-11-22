@@ -36,6 +36,21 @@ jest.mock("../../settings/MemoriesGroup", () => ({
 jest.mock("../../states/StScreen", () => ({
   StScreen: ({ children }: { children: unknown }) => children,
   PlEmpty: () => null,
+  StError: ({ text, onRetry }: { text: string; onRetry: () => void }) =>
+    jest
+      .requireActual("react")
+      .createElement(
+        "div",
+        { "data-st-error": "" },
+        text,
+        jest
+          .requireActual("react")
+          .createElement(
+            "button",
+            { type: "button", "data-st-retry": "", onClick: onRetry },
+            "Retry"
+          )
+      ),
 }));
 jest.mock("../../paywall/Pro", () => ({
   ProGate: ({ children }: { children: unknown }) => children,
@@ -699,5 +714,71 @@ describe("Agents screen", () => {
         String(u).includes("&tag=accounts")
       )
     ).toBe(true);
+  });
+});
+
+describe("Agents screen: loading, error and older items", () => {
+  it("shows a skeleton in the tab body while the overview loads", async () => {
+    (fetchJson as jest.Mock).mockImplementation((url: string) =>
+      url.startsWith("/api/agent-hub/overview")
+        ? new Promise(() => undefined)
+        : Promise.resolve(route(url))
+    );
+    await mount("tab=tasks");
+    expect(
+      host.querySelector('[data-ag-skeleton="rows"][aria-busy="true"]')
+    ).not.toBeNull();
+    expect(host.querySelector("[data-ag-tasks]")).toBeNull();
+    expect(host.querySelector("[data-ag-status]")).toBeNull();
+  });
+
+  it("shows a skeleton on the Map until the overview is there", async () => {
+    (fetchJson as jest.Mock).mockImplementation((url: string) =>
+      url.startsWith("/api/agent-hub/overview")
+        ? new Promise(() => undefined)
+        : Promise.resolve(route(url))
+    );
+    await mount();
+    expect(
+      host.querySelector('.ag-map-panel.is-loading [data-ag-skeleton="map"]')
+    ).not.toBeNull();
+  });
+
+  it("shows an error with Retry in the body of every tab, and Retry loads it", async () => {
+    for (const id of ["agents", "tasks", "memory", "map"]) {
+      let failing = true;
+      (fetchJson as jest.Mock).mockImplementation((url: string) =>
+        url.startsWith("/api/agent-hub/overview") && failing
+          ? Promise.reject(new Error("down"))
+          : Promise.resolve(route(url))
+      );
+      await mount(id === "map" ? "" : `tab=${id}`);
+      expect(host.querySelector("[data-ag-error]")).not.toBeNull();
+      expect(host.textContent).toContain("Couldn’t load");
+      // The small pill that used to stand in for the error is gone.
+      expect(host.querySelector('[data-ag-status="error"]')).toBeNull();
+      failing = false;
+      await click(host.querySelector("[data-st-retry]"));
+      expect(host.querySelector("[data-ag-error]")).toBeNull();
+      expect(host.querySelector("[data-ag-status]")).not.toBeNull();
+      act(() => root.unmount());
+      root = createRoot(host);
+    }
+  });
+
+  it("offers Show older only when something is older", async () => {
+    await mount("tab=tasks");
+    expect(host.textContent).not.toContain("Show older");
+    act(() => root.unmount());
+    root = createRoot(host);
+    (fetchJson as jest.Mock).mockImplementation((url: string) =>
+      Promise.resolve(
+        url.startsWith("/api/agent-hub/overview")
+          ? { ...OVERVIEW, olderCount: 3 }
+          : route(url)
+      )
+    );
+    await mount("tab=tasks");
+    expect(host.textContent).toContain("Show older");
   });
 });

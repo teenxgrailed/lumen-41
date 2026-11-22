@@ -226,12 +226,15 @@ export function AgBtn({
   tone = "secondary",
   pressed,
   disabled,
+  title,
   onClick,
 }: {
   children: ReactNode;
   tone?: "secondary" | "text" | "danger";
   disabled?: boolean;
   pressed?: boolean;
+  /** The full wording, when the label is the short one. */
+  title?: string;
   onClick?: () => void;
 }) {
   return (
@@ -240,6 +243,7 @@ export function AgBtn({
       className={`nx-btn nx-btn-sm nx-btn-${tone}`}
       aria-pressed={pressed}
       disabled={disabled}
+      title={title}
       onClick={onClick}
     >
       {children}
