@@ -134,3 +134,12 @@ body.home-b .final::after { background: linear-gradient(to bottom, rgba(5,6,10,.
   body.home-b .foot-top { padding: 36px 24px; }
 }
 @media (prefers-reduced-motion: reduce) { .hb-final-bg video { display: none; } .hb-final-bg { background: url("assets/hero/garden.jpg?v=2") 50% 60% / cover; } }
+
+/* Hero brand options (review only): hidden unless ?hb=1|2|3 sets body[data-hb]. */
+.hb-opt { display: none; }
+body[data-hb="1"] .hb-v1 { display: inline-flex; margin-bottom: 18px; }
+body[data-hb="2"] .hb-v2 { display: inline; font-family: var(--display); font-style: italic; font-weight: 500; color: #a9aaff; letter-spacing: -0.02em; }
+body[data-hb="3"] .hb-v3.hb-lockup { display: inline-flex; align-items: center; gap: 14px; margin-bottom: 20px; color: #fff; font: 600 clamp(28px, 3.4vw, 40px)/1 var(--display, var(--sans)); letter-spacing: -0.02em; text-decoration: none; }
+body[data-hb="3"] .hb-lockup img { width: 52px; height: 52px; }
+body[data-hb="3"] .hb-v3.hb-sub { display: block; }
+body[data-hb="3"] .hb-lead { display: none; }
