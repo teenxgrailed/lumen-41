@@ -429,7 +429,7 @@ export function PhoneHome({
   /** A task's own colour and icon for the textured Next plate. */
   const plateOf = (t: V3Task) => ({
     hue: projOf(t)?.color ?? null,
-    mark: <TaskGlyph title={t.title} size={22} />,
+    mark: <TaskGlyph title={t.title} icon={t.icon} size={22} />,
   });
   const row = (
     t: V3Task,

@@ -126,6 +126,7 @@ model User {
   emailPreferences             EmailPreference[]
   emailSends                   EmailSend[]
   proGifts                     ProGift[]
+  feedbackPrompts              FeedbackPrompt[]
   // Student price (docs/students.md). `studentEmail` is the university address
   // the price rests on, unique so one student address backs one account.
   // `studentVerifiedAt` is the last time it was proven (sign-in email, a
@@ -879,6 +880,7 @@ model TaskActivity {
   @@index([workspaceId, createdAt])
   @@index([taskId, createdAt])
   @@index([actorId])
+  @@index([actorId, createdAt])
 }
 
 /// A persistent, editable work journal for one local calendar day. Tasks stay
@@ -2872,6 +2874,9 @@ model UserSettings {
   // Onboarding v3 (ob3): the answers behind the first week, as the API validates
   // them (src/lib/onboarding/answers.ts). Null until someone has saved a week.
   onboarding        Json?
+  // The occasional in-app feedback prompt (src/services/feedback). On unless the
+  // person turns it off in Settings; the server reads it before it offers one.
+  feedbackPrompts   Boolean   @default(true)
 
   @@index([userId])
 }
@@ -4787,4 +4792,30 @@ model PhoneMenuLayout {
   tiles     Json     @default("[]")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// One in-app feedback prompt (src/services/feedback): the row is made when the
+/// prompt is offered, so `shownAt` also counts a prompt that was dismissed or
+/// never answered. Read in the admin panel only; nothing else consumes it.
+model FeedbackPrompt {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// rating | idea | annoyance | nps
+  kind        String
+  shownAt     DateTime  @default(now())
+  answeredAt  DateTime?
+  dismissedAt DateTime?
+  /// kind "rating": 1 to 5
+  rating      Int?
+  /// kind "nps": 0 to 10
+  score       Int?
+  text        String?
+  /// web | ios | mac | desktop
+  platform    String
+  appVersion  String?
+
+  @@index([userId, shownAt])
+  @@index([kind, shownAt])
+  @@index([shownAt])
 }

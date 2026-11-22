@@ -250,9 +250,9 @@ function Chip({
 
 /**
  * The Agents screen: the agent hub, kept apart from the person's own tasks,
- * on one night ground in both themes (owner, 05.11.26). A centred hero
- * (eyebrow, display title, one line, a status pill with real counts), the
- * tabs on a pill that sticks with each tab's filters, and six tabs:
+ * on one night ground in both themes (owner, 05.11.26). No hero (owner,
+ * 22.11.26): every tab takes the window like the Map and Chat, with the tabs
+ * in the dock and one compact bar of filters and actions on top. Six tabs:
  *
  *  - Map (the default): the live constellation of sources, agents and their
  *    work, redrawn from a new seed on every visit (`?seed=` pins one);
@@ -640,107 +640,139 @@ export function AgentsScreen() {
   const toolbar =
     tab === "agents" ? (
       <div className="ag-bar" data-ag-bar="agents">
-        {(
-          [
-            ["all", "All"],
-            ["working", "Working"],
-            ["idle", "Idle"],
-            ["offline", "Offline"],
-          ] as const
-        ).map(([id, label]) => (
-          <Chip
-            key={id}
-            pressed={agentsView === id}
-            count={agentCounts[id]}
-            onClick={() => setAgentsView(id)}
-          >
-            {label}
-          </Chip>
-        ))}
+        <div className="ag-chips">
+          {(
+            [
+              ["all", "All"],
+              ["working", "Working"],
+              ["idle", "Idle"],
+              ["offline", "Offline"],
+            ] as const
+          ).map(([id, label]) => (
+            <Chip
+              key={id}
+              pressed={agentsView === id}
+              count={agentCounts[id]}
+              onClick={() => setAgentsView(id)}
+            >
+              {label}
+            </Chip>
+          ))}
+        </div>
         <Search
           value={agentsQ}
           onChange={setAgentsQ}
           label="Search agents"
           inputRef={searchRef}
         />
+        <button
+          type="button"
+          className="ag-btn"
+          aria-pressed={showGuide}
+          data-ag-connect=""
+          onClick={() => {
+            setManualGuide(true);
+            setTab("agents");
+          }}
+        >
+          <FiPlus size={13} aria-hidden />
+          Connect an agent
+        </button>
       </div>
     ) : tab === "tasks" ? (
       <div className="ag-bar" data-ag-bar="tasks">
-        {TASK_VIEWS.map(([id, label]) => (
-          <Chip
-            key={id}
-            pressed={filters.view === id}
-            count={items.filter((i) => inView(i, id)).length}
-            attr={`data-ag-view-${id}`}
-            onClick={() => setFilters({ ...filters, view: id })}
-          >
-            {label}
-          </Chip>
-        ))}
-        {live.length > 1 ? (
-          <span className="ag-bar-agents" role="group" aria-label="Agent">
-            {live.map((a) => (
-              <Chip
-                key={a.id}
-                pressed={filters.agent === a.id}
-                onClick={() =>
-                  setFilters({
-                    ...filters,
-                    agent: filters.agent === a.id ? "" : a.id,
-                  })
-                }
-              >
-                {a.name}
-              </Chip>
-            ))}
-          </span>
-        ) : null}
+        <div className="ag-chips">
+          {TASK_VIEWS.map(([id, label]) => (
+            <Chip
+              key={id}
+              pressed={filters.view === id}
+              count={items.filter((i) => inView(i, id)).length}
+              attr={`data-ag-view-${id}`}
+              onClick={() => setFilters({ ...filters, view: id })}
+            >
+              {label}
+            </Chip>
+          ))}
+          {live.length > 1 ? (
+            <span className="ag-bar-agents" role="group" aria-label="Agent">
+              {live.map((a) => (
+                <Chip
+                  key={a.id}
+                  pressed={filters.agent === a.id}
+                  onClick={() =>
+                    setFilters({
+                      ...filters,
+                      agent: filters.agent === a.id ? "" : a.id,
+                    })
+                  }
+                >
+                  {a.name}
+                </Chip>
+              ))}
+            </span>
+          ) : null}
+        </div>
         <Search
           value={filters.q}
           onChange={(q) => setFilters({ ...filters, q })}
           label="Search tasks"
           inputRef={searchRef}
         />
+        {overview.data ? (
+          <button
+            type="button"
+            className="ag-btn"
+            data-ag-new-task-open=""
+            onClick={() => setNewTask(true)}
+          >
+            <FiPlus size={13} aria-hidden />
+            New task
+          </button>
+        ) : null}
       </div>
     ) : tab === "activity" ? (
       <div className="ag-bar" data-ag-bar="activity">
-        <Chip pressed={!activityAgent} onClick={() => setActivityAgent("")}>
-          All agents
-        </Chip>
-        {live.map((a) => (
-          <Chip
-            key={a.id}
-            pressed={activityAgent === a.id}
-            onClick={() => setActivityAgent(a.id)}
-          >
-            <span
-              className="ag-dotc"
-              aria-hidden="true"
-              style={{ background: hues.get(a.id) }}
-            />
-            {a.name}
+        <div className="ag-chips">
+          <Chip pressed={!activityAgent} onClick={() => setActivityAgent("")}>
+            All agents
           </Chip>
-        ))}
+          {live.map((a) => (
+            <Chip
+              key={a.id}
+              pressed={activityAgent === a.id}
+              onClick={() => setActivityAgent(a.id)}
+            >
+              <span
+                className="ag-dotc"
+                aria-hidden="true"
+                style={{ background: hues.get(a.id) }}
+              />
+              {a.name}
+            </Chip>
+          ))}
+        </div>
       </div>
     ) : tab === "memory" ? (
       <div className="ag-bar" data-ag-bar="memory">
-        <Chip
-          pressed={!memTag}
-          count={notes.length}
-          onClick={() => setMemTag("")}
-        >
-          All
-        </Chip>
-        {tags.map(([t, n]) => (
+        <div className="ag-chips">
           <Chip
-            key={t}
-            pressed={memTag === t}
-            count={n}
-            onClick={() => setMemTag(t)}
+            pressed={!memTag}
+            count={notes.length}
+            onClick={() => setMemTag("")}
           >
-            {t}
+            All
           </Chip>
-        ))}
+          {tags.map(([t, n]) => (
+            <Chip
+              key={t}
+              pressed={memTag === t}
+              count={n}
+              onClick={() => setMemTag(t)}
+            >
+              {t}
+            </Chip>
+          ))}
+        </div>
         <Search
           value={memQ}
           onChange={setMemQ}
@@ -887,43 +919,6 @@ export function AgentsScreen() {
             className="scroll-inner nx-scroll cn-wrap cn-screen-abs ag-scroll"
           >
             <div className="ag-page">
-              <header className="ag-hero nx-swap">
-                <span className="ag-eyebrow">Your team</span>
-                <h1 className="px-display ag-h1">Agents</h1>
-                <span className="ag-hero-row">
-                  {overview.data ? (
-                    <span className="ag-pill" data-ag-status="">
-                      <i aria-hidden="true" />
-                      {statsLine(stats)}
-                    </span>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="ag-btn"
-                    aria-pressed={tab === "agents" && showGuide}
-                    data-ag-connect=""
-                    onClick={() => {
-                      setManualGuide(true);
-                      setTab("agents");
-                    }}
-                  >
-                    <FiPlus size={13} aria-hidden />
-                    Connect an agent
-                  </button>
-                  {tab === "tasks" && overview.data ? (
-                    <button
-                      type="button"
-                      className="ag-btn"
-                      data-ag-new-task-open=""
-                      onClick={() => setNewTask(true)}
-                    >
-                      <FiPlus size={13} aria-hidden />
-                      New task
-                    </button>
-                  ) : null}
-                </span>
-              </header>
-
               <div ref={sentinel} className="cn-sentinel" aria-hidden="true" />
               {toolbar ? (
                 <div

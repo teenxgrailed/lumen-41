@@ -73,3 +73,15 @@ export function TaskGlyph({
     </span>
   );
 }
+
+/** The glyph alone, no tile: a picker's choice or a button's face. */
+export function TaskGlyphBare({
+  iconKey,
+  size = 20,
+}: {
+  iconKey: TaskIconKey;
+  size?: number;
+}) {
+  const Icon = TASK_GLYPH[iconKey];
+  return <Icon size={size} aria-hidden="true" />;
+}

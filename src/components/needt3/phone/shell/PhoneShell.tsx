@@ -40,6 +40,7 @@ import { TileMenu } from "../menu/tiles/TileMenu";
 import { usePhoneCounts } from "../menu/usePhoneCounts";
 import { PhoneOverlays } from "../overlays/PhoneOverlays";
 import { PageSnapshot } from "./PageSnapshot";
+import { SheetStyleSync } from "./SheetStyleSync";
 import { useCoverActive } from "./cover";
 import {
   pageMotionCapture,
@@ -303,6 +304,7 @@ export function PhoneShell() {
 
   return (
     <>
+      <SheetStyleSync />
       {/* First in the frame: the composer morphs out of the first
           `[data-nva-pill]`, which is this bar's pill while it is the dock. */}
       {float ? (

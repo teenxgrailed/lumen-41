@@ -5,6 +5,7 @@ import { ActionToasts } from "@/components/needt/corner/ActionToasts";
 import { AppIconHost } from "../app-icon/AppIconHost";
 import { ComposerHost } from "../composer/Composer";
 import { CornerLayer } from "../corner/CornerLayer";
+import { FeedbackPromptHost } from "../feedback/FeedbackPromptHost";
 import { FocusHost } from "../focus/FocusHost";
 import { HabitPresenceHost } from "../habits/quit/HabitPresenceHost";
 import { NativePushHost } from "../push/NativePushHost";
@@ -34,6 +35,8 @@ export function PermanentHosts() {
       <SettingsSheet />
       {/* The app icon picker and its one-time popup, on both UIs. */}
       <AppIconHost />
+      {/* The occasional "how is Needt?" question; the server picks who and when. */}
+      <FeedbackPromptHost />
       {/* On the phone too: its snacks are the same notices, and nothing else
           on the phone draws them. */}
       <ActionToasts />

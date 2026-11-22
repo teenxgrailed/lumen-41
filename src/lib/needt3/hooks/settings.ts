@@ -19,6 +19,8 @@ export interface V3Settings {
   timeZone: string;
   weekStartDay: string;
   timeFormat: string;
+  /** The occasional "how is Needt?" prompt; on unless turned off. */
+  feedbackPrompts: boolean;
   /** UI-only keys: sidebarTiles, docsSort, boardsSort, accent, … */
   prefs: Record<string, unknown>;
   /** When the settings row was made (read-only): the account's age. */
@@ -42,6 +44,7 @@ export function useSettings() {
         timeZone: row.timeZone || browserTimeZone(),
         weekStartDay: row.weekStartDay ?? "monday",
         timeFormat: row.timeFormat ?? "24h",
+        feedbackPrompts: row.feedbackPrompts !== false,
         prefs:
           row.prefs && typeof row.prefs === "object"
             ? (row.prefs as Record<string, unknown>)
@@ -156,4 +159,23 @@ export function useSetPrefs() {
     serialByKey("user-settings-prefs", () =>
       update.mutateAsync({ prefs: patch })
     );
+}
+
+/**
+ * The "Ask me for feedback" switch (`UserSettings.feedbackPrompts`, on by
+ * default). Off until the settings have loaded, so it never shows a default
+ * and then flips a stored value.
+ */
+export function useFeedbackPromptsSwitch() {
+  const settings = useSettings();
+  const update = useUpdateSettings();
+  return {
+    on: settings.data?.feedbackPrompts ?? true,
+    disabled: !settings.data,
+    set: (feedbackPrompts: boolean) =>
+      update.mutateAsync({ feedbackPrompts }).then(
+        () => true,
+        () => false
+      ),
+  };
 }
