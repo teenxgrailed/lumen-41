@@ -63,7 +63,7 @@ export interface NvaGeom {
   S0: number;
   /** The pill's end (hairline + dot grid box) from the pill's right edge. */
   BE: number;
-  /** Centre-to-centre distance of two pill slots (54; the floating bar's slot + gap). */
+  /** Centre-to-centre distance of two pill slots (54; the floating bar's mean pitch). */
   SP: number;
   /** The floating bar is the dock: the pill is its pill (`nvaFloatPill`). */
   float: boolean;
@@ -72,30 +72,46 @@ export interface NvaGeom {
 }
 
 /**
- * The floating bar's pill (FloatBar.tsx, bottom-bar-float.css), so the card
- * grows out of, and shrinks back into, the pill that is on screen: five
- * slots of `min(48, (fw - 40) / 5.6)` px (never under 36), 4 px apart, 6 px
- * padding. The CSS computes the same slot from 100vw: the phone frame is the
- * viewport.
+ * The floating bar's capsule (FloatBar.tsx, bottom-bar-float.css), so the card
+ * grows out of, and shrinks back into, the capsule that is on screen: five
+ * round slots of `min(44, (fw - 80) / 6.7)` px (never under 36), 8 px apart,
+ * 8 px padding, and the ink pill's extra 1.7 slots of width on the one you
+ * are in (the box is the same whichever it is on). The CSS computes the same
+ * slot from 100vw: the phone frame is the viewport.
  */
-export const NVA_FLOAT = { slotMax: 48, slotMin: 36, gap: 4, pad: 6 } as const;
+export const NVA_FLOAT = {
+  slotMax: 44,
+  slotMin: 36,
+  gap: 8,
+  pad: 8,
+  extra: 1.7,
+  /** (fw - this) / this.sum is the slot: 2 pads, 4 gaps, 16 px each side. */
+  margin: 80,
+  sum: 6.7,
+} as const;
 export const NVA_FLOAT_SLOTS = 5;
 
 export function nvaFloatSlot(fw: number): number {
   return Math.max(
     NVA_FLOAT.slotMin,
-    Math.min(NVA_FLOAT.slotMax, (fw - 40) / 5.6)
+    Math.min(NVA_FLOAT.slotMax, (fw - NVA_FLOAT.margin) / NVA_FLOAT.sum)
   );
 }
 
 export function nvaFloatPill(fw: number) {
   const slot = nvaFloatSlot(fw);
-  const { gap, pad } = NVA_FLOAT;
+  const { gap, pad, extra } = NVA_FLOAT;
+  const PW =
+    NVA_FLOAT_SLOTS * slot +
+    (NVA_FLOAT_SLOTS - 1) * gap +
+    2 * pad +
+    extra * slot;
   return {
-    PW: NVA_FLOAT_SLOTS * slot + (NVA_FLOAT_SLOTS - 1) * gap + 2 * pad,
+    PW,
     PH: slot + 2 * pad,
     S0: pad + slot / 2,
-    SP: slot + gap,
+    // the ink pill moves the slots after it, so the pitch is the mean one
+    SP: (PW - 2 * pad - slot) / (NVA_FLOAT_SLOTS - 1),
     // the dot grid is the last slot: menu A's 60 px end box centred on it
     BE: pad + slot / 2 + 30,
   };
