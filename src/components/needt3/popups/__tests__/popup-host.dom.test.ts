@@ -164,3 +164,20 @@ it("does not ask for another popup while one is waiting", async () => {
   });
   expect(asks()).toBe(1);
 });
+
+it("never asks for a popup in an automated browser (e2e, visual runs)", async () => {
+  Object.defineProperty(navigator, "webdriver", {
+    value: true,
+    configurable: true,
+  });
+  try {
+    await firstCheck();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(host.querySelector("[data-popup-card]")).toBeNull();
+  } finally {
+    Object.defineProperty(navigator, "webdriver", {
+      value: false,
+      configurable: true,
+    });
+  }
+});

@@ -128,6 +128,9 @@ export function PopupHost() {
 
   const check = useCallback(
     async (limit: PopupLimit | null) => {
+      // Automated browsers (e2e, visual baselines) never get a popup, like
+      // the feedback prompt and the app-icon nudge.
+      if (typeof navigator !== "undefined" && navigator.webdriver) return false;
       if (busy.current || pendingRef.current || !canShowPopup()) return false;
       busy.current = true;
       try {

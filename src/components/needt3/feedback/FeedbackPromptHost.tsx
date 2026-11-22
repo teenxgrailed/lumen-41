@@ -16,18 +16,24 @@ import {
 } from "@/lib/feedback/prompt";
 import { logger } from "@/lib/logger";
 import { isIosApp } from "@/lib/native";
-import { canRequestNativeReview } from "@/lib/native-store";
-import { notify } from "@/lib/notifications";
+import {
+  canRequestNativeReview,
+  requestNativeReview,
+} from "@/lib/native-store";
 import { getAppVersion } from "@/lib/version";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
-import { Sheet } from "../ctx/Sheet";
 import { usePaywallStore } from "../paywall";
-import { PkSheet } from "../phone/kit";
+import {
+  FeedbackPopup,
+  PRODUCT_HUNT_LABEL,
+  type FeedbackAnswer as PopupAnswer,
+  type FeedbackKind as PopupKind,
+  type ReviewRoute,
+} from "../popups";
 import { usePopupSlot } from "../popups/use-popup-slot";
 import { usePhoneUi } from "../root/phone-ui-context";
-import { FeedbackBody, type FeedbackStep } from "./FeedbackBody";
 import { useFeedbackPrompt } from "./use-feedback-prompt";
 
 const LOG_SOURCE = "FeedbackPromptHost";
@@ -51,7 +57,7 @@ function otherDialogOpen(): boolean {
     '[role="dialog"], [role="alertdialog"], [aria-modal="true"]'
   );
   for (const dialog of Array.from(dialogs)) {
-    if (dialog.querySelector("[data-feedback-prompt]")) continue;
+    if (dialog.querySelector('[data-pp^="feedback"]')) continue;
     if (dialog.closest("[aria-hidden='true']")) continue;
     if (dialog.getClientRects().length === 0) continue;
     if (getComputedStyle(dialog).visibility === "hidden") continue;
@@ -94,7 +100,8 @@ export function FeedbackPromptHost() {
   const paywall = usePaywallStore((s) => s.open);
   const blocked = storeBlocked || paywall || quietRoute(pathname);
 
-  const [step, setStep] = useState<FeedbackStep>("ask");
+  // Set once an answer is saved: closing after that is "done", not a dismissal.
+  const answered = useRef(false);
   const { prompt, setPrompt, fetchPrompt, send, dismiss } = useFeedbackPrompt();
   const asked = useRef(false);
   // The shared popup coordinator: one popup per session and per 3 days across
@@ -142,7 +149,7 @@ export function FeedbackPromptHost() {
           markPromptedThisSession(safeSession());
           // The server already wrote the show; this marks the session.
           void slot.claim(offered.id);
-          setStep("ask");
+          answered.current = false;
         });
       };
       if (typeof window.requestIdleCallback === "function")
@@ -159,21 +166,28 @@ export function FeedbackPromptHost() {
   const close = useCallback(() => setPrompt(null), [setPrompt]);
   const onClose = useCallback(() => {
     // Closing before an answer is a dismissal; after one it is just done.
-    if (prompt && step === "ask") void dismiss(prompt.id);
+    if (prompt && !answered.current) void dismiss(prompt.id);
     close();
-  }, [prompt, step, dismiss, close]);
+  }, [prompt, dismiss, close]);
 
-  const onSend = useCallback(
-    async (answer: { rating?: number; score?: number; text?: string }) => {
+  // A rejection keeps the answer on screen with a retry line (FeedbackPopup).
+  const onSubmit = useCallback(
+    async (answer: PopupAnswer) => {
       if (!prompt) return;
-      const result = await send(prompt.id, answer);
+      const result = await send(prompt.id, {
+        ...(answer.kind === "rating" && answer.score !== undefined
+          ? { rating: answer.score }
+          : {}),
+        ...(answer.kind === "nps" && answer.score !== undefined
+          ? { score: answer.score }
+          : {}),
+        ...(answer.text ? { text: answer.text } : {}),
+      });
       if (!result.ok) {
-        notify.error("Could not send that. Try again in a moment.");
         logger.warn("Feedback answer not saved", {}, LOG_SOURCE);
-        return;
+        throw new Error("feedback not saved");
       }
-      // No place to send a review from here: skip the step, never promise one.
-      setStep(result.review && channelNow() ? "review" : "thanks");
+      answered.current = true;
     },
     [prompt, send]
   );
@@ -181,42 +195,31 @@ export function FeedbackPromptHost() {
   const open = !!prompt && !blocked && !domBlocked;
   if (!prompt) return null;
 
-  const body = (
-    <FeedbackBody
-      kind={prompt.kind}
-      step={step}
-      phone={phone}
-      channel={channelNow()}
-      onSend={onSend}
-      onSkip={onClose}
-      onDone={close}
-    />
-  );
+  const channel = channelNow();
+  const route: ReviewRoute | null =
+    channel?.kind === "native"
+      ? { kind: "native" }
+      : channel?.kind === "link"
+        ? { kind: "link", href: channel.url, label: PRODUCT_HUNT_LABEL }
+        : null;
 
-  if (phone)
-    return (
-      <PkSheet
-        open={open}
-        onClose={onClose}
-        title="Feedback"
-        label="Feedback"
-        keyboard
-        className="fbk-phone-sheet"
-      >
-        {body}
-      </PkSheet>
-    );
   return (
-    <Sheet
+    <FeedbackPopup
       open={open}
       onClose={onClose}
-      title="Feedback"
-      scrimClassName="base-scrim nx-scrim"
-      className="base-sheet nx-sheet fbk-sheet"
-    >
-      {body}
-    </Sheet>
+      kind={popupKind(prompt.kind)}
+      onSubmit={onSubmit}
+      review={route}
+      onNativeReview={() => void requestNativeReview()}
+    />
   );
+}
+
+/** The server names the open questions idea and annoyance; the popup, wish and friction. */
+function popupKind(kind: string): PopupKind {
+  if (kind === "idea") return "wish";
+  if (kind === "annoyance") return "friction";
+  return kind === "nps" ? "nps" : "rating";
 }
 
 function channelNow() {
