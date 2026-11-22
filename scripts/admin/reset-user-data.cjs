@@ -124,6 +124,10 @@ function buildPlan(userId, workspaceId) {
     ["AiUsage", "aiUsage", uid],
     ["MorningBrief", "morningBrief", uid],
     ["FeedbackPrompt", "feedbackPrompt", uid],
+    // In-app popups: which announcements and plan moments this person saw.
+    // The Announcement rows themselves are admin content, not the user's.
+    ["AnnouncementView", "announcementView", uid],
+    ["PopupMomentView", "popupMomentView", uid],
     ["StarterGameState", "starterGameState", uid],
     ["AiPageChangeProposal", "aiPageChangeProposal", any(uid, { page: G })],
     ["AISettings", "aISettings", uid],

@@ -47,17 +47,25 @@ beforeEach(() => {
   } as never);
 });
 
+/**
+ * A JWT-shaped token signed with some other key, built at runtime so the
+ * source holds no token-shaped literal. Its payload claims an admin.
+ */
+function foreignJwt(): string {
+  const part = (value: object) =>
+    Buffer.from(JSON.stringify(value)).toString("base64url");
+  return [
+    part({ alg: "HS256" }),
+    part({ sub: "admin-1", role: "admin" }),
+    Buffer.from("not-a-real-signature").toString("base64url"),
+  ].join(".");
+}
+
 describe("publish route refuses API and MCP tokens", () => {
   it.each([
-    [
-      "a personal needt_ token",
-      "Bearer needt_0123456789abcdef0123456789abcdef",
-    ],
+    ["a personal needt_ token", `Bearer needt_${"0".repeat(32)}`],
     ["an OAuth access token", "Bearer nat_oauth.access.token-value"],
-    [
-      "a JWT signed with another key",
-      "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbi0xIiwicm9sZSI6ImFkbWluIn0.c2ln",
-    ],
+    ["a JWT signed with another key", `Bearer ${foreignJwt()}`],
   ])("answers 401 to %s and publishes nothing", async (_label, header) => {
     const response = await publishWith(header);
     expect([401, 403]).toContain(response.status);
