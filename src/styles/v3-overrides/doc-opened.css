@@ -1246,3 +1246,119 @@
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* live table: a table Claude (or the API) builds row by row. Same ring, cells
+   and header as the page's own table; the bar above holds the title and the
+   .xlsx export. New rows rise in on the 0.42s settle, 55ms apart (PORT §6). */
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table {
+  margin: 4px 0;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-ring);
+  overflow: hidden;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table[data-selected] {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-action {
+  flex: none;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font: var(--type-meta);
+  color: var(--text-secondary);
+  cursor: default;
+  transition: background 0.15s, color 0.15s;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-action:hover {
+  background: var(--fill-2);
+  color: var(--text-primary);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-action:disabled {
+  color: var(--text-tertiary);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-scroll {
+  overflow-x: auto;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table table {
+  width: 100%;
+  margin: 0;
+  table-layout: auto;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table :is(th, td) {
+  min-width: 96px;
+  vertical-align: middle;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table td {
+  padding: 0;
+  color: var(--text-primary);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table td > :is(span, a) {
+  display: block;
+  padding: 7px 10px;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table :is(th, td)[data-type="number"] {
+  text-align: right;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table :is(th, td)[data-type="checkbox"] {
+  width: 1%;
+  text-align: center;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  font: var(--type-ui);
+  color: var(--text-primary);
+  text-align: inherit;
+  outline: none;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-input:focus {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-picker {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 0;
+  font: var(--type-ui);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-check {
+  accent-color: var(--accent);
+  margin: 0 10px;
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table-empty {
+  padding: 12px;
+  font: var(--type-ui);
+  color: var(--text-tertiary);
+}
+.needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table [data-arriving] {
+  animation: v3-needt-rise 0.42s cubic-bezier(0.2, 0.9, 0.24, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 [data-doc-sheet] .needt-page-editor .needt-live-table [data-arriving] {
+    animation: none;
+  }
+}

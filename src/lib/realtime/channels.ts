@@ -3,7 +3,8 @@ export type RealtimeEventType =
   | "tasks-updated"
   | "docs-updated"
   | "schedule-run-updated"
-  | "focus-ended";
+  | "focus-ended"
+  | "tables-updated";
 
 export interface RealtimeEvent {
   type: RealtimeEventType;
