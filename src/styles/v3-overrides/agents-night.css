@@ -69,7 +69,7 @@
 .needt-v3 .ag-page {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 64px 32px 96px;
+  padding: 24px 32px 96px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -79,69 +79,6 @@
   max-width: 1400px;
 }
 
-/* Hero */
-.needt-v3 .ag-hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 0;
-}
-.needt-v3 .ag-hero > * {
-  flex-shrink: 0;
-}
-.needt-v3 .ag-eyebrow {
-  font: 500 12px/1 var(--font-sans);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-.needt-v3 .ag-h1.px-display {
-  margin: 14px 0 12px;
-  font-size: 116px;
-  line-height: 1.02;
-  padding-bottom: 4px;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-}
-.needt-v3 .ag-sub {
-  max-width: 36ch;
-  font: 400 16px/23px var(--font-sans);
-  color: var(--text-tertiary);
-  text-wrap: balance;
-}
-.needt-v3 .ag-hero-row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  margin-top: 18px;
-  min-height: 30px;
-}
-.needt-v3 .ag-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 14px;
-  border-radius: 15px;
-  background: var(--fill-6);
-  box-shadow: var(--fill-5) 0 0 0 1px;
-  font: 400 13px/1 var(--font-sans);
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-.needt-v3 .ag-pill i {
-  width: 7px;
-  height: 7px;
-  border-radius: 4px;
-  background: rgb(92, 140, 255);
-  animation: ag-dot 5.2s ease-in-out infinite;
-}
-.needt-v3 .ag-pill.is-none {
-  color: var(--text-tertiary);
-}
 @keyframes ag-dot {
   0%,
   100% {
@@ -185,7 +122,7 @@
 
 /* Tabs pill + sticky bar */
 .needt-v3 .ag-page .cn-sentinel {
-  margin-top: 40px;
+  margin-top: 0;
   margin-bottom: 0;
 }
 .needt-v3 .ag-sticky {
@@ -288,12 +225,18 @@
   background: var(--fill-6);
   color: var(--text-primary);
 }
+.needt-v3 .ag-chips {
+  display: contents;
+}
+.needt-v3 .ag-bar > .ag-btn {
+  margin-left: auto;
+}
 /* The agent filter: one chip per agent, in the bar's own row. */
 .needt-v3 .ag-bar-agents {
   display: contents;
 }
 .needt-v3 .cn-search.ag-search {
-  width: 240px;
+  width: 200px;
   height: 30px;
 }
 .needt-v3 .cn-search.ag-search input {
@@ -1407,7 +1350,6 @@
   outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .needt-v3 .ag-pill i,
   .needt-v3 .ag-map-live i,
   .needt-v3 .ag-dotc.is-live,
   .needt-v3 .ag-tabpanel,
@@ -1439,17 +1381,10 @@
    keep only the title and the time, one pane of Messages at a time. */
 @container ag (max-width: 760px) {
   .needt-v3 .ag-page {
-    padding: 48px 12px 80px;
-  }
-  .needt-v3 .ag-h1.px-display {
-    font-size: 64px;
-  }
-  .needt-v3 .ag-sub {
-    font-size: 15px;
-    line-height: 21px;
+    padding: 14px 12px 80px;
   }
   .needt-v3 .ag-page .cn-sentinel {
-    margin-top: 24px;
+    margin-top: 0;
   }
   .needt-v3 .ag-sticky {
     position: static;
@@ -1464,10 +1399,60 @@
     height: 32px;
     padding: 0 12px;
   }
+  /* The filters are one scrolling row with no box; the search and the one
+     action share the row under it. */
+  .needt-v3 .ag-bar {
+    padding: 0;
+    gap: 8px;
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .needt-v3 .ag-chips {
+    display: flex;
+    flex: 0 0 calc(100% + 24px);
+    gap: 4px;
+    margin: 0 -12px;
+    padding: 0 12px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      transparent,
+      #000 12px,
+      #000 calc(100% - 20px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      90deg,
+      transparent,
+      #000 12px,
+      #000 calc(100% - 20px),
+      transparent
+    );
+  }
+  .needt-v3 .ag-chips::-webkit-scrollbar {
+    display: none;
+  }
+  .needt-v3 .ag-chips .ag-chip,
+  .needt-v3 .ag-bar-agents .ag-chip {
+    flex: none;
+    white-space: nowrap;
+  }
+  .needt-v3 .ag-bar-agents {
+    display: flex;
+    gap: 4px;
+  }
   .needt-v3 .cn-search.ag-search {
-    width: 100%;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
     margin-left: 0;
-    order: 9;
+  }
+  .needt-v3 .ag-bar > .ag-btn {
+    flex: none;
+    margin-left: 0;
   }
   .needt-v3 .ag-grid {
     grid-template-columns: minmax(0, 1fr);

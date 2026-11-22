@@ -402,7 +402,7 @@ describe("Agents screen", () => {
     expect(
       host.querySelector('[data-ag-card="a4"]')?.getAttribute("data-ag-state")
     ).toBe("offline");
-    expect(host.querySelector("h1")?.textContent).toBe("Agents");
+    expect(host.querySelector("h1")).toBeNull();
     expect(host.querySelector("[data-ag-new-agent]")).not.toBeNull();
     expect(
       host.querySelector('[data-ag-card="a2"]')?.getAttribute("data-ag-state")
@@ -463,6 +463,27 @@ describe("Agents screen", () => {
     await mount(`tab=${id}`);
     expect(selected()).toBe(id);
     expect(host.querySelector(selector)).not.toBeNull();
+  });
+
+  it("has no hero on the working tabs; the actions sit in the filter bar", async () => {
+    for (const id of ["agents", "tasks", "activity", "memory"]) {
+      await mount(`tab=${id}`);
+      expect(host.querySelector(".ag-hero")).toBeNull();
+      expect(host.querySelector(".ag-h1")).toBeNull();
+      expect(host.querySelector("[data-ag-status]")).toBeNull();
+      expect(
+        host.querySelector(`[data-ag-bar="${id}"] .ag-chips`)
+      ).not.toBeNull();
+      expect(
+        host.querySelector(`[data-ag-bar="${id}"] [data-ag-connect]`) !== null
+      ).toBe(id === "agents");
+      expect(
+        host.querySelector(`[data-ag-bar="${id}"] [data-ag-new-task-open]`) !==
+          null
+      ).toBe(id === "tasks");
+      act(() => root.unmount());
+      root = createRoot(host);
+    }
   });
 
   it("moves between tabs with the arrow keys", async () => {
@@ -762,7 +783,8 @@ describe("Agents screen: loading, error and older items", () => {
       failing = false;
       await click(host.querySelector("[data-st-retry]"));
       expect(host.querySelector("[data-ag-error]")).toBeNull();
-      expect(host.querySelector("[data-ag-status]")).not.toBeNull();
+      if (id === "map")
+        expect(host.querySelector("[data-ag-status]")).not.toBeNull();
       act(() => root.unmount());
       root = createRoot(host);
     }
