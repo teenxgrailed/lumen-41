@@ -1,8 +1,9 @@
 import { type Page, expect, test } from "@playwright/test";
 
+import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
-import { VISUAL_TEST_EMAIL, VISUAL_TEST_NOW } from "./fixtures";
+import { VISUAL_TEST_EMAIL } from "./fixtures";
 import { signInVisualUser } from "./helpers";
 
 /*
@@ -20,6 +21,9 @@ test.use({
 test.beforeEach(({}, info) => {
   test.skip(info.project.name !== "mobile", "390-px phone shots run once");
 });
+
+const serverDay = () =>
+  formatInTimeZone(newDate(), "Europe/Zurich", "yyyy-MM-dd");
 
 test.afterEach(async () => {
   // later specs read the visual user's projects; leave none behind
@@ -59,31 +63,33 @@ async function seed() {
       isAutoScheduled: false,
       estimatedMinutes: 45,
       duration: 45,
-      dueDate: new Date("2026-07-16T00:00:00+02:00"),
+      dueDate: new Date(`${serverDay()}T00:00:00.000Z`),
     },
   });
 }
 
 async function open(page: Page, theme: "dark" | "light") {
-  await page.clock.setFixedTime(new Date(VISUAL_TEST_NOW));
-  await page.route("**/api/day-plan**", (route) =>
-    route.fulfill({
-      status: 404,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "disabled" }),
-    })
-  );
   await page.addInitScript(() => {
     localStorage.setItem("needt:quick-tip:last-shown-at", "9999999999999");
     localStorage.setItem("needt-visit-count", "0");
   });
   await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
   await signInVisualUser(page);
+  // The day plan is drawn for the server's day, so the screen must read the
+  // same day: the frozen clock of the other specs is left off here. Only the
+  // sheet is shot, so no date reaches a baseline.
+  for (const screen of ["today", "calendar", "workspace", "docs"]) {
+    await page.unroute(`**/api/needt/${screen}`);
+  }
   await seed();
   const res = await page.request.patch("/api/user-settings", {
     data: { theme },
   });
   expect(res.ok()).toBeTruthy();
+  const draft = await page.request.post("/api/day-plan/draft", {
+    data: { date: serverDay() },
+  });
+  expect(draft.ok()).toBe(true);
   await page.goto("/today");
   await page.addStyleTag({
     content:
@@ -97,24 +103,22 @@ async function open(page: Page, theme: "dark" | "light") {
 for (const theme of ["dark", "light"] as const) {
   test(`Task icon, ${theme}`, async ({ page }) => {
     await open(page, theme);
-    await page.getByText(TITLE).first().waitFor({ timeout: 30_000 });
-    await page.waitForTimeout(400);
-    await expect(page).toHaveScreenshot(`home-icons-390-${theme}.png`, {
-      animations: "disabled",
-    });
-
-    await page.getByText(TITLE).first().click();
+    await page.locator("[data-day-plan]").waitFor({ timeout: 60_000 });
+    await page.locator("[data-day-plan]").getByText(TITLE).first().click();
     const sheet = page.locator('[data-pov-task="visual-icon-task"]');
     await expect(sheet).toBeVisible({ timeout: 20_000 });
     await page.waitForTimeout(500);
-    await expect(page).toHaveScreenshot(`task-sheet-icon-390-${theme}.png`, {
-      animations: "disabled",
-    });
+    await expect(page.locator(".pov-task").first()).toHaveScreenshot(
+      `task-sheet-icon-390-${theme}.png`,
+      {
+        animations: "disabled",
+      }
+    );
 
     await sheet.locator("[data-pov-icon]").click();
     await expect(sheet.locator("[data-pov-pick='icon']")).toBeVisible();
     await page.waitForTimeout(300);
-    await expect(page).toHaveScreenshot(
+    await expect(page.locator(".pov-task").first()).toHaveScreenshot(
       `task-sheet-icon-picker-390-${theme}.png`,
       { animations: "disabled" }
     );
