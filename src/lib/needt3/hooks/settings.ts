@@ -26,6 +26,8 @@ export interface V3Settings {
   easyStartMode: "auto" | "suggest" | "off";
   /** Projects whose tasks easy start never touches. */
   easyStartExcludedProjectIds: string[];
+  /** The occasional "how is Needt?" prompt; on unless turned off. */
+  feedbackPrompts: boolean;
   /** UI-only keys: sidebarTiles, docsSort, boardsSort, accent, … */
   prefs: Record<string, unknown>;
   /** When the settings row was made (read-only): the account's age. */
@@ -60,6 +62,7 @@ export function useSettings() {
               (id): id is string => typeof id === "string"
             )
           : [],
+        feedbackPrompts: row.feedbackPrompts !== false,
         prefs:
           row.prefs && typeof row.prefs === "object"
             ? (row.prefs as Record<string, unknown>)
@@ -210,3 +213,22 @@ export const EASY_START_MODES = [
 
 export const EASY_START_HELP =
   "New tasks get an easy first step and a task that keeps slipping is made smaller. Automatic changes can be undone; Suggest asks first.";
+
+/**
+ * The "Ask me for feedback" switch (`UserSettings.feedbackPrompts`, on by
+ * default). Off until the settings have loaded, so it never shows a default
+ * and then flips a stored value.
+ */
+export function useFeedbackPromptsSwitch() {
+  const settings = useSettings();
+  const update = useUpdateSettings();
+  return {
+    on: settings.data?.feedbackPrompts ?? true,
+    disabled: !settings.data,
+    set: (feedbackPrompts: boolean) =>
+      update.mutateAsync({ feedbackPrompts }).then(
+        () => true,
+        () => false
+      ),
+  };
+}

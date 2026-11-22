@@ -85,6 +85,8 @@ export const userSettingsV3FieldsSchema = z.object({
     .array(z.string().min(1).max(64))
     .max(200)
     .optional(),
+  // The occasional feedback prompt: on or off (src/services/feedback).
+  feedbackPrompts: z.boolean().optional(),
   // `prefs.taskView` is the one task-list view setting (task-view.ts); when
   // present it must be a valid one, so a bad write is a 400, not a stored typo
   // A patch: the server merges it into the stored map, and a key sent as

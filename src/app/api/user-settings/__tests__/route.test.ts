@@ -91,6 +91,14 @@ describe("PATCH /api/user-settings prefs", () => {
     expect(upsert.mock.calls[0][0].update).toEqual({ theme: "light" });
   });
 
+  it("saves the feedback-prompt switch as a boolean and refuses anything else", async () => {
+    expect((await patch({ feedbackPrompts: false })).status).toBe(200);
+    expect(upsert.mock.calls[0][0].update).toEqual({ feedbackPrompts: false });
+    upsert.mockClear();
+    expect((await patch({ feedbackPrompts: "off" })).status).toBe(400);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
   it("a merge past the size or key cap writes nothing and answers 413", async () => {
     raw.mockResolvedValueOnce(0);
     const res = await patch({ theme: "dark", prefs: { big: "x" } });
@@ -158,5 +166,24 @@ describe("PATCH /api/user-settings prefs", () => {
   it("accepts null for a checked key (removal), still rejects a bad value", async () => {
     expect((await patch({ prefs: { taskView: null } })).status).toBe(200);
     expect((await patch({ prefs: { taskView: "nonsense" } })).status).toBe(400);
+  });
+});
+
+describe("PATCH /api/user-settings prefs.sheetStyle", () => {
+  it.each(["popup", "classic", "white"])("stores %s", async (value) => {
+    const res = await patch({ prefs: { sheetStyle: value } });
+    expect(res.status).toBe(200);
+    expect(raw).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(raw.mock.calls[0])).toContain(value);
+  });
+  it("refuses a value that is not one of the three, writing nothing", async () => {
+    const res = await patch({ prefs: { sheetStyle: "glass" } });
+    expect(res.status).toBe(400);
+    expect(raw).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+  it("lets the key be removed (back to the default)", async () => {
+    const res = await patch({ prefs: { sheetStyle: null } });
+    expect(res.status).toBe(200);
   });
 });

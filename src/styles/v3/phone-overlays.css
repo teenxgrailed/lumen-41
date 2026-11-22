@@ -34,6 +34,8 @@
 .needt-v3 .pov-task-body { padding-top: 4px; }
 .needt-v3 .pov-title-row { display: flex; align-items: flex-start; gap: 12px; padding: 6px 0 10px; }
 .needt-v3 .pov-title-row > .pov-ring { margin-top: 5px; }
+/* The task icon beside the title: the project colour at low alpha on the fill, never the accent. */
+.needt-v3 .pov-title-row > .pov-icon-btn.is-sheet { width: 36px; height: 36px; margin-top: 0; border-radius: 12px; color: var(--hue, var(--v2p-ink-2)); background: color-mix(in oklab, var(--hue, var(--v2p-ink)) 16%, var(--pov-fill)); }
 .needt-v3 .pov-title { flex: 1; min-width: 0; padding: 0; }
 .needt-v3 .pov-task .pov-title .pk-field-input { min-height: 0; padding: 0; border-radius: 0; background: transparent; font: 600 26px/32px var(--font-sans); letter-spacing: -0.035em; }
 .needt-v3 .pov-task .pov-title .pk-field-input:focus { box-shadow: none; }

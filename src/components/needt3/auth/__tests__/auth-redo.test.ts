@@ -32,11 +32,14 @@ describe("plan choice", () => {
 });
 
 describe("the arrival state", () => {
-  it("has no plan without ?plan, and draws the unwired providers", () => {
+  it("has no plan without ?plan, and draws only wired providers", () => {
     expect(authRedoFromSearch("")).toMatchObject({
       plan: null,
-      preview: true,
+      preview: false,
     });
+  });
+  it("draws the unwired providers only for ?providers=preview", () => {
+    expect(authRedoFromSearch("?providers=preview").preview).toBe(true);
   });
   it("carries the plan that rode along", () => {
     expect(authRedoFromSearch("?plan=pro-year").plan?.id).toBe("pro-year");

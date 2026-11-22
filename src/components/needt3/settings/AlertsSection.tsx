@@ -6,6 +6,7 @@ import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 import { useEveningPushSwitch } from "@/lib/needt3/hooks/habit-evening";
 import { useHabits, useUpdateHabit } from "@/lib/needt3/hooks/habits";
 import { useFreshQuitGate } from "@/lib/needt3/hooks/habits-quit";
+import { useFeedbackPromptsSwitch } from "@/lib/needt3/hooks/settings";
 
 import { EmailGroup } from "./EmailGroup";
 import { PushGroup } from "./PushGroup";
@@ -29,6 +30,7 @@ export function AlertsSection() {
   const mark = useMark();
   const alerts = useAlerts();
   const update = useUpdateAlerts();
+  const feedback = useFeedbackPromptsSwitch();
   const a = alerts.data;
   const save = (patch: Parameters<typeof update.mutateAsync>[0]) =>
     void update.mutateAsync(patch).then(mark);
@@ -73,6 +75,21 @@ export function AlertsSection() {
         {toggle("In the app", "channelInApp")}
         {toggle("Push", "channelPush")}
         {isMacApp() ? toggle("Mac notifications", "channelMac") : null}
+      </SGroup>
+      <SGroup
+        title="Feedback"
+        hint="Now and then, one short question about Needt. At most once every two weeks."
+      >
+        <SRow title="Ask me for feedback">
+          <V3Switch
+            label="Ask me for feedback"
+            checked={feedback.on}
+            disabled={feedback.disabled}
+            onChange={(v) =>
+              void feedback.set(v).then((saved) => saved && mark())
+            }
+          />
+        </SRow>
       </SGroup>
       <SGroup
         title="Quiet hours"

@@ -1,0 +1,1 @@
+- Today on the phone brings back Spread and Move to today: with the day plan drawn, a line under it counts the overdue tasks and offers both (Spread gives each task the next day with room this week, Move to today puts them all on today; one Undo for either). Both stay reachable through the API (`POST /api/tasks/spread`, `needt_reschedule`).

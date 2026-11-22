@@ -123,6 +123,7 @@ function buildPlan(userId, workspaceId) {
     ["HubAgent", "hubAgent", wsOnly],
     ["AiUsage", "aiUsage", uid],
     ["MorningBrief", "morningBrief", uid],
+    ["FeedbackPrompt", "feedbackPrompt", uid],
     ["StarterGameState", "starterGameState", uid],
     ["AiPageChangeProposal", "aiPageChangeProposal", any(uid, { page: G })],
     ["AISettings", "aISettings", uid],

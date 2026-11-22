@@ -1,0 +1,73 @@
+/* Phone sheet looks (PR 7, 22.11.26). The account picks one in Settings →
+   Appearance (`prefs.sheetStyle`); the phone frame wears it as
+   `data-sheet-style`. No attribute yet = the default, the pop-up.
+
+   - pop-up (default): a card clear of the screen edges, rounded all round,
+     solid, in the frame's own theme (dark on dark). It rises and fades on a
+     plain ease: transform and opacity only, no spring, no clip-path.
+   - classic: the frosted sheet docked to the bottom edge (phone-kit.css).
+   - white: the classic sheet on a white plate in either theme (`.paper`).
+
+   The pop-up leaves out the sheets that are the whole screen (focus), the
+   transparent home-actions sheet and the settings pickers' own layer. */
+
+.needt-v3[data-ui="phone"]:not([data-sheet-style="classic"]):not(
+    [data-sheet-style="white"]
+  )
+  .pk-sheet:not(.pov-focus):not(:has(.fcg)) {
+  --pk-pop-gap: 10px;
+  left: var(--pk-pop-gap);
+  right: var(--pk-pop-gap);
+  bottom: calc(var(--pk-pop-gap) + var(--v3-sab, 0px) - var(--v3-edge, 0px));
+  padding-bottom: 0;
+  max-height: calc(92% - var(--v3-sab, 0px));
+  border-radius: 28px;
+  background: var(--v2p-card);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow:
+    var(--v2p-card-edge),
+    0 18px 48px -18px rgba(0, 0, 0, 0.55);
+}
+.needt-v3[data-ui="phone"]:not([data-sheet-style="classic"]):not(
+    [data-sheet-style="white"]
+  )
+  .pk-sheet-layer[data-pk-kb]
+  .pk-sheet:not(.pov-focus):not(:has(.fcg)) {
+  bottom: calc(var(--pk-kb, 0px) + var(--pk-pop-gap));
+  max-height: calc(100% - var(--pk-kb, 0px) - 24px);
+}
+.needt-v3[data-ui="phone"]:not([data-sheet-style="classic"]):not(
+    [data-sheet-style="white"]
+  )
+  .pk-sheet:not(.pov-focus):not(:has(.fcg))
+  .pk-sheet-foot {
+  padding-bottom: 16px;
+}
+
+/* The pop-up's own move: a plain ease on transform and opacity. */
+.needt-v3 .pk-sheet-layer.is-pop-anim .pk-sheet {
+  transition:
+    transform var(--pk-pop-ms, 280ms) cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity var(--pk-pop-ms, 280ms) ease-out;
+}
+.needt-v3 .pk-sheet-layer.is-dragging .pk-sheet {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .pk-sheet-layer.is-pop-anim .pk-sheet {
+    transition: none;
+  }
+}
+
+/* The white plate: light tokens whatever the frame wears. Menus that portal
+   out of the sheet and the keyboard follow the frame, not the plate. */
+.needt-v3[data-sheet-style="white"] .pk-sheet.paper:not(.pov-focus) {
+  background: #fcfcfa;
+  color: #121214;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.needt-v3[data-sheet-style="white"] .pk-sheet.paper :is(input, textarea) {
+  color-scheme: light;
+}

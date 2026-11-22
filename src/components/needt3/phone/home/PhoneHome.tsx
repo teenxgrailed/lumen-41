@@ -105,7 +105,12 @@ import {
   nowKicker,
   pickNow,
 } from "../../home/now";
-import { anytimeOpen, lateMovable, spreadLeads } from "../../home/spread";
+import {
+  anytimeOpen,
+  lateActions,
+  lateMovable,
+  spreadLeads,
+} from "../../home/spread";
 import { blockedMinutes, minutesAhead, timeLeft } from "../../home/timeleft";
 import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
@@ -424,7 +429,7 @@ export function PhoneHome({
   /** A task's own colour and icon for the textured Next plate. */
   const plateOf = (t: V3Task) => ({
     hue: projOf(t)?.color ?? null,
-    mark: <TaskGlyph title={t.title} size={22} />,
+    mark: <TaskGlyph title={t.title} icon={t.icon} size={22} />,
   });
   const row = (
     t: V3Task,
@@ -692,6 +697,19 @@ export function PhoneHome({
       </>
     ) : null;
   const hdr = planShown ? dayHeader(now, tz) : null;
+  // Overdue work sits behind "All tasks" while the plan is drawn: its two
+  // actions stay one tap away under the plan.
+  const lateAct = lateActions(v.sec.late, !!left?.over);
+  const planLate = lateAct
+    ? {
+        count: lateAct.count,
+        spreadFirst: lateAct.spreadFirst,
+        canSpread: lateAct.spreadIds.length > 0,
+        busy: spreader.busy,
+        onSpread: () => void spreader.spread(lateAct.spreadIds),
+        onMove: moveToToday,
+      }
+    : null;
 
   return (
     <PkScreen
@@ -725,6 +743,7 @@ export function PhoneHome({
           allOpen={fullList}
           onAll={() => setFullList((o) => !o)}
           onSomeday={() => setSomedayOpen(true)}
+          late={planLate}
         />
       ) : null}
       {ready ? (
