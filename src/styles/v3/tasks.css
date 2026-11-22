@@ -508,3 +508,36 @@
 .needt-v3 .tdc-check,
 .needt-v3 .tdc-icon-btn { transition: none; }
 }
+
+/* Easy start row (design exploration, local only; see task/easy-start-row.tsx).
+   One form-row geometry: every pill and button is 20px tall, radius 6, padding
+   0 7px, 12px type. Greys are the text ladder; the accent is only a mark. */
+.needt-v3 .esr { flex: 1 1 auto; min-width: 0; display: flex; }
+.needt-v3 .esr-col { flex-direction: column; gap: 2px; }
+.needt-v3 .esr-line { align-items: center; gap: 8px; }
+.needt-v3 .esr-grow { flex: 1 1 auto; min-width: 0; }
+.needt-v3 .esr-col > .tk-desk-title, .needt-v3 .esr-col > .tk-touch-title { display: block; }
+.needt-v3 .esr-sub { display: flex; align-items: center; gap: 8px; min-width: 0; font: var(--type-meta); color: var(--text-tertiary); }
+.needt-v3 .esr-sub-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .esr-crumb { flex: none; max-width: 120px; height: 20px; padding: 0 7px; border-radius: 6px; background: var(--fill-3); color: var(--text-secondary);
+  font: var(--type-meta); line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needt-v3 .esr-undo, .needt-v3 .esr-suggest, .needt-v3 .esr-start { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px;
+  border: 0; border-radius: 6px; background: var(--fill-3); color: var(--text-secondary); font: var(--type-meta-medium); white-space: nowrap; cursor: pointer; }
+.needt-v3 .esr-undo { background: transparent; padding: 0 4px; margin: 0 -4px 0 0; }
+.needt-v3 .esr-undo:hover, .needt-v3 .esr-suggest:hover, .needt-v3 .esr-start:hover { background: var(--fill-4); color: var(--text-primary); }
+.needt-v3 .esr-mark { color: var(--accent); }
+@media (min-width: 768px) { .needt-v3 .esr-crumb { max-width: 180px; } }
+.needt-v3 .pk-row-main > .esr { flex: none; }
+.needt-v3 .pk-row-main .esr-sub, .needt-v3 .pk-row-main .esr-crumb, .needt-v3 .pk-row-main .esr-suggest, .needt-v3 .pk-row-main .esr-start, .needt-v3 .pk-row-main .esr-undo { font: var(--type-meta); }
+.needt-v3 .esr-line { display: flex; }
+.needt-v3 .esr-b .esr-grow { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; align-self: center; }
+.needt-v3 .esr-b .esr-crumb { align-self: center; }
+@media (max-width: 767px) {
+  .needt-v3 .esr-crumb { max-width: 88px; }
+  .needt-v3 .esr-suggest-line { flex-wrap: wrap; row-gap: 4px; }
+  .needt-v3 .esr-suggest-line > .esr-grow { flex: 1 0 100%; }
+}
+@media (max-width: 767px) {
+  .needt-v3 .esr-start { padding: 0; width: 24px; justify-content: center; background: transparent; }
+  .needt-v3 .esr-start-label { display: none; }
+}

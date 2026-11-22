@@ -22,6 +22,7 @@ import { C2_H } from "../calendar/layout";
 import { TaskCheck } from "./TaskCheck";
 import { StepsBlock, StepsCount, useTaskSteps } from "./TaskSteps";
 import { DeskMeta, LineMeta, PinMark, TaskValue } from "./chips";
+import { EsrText, esrApplies, useEasyStartRow } from "./easy-start-row";
 import { useCompletionScope } from "./useCompletion";
 import { type TaskEntry, isTaskEvent, taskView } from "./view";
 
@@ -141,6 +142,8 @@ function TaskContent(props: TaskProps) {
     found && hideSteps
       ? { ...found, mode: "count" as const, canFold: false }
       : found;
+  const esrCfg = useEasyStartRow();
+  const esrOn = !isTaskEvent(task) && esrApplies(esrCfg, v);
   const density = props.density ?? (props.dense ? "mini" : "desk");
   const late = props.late ?? (layout === "card" && v.overdue);
   const canOpen = !!onOpen && !v.event;
@@ -381,9 +384,19 @@ function TaskContent(props: TaskProps) {
         </span>
         <span className="tk-touch-body">
           <span className="tk-touch-line">
-            <span className={`tk-touch-title${v.done ? " is-done" : ""}`}>
-              {v.title}
-            </span>
+            {esrOn && esrCfg ? (
+              <EsrText
+                cfg={esrCfg}
+                title={v.title}
+                entry={v.entry as string}
+                minutes="10 min"
+                titleClass="tk-touch-title"
+              />
+            ) : (
+              <span className={`tk-touch-title${v.done ? " is-done" : ""}`}>
+                {v.title}
+              </span>
+            )}
             <PinMark view={v} />
             {steps ? <StepsCount steps={steps} /> : null}
             <TaskValue view={v} />
@@ -495,12 +508,22 @@ function TaskContent(props: TaskProps) {
           >
             {check}
             <span className="tk-desk-body">
-              <span
-                title={v.title}
-                className={`hd-title tk-desk-title${phase ? " is-struck" : ""}${v.done ? " is-done" : ""}${v.done && !phase ? " is-crossed" : ""}`}
-              >
-                {v.title}
-              </span>
+              {esrOn && esrCfg ? (
+                <EsrText
+                  cfg={esrCfg}
+                  title={v.title}
+                  entry={v.entry as string}
+                  minutes="10 min"
+                  titleClass="hd-title tk-desk-title"
+                />
+              ) : (
+                <span
+                  title={v.title}
+                  className={`hd-title tk-desk-title${phase ? " is-struck" : ""}${v.done ? " is-done" : ""}${v.done && !phase ? " is-crossed" : ""}`}
+                >
+                  {v.title}
+                </span>
+              )}
               <PinMark view={v} />
               {steps ? <StepsCount steps={steps} /> : null}
               <TaskValue view={v} />
@@ -515,6 +538,7 @@ function TaskContent(props: TaskProps) {
           {steps ? <StepsBlock steps={steps} /> : null}
           {v.entry &&
           !hideEntry &&
+          !esrOn &&
           (!steps || steps.mode === "count") &&
           (!v.done || phase) ? (
             <div className="tk-entry">

@@ -41,6 +41,7 @@ import { haptic } from "@/lib/needt3/haptics";
 import type { V3Task } from "@/lib/needt3/map";
 
 import { type CloseWithStep, PhoneStepsSlot } from "../../task/TaskSteps";
+import { EsrText, useEasyStartRow } from "../../task/easy-start-row";
 import { PkSweep } from "./Material";
 import { type EndReason, frameWriter, pkTrack } from "./pointer";
 import { usePkPlate } from "./theme";
@@ -109,6 +110,8 @@ export interface PkRowProps {
   icon?: ReactNode;
   /** `big` is a larger row (a main task), `compact` a denser one. */
   size?: "big" | "compact";
+  /** Replaces the title text (easy start row exploration). */
+  heading?: ReactNode;
   /** The check ring at the end of the row instead of the start. */
   checkEnd?: boolean;
   /**
@@ -153,6 +156,7 @@ export function PkRow({
   below,
   icon,
   size,
+  heading,
   checkEnd,
   hue,
 }: PkRowProps) {
@@ -390,9 +394,11 @@ export function PkRow({
   const body = (
     <>
       <span className="pk-row-main">
-        <span className="pk-row-title" title={title}>
-          {title}
-        </span>
+        {heading ?? (
+          <span className="pk-row-title" title={title}>
+            {title}
+          </span>
+        )}
         {meta ? <span className="pk-row-meta">{meta}</span> : null}
       </span>
       {time ? <span className="pk-row-time">{time}</span> : null}
@@ -553,6 +559,8 @@ export function PkTaskRow({
   icon,
   size,
 }: PkTaskRowProps) {
+  const esrCfg = useEasyStartRow();
+  const esrOn = !!esrCfg && !!t.entry && !t.done;
   const h = hourAt(t);
   // A plan row (it has an icon) says its time as a range under the title and
   // keeps the check ring at the end; other rows are unchanged.
@@ -600,6 +608,17 @@ export function PkTaskRow({
     <PkRow
       id={t.id}
       title={t.title}
+      heading={
+        esrOn && esrCfg ? (
+          <EsrText
+            cfg={esrCfg}
+            title={t.title}
+            entry={t.entry as string}
+            minutes="10 min"
+            titleClass="pk-row-title"
+          />
+        ) : undefined
+      }
       meta={meta}
       time={time}
       done={t.done}
