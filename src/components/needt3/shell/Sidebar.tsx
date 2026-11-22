@@ -62,6 +62,7 @@ import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
 import { ProBadge, PromoCard } from "../paywall";
 import { personalMenuItems } from "../personal/menu-items";
+import { folderStyleRows } from "../ui/folder-style-rows";
 import { ProjectDeleteHost, askDeleteProject } from "../work/ProjectDeleteHost";
 import { PROJECT_SWATCHES } from "../work/model";
 import { AccountMenu } from "./AccountMenu";
@@ -789,6 +790,24 @@ export function Sidebar() {
                     .catch(() => undefined);
                 },
               })),
+            },
+          ],
+          [
+            {
+              label: "Folder style…",
+              sub: folderStyleRows(
+                project.folderStyle ?? null,
+                (folderStyle) => {
+                  void updateProject
+                    .mutateAsync({ id, patch: { folderStyle } })
+                    .then(({ undo }) =>
+                      notify.success("Folder style changed", {
+                        action: { label: "Undo", onClick: () => void undo() },
+                      })
+                    )
+                    .catch(() => undefined);
+                }
+              ),
             },
           ],
           [

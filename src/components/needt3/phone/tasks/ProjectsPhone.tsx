@@ -14,6 +14,7 @@ import {
 } from "react-icons/lu";
 
 import { durLabel } from "@/lib/needt3/day";
+import { useNow } from "@/lib/needt3/hooks/clock";
 import {
   useArchiveProject,
   useProjects,
@@ -192,6 +193,7 @@ function ProjectList({
   onPick: (id: string) => void;
 }) {
   const today = usePkToday();
+  const now = useNow().getTime();
   const openN = openInProjects(tasks, projects);
   const c = copy.PtkProjects;
   return (
@@ -221,6 +223,7 @@ function ProjectList({
                 tasks={tasks}
                 today={today}
                 index={i}
+                now={now}
               />
             ) : (
               <ProjectRowView key={p.id} p={p} tasks={tasks} onPick={onPick} />
@@ -521,6 +524,11 @@ function ProjectPageView({
         onValues={state.setEdit}
         onClose={state.stopEdit}
         onSave={save}
+        onFolderStyle={(folderStyle) =>
+          void updateProject
+            .mutateAsync({ id: p.id, patch: { folderStyle } })
+            .catch(none)
+        }
       />
     </>
   );

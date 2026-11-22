@@ -39,7 +39,7 @@ describe("overview", () => {
     expect(html).toContain(">Learning</h1>");
     expect(html).toContain("data-ln-samples");
     for (const t of ["Deutsch", "Design", "Finance"]) expect(html).toContain(t);
-    expect(html.match(/class="nx-folder"/g)).toHaveLength(3);
+    expect(html.match(/class="fl fl-v[1-6]/g)).toHaveLength(3);
     expect(html).toContain('data-ln-make-mine="deutsch"');
     expect(html).toContain("New topic");
     // At most three sheets stick out of a folder.

@@ -10,6 +10,8 @@ import {
 import { defineOp } from "../types";
 
 const projectId = z.string().min(1);
+/** One of the six folder looks, or null for Auto. */
+const folderStyle = z.number().int().min(1).max(6).nullable();
 
 function projectView(project: {
   id: string;
@@ -18,6 +20,7 @@ function projectView(project: {
   color: string | null;
   icon: string | null;
   status: string;
+  folderStyle?: number | null;
   updatedAt: Date;
 }) {
   return {
@@ -27,6 +30,7 @@ function projectView(project: {
     color: project.color,
     icon: project.icon,
     status: project.status,
+    folderStyle: project.folderStyle ?? null,
     updatedAt: iso(project.updatedAt),
     href: `/projects/${project.id}`,
   };
@@ -96,7 +100,7 @@ export const projectArchive = defineOp({
 export const projectUpdate = defineOp({
   name: "project.update",
   description:
-    "Change a project: name, description, color, icon, or archived (true archives it, false brings it back). Its tasks stay as they are. Undo writes the previous values back.",
+    "Change a project: name, description, color, icon, folderStyle (1-6 picks one of the six folder looks, null is Auto), or archived (true archives it, false brings it back). Its tasks stay as they are. Undo writes the previous values back.",
   risk: "reversible",
   input: z
     .object({
@@ -105,6 +109,7 @@ export const projectUpdate = defineOp({
       description: z.string().max(5000).nullable().optional(),
       color: z.string().max(32).nullable().optional(),
       icon: z.string().max(64).nullable().optional(),
+      folderStyle: folderStyle.optional(),
       archived: z.boolean().optional(),
     })
     .strict()
@@ -114,7 +119,13 @@ export const projectUpdate = defineOp({
   async run(ctx, input) {
     const project = await findScopedProject(ctx, input.projectId);
     const data: Record<string, unknown> = {};
-    for (const key of ["name", "description", "color", "icon"] as const) {
+    for (const key of [
+      "name",
+      "description",
+      "color",
+      "icon",
+      "folderStyle",
+    ] as const) {
       if (input[key] !== undefined && input[key] !== project[key]) {
         data[key] = input[key];
       }
@@ -161,6 +172,7 @@ export const projectRestore = defineOp({
       description: z.string().max(5000).nullable().optional(),
       color: z.string().max(32).nullable().optional(),
       icon: z.string().max(64).nullable().optional(),
+      folderStyle: folderStyle.optional(),
     })
     .strict(),
   async run(ctx, input) {

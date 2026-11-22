@@ -9,6 +9,7 @@ import type { V3Project } from "@/lib/needt3/map";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
+import { FolderStylePicker } from "../../ui/FolderStylePicker";
 import { PROJECT_SWATCHES, projectHue } from "../../work/model";
 import { PkButton, PkField, PkSheet, pkCx } from "../kit";
 import { nameTaken } from "./model";
@@ -175,6 +176,7 @@ export function PtkEditSheet({
   onValues,
   onClose,
   onSave,
+  onFolderStyle,
 }: {
   open: boolean;
   p: V3Project | null;
@@ -183,6 +185,8 @@ export function PtkEditSheet({
   onValues: (v: { name: string; color: string }) => void;
   onClose: () => void;
   onSave: (v: { name: string; color: string }) => void;
+  /** Pick the folder look; it applies at once, not on Save. */
+  onFolderStyle?: (style: number | null) => void;
 }) {
   const name = values?.name ?? "";
   const hue = values?.color ?? PTK_SWATCHES[0][1];
@@ -258,6 +262,14 @@ export function PtkEditSheet({
             ))}
           </div>
         </div>
+        {p && onFolderStyle ? (
+          <FolderStylePicker
+            id={p.id}
+            value={p.folderStyle}
+            hue={hue}
+            onChange={onFolderStyle}
+          />
+        ) : null}
       </div>
     </PkSheet>
   );
