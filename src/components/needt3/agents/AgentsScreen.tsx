@@ -118,6 +118,7 @@ const WHAT: Record<Tab, string> = {
   map: "your agents",
   agents: "your agents",
   tasks: "your tasks",
+  roadmap: "your roadmap",
   chat: "what agents asked you",
   activity: "activity",
   memory: "memory",
