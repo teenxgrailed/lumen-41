@@ -42,6 +42,30 @@ export function markPromptedThisSession(store: SessionStore | null): void {
   }
 }
 
+const SKIP_KEY = "needt-feedback-skip";
+
+const dayKey = (now: Date) => now.toISOString().slice(0, 10);
+
+/**
+ * The server said "not now" today (not eligible): do not ask again until the
+ * next UTC day, so the activity query does not run on every app load.
+ */
+export function skippedToday(store: SessionStore | null, now: Date): boolean {
+  try {
+    return store?.getItem(SKIP_KEY) === dayKey(now);
+  } catch {
+    return false;
+  }
+}
+
+export function markSkippedToday(store: SessionStore | null, now: Date): void {
+  try {
+    store?.setItem(SKIP_KEY, dayKey(now));
+  } catch {
+    // asked again next load; harmless
+  }
+}
+
 /** For tests. */
 export function resetPromptedMemory(): void {
   promptedInMemory = false;

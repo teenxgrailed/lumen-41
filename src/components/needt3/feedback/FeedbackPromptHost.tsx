@@ -4,12 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { usePathname } from "next/navigation";
 
+import { newDate } from "@/lib/date-utils";
 import { isDesktopApp, isMacApp } from "@/lib/desktop";
 import {
   PROMPT_DELAY_MS,
   markPromptedThisSession,
+  markSkippedToday,
   promptedThisSession,
   reviewChannel,
+  skippedToday,
 } from "@/lib/feedback/prompt";
 import { logger } from "@/lib/logger";
 import { isIosApp } from "@/lib/native";
@@ -115,7 +118,8 @@ export function FeedbackPromptHost() {
         if (
           document.visibilityState !== "visible" ||
           otherDialogOpen() ||
-          promptedThisSession(safeSession())
+          promptedThisSession(safeSession()) ||
+          skippedToday(safeLocal(), newDate())
         )
           return;
         asked.current = true;
@@ -123,7 +127,10 @@ export function FeedbackPromptHost() {
           platform: platformNow(),
           appVersion: getAppVersion(),
         }).then((offered) => {
-          if (!offered) return;
+          if (!offered) {
+            markSkippedToday(safeLocal(), newDate());
+            return;
+          }
           markPromptedThisSession(safeSession());
           setStep("ask");
         });
@@ -207,6 +214,14 @@ function channelNow() {
     platform: platformNow(),
     nativeReviewAvailable: canRequestNativeReview(),
   });
+}
+
+function safeLocal(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 function safeSession(): Storage | null {

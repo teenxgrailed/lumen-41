@@ -1,9 +1,11 @@
 import {
   canSend,
   markPromptedThisSession,
+  markSkippedToday,
   promptedThisSession,
   resetPromptedMemory,
   reviewChannel,
+  skippedToday,
 } from "../prompt";
 
 function memoryStore() {
@@ -117,5 +119,17 @@ describe("canSend", () => {
     expect(canSend("idea", blank)).toBe(false);
     expect(canSend("idea", { ...blank, text: "   " })).toBe(false);
     expect(canSend("annoyance", { ...blank, text: "sync" })).toBe(true);
+  });
+});
+
+describe("not eligible today", () => {
+  it("is remembered for the UTC day and forgotten the next", () => {
+    const store = memoryStore();
+    const noon = new Date("2026-11-22T12:00:00Z");
+    expect(skippedToday(store, noon)).toBe(false);
+    markSkippedToday(store, noon);
+    expect(skippedToday(store, new Date("2026-11-22T23:59:00Z"))).toBe(true);
+    expect(skippedToday(store, new Date("2026-11-23T00:01:00Z"))).toBe(false);
+    expect(skippedToday(null, noon)).toBe(false);
   });
 });

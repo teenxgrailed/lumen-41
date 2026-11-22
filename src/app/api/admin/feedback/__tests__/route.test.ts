@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { summarizeFeedback } from "@/services/feedback/feedback-service";
-
 import { requireAdmin } from "@/lib/auth/api-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -12,12 +10,25 @@ jest.mock("@/lib/logger", () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 jest.mock("@/lib/prisma", () => ({
-  prisma: { feedbackPrompt: { findMany: jest.fn() } },
+  prisma: {
+    feedbackPrompt: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+      aggregate: jest.fn(),
+    },
+  },
 }));
 
-const findMany = (
-  prisma as unknown as { feedbackPrompt: { findMany: jest.Mock } }
-).feedbackPrompt.findMany;
+const fp = (
+  prisma as unknown as {
+    feedbackPrompt: {
+      findMany: jest.Mock;
+      count: jest.Mock;
+      aggregate: jest.Mock;
+    };
+  }
+).feedbackPrompt;
+const findMany = fp.findMany;
 
 const get = (query = "") =>
   GET(new NextRequest(`http://localhost/api/admin/feedback${query}`));
@@ -41,6 +52,11 @@ beforeEach(() => {
   jest.resetAllMocks();
   (requireAdmin as jest.Mock).mockResolvedValue(null);
   findMany.mockResolvedValue([]);
+  fp.count.mockResolvedValue(0);
+  fp.aggregate.mockResolvedValue({
+    _avg: { rating: null, score: null },
+    _count: { rating: 0, score: 0 },
+  });
 });
 
 describe("GET /api/admin/feedback", () => {
@@ -55,6 +71,10 @@ describe("GET /api/admin/feedback", () => {
 
   it("lists rows with the person's email and the summary", async () => {
     findMany.mockResolvedValue([row({ rating: 5 })]);
+    fp.aggregate.mockResolvedValue({
+      _avg: { rating: 5, score: null },
+      _count: { rating: 1, score: 0 },
+    });
     const res = await get();
     const body = await res.json();
     expect(body.items).toEqual([
@@ -81,19 +101,35 @@ describe("GET /api/admin/feedback", () => {
   });
 });
 
-describe("summarizeFeedback", () => {
-  it("averages ratings and scores and computes the NPS", () => {
-    const base = { answeredAt: new Date(), dismissedAt: null };
-    const s = summarizeFeedback([
-      { ...base, rating: 5, score: null },
-      { ...base, rating: 4, score: null },
-      { ...base, rating: null, score: 10 },
-      { ...base, rating: null, score: 9 },
-      { ...base, rating: null, score: 7 },
-      { ...base, rating: null, score: 3 },
-      { answeredAt: null, dismissedAt: new Date(), rating: null, score: null },
-    ]);
-    expect(s).toMatchObject({
+describe("the summary", () => {
+  it("is computed by the database (count and aggregate), never by loading every row", async () => {
+    await get();
+    // only the 200-row list reads rows
+    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(findMany.mock.calls[0][0].take).toBe(200);
+    expect(fp.count).toHaveBeenCalled();
+    expect(fp.aggregate).toHaveBeenCalled();
+  });
+
+  it("averages ratings and scores and computes the NPS", async () => {
+    // shown, answered, dismissed, promoters (9-10), detractors (0-6)
+    fp.count
+      .mockResolvedValueOnce(7)
+      .mockResolvedValueOnce(6)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(1);
+    fp.aggregate
+      .mockResolvedValueOnce({
+        _avg: { rating: 4.5 },
+        _count: { rating: 2 },
+      })
+      .mockResolvedValueOnce({
+        _avg: { score: 7.25 },
+        _count: { score: 4 },
+      });
+    const { summary } = await (await get()).json();
+    expect(summary).toMatchObject({
       shown: 7,
       answered: 6,
       dismissed: 1,
@@ -101,13 +137,14 @@ describe("summarizeFeedback", () => {
       ratingCount: 2,
       avgScore: 7.3,
       npsCount: 4,
-      // 2 promoters, 1 passive, 1 detractor of 4: (2 - 1) / 4 = 25
+      // 2 promoters, 1 detractor of 4: (2 - 1) / 4 = 25
       nps: 25,
     });
   });
 
-  it("has no averages with no answers", () => {
-    expect(summarizeFeedback([])).toMatchObject({
+  it("has no averages with no answers", async () => {
+    const { summary } = await (await get()).json();
+    expect(summary).toMatchObject({
       shown: 0,
       avgRating: null,
       avgScore: null,

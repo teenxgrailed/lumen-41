@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
           }
         : {}),
     };
-    const [rows, summaryRows] = await Promise.all([
+    const [rows, summary] = await Promise.all([
       prisma.feedbackPrompt.findMany({
         where,
         orderBy: { shownAt: "desc" },
@@ -71,18 +71,10 @@ export async function GET(request: NextRequest) {
           user: { select: { email: true } },
         },
       }),
-      prisma.feedbackPrompt.findMany({
-        where,
-        select: {
-          answeredAt: true,
-          dismissedAt: true,
-          rating: true,
-          score: true,
-        },
-      }),
+      summarizeFeedback(where),
     ]);
     return NextResponse.json({
-      summary: summarizeFeedback(summaryRows),
+      summary,
       items: rows.map(({ user, ...row }) => ({
         ...row,
         email: user.email,

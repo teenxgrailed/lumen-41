@@ -880,6 +880,7 @@ model TaskActivity {
   @@index([workspaceId, createdAt])
   @@index([taskId, createdAt])
   @@index([actorId])
+  @@index([actorId, createdAt])
 }
 
 /// A persistent, editable work journal for one local calendar day. Tasks stay

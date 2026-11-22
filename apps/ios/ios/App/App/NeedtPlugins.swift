@@ -441,7 +441,13 @@ public class NeedtStorePlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject("No active window", "unavailable")
                 return
             }
-            SKStoreReviewController.requestReview(in: scene)
+            if #available(iOS 18.0, *) {
+                AppStore.requestReview(in: scene)
+            } else {
+                // The deployment target is iOS 17, where AppStore.requestReview
+                // does not exist yet.
+                SKStoreReviewController.requestReview(in: scene)
+            }
             call.resolve()
         }
     }

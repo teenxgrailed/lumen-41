@@ -20,6 +20,8 @@ jest.mock("@/lib/prisma", () => ({
       updateMany: jest.fn(),
     },
     $queryRaw: jest.fn(),
+    $executeRaw: jest.fn(),
+    $transaction: jest.fn(),
   },
 }));
 
@@ -32,6 +34,8 @@ const db = prisma as unknown as {
     updateMany: jest.Mock;
   };
   $queryRaw: jest.Mock;
+  $executeRaw: jest.Mock;
+  $transaction: jest.Mock;
 };
 const auth = authenticateRequest as jest.Mock;
 
@@ -61,6 +65,10 @@ beforeEach(() => {
   db.feedbackPrompt.findMany.mockResolvedValue([]);
   db.feedbackPrompt.create.mockResolvedValue({ id: "p1" });
   db.$queryRaw.mockResolvedValue([{ days: 9 }]);
+  db.$executeRaw.mockResolvedValue(1);
+  db.$transaction.mockImplementation((run: (tx: unknown) => unknown) =>
+    run(prisma)
+  );
 });
 
 describe("GET /api/feedback/prompt", () => {
@@ -128,6 +136,35 @@ describe("GET /api/feedback/prompt", () => {
       expect(await (await get()).json()).toEqual({ prompt: null });
     }
     expect(db.feedbackPrompt.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("two tabs asking at once", () => {
+  it("create one row, not two: the history is re-read under the person's lock", async () => {
+    const rows: { kind: string; shownAt: Date }[] = [];
+    db.feedbackPrompt.findMany.mockImplementation(async () => [...rows]);
+    db.feedbackPrompt.create.mockImplementation(
+      async ({ data }: { data: { kind: string; shownAt: Date } }) => {
+        rows.push({ kind: data.kind, shownAt: data.shownAt });
+        return { id: `p${rows.length}` };
+      }
+    );
+    // The lock: transactions for one person run one after another.
+    let chain: Promise<unknown> = Promise.resolve();
+    db.$transaction.mockImplementation((run: (tx: unknown) => unknown) => {
+      const next = chain.then(() => run(prisma));
+      chain = next.catch(() => undefined);
+      return next;
+    });
+    const [a, b] = await Promise.all([get(), get()]);
+    const bodies = [await a.json(), await b.json()];
+    expect(db.feedbackPrompt.create).toHaveBeenCalledTimes(1);
+    expect(bodies.filter((x) => x.prompt !== null)).toHaveLength(1);
+    // the lock statement runs first in each transaction
+    expect(db.$executeRaw).toHaveBeenCalledTimes(2);
+    expect(String(db.$executeRaw.mock.calls[0][0].join(""))).toContain(
+      "pg_advisory_xact_lock(hashtext("
+    );
   });
 });
 
