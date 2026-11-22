@@ -1,6 +1,8 @@
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { WorkspaceRole } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
+import { getPlan } from "@/lib/entitlements";
 import { getMailMessage } from "@/lib/mail-db";
 
 import {
@@ -50,6 +52,7 @@ jest.mock("@/services/connectors/webhooks", () => ({
 jest.mock("@/services/time-tracking/timeEntries", () => ({
   recomputeTaskActuals: jest.fn().mockResolvedValue(undefined),
 }));
+jest.mock("@/lib/activation-events", () => ({ recordActivation: jest.fn() }));
 jest.mock("@/lib/mail-db", () => ({ getMailMessage: jest.fn() }));
 jest.mock("@/lib/entitlements", () => ({
   getPlan: jest.fn().mockResolvedValue("FREE"),
@@ -81,6 +84,24 @@ beforeEach(() => {
 function action(id: string | null) {
   return db.tables.agentAction.find((row) => row.id === id)!;
 }
+
+describe("task.create activation event", () => {
+  it("is recorded once, after the commit, with the actor as source", async () => {
+    await runOp("task.create", { title: "Call the bank" }, opts());
+    expect(recordActivation).toHaveBeenCalledTimes(1);
+    expect(recordActivation).toHaveBeenCalledWith("task_created", OWNER_ID, {
+      source: "agent",
+    });
+  });
+
+  it("records nothing when the op throws and rolls back", async () => {
+    (getPlan as jest.Mock).mockRejectedValueOnce(new Error("boom"));
+    await expect(
+      runOp("task.create", { title: "Call the bank" }, opts())
+    ).rejects.toThrow();
+    expect(recordActivation).not.toHaveBeenCalled();
+  });
+});
 
 describe("reversible ops: the stored inverse restores the prior state", () => {
   it("task.create is undone by archiving the new task", async () => {

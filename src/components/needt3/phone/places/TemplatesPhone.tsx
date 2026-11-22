@@ -46,7 +46,6 @@ export function TemplatesPhone({ c }: { c: TemplatesController }) {
     <PkScreen
       screen="templates"
       title="Templates"
-      glyph="templates"
       sub={templatesMeta(list.length)}
     >
       <PhoneState query={templates} screen="templates">

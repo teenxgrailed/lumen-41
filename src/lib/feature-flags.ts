@@ -5,7 +5,15 @@ import { canUseAgentHub, canUseQuitHabits } from "@/lib/entitlements";
 import {
   AGENT_HUB,
   AI_CHATGPT_PLAN,
+  BUDGET_MODULE,
+  DAY_PLAN,
+  DAY_PLAN_TOUCHES,
+  FOLDERS_V1,
+  HABITS_CARDS_V1,
   HABITS_QUIT,
+  HABIT_EVENING_PUSH,
+  HOME_V2,
+  SOMEDAY_SWEEP,
 } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
 
@@ -56,6 +64,50 @@ export async function agentHubEnabled(userId: string) {
 }
 
 /**
+ * The Budget place is on for this account (`BUDGET_MODULE`). The plan is not
+ * part of it: Free sees the place locked, so the flag alone decides.
+ */
+export async function budgetModuleEnabled(userId: string) {
+  return isFeatureEnabled(BUDGET_MODULE, userId);
+}
+
+/** Home in three blocks (`HOME_V2`) is on for this account. */
+export async function homeV2Enabled(userId: string) {
+  return isFeatureEnabled(HOME_V2, userId);
+}
+
+/**
+ * The Habits and Goals card screens (`HABITS_CARDS_V1`). Fails closed: a
+ * missing session or a failed read is "off", so the old screens draw.
+ */
+export async function habitsCardsEnabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return await isFeatureEnabled(HABITS_CARDS_V1, userId);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Projects as folders (`FOLDERS_V1`). Fails closed: no user, or a flag read
+ * that throws, is off, and Projects keeps its cards.
+ */
+export async function foldersV1Enabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return await isFeatureEnabled(FOLDERS_V1, userId);
+  } catch {
+    return false;
+  }
+}
+
+/** The 20:00 habit push is on for this account (`HABIT_EVENING_PUSH`). */
+export async function habitEveningPushEnabled(userId: string) {
+  return isFeatureEnabled(HABIT_EVENING_PUSH, userId);
+}
+
+/**
  * Needt AI on the person's own ChatGPT plan is on for this account: the
  * `ai_chatgpt_plan` flag. The deployment's `OPENAI_SIWC_CLIENT_ID` is checked
  * separately (`getChatGptPlanConfig`), and every caller needs both.
@@ -83,4 +135,41 @@ export async function quitHabitsEnabled(
   if (!plan.allowed)
     return { allowed: false, reason: "upgrade_required", plan: plan.plan };
   return { allowed: true };
+}
+
+/**
+ * The day plan kill switch (`DAY_PLAN`). Fails closed: no user or a flag read
+ * that throws is "off", so the plan touches, the sweep and the scheduler guard
+ * all stand down and nothing about a person's tasks changes.
+ */
+export async function dayPlanEnabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return await isFeatureEnabled(DAY_PLAN, userId);
+  } catch {
+    return false;
+  }
+}
+
+/** The day-plan touches: `day_plan` (kill switch) and `day_plan_touches`. */
+export async function dayPlanTouchesEnabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return (
+      (await isFeatureEnabled(DAY_PLAN, userId)) &&
+      (await isFeatureEnabled(DAY_PLAN_TOUCHES, userId))
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** The nightly Someday sweep is on for this account (`SOMEDAY_SWEEP`). */
+export async function somedaySweepEnabled(userId: string | null | undefined) {
+  if (!userId) return false;
+  try {
+    return await isFeatureEnabled(SOMEDAY_SWEEP, userId);
+  } catch {
+    return false;
+  }
 }

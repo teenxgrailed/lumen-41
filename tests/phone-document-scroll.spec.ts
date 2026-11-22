@@ -9,6 +9,7 @@ import {
   webkit,
 } from "@playwright/test";
 
+import { formatInTimeZone, fromZonedTime, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 import { type V3User, createV3User, signInAs } from "./helpers/v3-user";
@@ -73,16 +74,26 @@ async function phone(
     update: { theme: app },
     create: { userId: user.id, theme: app, timeZone: "Europe/Zurich" },
   });
-  for (let i = 0; i < tasks; i++)
+  for (let i = 0; i < tasks; i++) {
+    // placed through the day: Home v2 folds untimed tasks into "Anytime"
+    const day = formatInTimeZone(newDate(), "Europe/Zurich", "yyyy-MM-dd");
+    const hour = String(7 + (i % 14)).padStart(2, "0");
+    const start = fromZonedTime(`${day}T${hour}:00:00`, "Europe/Zurich");
     await prisma.task.create({
       data: {
         userId: user.id,
         workspaceId: user.workspaceId,
         title: `Row ${i + 1}`,
         status: "todo",
-        dueDate: new Date(),
+        // due at the slot, in the seeded Zurich day: new Date() fell on the
+        // previous UTC day between 00:00 and 01:00 Zurich and showed as overdue
+        dueDate: start,
+        scheduledStart: start,
+        scheduledEnd: new Date(start.getTime() + 30 * 60 * 1000),
+        estimatedMinutes: 30,
       },
     });
+  }
   await signInAs(page, user);
   await context.addCookies([{ name: "needt-ui", value: "phone", url: BASE }]);
   if (ENGINE === chromium) {
@@ -373,7 +384,20 @@ for (const app of ["light", "dark"] as const) {
     // the menu open (its scrim and card are the biggest fixed layer)
     await page.locator("[data-nva-pill]").click({ force: true });
     await page.waitForTimeout(900);
-    expect(await edgeCandidates(page), "menu").toEqual([]);
+    // the tile menu is one full-screen layer (owner ref 2026-11-21): it paints
+    // the page ground, solid, so nothing tinted can show at an edge. It is the
+    // only candidate and its ground is the page one.
+    const menuEdges = await edgeCandidates(page);
+    expect(menuEdges, "menu").toHaveLength(1);
+    expect(menuEdges[0]).toMatch(/^top div#\.ntm /);
+    expect(
+      await page.evaluate(
+        () =>
+          getComputedStyle(document.querySelector(".ntm")!, "::before")
+            .backgroundColor
+      ),
+      "menu ground"
+    ).toBe(GROUND[app]);
     await shot("menu");
     await browser.close();
   });

@@ -15,7 +15,7 @@ const API_ROOT = join(__dirname, "..", "app", "api");
 
 /** Helpers that reject an unauthenticated request. */
 const AUTH_CALL =
-  /\b(authenticateRequest|authenticateAccountRequest|authenticateBlockingRequest|authenticateAgentRequest|authenticateConnectorRequest|authenticateConnectorToken|authenticateBearer|authenticateHubAgent|authenticateHubOwner|requireAuth|requireAdmin|requireCronSecret|getServerSession|getToken)\s*\(/;
+  /\b(authenticateRequest|authenticateAccountRequest|authenticateBlockingRequest|authenticateAgentRequest|authenticateConnectorRequest|authenticateConnectorToken|authenticateBearer|authenticateHubAgent|authenticateHubOwner|learnAuth|requireAuth|requireAdmin|requireCronSecret|getServerSession|getToken)\s*\(/;
 
 const HANDLER =
   /^export\s+(?:(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b|const\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\b)/gm;
@@ -58,11 +58,17 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "auth/desktop/exchange/route.ts":
     "desktop sign-in handoff: single-use 60 s code bound to a PKCE verifier, same-origin JSON with a header, rate limited",
   "auth/public-signup/route.ts": "signup availability probe",
+  "auth/google-client/route.ts":
+    "Google One Tap bootstrap: the public OAuth client id (it is in every Google redirect URL) and a random nonce bound to this browser by a signed cookie; no secret, no account data",
   "auth/reset-password/request/route.ts": "rate limited, no account oracle",
+  "auth/email-code/request/route.ts":
+    "mails a sign-in code; rate limited per IP and address, same answer for every address",
   "auth/reset-password/reset/route.ts": "single-use token, rate limited",
   "auth/email-verification/confirm/route.ts": "single-use token",
   "account/export/download/route.ts": "single-use hashed token, expires",
   "billing/webhook/route.ts": "Creem webhook, signature verified by SDK",
+  "channels/telegram/webhook/route.ts":
+    "Telegram webhook: the secret_token header is compared in constant time before anything is read; 404 and inert without the bot secrets",
   "billing/apple/notifications/route.ts":
     "App Store Server Notifications V2, JWS chain verified to Apple's root",
   "csp-report/route.ts":

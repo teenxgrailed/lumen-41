@@ -1,0 +1,1 @@
+- Failed background jobs and requests now record why they failed in the diagnostics log, with emails, tokens and links still removed.

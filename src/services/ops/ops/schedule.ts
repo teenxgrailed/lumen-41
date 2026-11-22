@@ -6,6 +6,8 @@ import {
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { z } from "zod";
 
+import { recordActivation } from "@/lib/activation-events";
+
 import {
   dayKeySchema,
   iso,
@@ -171,7 +173,18 @@ export const scheduleAuto = defineOp({
         ? { op: "schedule.restore", input: { snapshot: previous } }
         : null,
       touched: touchedRows,
-      afterCommit: [publishTasksUpdated(ctx.userId)],
+      afterCommit: [
+        publishTasksUpdated(ctx.userId),
+        /* A schedule applied with no preview: its own event, never
+           replan_shown or keep_applied. Only when something moved. */
+        () => {
+          if (changed.size > 0) {
+            recordActivation("plan_applied", ctx.userId, {
+              source: ctx.actor,
+            });
+          }
+        },
+      ],
     };
   },
 });

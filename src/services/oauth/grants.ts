@@ -327,7 +327,7 @@ export async function exchangeAuthorizationCode(input: {
   }
   if (outcome instanceof OAuthError) throw outcome;
   if ("oidc" in outcome && oidcClientId !== null) {
-    const claims = await identityClaims(outcome.userId);
+    const claims = await identityClaims(outcome.userId, oidcClientId);
     if (!claims) {
       throw new OAuthError("invalid_grant", "The account no longer exists.");
     }
@@ -340,6 +340,7 @@ export async function exchangeAuthorizationCode(input: {
       email: asked.includes("email") ? claims.email : null,
       emailVerified: claims.email_verified,
       name: asked.includes("profile") ? claims.name : null,
+      needtPlan: claims.needt_plan,
     });
     return { ...outcome.oidc, id_token };
   }

@@ -226,3 +226,13 @@
 @media (max-width: 700px) {
   .needt-v3 .hd-sample { margin: 0 0 12px; }
 }
+/* First replan (first_replan_onboarding): the sample row, plus a 12px tag that
+   says it is a demo and a button group that wraps under the words. */
+.needt-v3 .hd-first-replan-tag { font: var(--type-meta); color: var(--text-quaternary); }
+.needt-v3 .hd-first-replan-actions { flex: none; display: flex; flex-wrap: wrap; gap: 8px; }
+/* The preview step: the task's old time, an arrow, its new time. 13px, one
+   text colour at two ladder steps; the old time is the quieter one. */
+.needt-v3 .hd-fr-shift { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font: var(--type-ui-medium); font-variant-numeric: tabular-nums; }
+.needt-v3 .hd-fr-from { color: var(--text-tertiary); }
+.needt-v3 .hd-fr-arrow { color: var(--text-quaternary); }
+.needt-v3 .hd-fr-to { color: var(--text-primary); }

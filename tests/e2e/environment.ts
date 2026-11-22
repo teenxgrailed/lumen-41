@@ -14,6 +14,16 @@ const localE2eEnvironment = {
   COLLABORATION_DISABLED: "1",
 } as const;
 
+/**
+ * oauth-age-confirm.spec.ts: a mock Google (src/lib/auth/e2e-oauth.ts) and
+ * open sign-up. Called by the e2e config only: the visual, style and perf
+ * suites must not grow a Google button.
+ */
+export function configureOAuthMockEnvironment() {
+  process.env.NEEDT_E2E_OAUTH_URL = "http://127.0.0.1:4599";
+  process.env.NEEDT_SIGNUPS_OPEN = "1";
+}
+
 const localCreemEnvironment = {
   CREEM_API_KEY: "creem_test_key_for_local_e2e_only",
   CREEM_WEBHOOK_SECRET: "creem_test_webhook_secret_for_local_e2e_only",

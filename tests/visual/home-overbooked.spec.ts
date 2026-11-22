@@ -2,6 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 import { prisma } from "@/lib/prisma";
 
+import { openOverdue } from "../helpers/home";
 import { VISUAL_TEST_EMAIL } from "./fixtures";
 import { signInVisualUser } from "./helpers";
 
@@ -50,6 +51,9 @@ async function seedOverbookedDay() {
     "Draft the Q3 roadmap",
     "Answer the support backlog",
   ];
+  // A day plan left by an earlier spec must not outlive the seed it was drawn
+  // from; the plan rows are not part of the sign-in reset.
+  await prisma.dayPlan.deleteMany({ where: { userId: user.id } });
   // the visual user's tasks are reset on every sign-in, these with them
   await prisma.task.createMany({
     data: [
@@ -89,8 +93,28 @@ async function seedOverbookedDay() {
   });
 }
 
+/**
+ * This spec is about the old Today (the overdue row, Spread, the time-left
+ * card), so the day plan is answered as switched off, the way the server does
+ * when the `day_plan` kill switch is off (404 "disabled"). Left live, the phone
+ * asks for a draft once the page has loaded and Today swaps to the plan view
+ * whenever that answer lands: before the screenshot (the Spread buttons are
+ * gone and the plan's four fixture tasks are drawn) or after it (the old
+ * Today), so the run depended on the server's speed.
+ */
+async function switchDayPlanOff(page: Page) {
+  await page.route("**/api/day-plan**", (route) =>
+    route.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "disabled" }),
+    })
+  );
+}
+
 async function openHome(page: Page) {
   await page.clock.setFixedTime(new Date(NOW));
+  await switchDayPlanOff(page);
   await page.addInitScript(() => {
     localStorage.setItem("needt:quick-tip:last-shown-at", "9999999999999");
     localStorage.setItem("needt-visit-count", "0");
@@ -99,6 +123,8 @@ async function openHome(page: Page) {
   await signInVisualUser(page);
   await seedOverbookedDay();
   await page.goto("/today");
+  // Home v2: all overdue work is one closed row; Spread / Move to today live in it
+  await openOverdue(page, 20_000);
   await page.addStyleTag({
     content:
       'nextjs-portal, .tsqd-parent-container, aside[aria-label="Quick Tip"] { display: none !important; }',
@@ -134,12 +160,13 @@ test("Overbooked Home offers Spread across the week, and Spread leads on Overdue
       page.getByText(/Spread gives each one the next day/)
     ).toBeVisible();
   }
-  // Next up is the oldest overdue task: its long title is clamped, whole in
-  // the tooltip.
-  await expect(page.locator(".ha-hl-title").first()).toHaveAttribute(
-    "title",
-    LONG_TITLE
-  );
+  // An overdue task never takes the Now card: its long title is clamped in its
+  // row, whole in the tooltip.
+  if (!phone) {
+    await expect(
+      page.locator(`.hd-title[title="${LONG_TITLE}"]`).first()
+    ).toBeVisible();
+  }
   await page.waitForTimeout(350);
 
   await expect(page).toHaveScreenshot("home-overbooked.png", {

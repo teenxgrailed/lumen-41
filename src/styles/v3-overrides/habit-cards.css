@@ -1,0 +1,492 @@
+/* Habit cards, the month grid, and goal cards (flag `habits_cards_v1`).
+ *
+ * PORT.md §0: every grey is the text colour at a ladder alpha (--text-* and
+ * --fill-* only), chrome type is 13px (--type-ui) and 12px (--type-meta),
+ * the accent is never a solid fill on a surface (day cells use --fill-accent
+ * at 12%, and the strongest day carries a small accent mark), colour is a tint
+ * and a mark: a card is the raised surface with a wash of its hue, never the
+ * hue itself. No shadow, no card on a card. Motion: only the card that moves,
+ * and none of it under prefers-reduced-motion (PORT.md §6).
+ */
+.needt-v3 .hc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding-bottom: 32px;
+  min-width: 0;
+}
+.needt-v3 .hc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.needt-v3 .hc-head-title {
+  margin: 0;
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .hc-head-count {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the mark: a solid dot is correct on a mark */
+.needt-v3 .hc-mark {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--hue, var(--text-muted));
+}
+
+/* ── the stack: an overlapping column, each card peeking above the next ──
+ * Every card is tinted by its habit's hue (about 26% over the raised
+ * surface), never the hue itself. The front card is the last, fully open. */
+.needt-v3 .hc-stack {
+  display: flex;
+  flex-direction: column;
+  max-width: 520px;
+  padding-bottom: 4px;
+}
+.needt-v3 .hc-card {
+  --hc-card-h: 76px;
+  --hc-peek: 52px;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: var(--hc-card-h);
+  padding: 14px 16px;
+  border-radius: var(--radius-xl);
+  background: color-mix(
+    in srgb,
+    var(--hue, var(--text-muted)) 26%,
+    var(--surface-raised)
+  );
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--hue, var(--text-primary)) 32%, transparent);
+  color: var(--text-primary);
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+.needt-v3 .hc-card + .hc-card {
+  margin-top: calc(var(--hc-peek) - var(--hc-card-h));
+}
+.needt-v3 .hc-card.is-top {
+  pointer-events: auto;
+  cursor: grab;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.needt-v3 .hc-card.is-top:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.needt-v3 .hc-card.is-dragging {
+  cursor: grabbing;
+  transition: none;
+}
+.needt-v3 .hc-card.is-leaving {
+  transition: transform 0.18s ease-in;
+}
+/* the round icon chip: a deeper tint of the same hue */
+.needt-v3 .hc-chip {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(
+    in srgb,
+    var(--hue, var(--text-muted)) 40%,
+    var(--surface-raised)
+  );
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+/* the check circle: a mark, so it may be solid once done */
+.needt-v3 .hc-check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--text-muted);
+  color: var(--background);
+}
+.needt-v3 button.hc-check {
+  cursor: pointer;
+}
+.needt-v3 button.hc-check:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.needt-v3 .hc-check.is-done {
+  background: var(--text-primary);
+  box-shadow: none;
+}
+.needt-v3 .hc-card.is-top .nx-btn {
+  margin-top: 2px;
+}
+.needt-v3 .hc-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  padding-top: 2px;
+}
+.needt-v3 .hc-card-title {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .hc-card-meta {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .hc-card-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.needt-v3 .hc-clear {
+  margin: 12px 0 0;
+  font: var(--type-ui);
+  color: var(--text-tertiary);
+}
+
+/* ── the month grid: a green ladder at three tints ── */
+.needt-v3 .hc-month {
+  width: 100%;
+  max-width: 400px;
+  min-width: 0;
+}
+.needt-v3 .hc-month-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.needt-v3 .hc-month-name {
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .hc-legend {
+  display: flex;
+  gap: 12px;
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.needt-v3 .hc-legend-item::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--fill-5);
+  vertical-align: baseline;
+}
+.needt-v3 .hc-legend-item[data-level="1"]::before {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+.needt-v3 .hc-legend-item[data-level="2"]::before {
+  background: color-mix(in srgb, var(--success) 24%, transparent);
+}
+.needt-v3 .hc-legend-item[data-level="3"]::before {
+  background: color-mix(in srgb, var(--success) 36%, transparent);
+  box-shadow: inset 0 0 0 2px var(--surface-raised);
+  outline: 1px solid var(--success);
+  outline-offset: -1px;
+}
+.needt-v3 .hc-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.needt-v3 .hc-weekday {
+  text-align: center;
+  font: var(--type-meta);
+  color: var(--text-muted);
+}
+.needt-v3 .hc-day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  font: var(--type-meta);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-quaternary);
+  background: var(--fill-2);
+}
+.needt-v3 .hc-day.is-lead {
+  background: none;
+}
+/* a day that has not come: plain text */
+.needt-v3 .hc-day[data-level="ahead"] {
+  background: none;
+  color: var(--text-muted);
+}
+.needt-v3 .hc-day[data-level="1"] {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--text-secondary);
+}
+.needt-v3 .hc-day[data-level="2"] {
+  background: color-mix(in srgb, var(--success) 24%, transparent);
+  color: var(--text-primary);
+}
+.needt-v3 .hc-day[data-level="3"] {
+  background: color-mix(in srgb, var(--success) 36%, transparent);
+  color: var(--text-primary);
+}
+/* every habit kept: a small mark, not a heavier fill */
+.needt-v3 .hc-day[data-level="3"]::after {
+  content: "";
+  position: absolute;
+  bottom: 16%;
+  width: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--success);
+}
+.needt-v3 .hc-day.is-today {
+  box-shadow: inset 0 0 0 1.5px var(--text-primary);
+}
+
+/* ── stack and grid side by side once there is room ── */
+.needt-v3 .hc-panel {
+  container-type: inline-size;
+}
+.needt-v3 .hc-top {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+}
+@container (min-width: 820px) {
+  .needt-v3 .hc-top {
+    display: grid;
+    grid-template-columns: minmax(0, 520px) minmax(0, 400px);
+    column-gap: 48px;
+    align-items: start;
+  }
+}
+
+/* ── all habits ── */
+.needt-v3 .hc-all {
+  max-width: 520px;
+}
+.needt-v3 .hc-all-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.needt-v3 .hc-all-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 6px 0;
+  box-shadow: inset 0 -1px 0 var(--fill-5);
+}
+
+/* ── goal cards ── */
+.needt-v3 .gl-cards-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.needt-v3 .gl-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.needt-v3 .gl-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: color-mix(
+    in srgb,
+    var(--hue, transparent) 14%,
+    var(--surface-raised)
+  );
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--hue, var(--text-primary)) 22%, transparent);
+  color: var(--text-primary);
+  text-align: left;
+}
+.needt-v3 .gl-card.is-on {
+  box-shadow: inset 0 0 0 1px var(--text-primary);
+}
+.needt-v3 .gl-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.needt-v3 .gl-card-title {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* the title button covers the whole card; the card's own actions sit above */
+.needt-v3 .gl-card-title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.needt-v3 .gl-card:has(.gl-card-title:focus-visible) {
+  box-shadow: inset 0 0 0 2px var(--text-primary);
+}
+.needt-v3 .gl-card-title:focus-visible {
+  outline: none;
+}
+.needt-v3 .gl-card-act,
+.needt-v3 .gl-card-plan {
+  position: relative;
+  z-index: 1;
+}
+.needt-v3 .gl-card-hint {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.needt-v3 .gl-card-progress {
+  flex: none;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.needt-v3 .gl-card-meta {
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.needt-v3 .gl-card-next {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  font: var(--type-ui);
+}
+.needt-v3 .gl-card-next-label {
+  flex: none;
+  font: var(--type-meta);
+  color: var(--text-muted);
+  line-height: inherit;
+}
+.needt-v3 .gl-card-next-text {
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .gl-card-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+/* standing: red is only for a goal at risk; on track stays quiet (no mark) */
+.needt-v3 .gl-card-risk {
+  text-align: right;
+  white-space: nowrap;
+}
+.needt-v3 .gl-card-risk.is-ok {
+  color: var(--text-quaternary);
+}
+.needt-v3 .gl-card-risk.is-risk {
+  color: var(--destructive);
+}
+.needt-v3 .gl-card-risk.is-risk::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 3px;
+  background: var(--destructive);
+}
+/* the next step's action sits at the line's right end, on the row's geometry */
+.needt-v3 .gl-card-next {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.needt-v3 .gl-card-next-text {
+  flex: 1 1 120px;
+}
+.needt-v3 .gl-card-act {
+  flex: none;
+  margin: -4px -6px -4px 0;
+}
+.needt-v3 .gl-card-next-when {
+  flex: none;
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.needt-v3 .gl-card-plan {
+  align-self: flex-start;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .hc-card,
+  .needt-v3 .hc-card.is-top,
+  .needt-v3 .hc-card.is-leaving {
+    transition: none;
+  }
+}
+
+/* ── Edit past days: the face's own per-habit editor, folded away ── */
+.needt-v3 .hc-past {
+  max-width: 520px;
+}
+.needt-v3 .hc-past-sum {
+  display: inline-block;
+  cursor: pointer;
+  font: var(--type-ui);
+  color: var(--text-tertiary);
+}
+.needt-v3 .hc-past-sum:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.needt-v3 .hc-past[open] > .hc-past-sum {
+  margin-bottom: 12px;
+}

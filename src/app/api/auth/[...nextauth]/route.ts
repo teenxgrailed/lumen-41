@@ -1,9 +1,18 @@
 import NextAuth from "next-auth";
 import { NextRequest } from "next/server";
 
+import { AGE_COOKIE, expireAgeCookie } from "@/lib/auth/age-confirmation";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { classifyCredentialAttempt } from "@/lib/auth/credential-attempt";
 import { credentialsEmail } from "@/lib/auth/credentials-email";
+import { EMAIL_CODE_PROVIDER } from "@/lib/auth/email-code-service";
+import { ONE_TAP_PROVIDER_ID } from "@/lib/auth/google-one-tap";
+import {
+  allOneTapNonceCookies,
+  expireOneTapNonceCookie,
+} from "@/lib/auth/google-one-tap-nonce";
+import { runWithAuthRequest } from "@/lib/auth/request-context";
+import { signInSucceeded } from "@/lib/auth/sign-in-outcome";
 import { newDate } from "@/lib/date-utils";
 import {
   accountRule,
@@ -17,6 +26,8 @@ import {
 declare module "next-auth" {
   interface Session {
     expiresAt?: number;
+    /** True briefly after a One Tap sign-in created the account. */
+    newAccount?: boolean;
     user?: {
       id?: string;
       name?: string;
@@ -37,6 +48,8 @@ declare module "next-auth/jwt" {
     sessionVersion?: number;
     /** Epoch ms of the last database check of sessionVersion. */
     sessionVersionCheckedAt?: number;
+    /** Epoch ms a One Tap sign-in created this account (see session callback). */
+    freshAccountAt?: number;
   }
 }
 
@@ -71,12 +84,44 @@ async function getHandler(): Promise<AuthHandler> {
   }
 }
 
+/**
+ * The age confirmation cookie, handed to the `signIn` callback through the
+ * request context (request-context.ts) instead of being read back out of
+ * Next's request store from inside NextAuth.
+ */
+function withAuthRequest<T>(request: NextRequest, fn: () => Promise<T>) {
+  return runWithAuthRequest(
+    { ageToken: request.cookies.get(AGE_COOKIE)?.value },
+    fn
+  );
+}
+
+/** An OAuth return that signed somebody in has used the age cookie up. */
+function spendAgeCookie(request: NextRequest, response: Response) {
+  if (!request.cookies.has(AGE_COOKIE)) return;
+  if (!/\/callback\/[^/]+$/.test(request.nextUrl.pathname)) return;
+  const succeeded = signInSucceeded({
+    status: response.status,
+    location: response.headers.get("location"),
+    body: null,
+  });
+  if (succeeded) response.headers.append("set-cookie", expireAgeCookie());
+}
+
 export async function GET(request: NextRequest, context: AuthRouteContext) {
-  const handler = await getHandler();
-  return handler(request, context);
+  return withAuthRequest(request, async () => {
+    const handler = await getHandler();
+    const response = await handler(request, context);
+    spendAgeCookie(request, response);
+    return response;
+  });
 }
 
 export async function POST(request: NextRequest, context: AuthRouteContext) {
+  return withAuthRequest(request, () => handlePost(request, context));
+}
+
+async function handlePost(request: NextRequest, context: AuthRouteContext) {
   const handler = await getHandler();
   if (request.nextUrl.pathname.endsWith("/callback/credentials")) {
     const email = await credentialsEmail(request);
@@ -102,6 +147,51 @@ export async function POST(request: NextRequest, context: AuthRouteContext) {
       await recordCredentialFailure(email);
     } else if (verdict === "succeeded") {
       await clearCredentialFailures(email);
+    }
+    return response;
+  }
+  if (request.nextUrl.pathname.endsWith(`/callback/${EMAIL_CODE_PROVIDER}`)) {
+    /* Six digits are guessable, so the per-address cap is the tight one; the
+       code itself also dies after five wrong tries (email-code.ts). */
+    const email = await credentialsEmail(request);
+    const limited = await enforceRateLimits(
+      [
+        ipRule(request, "emailcode-verify:ip", 20, 15 * 60),
+        accountRule(
+          email || "missing",
+          "emailcode-verify:account",
+          10,
+          15 * 60
+        ),
+      ],
+      { route: request.nextUrl.pathname }
+    );
+    if (limited) return limited;
+    return handler(request, context);
+  }
+  if (request.nextUrl.pathname.endsWith(`/callback/${ONE_TAP_PROVIDER_ID}`)) {
+    /* Each attempt verifies a JWT and queries the account tables. */
+    const limited = await enforceRateLimits(
+      [ipRule(request, "onetap:ip", 20, 15 * 60)],
+      { route: request.nextUrl.pathname }
+    );
+    if (limited) return limited;
+    const response = await handler(request, context);
+    /* The nonce is single use: a success clears its cookie. A refusal keeps
+       it, so the age confirmation can retry with the same token. */
+    const succeeded = signInSucceeded({
+      status: response.status,
+      location: response.headers.get("location"),
+      body: response.headers.get("content-type")?.includes("application/json")
+        ? await response.clone().text()
+        : null,
+    });
+    if (succeeded) {
+      /* Done with One Tap: every nonce cookie of this browser goes, not only
+         this one, so abandoned prompts leave nothing behind. */
+      for (const name of allOneTapNonceCookies(request.cookies.getAll())) {
+        response.headers.append("set-cookie", expireOneTapNonceCookie(name));
+      }
     }
     return response;
   }

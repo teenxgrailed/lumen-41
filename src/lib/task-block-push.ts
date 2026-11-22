@@ -7,6 +7,7 @@ import {
   updateGoogleEvent,
 } from "@/lib/google-calendar";
 import { logger } from "@/lib/logger";
+import { FIRST_REPLAN_DEMO_SOURCE } from "@/lib/onboarding/first-replan";
 import { prisma } from "@/lib/prisma";
 
 const LOG_SOURCE = "task-block-push";
@@ -58,7 +59,9 @@ export async function pushTaskBlock(userId: string, taskId: string) {
     }
 
     // Determine desired state
+    // The first-replan demo is never written to an external calendar.
     const shouldExist =
+      task.source !== FIRST_REPLAN_DEMO_SOURCE &&
       settings.pushTasksToCalendar &&
       settings.pushTasksFeedId &&
       task.scheduledStart &&

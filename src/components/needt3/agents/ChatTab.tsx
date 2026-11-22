@@ -110,6 +110,9 @@ export function ChatTab({
   const ai = shared ?? own;
   const wave = useRef<WaveHandle>(null);
   const [drawer, setDrawer] = useState(false);
+  /* What agents wait on you for sits in one line above the input; it opens
+     into the cards (owner, 14.11: the cards covered the conversation). */
+  const [pendingOpen, setPendingOpen] = useState(false);
   const [thread, setThread] = useState<string | null>(focusThread);
   const [line, setLine] = useState("");
   const [replyTo, setReplyTo] = useState<HubItemRow | null>(null);
@@ -287,6 +290,22 @@ export function ChatTab({
     r.start();
   };
 
+  const pendingCount = alerts.length + waiting.length + unread.length;
+  const pendingLead =
+    alerts[0]?.what ?? waiting[0]?.title ?? unread[0]?.subject ?? "";
+  const pendingWord = "waiting";
+  const pendingAction = alerts.length
+    ? (alerts[0]?.action ?? "Open")
+    : waiting.length
+      ? "Answer"
+      : "Open";
+  const showPending = !open && pendingCount > 0;
+  /* A tray left open must not greet the next item already expanded (and the
+     conversation dimmed behind it). */
+  useEffect(() => {
+    if (!showPending) setPendingOpen(false);
+  }, [showPending]);
+
   const who = (item: HubItemRow) =>
     item.assignee && item.assignee !== "any"
       ? (item.assignee.name ?? "An agent")
@@ -294,7 +313,12 @@ export function ChatTab({
 
   return (
     <div
-      className={"ag-chat2" + (started ? " is-started" : "")}
+      className={
+        "ag-chat2" +
+        (started ? " is-started" : "") +
+        (showPending ? " has-pending" : "") +
+        (showPending && pendingOpen ? " is-pending-open" : "")
+      }
       data-ag-chat=""
     >
       <ChatWave ref={wave} mode={mode} onLayout={setHintTop} />
@@ -397,6 +421,55 @@ export function ChatTab({
           />
         ) : (
           <>
+            {ai.messages.map((m) =>
+              m.from === "you" ? (
+                <div key={m.id} className="ag-cmsg is-me" data-ag-ai-msg="you">
+                  {m.text}
+                </div>
+              ) : m.text ? (
+                <div
+                  key={m.id}
+                  className="ag-cmsg is-ai"
+                  data-ag-ai-msg="needt"
+                >
+                  <Words text={m.text} />
+                </div>
+              ) : m.failed ? (
+                <div
+                  key={m.id}
+                  className="ag-cmsg is-ai"
+                  data-ag-ai-msg="needt"
+                >
+                  Could not reach Needt AI.
+                </div>
+              ) : null
+            )}
+            {!started ? (
+              <span className="ag-sr" data-ag-chat-empty="">
+                Ask Needt AI about your agents and their work. When an agent
+                asks you something, it shows up here.
+              </span>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      {pendingCount > 0 ? (
+        <div
+          className="ag-pending"
+          hidden={!showPending}
+          data-open={pendingOpen ? "" : undefined}
+          data-ag-pending=""
+        >
+          {/* Hidden, not unmounted: closing the tray inside an approval's
+              Undo window must not send it early (ApprovalCard sends on
+              unmount). */}
+          <div
+            className="ag-pending-list"
+            id="ag-pending-list"
+            hidden={!pendingOpen}
+            data-ag-pending-list=""
+          >
             {alerts.map((a) => (
               <AlertCard
                 key={a.key}
@@ -427,6 +500,8 @@ export function ChatTab({
                   }).catch(() => undefined);
                 }}
                 onAnswer={() => {
+                  /* The tray stays open: the question stays in view while
+                     the answer is typed below it. */
                   setReplyTo(item);
                   input.current?.focus();
                 }}
@@ -464,38 +539,35 @@ export function ChatTab({
                 </div>
               </div>
             ))}
-            {ai.messages.map((m) =>
-              m.from === "you" ? (
-                <div key={m.id} className="ag-cmsg is-me" data-ag-ai-msg="you">
-                  {m.text}
-                </div>
-              ) : m.text ? (
-                <div
-                  key={m.id}
-                  className="ag-cmsg is-ai"
-                  data-ag-ai-msg="needt"
-                >
-                  <Words text={m.text} />
-                </div>
-              ) : m.failed ? (
-                <div
-                  key={m.id}
-                  className="ag-cmsg is-ai"
-                  data-ag-ai-msg="needt"
-                >
-                  Could not reach Needt AI.
-                </div>
-              ) : null
-            )}
-            {!started ? (
-              <span className="ag-sr" data-ag-chat-empty="">
-                Ask Needt AI about your agents and their work. When an agent
-                asks you something, it shows up here.
-              </span>
-            ) : null}
-          </>
-        )}
-      </div>
+          </div>
+          <button
+            type="button"
+            className="ag-pending-bar ag-glass2"
+            aria-expanded={pendingOpen}
+            aria-controls="ag-pending-list"
+            data-ag-pending-bar=""
+            onClick={() => setPendingOpen(!pendingOpen)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && pendingOpen) {
+                e.stopPropagation();
+                setPendingOpen(false);
+              }
+            }}
+          >
+            <i
+              aria-hidden="true"
+              data-tone={
+                alerts.length ? "alert" : waiting.length ? "ask" : "note"
+              }
+            />
+            <span className="ag-pending-n">{`${pendingCount} ${pendingWord}`}</span>
+            <span className="ag-pending-t">{pendingLead}</span>
+            <span className="ag-pending-a">
+              {pendingOpen ? "Hide" : pendingAction}
+            </span>
+          </button>
+        </div>
+      ) : null}
 
       <form
         ref={form}

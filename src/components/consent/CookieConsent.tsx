@@ -7,16 +7,17 @@ import Link from "next/link";
 import {
   COOKIE_SETTINGS_EVENT,
   type ConsentChoice,
+  clearLegacyAnalyticsFlag,
   loadAnalytics,
   readConsent,
-  setAnalyticsDisabled,
   writeConsent,
 } from "@/lib/cookie-consent";
 
 /**
- * First-visit cookie banner, mounted once in the root layout. Nothing
- * non-essential loads before Accept; Decline keeps only strictly necessary
- * storage. "Cookie settings" (Settings → Data & privacy) reopens it.
+ * First-visit cookie banner, mounted once in the root layout. It also loads
+ * the Umami counter on every visit: Umami is cookieless and sends no personal
+ * data, so it needs no choice. The choice covers the one optional cookie, the
+ * campaign tags (`needt_utm`); Decline keeps only strictly necessary storage. "Cookie settings" (Settings → Data & privacy) reopens it.
  *
  * A region, not a dialog: no focus trap, the page stays usable, and Escape
  * never changes the choice (with a saved choice it only closes the banner).
@@ -30,12 +31,9 @@ export function CookieConsent({ umamiWebsiteId }: { umamiWebsiteId?: string }) {
   useEffect(() => {
     const current = readConsent();
     setSaved(current);
-    // umami.disabled is per-origin localStorage, the choice is the shared cookie: re-sync
-    if (current === "accepted") {
-      setAnalyticsDisabled(false);
-      loadAnalytics(umamiWebsiteId);
-    } else if (current === "declined") setAnalyticsDisabled(true);
-    else setOpen(true);
+    clearLegacyAnalyticsFlag();
+    loadAnalytics(umamiWebsiteId);
+    if (!current) setOpen(true);
   }, [umamiWebsiteId]);
 
   useEffect(() => {
@@ -55,20 +53,11 @@ export function CookieConsent({ umamiWebsiteId }: { umamiWebsiteId?: string }) {
     }
   }, [open]);
 
-  const choose = useCallback(
-    (choice: ConsentChoice) => {
-      writeConsent(choice);
-      setSaved(choice);
-      if (choice === "accepted") {
-        setAnalyticsDisabled(false);
-        loadAnalytics(umamiWebsiteId);
-      } else {
-        setAnalyticsDisabled(true);
-      }
-      setOpen(false);
-    },
-    [umamiWebsiteId]
-  );
+  const choose = useCallback((choice: ConsentChoice) => {
+    writeConsent(choice);
+    setSaved(choice);
+    setOpen(false);
+  }, []);
 
   if (!open) return null;
 
@@ -84,9 +73,9 @@ export function CookieConsent({ umamiWebsiteId }: { umamiWebsiteId?: string }) {
       }}
     >
       <p className="needt-consent__text">
-        We use privacy-friendly analytics to see which features get used. It
-        stays off until you accept. If you decline, Needt only uses what it
-        needs to work.{" "}
+        Our analytics is cookieless and counts aggregate visits only. Accept to
+        also let us remember which campaign brought you here (one cookie). If
+        you decline, Needt only uses what it needs to work.{" "}
         <Link href="/privacy" className="needt-consent__link">
           Privacy
         </Link>

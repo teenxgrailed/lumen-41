@@ -10,6 +10,8 @@ import { syncGmail, syncImap, syncOutlookMail } from "@/lib/mail/providers";
 export async function syncMailAccount(accountId: string): Promise<void> {
   const account = await getMailAccountForSync(accountId);
   if (!account || account.status === "DISCONNECTED") return;
+  // Paused until the person reconnects; a leftover repeat job must not retry.
+  if (account.syncPausedAt) return;
   try {
     const result =
       account.provider === MailProvider.GMAIL

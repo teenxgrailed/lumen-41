@@ -1,0 +1,1 @@
+- Agents → Chat: what agents wait on you for sits in one line above the input and opens into the cards; the conversation is no longer covered, and messages start below the header.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -13,6 +13,7 @@ import {
 } from "@/components/needt3/task/useCompletion";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { moveOverdue } from "@/lib/needt3/day";
 import {
   useArchiveProject,
   useCreateProject,
@@ -25,7 +26,7 @@ import {
   useTimeZone,
 } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
-import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
 
@@ -42,8 +43,9 @@ import {
 } from "../starter-game/StarterGameSlot";
 import { StScreen } from "../states/StScreen";
 import { Task } from "../task/Task";
-import { MiniCard, ProjectCard } from "./ProjectCards";
+import { MiniCard } from "./ProjectCards";
 import { askDeleteProject } from "./ProjectDeleteHost";
+import { ProjectsGrid } from "./ProjectFolders";
 import { ProjectPage } from "./ProjectPage";
 import { ProjectSheet } from "./ProjectSheet";
 import {
@@ -51,35 +53,53 @@ import {
   type ProjectFilter,
   WK_EMPTY,
   type WorkTab,
+  hasMoveToToday,
+  hidesDue,
   isOverdue,
+  movedLabel,
   projectHue,
   projectsSorted,
   readProjectSort,
   workModel,
 } from "./model";
 import { Capped, Fold, PageAddButton, Seg2, WkEmpty } from "./parts";
+import { setOpenTask, useOpenTask } from "./taskParam";
 import { type WorkState, useWorkState } from "./useWorkState";
 
 const EMPTY_TASKS: V3Task[] = [];
+/** "Move to today" writes this many tasks at a time. */
+const MOVE_CHUNK = 10;
 const EMPTY_PROJECTS: V3Project[] = [];
 
-/** The task dialog opens over the current screen at `?task=<id>`. */
+/** Keys other than `task` still go through the router. */
 function useTaskParam() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const setParam = useCallback(
     (key: string, value: string | null) => {
-      const next = new URLSearchParams(params.toString());
+      // the live URL, not the hook's snapshot: a ?task= written by the
+      // dialog store may not have reached useSearchParams yet
+      const next = new URLSearchParams(window.location.search);
       if (value) next.set(key, value);
       else next.delete(key);
       const q = next.toString();
       router.replace(q ? `${pathname}?${q}` : pathname, { scroll: false });
     },
-    [params, pathname, router]
+    [pathname, router]
   );
   return { params, setParam };
 }
+
+/**
+ * The task window at `?task=<id>`. It is its own component on its own store
+ * (taskParam.ts), so opening it renders the dialog and not the list.
+ */
+function TaskDialogSlot() {
+  const taskId = useOpenTask();
+  return <TaskDialogHost taskId={taskId} onClose={closeTask} />;
+}
+const closeTask = () => setOpenTask(null);
 
 /**
  * Tasks and Projects ($P/work.jsx WorkScreen): one component, two places.
@@ -90,9 +110,12 @@ function useTaskParam() {
 export function WorkScreen({
   mode,
   projectId = null,
+  folders = false,
 }: {
   mode: "tasks" | "projects";
   projectId?: string | null;
+  /** `folders_v1`, read on the server: Projects as folders (desktop). */
+  folders?: boolean;
 }) {
   const v3 = useDesignV3();
   const phone = usePhoneUi() === "phone";
@@ -108,25 +131,35 @@ export function WorkScreen({
     return mode === "tasks" ? (
       <PhoneTasks state={state} />
     ) : (
-      <PhoneProjects projectId={projectId} state={state} />
+      <PhoneProjects projectId={projectId} state={state} folders={folders} />
     );
-  return <WorkScreenContent mode={mode} projectId={projectId} state={state} />;
+  return (
+    <WorkScreenContent
+      mode={mode}
+      projectId={projectId}
+      state={state}
+      folders={folders}
+    />
+  );
 }
 
 function WorkScreenContent({
   mode,
   projectId,
   state,
+  folders,
 }: {
   mode: "tasks" | "projects";
   projectId: string | null;
   state: WorkState;
+  folders: boolean;
 }) {
   const isProjects = mode === "projects";
   const router = useRouter();
   const tz = useTimeZone();
   const today = formatInTimeZone(newDate(), tz, "yyyy-MM-dd");
   const tasksQ = useTasks();
+  const updateTask = useUpdateTask();
   const projectsQ = useProjects();
   const settings = useSettings();
   const setPref = useSetPref();
@@ -170,7 +203,7 @@ function WorkScreenContent({
     state.stopEdit();
     if (params.get("new")) setParam("new", null);
   };
-  const openTask = (id: string) => setParam("task", id);
+  const openTask = setOpenTask;
 
   const m = workModel({
     tasks,
@@ -258,6 +291,43 @@ function WorkScreenContent({
       .catch(() => undefined);
   };
 
+  /** The shown overdue tasks onto today (Home's action); one Undo puts all back. */
+  const moving = useRef(false);
+  const [movingNow, setMovingNow] = useState(false);
+  const moveToToday = async (list: readonly V3Task[]) => {
+    if (moving.current) return;
+    const r = moveOverdue(list, today);
+    if (!r) return;
+    moving.current = true;
+    setMovingNow(true);
+    try {
+      // Each move stands alone: a failure (reported and rolled back by the
+      // mutation) must not take the others' Undo with it. Ten at a time, so a
+      // long Overdue list does not fire hundreds of writes at once.
+      //todo one batch op for a bulk move (a single request and a single undo).
+      const moved: Awaited<ReturnType<typeof updateTask.mutateAsync>>[] = [];
+      for (let i = 0; i < r.moves.length; i += MOVE_CHUNK) {
+        const settled = await Promise.allSettled(
+          r.moves
+            .slice(i, i + MOVE_CHUNK)
+            .map((mv) => updateTask.mutateAsync({ id: mv.id, patch: mv.patch }))
+        );
+        for (const x of settled)
+          if (x.status === "fulfilled") moved.push(x.value);
+      }
+      if (!moved.length) return;
+      notify.success(movedLabel(moved.length, r.moves.length), {
+        action: {
+          label: "Undo",
+          onClick: () => void Promise.allSettled(moved.map((d) => d.undo())),
+        },
+      });
+    } finally {
+      moving.current = false;
+      setMovingNow(false);
+    }
+  };
+
   const row = (t: V3Task) => (
     <Task
       key={t.id}
@@ -265,6 +335,9 @@ function WorkScreenContent({
       task={t}
       today={today}
       late={isOverdue(t, today)}
+      // On Today every open row but the overdue ones is due today, so the date
+      // would repeat on each line (#721's rule, as on Home)
+      hideDue={hidesDue(tab, isProjects, t, today)}
       onOpen={openTask}
       hideProject={!!m.filter}
     />
@@ -429,21 +502,16 @@ function WorkScreenContent({
             />
           ) : null}
           {isProjects && !projectId && pview === "cards" && projects.length ? (
-            <div className="wk-pgrid" data-wk-pgrid="">
-              {projects.map((p, i) => (
-                <ProjectCard
-                  key={p.id}
-                  project={p}
-                  index={i}
-                  tasks={m.live}
-                  today={today}
-                  onOpenTask={openTask}
-                  onPick={(id) =>
-                    router.push(`/projects/${encodeURIComponent(id)}`)
-                  }
-                />
-              ))}
-            </div>
+            <ProjectsGrid
+              folders={folders}
+              projects={projects}
+              tasks={m.live}
+              today={today}
+              onOpenTask={openTask}
+              onPick={(id) =>
+                router.push(`/projects/${encodeURIComponent(id)}`)
+              }
+            />
           ) : null}
           {listOn
             ? m.sections.map((s) => (
@@ -454,6 +522,20 @@ function WorkScreenContent({
                   count={s.tasks.length}
                   open={!fold[s.key]}
                   onToggle={flip(s.key)}
+                  action={
+                    hasMoveToToday(s.key, isProjects) ? (
+                      <button
+                        type="button"
+                        className="nx-btn nx-btn-secondary nx-btn-sm"
+                        data-wk-move-today=""
+                        disabled={movingNow}
+                        aria-busy={movingNow || undefined}
+                        onClick={() => void moveToToday(s.tasks)}
+                      >
+                        Move to today
+                      </button>
+                    ) : undefined
+                  }
                 >
                   <div className="wk-list">
                     <Capped list={s.tasks} render={row} />
@@ -499,10 +581,7 @@ function WorkScreenContent({
           ) : null}
         </div>
       </StScreen>
-      <TaskDialogHost
-        taskId={params.get("task")}
-        onClose={() => setParam("task", null)}
-      />
+      <TaskDialogSlot />
     </div>
   );
   return <CompletionScope value={completion}>{content}</CompletionScope>;

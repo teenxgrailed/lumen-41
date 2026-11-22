@@ -1,0 +1,1 @@
+- Links from needt.app open the create-account form (`/auth/signin?mode=signup`) instead of "Welcome back". With analytics accepted, the campaign tags (`utm_*`) of that visit are remembered for 30 days and sent, with no name or address, on the `signup_completed` event.

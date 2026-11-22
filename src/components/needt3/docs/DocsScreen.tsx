@@ -15,6 +15,7 @@ import {
   LuArrowDown,
   LuArrowUp,
   LuCheck,
+  LuChevronLeft,
   LuEllipsis,
   LuFolder,
   LuLayers,
@@ -39,10 +40,13 @@ import { ShareSheet } from "../document/ShareSheet";
 import { Art } from "../menu/Art";
 import { RichMenu } from "../menu/RichMenu";
 import { StScreen } from "../states/StScreen";
+import { StSkeleton } from "../states/StSkeleton";
+import { DocFolders } from "./DocFolders";
 import { DocMiniature } from "./DocMini";
 import { DcCover, DocThumb, docsCopy, useDocTokens } from "./DocParts";
 import { RenameDocSheet } from "./RenameDocSheet";
 import { backdropVars } from "./backdrop";
+import { UNSORTED, groupDocs, hasFolders, openGroup } from "./folders";
 import { ageLabel } from "./labels";
 import { docActions } from "./menu-model";
 import {
@@ -429,7 +433,25 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
     () => (query.data ?? []).filter((d) => !d.trashedAt),
     [query.data]
   );
-  const shown = useMemo(() => sortDocs(mine, sort), [mine, sort]);
+  const groups = useMemo(
+    () => groupDocs(mine, projects.data ?? []),
+    [mine, projects.data]
+  );
+  // The groups need the projects: wait for them rather than flash the flat
+  // list; if they fail to load, the flat list is the fallback.
+  const waiting = projects.isPending && mine.length > 0;
+  const folderMode = !projects.isPending && !projects.isError;
+  // The top level is folders when the pages sit in more than one group; one
+  // folder opens at once into its list. A folder that emptied is gone.
+  const topLevel = folderMode && hasFolders(groups);
+  const group = topLevel ? openGroup(groups, ctl.folder) : null;
+  // New doc inside a project's folder is born in that project.
+  const folderProject = group && group.key !== UNSORTED ? group.key : null;
+  const atFolders = topLevel && !group;
+  const shown = useMemo(
+    () => sortDocs(group ? group.docs : mine, sort),
+    [group, mine, sort]
+  );
   const projectName = useMemo(() => {
     const names = new Map(
       (projects.data ?? []).map((p) => [p.id, p.name] as const)
@@ -440,7 +462,7 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
 
   const open = (id: string) => router.push(docHref(id));
   const openPdf = (id: string) => router.push(pdfHref(id));
-  const newDoc = () => ctl.newDoc("");
+  const newDoc = () => ctl.newDoc("", folderProject);
 
   // Right-click on a card or a list row.
   const live = useRef({
@@ -516,25 +538,29 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
           the top bar's ⌘K, so the grid has no field of its own. */}
       <header className="docs-docs-screen-1">
         <PageAddButton onNewDoc={newDoc} />
-        <h1 className="docs-docs-screen-2">{c.documents}</h1>
-        <span className="docs-docs-screen-3">
-          {VIEWS.map(([id, icon, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={
-                "docs-docs-screen-4 docs-docs-screen-s1" +
-                (view === id ? " is-on" : "")
-              }
-              aria-label={label}
-              title={label}
-              aria-pressed={view === id}
-              onClick={() => setView(id)}
-            >
-              {icon}
-            </button>
-          ))}
-        </span>
+        <h1 className="docs-docs-screen-2">
+          {group ? group.label : c.documents}
+        </h1>
+        {atFolders ? null : (
+          <span className="docs-docs-screen-3">
+            {VIEWS.map(([id, icon, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={
+                  "docs-docs-screen-4 docs-docs-screen-s1" +
+                  (view === id ? " is-on" : "")
+                }
+                aria-label={label}
+                title={label}
+                aria-pressed={view === id}
+                onClick={() => setView(id)}
+              >
+                {icon}
+              </button>
+            ))}
+          </span>
+        )}
         <DropMenu
           width={232}
           trigger={(isOpen) => (
@@ -549,40 +575,44 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
             </button>
           )}
         >
-          <span
-            className="base-meta"
-            style={{ display: "block", padding: "6px 8px 2px" }}
-          >
-            {copy.SortMenuItems.sort_by}
-          </span>
-          {DOC_SORTS.map(([id, label]) => {
-            const on = sort.key === id;
-            return (
-              <MenuRow
-                key={id}
-                keepOpen
-                icon={on ? <LuCheck size={14} aria-hidden /> : null}
-                hint={
-                  on ? (
-                    <span
-                      className="docs-sort-arrow"
-                      aria-label={dirLabel(id, sort.dir)}
-                    >
-                      {sort.dir === "asc" ? (
-                        <LuArrowUp size={13} aria-hidden />
-                      ) : (
-                        <LuArrowDown size={13} aria-hidden />
-                      )}
-                    </span>
-                  ) : undefined
-                }
-                onClick={() => setSort(id)}
+          {atFolders ? null : (
+            <>
+              <span
+                className="base-meta"
+                style={{ display: "block", padding: "6px 8px 2px" }}
               >
-                {label}
-              </MenuRow>
-            );
-          })}
-          <span className="base-menu-sep" aria-hidden />
+                {copy.SortMenuItems.sort_by}
+              </span>
+              {DOC_SORTS.map(([id, label]) => {
+                const on = sort.key === id;
+                return (
+                  <MenuRow
+                    key={id}
+                    keepOpen
+                    icon={on ? <LuCheck size={14} aria-hidden /> : null}
+                    hint={
+                      on ? (
+                        <span
+                          className="docs-sort-arrow"
+                          aria-label={dirLabel(id, sort.dir)}
+                        >
+                          {sort.dir === "asc" ? (
+                            <LuArrowUp size={13} aria-hidden />
+                          ) : (
+                            <LuArrowDown size={13} aria-hidden />
+                          )}
+                        </span>
+                      ) : undefined
+                    }
+                    onClick={() => setSort(id)}
+                  >
+                    {label}
+                  </MenuRow>
+                );
+              })}
+              <span className="base-menu-sep" aria-hidden />
+            </>
+          )}
           {/* //todo: Select, Show daily notes, Import and Export are mocks in
               the prototype (toasts, client-side Markdown of fixture bodies);
               they come back with multi-select, daily notes and an export
@@ -597,6 +627,17 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
       </header>
       <StScreen query={query} kind="grid" screen="docs">
         <div className="scroll-inner docs-docs-screen-6 min-h-0 flex-1">
+          {group ? (
+            <button
+              type="button"
+              className="nx-btn nx-btn-text nx-btn-sm"
+              data-docs-back=""
+              onClick={() => ctl.setFolder(null)}
+            >
+              <LuChevronLeft size={14} aria-hidden />
+              {c.documents}
+            </button>
+          ) : null}
           {mine.length === 0 ? (
             <div className="docs-docs-screen-7" data-docs-empty="">
               <Art name="doc" size={56} />
@@ -612,6 +653,16 @@ export function DocsScreen({ ctl }: { ctl: DocsController }) {
                 {c.new_doc_2}
               </button>
             </div>
+          ) : waiting ? (
+            <div data-st-state="loading">
+              <StSkeleton kind="grid" />
+            </div>
+          ) : atFolders ? (
+            <DocFolders
+              groups={groups}
+              now={now}
+              onOpen={(key) => ctl.setFolder(key)}
+            />
           ) : view === "list" ? (
             <DocList
               docs={shown}

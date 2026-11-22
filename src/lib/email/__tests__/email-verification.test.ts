@@ -9,6 +9,7 @@ import {
   sendEmailVerification,
 } from "@/lib/email/email-verification";
 import { prisma } from "@/lib/prisma";
+import { sendUmamiTrialStarted } from "@/lib/umami-server";
 
 const tx = {
   verificationToken: {
@@ -39,6 +40,9 @@ jest.mock("@/lib/prisma", () => ({
       deleteMany: jest.fn(),
     },
   },
+}));
+jest.mock("@/lib/umami-server", () => ({
+  sendUmamiTrialStarted: jest.fn(),
 }));
 jest.mock("bcryptjs", () => ({
   hash: jest.fn().mockResolvedValue("new-password-hash"),
@@ -86,6 +90,37 @@ describe("email verification confirmation", () => {
       id: "trial-1",
       userId: "user-1",
     });
+  });
+
+  it("reports trial_started (email_confirm) for a new grant, not a re-read one", async () => {
+    const token = {
+      identifier: "person@example.com",
+      token: "stored-hash",
+      expires: newDate("2026-09-17T11:00:00.000Z"),
+    };
+    const confirm = () =>
+      confirmEmailVerification({
+        email: "person@example.com",
+        token: "raw-token",
+        now: newDate("2026-09-16T12:00:00.000Z"),
+      });
+
+    tx.verificationToken.findUnique.mockResolvedValueOnce(token);
+    await confirm();
+    expect(sendUmamiTrialStarted).toHaveBeenCalledTimes(1);
+    expect(sendUmamiTrialStarted).toHaveBeenCalledWith("email_confirm");
+
+    jest.mocked(sendUmamiTrialStarted).mockClear();
+    tx.verificationToken.findUnique.mockResolvedValueOnce(token);
+    tx.trialGrant.findFirst.mockResolvedValue({
+      id: "trial-1",
+      userId: "user-1",
+    });
+    await expect(confirm()).resolves.toEqual({
+      status: "verified",
+      trial: true,
+    });
+    expect(sendUmamiTrialStarted).not.toHaveBeenCalled();
   });
 
   it("consumes a valid token and starts the trial in one transaction", async () => {

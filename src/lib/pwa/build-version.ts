@@ -18,6 +18,16 @@ export function isDifferentBuild(
   return GIT_SHA.test(s) && GIT_SHA.test(c) && s !== c;
 }
 
+/** The build a worker was registered for: `/sw.js?v=<sha>` (see PWARegister). */
+export function workerBuild(scriptURL: string | null | undefined) {
+  if (!scriptURL) return null;
+  try {
+    return new URL(scriptURL, "http://x").searchParams.get("v");
+  } catch {
+    return null;
+  }
+}
+
 let announced = false;
 
 /** Tell the page (once) that the server runs a newer build than the page. */

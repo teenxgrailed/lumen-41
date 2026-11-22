@@ -18,7 +18,7 @@ import {
 } from "react-icons/lu";
 
 import { clock, durLabel } from "@/lib/needt3/day";
-import { dueLabel, at as hourAt } from "@/lib/needt3/derive";
+import { dueLabel, endOf, at as hourAt } from "@/lib/needt3/derive";
 import {
   ACTIONS_SNAP_AT,
   ACTIONS_W,
@@ -105,6 +105,17 @@ export interface PkRowProps {
   check?: boolean;
   /** Under the row, outside the swipe layer (a task's steps). */
   below?: ReactNode;
+  /** A mark between the check and the title (the day plan's task icon). */
+  icon?: ReactNode;
+  /** `big` is a larger row (a main task), `compact` a denser one. */
+  size?: "big" | "compact";
+  /** The check ring at the end of the row instead of the start. */
+  checkEnd?: boolean;
+  /**
+   * The object's own colour (the task's project): the row becomes a textured
+   * card (`.is-tex`), its colour at low alpha on the raised ground plus grain.
+   */
+  hue?: string | null;
 }
 
 /**
@@ -140,6 +151,10 @@ export function PkRow({
   laterIcon,
   check,
   below,
+  icon,
+  size,
+  checkEnd,
+  hue,
 }: PkRowProps) {
   const plate = usePkPlate();
   const wrap = useRef<HTMLDivElement>(null);
@@ -158,6 +173,29 @@ export function PkRow({
     canLater: leftActions ? false : canLater,
   };
   const swipes = leftActions || (!!onSwipe && (canDone || canLater));
+  const checkNode =
+    check === false ? null : (
+      <button
+        type="button"
+        className={pkCx(
+          "pk-check",
+          checkEnd && "is-end",
+          done && "is-on",
+          phase === "check" && "is-ticking"
+        )}
+        aria-pressed={done}
+        aria-label={done ? "Mark not done" : "Mark done"}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!done) haptic("success");
+          onCheck?.();
+        }}
+      >
+        <span className="pk-check-ring">
+          {done ? <LuCheck size={13} /> : null}
+        </span>
+      </button>
+    );
 
   useEffect(() => {
     const w = frame.current;
@@ -372,6 +410,7 @@ export function PkRow({
         thrown && "is-thrown"
       )}
       data-pk-row={id}
+      style={hue ? ({ "--hue": hue } as React.CSSProperties) : undefined}
     >
       <div className="pk-rw-in">
         {phase === "check" || phase === "done" ? <PkSweep kind="row" /> : null}
@@ -426,32 +465,19 @@ export function PkRow({
             "pk-row",
             done && "is-done",
             late && "is-late",
-            check === false && !lead && "is-flat"
+            check === false && !lead && "is-flat",
+            size === "big" && "is-big",
+            size === "compact" && "is-compact",
+            hue !== undefined && "is-tex"
           )}
           onPointerDown={onPointerDown}
         >
-          {lead ??
-            (check === false ? null : (
-              <button
-                type="button"
-                className={pkCx(
-                  "pk-check",
-                  done && "is-on",
-                  phase === "check" && "is-ticking"
-                )}
-                aria-pressed={done}
-                aria-label={done ? "Mark not done" : "Mark done"}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!done) haptic("success");
-                  onCheck?.();
-                }}
-              >
-                <span className="pk-check-ring">
-                  {done ? <LuCheck size={13} /> : null}
-                </span>
-              </button>
-            ))}
+          {checkEnd ? null : (lead ?? checkNode)}
+          {icon ? (
+            <span className="pk-row-icon" aria-hidden="true">
+              {icon}
+            </span>
+          ) : null}
           {onOpen ? (
             <button
               type="button"
@@ -464,6 +490,7 @@ export function PkRow({
           ) : (
             <span className="pk-row-open is-static">{body}</span>
           )}
+          {checkEnd ? checkNode : null}
           {action ? <span className="pk-row-act">{action}</span> : null}
         </div>
       </div>
@@ -488,6 +515,11 @@ export interface PkTaskRowProps {
   actions?: PkRowActions;
   /** Inside a project's own page the project is not repeated. */
   hideProject?: boolean;
+  /** Today's own screen: a task due today does not say "Due 15 Nov". */
+  hideDue?: boolean;
+  /** A mark before the title, and the row's size (the day plan). */
+  icon?: ReactNode;
+  size?: PkRowProps["size"];
   /** A project page draws the steps itself: the row keeps only its count. */
   hideSteps?: boolean;
   /** The last step ticked closes the task: close it as the row's own tick does. */
@@ -514,23 +546,36 @@ export function PkTaskRow({
   onSwipe,
   actions,
   hideProject,
+  hideDue,
   hideSteps,
   onStepClose,
   action,
+  icon,
+  size,
 }: PkTaskRowProps) {
   const h = hourAt(t);
-  const time = h != null ? clock(h) : null;
-  const line = [
-    late
-      ? `Since ${dueLabel(t) ?? ""}`.trim()
-      : !t.done && dueLabel(t)
-        ? `Due ${dueLabel(t)}`
-        : null,
-    durLabel(t.estimatedMinutes) || null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  const proj = hideProject ? null : project;
+  // A plan row (it has an icon) says its time as a range under the title and
+  // keeps the check ring at the end; other rows are unchanged.
+  const planRow = !!icon;
+  const end = planRow && h != null ? endOf(t) : null;
+  const range =
+    planRow && h != null
+      ? `${clock(h)} → ${end ? end.slice(11, 16) : ""}`.trim()
+      : null;
+  const time = h != null && !planRow ? clock(h) : null;
+  const line = planRow
+    ? (range ?? durLabel(t.estimatedMinutes) ?? "")
+    : [
+        late
+          ? `Since ${dueLabel(t) ?? ""}`.trim()
+          : !t.done && !hideDue && dueLabel(t)
+            ? `Due ${dueLabel(t)}`
+            : null,
+        durLabel(t.estimatedMinutes) || null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+  const proj = hideProject || planRow ? null : project;
   const meta =
     line || proj ? (
       <>
@@ -568,6 +613,24 @@ export function PkTaskRow({
       onOpen={onOpen ? () => onOpen(t) : undefined}
       onSwipe={onSwipe}
       actions={actions}
+      icon={
+        icon ? (
+          // the object's own colour (the project's), for the icon's bubble
+          <span
+            className="dp-hue"
+            style={
+              project?.color
+                ? ({ "--hue": project.color } as React.CSSProperties)
+                : undefined
+            }
+          >
+            {icon}
+          </span>
+        ) : undefined
+      }
+      checkEnd={planRow}
+      size={size}
+      hue={planRow ? (project?.color ?? null) : undefined}
       below={
         <PhoneStepsSlot task={t} hideSteps={hideSteps} close={onStepClose} />
       }

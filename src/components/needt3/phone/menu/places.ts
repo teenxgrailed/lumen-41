@@ -4,6 +4,9 @@
  * map, docs/port/02-task-plan.md §2.4), so the phone and the rail can never
  * disagree about where a place lives. Pure.
  */
+import { BUDGET_HREF } from "@/lib/needt3/budget";
+import { LEARN_HREF } from "@/lib/needt3/learn";
+
 import {
   PLACES,
   type PlaceId,
@@ -28,6 +31,8 @@ export type MenuPlaceId =
   | "trash"
   | "connections"
   | "agents"
+  | "budget"
+  | "learn"
   | "settings";
 
 /**
@@ -50,6 +55,8 @@ export const MENU_ORDER: readonly MenuPlaceId[] = [
   "trash",
   "connections",
   "agents",
+  "budget",
+  "learn",
   "settings",
 ];
 
@@ -87,6 +94,10 @@ export function menuWord(id: MenuPlaceId): string {
       return "Connections";
     case "agents":
       return "Agents";
+    case "budget":
+      return "Budget";
+    case "learn":
+      return "Learn";
     case "settings":
       return "Settings";
     default: {
@@ -105,6 +116,10 @@ export function menuSub(id: MenuPlaceId): string {
       return "Calendars, mail and tools";
     case "agents":
       return "Work you hand to agents";
+    case "budget":
+      return "Wallets and spending";
+    case "learn":
+      return "Topics and lessons";
     case "settings":
       return "Theme, hours, notifications";
     default:
@@ -123,6 +138,8 @@ export function menuAction(id: MenuPlaceId): MenuAction {
   if (id === "settings") return { kind: "settings" };
   if (id === "connections") return { kind: "route", href: CONNECTIONS_HREF };
   if (id === "agents") return { kind: "route", href: AGENTS_HREF };
+  if (id === "budget") return { kind: "route", href: BUDGET_HREF };
+  if (id === "learn") return { kind: "route", href: LEARN_HREF };
   const sid = SHELL_ID[id] as PlaceId;
   const place = PLACES.find((p) => p.id === sid);
   return { kind: "route", href: place ? place.href : "/today" };
@@ -137,6 +154,10 @@ export function menuIdForPath(pathname: string): MenuPlaceId | null {
     return "connections";
   if (pathname === AGENTS_HREF || pathname.startsWith(`${AGENTS_HREF}/`))
     return "agents";
+  if (pathname === BUDGET_HREF || pathname.startsWith(`${BUDGET_HREF}/`))
+    return "budget";
+  if (pathname === LEARN_HREF || pathname.startsWith(`${LEARN_HREF}/`))
+    return "learn";
   const sid = placeForPath(pathname);
   if (!sid) return null;
   for (const id of MENU_ORDER) if (SHELL_ID[id] === sid) return id;
@@ -187,15 +208,20 @@ export function menuTilesFrom(prefs: unknown): MenuPlaceId[] {
 
 /**
  * The rows of the card: every place that is not one of the three. Agents is a
- * row only while the agent hub is on for the person (`agents: true`); without
- * the flag the card is exactly what it was.
+ * row only while the agent hub is on for the person (`agents: true`), Budget
+ * only while its place is shown (`budget: true`); without them the card is
+ * exactly what it was.
  */
 export function menuRows(
   top: readonly MenuPlaceId[],
-  options: { agents?: boolean } = {}
+  options: { agents?: boolean; budget?: boolean; learn?: boolean } = {}
 ): MenuPlaceId[] {
   return MENU_ORDER.filter(
-    (id) => !top.includes(id) && (id !== "agents" || options.agents === true)
+    (id) =>
+      !top.includes(id) &&
+      (id !== "agents" || options.agents === true) &&
+      (id !== "budget" || options.budget === true) &&
+      (id !== "learn" || options.learn === true)
   );
 }
 
@@ -205,4 +231,84 @@ export function menuGlyphId(id: MenuPlaceId): string | null {
   return sid && sid !== "templates" && sid !== "shared" && sid !== "trash"
     ? sid
     : null;
+}
+
+/**
+/**
+ * The places the pill may hold while the menu arranges itself
+ * by use: the ones Settings / Menu used to offer, never Settings.
+ */
+export const PILL_RANKABLE: readonly MenuPlaceId[] = [
+  "home",
+  "calendar",
+  "tasks",
+  "docs",
+  "mail",
+  "habits",
+  "moodboards",
+  "projects",
+  "ask",
+];
+
+/** A ranked id (`@/lib/needt3/nav-rank`) as the phone spells it. */
+export function menuIdOfNav(id: string): MenuPlaceId | null {
+  return FROM_SAVED[id] ?? null;
+}
+
+/** The phone spelling back to the ranked id ("home" is "today"). */
+export function navIdOfMenu(id: MenuPlaceId): string {
+  return id === "home" ? "today" : id;
+}
+
+/**
+ * The bottom bar's two looks (`UserSettings.prefs.barStyle`): "classic" is
+ * menu A's dark pill with the round + beside it; "float" is a light frosted
+ * pill (dark frosted in the dark theme) holding the places, + and the menu
+ * card's opener in one row. Anything else, or nothing saved, is "classic".
+ */
+export type BarStyle = "classic" | "float";
+export const BAR_STYLES: readonly BarStyle[] = ["classic", "float"];
+
+export function barStyleFrom(prefs: unknown): BarStyle {
+  const raw =
+    prefs && typeof prefs === "object"
+      ? (prefs as Record<string, unknown>).barStyle
+      : null;
+  return raw === "float" ? "float" : "classic";
+}
+
+/**
+ * The bar's `count` places, for both looks: the pill places of the ranked
+ * list (`rankedPlaces` / `useRankedPlaces`: arranged by use, pins kept where
+ * they are) in its order, then the defaults, no repeats. This is the one
+ * place the bar's ordering is decided. Pure.
+ */
+export function barPlaces(
+  ranked: readonly string[],
+  count: number
+): MenuPlaceId[] {
+  const out: MenuPlaceId[] = [];
+  const n = Math.max(0, Math.floor(count));
+  const add = (id: MenuPlaceId | null) => {
+    if (id && out.length < n && !out.includes(id)) out.push(id);
+  };
+  for (const v of ranked) {
+    const id = menuIdOfNav(v);
+    if (id && PILL_RANKABLE.includes(id)) add(id);
+  }
+  for (const id of DEFAULT_TILES) add(id);
+  for (const id of PILL_RANKABLE) add(id);
+  return out;
+}
+
+/**
+ * How many places the bar holds: three. The floating bar sets them beside
+ * "+" and the menu opener (five slots); the classic pill holds the same
+ * three, so the card that opens from either bar shows the same tiles on top.
+ */
+export const BAR_PLACE_SLOTS = 3;
+
+/** The pill's three from the ranked list (`barPlaces` at three). */
+export function menuTilesRanked(ranked: readonly string[]): MenuPlaceId[] {
+  return barPlaces(ranked, BAR_PLACE_SLOTS);
 }

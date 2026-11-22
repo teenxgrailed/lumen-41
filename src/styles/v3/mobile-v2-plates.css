@@ -22,7 +22,6 @@
 .needt-v3 .v2p-swap { animation: v3-v2p-in 0.32s var(--pk-ease, ease) both; }
 @keyframes v3-v2p-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
-.needt-v3 .pk-head.is-cal { padding-bottom: 14px; }
 
 /* Dark theme: plates are the kit's muted surface (.pk-muted, phone-kit.css);
    what is particular here is the picked day in the week strip / month. */
@@ -71,26 +70,60 @@
 
 /* ── Calendar ── */
 .needt-v3 .v2p-seg { flex: none; display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--v2p-raise); }
-.needt-v3 .v2p-seg-btn { height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: var(--v2p-ink-2); font: 500 14px/1 var(--font-sans);
+.needt-v3 .v2p-seg-btn { height: 28px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: var(--v2p-ink-2); font: 500 13px/1 var(--font-sans);
   transition: background-color 0.2s ease, color 0.2s ease; }
 .needt-v3 .v2p-seg-btn.is-on { background: var(--v2p-pick); color: var(--v2p-pick-ink); }
 
 .needt-v3 .v2p-week-row { display: flex; align-items: center; gap: 2px; margin: 0 -14px; }
-.needt-v3 .v2p-step { flex: none; width: 28px; height: 44px; padding: 0; border: 0; border-radius: 14px; background: none; color: var(--v2p-ink-3); display: grid; place-items: center; }
+.needt-v3 .v2p-step { flex: none; width: 28px; height: 52px; padding: 0; border: 0; border-radius: 14px; background: none; color: var(--v2p-ink-3); display: grid; place-items: center; }
 .needt-v3 .v2p-step:disabled { opacity: 0.3; }
 .needt-v3 .v2p-week { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.needt-v3 .v2p-wd { position: relative; height: 92px; padding: 0; border: 0; background: none; color: var(--v2p-ink); -webkit-tap-highlight-color: transparent; }
-.needt-v3 .v2p-wd-plate { position: absolute; inset: 0 2px; border-radius: 22px; background: var(--v2p-plate); box-shadow: var(--v2p-plate-shadow); animation: v3-v2p-pop 0.34s var(--pk-spring, ease) both; }
+.needt-v3 .v2p-wd { position: relative; height: 52px; padding: 0; border: 0; background: none; color: var(--v2p-ink); -webkit-tap-highlight-color: transparent; }
+.needt-v3 .v2p-wd-plate { position: absolute; inset: 0 2px; border-radius: 14px; background: var(--v2p-plate); box-shadow: var(--v2p-plate-shadow); animation: v3-v2p-pop 0.34s var(--pk-spring, ease) both; }
 @keyframes v3-v2p-pop { from { transform: scale(0.82); opacity: 0; } to { transform: none; opacity: 1; } }
-.needt-v3 .v2p-wd-in { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--v2p-ink); }
+.needt-v3 .v2p-wd-in { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; color: var(--v2p-ink); }
 .needt-v3 .v2p-wd-letter { font: 500 12px/14px var(--font-sans); color: var(--v2p-ink-2); }
-.needt-v3 .v2p-wd-num { font: 600 30px/32px var(--font-sans); letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+.needt-v3 .v2p-wd-num { font: 600 17px/20px var(--font-sans); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .needt-v3 .v2p-wd.is-today:not(.is-on) .v2p-wd-num,
 .needt-v3 .v2p-wd.is-today:not(.is-on) .v2p-wd-letter { color: var(--v2p-lav); }
 .needt-v3 .v2p-wd-dots { display: flex; gap: 3px; height: 4px; }
 .needt-v3 .v2p-wd-dot { width: 4px; height: 4px; border-radius: 2px; background: transparent; }
 .needt-v3 .v2p-wd-dot.is-on { background: var(--v2p-ink-3); }
 .needt-v3 .v2p-wd.is-on .v2p-wd-dot.is-on { background: var(--v2p-ink-2); }
+
+/* The header is one row: the month with its menu arrow, and Day | Month. */
+.needt-v3 .v2p-monthbtn { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-align: left; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .v2p-monthbtn-chev { flex: none; color: var(--v2p-ink-3); transition: transform 0.2s var(--pk-ease, ease); }
+.needt-v3 .v2p-monthbtn-chev.is-open { transform: rotate(180deg); }
+.needt-v3 .v2p-calmenu { display: flex; flex-direction: column; margin-top: 10px; padding: 4px 0; border-radius: 14px; background: var(--v2p-raise); }
+.needt-v3 .v2p-calmenu-cap { margin: 0; padding: 8px 14px 4px; font: 400 12px/16px var(--font-sans); color: var(--v2p-ink-3); font-variant-numeric: tabular-nums; }
+.needt-v3 .v2p-calmenu-item { display: flex; align-items: center; min-height: 44px; padding: 0 14px; border: 0; background: none; color: var(--v2p-ink); font: 500 13px/16px var(--font-sans); text-align: left; -webkit-tap-highlight-color: transparent; }
+.needt-v3 .v2p-calmenu-item[aria-checked="true"] { color: var(--v2p-lav); }
+
+/* Earlier today: one quiet row above the Now line. */
+.needt-v3 .v2p-fold.is-earlier { margin-top: 2px; margin-bottom: 8px; }
+
+/* A free window between two blocks: how long, and one tap to use it. */
+.needt-v3 .v2p-free { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; padding: 0 2px 0 62px; box-sizing: border-box; font: 400 13px/16px var(--font-sans); color: var(--v2p-ink-3); }
+.needt-v3 .v2p-free-text { font-variant-numeric: tabular-nums; }
+.needt-v3 .v2p-free-add { flex: none; height: 32px; padding: 0 10px; border: 0; border-radius: 999px; background: none; color: var(--v2p-lav); font: 500 13px/16px var(--font-sans); -webkit-tap-highlight-color: transparent; }
+.needt-v3 .v2p-free-add:active { background: var(--v2p-raise); }
+
+/* No time (N): Auto-fit stays under the thumb while the list scrolls, above
+   the dock (the tail's own clearance: 112px + the dock lift). */
+.needt-v3 .v2p-autofit { position: sticky; bottom: calc(var(--v3-tail-h, 112px) + var(--v3-sab, 0px)); z-index: 5; display: flex; justify-content: center; margin-top: 12px; pointer-events: none; }
+.needt-v3 .v2p-autofit-pill { pointer-events: auto; height: 40px; padding: 0 18px; border: 0; border-radius: 999px; background: var(--v2p-plate); color: var(--v2p-ink); box-shadow: var(--v2p-plate-shadow); font: 500 13px/16px var(--font-sans); -webkit-tap-highlight-color: transparent; }
+.needt-v3 .v2p-autofit-pill:disabled { opacity: 0.5; }
+/* the snack stands there for a few seconds: the pill steps over it */
+.needt-v3:has(.pov-snack) .v2p-autofit { bottom: calc(var(--v3-tail-h, 112px) + var(--v3-sab, 0px) + 64px); }
+
+/* A task row carries its round check at the right edge; the row keeps its width. */
+.needt-v3 .v2p-tlw { position: relative; }
+.needt-v3 .v2p-tlw > .v2p-tl { padding-right: 46px; }
+.needt-v3 .v2p-tl-check { position: absolute; right: -6px; top: 50%; transform: translateY(-50%); margin-left: 0; }
+/* Today's habits: the home's chip strip, tighter, at the top of the day. */
+.needt-v3 .v2p-habstrip { padding: 6px 0 2px; }
+.needt-v3 .v2p-habstrip .ha-hab { font-size: 13px; }
 
 /* The empty week (calendar/empty.ts): two pills side by side, each its own width. */
 .needt-v3 .v2p-cal-empty .pk-empty-action { flex-wrap: wrap; gap: 8px; }

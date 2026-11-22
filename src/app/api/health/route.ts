@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 
 import { isDraining } from "@/lib/drain";
 import { isBuildShaAllowed, resolveBuildSha } from "@/lib/health/build-sha";
+import { getAgentHubFlag } from "@/lib/health/flags";
 import { getMigrationStatus } from "@/lib/health/migrations";
+import { checkRedis } from "@/lib/health/redis";
 import { readWorkerReleaseBuildSha } from "@/lib/health/worker-release";
 
 export const runtime = "nodejs";
@@ -37,6 +39,7 @@ export async function GET() {
       {
         ok: false,
         db: "unchecked",
+        redis: "unchecked",
         buildSha,
         workerBuildSha: null,
         latencyMs: Date.now() - startedAt,
@@ -46,9 +49,13 @@ export async function GET() {
   }
 
   try {
-    const [{ pending }, workerBuildSha] = await Promise.all([
+    // Redis has its own 1 s timeout and never rejects, so it cannot slow the
+    // database checks down or turn into a "db: error".
+    const [{ pending }, workerBuildSha, agentHub, redis] = await Promise.all([
       getMigrationStatus(),
       getWorkerBuildSha(buildSha),
+      getAgentHubFlag(),
+      checkRedis(),
     ]);
 
     if (pending.length > 0) {
@@ -56,6 +63,7 @@ export async function GET() {
         {
           ok: false,
           db: "migrations-pending",
+          redis,
           buildSha,
           workerBuildSha,
           latencyMs: Date.now() - startedAt,
@@ -64,11 +72,17 @@ export async function GET() {
       );
     }
 
+    // Redis is reported, never gating: this endpoint is the container and
+    // proxy healthcheck, and a Redis blip must not take the web container out
+    // of rotation (a partial outage would become a full one).
     return NextResponse.json({
       ok: true,
       db: "ok",
+      redis,
+      ...(redis !== "ok" ? { degraded: true } : {}),
       buildSha,
       workerBuildSha,
+      flags: { agent_hub: agentHub },
       latencyMs: Date.now() - startedAt,
     });
   } catch {
@@ -76,6 +90,7 @@ export async function GET() {
       {
         ok: false,
         db: "error",
+        redis: "unchecked",
         buildSha,
         workerBuildSha: null,
         latencyMs: Date.now() - startedAt,

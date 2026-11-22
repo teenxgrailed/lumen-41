@@ -1,0 +1,1 @@
+- Resend webhook refusals are now logged at error level with the reason, timestamp and body length, so a wrong signing secret can be diagnosed from the logs.

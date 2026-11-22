@@ -68,7 +68,7 @@ export function assertTokenNotInUse(self: HubAgent, input: RegisterInput) {
   if (!otherName && !otherKind) return;
   throw new HubError(
     "TOKEN_IN_USE",
-    `This token already belongs to agent ${self.name}. Create a separate token for each agent in Settings > Connections.`,
+    `This token already belongs to agent ${self.name}. Create a separate token for each agent in Connections (use.needt.app/connections).`,
     { agent: self.name, kind: self.kind }
   );
 }

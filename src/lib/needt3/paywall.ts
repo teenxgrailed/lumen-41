@@ -295,3 +295,70 @@ export function proIncludes(
   if (l.advancedNudges) out.push(["Advanced nudges", null]);
   return out;
 }
+
+/* ── Keep Pro: the words on the upgrade card ──────────────────────────────── */
+
+/** The one footer line of the upgrade card. Data is never deleted. */
+export const KEEP_PRO_FOOT =
+  "Everything you made stays. Pro features become read-only on Free.";
+
+const KP_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const KP_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** "Fri, 4 Dec" for an ISO date; "" when it does not parse. */
+export function keepProDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${KP_DAYS[d.getDay()]}, ${d.getDate()} ${KP_MONTHS[d.getMonth()]}`;
+}
+
+export interface KeepProFacts {
+  kind: V3Plan["kind"];
+  trialEndsAt?: string | null;
+  trialEligible?: boolean;
+}
+
+/**
+ * The title and the one grey line of the upgrade card: "Keep Pro" with the
+ * trial's last day while it runs, "Your trial has ended" after it; "Get Pro"
+ * for a Free account that can still start one; "Pro" for a paid plan.
+ */
+export function keepProCopy(
+  plan: KeepProFacts | null | undefined,
+  feature: string | null = null
+): { title: string; line: string | null } {
+  const kind = plan?.kind ?? "free";
+  if (kind === "trial") {
+    const d = keepProDate(plan?.trialEndsAt);
+    return { title: "Keep Pro", line: d ? `Trial ends ${d}` : null };
+  }
+  if (kind === "free") {
+    if (plan?.trialEligible === true) return { title: "Get Pro", line: null };
+    return {
+      title: "Keep Pro",
+      line: plan ? "Your trial has ended" : null,
+    };
+  }
+  return { title: "Pro", line: feature ? null : "This is your plan" };
+}
+
+/** The five or six lines of "what Pro includes" on the upgrade card. */
+export function keepProItems(l: Limits = PLAN_LIMITS.PRO): string[] {
+  return proIncludes(l)
+    .map(([t]) => t)
+    .slice(0, 6);
+}

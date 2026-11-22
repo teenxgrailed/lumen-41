@@ -1,0 +1,1 @@
+- The first-replan onboarding now shows its hints strictly one at a time and in order: the replan card, the "Replanned" card, "This is a sample day", the Sunday week review, then the suggested highlight. Each waits until the one before is closed, and a reload continues where you were. The demo day no longer starts with an overdue task.

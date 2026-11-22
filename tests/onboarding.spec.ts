@@ -131,20 +131,29 @@ test.describe("clean-database first run", () => {
       /* The v3 phone sign-in: no tabs and no second password field (the
          show/hide eye covers the typo the confirmation guarded against). The
          switch only appears where public sign-up is allowed, which a clean
-         database is. A new account goes on to first-run setup. */
+         database is. A new account goes on to /start (`onboarding_v3` is on for
+         everyone). */
       await page.getByRole("button", { name: /Create one/ }).click();
       /* Every sign-up confirms 16+ and the Terms first; without the tick the
          form does not submit. */
       await page.getByRole("checkbox", { name: /16 or older/ }).check();
+      /* The code is the main path now; this walk uses the password form. */
+      await page.getByRole("button", { name: "Use password" }).click();
       await page.getByRole("textbox", { name: "Email" }).fill(email);
+      /* The card asks for the address first; the password arrives under it. */
+      await page
+        .getByRole("button", { name: "Continue", exact: true })
+        .click();
       await page
         .getByRole("textbox", { name: "Password", exact: true })
         .fill(password);
-      await page.getByRole("button", { name: "Create the account" }).click();
-      await expect(page).toHaveURL(/\/setup$/, { timeout: 30_000 });
-      await expect(page.locator("[data-onboarding-step]").first()).toBeVisible({
-        timeout: 30_000,
-      });
+      await page
+        .getByRole("button", { name: "Create account", exact: true })
+        .click();
+      await expect(page).toHaveURL(/\/start$/, { timeout: 30_000 });
+      await expect(
+        page.getByRole("button", { name: "Get started" })
+      ).toBeVisible({ timeout: 30_000 });
 
       const user = await prisma.user.findUniqueOrThrow({
         where: { email },

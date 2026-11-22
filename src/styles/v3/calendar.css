@@ -52,6 +52,7 @@
 .needt-v3 .c2-daycol.is-weekend { background: var(--fill-1); }
 .needt-v3 .c2-hline { position: absolute; left: 0; right: 0; height: 1px; background: var(--fill-4); }
 .needt-v3 .c2-now { position: absolute; left: -4px; right: 0; height: 2px; background: var(--destructive); border-radius: 1px; z-index: 1; pointer-events: none; }
+.needt-v3 .c2-now.is-week { left: 0; height: 1px; opacity: 0.4; }
 .needt-v3 .c2-now-dot { position: absolute; left: -1px; top: -3px; z-index: 3; width: 8px; height: 8px; border-radius: 4px; background: var(--destructive); }
 .needt-v3 .c2-block { position: absolute; }
 

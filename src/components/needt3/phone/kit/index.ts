@@ -43,7 +43,6 @@ export { PkSheet, type PkSheetProps, type SheetFrom } from "./Sheet";
 export {
   PkTheme,
   PkThemeRoot,
-  usePkInverse,
   usePkPlate,
   usePkSide,
   usePkSkyMood,

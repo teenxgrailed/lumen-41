@@ -1,0 +1,1 @@
+- New accounts now start in the 19-screen onboarding, and finishing it puts the first-replan demo on Today: a demo meeting on top of a demo task, and a card that moves the task after the meeting.

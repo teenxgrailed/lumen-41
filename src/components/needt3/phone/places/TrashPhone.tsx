@@ -102,7 +102,6 @@ export function TrashPhone({ c }: { c: TrashController }) {
     <PkScreen
       screen="trash"
       title="Trash"
-      glyph="trash"
       sub={trashSub(total)}
       right={
         canEmpty ? (

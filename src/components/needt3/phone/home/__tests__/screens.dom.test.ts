@@ -14,6 +14,8 @@ import { type Root, createRoot } from "react-dom/client";
 import type { V3Event, V3Task } from "@/lib/needt3/map";
 import { qk } from "@/lib/needt3/query-keys";
 
+import { HomeScreen } from "../../../home/HomeScreen";
+import { usePaywallStore } from "../../../paywall/store";
 import { PhoneUiProvider } from "../../../root/phone-ui-context";
 import { CalendarFaces } from "../../calendar/CalendarFaces";
 import type { CalendarController } from "../../calendar/useCalendarController";
@@ -40,6 +42,18 @@ jest.mock("@/lib/needt3/hooks/tasks", () => ({
       mutateAsync({ id, patch: { trashedAt: new Date().toISOString() } }),
   }),
   useCreateTask: () => ({ mutateAsync }),
+}));
+
+let mockHint: string | null = null;
+jest.mock("@/lib/needt3/hooks/first-replan", () => ({
+  ...jest.requireActual("@/lib/needt3/hooks/first-replan"),
+  useFirstReplanHints: () => ({ current: mockHint, goTo: jest.fn() }),
+}));
+
+const snackMock = jest.fn<string, unknown[]>(() => "");
+jest.mock("../../overlays/snack", () => ({
+  ...jest.requireActual("../../overlays/snack"),
+  snack: (...a: unknown[]) => snackMock(...a),
 }));
 
 const push = jest.fn();
@@ -214,6 +228,18 @@ const DeskCal = ({ ctl }: { ctl: CalendarController }) =>
   );
 const PhoneHome = () =>
   h(HomeFaces, { desktop: (ctl: HomeController) => h(DeskHome, { ctl }) });
+const PhoneHomeV2 = () =>
+  h(HomeFaces, {
+    v2: true,
+    desktop: (ctl: HomeController) => h(DeskHome, { ctl }),
+  });
+const PhoneHomeOff = () =>
+  h(HomeFaces, {
+    v2: false,
+    desktop: (ctl: HomeController) => h(DeskHome, { ctl }),
+  });
+const DesktopV2Off = () => h(HomeScreen, { v2: false });
+const DesktopV2On = () => h(HomeScreen, { v2: true });
 const PhoneCalendar = () =>
   h(CalendarFaces, {
     desktop: (ctl: CalendarController) => h(DeskCal, { ctl }),
@@ -291,6 +317,175 @@ afterEach(() => {
   act(() => root.unmount());
   host.remove();
   client.clear();
+});
+
+/** Home asks for today's events (phone: a day, desktop: eight days). */
+const seedHomeEvents = (list: V3Event[]) => {
+  client.setQueryData(qk.events({ from: TODAY, to: "2026-09-03" }), list);
+  client.setQueryData(qk.events({ from: TODAY, to: "2026-09-10" }), list);
+};
+
+describe("Home v2 on the phone", () => {
+  beforeEach(() => seedHomeEvents(EVENTS));
+
+  const rows = () =>
+    qa("[data-pk-row]").map((r) => r.getAttribute("data-pk-row"));
+
+  it("v2 off is the old path: overdue plate, an Overdue section, no v2 row", () => {
+    mount(PhoneHomeOff);
+    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("late");
+    expect(host.querySelector("[data-hv2-late]")).toBeNull();
+    expect(rows()).toEqual(["am", "pm", "inbox"]);
+  });
+
+  it("a running event is the Now card and no task leaves the lists", () => {
+    mount(PhoneHomeV2);
+    expect(q(".ha-hl .ha-kicker").textContent).toBe("Now");
+    expect(q(".ha-hl-title").textContent).toContain("Planning");
+    expect(host.querySelector("[data-hv2-open-calendar]")).not.toBeNull();
+    // the overdue task is NOT lost: it is the one row, closed
+    expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    expect(rows()).toEqual(["am", "pm", "inbox"]);
+    click(q("[data-hv2-late-toggle]"));
+    expect(rows()).toEqual(["am", "pm", "late", "inbox"]);
+  });
+
+  it("the Now task leaves the lists, the old overdue-first pick does not", () => {
+    seedHomeEvents([]);
+    mount(PhoneHomeV2);
+    // 14:30 is the next timed task
+    expect(q("[data-ha-card]").getAttribute("data-ha-card")).toBe("pm");
+    expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    expect(rows()).toEqual(["am", "inbox"]);
+  });
+
+  it("when overdue is all there is, it never takes the card; the row holds all of it", () => {
+    seedHomeEvents([]);
+    client.setQueryData(qk.tasks({}), [
+      task("a", { dueDate: "2026-08-30", title: "Oldest" }),
+      task("b", { dueDate: "2026-08-31", title: "Older" }),
+    ]);
+    mount(PhoneHomeV2);
+    expect(host.querySelector("[data-ha-card]")).toBeNull();
+    expect(q("[data-hv2-late]").textContent).toContain("2 overdue");
+    click(q("[data-hv2-late-toggle]"));
+    expect(rows()).toEqual(["a", "b"]);
+  });
+
+  it("one chronological list, a collapsed Anytime row, no habit pills, notes or week card", () => {
+    seedHomeEvents([]);
+    client.setQueryData(qk.tasks({}), [
+      task("am", { scheduledStart: `${TODAY}T09:00`, title: "Standup notes" }),
+      task("pm", { scheduledStart: `${TODAY}T14:30`, title: "Call Anna" }),
+      task("any", { title: "Whenever" }),
+    ]);
+    mount(PhoneHomeV2);
+    expect(
+      host.querySelector("[data-hv2-list] [data-pk-row=am]")
+    ).not.toBeNull();
+    expect(host.textContent).not.toContain("Morning");
+    expect(host.textContent).not.toContain("Afternoon");
+    expect(q("[data-hv2-list]").textContent).not.toContain("Whenever");
+    expect(host.textContent).toContain("Anytime");
+    expect(rows()).not.toContain("any");
+    expect(host.textContent).not.toContain("Stretch");
+    expect(host.querySelector("[data-v2p-count]")).toBeNull();
+    expect(host.querySelector("[data-v2p-notes]")).toBeNull();
+    expect(q("[data-hv2-count]").getAttribute("data-hv2-count")).toBe("0/3");
+  });
+
+  it("morning tasks that passed become one line with Reschedule", () => {
+    seedHomeEvents([]);
+    client.setQueryData(qk.tasks({}), [
+      task("am", { scheduledStart: `${TODAY}T09:00`, auto: true }),
+      task("pm", { scheduledStart: `${TODAY}T14:30` }),
+    ]);
+    mount(PhoneHomeV2);
+    // 14:20: the 09:00 auto-scheduled task is behind us by more than an hour
+    expect(q("[data-hv2-missed]").textContent).toContain(
+      "1 task from earlier today"
+    );
+    expect(q("[data-hv2-missed-go]").textContent).toBe("Reschedule");
+  });
+
+  it("a task due today does not say Due on Today", () => {
+    seedHomeEvents([]);
+    mount(PhoneHomeV2);
+    expect(q("[data-pk-row=am]").textContent).not.toContain("Due");
+  });
+
+  it("the day's highlight is the Now card, over the running event; Skip falls through", () => {
+    client.setQueryData(qk.highlight(TODAY), { date: TODAY, taskId: "pm" });
+    mount(PhoneHomeV2);
+    expect(q(".ha-hl .ha-kicker").textContent).toBe("Highlight");
+    expect(q(".ha-hl-title").textContent).toBe("Call Anna");
+    expect(q(".ha-hl-time").textContent).toBe("14:30");
+    click(q("[data-ha-skip]"));
+    expect(q(".ha-hl .ha-kicker").textContent).toBe("Now");
+    expect(q(".ha-hl-title").textContent).toContain("Planning");
+  });
+
+  it("a first-replan hold draws no Now card and no task leaves the rows", () => {
+    mockHint = "sample";
+    try {
+      seedHomeEvents([]);
+      mount(PhoneHomeV2);
+      expect(host.querySelector(".ha-hl")).toBeNull();
+      expect(rows()).toEqual(["am", "pm", "inbox"]);
+      expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    } finally {
+      mockHint = null;
+    }
+  });
+
+  it("a closed day keeps every overdue task in the one row, count included", () => {
+    seedHomeEvents([]);
+    client.setQueryData(qk.tasks({}), [
+      task("late", { dueDate: "2026-09-01", title: "Pay the invoice" }),
+      task("d", { done: true, scheduledStart: `${TODAY}T09:00` }),
+    ]);
+    mount(PhoneHomeV2);
+    expect(host.querySelector("[data-ha-hl]")).toBeNull();
+    expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    click(q("[data-hv2-late-toggle]"));
+    expect(rows()).toContain("late");
+  });
+
+  it("asks for no highlight suggestion (no AI action) while v2 is on", async () => {
+    mount(PhoneHomeV2);
+    await flush();
+    expect(
+      fetchMock.mock.calls.some((c) =>
+        String(c[0]).includes("highlight-suggestions")
+      )
+    ).toBe(false);
+  });
+});
+
+describe("Home v2 on the desktop", () => {
+  beforeEach(() => seedHomeEvents(EVENTS));
+
+  it("flag off: the current Home, with its Next up card and Overdue fold", () => {
+    mount(DesktopV2Off, "desktop");
+    expect(host.querySelector("[data-hv2-now]")).toBeNull();
+    expect(host.querySelector("[data-hv2-late]")).toBeNull();
+    expect(host.querySelector("[data-hd-cards]")).not.toBeNull();
+    expect(host.querySelector(".hd-fold-title.is-late")).not.toBeNull();
+  });
+
+  it("flag on: a set highlight is the Now card", () => {
+    client.setQueryData(qk.highlight(TODAY), { date: TODAY, taskId: "pm" });
+    mount(DesktopV2On, "desktop");
+    expect(q("[data-hv2-now] .ha-kicker").textContent).toBe("Highlight");
+    expect(q("[data-hv2-now] .ha-hl-title").textContent).toBe("Call Anna");
+  });
+
+  it("flag on: the Now card and one overdue row", () => {
+    mount(DesktopV2On, "desktop");
+    expect(host.querySelector("[data-hv2-now]")).not.toBeNull();
+    expect(q("[data-hv2-late]").textContent).toContain("1 overdue");
+    expect(host.querySelector(".hd-fold-title.is-late")).toBeNull();
+  });
 });
 
 describe("Home", () => {
@@ -559,8 +754,212 @@ describe("Calendar", () => {
     expect(host.textContent).toContain("1 overlap");
     expect(qa("[data-v2p-earlier]")).toHaveLength(0); // folded
     expect(selected()).toBe(TODAY);
-    expect(host.textContent).toContain("Week 36 · 31 Aug – 6 Sep");
     expect(q(".pk-title").textContent).toBe("September");
+  });
+
+  it("the header is one row: the month with its ▾ and Day | Month, no calendar glyph with a date", () => {
+    mount(PhoneCalendar);
+    // the glyph tile drew a calendar with a day number that was not today's
+    expect(qa("[data-pk-glyph]")).toHaveLength(0);
+    expect(qa(".pk-sub")).toHaveLength(0);
+    expect(qa(".pk-head-row")).toHaveLength(1);
+    const row = q(".pk-head-row");
+    expect(row.querySelector("[data-v2p-month-menu]")).not.toBeNull();
+    expect(qa("[data-v2p-view-btn]").map((b) => b.textContent)).toEqual([
+      "Day",
+      "Month",
+    ]);
+    // nothing in the title row or the day heading makes an event or keeps time
+    expect(qa(".v2p-dayhead [data-p5-new-event]")).toHaveLength(0);
+    expect(qa(".v2p-dayhead [data-p5-personal]")).toHaveLength(0);
+    expect(host.textContent).not.toContain("Personal");
+  });
+
+  it("the ▾ menu holds the week, Add event and Keep time for you", () => {
+    mount(PhoneCalendar);
+    expect(qa("[data-v2p-calmenu]")).toHaveLength(0);
+    click(q("[data-v2p-month-menu]"));
+    const menu = q("[data-v2p-calmenu]");
+    expect(menu.textContent).toContain("Week 36 · 31 Aug – 6 Sep");
+    expect(menu.textContent).toContain("Add event");
+    expect(menu.textContent).toContain("Keep time for you");
+    // Today is only offered away from today
+    expect(qa("[data-v2p-menu-today]")).toHaveLength(0);
+    click(q("[data-p5-personal]"));
+    expect(qa("[data-v2p-calmenu]")).toHaveLength(0); // a pick closes it
+    expect(host.textContent).toContain("Kept for you");
+  });
+
+  it("the ▾ menu closes on Escape and on a tap outside it", () => {
+    mount(PhoneCalendar);
+    click(q("[data-v2p-month-menu]"));
+    expect(qa("[data-v2p-calmenu]")).toHaveLength(1);
+    // the first item has focus, and Escape is heard on the document
+    expect(document.activeElement?.getAttribute("role")).toMatch(/^menuitem/);
+    act(() => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
+    });
+    expect(qa("[data-v2p-calmenu]")).toHaveLength(0);
+    click(q("[data-v2p-month-menu]"));
+    act(() => {
+      document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    });
+    expect(qa("[data-v2p-calmenu]")).toHaveLength(0);
+  });
+
+  it("a task in the list has a round check that completes it in one tap, an event has none", async () => {
+    toggle.mockClear();
+    mount(PhoneCalendar);
+    expect(qa("[data-v2p-check=t1]")).toHaveLength(1);
+    const undo = jest.fn();
+    toggle.mockResolvedValueOnce({ result: null, undo });
+    click(q("[data-v2p-check=t1]"));
+    await flush();
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(qa("[data-v2p-check=e1]")).toHaveLength(0);
+    // "Done", and the card's Undo is the write's own inverse
+    expect(snackMock).toHaveBeenCalledWith("Done", undo);
+    (snackMock.mock.calls.at(-1)?.[1] as () => void)();
+    expect(undo).toHaveBeenCalledTimes(1);
+  });
+
+  it("today's habits are one strip at the top of the day: a tap marks it, with Undo", async () => {
+    snackMock.mockClear();
+    mount(PhoneCalendar);
+    const strip = q("[data-v2p-habits]");
+    expect(strip.querySelectorAll("[data-ha-habit]")).toHaveLength(1);
+    expect(
+      strip.compareDocumentPosition(q(".v2p-timeline")) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    fetchMock.mockImplementation((url: unknown) =>
+      String(url).includes("/completions/")
+        ? Promise.resolve({
+            ok: true,
+            status: 204,
+            statusText: "",
+            text: () => Promise.resolve(""),
+          })
+        : new Promise<never>(() => {})
+    );
+    click(q('[data-v2p-habits] [data-ha-habit="h1"]'));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/habits/h1/completions/today",
+      expect.objectContaining({ method: "PUT" })
+    );
+    expect(snackMock).toHaveBeenCalledWith("Habit done", expect.any(Function));
+    // not on another day
+    click(q("[data-v2p-day='2026-09-03']"));
+    expect(qa("[data-v2p-habits]")).toHaveLength(0);
+  });
+
+  it("Earlier today is one folded row above the plate, not in the footer", () => {
+    mount(PhoneCalendar);
+    const earlier = q(".v2p-fold.is-earlier");
+    const plate = q("[data-v2p-plate]");
+    expect(
+      earlier.compareDocumentPosition(plate) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(earlier.textContent).toContain("Earlier today");
+    expect(earlier.textContent).toContain("1");
+    expect(qa("[data-v2p-earlier]")).toHaveLength(0); // folded
+    click(q(".v2p-fold.is-earlier .pk-sec-fold"));
+    expect(qa("[data-v2p-earlier] [data-v2p-tl=t2]")).toHaveLength(1);
+  });
+
+  describe("free windows", () => {
+    const D3 = "2026-09-03";
+    const two = () =>
+      client.setQueryData(qk.tasks({}), [
+        task("a", {
+          dueDate: D3,
+          scheduledStart: `${D3}T10:00`,
+          estimatedMinutes: 30,
+        }),
+        task("b", {
+          dueDate: D3,
+          scheduledStart: `${D3}T13:00`,
+          estimatedMinutes: 30,
+        }),
+      ]);
+    it("a gap between two blocks says how long, and a tap on it opens the new-event sheet on it for 30 min", () => {
+      two();
+      mount(PhoneCalendar);
+      click(q("[data-v2p-day='2026-09-03']"));
+      const row = q("[data-v2p-free=b]");
+      expect(row.textContent).toContain("2 h 30 min free");
+      // the window sits between the two blocks
+      expect(
+        q("[data-v2p-plate=a]").compareDocumentPosition(row) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      click(row);
+      expect(usePhoneOverlays.getState().newEvent).toEqual({
+        startAt: `${D3}T10:30`,
+        endAt: `${D3}T11:00`,
+      });
+    });
+    it("the window that ends at the plate is drawn above the plate", () => {
+      // 10:00: the 09:00 block is over, the plate is Planning at 14:00, and
+      // the gap between now and it is the window that ends at the plate
+      jest.setSystemTime(new Date("2026-09-02T10:00:00Z"));
+      mount(PhoneCalendar);
+      const plate = q("[data-v2p-plate]");
+      const id = plate.getAttribute("data-v2p-plate");
+      const row = q(`[data-v2p-free=${id}]`);
+      expect(
+        row.compareDocumentPosition(plate) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
+    it("no window before the first block or after the last", () => {
+      two();
+      mount(PhoneCalendar);
+      click(q("[data-v2p-day='2026-09-03']"));
+      expect(qa("[data-v2p-free]")).toHaveLength(1);
+    });
+  });
+
+  describe("Auto-fit", () => {
+    it("the pill is not shown until the plan is known", () => {
+      mount(PhoneCalendar);
+      expect(qa("[data-v2p-autofit-go]")).toHaveLength(0);
+    });
+    it("a Free person gets the paywall, not a dead button", () => {
+      client.setQueryData(qk.plan(), { kind: "free" });
+      mount(PhoneCalendar);
+      const pill = q<HTMLButtonElement>("[data-v2p-autofit-go]");
+      expect(pill.textContent).toBe("Auto-fit");
+      expect(pill.disabled).toBe(false);
+      click(pill);
+      expect(usePaywallStore.getState().open).toBe(true);
+      expect(usePaywallStore.getState().feature).toBe("Plan my day");
+      expect(
+        fetchMock.mock.calls.some((c) => c[0] === "/api/ai/plan-day")
+      ).toBe(false);
+    });
+    it("only on today: a day that is not today has no pill", () => {
+      client.setQueryData(qk.plan(), { kind: "monthly" });
+      mount(PhoneCalendar);
+      click(q("[data-v2p-day='2026-09-03']"));
+      expect(qa("[data-v2p-autofit]")).toHaveLength(0);
+    });
+    it("a Pro person runs Plan my day with it", async () => {
+      client.setQueryData(qk.plan(), { kind: "monthly" });
+      mount(PhoneCalendar);
+      await click(q("[data-v2p-autofit-go]"));
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/ai/plan-day",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+    it("is not there when everything has a time", () => {
+      client.setQueryData(qk.tasks({}), [calTasks[0], calTasks[1]]);
+      mount(PhoneCalendar);
+      expect(qa("[data-v2p-autofit]")).toHaveLength(0);
+    });
   });
 
   it("a task opens the task sheet, an event opens the event sheet", () => {
@@ -587,7 +986,8 @@ describe("Calendar", () => {
     click(q("[data-p5-step='-1']"));
     click(q("[data-p5-step='-1']"));
     expect(selected()).toBe("2026-08-26");
-    click(q(".pk-sub .pk-btn"));
+    click(q("[data-v2p-month-menu]"));
+    click(q("[data-v2p-menu-today]"));
     expect(selected()).toBe(TODAY);
   });
 
@@ -680,8 +1080,9 @@ describe("Calendar", () => {
     );
   });
 
-  it("Event opens the new-event sheet on a free half hour of the day", () => {
+  it("Add event (in the ▾ menu) opens the new-event sheet on a free half hour of the day", () => {
     mount(PhoneCalendar);
+    click(q("[data-v2p-month-menu]"));
     click(q("[data-p5-new-event]"));
     // 14:20 now: 14:30 touches the event on now and Write brief, so the next free hour
     expect(usePhoneOverlays.getState().newEvent).toEqual({

@@ -41,6 +41,12 @@ export type NotificationOptions = {
    * it, the same as it does for its own acts. */
   action?: { label: string; onClick: () => void };
   /**
+   * Several buttons, first one primary. Wins over `action`. The island draws
+   * them all; on the toast (the default surface) only the FIRST action shows,
+   * so pass `surface: "island"` when every button matters.
+   */
+  actions?: readonly { label: string; onClick: () => void }[];
+  /**
    * Where it is drawn: `toast` (default, bottom centre) for what you did and
    * its Undo; `island` for the product speaking up unprompted.
    */
@@ -66,9 +72,11 @@ function raise(
     key: options?.dedupeKey,
     ms: options?.duration,
     sticky,
-    acts: options?.action
-      ? [{ label: options.action.label, run: options.action.onClick }]
-      : undefined,
+    acts: options?.actions?.length
+      ? options.actions.map((a) => ({ label: a.label, run: a.onClick }))
+      : options?.action
+        ? [{ label: options.action.label, run: options.action.onClick }]
+        : undefined,
   });
 }
 

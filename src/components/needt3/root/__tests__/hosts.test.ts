@@ -146,9 +146,6 @@ jest.mock("../../phone/overlays/EventSheet", () => ({
   StoreEventSheet: () => null,
   StoreNewEventSheet: () => null,
 }));
-jest.mock("../../shell/CustomizeSidebar", () => ({
-  CustomizeSidebar: stub("customize"),
-}));
 jest.mock("../../shell/KeySheet", () => ({ KeySheet: stub("keys") }));
 jest.mock("../../shell/Sidebar", () => ({ Sidebar: stub("sidebar") }));
 jest.mock("../../shell/TopIcons", () => ({ WhatsNew: stub("news") }));

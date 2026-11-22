@@ -10,6 +10,7 @@ import { checkinTimeOptions } from "@/lib/needt3/habit-presence";
 import { openHelp } from "@/lib/needt3/help";
 import { useAlerts, useUpdateAlerts } from "@/lib/needt3/hooks/account";
 import { sendJson } from "@/lib/needt3/hooks/core";
+import { useEveningPushSwitch } from "@/lib/needt3/hooks/habit-evening";
 import { useFreshQuitGate } from "@/lib/needt3/hooks/habits-quit";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
@@ -249,6 +250,7 @@ export function FocusPage() {
 export function AlertsPage() {
   const mark = useMark();
   const quitGate = useFreshQuitGate();
+  const evening = useEveningPushSwitch();
   const alerts = useAlerts();
   const update = useUpdateAlerts();
   const a = alerts.data;
@@ -316,6 +318,24 @@ export function AlertsPage() {
         {row("Daily digest instead of a stream", "digest")}
         {a?.digest ? row("Also email the digest", "emailNotifications") : null}
       </PsGroup>
+      {evening.show ? (
+        <PsGroup
+          title="Evening habits"
+          hint="Once a day at 20:00 your time, only when habits are left."
+        >
+          <PsRow
+            title="Habits left today"
+            control={
+              <PsSwitch
+                label="Habits left today"
+                on={evening.on}
+                disabled={evening.disabled}
+                onChange={(v) => void evening.set(v).then(noop)}
+              />
+            }
+          />
+        </PsGroup>
+      ) : null}
       {quitGate !== "off" ? (
         <PsGroup
           title="Habits"

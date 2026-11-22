@@ -1,8 +1,10 @@
 import { splitHome } from "@/components/needt3/home/derive";
+
 import type { V3Task } from "@/lib/needt3/map";
 
 import {
   dayProgress,
+  leadBadge,
   nextEventBadge,
   overdueCount,
   unreadCount,
@@ -64,10 +66,12 @@ describe("sidebar live badges", () => {
     ];
     expect(nextEventBadge(events, "2026-09-01T09:30")).toEqual({
       text: "35m",
+      mins: 35,
       urgent: null,
     });
     expect(nextEventBadge(events, "2026-09-01T09:58")).toEqual({
       text: "7m",
+      mins: 7,
       urgent: "“Call” starts in 7 min",
     });
     expect(nextEventBadge(events, "2026-09-01T11:00")?.text).toBe("16:30");
@@ -118,5 +122,47 @@ describe("sidebar counts match what Home lists", () => {
       done: day.filter((x) => x.done).length,
       total: day.length,
     });
+  });
+});
+
+describe("leadBadge: one badge across the tiles", () => {
+  const all = ["today", "calendar", "tasks", "docs", "mail"];
+  const base = {
+    tiles: all,
+    eventMins: null as number | null,
+    overdue: 0,
+    progress: null as { done: number; total: number } | null,
+    unread: 0,
+  };
+
+  it("an event within 15 minutes wins over everything", () => {
+    expect(
+      leadBadge({
+        ...base,
+        eventMins: 5,
+        overdue: 3,
+        progress: { done: 0, total: 13 },
+        unread: 2,
+      })
+    ).toBe("calendar");
+  });
+
+  it("then overdue tasks, then Home's progress", () => {
+    const more = { ...base, eventMins: 40, progress: { done: 0, total: 13 } };
+    expect(leadBadge({ ...more, overdue: 3 })).toBe("tasks");
+    expect(leadBadge(more)).toBe("today");
+  });
+
+  it("then unread mail, then a later event", () => {
+    expect(leadBadge({ ...base, eventMins: 90, unread: 4 })).toBe("mail");
+    expect(leadBadge({ ...base, eventMins: 90 })).toBe("calendar");
+  });
+
+  it("skips places that are not tiles, and says nothing when nothing is up", () => {
+    expect(
+      leadBadge({ ...base, tiles: ["today", "docs"], eventMins: 5, overdue: 2 })
+    ).toBeNull();
+    expect(leadBadge(base)).toBeNull();
+    expect(leadBadge({ ...base, progress: { done: 0, total: 0 } })).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { AiOrb } from "@/components/needt3/orb/AiOrb";
 import { ProBadge } from "@/components/needt3/paywall/Pro";
@@ -47,7 +47,22 @@ export function HaHighlight({
   onStart,
   onDone,
   onOpen,
+  kicker: kickerText,
+  actions,
+  hue,
+  mark,
 }: {
+  /**
+   * Phone: the object's own colour (the task's project, `null` for none). When
+   * given, the card is a textured plate in that colour instead of the sky.
+   */
+  hue?: string | null;
+  /** Phone, with `hue`: the task's icon, before the title. */
+  mark?: ReactNode;
+  /** Home v2: the kicker word ("Now", "Next · 14:00") instead of Next up. */
+  kicker?: string;
+  /** Home v2: replaces Start focus / Done (an event has neither). */
+  actions?: ReactNode;
   phone?: boolean;
   state: HaHighlightState;
   card: HaCard;
@@ -81,7 +96,7 @@ export function HaHighlight({
       </span>
     ) : state === "nextup" ? (
       <span className={haCx("ha-kicker", late && "is-late")}>
-        {late ? "Overdue" : "Next up"}
+        {kickerText ?? (late ? "Overdue" : "Next up")}
       </span>
     ) : (
       <span className="ha-kicker">
@@ -119,18 +134,25 @@ export function HaHighlight({
           </button>
         ) : null}
       </div>
-      <h2
-        className={haCx("ha-hl-title", state === "suggest" && "ha-hl-swap")}
-        title={card.title}
-      >
-        {onOpen && state !== "suggest" ? (
-          <button type="button" className="ha-hl-open" onClick={onOpen}>
+      <div className={haCx("ha-hl-line", !!mark && "has-mark")}>
+        {phone && hue !== undefined && mark ? (
+          <span className="ha-hl-mark" aria-hidden="true">
+            {mark}
+          </span>
+        ) : null}
+        <h2
+          className={haCx("ha-hl-title", state === "suggest" && "ha-hl-swap")}
+          title={card.title}
+        >
+          {onOpen && state !== "suggest" ? (
+            <button type="button" className="ha-hl-open" onClick={onOpen}>
+              <span className="ha-hl-tx">{haBreak(card.title)}</span>
+            </button>
+          ) : (
             <span className="ha-hl-tx">{haBreak(card.title)}</span>
-          </button>
-        ) : (
-          <span className="ha-hl-tx">{haBreak(card.title)}</span>
-        )}
-      </h2>
+          )}
+        </h2>
+      </div>
       <p className="ha-hl-sub">{card.sub}</p>
       {state === "suggest" ? (
         <div className="ha-hl-ask">
@@ -173,6 +195,8 @@ export function HaHighlight({
             </span>
           ) : null}
         </div>
+      ) : actions ? (
+        <div className="ha-hl-acts">{actions}</div>
       ) : (
         <div className="ha-hl-acts">
           <button
@@ -203,6 +227,19 @@ export function HaHighlight({
       : state === "nextup"
         ? "Next up"
         : "Suggested highlight";
+  if (phone && hue !== undefined)
+    return (
+      <section
+        className={haCx("ha-hl dp-plate", state === "set" && "is-highlight")}
+        style={hue ? ({ "--hue": hue } as CSSProperties) : undefined}
+        data-ha-card={card.id}
+        data-dp-plate=""
+        aria-label={label}
+      >
+        <span className="dp-grain" aria-hidden="true" />
+        <div className="dp-plate-in">{body}</div>
+      </section>
+    );
   return phone ? (
     <PkSkyPlate
       className={haCx("ha-hl", state === "set" && "is-highlight")}

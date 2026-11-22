@@ -20,6 +20,7 @@ import {
 } from "../../drag/usePersonalResize";
 import { type WeekHandle, WeekView } from "../WeekView";
 import { calendarItems } from "../blocks";
+import { C2_H } from "../layout";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -62,7 +63,7 @@ beforeEach(() => {
   });
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
     configurable: true,
-    get: () => 52,
+    get: () => C2_H,
   });
   Element.prototype.scrollTo = function scrollTo() {} as never;
   Element.prototype.scrollIntoView = function scrollIntoView() {} as never;
@@ -186,18 +187,18 @@ describe("events on the grid", () => {
   it("pulling the bottom edge reports the event, the snapped distance and a revert", () => {
     mount([event("g1", "goog")]);
     const el = blockEl("g1");
-    el.style.height = "52px";
+    el.style.height = `${C2_H}px`;
     const handle = el.querySelector("[data-pb-resize]") as HTMLElement;
     act(() => {
       handle.dispatchEvent(pointer("pointerdown", { clientY: 100 }));
     });
     act(() => {
-      window.dispatchEvent(pointer("pointermove", { clientY: 130 }));
+      window.dispatchEvent(pointer("pointermove", { clientY: 100 + C2_H / 2 }));
     });
     flush();
-    expect(el.style.height).toBe("78px");
+    expect(el.style.height).toBe(`${C2_H * 1.5}px`);
     act(() => {
-      window.dispatchEvent(pointer("pointerup", { clientY: 152 }));
+      window.dispatchEvent(pointer("pointerup", { clientY: 100 + C2_H }));
     });
     expect(resized).toHaveLength(1);
     expect(resized[0]).toMatchObject({
@@ -205,6 +206,6 @@ describe("events on the grid", () => {
       deltaHours: 1,
     });
     resized[0].revert();
-    expect(el.style.height).toBe("52px");
+    expect(el.style.height).toBe(`${C2_H}px`);
   });
 });

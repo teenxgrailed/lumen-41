@@ -5,6 +5,7 @@
  * is spelled out here once, from focus.jsx.
  */
 import { cvDur } from "@/lib/needt3/derive";
+import type { Sound } from "@/lib/needt3/focus";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 
@@ -52,3 +53,22 @@ export const fullTimeAskSub = (title: string, plannedMin: number | null) =>
   plannedMin
     ? `${title} is set to run the full ${cvDur(plannedMin)}.`
     : `${title} is set to run the full time.`;
+
+/* The sounds under a session (generated noise, then the CC0 lo-fi tracks). */
+export const soundNames: Record<Sound, string> = {
+  off: "Off",
+  brown: "Brown noise",
+  pink: "Pink noise",
+  "lofi-loop": "Lo-fi, hip hop",
+  "lofi-chill": "Lo-fi, chill",
+  "lofi-rain": "Lo-fi, morning rain",
+  "lofi-country": "Lo-fi, countryside",
+};
+export const soundGroups = { noise: "Noise", lofi: "Lo-fi" } as const;
+export const SOUND_LABEL = "Sound";
+export const phoneRun = {
+  done: "Done",
+  endBreak: "End break",
+  more: "+5 min",
+  minimise: "Put away",
+} as const;

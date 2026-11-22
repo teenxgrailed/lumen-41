@@ -6,13 +6,25 @@ import { useRouter } from "next/navigation";
 
 import { readPref } from "@/components/needt3/settings/derive";
 
+import { clock } from "@/lib/needt3/day";
+import { planIsShown } from "@/lib/needt3/day-plan";
+import { dayHeader, freeAfterHour } from "@/lib/needt3/day-plan-view";
 import { addDays } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
 import { highEnergyHours } from "@/lib/needt3/energy";
 import { useSchedule } from "@/lib/needt3/hooks/account";
 import { useAiAvailable } from "@/lib/needt3/hooks/ai-availability";
 import { useDailyNote } from "@/lib/needt3/hooks/daily-note";
+import {
+  useDayPlanToday,
+  useRestoreSomeday,
+  useSomeday,
+} from "@/lib/needt3/hooks/day-plan";
 import { useEvents } from "@/lib/needt3/hooks/events";
+import {
+  useAdvanceReview,
+  useFirstReplanHints,
+} from "@/lib/needt3/hooks/first-replan";
 import {
   useCheckins,
   useHabits,
@@ -20,15 +32,18 @@ import {
 } from "@/lib/needt3/hooks/habits";
 import { useHighlight, useSetHighlight } from "@/lib/needt3/hooks/highlight";
 import { useHomeBlocks } from "@/lib/needt3/hooks/home-blocks";
+import { useFillFreeTime } from "@/lib/needt3/hooks/nudges";
 import { usePersonalDay } from "@/lib/needt3/hooks/personal";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useStreak } from "@/lib/needt3/hooks/streak";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import { useWeather } from "@/lib/needt3/hooks/weather";
 import { useWeekFocus } from "@/lib/needt3/hooks/week-focus";
 import type { V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { todayLine } from "@/lib/needt3/today";
 import { weekStartOf } from "@/lib/needt3/week-focus";
 import type { DayBand } from "@/lib/personal-time-days";
@@ -36,6 +51,14 @@ import type { DayBand } from "@/lib/personal-time-days";
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
 import { useStartFocus } from "../../focus/useFocusController";
 import { EndDayNudge } from "../../home/EndDayNudge";
+import { FirstReplanCard } from "../../home/FirstReplanCard";
+import {
+  DayCount,
+  MissedLine,
+  OverdueRow,
+  RESCHEDULE_NOTICE,
+  reviewHour,
+} from "../../home/HomeV2";
 import { OnboardingResumeBanner } from "../../home/OnboardingResumeBanner";
 import { ReviewCard } from "../../home/ReviewCard";
 import { SampleBanner } from "../../home/SampleBanner";
@@ -44,7 +67,9 @@ import { briefFactsOf, doneTodayCount } from "../../home/brief";
 import { firstEvent } from "../../home/day-line-model";
 import {
   capacityFrom,
+  chronological,
   dayStreak,
+  dur,
   proFromPlan,
   scheduleItems,
 } from "../../home/derive";
@@ -61,6 +86,7 @@ import {
   HaHabits,
   HaHighlight,
   HaReviewSheet,
+  HaStreak,
   HaTimeLeft,
   HaWeather,
   haAllDoneOf,
@@ -72,7 +98,19 @@ import {
 } from "../../home/ha";
 import { useHaBrief } from "../../home/ha/useHaBrief";
 import { highlightTask } from "../../home/highlight";
-import { anytimeOpen, lateMovable, spreadLeads } from "../../home/spread";
+import {
+  hhmm,
+  missedToday,
+  nowCardTime,
+  nowKicker,
+  pickNow,
+} from "../../home/now";
+import {
+  anytimeOpen,
+  lateActions,
+  lateMovable,
+  spreadLeads,
+} from "../../home/spread";
 import { blockedMinutes, minutesAhead, timeLeft } from "../../home/timeleft";
 import { useEndDayNudge } from "../../home/useEndDayNudge";
 import { useFinishDay } from "../../home/useFinishDay";
@@ -99,9 +137,14 @@ import { PersonalBandSheet } from "../overlays/PersonalBandSheet";
 import { useTaskActions } from "../overlays/schedule";
 import { snack } from "../overlays/snack";
 import { usePhoneOverlays } from "../overlays/store";
+import { PlanCloseSheet } from "./PlanCloseSheet";
+import { PlanDate, PlanHello, PlanToday, PlanWeekday } from "./PlanToday";
+import { SomedaySheet } from "./SomedaySheet";
+import { TaskGlyph } from "./TaskGlyph";
 import { usePhoneClock } from "./clock";
 import { homeView, moveLate, nextUpWhy } from "./model";
 import { CappedRows, PhoneState, hasContent } from "./parts";
+import { useCloseFlow } from "./useCloseFlow";
 import type { HomeController } from "./useHomeController";
 
 const copy = strings["mobile-v2-plates.jsx"];
@@ -126,7 +169,14 @@ const sayOnPhone = (
  * document in the person's pages (`useDailyNote`). The prototype keeps a plain
  * field in the browser; that would be a second copy of the day's notes.
  */
-export function PhoneHome({ ctl }: { ctl: HomeController }) {
+export function PhoneHome({
+  ctl,
+  v2 = false,
+}: {
+  ctl: HomeController;
+  /** Home v2 (flag `home_v2`): Now, the day, one overdue row. */
+  v2?: boolean;
+}) {
   const starter = useStarterGameCard();
   const { today, now, hour: nowHour } = usePhoneClock();
   const router = useRouter();
@@ -141,6 +191,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const updateTask = useUpdateTask();
   const toggleHabit = useToggleHabitToday();
   const startFocus = useStartFocus();
+  const fillFreeTime = useFillFreeTime(RESCHEDULE_NOTICE);
   const openTask = usePhoneOverlays((s) => s.openTask);
 
   const {
@@ -158,15 +209,20 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
 
   const taskView = useTaskView();
   const stats = useHomeStats(all.filter((t) => t.done).length);
+  const streak = useStreak(all.filter((t) => t.done).length);
   const schedule = useSchedule();
   const energyHours = useMemo(
     () => highEnergyHours(schedule.data),
     [schedule.data]
   );
+  // One hint at a time: the first-replan card is answered before the
+  // suggested highlight shows up.
+  const hint = useFirstReplanHints().current;
+  const firstReplanHold = hint !== null;
   const highlight = useHighlight(today);
   const setHighlight = useSetHighlight(today);
   const hlTask = highlightTask(all, highlight.data?.taskId);
-  const lift = hlTask && !hlTask.done ? hlTask.id : null;
+  const lift = !v2 && hlTask && !hlTask.done ? hlTask.id : null;
   const v = useMemo(
     () =>
       homeView(
@@ -177,10 +233,22 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
           busy: { ...X.phase, ...gone },
           view: taskView,
           lift,
+          plate: !v2,
           energy: { nowHour, hours: energyHours },
         }
       ),
-    [all, today, skipped, X.phase, gone, taskView, lift, nowHour, energyHours]
+    [
+      all,
+      today,
+      skipped,
+      X.phase,
+      gone,
+      taskView,
+      lift,
+      v2,
+      nowHour,
+      energyHours,
+    ]
   );
   const { next: N } = v;
   const nu = N.nu;
@@ -189,6 +257,25 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const prefs = useSettings().data?.prefs;
   const events = useEvents({ from: today, to: addDays(today, 1) });
   const finish = useFinishDay({ late: v.sec.late, day: v.sec.day, today });
+  // The day plan (flag day_plan): with a plan for today, Today is drawn from
+  // it and the evening End day closes it. Off or none: the old Today.
+  const dayPlan = useDayPlanToday(today);
+  const planOn = planIsShown(dayPlan.snapshot);
+  const planOpen = planOn && dayPlan.snapshot?.plan?.status !== "closed";
+  const planIds = useMemo(
+    () => new Set(dayPlan.snapshot?.plan?.items.map((i) => i.taskId) ?? []),
+    [dayPlan.snapshot]
+  );
+  const [fullList, setFullList] = useState(false);
+  const [somedayOpen, setSomedayOpen] = useState(false);
+  const someday = useSomeday(somedayOpen);
+  const returning = useRestoreSomeday();
+  const closeFlow = useCloseFlow({
+    today,
+    snapshot: dayPlan.snapshot,
+    fallback: finish.show,
+  });
+  const endDay = planOpen ? closeFlow.show : finish.show;
   const openRest = {
     late: v.lateN,
     inbox: v.open(v.sec.inbox).length,
@@ -202,6 +289,10 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     projects: projects ?? [],
     streak: dayStreak(all, today).n,
   });
+  // v2: the Sunday review waits for the evening (from 18:00 local); until
+  // then it counts as not shown, so the first-replan hints do not wait on it.
+  const reviewShown = review.show && (!v2 || reviewHour(nowHour));
+  useAdvanceReview(reviewShown, true);
   const calendarItems = scheduleItems([], events.data ?? [], today);
   const personal = usePersonalDay(today);
   const [band, setBand] = useState<DayBand | null>(null);
@@ -237,7 +328,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
   const nudge = useEndDayNudge({
     today,
     nowHour,
-    hidden: v.dayClosed || finish.open,
+    hidden: v.dayClosed || finish.open || closeFlow.open,
   });
   const plan = usePlan();
   const pro = proFromPlan(plan.data?.kind);
@@ -267,7 +358,8 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
     tasks: all,
     today,
     nowHour,
-    known: highlight.isFetched,
+    // v2 draws no highlight card, so no suggestion is asked for (an AI action)
+    known: highlight.isFetched && !v2,
     hasHighlight: !!highlight.data,
     accept: (id) => void setHighlight.set(id),
     weekFocus: weekFocus.data?.focuses,
@@ -331,17 +423,33 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
 
   const projOf = (t: V3Task) => {
     const p = project(t.projectId, projects ?? []);
-    return p ? { name: p.name, color: p.color } : null;
+    return p ? { name: p.name, color: projectColor(p.id, p.color) } : null;
   };
   const actionsOf = useTaskActions(X.exit);
-  const row = (t: V3Task, o: { late?: boolean; tomorrow?: boolean } = {}) => (
+  /** A task's own colour and icon for the textured Next plate. */
+  const plateOf = (t: V3Task) => ({
+    hue: projOf(t)?.color ?? null,
+    mark: <TaskGlyph title={t.title} size={22} />,
+  });
+  const row = (
+    t: V3Task,
+    o: {
+      late?: boolean;
+      tomorrow?: boolean;
+      icon?: React.ReactNode;
+      size?: "big" | "compact";
+    } = {}
+  ) => (
     <PkTaskRow
       key={t.id}
       t={t}
+      icon={o.icon}
+      size={o.size}
       project={projOf(t)}
       late={!!o.late && !t.done}
       phase={X.phase[t.id]}
       out={!!X.out[t.id]}
+      hideDue={v2 && !o.late && !o.tomorrow && t.dueDate === today}
       canDone={!t.done}
       canLater={!t.done && !o.tomorrow}
       actions={t.done ? undefined : actionsOf(t)}
@@ -364,10 +472,167 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
           nextUpWhy(N, today)
         : "";
   const dateLine = todayLine(now, tz, weekStartDay).line;
+  const lateActs = (
+    <span className="v2p-late-acts">
+      {spreadLate.length ? (
+        <PkButton
+          kind={spreadFirst ? "chip" : "ghost"}
+          disabled={spreader.busy}
+          onClick={() => void spreader.spread(spreadLate)}
+        >
+          Spread
+        </PkButton>
+      ) : null}
+      <PkButton kind={spreadFirst ? "ghost" : "chip"} onClick={moveToToday}>
+        {copy.V2pHome.move_to_today}
+      </PkButton>
+    </span>
+  );
+  const aux = (
+    <>
+      {reviewShown && (hint === null || hint === "review") ? (
+        <ReviewCard phone onStart={review.start} onLater={review.later} />
+      ) : null}
+      {nudge.show && !firstReplanHold ? (
+        <EndDayNudge phone onEndDay={endDay} onDismiss={nudge.dismiss} />
+      ) : null}
+    </>
+  );
+  // HOME V2: one Now card, picked by `pickNow` (the desktop's rule).
+  const dayOpenNow = v.open(v.sec.day);
+  // Today's tasks whose hour passed: one line, not rows that hang silently.
+  const nowPick = v2
+    ? pickNow({
+        schedule: scheduleItems(
+          v.sec.day.filter((t) => !t.noSlot),
+          events.data ?? [],
+          today
+        ),
+        dayOpen: dayOpenNow,
+        nowHour,
+        today,
+        skipped,
+        // a highlight just ticked keeps the card while its strike plays
+        highlight: hlTask
+          ? hlTask.done &&
+            (X.phase[hlTask.id] === "check" || X.phase[hlTask.id] === "done")
+            ? { ...hlTask, done: false }
+            : hlTask
+          : null,
+      })
+    : null;
+  const nowTask = nowPick?.task ?? null;
+  const missed = v2
+    ? missedToday(dayOpenNow, today, nowHour).filter(
+        (t) => t.id !== nowTask?.id
+      )
+    : [];
+  // v2: the task on the Now card is not repeated in the rows. Only that one
+  // (not the old overdue-first pick) leaves them.
+  // Only the task whose card is actually drawn leaves them: not on a closed
+  // day, not while a first-replan hint holds the card back, not with the
+  // Next-up block switched off.
+  const shownNow =
+    v2 && ready && !v.dayClosed && blocks.nextUp && !firstReplanHold
+      ? nowTask
+      : null;
+  const hide = (l: readonly V3Task[]) =>
+    shownNow ? l.filter((t) => t.id !== shownNow.id) : l;
+  // With the plan drawn, its tasks are not repeated in the day's lists and the
+  // overdue and Inbox lists wait behind "All tasks".
+  const hidePlan = (l: readonly V3Task[]) =>
+    planOn ? l.filter((t) => !planIds.has(t.id)) : l;
+  const folded = planOn && !fullList;
+  const lateRows = v2 ? hide(v.lateRows) : v.lateRows;
+  const inboxRows = v2 ? hide(v.inboxRows) : v.inboxRows;
+  const dayParts =
+    v2 || planOn
+      ? v.parts
+          .map(
+            ([p, l]) => [p, hidePlan(v2 ? hide(l) : l)] as [string, V3Task[]]
+          )
+          .filter(([, l]) => l.length)
+      : v.parts;
+  const taskById = new Map(all.map((t) => [t.id, t] as const));
+  const chrono = chronological(dayParts);
+  const nowNode = !nowPick ? null : nowPick.event ? (
+    <HaHighlight
+      hue={null}
+      phone
+      state="nextup"
+      kicker={nowKicker(nowPick)}
+      card={{
+        id: nowPick.event.key,
+        title: nowPick.event.title,
+        // the kicker already says "Next \u00b7 13:00"
+        ...(nowPick.kind === "now" ? { time: hhmm(nowPick.event.at) } : {}),
+        dur: dur(nowPick.event.len),
+        sub: "On your calendar",
+      }}
+      onSkip={
+        nowPick.canSkip
+          ? () =>
+              setSkipped(
+                nowPick.wrapped
+                  ? [nowPick.skipKey]
+                  : [...skipped, nowPick.skipKey]
+              )
+          : undefined
+      }
+      actions={
+        <button
+          type="button"
+          className="ha-btn is-primary is-lg"
+          data-hv2-open-calendar=""
+          onClick={() => router.push("/calendar")}
+        >
+          Open calendar
+        </button>
+      }
+    />
+  ) : nowTask ? (
+    <HaHighlight
+      {...plateOf(nowTask)}
+      phone
+      state="nextup"
+      kicker={nowKicker(nowPick)}
+      card={nowCardTime(
+        haTaskCard(
+          nowTask,
+          today,
+          sub(
+            nowTask,
+            nowPick.kind === "highlight"
+              ? "the one thing for today"
+              : dayOpenNow.length > 1
+                ? `then ${dayOpenNow.length - 1} more today`
+                : ""
+          )
+        ),
+        nowPick.kind
+      )}
+      onSkip={
+        nowPick.canSkip
+          ? () =>
+              setSkipped(
+                nowPick.wrapped
+                  ? [nowPick.skipKey]
+                  : [...skipped, nowPick.skipKey]
+              )
+          : undefined
+      }
+      onStart={() => void startFocus(nowTask)}
+      onDone={() => {
+        pkDotSweep(`[data-ha-card="${nowTask.id}"]`, "row");
+        X.exit(nowTask, "check");
+      }}
+      onOpen={() => openTask(nowTask)}
+    />
+  ) : null;
 
   /* Progress is a small part of the header; a finished day is one line. */
   const progress =
-    !ready || v.dayClosed ? null : v.total ? (
+    v2 || !ready || v.dayClosed ? null : v.total ? (
       <div className="v2p-prog" data-v2p-count={`${v.done}/${v.total}`}>
         <p className="v2p-prog-line">
           <span className="v2p-prog-count">
@@ -393,11 +658,32 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       </div>
     ) : null;
 
-  const haHabits = haHabitsOf(habitsQuery.data ?? [], checkins, today);
+  const haHabits = haHabitsOf(
+    habitsQuery.data ?? [],
+    checkins,
+    today,
+    projects ?? []
+  );
+  const showHabits = !v2 && blocks.habits && haHabits.length > 0;
+  // The day plan's header: the weekday big with a dot, the date at the right,
+  // then the greeting sentence and the stats line, filled from data.
+  const planShown = ready && planOn && !!dayPlan.snapshot?.plan;
+  const dayMeetings = calendarItems.filter((x) => x.event);
+  const free = freeAfterHour(dayMeetings, nowHour, hourOfClock(workCap.end));
+  const planHead = planShown ? (
+    <PlanHello
+      plan={dayPlan.snapshot!.plan!}
+      hour={nowHour}
+      meetings={dayMeetings.length}
+      habits={haHabits.length}
+      freeAfter={free == null ? null : clock(free)}
+    />
+  ) : null;
   const head =
-    (blocks.habits && haHabits.length) || progress ? (
+    showHabits || progress || planHead ? (
       <>
-        {blocks.habits && haHabits.length ? (
+        {planHead}
+        {showHabits ? (
           <div className="ha-phone">
             <HaHabits
               habits={haHabits}
@@ -410,23 +696,55 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
         {progress}
       </>
     ) : null;
+  const hdr = planShown ? dayHeader(now, tz) : null;
+  // Overdue work sits behind "All tasks" while the plan is drawn: its two
+  // actions stay one tap away under the plan.
+  const lateAct = lateActions(v.sec.late, !!left?.over);
+  const planLate = lateAct
+    ? {
+        count: lateAct.count,
+        spreadFirst: lateAct.spreadFirst,
+        canSpread: lateAct.spreadIds.length > 0,
+        busy: spreader.busy,
+        onSpread: () => void spreader.spread(lateAct.spreadIds),
+        onMove: moveToToday,
+      }
+    : null;
 
   return (
     <PkScreen
       screen="home"
-      glyph="home"
-      title={copy.V2pHome.today}
-      sub={dateLine}
+      className={hdr ? "dp-screen" : undefined}
+      title={hdr ? <PlanWeekday weekday={hdr.weekday} /> : copy.V2pHome.today}
+      right={hdr ? <PlanDate date={hdr.date} year={hdr.year} /> : undefined}
+      sub={
+        hdr ? undefined : v2 && ready && !v.dayClosed ? (
+          <span className="hv2-sub">
+            {dateLine}
+            <DayCount done={v.done} total={v.total} />
+          </span>
+        ) : (
+          dateLine
+        )
+      }
       head={head}
     >
       <PhoneState query={tasksQuery} screen="today" />
       <OnboardingResumeBanner />
       <SampleBanner />
-      {ready && review.show ? (
-        <ReviewCard phone onStart={review.start} onLater={review.later} />
-      ) : null}
-      {ready && nudge.show ? (
-        <EndDayNudge phone onEndDay={finish.show} onDismiss={nudge.dismiss} />
+      <FirstReplanCard />
+      {ready && !v2 ? aux : null}
+      {ready && planOn && dayPlan.snapshot ? (
+        <PlanToday
+          snapshot={dayPlan.snapshot}
+          byId={taskById}
+          row={(t, o) => row(t, o)}
+          allCount={lateRows.length + inboxRows.length}
+          allOpen={fullList}
+          onAll={() => setFullList((o) => !o)}
+          onSomeday={() => setSomedayOpen(true)}
+          late={planLate}
+        />
       ) : null}
       {ready ? (
         <div className="ha-phone ha-ph-stack" data-ha-stack="">
@@ -445,13 +763,16 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
                   calendarItems
                 ),
               })}
-              onEndDay={finish.show}
+              onEndDay={endDay}
               onSeeTomorrow={
                 v.open(v.sec.next).length ? seeTomorrow : undefined
               }
             />
-          ) : !blocks.nextUp ? null : hlTask && !hlTask.done ? (
+          ) : !blocks.nextUp || firstReplanHold ? null : v2 ? (
+            nowNode
+          ) : hlTask && !hlTask.done ? (
             <HaHighlight
+              {...plateOf(hlTask)}
               phone
               state="set"
               card={haTaskCard(
@@ -469,6 +790,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
             />
           ) : suggest.pick ? (
             <HaHighlight
+              {...plateOf(suggest.pick)}
               phone
               state="suggest"
               card={haTaskCard(suggest.pick, today, suggest.reason)}
@@ -481,6 +803,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
             />
           ) : nu ? (
             <HaHighlight
+              {...plateOf(nu)}
               phone
               state="nextup"
               late={N.lateOpen.includes(nu)}
@@ -498,6 +821,13 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               onOpen={() => openTask(nu)}
             />
           ) : null}
+          {v2 && !firstReplanHold && missed.length ? (
+            <MissedLine
+              count={missed.length}
+              onReschedule={() => fillFreeTime()}
+            />
+          ) : null}
+          {v2 ? aux : null}
           <HaBrief
             lines={haBrief.lines}
             note={haBrief.note}
@@ -522,6 +852,7 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               spreadBusy={spreader.busy}
             />
           ) : null}
+          <HaStreak streak={streak.data} />
         </div>
       ) : null}
 
@@ -537,33 +868,14 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
       {ready && v.empty && !starter.show && !starter.hold ? (
         <PkEmpty line={copy.V2pHome.a_clear_day_nothing_is_due_and_nothing_i} />
       ) : null}
-
       {ready ? (
         <div className="v2p-day">
-          {v.lateRows.length ? (
+          {!v2 && !folded && v.lateRows.length ? (
             <PkSection
               title={copy.V2pHome.overdue}
               tone="late"
               count={v.lateRows.length}
-              action={
-                <span className="v2p-late-acts">
-                  {spreadLate.length ? (
-                    <PkButton
-                      kind={spreadFirst ? "chip" : "ghost"}
-                      disabled={spreader.busy}
-                      onClick={() => void spreader.spread(spreadLate)}
-                    >
-                      Spread
-                    </PkButton>
-                  ) : null}
-                  <PkButton
-                    kind={spreadFirst ? "ghost" : "chip"}
-                    onClick={moveToToday}
-                  >
-                    {copy.V2pHome.move_to_today}
-                  </PkButton>
-                </span>
-              }
+              action={lateActs}
             >
               <CappedRows
                 list={v.lateRows}
@@ -571,18 +883,46 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               />
             </PkSection>
           ) : null}
-          {v.parts.map(([p, list]) => (
-            <PkSection key={p} title={p} count={list.length}>
-              <CappedRows list={list} render={(t) => row(t)} />
-            </PkSection>
-          ))}
-          {v.inboxRows.length ? (
+          {v2 ? (
+            <>
+              {chrono.timed.length ? (
+                <div className="hv2-list" data-hv2-list="">
+                  <CappedRows list={chrono.timed} render={(t) => row(t)} />
+                </div>
+              ) : null}
+              {chrono.anytime.length ? (
+                <PkSection
+                  title="Anytime"
+                  count={chrono.anytime.length}
+                  folded={fold.anytimeOpen !== true}
+                  onFold={flip("anytimeOpen")}
+                >
+                  <CappedRows list={chrono.anytime} render={(t) => row(t)} />
+                </PkSection>
+              ) : null}
+            </>
+          ) : (
+            dayParts.map(([p, list]) => (
+              <PkSection key={p} title={p} count={list.length}>
+                <CappedRows list={list} render={(t) => row(t)} />
+              </PkSection>
+            ))
+          )}
+          {v2 && !folded && lateRows.length ? (
+            <OverdueRow count={lateRows.length} actions={lateActs}>
+              <CappedRows
+                list={lateRows}
+                render={(t) => row(t, { late: true })}
+              />
+            </OverdueRow>
+          ) : null}
+          {!folded && inboxRows.length ? (
             <PkSection
               title={copy.V2pHome.inbox}
               glyph="tasks"
-              count={v.inboxRows.length}
+              count={inboxRows.length}
             >
-              <CappedRows list={v.inboxRows} render={(t) => row(t)} />
+              <CappedRows list={inboxRows} render={(t) => row(t)} />
             </PkSection>
           ) : null}
           {v.tomorrowRows.length ? (
@@ -610,25 +950,38 @@ export function PhoneHome({ ctl }: { ctl: HomeController }) {
               <CappedRows list={v.doneToday} render={(t) => row(t)} />
             </PkSection>
           ) : null}
-          <StatsCard
-            stats={stats.week}
-            streak={dayStreak(all, today).n}
-            onOpen={stats.show}
-          />
-          <button
-            type="button"
-            className="v2p-notes v2p-notes-btn"
-            data-v2p-notes=""
-            disabled={dailyNote.busy}
-            onClick={() => void openNote()}
-          >
-            {dailyNote.exists
-              ? "Open today\u2019s note"
-              : copy.V2pNotes.notes_for_the_day}
-          </button>
+          {v2 ? null : (
+            <>
+              <StatsCard
+                stats={stats.week}
+                streak={dayStreak(all, today).n}
+                onOpen={stats.show}
+              />
+              <button
+                type="button"
+                className="v2p-notes v2p-notes-btn"
+                data-v2p-notes=""
+                disabled={dailyNote.busy}
+                onClick={() => void openNote()}
+              >
+                {dailyNote.exists
+                  ? "Open today\u2019s note"
+                  : copy.V2pNotes.notes_for_the_day}
+              </button>
+            </>
+          )}
         </div>
       ) : null}
       <HaEndDaySheet phone open={finish.open} {...finish.sheet} />
+      <PlanCloseSheet {...closeFlow.sheet} />
+      <SomedaySheet
+        open={somedayOpen}
+        items={someday.data?.items ?? []}
+        loading={someday.isLoading}
+        busy={returning.busy}
+        onReturn={(id) => void returning.restore([id])}
+        onClose={() => setSomedayOpen(false)}
+      />
       <HaReviewSheet phone open={review.open} {...review.sheet} />
       <StatsSheet
         phone

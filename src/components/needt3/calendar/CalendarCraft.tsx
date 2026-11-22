@@ -592,6 +592,7 @@ function CalendarScreen({ ctl }: { ctl: CalendarController }) {
               initial={weekOpen}
               blocks={byDate}
               today={today}
+              weekStartDay={weekStartDay}
               nowHour={hour}
               work={work}
               onFirst={setSeen}

@@ -11,6 +11,7 @@ import {
   nowScrollTop,
   offHours,
   offsetOf,
+  openAtHour,
   openScrollTop,
   stripDate,
   stripIndex,
@@ -151,6 +152,16 @@ describe("opening position with working hours", () => {
     expect(openScrollTop(null, null, H, 600, 24 * H)).toBe(8 * H - H / 2);
     const late = { days: [], start: 23, end: 24 };
     expect(openScrollTop(null, late, H, 600, 24 * H)).toBe(24 * H - 600);
+  });
+});
+
+describe("openAtHour (the grid opens on 08:00)", () => {
+  it("lands 08:00 just under the top edge at 64px an hour", () => {
+    expect(openAtHour(64, 700, 24 * 64)).toBe(8 * 64 - 6);
+  });
+  it("never scrolls past the end of a short grid", () => {
+    expect(openAtHour(64, 24 * 64 - 100, 24 * 64)).toBe(100);
+    expect(openAtHour(64, 5000, 24 * 64)).toBe(0);
   });
 });
 

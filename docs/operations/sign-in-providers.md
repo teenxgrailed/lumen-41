@@ -70,12 +70,71 @@ Already set up for the calendar connection; sign-in reuses the same client.
    one, `https://use.needt.app/api/task-sync/google/callback`).
 3. **OAuth consent screen**: sign-in uses only `openid`, `email`, `profile`
    (non-sensitive). Button: "Continue with Google". Google Tasks has its own
-   consent (`https://www.googleapis.com/auth/tasks`), asked only when a person
+   consent (`https://www.googleapis.com/auth/tasks.readonly`), asked only when a person
    connects Google Tasks in Connections.
 4. System Settings → _Google Calendar Integration_: **Google Client ID**,
    **Google Client Secret** (already filled if calendar works).
 
 Env fallback: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+
+### Google One Tap
+
+The sign-in and sign-up page also shows Google One Tap (Google Identity
+Services) whenever Google is configured; no extra setting or env var. The page
+reads the public client id from `GET /api/auth/google-client`, Google returns
+an ID token, and the `google-onetap` NextAuth provider verifies it server-side
+(`src/lib/auth/google-id-token.ts`: signature against Google's keys, issuer,
+audience = our client id, expiry, `email_verified`) before signing in by the
+same rules as the button (`src/lib/auth/google-one-tap.ts`).
+
+The token must carry a nonce the server issued (`/api/auth/google-client` sets
+it in a signed httpOnly cookie; a success clears it), so a captured token
+cannot be replayed. Linking an existing account by email (button and One Tap)
+needs the address to be @gmail.com / @googlemail.com or the token to carry `hd`
+(Workspace), and is refused when the account already has another Google
+identity linked.
+
+In the same OAuth client, under **Authorized JavaScript origins**, add
+`https://use.needt.app` (and `http://localhost:3000` for local work). Without
+it Google shows no prompt; the "Continue with Google" button keeps working.
+
+## Email code (passwordless, owner decision 14.11.2026)
+
+The main email path on `/auth/signin`, under Google One Tap and the provider
+buttons: the person enters an address, we mail a 6-digit code, they type it. A
+new address makes the account the same way. "Use password" opens the old
+email + password form; `?mode=signup` keeps the sign-up copy and the 16+ box.
+
+- **No setup.** It needs only the Resend sender that already mails the
+  confirmation and reset links (`RESEND_API_KEY`, `EMAIL_FROM`). Until the
+  Resend webhook secret is fixed, delivery status is not recorded, but the mail
+  itself is sent.
+- **Code.** 6 digits from `crypto.randomInt`; only an HMAC (under
+  `NEXTAUTH_SECRET`, bound to the address) is stored in `EmailLoginCode`. Valid
+  10 minutes, single use, dies after 5 wrong tries. A new code ends the older
+  ones for that address.
+- **Limits.** Send: 1 per 60 s and 5 per hour per address, 10 per hour per IP
+  (`/api/auth/email-code/request`). Verify: 20 per 15 minutes per IP, 10 per
+  15 minutes per address (`callback/email-code`). Daily: at most 10 codes per
+  address per 24 h, and after 20 wrong codes in 24 h the address is locked for
+  code sign-in until the day is up (Redis, `email-code-lock.ts`; fails closed;
+  same generic answers, password sign-in untouched).
+- **Same answer for everyone.** The request route never says whether the
+  address has an account. Nothing is mailed to a sandbox or deactivated
+  account, or to a new address while sign-ups are closed (`signups_open` off or
+  public sign-up off), and the answer is still "code sent". The waitlist line on
+  the sign-in tab covers the closed case.
+- **Sign-in vs sign-up.** Existing, active, non-sandbox account: signed in; a
+  right code confirms the address and starts the trial through
+  `markEmailVerifiedAndStartTrial` if it was not confirmed (an unproven
+  password on that account is wiped and old sessions end). New address: needs
+  signups open, the 16+ / Terms box (otherwise `AgeConfirmRequired`, raised
+  before the code is spent), then the account is created with the address
+  confirmed, the trial starts and `signup_completed` (method `email-code`) fires
+  once.
+- **Where.** `src/lib/auth/email-code.ts`, `email-code-service.ts`, the
+  `email-code` provider in `auth-options.ts`, the UI in
+  `EmailCodeBlock.tsx` / `PhoneEmailCode.tsx`.
 
 ## Apple (main)
 

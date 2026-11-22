@@ -14,9 +14,11 @@ import { newDate } from "@/lib/date-utils";
 import { type Checkin, habitColor } from "@/lib/needt3/derive";
 import type { QuitGate } from "@/lib/needt3/habits-quit";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import strings from "../../../../../docs/port/prototype/port/strings/en.json";
+import { HabitCardsPanel } from "../../habits/cards/HabitCards";
 import {
   MONTH_SHORT,
   PER_WEEK_CHOICES,
@@ -525,8 +527,10 @@ function HabitSheet({
                         aria-pressed={on}
                         onClick={() => onChange({ projectId: p?.id ?? null })}
                         style={
-                          p?.color
-                            ? ({ "--hue": p.color } as CSSProperties)
+                          p
+                            ? ({
+                                "--hue": projectColor(p.id, p.color),
+                              } as CSSProperties)
                             : undefined
                         }
                       >
@@ -564,7 +568,10 @@ function HabitSheet({
 export function PhoneHabits({
   ctl,
   quit: shared,
+  cards = false,
 }: {
+  /** `habits_cards_v1`: the card stack and month grid replace Today and the history. */
+  cards?: boolean;
   ctl: HabitsController;
   /** The route's Quit state, shared with the desktop face. */
   quit?: QuitController;
@@ -666,7 +673,6 @@ export function PhoneHabits({
       <PkScreen
         screen="habits"
         title={t.PhbHabits.habits}
-        glyph="habits"
         sub={dayLine(today)}
         head={head}
         right={
@@ -731,7 +737,34 @@ export function PhoneHabits({
                   </div>
                 </PkSection>
               ) : null}
-              {list.length ? (
+              {list.length && cards ? (
+                <>
+                  <HabitCardsPanel
+                    ctl={ctl}
+                    past={list.map((h) => (
+                      <HabitHistory
+                        key={h.id}
+                        h={h}
+                        hue={hueOf(h, projects)}
+                        checkins={ctl.history}
+                        today={today}
+                        window={ctl.historyReady ? HISTORY_DAYS : HABIT_WINDOW}
+                        onTick={ctl.tick}
+                        onTickDay={ctl.tickDay}
+                      />
+                    ))}
+                  />
+                  <PkSection
+                    title={t.PhbHabits.time_left}
+                    className="phb-sec is-left"
+                  >
+                    <TimeLeft tz={ctl.tz} />
+                  </PkSection>
+                  <p className="phb-foot">
+                    {t.PhbHabits.a_missed_day_stays_empty_nothing_carries}
+                  </p>
+                </>
+              ) : list.length ? (
                 <>
                   <PkSection
                     title={t.PhbHabits.today}

@@ -31,6 +31,8 @@ export function FocusWindow({ ctl }: { ctl: FocusController }) {
       if (e.key !== "Escape" || e.defaultPrevented) return;
       // A menu above the window takes its own Esc first.
       if (document.querySelector("[data-v3-portals] [role='menu']")) return;
+      // So does the open sound list.
+      if (document.querySelector("[data-fc-sound-panel]")) return;
       e.preventDefault();
       e.stopPropagation();
       close.current();

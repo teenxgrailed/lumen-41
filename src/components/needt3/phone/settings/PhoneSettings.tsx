@@ -16,6 +16,7 @@ import { LuCheck, LuChevronLeft } from "react-icons/lu";
 
 import { useAlerts, useSchedule } from "@/lib/needt3/hooks/account";
 import { useConnections } from "@/lib/needt3/hooks/connections";
+import { useRankedPlaces } from "@/lib/needt3/hooks/nav-rank";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useSettings } from "@/lib/needt3/hooks/settings";
 import { offersTrial } from "@/lib/needt3/paywall";
@@ -35,7 +36,7 @@ import {
 } from "../../settings/derive";
 import { initialsOf } from "../../shell/Avatar";
 import { PkButton, PkGlyph, PkSheet, PkSkyPlate, pkCx } from "../kit";
-import { type MenuPlaceId, menuTilesFrom, menuWord } from "../menu/places";
+import { type MenuPlaceId, menuTilesRanked, menuWord } from "../menu/places";
 import { usePhoneOverlays } from "../overlays/store";
 import { AccountPage, useSignOut } from "./AccountPage";
 import { AppearancePage } from "./AppearancePage";
@@ -155,6 +156,7 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
   // Shortcuts only where there is a keyboard to press them: an iPad with
   // one, not a phone (decided 05.11). The page and the deep link stay.
   const keyboard = useFinePointer();
+  const ranked = useRankedPlaces();
 
   const user = session.data?.user;
   const name = user?.name || user?.email?.split("@")[0] || "Account";
@@ -184,7 +186,7 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
       case "alerts":
         return alertsSummary(alerts.data);
       case "menu":
-        return menuTilesFrom(prefs).map(menuWord).join(" · ");
+        return menuTilesRanked(ranked).map(menuWord).join(" · ");
       case "data":
         return "Export, privacy";
       case "keys":

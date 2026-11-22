@@ -1,4 +1,5 @@
-import { compare } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
+import { randomBytes } from "crypto";
 
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
@@ -7,6 +8,17 @@ import { prisma } from "@/lib/prisma";
 import { isPublicSignupEnabled } from "./public-signup";
 
 const LOG_SOURCE = "CredentialsProvider";
+
+/* Cost every real password hash is written with (register, email-verification,
+   sandbox). The dummy hash uses the same cost so a miss takes as long as a
+   wrong password and response time does not reveal which emails have one. */
+export const DUMMY_HASH_COST = 12;
+
+let dummyHash: Promise<string> | undefined;
+/** Random bcrypt hash, computed once per process on first use. */
+export function getDummyHash(): Promise<string> {
+  return (dummyHash ??= hash(randomBytes(32).toString("hex"), DUMMY_HASH_COST));
+}
 
 /**
  * Authenticates a user with email and password
@@ -29,29 +41,15 @@ export async function authenticateUser(email: string, password: string) {
       },
     });
 
-    // If user doesn't exist, return null
-    if (
-      !user ||
-      !user.isActive ||
-      !user.accounts ||
-      user.accounts.length === 0
-    ) {
-      logger.warn("Authentication failed: User not found", {}, LOG_SOURCE);
-      return null;
-    }
+    const credentialsAccount = user?.isActive
+      ? user.accounts?.find((account) => account.provider === "credentials")
+      : undefined;
 
-    // Get the credentials account
-    const credentialsAccount = user.accounts.find(
-      (account) => account.provider === "credentials"
-    );
-
-    // If no credentials account exists, return null
-    if (!credentialsAccount || !credentialsAccount.id_token) {
-      logger.warn(
-        "Authentication failed: No credentials account found",
-        {},
-        LOG_SOURCE
-      );
+    // No user, inactive, or no password hash: still run one compare so every
+    // path takes a bcrypt's worth of time.
+    if (!user || !credentialsAccount || !credentialsAccount.id_token) {
+      await compare(password, await getDummyHash());
+      logger.warn("Authentication failed: No usable account", {}, LOG_SOURCE);
       return null;
     }
 

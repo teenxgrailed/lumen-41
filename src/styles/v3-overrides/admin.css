@@ -292,6 +292,9 @@
   font: var(--type-ui-medium);
   color: var(--text-primary);
 }
+.needt-v3 .admin-section-title[data-admin-goal-secondary] {
+  margin-top: 20px;
+}
 .needt-v3 .admin-history {
   display: flex;
   flex-direction: column;

@@ -1,5 +1,6 @@
 import type { ImportSource } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 import { plainTaskDescriptionForStorage } from "@/lib/task-description-prefix";
@@ -23,6 +24,8 @@ export function createPrismaImportStore(input: {
 }): ImportStore {
   const { userId, workspaceId, source, importRunId } = input;
   const syncedAt = () => newDate();
+  /* One task_created per import run, not one per row. */
+  let activationRecorded = false;
   const projectChecks = new Map<string, boolean>();
   async function projectInWorkspace(projectId: string) {
     const known = projectChecks.get(projectId);
@@ -172,7 +175,7 @@ export function createPrismaImportStore(input: {
           return { id: existingId };
         }
       }
-      return prisma.task.create({
+      const created = await prisma.task.create({
         data: {
           ...data,
           userId,
@@ -191,6 +194,11 @@ export function createPrismaImportStore(input: {
         },
         select: { id: true },
       });
+      if (!activationRecorded) {
+        activationRecorded = true;
+        recordActivation("task_created", userId, { source: "import" });
+      }
+      return created;
     },
 
     async writePart(existingId, part, taskId) {

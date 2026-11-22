@@ -162,6 +162,14 @@ SANDBOX_REVIEWER_PASSWORD=""
 SANDBOX_AI_DAILY_ACTION_CAP="15"
 ```
 
+Admin statistics leave internal accounts out (admins, sandbox accounts,
+`@needt.app` and test addresses are matched by rule). Add the owner's own
+addresses here, comma separated, exact match; unset means only the rules apply.
+
+```env
+INTERNAL_ACCOUNT_EMAILS=""
+```
+
 `NEEDT_AI_API_KEY` is the deployment-wide hosted key. The defaults point at
 OpenRouter serving GLM 5.3 Flash; any OpenAI-compatible endpoint works by
 setting `NEEDT_AI_BASE_URL` and `NEEDT_AI_MODEL`.
@@ -282,6 +290,12 @@ UMAMI_LANDING_WEBSITE_ID=""
   one server-side `purchase` event `{ plan: pro_year | pro_month | lifetime }`
   to `POST {UMAMI_HOST}/api/send`, so the landing funnel ends in a payment. No
   personal data is sent; a missing value skips it, a failure is only logged.
+  The same two values carry `signup_completed { method, utm_* }` (one account
+  created) and `trial_started { source }` (one trial grant written). Agents-hub
+  events (`agent_registered`, `hub_item_*`, `escalation_answered`) go to the
+  app site instead, `NEXT_PUBLIC_UMAMI_WEBSITE_ID`. Next inlines it at build
+  time (the Docker build arg), so the build decides: without it these events
+  are skipped, never sent to the landing site.
 
 - `NEEDT_HEARTBEAT_URL` is read by the worker. When set, the worker sends a
   `GET` to it on start and on every release-heartbeat tick, so an external

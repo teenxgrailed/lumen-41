@@ -1,0 +1,1 @@
+- One loading screen: the word Needt fills with colour while a place or Budget opens, instead of a blank or white pause. After an update, Needt reloads itself once nothing is half-written, with no "reload" message.

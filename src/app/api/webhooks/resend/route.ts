@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   applyResendEvent,
-  verifySvixSignature,
+  checkSvixSignature,
 } from "@/lib/email/resend-webhook";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -32,14 +32,29 @@ export async function POST(request: NextRequest) {
 
   const body = await request.text();
   const id = request.headers.get("svix-id");
-  const valid = verifySvixSignature({
+  const verdict = checkSvixSignature({
     secret,
     id,
     timestamp: request.headers.get("svix-timestamp"),
     signature: request.headers.get("svix-signature"),
     body,
   });
-  if (!valid || !id) {
+  if (!verdict.ok || !id) {
+    /* Error level so the reason is kept in the Log table: a warn line only
+       reached stdout and was lost on restart (15.11.2026). Reason, clock skew
+       and shapes only: never the secret, signature or body. */
+    const signature = request.headers.get("svix-signature");
+    logger.error(
+      "Resend webhook rejected",
+      {
+        reason: verdict.ok ? "missing_headers" : verdict.reason,
+        skewSeconds: verdict.ok ? null : verdict.skewSeconds,
+        svixTimestamp: request.headers.get("svix-timestamp"),
+        bodyLength: body.length,
+        signatureCount: signature ? signature.split(" ").length : 0,
+      },
+      LOG_SOURCE
+    );
     return NextResponse.json({ error: "invalid_signature" }, { status: 400 });
   }
 
@@ -56,7 +71,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (isUniqueViolation(error)) return NextResponse.json({ ok: true });
-    throw error;
+    logger.error(
+      "Resend event ledger write failed",
+      { error: error instanceof Error ? error.message : "Unknown error" },
+      LOG_SOURCE
+    );
+    return NextResponse.json({ error: "failed" }, { status: 500 });
   }
 
   try {

@@ -1,6 +1,7 @@
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { prisma } from "@/lib/prisma";
 import { markEmailVerifiedAndStartTrial } from "@/lib/trials/trial-service";
+import { sendUmamiSignupCompleted } from "@/lib/umami-server";
 
 jest.mock("@auth/prisma-adapter", () => ({
   PrismaAdapter: jest.fn(() => ({})),
@@ -27,6 +28,12 @@ jest.mock("@/lib/prisma", () => ({
     },
     systemSettings: { findFirst: jest.fn().mockResolvedValue(null) },
   },
+}));
+jest.mock("@/lib/umami-server", () => ({
+  sendUmamiSignupCompleted: jest.fn(),
+}));
+jest.mock("@/lib/attribution-server", () => ({
+  requestUtm: jest.fn().mockResolvedValue({ utm_source: "newsletter" }),
 }));
 jest.mock("@/lib/trials/trial-service", () => ({
   markEmailVerifiedAndStartTrial: jest.fn(),
@@ -102,5 +109,95 @@ describe("OAuth trial activation", () => {
       } as never);
     }
     expect(markEmailVerifiedAndStartTrial).not.toHaveBeenCalled();
+  });
+
+  it("reports signup_completed for a new account only, with the utm tags", async () => {
+    jest.mocked(sendUmamiSignupCompleted).mockClear();
+    jest.mocked(prisma.userSettings.upsert).mockResolvedValue({} as never);
+    const options = await getAuthOptions();
+    const jwt = options.callbacks?.jwt as NonNullable<
+      NonNullable<typeof options.callbacks>["jwt"]
+    >;
+    const base = {
+      token: {},
+      user: { id: "db-user-3", email: "o@example.com", role: "user" },
+      account: {
+        provider: "google",
+        type: "oauth",
+        providerAccountId: "google-3",
+      },
+      profile: undefined,
+      trigger: "signIn",
+    };
+    await jwt({ ...base, isNewUser: false } as never);
+    expect(sendUmamiSignupCompleted).not.toHaveBeenCalled();
+    await jwt({ ...base, isNewUser: true } as never);
+    expect(sendUmamiSignupCompleted).toHaveBeenCalledTimes(1);
+    expect(sendUmamiSignupCompleted).toHaveBeenCalledWith("google", {
+      utm_source: "newsletter",
+    });
+  });
+
+  it("Google One Tap fires signup_completed and the trial like the Google button", async () => {
+    jest.mocked(sendUmamiSignupCompleted).mockClear();
+    jest.mocked(markEmailVerifiedAndStartTrial).mockClear();
+    jest.mocked(prisma.userSettings.upsert).mockResolvedValue({} as never);
+    const options = await getAuthOptions();
+    const jwt = options.callbacks?.jwt as NonNullable<
+      NonNullable<typeof options.callbacks>["jwt"]
+    >;
+    const call = (oneTapNew: boolean) =>
+      jwt({
+        token: {},
+        user: {
+          id: "db-user-4",
+          email: "tap@example.com",
+          role: "user",
+          oneTapNew,
+          oneTapEmail: "tap@example.com",
+          oneTapAuthAt: Date.UTC(2026, 10, 14, 10, 0, 0),
+        },
+        account: {
+          provider: "google-onetap",
+          type: "credentials",
+          providerAccountId: "db-user-4",
+        },
+        trigger: "signIn",
+      } as never);
+    const returning = await call(false);
+    /* The re-authentication stamp is when Google issued the token. */
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { id: "db-user-4" },
+      data: { lastAuthenticatedAt: new Date(Date.UTC(2026, 10, 14, 10, 0, 0)) },
+    });
+    expect(returning.freshAccountAt).toBeUndefined();
+    expect(sendUmamiSignupCompleted).not.toHaveBeenCalled();
+    expect(returning.provider).toBe("google");
+    await call(true);
+    expect(sendUmamiSignupCompleted).toHaveBeenCalledWith("google", {
+      utm_source: "newsletter",
+    });
+    expect(markEmailVerifiedAndStartTrial).toHaveBeenCalledWith({
+      userId: "db-user-4",
+      email: "tap@example.com",
+    });
+  });
+
+  it("registers the One Tap provider only when Google is configured", async () => {
+    const has = async () =>
+      (await getAuthOptions()).providers.some(
+        /* NextAuth keeps a credentials provider's custom id under `options`. */
+        (p) =>
+          (p as { options?: { id?: string } }).options?.id === "google-onetap"
+      );
+    expect(await has()).toBe(false);
+    process.env.GOOGLE_CLIENT_ID = "id.apps.googleusercontent.com";
+    process.env.GOOGLE_CLIENT_SECRET = "secret";
+    try {
+      expect(await has()).toBe(true);
+    } finally {
+      delete process.env.GOOGLE_CLIENT_ID;
+      delete process.env.GOOGLE_CLIENT_SECRET;
+    }
   });
 });

@@ -27,21 +27,16 @@ import {
 import { useOnline } from "@/lib/needt3/use-online";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
-import {
-  GlassCard,
-  PwDateCard,
-  PwMiniEvent,
-  PwMiniHabit,
-  PwMiniTask,
-  PwMoodPrint,
-  PxSky,
-} from "../scenes";
-import { NeedtLockup } from "../wordmark";
+import { NeedtAppIcon } from "../wordmark";
 import { AgeConfirm, type AgeState, useAgeState } from "./AgeConfirm";
+import { AuthSky } from "./AuthSky";
+import { EmailCodeBlock } from "./EmailCodeBlock";
+import { PlanChip } from "./PlanChip";
 import {
   type AuthMode,
   MORE_SIGN_IN_WAYS_LABEL,
   WAITLIST,
+  WRONG_PAIR_HELP,
   mailProblem,
   mailProblemText,
   oauthButtonLabel,
@@ -49,16 +44,20 @@ import {
   refusalText,
   resendClock,
   showWaitlist,
-  splitSignInProviders,
   submitLabel,
   submitStep,
 } from "./auth-logic";
+import { redoProviders } from "./auth-redo";
+import { REDO_ICONS } from "./auth-redo-icons";
+import { CODE_TEXT, type EmailCodeApi } from "./email-code-logic";
 import {
   type AuthFields,
   type AuthSteps,
   useAuthFields,
   useAuthSteps,
 } from "./use-auth-fields";
+import { useAuthRedo } from "./use-auth-redo";
+import { useCodeInstead, useEmailCodeFlow } from "./use-email-code-flow";
 
 export type { AuthMode } from "./auth-logic";
 
@@ -72,6 +71,15 @@ export interface AuthResult {
   /** The server did not answer: show "Couldn't sign in" with a Retry. */
   readonly network?: boolean;
 }
+
+/** What the code form gets when the host offers no code sign-in (hooks run
+    unconditionally, so the flow always needs an API). */
+export const NO_EMAIL_CODE: EmailCodeApi = {
+  send: async () => "network",
+  verify: async () => "network",
+  usePassword: true,
+  setUsePassword: () => undefined,
+};
 
 export interface AuthProvider {
   readonly id: string;
@@ -114,6 +122,8 @@ export interface AuthScreenProps {
   fields?: AuthFields;
   /** The host owns the flow's steps too (recovery, refusal, ...). */
   steps?: AuthSteps;
+  /** Sign in with a mailed code. Absent: the email + password form only. */
+  emailCode?: EmailCodeApi;
 }
 
 export function Eye({
@@ -147,6 +157,9 @@ export function Field({
   trailing,
   label,
   autoComplete,
+  inputMode,
+  maxLength,
+  name,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -158,6 +171,9 @@ export function Field({
   trailing?: React.ReactNode;
   label?: string;
   autoComplete?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  maxLength?: number;
+  name?: string;
 }) {
   const [focus, setFocus] = React.useState(false);
   return (
@@ -169,6 +185,9 @@ export function Field({
         aria-label={label || placeholder}
         aria-invalid={invalid || undefined}
         autoComplete={autoComplete}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        name={name}
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocus(true)}
@@ -191,83 +210,9 @@ export function Field({
   );
 }
 
-function Print({
-  at,
-  caption,
-  width,
-  delay,
-  children,
-}: React.PropsWithChildren<{
-  at: React.CSSProperties;
-  caption: string;
-  width: number;
-  delay?: number;
-}>) {
-  return (
-    <span
-      className="nx-swap"
-      style={{
-        position: "absolute",
-        animationDelay: (delay || 0) + "ms",
-        ...at,
-      }}
-    >
-      <GlassCard caption={caption} width={width} pad={10} radius={20}>
-        <span className="auth-stack-6">{children}</span>
-      </GlassCard>
-    </span>
-  );
-}
-
-/** A few glass cards of the product, placed around the form. */
-function Collage() {
-  return (
-    <div className="axs-collage" aria-hidden="true">
-      <Print
-        at={{ left: "calc(50% - 560px)", top: "15%" }}
-        caption="Today · 3 left"
-        width={250}
-        delay={80}
-      >
-        <PwMiniTask title="Reply to Tom" chip="Mailbox" />
-        <PwMiniTask title="Charge the flash" done />
-        <PwMiniTask title="List the boots on Ricardo" chip="Resale" />
-      </Print>
-      <Print
-        at={{ left: "calc(50% - 520px)", top: "58%" }}
-        caption="Habit · day 6"
-        width={262}
-        delay={160}
-      >
-        <PwMiniHabit title="Shoot one roll" streak="6 days" />
-      </Print>
-      <span
-        className="nx-swap auth-ax-collage-abs"
-        style={{ animationDelay: "120ms" }}
-      >
-        <PwDateCard width={118} />
-      </span>
-      <Print
-        at={{ left: "calc(50% + 296px)", top: "45%" }}
-        caption="Calendar · Tue"
-        width={236}
-        delay={200}
-      >
-        <PwMiniEvent time="09:30" title="Standup" hue="var(--hue-blue)" />
-        <PwMiniEvent time="14:00" title="Shoot · Kreis 4" />
-      </Print>
-      <span
-        className="nx-swap auth-ax-collage-abs-2"
-        style={{ animationDelay: "260ms" }}
-      >
-        <PwMoodPrint width={140} height={88} />
-      </span>
-    </div>
-  );
-}
-
-/** The sky, the collage, the lockup and the frosted card every auth screen
-    on the desktop sits on. The reset-link and confirm-email routes use it too. */
+/** The static sky and the one frosted card every auth screen sits on, the
+    app icon half over its top edge (the Craft sign-in language). The
+    reset-link and confirm-email routes use it too. */
 export function AuthFrame({
   variant,
   screen,
@@ -288,25 +233,20 @@ export function AuthFrame({
       data-auth-screen={screen}
       style={{ position: "fixed", inset: 0, zIndex: 950 }}
     >
-      <PxSky variant={variant}>
-        <Collage />
-        <div className="scroll-inner auth-signin-abs">
-          <div className="auth-signin-col">
-            <NeedtLockup />
-            <GlassCard
-              className="axs-card"
-              pad={0}
-              radius={24}
-              width="100%"
-              strong
-            >
+      <AuthSky variant={variant}>
+        <div className="scroll-inner ac-scroll">
+          <div className="ac-col">
+            <div className="ac-card">
+              <span className="ac-icon" data-px-calm>
+                <NeedtAppIcon size={56} />
+              </span>
               {children}
-            </GlassCard>
+            </div>
             {below}
             {foot}
           </div>
         </div>
-      </PxSky>
+      </AuthSky>
     </div>
   );
 }
@@ -330,6 +270,7 @@ export function AuthScreen({
   fields,
   steps,
   age: ageProp,
+  emailCode,
 }: AuthScreenProps) {
   const signup = mode !== "login";
   const store = useStoreDistribution();
@@ -355,11 +296,17 @@ export function AuthScreen({
   const withPass = passAsked || pass.length > 0;
   /* Google, Apple and GitHub show; the rest wait behind "More ways". */
   const [moreWays, setMoreWays] = React.useState(false);
-  const { main: mainProviders, more: moreProviders } =
-    splitSignInProviders(providers);
+  const redo = useAuthRedo();
+  const { main: mainProviders, more: moreProviders } = redoProviders(
+    providers,
+    REDO_ICONS,
+    redo
+  );
   const shownProviders = moreWays
     ? [...mainProviders, ...moreProviders]
     : mainProviders;
+  /* A button with no provider behind it (review only) says so, once. */
+  const [previewNote, setPreviewNote] = React.useState(false);
   const [netErr, setNetErr] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
   const [limited, setLimited] = React.useState(false);
@@ -370,6 +317,24 @@ export function AuthScreen({
   const mProblem = mailProblem({ mail, touched });
   const mText = mailProblemText(mProblem);
   const offline = !online;
+  const codeApi = emailCode ?? NO_EMAIL_CODE;
+  const codeMode = !!emailCode && !emailCode.usePassword;
+  const codeFlow = useEmailCodeFlow({
+    api: codeApi,
+    mail,
+    signup,
+    ageOk: () => ageOk(),
+    ageConfirmed: age.checked,
+    onNeedAge: () => onMode("signup"),
+    onDone,
+    offline,
+  });
+  const codeInstead = useCodeInstead({
+    codeMode,
+    flow: codeFlow,
+    setUsePassword: emailCode?.setUsePassword,
+    clearRefusal: () => setRefused(null),
+  });
 
   React.useEffect(() => {
     if (recover !== "sent" || resendIn <= 0) return undefined;
@@ -525,6 +490,18 @@ export function AuthScreen({
     </p>
   ) : null;
 
+  /* The 16+ / Terms box, one 12px line right above the button that makes the
+     account (nothing sits between it and the providers any more). */
+  const ageLine = signup ? (
+    <AgeConfirm
+      age={age}
+      missing={ageMissing}
+      termsHref={termsHref}
+      privacyHref={privacyHref}
+      className="auth-age auth-age-line"
+    />
+  ) : null;
+
   const frame = (
     variant: "a" | "c",
     screen: string,
@@ -546,16 +523,10 @@ export function AuthScreen({
       "a",
       "recover-" + recover,
       <div key={recover} className="auth-signin-col-2 nx-swap">
-        <span className="px-kicker auth-signin-el">Reset password</span>
         {recover === "ask" ? (
           <>
-            <h1 className="px-display">
-              Forgot your <em>password</em>?
-            </h1>
-            <p className="auth-signin-text">
-              Enter the email you sign in with. We’ll send a link to set a new
-              password.
-            </p>
+            <h1 className="ac-title">Reset your password</h1>
+            <p className="auth-signin-text">We’ll email you a reset link.</p>
             <div className="auth-signin-col-4">
               <Field
                 value={mail}
@@ -583,12 +554,10 @@ export function AuthScreen({
           </>
         ) : (
           <>
-            <h1 className="px-display">
-              Check your <em>email</em>
-            </h1>
+            <h1 className="ac-title">Check your email</h1>
             <p className="auth-signin-text">
-              If <b className="auth-recover-mail">{mail}</b> has an account, a
-              reset link is on its way. It works for 1 hour.
+              If <b className="auth-recover-mail">{mail}</b> has an account, we
+              sent a link.
             </p>
             <div className="auth-signin-col-4">
               {limitRow}
@@ -597,7 +566,7 @@ export function AuthScreen({
                 className="auth-recover-resend"
                 data-auth-resend={resendIn > 0 ? resendIn : "ready"}
               >
-                {"Didn’t get it? Check spam, or "}
+                {"Check spam, or "}
                 {resendIn > 0 ? (
                   <span className="auth-recover-wait">
                     resend in {resendClock(resendIn)}
@@ -643,156 +612,199 @@ export function AuthScreen({
     );
   }
 
+  const providerStack = mainProviders.length ? (
+    <>
+      <div className="ac-or" aria-hidden="true">
+        or
+      </div>
+      <div className="auth-stack-8">
+        {shownProviders.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            data-provider={p.id}
+            data-visual-only={p.visualOnly ? "true" : undefined}
+            disabled={offline || providerBusy !== null || p.soon}
+            onClick={() => {
+              if (!ageOk()) return;
+              if (p.visualOnly) setPreviewNote(true);
+              else onProvider?.(p.id);
+            }}
+            className="ax-btn ax-raised auth-oauth"
+          >
+            <span className="auth-raised-row">
+              <p.icon size={16} aria-hidden="true" />
+            </span>
+            {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
+            {p.soon ? <span className="auth-oauth-soon">Soon</span> : null}
+          </button>
+        ))}
+        {previewNote ? (
+          <span className="auth-recover-resend" role="status">
+            Review build: this button is not connected to a provider yet.
+          </span>
+        ) : null}
+        {moreProviders.length && !moreWays ? (
+          <button
+            type="button"
+            className="ax-link auth-more-ways"
+            aria-expanded={false}
+            onClick={() => setMoreWays(true)}
+          >
+            {MORE_SIGN_IN_WAYS_LABEL}
+          </button>
+        ) : null}
+      </div>
+    </>
+  ) : null;
+
   return frame(
     signup ? "c" : "a",
     signup ? "signup" : "login",
     <div className="auth-signin-col-2">
-      <span className="px-kicker auth-signin-el">
-        {signup ? "New account" : "Sign in"}
-      </span>
-      <h1 className="px-display">
-        {signup ? (
-          <>
-            Create your <em>account</em>
-          </>
-        ) : (
-          <>
-            Welcome <em>back</em>
-          </>
-        )}
+      {redo.plan ? (
+        <PlanChip plan={redo.plan} onFree={redo.dismissPlan} />
+      ) : null}
+      <h1 className="ac-title">
+        {signup ? "Create your Needt account" : "Welcome to Needt"}
       </h1>
       <p className="auth-signin-text">
-        {signup
-          ? "One planner for your calendar, your tasks and your projects."
-          : "Sign in — your day is where you left it."}
+        {signup ? "One planner for your whole day." : "Sign in to continue."}
       </p>
       {notice ? (
-        <p className="auth-error-text" role="alert">
+        <p className="auth-error-text ac-notice" role="alert">
           {notice}
         </p>
       ) : null}
 
-      {signup ? (
-        <AgeConfirm
-          age={age}
-          missing={ageMissing}
-          termsHref={termsHref}
-          privacyHref={privacyHref}
+      {codeMode ? (
+        <EmailCodeBlock
+          flow={codeFlow}
+          mail={mail}
+          setMail={setMail}
+          signup={signup}
+          offline={offline}
+          onUsePassword={() => emailCode?.setUsePassword(true)}
+          beforeSubmit={ageLine}
         />
-      ) : null}
-
-      {providers.length ? (
-        <>
-          <div className="auth-stack-8">
-            {shownProviders.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                data-provider={p.id}
-                disabled={offline || providerBusy !== null}
-                onClick={() => {
-                  if (ageOk()) onProvider?.(p.id);
+      ) : (
+        <div className="auth-signin-col-4">
+          <Field
+            value={mail}
+            label="Email"
+            type="email"
+            placeholder="Your email"
+            autoComplete="email"
+            invalid={!!mProblem || refused?.reason === "taken"}
+            onChange={(v) => {
+              setRefused(null);
+              setMail(v);
+            }}
+            onEnter={submit}
+          />
+          {mText ? <span className="auth-error-text">{mText}</span> : null}
+          {withPass ? (
+            <div key="pw" className="nx-swap auth-stack-6">
+              <Field
+                value={pass}
+                type={show ? "text" : "password"}
+                label="Password"
+                placeholder={signup ? "At least 8 characters" : "Password"}
+                autoComplete={signup ? "new-password" : "current-password"}
+                autoFocus
+                invalid={short || refused?.reason === "wrong"}
+                onEnter={submit}
+                onChange={(v) => {
+                  setRefused(null);
+                  setPass(v);
                 }}
-                className="ax-btn ax-raised auth-oauth"
-              >
-                <span className="auth-raised-row">
-                  <p.icon size={16} aria-hidden="true" />
-                </span>
-                {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
-              </button>
-            ))}
-            {moreProviders.length && !moreWays ? (
-              <button
-                type="button"
-                className="ax-link auth-more-ways"
-                aria-expanded={false}
-                onClick={() => setMoreWays(true)}
-              >
-                {MORE_SIGN_IN_WAYS_LABEL}
-              </button>
-            ) : null}
-          </div>
-          <div className="auth-signin-row-2">
-            <span className="auth-signin-el-2" />
-            <span className="auth-signin-text-2">or</span>
-            <span className="auth-signin-el-2" />
-          </div>
-        </>
-      ) : null}
-
-      <div className="auth-signin-col-4">
-        <Field
-          value={mail}
-          label="Email"
-          placeholder="you@example.com"
-          autoComplete="email"
-          invalid={!!mProblem || refused?.reason === "taken"}
-          onChange={(v) => {
-            setRefused(null);
-            setMail(v);
-          }}
-          onEnter={submit}
-        />
-        {mText ? <span className="auth-error-text">{mText}</span> : null}
-        {withPass ? (
-          <div key="pw" className="nx-swap auth-stack-6">
-            <Field
-              value={pass}
-              type={show ? "text" : "password"}
-              label="Password"
-              placeholder={signup ? "At least 8 characters" : "Password"}
-              autoComplete={signup ? "new-password" : "current-password"}
-              autoFocus
-              invalid={short || refused?.reason === "wrong"}
-              onEnter={submit}
-              onChange={(v) => {
-                setRefused(null);
-                setPass(v);
-              }}
-              trailing={<Eye shown={show} onToggle={() => setShow(!show)} />}
-            />
-            <span className="auth-pass-row">
-              <span
-                className="auth-signin-text-3"
-                style={{
-                  color: short ? "var(--destructive)" : "var(--text-tertiary)",
-                }}
-              >
-                {short
-                  ? "Use at least 8 characters."
-                  : "At least 8 characters."}
-              </span>
-              {signup ? null : onRecover ? (
-                <button
-                  type="button"
-                  className="ax-link auth-forgot"
-                  data-auth-forgot
-                  onClick={openRecover}
+                trailing={<Eye shown={show} onToggle={() => setShow(!show)} />}
+              />
+              <span className="auth-pass-row">
+                <span
+                  className="auth-signin-text-3"
+                  style={{
+                    color: short
+                      ? "var(--destructive)"
+                      : "var(--text-tertiary)",
+                  }}
                 >
-                  Forgot password?
-                </button>
-              ) : null}
+                  {short
+                    ? "Use at least 8 characters."
+                    : "At least 8 characters."}
+                </span>
+                {signup ? null : onRecover ? (
+                  <button
+                    type="button"
+                    className="ax-link auth-forgot"
+                    data-auth-forgot
+                    onClick={openRecover}
+                  >
+                    Forgot password?
+                  </button>
+                ) : null}
+              </span>
+            </div>
+          ) : null}
+          {refusal ? (
+            <span className="refusal auth-signin-row-3" role="alert">
+              <LuCircleAlert size={13} />
+              {refusal}
             </span>
-          </div>
-        ) : null}
-        {refusal ? (
-          <span className="refusal auth-signin-row-3" role="alert">
-            <LuCircleAlert size={13} />
-            {refusal}
-          </span>
-        ) : null}
-        {!signup && withPass ? aside : null}
-        {netRow}
-        <button
-          type="button"
-          onClick={submit}
-          disabled={offline || busy}
-          className="nx-btn nx-btn-primary axs-go auth-signin-btn"
-          data-auth-submit
-        >
-          {submitLabel(mode, withPass, busy)}
-        </button>
-      </div>
+          ) : null}
+          {refused?.reason === "wrong" && emailCode && !signup ? (
+            <span className="auth-recover-resend" data-auth-wrong-help>
+              {WRONG_PAIR_HELP.lead}{" "}
+              <button
+                type="button"
+                className="ax-link auth-forgot"
+                data-auth-wrong-code
+                disabled={offline}
+                onClick={codeInstead}
+              >
+                {WRONG_PAIR_HELP.action}
+              </button>
+            </span>
+          ) : null}
+          {!signup && withPass ? aside : null}
+          {netRow}
+          {ageLine}
+          <button
+            type="button"
+            onClick={submit}
+            disabled={offline || busy}
+            className="nx-btn nx-btn-primary axs-go auth-signin-btn"
+            data-auth-submit
+          >
+            {submitLabel(mode, withPass, busy)}
+          </button>
+          {emailCode ? (
+            <button
+              type="button"
+              className="ax-link auth-forgot"
+              data-auth-use-code
+              onClick={() => emailCode.setUsePassword(false)}
+            >
+              {CODE_TEXT.useCode}
+            </button>
+          ) : null}
+        </div>
+      )}
+
+      {providerStack}
+
+      {signup ? null : (
+        <p className="ac-terms">
+          By clicking continue, you accept our{" "}
+          <a className="ax-link" href={termsHref}>
+            Terms
+          </a>{" "}
+          and{" "}
+          <a className="ax-link" href={privacyHref}>
+            Privacy Policy
+          </a>
+        </p>
+      )}
     </div>,
     <>
       {allowSignup || signup ? (
@@ -821,19 +833,6 @@ export function AuthScreen({
           .
         </p>
       ) : null}
-      {signup ? null : (
-        <p className="axs-note" data-px-calm>
-          By continuing you agree to Needt&apos;s{" "}
-          <a className="ax-link" href={termsHref}>
-            Terms
-          </a>{" "}
-          and{" "}
-          <a className="ax-link" href={privacyHref}>
-            Privacy Policy
-          </a>
-          .
-        </p>
-      )}
     </>
   );
 }

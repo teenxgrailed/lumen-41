@@ -1,0 +1,1149 @@
+/*
+ * The phone's tile menu (TileMenu.tsx, faces.tsx) and the classic dock's
+ * restyle.
+ *
+ * Owner ref, 2026-11-21 (menu-tiles-2011/ref-tiles-profile): the menu is a
+ * profile. Back, the avatar and one round button on top, the name and plan,
+ * then the tiles, a grey Customize link and the pill bar. A tile is a dark
+ * grey card one surface step above the ground (no border, no blur, no shadow):
+ * a small grey category top left, the live value or name in big bold type, one
+ * grey line of detail, and at the bottom a real object of the thing (a ring
+ * with its pause button, habit dots, event chips, a folder with its papers),
+ * with a soft glow in the OBJECT's own colour bleeding from a corner. While
+ * editing the profile blurs back, every tile gets a white round minus in a
+ * notch cut out of its corner, and a round X takes the place of the bar.
+ *
+ * PORT.md: every grey is the one ink at a ladder alpha, chrome type is 13px and
+ * 12px (the live value on a tile is content, so it is big), the accent is a
+ * mark only (the focus ring's arc), never a fill.
+ *
+ * Motion: only transform (translate, scale, rotate), opacity and a one-off
+ * filter on the profile ever move. Nothing here runs a frame loop; the turning
+ * of a tile's items is one shared timer in beat.ts and the classes below. No
+ * backdrop-filter anywhere (it cost the frame budget).
+ */
+
+/* ── the layer ── */
+.needt-v3 .ntm {
+  --ntm-bg: var(--v2p-raise-2);
+  --ntm-chip: color-mix(in oklab, var(--v2p-ink) 8%, transparent);
+  /* fixed to the screen, not the page: the phone app's document can be taller
+     than the display (the other layers, .pk-scrim and .nva, are fixed too) */
+  position: fixed;
+  inset: 0;
+  z-index: 52;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  color: var(--v2p-ink);
+  font-family: var(--font-sans);
+  pointer-events: none;
+}
+.needt-v3 .ntm.is-in {
+  pointer-events: auto;
+}
+.needt-v3 .ntm > .pk-scrim {
+  z-index: 0;
+  background: none;
+}
+/* The layer itself carries no opacity (an ancestor with opacity would be the
+   scrim blur's backdrop root): the scrim fades by --pk-scrim-k, everything
+   else by its own opacity. */
+.needt-v3 .ntm > :not(.pk-scrim) {
+  position: relative;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.needt-v3 .ntm.is-in > :not(.pk-scrim) {
+  opacity: 1;
+}
+.needt-v3 .ntm .pk-scrim-blur {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+  background: none;
+}
+/* the ground: the page's own, solid */
+.needt-v3 .ntm::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--v2p-ground);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.needt-v3 .ntm.is-in::before {
+  opacity: 1;
+}
+
+/* ── the body scrolls, the profile with it ── */
+.needt-v3 .ntm-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* room for a tile's wobble at the edges */
+  margin: 0 -10px;
+  padding: calc(max(var(--v3-top, 0px), 20px) + 8px) 10px 12px;
+}
+.needt-v3 .ntm-body::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── the profile ── */
+.needt-v3 .ntm-profile {
+  flex: none;
+  margin: 0 6px 22px;
+  text-align: center;
+  transition:
+    opacity 0.25s ease,
+    filter 0.25s ease;
+}
+.needt-v3 .ntm.is-edit .ntm-profile {
+  opacity: 0.4;
+  filter: blur(7px);
+  pointer-events: none;
+}
+.needt-v3 .ntm-profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.needt-v3 .ntm-avatar {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--v2p-raise-2);
+  color: var(--v2p-ink-2);
+  font: 600 20px/24px var(--font-sans);
+}
+.needt-v3 .ntm-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.needt-v3 .ntm-who {
+  margin: 14px 0 4px;
+  font: 700 28px/32px var(--font-sans);
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .ntm-who-sub {
+  margin: 0;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-who-sub > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── the grid: square cells, measured from the grid's own width ── */
+.needt-v3 .ntm-gridwrap {
+  flex: none;
+  container-type: inline-size;
+}
+.needt-v3 .ntm-grid {
+  /* No dense back-filling: packTiles() (model.ts) lays tiles out the way this
+     does, in order, so a drag can say where every other tile goes. */
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: calc((100cqw - 12px) / 2);
+  gap: 12px;
+}
+.needt-v3 .ntm-empty {
+  margin: 12px 0 0;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--v2p-ink-2);
+  text-align: center;
+}
+
+/* ── a tile ── */
+.needt-v3 .ntm-tile {
+  position: relative;
+  grid-column: span 1;
+  border-radius: 24px;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--ntm-bg);
+  /* in: a short rise, staggered; individual transform properties, so the
+     editing wobble (rotate) and a lift (translate, scale) never fight it */
+  translate: 0 14px;
+  scale: 0.97;
+  opacity: 0;
+  transition:
+    translate 0.32s cubic-bezier(0.2, 0.9, 0.25, 1),
+    scale 0.32s cubic-bezier(0.2, 0.9, 0.25, 1),
+    opacity 0.2s ease;
+  transition-delay: calc(var(--ntm-i, 0) * 26ms);
+}
+.needt-v3 .ntm.is-in .ntm-tile {
+  translate: 0 0;
+  scale: 1;
+  opacity: 1;
+}
+.needt-v3 .ntm-tile.is-wide {
+  grid-column: span 2;
+}
+/* the glow: the object's own colour, bleeding in from a corner. A static
+   gradient, painted once with the tile. */
+.needt-v3 .ntm-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    90% 90% at var(--gx, 100%) var(--gy, 100%),
+    color-mix(
+      in oklab,
+      var(--ntm-hue, transparent) var(--ga, 38%),
+      transparent
+    ),
+    transparent 72%
+  );
+}
+.needt-v3 .ntm-tile.is-quiet::before {
+  opacity: 0.35;
+}
+/* the colours of the objects (never the accent) */
+.needt-v3 .ntm-tile[data-tile="today"] {
+  --ntm-hue: var(--info);
+  --gx: 0%;
+  --gy: 100%;
+  --ga: 30%;
+}
+.needt-v3 .ntm-tile[data-tile="focus"] {
+  --ntm-hue: oklch(0.72 0.13 200);
+  --gx: 100%;
+  --gy: 100%;
+  --ga: 46%;
+}
+.needt-v3 .ntm-tile[data-tile="calendar"] {
+  --ntm-hue: var(--success);
+  --gx: 100%;
+  --gy: 100%;
+  --ga: 30%;
+}
+.needt-v3 .ntm-tile[data-tile="habits"] {
+  --ntm-hue: oklch(0.7 0.15 305);
+  --gx: 0%;
+  --gy: 100%;
+  --ga: 40%;
+}
+.needt-v3 .ntm-tile[data-tile="inbox"] {
+  --ntm-hue: oklch(0.74 0.11 235);
+  --gx: 100%;
+  --gy: 100%;
+  --ga: 30%;
+}
+.needt-v3 .ntm-tile[data-tile="mail"] {
+  --ntm-hue: oklch(0.74 0.13 15);
+  --gx: 0%;
+  --gy: 100%;
+  --ga: 30%;
+}
+.needt-v3 .ntm-tile[data-tile="docs"] {
+  --ntm-hue: oklch(0.82 0.13 100);
+  --gx: 100%;
+  --gy: 100%;
+  --ga: 42%;
+}
+.needt-v3 .ntm-tile[data-tile="ask"] {
+  --ntm-hue: oklch(0.72 0.14 300);
+  --gx: 50%;
+  --gy: 120%;
+  --ga: 38%;
+}
+.needt-v3 .ntm-tile[data-tile="streak"] {
+  --ntm-hue: oklch(0.7 0.19 38);
+  --gx: 100%;
+  --gy: 100%;
+  --ga: 50%;
+}
+/* a project folder: its own colour (an inline --ntm-hue wins over the fallback) */
+.needt-v3 .ntm-tile[data-tile="project"] {
+  --ntm-hue: var(--v2p-ink-3);
+  --gx: 50%;
+  --gy: 110%;
+  --ga: 40%;
+}
+
+/* what the tile holds */
+.needt-v3 .ntm-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  width: 100%;
+  padding: 16px 16px 14px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+  overflow: hidden;
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.needt-v3 .ntm.is-edit .ntm-hit {
+  touch-action: none;
+}
+.needt-v3 .ntm-hit:focus-visible {
+  outline: 2px solid var(--v2p-ink-3);
+  outline-offset: -3px;
+  border-radius: 24px;
+}
+.needt-v3 .ntm-hit:disabled {
+  opacity: 0.45;
+}
+.needt-v3 .ntm-lines {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.needt-v3 .ntm-kind {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+  font: 700 28px/32px var(--font-sans);
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+/* the name is sized to the tile: the longer it is, the smaller the type */
+.needt-v3 .ntm-title[data-fit="m"] {
+  font-size: 23px;
+  line-height: 32px;
+}
+.needt-v3 .ntm-title[data-fit="s"] {
+  font-size: 19px;
+  line-height: 32px;
+  letter-spacing: -0.015em;
+}
+.needt-v3 .ntm-sub.is-alert {
+  color: var(--destructive);
+}
+.needt-v3 .ntm-sub {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 12px/16px var(--font-sans);
+}
+.needt-v3 .ntm-strong {
+  font-weight: 600;
+}
+.needt-v3 .ntm-soft {
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-none {
+  margin: 0;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.needt-v3 .ntm-skel > span {
+  height: 24px;
+  border-radius: 9px;
+  background: var(--ntm-chip);
+}
+
+/* the object: the real thing at the bottom of the tile */
+.needt-v3 .ntm-hit > .ntm-obj {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* the items that take turns: Craft-style, the old one blurs out, the next is
+   put in behind the blur and sharpens. opacity, filter and transform only. */
+.needt-v3 .ntm-swap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.needt-v3 .ntm-swap.is-out {
+  opacity: 0;
+  filter: blur(8px);
+  transform: translateY(-5px) scale(0.985);
+  transition:
+    opacity 0.2s ease-in,
+    filter 0.2s ease-in,
+    transform 0.2s ease-in;
+  will-change: opacity, filter, transform;
+}
+.needt-v3 .ntm-swap.is-in {
+  animation: ntm-sharpen 0.34s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  will-change: opacity, filter, transform;
+}
+@keyframes ntm-sharpen {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+
+/* Today and Calendar: chips of the real things */
+.needt-v3 .ntm-chips-col {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.needt-v3 .ntm-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 9px;
+  background: var(--ntm-chip);
+}
+.needt-v3 .ntm-time {
+  flex: none;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--v2p-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .ntm-check {
+  flex: none;
+  box-sizing: border-box;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.5px solid var(--v2p-ink-3);
+}
+.needt-v3 .ntm-evbar {
+  flex: none;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--ntm-hue);
+}
+.needt-v3 .ntm-cal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.needt-v3 .ntm-strip {
+  position: relative;
+  flex: none;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ntm-chip);
+}
+.needt-v3 .ntm-strip-ev {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--ntm-hue);
+}
+.needt-v3 .ntm-strip-now {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--v2p-ink);
+}
+
+/* Focus: the ring with its pause button, bottom right */
+.needt-v3 .ntm-hit > .ntm-focus {
+  left: auto;
+  right: 10px;
+  bottom: 10px;
+  display: block;
+  width: 68px;
+  height: 68px;
+}
+.needt-v3 .ntm-ring {
+  position: relative;
+  display: block;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--v2p-ink) 12%, transparent);
+}
+.needt-v3 .ntm-ring > svg {
+  position: absolute;
+  inset: 0;
+}
+.needt-v3 .ntm-ring.is-paused {
+  opacity: 0.7;
+}
+
+/* Habits: the habits as a stack of round marks, each in its own colour */
+.needt-v3 .ntm-stack {
+  display: flex;
+  align-items: center;
+}
+.needt-v3 .ntm-av {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  margin-right: -10px;
+  border-radius: 50%;
+  background: var(--ntm-bg);
+  box-shadow: 0 0 0 3px var(--ntm-bg);
+  border: 2px solid var(--dot, var(--v2p-ink-3));
+  color: var(--v2p-ground);
+}
+.needt-v3 .ntm-av[data-done] {
+  background: var(--dot, var(--v2p-ink-2));
+}
+.needt-v3 .ntm-av.is-more {
+  border-color: transparent;
+  background: color-mix(in oklab, var(--v2p-ink) 16%, var(--ntm-bg));
+  color: var(--v2p-ink);
+  font: 600 12px/16px var(--font-sans);
+}
+.needt-v3 .ntm-av.is-sm {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  background: color-mix(in oklab, var(--ntm-hue) 38%, var(--ntm-bg));
+  color: var(--v2p-ink);
+  font: 600 12px/16px var(--font-sans);
+}
+
+/* Mail: the latest thread */
+.needt-v3 .ntm-mail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.needt-v3 .ntm-mail-t {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Docs: pages standing in the corner, cut off by the bottom edge */
+.needt-v3 .ntm-hit > .ntm-pages {
+  left: auto;
+  right: 12px;
+  bottom: 0;
+  width: 84px;
+  height: 64px;
+}
+.needt-v3 .ntm-page {
+  position: absolute;
+  bottom: -16px;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 6px 14px -4px rgba(0, 0, 0, 0.5);
+}
+.needt-v3 .ntm-page:not([data-front]) {
+  right: 26px;
+  rotate: -7deg;
+  transform-origin: 50% 100%;
+}
+.needt-v3 .ntm-page[data-front] {
+  right: 0;
+  rotate: 4deg;
+  transform-origin: 50% 100%;
+}
+
+/* Ask: the field itself */
+.needt-v3 .ntm-ask {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 5px 0 12px;
+  border-radius: 20px;
+  background: var(--ntm-chip);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-ask > .ntm-txt {
+  flex: 1;
+}
+.needt-v3 .ntm-send {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--v2p-ink);
+  color: var(--v2p-ground);
+}
+
+/* Streak: the flame with the number, the week as circles */
+.needt-v3 .ntm-streak {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+.needt-v3 .ntm-week {
+  display: flex;
+  gap: 3px;
+  padding-bottom: 2px;
+}
+.needt-v3 .ntm-wd {
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ntm-chip);
+}
+.needt-v3 .ntm-wd[data-s="closed"] {
+  background: var(--ntm-hue);
+}
+.needt-v3 .ntm-wd[data-s="open"] {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--ntm-hue);
+}
+.needt-v3 .ntm-flame {
+  position: relative;
+  display: block;
+  flex: none;
+  width: 54px;
+  height: 64px;
+  margin-bottom: -4px;
+}
+.needt-v3 .ntm-flame > svg {
+  position: absolute;
+  inset: 0;
+}
+.needt-v3 .ntm-flame-n {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  text-align: center;
+  font: 800 22px/24px var(--font-sans);
+  letter-spacing: -0.03em;
+  color: #1d1208;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inbox and a project: papers lying on the tile */
+.needt-v3 .ntm-papers-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.needt-v3 .ntm-paper {
+  display: block;
+  box-sizing: border-box;
+  height: 26px;
+  padding: 5px 10px 0;
+  border-radius: 9px;
+  background: color-mix(in oklab, var(--v2p-ink) 12%, var(--ntm-bg));
+}
+.needt-v3 .ntm-paper .ntm-txt {
+  display: block;
+  font-weight: 500;
+}
+.needt-v3 .ntm-hit > .ntm-folder {
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 70px;
+}
+.needt-v3 .ntm-papers-swap {
+  position: absolute;
+  inset: 0 0 20px;
+}
+.needt-v3 .ntm-papers {
+  position: relative;
+  display: block;
+  height: 100%;
+}
+.needt-v3 .ntm-folder .ntm-paper {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: calc(var(--pi, 0) * -9px + 9px);
+  z-index: calc(3 - var(--pi, 0));
+  height: 40px;
+  rotate: calc((var(--pi, 0) - 0.5) * 2.4deg);
+}
+.needt-v3 .ntm-fbody {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 38px;
+  border-radius: 14px 14px 0 0;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in oklab, #fff 7%, transparent) 0 1px,
+      transparent 1px 5px
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--ntm-hue) 62%, var(--ntm-bg)),
+      color-mix(in oklab, var(--ntm-hue) 38%, var(--ntm-bg))
+    );
+  box-shadow: inset 0 1px 0 color-mix(in oklab, #fff 22%, transparent);
+}
+.needt-v3 .ntm-fbody::before {
+  /* the folder's tab */
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -9px;
+  width: 46px;
+  height: 12px;
+  border-radius: 8px 8px 0 0;
+  background: color-mix(in oklab, var(--ntm-hue) 62%, var(--ntm-bg));
+}
+.needt-v3 .ntm-tile:has(.ntm-hit:active):not(.is-lifted) {
+  scale: 0.97;
+  transition-delay: 0s;
+}
+
+/* ── editing ── */
+.needt-v3 .ntm-notch {
+  /* the bite out of the card's corner: the ground's own colour, a little
+     larger than the minus it frames */
+  position: absolute;
+  z-index: 2;
+  top: -6px;
+  right: -6px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--v2p-ground);
+  pointer-events: none;
+}
+.needt-v3 .ntm-minus,
+.needt-v3 .ntm-size,
+.needt-v3 .ntm-plus {
+  position: absolute;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+/* the minus is the ink's own disc (the page's ground in it): a mark, not the accent */
+.needt-v3 .ntm-minus,
+.needt-v3 .ntm-plus {
+  top: 4px;
+  right: 4px;
+  width: 30px;
+  height: 30px;
+  background: var(--v2p-ink);
+  color: var(--v2p-ground);
+}
+.needt-v3 .ntm-plus {
+  pointer-events: none;
+}
+.needt-v3 .ntm-size {
+  right: 10px;
+  top: 46px;
+  width: 28px;
+  height: 28px;
+  background: color-mix(in oklab, var(--v2p-ink) 14%, transparent);
+  color: var(--v2p-ink);
+}
+.needt-v3 .ntm-minus::before,
+.needt-v3 .ntm-size::before {
+  /* a 44px target around the disc */
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+.needt-v3 .ntm-minus:focus-visible,
+.needt-v3 .ntm-size:focus-visible,
+.needt-v3 .ntm-chip:focus-visible,
+.needt-v3 .ntm-link:focus-visible,
+.needt-v3 .ntm-pill:focus-visible,
+.needt-v3 .ntm-tab:focus-visible,
+.needt-v3 .ntm-round:focus-visible {
+  outline: 2px solid var(--v2p-ink-3);
+  outline-offset: 2px;
+}
+@keyframes ntm-jig {
+  from {
+    rotate: -0.9deg;
+  }
+  to {
+    rotate: 0.9deg;
+  }
+}
+.needt-v3 .ntm.is-edit .ntm-tile:not(.is-lifted) {
+  animation: ntm-jig 0.24s ease-in-out infinite alternate;
+  animation-delay: calc(var(--ntm-i, 0) * -41ms);
+  will-change: transform, rotate;
+}
+.needt-v3 .ntm.is-edit .ntm-tile:nth-child(even):not(.is-lifted) {
+  animation-direction: alternate-reverse;
+}
+/* the others make room while one is dragged: they slide to the slot the
+   reflow gave them (--ntm-rx/ry, whole cells), by translation only */
+.needt-v3 .ntm.is-dragging .ntm-tile:not(.is-lifted) {
+  translate: var(--ntm-rx, 0px) var(--ntm-ry, 0px);
+  transition:
+    translate 0.24s cubic-bezier(0.2, 0.9, 0.25, 1),
+    scale 0.2s ease,
+    opacity 0.2s ease;
+  transition-delay: 0s;
+}
+.needt-v3 .ntm-tile.is-lifted {
+  z-index: 3;
+  translate: var(--ntm-dx, 0px) var(--ntm-dy, 0px);
+  scale: 1.05;
+  transition: none;
+  box-shadow: 0 24px 34px -12px rgba(0, 0, 0, 0.6);
+}
+/* let go: the lifted tile flies into its slot, then the order is committed
+   with nothing animating (the flush frame) so nothing moves twice */
+.needt-v3 .ntm-grid[data-ntm-settle] .ntm-tile.is-lifted {
+  transition:
+    translate 0.2s cubic-bezier(0.2, 0.9, 0.25, 1),
+    scale 0.2s ease;
+}
+.needt-v3 .ntm-grid[data-ntm-flush] .ntm-tile {
+  transition: none !important;
+}
+
+/* ── under the grid: Customize, the edit bar, every place, the catalogue ── */
+.needt-v3 .ntm-customize {
+  align-self: center;
+  margin-top: 6px;
+}
+.needt-v3 .ntm-editbar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+.needt-v3 .ntm-hint {
+  margin: 0;
+  font: 400 13px/18px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-editrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .ntm-more {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.needt-v3 .ntm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.needt-v3 .ntm-chip,
+.needt-v3 .ntm-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--v2p-raise-2);
+  color: var(--v2p-ink);
+  font: 500 13px/18px var(--font-sans);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.15s ease;
+}
+.needt-v3 .ntm-pill {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 20px;
+}
+.needt-v3 .ntm-chip:active:not(:disabled),
+.needt-v3 .ntm-pill:active:not(:disabled) {
+  scale: 0.96;
+}
+.needt-v3 .ntm-chip:disabled,
+.needt-v3 .ntm-pill:disabled {
+  opacity: 0.4;
+}
+
+/* the catalogue: the real objects, as they would look, to pick from */
+.needt-v3 .ntm > .ntm-cat {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding-top: calc(max(var(--v3-top, 0px), 20px) + 12px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-left, 0px));
+  /* opaque: the ground again, so the tiles behind do not show through */
+  background: var(--v2p-ground);
+  animation: ntm-cat-in 0.28s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+@keyframes ntm-cat-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.needt-v3 .ntm-cat-title {
+  flex: none;
+  margin: 0;
+  text-align: center;
+  font: 700 22px/28px var(--font-sans);
+  letter-spacing: -0.02em;
+}
+.needt-v3 .ntm-cat-body {
+  flex: 1;
+  min-height: 0;
+  margin: 0 -10px;
+  padding: 18px 10px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.needt-v3 .ntm-cat-body::-webkit-scrollbar {
+  display: none;
+}
+.needt-v3 .ntm-cat-grid {
+  margin: 0;
+}
+.needt-v3 .ntm-cat-tile {
+  translate: none;
+  scale: none;
+  opacity: 1;
+  transition: none;
+}
+.needt-v3 .ntm-cat-done {
+  align-self: center;
+  flex: none;
+  margin-bottom: calc(var(--v3-dock-lift, 20px) + 10px);
+}
+
+/* ── the foot: where the dock was, so the bar is under the thumb ── */
+.needt-v3 .ntm-foot {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+  /* the same height the dock stands at, and never under the home indicator */
+  padding-bottom: calc(var(--v3-dock-lift, 20px) + 10px);
+}
+.needt-v3 .ntm-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 64px;
+  padding: 0 8px;
+  border-radius: 32px;
+  background: var(--v2p-raise);
+}
+.needt-v3 .ntm-tab {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--v2p-ink-2);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.15s ease;
+}
+.needt-v3 .ntm-tab.is-on {
+  background: var(--v2p-ink);
+  color: var(--v2p-ground);
+}
+.needt-v3 .ntm-tab:active {
+  scale: 0.92;
+}
+.needt-v3 .ntm-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: none;
+  color: var(--v2p-ink-2);
+  font: 400 13px/18px var(--font-sans);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+.needt-v3 .ntm-round {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--v2p-raise-2);
+  color: var(--v2p-ink);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.15s ease;
+}
+.needt-v3 .ntm-round.is-sm {
+  width: 44px;
+  height: 44px;
+  background: var(--v2p-raise);
+}
+.needt-v3 .ntm-round:active {
+  scale: 0.92;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ntm,
+  .needt-v3 .ntm-profile,
+  .needt-v3 .ntm-tile,
+  .needt-v3 .ntm-chip,
+  .needt-v3 .ntm-pill,
+  .needt-v3 .ntm-tab,
+  .needt-v3 .ntm-round {
+    transition-duration: 0.01s;
+    transition-delay: 0s;
+  }
+  .needt-v3 .ntm-tile {
+    translate: none;
+    scale: none;
+  }
+  .needt-v3 .ntm-swap.is-out,
+  .needt-v3 .ntm-swap.is-in {
+    animation: none;
+    filter: none;
+    transition: none;
+  }
+  .needt-v3 .ntm > .ntm-cat {
+    animation: none;
+  }
+  /* no wobble: editing reads as a ring on each tile instead */
+  .needt-v3 .ntm.is-edit .ntm-tile:not(.is-lifted) {
+    animation: none;
+    box-shadow: inset 0 0 0 1.5px var(--v2p-ink-3);
+  }
+}
+
+/* ── the classic dock, restyled (menu A's pill; ref 11's bar) ──
+ * The place you are in sits in a round raised ground of the pill, not under a
+ * small dot: a ground shift, never the accent. The pill and the + beside it
+ * keep their own geometry (menu-a.ts), so the card still grows out of them.
+ * The circle is gone by the time the card has opened (--nva-k), so the tiles
+ * of the card are untouched. */
+.needt-v3 .nva-icon.is-on::before,
+.needt-v3 .nva-dots.is-here::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: var(--nva-raise-2, rgba(128, 128, 140, 0.2));
+  box-shadow: inset 0 0 0 1px var(--nva-line, transparent);
+  opacity: calc(1 - var(--nva-k, 0) * 12);
+}
+.needt-v3 .nva-icon .nva-glyph,
+.needt-v3 .nva-dots svg {
+  position: relative;
+}
+.needt-v3 .nva-icon.is-on .nva-icon-dot,
+.needt-v3 .nva-dots.is-here::after {
+  display: none;
+}
+
+/* tiles paint in their own box; will-change only while they move (above) */
+.needt-v3 .ntm-tile {
+  contain: paint;
+}
+.needt-v3 .ntm.is-dragging .ntm-tile {
+  will-change: transform, translate;
+}
+
+/* the page's own dimming tint would grey the ground */
+.needt-v3 .ntm .pk-scrim-tint {
+  background: none;
+}

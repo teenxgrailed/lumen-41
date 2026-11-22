@@ -6,7 +6,12 @@
    switch, password recovery and confirmation resend. Only the face is new. */
 import * as React from "react";
 
-import { type ClientSafeProvider, getProviders, signIn } from "next-auth/react";
+import {
+  type ClientSafeProvider,
+  getProviders,
+  getSession,
+  signIn,
+} from "next-auth/react";
 
 import type { IconType } from "react-icons";
 
@@ -29,7 +34,6 @@ import { logger } from "@/lib/logger";
 import { isIosApp, isStoreDistribution } from "@/lib/native";
 import { browserLocale } from "@/lib/needt3/locale-defaults";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
-import { notify } from "@/lib/notifications";
 import {
   ONBOARDING_RESUME_PATH,
   isOnboardingEntry,
@@ -37,8 +41,6 @@ import {
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { brandGlyph, brandMonoGlyph } from "../brand";
-import { PhoneAuth } from "../phone/auth";
-import { useResolvedPhoneUi } from "../root/phone-ui-context";
 import { AuthScope } from "./AuthScope";
 import {
   type AuthMode,
@@ -47,8 +49,10 @@ import {
   AuthScreen,
 } from "./AuthScreen";
 import { IosSignIn } from "./IosSignIn";
+import type { EmailCodeApi } from "./email-code-logic";
 import { fetchPublicSignup, signupFlags } from "./public-signup-state";
 import { useAuthSteps } from "./use-auth-fields";
+import { useGoogleOneTap } from "./use-google-one-tap";
 
 const LOG_SOURCE = "needt3-signin";
 
@@ -94,9 +98,8 @@ export function V3SignInRoute({
   callbackUrl,
   error,
   autoProvider,
-  initialUi = "desktop",
-  uiForced = false,
   startRecover = false,
+  startMode,
 }: {
   callbackUrl?: string;
   error?: string;
@@ -104,20 +107,22 @@ export function V3SignInRoute({
   autoProvider?: string;
   /** Open on "Forgot your password?" (/auth/reset-password without a token). */
   startRecover?: boolean;
-  /** The server's pick for the first render (`phoneUiFrom`). */
+  /** `?mode=signup` (the needt.app links): open on the create-account form. */
+  startMode?: "signup";
+  /** The server's pick for the first render (`phoneUiFrom`). The card is the
+      same at every width now; the page still passes it. */
   initialUi?: PhoneUi;
-  /** The `needt-ui` cookie pinned a side: the width never overrides it. */
+  /** The `needt-ui` cookie pinned a side. */
   uiForced?: boolean;
 }) {
-  /* A signed-out visitor has no frame around the page, so this route reads the
-     same server pick and width listener the frame does. */
-  const ui = useResolvedPhoneUi(initialUi, uiForced);
   const store = useStoreDistribution();
   const safeCallbackUrl = safeCallbackPath(callbackUrl);
   /* An OAuth return that would have made an account without the 16+ / Terms
      box lands here in sign-up, where the box is. */
   const [mode, setMode] = React.useState<AuthMode>(
-    error === "AgeConfirmRequired" ? "signup" : "login"
+    error === "AgeConfirmRequired" || startMode === "signup"
+      ? "signup"
+      : "login"
   );
   const [ageChecked, setAgeChecked] = React.useState(false);
   const age = React.useMemo(
@@ -156,7 +161,27 @@ export function V3SignInRoute({
     setIosApp(isIosApp());
   }, []);
   const [providerBusy, setProviderBusy] = React.useState<string | null>(null);
+  /* Back from the provider (or restored from the back/forward cache): the
+     page may come back exactly as it was left, its button still "Opening…".
+     A button that was busy on the way out must be usable again. */
+  React.useEffect(() => {
+    const reset = (event: PageTransitionEvent) => {
+      if (event.persisted) setProviderBusy(null);
+    };
+    window.addEventListener("pageshow", reset);
+    return () => window.removeEventListener("pageshow", reset);
+  }, []);
+  /* An OAuth error in the address is a finished attempt, never a busy one. */
+  React.useEffect(() => {
+    if (error) setProviderBusy(null);
+  }, [error]);
   const [resending, setResending] = React.useState(false);
+  /* What this screen has to say that is not a refusal of the form: shown in
+     the screen's own notice line. The sign-in pages raise no toast (the
+     notice bridge drops them on /auth/*), so the answer lives here. */
+  const [localNotice, setLocalNotice] = React.useState<string | null>(null);
+  /* The answer to "Resend confirmation", under that button. */
+  const [resendNote, setResendNote] = React.useState<string | null>(null);
   /** The address last typed, so "resend" has something to send to. */
   const typed = React.useRef("");
   /** A new account goes on to setup; a returning one to where it was going. */
@@ -268,9 +293,6 @@ export function V3SignInRoute({
         });
         if (result?.error) {
           if (input.mode === "signup") {
-            notify.success("Account created", {
-              description: "Sign in with your new credentials.",
-            });
             setMode("login");
             return { ok: false, message: "Account created. Sign in below." };
           }
@@ -309,10 +331,11 @@ export function V3SignInRoute({
 
   const resend = React.useCallback(async () => {
     if (!typed.current) {
-      notify.error("Enter your email first");
+      setResendNote("Enter your email first.");
       return;
     }
     setResending(true);
+    setResendNote(null);
     try {
       const response = await fetch("/api/auth/email-verification/request", {
         method: "POST",
@@ -320,7 +343,7 @@ export function V3SignInRoute({
         body: JSON.stringify({ email: typed.current }),
       });
       if (!response.ok) throw new Error("Could not send verification email");
-      notify.success(
+      setResendNote(
         "If the account needs confirmation, an email is on its way."
       );
     } catch (e) {
@@ -329,7 +352,7 @@ export function V3SignInRoute({
         { error: message(e) },
         LOG_SOURCE
       );
-      notify.error("Could not send verification email");
+      setResendNote("Could not send the confirmation email. Try again.");
     } finally {
       setResending(false);
     }
@@ -351,11 +374,129 @@ export function V3SignInRoute({
             { provider: id, error: message(e) },
             LOG_SOURCE
           );
-          notify.error("Could not continue with that account");
+          setLocalNotice("Could not continue with that account.");
           setProviderBusy(null);
         });
     },
     [safeCallbackUrl, ageChecked]
+  );
+
+  /* Google One Tap: the ID token Google hands over is traded for a session by
+     the `google-onetap` provider. A would-be new account without the 16+ box
+     ticked waits here; ticking it sends the same token again. */
+  const [oneTapError, setOneTapError] = React.useState<string | null>(null);
+  const pendingCredential = React.useRef<string | null>(null);
+  const oneTap = React.useCallback(
+    async (credential: string) => {
+      setOneTapError(null);
+      setProviderBusy("google");
+      try {
+        const result = await signIn("google-onetap", {
+          credential,
+          redirect: false,
+          callbackUrl: safeCallbackUrl,
+        });
+        if (!result?.error) {
+          pendingCredential.current = null;
+          /* The server says whether this sign-in made the account; the
+             page's own mode proves nothing. */
+          const session = await getSession().catch(() => null);
+          newAccount.current = session?.newAccount === true;
+          dest.current = newAccount.current
+            ? ONBOARDING_RESUME_PATH
+            : safeCallbackUrl;
+          leave();
+          return;
+        }
+        if (result.error === "AgeConfirmRequired") {
+          pendingCredential.current = credential;
+          setMode("signup");
+        }
+        setOneTapError(result.error);
+      } catch (e) {
+        void logger.error(
+          "Google One Tap sign in failed",
+          { error: message(e) },
+          LOG_SOURCE
+        );
+        setLocalNotice("Could not continue with that account.");
+      }
+      setProviderBusy(null);
+    },
+    [safeCallbackUrl, leave]
+  );
+  useGoogleOneTap({ enabled: !iosApp, onCredential: oneTap });
+  React.useEffect(() => {
+    const credential = pendingCredential.current;
+    if (!ageChecked || !credential) return;
+    pendingCredential.current = null;
+    void confirmAge()
+      .then(() => oneTap(credential))
+      .catch(() => setLocalNotice("Could not record the confirmation."));
+  }, [ageChecked, oneTap]);
+
+  /* Sign in with a mailed code (email-code-service.ts): the main path under
+     the providers; "Use password" opens the old email + password form. */
+  const [usePassword, setUsePassword] = React.useState(false);
+  const emailCode = React.useMemo<EmailCodeApi>(
+    () => ({
+      usePassword,
+      setUsePassword,
+      send: async (email) => {
+        try {
+          const response = await fetch("/api/auth/email-code/request", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email }),
+          });
+          if (response.ok) return "sent";
+          if (response.status === 429) return "limited";
+          if (response.status === 400) return "invalid";
+          return "network";
+        } catch (e) {
+          void logger.error(
+            "Email code request failed",
+            { error: message(e) },
+            LOG_SOURCE
+          );
+          return "network";
+        }
+      },
+      verify: async ({ email, code, ageConfirmed }) => {
+        try {
+          const result = await signIn("email-code", {
+            email,
+            code,
+            ageConfirmed: ageConfirmed ? "true" : "false",
+            ...browserLocale(),
+            redirect: false,
+            callbackUrl: safeCallbackUrl,
+          });
+          if (result?.error === "AgeConfirmRequired") return "age";
+          if (result?.error) return "wrong";
+          /* The server says whether this sign-in made the account. */
+          const session = await getSession().catch(() => null);
+          newAccount.current = session?.newAccount === true;
+          dest.current = newAccount.current
+            ? ONBOARDING_RESUME_PATH
+            : safeCallbackUrl;
+          /* Leave from here, as One Tap does: the code form's own `onDone`
+             is skipped when its screen was swapped (phone/desktop face) or
+             unmounted while the request was in flight, which left a fresh
+             sign-in form on a session that already existed. */
+          leave();
+          return "ok";
+        } catch (e) {
+          void logger.error(
+            "Email code sign in failed",
+            { error: message(e) },
+            LOG_SOURCE
+          );
+          return "network";
+        }
+      },
+    }),
+    [usePassword, safeCallbackUrl, leave]
   );
 
   /* Opened by the iOS app's sign-in sheet with `?provider=`: go straight to
@@ -382,11 +523,9 @@ export function V3SignInRoute({
     );
   }
 
-  const Screen = ui === "phone" ? PhoneAuth : AuthScreen;
-
   return (
     <AuthScope>
-      <Screen
+      <AuthScreen
         mode={mode}
         onMode={setMode}
         onDone={leave}
@@ -395,20 +534,31 @@ export function V3SignInRoute({
         onSubmit={submit}
         onRecover={recover}
         providers={configured}
+        emailCode={emailCode}
         age={age}
         providerBusy={providerBusy}
         onProvider={startProvider}
-        notice={oauthErrorMessage(error, store) || null}
+        notice={
+          localNotice ??
+          (oauthErrorMessage(oneTapError ?? error, store) || null)
+        }
         {...signupFlags(allowSignup)}
         aside={
-          <button
-            type="button"
-            className="ax-link auth-forgot"
-            onClick={() => void resend()}
-            disabled={resending}
-          >
-            {resending ? "Sending…" : "Resend confirmation"}
-          </button>
+          <>
+            <button
+              type="button"
+              className="ax-link auth-forgot"
+              onClick={() => void resend()}
+              disabled={resending}
+            >
+              {resending ? "Sending…" : "Resend confirmation"}
+            </button>
+            {resendNote ? (
+              <p className="auth-recover-resend" role="status">
+                {resendNote}
+              </p>
+            ) : null}
+          </>
         }
       />
     </AuthScope>

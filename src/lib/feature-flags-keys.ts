@@ -33,10 +33,11 @@ export const ENERGY_CURVE = "energy_curve";
 export const FOCUS_BLOCKING = "focus_blocking";
 
 /**
- * Where a new account starts: the 18-screen `/start` onboarding when on,
- * first-run `/setup` when off. Off unless a FeatureFlag row turns it on;
- * per-user rollout and overrides apply (`isFeatureEnabled`), so one account
- * can be moved onto it before everybody else. Read for new accounts and by the
+ * Where a new account starts: the 19-screen `/start` onboarding when on,
+ * first-run `/setup` when off. On for everybody at 100% since 15.11.2026
+ * (owner decision, migration 20261115181000); the flag stays as an emergency
+ * off switch. Per-user rollout and overrides apply (`isFeatureEnabled`). Read
+ * for new accounts and by the
  * Today resume guard; people who already finished onboarding are never sent
  * anywhere.
  */
@@ -59,9 +60,10 @@ export const SANDBOX_ACCOUNTS = "sandbox_accounts";
 /**
  * The agent hub: handoffs and notes between agents (`needt_agent_*` and
  * `needt_memory_*` MCP tools, `/api/connect/agent-hub/*`, the Agents screen).
- * Off for everybody; turned on for one account with a per-user override
- * (`scripts/admin/set-flag-override.cjs` or the admin feature-flags API),
- * never by hard-coding an account.
+ * On for everybody since migration 20261103200000_agent_hub_for_everyone. A
+ * per-user override (`scripts/admin/set-flag-override.cjs` or the admin
+ * feature-flags API) can still switch it off for one account; never
+ * hard-code an account.
  */
 export const AGENT_HUB = "agent_hub";
 
@@ -90,6 +92,90 @@ export const HABITS_QUIT = "habits_quit";
  */
 export const AI_CHATGPT_PLAN = "ai_chatgpt_plan";
 
+/**
+ * The first replan, in the first two minutes: a new account's sample day gets
+ * one demo meeting on top of one demo task, and Today offers to replan it
+ * (preview, then Keep). On at 100% for new accounts from the
+ * `20261115120000_first_replan_onboarding_for_new_accounts` migration (owner
+ * decision 15.11.2026); per-user rollout and overrides still apply
+ * (`isFeatureEnabled`). Reads and seeds only for accounts the flag is on for,
+ * so turning it off hides the card and stops new demos.
+ *
+ * //todo: the rollout ends 30.11.2026, but a flag has no end date (a row is
+ * on, off or a percentage). Until the flag system can expire a flag, turn it
+ * off by hand from the admin feature-flag API on 01.12.2026.
+ */
+export const FIRST_REPLAN_ONBOARDING = "first_replan_onboarding";
+
+/**
+ * Needt Budget as a place in the sidebar and the phone menu (`/budget`, a
+ * frame on budget.needt.app; openspec `add-budget-module`). Off for everybody;
+ * Free sees a locked row and a promo, Pro sees Budget.
+ */
+export const BUDGET_MODULE = "budget_module";
+
+/**
+ * Needt Pro opens Needt Budget: the `needt_plan` claim ("pro" | "free") in the
+ * id_token and userinfo Needt gives Budget, which Budget maps to its own
+ * access. Off for everybody until the owner decides the tariff; without it
+ * the claim is not sent and Budget keeps its own billing.
+ */
+export const BUDGET_PRO_ACCESS = "budget_pro_access";
+
+/**
+ * The Habits and Goals card screens: today's habits as a stack of cards you
+ * swipe done, a month grid under it, and goals as cards with their next step
+ * and a risk hint. Read on the server (the Habits and Goals pages); off or
+ * unreadable means the existing screens, unchanged.
+ */
+export const HABITS_CARDS_V1 = "habits_cards_v1";
+
+/**
+ * The 20:00 habit push ("3 habits left today"), sent in the person's own time
+ * zone only when habits are still open. Off for everybody until a FeatureFlag
+ * row turns it on; with it off the worker does no work for it.
+ */
+export const HABIT_EVENING_PUSH = "habit_evening_push";
+
+/**
+ * Projects drawn as frosted folders with the next tasks sticking out
+ * (`Folder`, `ProjectFolders`). Read on the server in `/projects` and passed
+ * down; an unreadable flag is off, so the old project cards stay.
+ */
+export const FOLDERS_V1 = "folders_v1";
+
+/**
+ * Home ("Today") in three blocks: one Now card, the day list, overdue as one
+ * row, and the right rail in the project-card frame. On at 100% for every
+ * account since 15.11.2026 (migration 20261115160000_home_v2_for_everyone);
+ * with it off the previous Home renders unchanged, so rollback is one switch.
+ */
+export const HOME_V2 = "home_v2";
+
+/**
+ * The day plan (openspec finish-today-daily-planner): a limited plan of the
+ * day, the evening review and Someday. The kill switch of the whole system, on
+ * at 100% for every account from the first deploy (migration
+ * 20261119120100_day_plan_for_everyone). Off stops the plan touches, the
+ * Someday sweep and the scheduler's plan guard; no plan row is deleted.
+ */
+export const DAY_PLAN = "day_plan";
+
+/**
+ * The nightly Someday sweep. Ships OFF with no data migration: run on existing
+ * data it would be the one-time launch migration (PR E) without the owner's
+ * yes. Only the launch migration turns it on. The job is registered and does
+ * nothing while this is off.
+ */
+export const SOMEDAY_SWEEP = "someday_sweep";
+
+/**
+ * The two daily day-plan touches and the morning digest skip. On at 100% for
+ * every account with the phone day plan screen (migration
+ * 20261120120000_day_plan_touches_on); it stays a kill switch.
+ */
+export const DAY_PLAN_TOUCHES = "day_plan_touches";
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
@@ -104,6 +190,22 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [HABITS_QUIT]: "QUIT habits and habit presence (Pro).",
   [AI_CHATGPT_PLAN]:
     "Needt AI on the person's own ChatGPT plan (needs OPENAI_SIWC_CLIENT_ID).",
+  [FIRST_REPLAN_ONBOARDING]:
+    "Demo meeting on a new account's Today, with a first replan and Keep.",
+  [BUDGET_MODULE]: "Needt Budget as a place in the sidebar (frame).",
+  [HABITS_CARDS_V1]: "Habit card stack, month grid and goal cards.",
+  [HABIT_EVENING_PUSH]: "20:00 push with the habits still open today.",
+  [HOME_V2]:
+    "Home in three blocks: Now card, day list, overdue row, framed rail.",
+  [BUDGET_PRO_ACCESS]:
+    "Send needt_plan to Needt Budget, so Needt Pro opens Budget (owner's yes).",
+  [FOLDERS_V1]: "Projects as folders with the next tasks sticking out.",
+  [DAY_PLAN]:
+    "Day plan kill switch: plan touches, Someday sweep and scheduler plan guard (on for everyone).",
+  [SOMEDAY_SWEEP]:
+    "Nightly Someday sweep (off until the launch migration; per-user override for testing).",
+  [DAY_PLAN_TOUCHES]:
+    "Morning and evening day-plan pushes, and the morning digest skip (off until the day plan screen ships).",
 };
 
 export const isKnownFeatureFlag = (key: string): boolean =>

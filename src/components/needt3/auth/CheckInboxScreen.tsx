@@ -7,12 +7,7 @@
    status and sends the mail; this only draws it. */
 import * as React from "react";
 
-import {
-  LuArrowLeft,
-  LuExternalLink,
-  LuMail,
-  LuRefreshCw,
-} from "react-icons/lu";
+import { LuExternalLink, LuMail, LuRefreshCw } from "react-icons/lu";
 
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 import { useOnline } from "@/lib/needt3/use-online";
@@ -54,7 +49,7 @@ export function CheckInboxScreen({
         hue="var(--info)"
         a="Check your"
         b="inbox"
-        line={`We sent a link to ${shown}. Open it to start 14 days of Pro. This page moves on by itself.`}
+        line={`We sent a link to ${shown}.`}
         foot={<UseAnother face={face} onClick={onUseAnother} />}
         offline={offline}
         offlineText="You’re offline — the link still works once you’re back."
@@ -94,22 +89,8 @@ export function CheckInboxScreen({
 
 /** `LinkFoot`'s look, as a button: leaving signs out first. */
 function UseAnother({ face, onClick }: { face: Face; onClick: () => void }) {
-  if (face === "phone") {
-    return (
-      <button
-        type="button"
-        className="mau-chip"
-        onClick={onClick}
-        data-px-calm
-        data-auth-use-another
-      >
-        <LuArrowLeft size={15} aria-hidden />
-        Wrong address? <u>Use another email</u>
-      </button>
-    );
-  }
   return (
-    <p className="axs-switch" data-px-calm>
+    <p className="axs-switch" data-px-calm data-face={face}>
       Wrong address?{" "}
       <button
         type="button"

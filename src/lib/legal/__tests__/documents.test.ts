@@ -59,7 +59,12 @@ describe("published legal pages", () => {
     async (name) => {
       const html = await render(name);
       expect(html).toContain("<h1");
-      expect(html).toContain(formatLegalDate(LEGAL_EFFECTIVE_DATE));
+      // The Privacy Notice carries its own later date (see privacy.ts).
+      expect(html).toContain(
+        name === "privacy"
+          ? formatLegalDate("2026-11-15")
+          : formatLegalDate(LEGAL_EFFECTIVE_DATE)
+      );
       // No review marker and no raw template placeholder reaches a reader:
       // unfilled constants are printed as their interim wording.
       expect(html).not.toContain("[[CHECK");

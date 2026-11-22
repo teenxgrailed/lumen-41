@@ -1,24 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  SchedulePreviewConflictError,
-  applyReschedulePreview,
-  createReschedulePreview,
-  undoReschedulePreview,
-} from "@/services/ai/reschedule-preview";
+import { SchedulePreviewConflictError } from "@/services/ai/reschedule-preview";
+import { runReschedulePreviewAction } from "@/services/ai/reschedule-preview-api";
 import { WorkspaceRole } from "@prisma/client";
-import { z } from "zod";
 
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { logger } from "@/lib/logger";
+import { accountRule, enforceRateLimits } from "@/lib/security/rate-limit";
 
 const LOG_SOURCE = "reschedule-preview-api";
-
-const requestSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("preview") }),
-  z.object({ action: z.literal("apply"), token: z.string().min(1) }),
-  z.object({ action: z.literal("undo"), token: z.string().min(1) }),
-]);
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,19 +16,18 @@ export async function POST(request: NextRequest) {
       requiredRole: WorkspaceRole.EDITOR,
     });
     if ("response" in auth) return auth.response;
-    const input = requestSchema.parse(await request.json().catch(() => null));
-    if (input.action === "preview") {
-      return NextResponse.json(
-        await createReschedulePreview(auth.userId, auth.workspace!)
-      );
-    }
-    if (input.action === "apply") {
-      return NextResponse.json(
-        await applyReschedulePreview(auth.userId, auth.workspace!, input.token)
-      );
-    }
+    // not an AI action, so it stays on Free; the limit (20 a minute) only stops a runaway loop
+    const limited = await enforceRateLimits(
+      [accountRule(auth.userId, "tasks-reschedule-preview:account", 20, 60)],
+      { route: "/api/tasks/reschedule-preview", userId: auth.userId }
+    );
+    if (limited) return limited;
     return NextResponse.json(
-      await undoReschedulePreview(auth.userId, auth.workspace!, input.token)
+      await runReschedulePreviewAction(
+        auth.userId,
+        auth.workspace!,
+        await request.json().catch(() => null)
+      )
     );
   } catch (error) {
     if (error instanceof SchedulePreviewConflictError) {

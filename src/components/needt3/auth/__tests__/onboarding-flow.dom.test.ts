@@ -39,6 +39,8 @@ jest.mock("@tanstack/react-query", () => ({
 jest.mock("@/lib/needt3/hooks/settings", () => ({
   useSettings: () => ({ data: settingsData }),
   useUpdateSettings: () => ({ mutateAsync }),
+  useSetPref: () => (key: string, value: unknown) =>
+    mutateAsync({ prefs: { [key]: value } }).then(() => true),
 }));
 jest.mock("@/lib/needt3/hooks/account", () => ({
   useSchedule: () => ({
@@ -230,6 +232,16 @@ describe("crossing 700px", () => {
     await click(go());
     expect(step()).toBe("hours");
     expect(q("[data-ob-hours]")).not.toBeNull();
+    await click(go());
+    // the phone's own last step: which bottom bar, written on tap
+    expect(step()).toBe("bar");
+    expect(q('[data-bar-pick="classic"]')?.getAttribute("aria-pressed")).toBe(
+      "true"
+    );
+    await click(q('[data-bar-pick="float"]')!);
+    expect(mutateAsync).toHaveBeenCalledWith({
+      prefs: { barStyle: "float" },
+    });
     await click(go());
     expect(sendJson).toHaveBeenCalledWith(
       "/api/onboarding/sample",

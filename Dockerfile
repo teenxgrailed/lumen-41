@@ -64,6 +64,9 @@ ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
     NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
     NEXT_PUBLIC_SENTRY_ENVIRONMENT=$NEXT_PUBLIC_SENTRY_ENVIRONMENT \
     NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
+# The Someday launch migration bundle, copied into the web image only (the
+# production stage below), so the worker and collaboration images skip it.
+RUN npm run build:scripts
 # Source maps upload only when CI mounts the Sentry secrets; Coolify's
 # fallback build has none and builds without uploading.
 RUN --mount=type=secret,id=sentry_auth_token,required=false \
@@ -162,6 +165,9 @@ COPY --from=builder /app/prisma ./prisma
 # `node scripts/admin/reset-user-data.cjs --email ...`. Plain CommonJS that
 # needs only @prisma/client and DATABASE_URL.
 COPY scripts/admin ./scripts/admin
+# The Someday launch migration, bundled from scripts/someday-migration.ts so it
+# shares the sweep's rules: `node scripts/someday-migration.cjs --dry-run`.
+COPY --from=builder /app/dist/scripts/someday-migration.cjs ./scripts/someday-migration.cjs
 COPY entrypoint.sh .
 RUN chmod +x /app/entrypoint.sh
 USER node

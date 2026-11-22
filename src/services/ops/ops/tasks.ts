@@ -36,6 +36,7 @@ import type { Prisma } from "@prisma/client";
 import { RRule } from "rrule";
 import { z } from "zod";
 
+import { recordActivation } from "@/lib/activation-events";
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { getPlan } from "@/lib/entitlements";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
@@ -462,6 +463,9 @@ export const taskCreate = defineOp({
           ? [() => schedulePushTaskBlock(ctx.userId, task.id)]
           : []),
         publishTasksUpdated(ctx.userId),
+        /* After commit: an op that throws and rolls back records nothing. */
+        () =>
+          recordActivation("task_created", ctx.userId, { source: ctx.actor }),
       ],
     };
   },

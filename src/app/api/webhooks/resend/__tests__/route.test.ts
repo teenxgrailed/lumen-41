@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 
 import { POST } from "@/app/api/webhooks/resend/route";
-import { createHmac } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -97,6 +97,52 @@ describe("Resend webhook", () => {
       })
     );
     expect(response.status).toBe(400);
+    expect(logger.error).toHaveBeenCalledWith(
+      "Resend webhook rejected",
+      expect.objectContaining({ reason: "missing_headers", skewSeconds: null }),
+      "ResendWebhookRoute"
+    );
+  });
+
+  it("logs only a reason and the skew when the signature does not match", async () => {
+    const response = await POST(
+      signed(bounce("Permanent"), { secret: Buffer.from("another-secret") })
+    );
+    expect(response.status).toBe(400);
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    const [message, data] = jest.mocked(logger.error).mock.calls[0];
+    expect(message).toBe("Resend webhook rejected");
+    expect(data).toEqual({
+      reason: "no_match",
+      skewSeconds: expect.any(Number),
+      svixTimestamp: expect.any(String),
+      bodyLength: expect.any(Number),
+      signatureCount: 1,
+    });
+    const logged = JSON.stringify(jest.mocked(logger.error).mock.calls);
+    expect(logged).not.toContain(SECRET);
+    expect(logged).not.toContain("Person@Example.com");
+  });
+
+  it("logs stale_timestamp with the skew for an old delivery", async () => {
+    const old = Math.floor(Date.now() / 1000) - 6 * 60;
+    await POST(signed(bounce("Permanent"), { timestamp: old }));
+    const [, data] = jest.mocked(logger.error).mock.calls[0];
+    expect(data).toMatchObject({ reason: "stale_timestamp" });
+    expect(
+      (data as { skewSeconds: number }).skewSeconds
+    ).toBeGreaterThanOrEqual(360);
+  });
+
+  it("accepts a body signed with a freshly generated whsec_ secret", async () => {
+    const bytes = randomBytes(24);
+    process.env.RESEND_WEBHOOK_SECRET = `whsec_${bytes.toString("base64")}`;
+    const response = await POST(
+      signed(bounce("Permanent"), { id: "msg_e2e_1", secret: bytes })
+    );
+    expect(response.status).toBe(200);
+    expect(prisma.emailSuppression.upsert).toHaveBeenCalledTimes(1);
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it("suppresses the address on a hard bounce, matching case-insensitively", async () => {

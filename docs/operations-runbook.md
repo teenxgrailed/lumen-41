@@ -85,6 +85,49 @@ Alerts:
 `RUNNING` scheduling runs older than 15 minutes are failed by the reaper.
 Finished runs are retained for 30 days.
 
+## Health endpoints
+
+Point external monitors at these; both answer 200 when healthy and 503 when not.
+
+`GET /api/health` (web, public) checks, in one pass of about a second at worst:
+
+- `db`: every packaged migration has run (`ok`, `migrations-pending`, `error`);
+- `redis`: a `PING` with a 1 s timeout (`ok` or `fail`; `unchecked` when an
+  earlier check already failed the request). Report-only: `fail` adds
+  `degraded: true` but the status stays 200 and `ok` stays true;
+- `buildSha` must be a Git SHA in production, else 503 before any dependency
+  is touched;
+- `workerBuildSha` is informational and never fails the endpoint.
+
+`ok` is false (HTTP 503) only when `db` is not `ok` or the build SHA is
+refused. During shutdown it answers `{ ok: false, draining: true }` with 503.
+This endpoint is the container and proxy healthcheck, so Redis is deliberately
+not part of it: a Redis blip must not pull the web container out of rotation or
+block a deploy (`docker-publish.yml` reads `ok`, `db` and `buildSha`). Alert on
+`redis: "fail"` / `degraded: true` in the monitor instead.
+
+`GET /health` on the worker (`127.0.0.1:1235`, loopback only) checks:
+
+- `redis`: a live `PING` with a 1 s timeout, reported in the body only (one
+  blip must not restart-loop the worker);
+- `tickAgeMs`: age of the worker's liveness tick. The tick is a 15 s timer
+  that runs whether or not any job arrives and records itself only when its
+  own Redis `PING` succeeds, so an idle queue never trips it, while a blocked
+  event loop or a Redis that stays down does. Older than 60 s is 503.
+- A worker that has not ticked yet gets a 120 s start-up grace so a cold host
+  is not restarted mid-boot.
+
+## Response security headers
+
+Every response from the app host carries `Strict-Transport-Security:
+max-age=31536000` (no `includeSubDomains`, no `preload`: other `*.needt.app`
+hosts are separate apps), `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: SAMEORIGIN` and `Referrer-Policy:
+strict-origin-when-cross-origin`. `/oauth/*` keeps its own `DENY` and
+`same-origin`. The Content-Security-Policy stays report-only. If a page must
+be framed from another origin, exempt that route in `src/lib/security/headers.ts`
+and `next.config.js` rather than loosening the global value.
+
 ## Secrets
 
 All secrets are runtime variables on both web and worker. Do not use Docker

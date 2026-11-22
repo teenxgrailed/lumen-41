@@ -259,8 +259,10 @@ test("a place from the menu rises from the dock, scale 0.96 to 1 and a fade", as
 }) => {
   await open(page);
   await hold(page);
+  // the tile menu: Calendar is not a dock tile, it is one of every place
   await page.locator("[data-nva-open]").click();
-  await page.locator('[data-nva-row="calendar"]').click();
+  await page.locator("[data-ntm-places]").click();
+  await page.locator('[data-ntm-place="calendar"]').click();
   await held(page, 1);
   const rise = await readFrames(page, "rise");
   expect(rise[0].names).toContain("v3-pg-in-rise");

@@ -1,0 +1,1 @@
+- New accounts pick their phone's bottom bar, classic or floating, in the /start setup, right before Needt opens the week. Switch any time in Settings.

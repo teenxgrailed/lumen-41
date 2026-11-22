@@ -4,7 +4,10 @@ import { Prisma } from "@prisma/client";
 import { hash } from "bcryptjs";
 import { z } from "zod";
 
+import { recordActivation } from "@/lib/activation-events";
+import { consentedUtmFromCookieHeader } from "@/lib/attribution";
 import { AGE_CONFIRM_REQUIRED_MESSAGE } from "@/lib/auth/age-confirmation-copy";
+import { newAccountDefaults } from "@/lib/auth/new-account";
 import { passwordSchema } from "@/lib/auth/password-schema";
 import { isPublicSignupEnabled } from "@/lib/auth/public-signup";
 import {
@@ -20,7 +23,6 @@ import {
 import { newDate } from "@/lib/date-utils";
 import { sendEmailVerification } from "@/lib/email/email-verification";
 import { logger } from "@/lib/logger";
-import { signupLocaleSettings } from "@/lib/needt3/locale-defaults";
 import { SETUP_PATH, onboardingEntryPath } from "@/lib/onboarding/entry";
 import { prisma } from "@/lib/prisma";
 import { publicRequestUrl } from "@/lib/public-url";
@@ -29,6 +31,7 @@ import {
   enforceRateLimits,
   ipRule,
 } from "@/lib/security/rate-limit";
+import { sendUmamiSignupCompleted } from "@/lib/umami-server";
 
 const LOG_SOURCE = "RegisterAPI";
 
@@ -174,21 +177,7 @@ export async function POST(request: NextRequest) {
             id_token: passwordHash,
           },
         },
-        userSettings: {
-          create: {
-            theme: "dark",
-            timeZone: "UTC",
-            ...signupLocaleSettings(parsed.data),
-          },
-        },
-        autoScheduleSettings: {
-          create: {
-            workDays: "[1,2,3,4,5]",
-            workHourStart: 9,
-            workHourEnd: 17,
-            bufferMinutes: 15,
-          },
-        },
+        ...newAccountDefaults(parsed.data),
       },
       select: { id: true },
     });
@@ -197,6 +186,12 @@ export async function POST(request: NextRequest) {
       "User registered successfully",
       { userId: user.id },
       LOG_SOURCE
+    );
+    /* Once per account: only the branch that created the row gets here. */
+    recordActivation("account_created", user.id, { method: "credentials" });
+    void sendUmamiSignupCompleted(
+      "credentials",
+      consentedUtmFromCookieHeader(request.headers.get("cookie"))
     );
     try {
       await sendEmailVerification({

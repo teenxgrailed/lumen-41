@@ -16,12 +16,21 @@ export const metadata = {
   description: `Set up your ${APP_NAME} account`,
 };
 
-export default async function SetupPage() {
+export default async function SetupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ step?: string }>;
+}) {
   // A signed-in person gets first-run setup (the five onboarding steps).
   // Everyone else keeps the admin account form below.
   const session = await getServerSession(await getAuthOptions());
   if (session?.user?.id) {
-    return <OnboardingScreen />;
+    // `?step=` opens setup on one step (design shots, a link from Settings);
+    // a step the face does not show starts at the first.
+    const { step } = await searchParams;
+    return (
+      <OnboardingScreen startAt={typeof step === "string" ? step : null} />
+    );
   }
 
   // Check if any users already exist

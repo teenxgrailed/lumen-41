@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AREAS, CATALOG_TASKS, RITUALS } from "./catalog";
 
 /**
- * The answers behind the first week, exactly as the 18-screen onboarding
+ * The answers behind the first week, exactly as the 19-screen onboarding
  * collects them. One shape for the browser draft, the preview endpoint, the
  * saved copy in `UserSettings.onboarding` and the commit: nothing here is UI
  * state that only our own screens can see.

@@ -20,6 +20,8 @@ describe("menu places and the route map", () => {
       if (a.kind !== "route") continue;
       if (id === "connections") expect(a.href).toBe(CONNECTIONS_HREF);
       else if (id === "agents") expect(a.href).toBe(AGENTS_HREF);
+      else if (id === "budget") expect(a.href).toBe("/budget");
+      else if (id === "learn") expect(a.href).toBe("/learn");
       else expect(PLACES.map((p) => p.href)).toContain(a.href);
     }
   });
@@ -42,9 +44,9 @@ describe("menu places and the route map", () => {
     expect(menuAction("settings")).toEqual({ kind: "settings" });
   });
 
-  it("the order is the prototype's plus Goals and Agents: 16 entries, Settings last", () => {
-    expect(MENU_ORDER).toHaveLength(16);
-    expect(new Set(MENU_ORDER).size).toBe(16);
+  it("the order is the prototype's plus Goals, Agents, Budget and Learn: 18 entries, Settings last", () => {
+    expect(MENU_ORDER).toHaveLength(18);
+    expect(new Set(MENU_ORDER).size).toBe(18);
     expect(MENU_ORDER[MENU_ORDER.length - 1]).toBe("settings");
     expect(MENU_ORDER.slice(0, 6)).toEqual([
       "home",
@@ -136,6 +138,13 @@ describe("menuRows / menuGlyphId", () => {
     expect(rows[rows.length - 1]).toBe("settings");
   });
 
+  it("Budget is a row only while its place is shown", () => {
+    expect(menuRows(["home", "docs", "ask"])).not.toContain("budget");
+    const rows = menuRows(["home", "docs", "ask"], { budget: true });
+    expect(rows).toContain("budget");
+    expect(rows.indexOf("budget")).toBe(rows.indexOf("settings") - 1);
+  });
+
   it("the rail's drawn marks are reused; the rest are the menu's own", () => {
     expect(menuGlyphId("home")).toBe("today");
     expect(menuGlyphId("moodboards")).toBe("moodboards");
@@ -146,6 +155,7 @@ describe("menuRows / menuGlyphId", () => {
       "shared",
       "trash",
       "connections",
+      "budget",
       "settings",
     ] as const)
       expect(menuGlyphId(id)).toBeNull();

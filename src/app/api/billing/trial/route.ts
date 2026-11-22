@@ -11,8 +11,9 @@ import {
 } from "@/lib/security/rate-limit";
 import {
   runTrialTransaction,
-  startTrialForVerifiedUser,
+  startTrialWithOutcome,
 } from "@/lib/trials/trial-service";
+import { sendUmamiTrialStarted } from "@/lib/umami-server";
 
 const LOG_SOURCE = "BillingTrialAPI";
 
@@ -52,8 +53,8 @@ export async function POST(request: NextRequest) {
 
     const email = user.email;
     const now = newDate();
-    const grant = await runTrialTransaction((tx) =>
-      startTrialForVerifiedUser(tx, { userId: auth.userId, email, now })
+    const { grant, created } = await runTrialTransaction((tx) =>
+      startTrialWithOutcome(tx, { userId: auth.userId, email, now })
     );
 
     if (!grant || grant.endsAt <= now) {
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (created) void sendUmamiTrialStarted("paywall");
     return NextResponse.json({
       started: true,
       trialEndsAt: grant.endsAt,

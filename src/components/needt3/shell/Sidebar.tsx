@@ -17,32 +17,37 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { createPortal } from "react-dom";
 import {
-  LuBot,
   LuCheck,
   LuChevronDown,
-  LuCloud,
   LuEllipsis,
   LuFileText,
   LuFolder,
+  LuGraduationCap,
   LuPlus,
   LuTarget,
 } from "react-icons/lu";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { budgetNavItem, isBudgetPath } from "@/lib/needt3/budget";
 import { clockOf } from "@/lib/needt3/focus";
 import { useAgentHubNav } from "@/lib/needt3/hooks/agent-hub";
+import { useBudgetNav } from "@/lib/needt3/hooks/budget";
 import { useConnections } from "@/lib/needt3/hooks/connections";
 import { useCreateDoc, useDocs, useUpdateDoc } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import { useMail } from "@/lib/needt3/hooks/mail";
 import { useQuickPersonal } from "@/lib/needt3/hooks/personal";
+import { usePlan } from "@/lib/needt3/hooks/plan";
 import {
   useArchiveProject,
   useProjects,
   useUpdateProject,
 } from "@/lib/needt3/hooks/projects";
-import { useTimeZone } from "@/lib/needt3/hooks/settings";
+import { useSettings, useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTasks } from "@/lib/needt3/hooks/tasks";
+import { isLearnPath, learnNavItem } from "@/lib/needt3/learn";
+import { isPro } from "@/lib/needt3/paywall";
+import { projectColor } from "@/lib/needt3/project-color";
 import { notify } from "@/lib/notifications";
 
 import { useNeedt3Ui } from "@/store/needt3-ui";
@@ -55,7 +60,7 @@ import { useOpenDocId } from "../document/open-doc";
 import { useFocusRun } from "../focus/useFocusController";
 import { RichMenu } from "../menu/RichMenu";
 import { Tooltip } from "../menu/Tooltip";
-import { PromoCard } from "../paywall";
+import { ProBadge, PromoCard } from "../paywall";
 import { personalMenuItems } from "../personal/menu-items";
 import { ProjectDeleteHost, askDeleteProject } from "../work/ProjectDeleteHost";
 import { PROJECT_SWATCHES } from "../work/model";
@@ -66,6 +71,7 @@ import { useShellApi } from "./ShellContext";
 import { agentsNavItem, isAgentsPath } from "./agents-nav";
 import {
   dayProgress,
+  leadBadge,
   nextEventBadge,
   overdueCount,
   unreadCount,
@@ -81,7 +87,6 @@ import {
   moreIsWide,
   placeById,
   placeForPath,
-  setPlaceOn,
   splitPlaces,
 } from "./places";
 import { useSidebarPrefs } from "./useSidebarPrefs";
@@ -617,7 +622,7 @@ export function Sidebar() {
   const shell = useShellApi();
   const docOpen = useOpenDocId() !== null;
   const setComposerOpen = useNeedt3Ui((s) => s.setComposerOpen);
-  const [prefs, setPrefs] = useSidebarPrefs();
+  const [prefs, setPrefs, , auto] = useSidebarPrefs();
   const { tiles, rest } = splitPlaces(prefs);
   const sections = prefs.sections.filter((s) => s.on);
   const timeZone = useTimeZone();
@@ -634,6 +639,17 @@ export function Sidebar() {
   const archiveProject = useArchiveProject();
   const connections = useConnections();
   const agentsItem = agentsNavItem(useAgentHubNav());
+  const budgetNav = useBudgetNav();
+  const plan = usePlan();
+  const settings = useSettings();
+  const budgetItem = budgetNavItem({
+    enabled: budgetNav.enabled,
+    pro: plan.data ? isPro(plan.data.kind) : undefined,
+    prefs: settings.data?.prefs,
+  });
+  const learnItem = learnNavItem({
+    pro: plan.data ? isPro(plan.data.kind) : undefined,
+  });
   const showMail = tiles.some((p) => p.id === "mail");
   const showCal = tiles.some((p) => p.id === "calendar");
   const mail = useMail("inbox");
@@ -663,6 +679,14 @@ export function Sidebar() {
   const pinRef = useRef<HTMLButtonElement>(null);
   const here = placeForPath(pathname);
 
+  // One badge across the tiles: the most urgent (live.ts `leadBadge`).
+  const lead = leadBadge({
+    tiles: tiles.map((t) => t.id),
+    eventMins: cal ? cal.mins : null,
+    overdue,
+    progress,
+    unread,
+  });
   const tile = (p: ShellPlace) => {
     const urgent =
       p.id === "today" && overdue
@@ -671,17 +695,19 @@ export function Sidebar() {
           ? (cal?.urgent ?? null)
           : null;
     const badge: TileBadge | null =
-      p.id === "tasks" && overdue
-        ? {
-            text: String(overdue),
-            danger: true,
-            title: `${overdue} overdue ${overdue === 1 ? "task" : "tasks"}`,
-          }
-        : p.id === "mail" && unread
-          ? { text: String(unread), accent: true }
-          : p.id === "calendar" && cal
-            ? { text: cal.text }
-            : null;
+      p.id !== lead
+        ? null
+        : p.id === "tasks" && overdue
+          ? {
+              text: String(overdue),
+              danger: true,
+              title: `${overdue} overdue ${overdue === 1 ? "task" : "tasks"}`,
+            }
+          : p.id === "mail" && unread
+            ? { text: String(unread), accent: true }
+            : p.id === "calendar" && cal
+              ? { text: cal.text }
+              : null;
     const alert =
       p.id === "mail" && mailDown.length
         ? `${mailDown.map((c) => c.label).join(", ")} ${mailDown.length === 1 ? "needs" : "need"} reconnecting`
@@ -691,7 +717,7 @@ export function Sidebar() {
         place={p}
         href={p.href}
         active={here === p.id}
-        progress={p.id === "today" ? progress : null}
+        progress={p.id === "today" && lead === "today" ? progress : null}
         urgent={urgent}
         badge={badge}
         alert={alert}
@@ -711,25 +737,15 @@ export function Sidebar() {
           [{ label: "Open", run: () => router.push(p.href) }],
           [
             {
-              label: "Hide from Sidebar",
-              run: () => {
-                void setPrefs((s) => setPlaceOn(s, p.id, false)).then(() =>
-                  notify.success("Moved into More", {
-                    action: {
-                      label: "Undo",
-                      onClick: () =>
-                        void setPrefs((s) => setPlaceOn(s, p.id, true)),
-                    },
-                  })
-                );
-              },
+              label: auto.pinned.includes(p.id) ? "Unpin" : "Pin",
+              run: () => void auto.togglePin(p.id),
             },
-            { label: "Customize Sidebar…", run: shell.openCustomize },
+            { label: "Change in Settings…", run: shell.openCustomize },
           ],
         ];
       }),
       registerCtx("section", () => [
-        [{ label: "Customize Sidebar…", run: shell.openCustomize }],
+        [{ label: "Pinned places…", run: shell.openCustomize }],
       ]),
       registerCtx("project", ({ id }) => {
         const project = id
@@ -901,8 +917,8 @@ export function Sidebar() {
                 { sep: true as const },
                 {
                   art: "tune" as const,
-                  title: "Customize Sidebar",
-                  sub: "Choose tiles and sections",
+                  title: "Pinned places",
+                  sub: "Arranged by what you open",
                   onClick: shell.openCustomize,
                 },
               ]}
@@ -910,49 +926,99 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* Connections: one place for every account Needt reads; says
+        {/* Connections, Agents and Budget are one group: the column above
+            spaces its children 16px apart, so three siblings would sit
+            16px from each other. One wrapper keeps them at row step. */}
+        <div className="base-stack" data-sb-system-group="">
+          {/* Connections: one place for every account Needt reads; says
             "1 issue" in red while one is down. */}
-        <div
-          className="sb-tile shell-sidebar-sb-connections"
-          data-sb-connections=""
-        >
-          <SbRow
-            href="/connections"
-            label="Connections"
-            current={pathname.startsWith("/connections")}
-            icon={<LuCloud size={16} />}
-            trailing={
-              down.length ? (
-                <span
-                  className="shell-sidebar-sb-conn-issue"
-                  data-sb-conn-issue=""
-                  title={`${down.map((c) => c.label).join(", ")} ${down.length === 1 ? "needs" : "need"} reconnecting`}
-                >
-                  <span className="shell-sidebar-bar" aria-hidden="true" />
-                  {down.length} {down.length === 1 ? "issue" : "issues"}
-                </span>
-              ) : null
-            }
-          />
-        </div>
-
-        {/* Agents: a place of its own, shown only while the agent hub is on
-            for this person; the count is alerts they have not opened. */}
-        {agentsItem ? (
           <div
-            className="sb-tile shell-sidebar-sb-agents"
-            data-sb-agents=""
-            title={agentsItem.title}
+            className="sb-tile shell-sidebar-sb-connections"
+            data-sb-connections=""
           >
             <SbRow
-              href={agentsItem.href}
-              label={agentsItem.label}
-              current={isAgentsPath(pathname)}
-              icon={<LuBot size={16} />}
-              trailing={agentsItem.badge}
+              href="/connections"
+              label="Connections"
+              current={pathname.startsWith("/connections")}
+              icon={<PlaceGlyph id="connections" />}
+              trailing={
+                down.length ? (
+                  <span
+                    className="shell-sidebar-sb-conn-issue"
+                    data-sb-conn-issue=""
+                    title={`${down.map((c) => c.label).join(", ")} ${down.length === 1 ? "needs" : "need"} reconnecting`}
+                  >
+                    <span className="shell-sidebar-bar" aria-hidden="true" />
+                    {down.length} {down.length === 1 ? "issue" : "issues"}
+                  </span>
+                ) : null
+              }
             />
           </div>
-        ) : null}
+
+          {/* Agents: a place of its own, shown only while the agent hub is on
+            for this person; the count is alerts they have not opened. */}
+          {agentsItem ? (
+            <div
+              className="sb-tile shell-sidebar-sb-agents"
+              data-sb-agents=""
+              title={agentsItem.title}
+            >
+              <SbRow
+                href={agentsItem.href}
+                label={agentsItem.label}
+                current={isAgentsPath(pathname)}
+                icon={<PlaceGlyph id="agents" />}
+                trailing={agentsItem.badge}
+              />
+            </div>
+          ) : null}
+
+          {/* Budget: a place of its own while the budget_module flag is on.
+            Free sees it grey with a PRO pill and cannot hide it; Pro hides
+            it in Settings -> General. */}
+          {budgetItem ? (
+            <div
+              className={
+                "sb-tile shell-sidebar-sb-budget" +
+                (budgetItem.locked ? " is-locked" : "")
+              }
+              data-sb-budget={budgetItem.locked ? "locked" : ""}
+            >
+              <SbRow
+                href={budgetItem.href}
+                label={budgetItem.label}
+                current={isBudgetPath(pathname)}
+                icon={<PlaceGlyph id="budget" />}
+                trailing={
+                  budgetItem.locked ? <ProBadge size="sm" title="Pro" /> : null
+                }
+              />
+            </div>
+          ) : null}
+
+          {/* Learn: for everybody. Free sees it grey with a PRO pill (one
+            lesson a day, no AI). */}
+          {learnItem ? (
+            <div
+              className={
+                "sb-tile shell-sidebar-sb-learn" +
+                (learnItem.locked ? " is-locked" : "")
+              }
+              data-sb-learn={learnItem.locked ? "locked" : ""}
+            >
+              <SbRow
+                href={learnItem.href}
+                label={learnItem.label}
+                current={isLearnPath(pathname)}
+                icon={<LuGraduationCap size={16} />}
+                trailing={
+                  learnItem.locked ? <ProBadge size="sm" title="Pro" /> : null
+                }
+              />
+            </div>
+          ) : null}
+        </div>
 
         {sections.map((sec) =>
           sec.id === "starred" ? (
@@ -1042,7 +1108,7 @@ export function Sidebar() {
                       icon={
                         <span
                           className="shell-sidebar-grid-2"
-                          style={{ color: p.color ?? "var(--text-tertiary)" }}
+                          style={{ color: projectColor(p.id, p.color) }}
                         >
                           <LuFolder size={16} />
                         </span>

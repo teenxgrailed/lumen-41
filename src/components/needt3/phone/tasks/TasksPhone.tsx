@@ -185,7 +185,6 @@ function TasksBody({
       title={copy.PtkTasks.tasks}
       sub={sub}
       head={head}
-      headClass="ptk-head"
     >
       <div key={tab} ref={dz.ref} className="ptk-swap" data-ptk-view={tab}>
         {m.sections.map((s) => (

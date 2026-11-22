@@ -104,6 +104,17 @@ describe("Agents setup", () => {
     expect(onDone).toHaveBeenCalled();
   });
 
+  it("draws every agent and tool tile as a brand mark, never a letter", () => {
+    render(0);
+    const tiles = host.querySelectorAll("[data-ag-setup-agent]");
+    expect(tiles.length).toBeGreaterThanOrEqual(8);
+    for (const tile of Array.from(tiles))
+      expect(tile.querySelector("[data-brand-icon]")).not.toBeNull();
+    expect(host.querySelector(".ag-mono")).toBeNull();
+    for (const id of ["grok", "mcp", "openai", "n8n"])
+      expect(host.querySelector(`[data-brand-icon="${id}"]`)).not.toBeNull();
+  });
+
   it("leaves with Not now, and remembers it", () => {
     render(0);
     click($("[data-ag-onboard-skip]"));

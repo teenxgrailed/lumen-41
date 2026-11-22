@@ -4,15 +4,17 @@ import { BrandIcon, brandIdFor } from "../brand";
 
 /**
  * An agent's tile: the real brand mark when we have one (Claude, ChatGPT,
- * Cursor, Gemini, Perplexity, GitHub; Codex wears OpenAI's), a calm
- * monogram otherwise (Grok, other MCP clients, a named token). Brand colour
- * stays inside its tile (owner, 05.11.26).
+ * Cursor, Gemini, Perplexity, GitHub, Grok; Codex wears OpenAI's), the
+ * generic plug tile otherwise (a named token, an MCP client we have no mark
+ * for). Never a letter: a third-party app wears its real icon or none
+ * (owner, 20.11.26). Brand colour stays inside its tile (owner, 05.11.26).
  */
 const ALIAS: Record<string, string> = {
   codex: "openai",
   openai: "openai",
   gpt: "chatgpt",
   googlegemini: "gemini",
+  grok: "grok",
 };
 
 export function agentBrandId(name: string | null | undefined) {
@@ -27,6 +29,7 @@ export function agentBrandId(name: string | null | undefined) {
     "gemini",
     "perplexity",
     "github",
+    "needt",
   ]) {
     if (key.includes(id)) return brandIdFor(id);
   }
@@ -40,20 +43,6 @@ export function AgentIcon({
   name: string;
   size?: number;
 }) {
-  const id = agentBrandId(name);
-  if (id) return <BrandIcon id={id} size={size} />;
-  return (
-    <span
-      className="ag-mono"
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size * 0.3,
-        fontSize: size * 0.4,
-      }}
-    >
-      {name.trim().slice(0, 1).toUpperCase() || "·"}
-    </span>
-  );
+  // No mark for this name: the generic plug tile, never a made-up logo.
+  return <BrandIcon id={agentBrandId(name)} size={size} />;
 }

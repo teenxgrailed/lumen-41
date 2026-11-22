@@ -1,0 +1,1 @@
+- Visit counting no longer waits for the cookie banner. Our self-hosted Umami is cookieless, stores nothing on your device and sends only the page path and campaign tags (never an email, token or page title), so it loads on every visit and honours Do Not Track. The banner now covers only the optional campaign cookie. The Privacy Notice says so in one sentence.

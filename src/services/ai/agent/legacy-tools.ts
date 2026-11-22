@@ -33,6 +33,7 @@ import {
 } from "@/services/tasks/subtasks";
 import { FocusSessionMode, Prisma, WorkspaceRole } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import {
   type WorkspaceAccess,
   workspaceDataScopeWhere,
@@ -285,6 +286,7 @@ export async function executeTool(
           },
         },
       });
+      recordActivation("task_created", userId, { source: "assistant" });
       await publishAgentMutation(userId);
 
       return {
@@ -753,6 +755,7 @@ export async function executeTool(
           },
         },
       });
+      recordActivation("task_created", userId, { source: "assistant" });
       await publishAgentMutation(userId);
       return {
         text: `Created task "${task.title}" from the email.`,

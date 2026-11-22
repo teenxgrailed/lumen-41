@@ -29,10 +29,11 @@ const SCREENS = [
   "account",
   "plans",
   "card",
+  "bar",
 ] as const;
 
 /** Screens after "account" belong to an account; they are shot signed in. */
-const NEEDS_ACCOUNT = new Set<string>(["plans", "card"]);
+const NEEDS_ACCOUNT = new Set<string>(["plans", "card", "bar"]);
 
 async function shot(
   page: Page,

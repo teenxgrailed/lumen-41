@@ -23,10 +23,12 @@ import { type Checkin, daysBetween, habitColor } from "@/lib/needt3/derive";
 import type { QuitGate } from "@/lib/needt3/habits-quit";
 import { useCheckinHistory } from "@/lib/needt3/hooks/habits";
 import type { V3Habit, V3Project } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { notify } from "@/lib/notifications";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { type HabitForm, checkHabitForm } from "../phone/habits/model";
+import { HabitCardsPanel } from "./cards/HabitCards";
 import {
   FREE_HABITS,
   MONTH_LONG,
@@ -564,8 +566,10 @@ function HabitSheet({
                     <span
                       className="pl-habit-sheet-row-5"
                       style={
-                        p?.color
-                          ? ({ "--pl-project": p.color } as CSSProperties)
+                        p
+                          ? ({
+                              "--pl-project": projectColor(p.id, p.color),
+                            } as CSSProperties)
                           : undefined
                       }
                     >
@@ -612,7 +616,7 @@ export function notifyHabitsBlocked() {
   notify.info(`Free keeps ${FREE_HABITS} habits. Upgrade to Pro for more.`, {
     action: {
       label: "See plans",
-      onClick: () => window.location.assign("/settings#billing"),
+      onClick: () => openPaywall(),
     },
   });
 }
@@ -629,7 +633,10 @@ export function HabitsScreen({
   ctl,
   quit: shared,
   onSeePro = () => openPaywall({ feature: "Quit habits" }),
+  cards = false,
 }: {
+  /** `habits_cards_v1`: the card stack and month grid replace Today and the months. */
+  cards?: boolean;
   ctl: HabitsController;
   /** The route's Quit state, shared with the phone face. */
   quit?: QuitController;
@@ -724,7 +731,30 @@ export function HabitsScreen({
                 />
               </section>
             ) : null}
-            {list.length ? (
+            {list.length && cards ? (
+              <>
+                <HabitCardsPanel
+                  ctl={ctl}
+                  past={
+                    <HabitMonths
+                      list={list}
+                      projects={projects}
+                      checkins={history.data ?? checkins}
+                      today={today}
+                      onTick={ctl.tick}
+                      onTickDay={ctl.tickDay}
+                    />
+                  }
+                />
+                <div className="pl-habits-grid">
+                  <div className="pl-habits-side">
+                    <section className="nx-swap pl-habits-left">
+                      <HabitLeft tz={ctl.tz} />
+                    </section>
+                  </div>
+                </div>
+              </>
+            ) : list.length ? (
               <>
                 <section className="nx-swap pl-habits-today">
                   <div className="hb-today">

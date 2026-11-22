@@ -28,6 +28,7 @@ const push = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
   usePathname: () => "/pages",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 let data: V3Doc[] = [];
@@ -50,7 +51,7 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
   useProjects: () => ({
-    data: [{ id: "ops", name: "Operations", color: "#d80" }],
+    data: [{ id: "ops", name: "Operations", color: "#d80", archived: false }],
   }),
 }));
 

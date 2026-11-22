@@ -70,7 +70,10 @@ export function SettingsRedirect() {
       router.replace(target.href);
       return;
     }
-    useNeedt3Ui.getState().openSettings(target.section);
+    // `#menu` is the phone's Menu page (the pins); it has
+    // no desktop section, so the desktop opens on its default.
+    const menu = hash.replace(/^#/, "").toLowerCase() === "menu";
+    useNeedt3Ui.getState().openSettings(menu ? "menu" : target.section);
     router.replace("/today");
   }, [router]);
   return null;
