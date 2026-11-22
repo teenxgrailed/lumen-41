@@ -28,6 +28,12 @@ export type AdminAuditAction =
   | "user.clear_student"
   | "promo.create"
   | "promo.deactivate"
+  /** An in-app announcement drafted, edited, published, unpublished or deleted. */
+  | "announcement.create"
+  | "announcement.update"
+  | "announcement.publish"
+  | "announcement.unpublish"
+  | "announcement.delete"
   /** A read through the MCP admin tools (`needt.admin.read`). */
   | "mcp.admin_read";
 

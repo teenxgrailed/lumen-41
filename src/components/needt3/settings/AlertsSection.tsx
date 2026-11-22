@@ -9,6 +9,7 @@ import { useFreshQuitGate } from "@/lib/needt3/hooks/habits-quit";
 import { useFeedbackPromptsSwitch } from "@/lib/needt3/hooks/settings";
 
 import { EmailGroup } from "./EmailGroup";
+import { ProductUpdatesGroup } from "./ProductUpdatesGroup";
 import { PushGroup } from "./PushGroup";
 import { useMark } from "./SettingsContext";
 import { SGroup, SRow, SSelect, V3Switch } from "./kit";
@@ -158,6 +159,7 @@ export function AlertsSection() {
       <EveningPushGroup />
       <HabitsGroup />
       <EmailGroup />
+      <ProductUpdatesGroup />
     </>
   );
 }

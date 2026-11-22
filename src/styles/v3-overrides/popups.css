@@ -1,0 +1,146 @@
+/* IN-APP POPUPS (announcements and plan moments). Structure only: it wears the
+ * existing sheet (`base-scrim`, `base-sheet`, `nx-sheet`), the existing
+ * buttons (`nx-btn`) and the existing tokens. A design pass restyles it later.
+ * 13 / 12px chrome, one text colour at ladder alphas, no accent fill. */
+
+.needt-v3 .pop-scrim {
+  z-index: 1120;
+}
+.needt-v3 .pop-root {
+  display: contents;
+}
+.needt-v3 .pop-sheet {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  position: relative;
+}
+.needt-v3 .pop-sheet.has-image {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+.needt-v3 .pop-text {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px 28px 24px;
+  min-width: 0;
+  overflow-y: auto;
+}
+.needt-v3 .pop-badge {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--fill-5);
+  font: var(--type-meta-medium);
+  color: var(--text-secondary);
+}
+.needt-v3 .pop-title {
+  margin: 0;
+  font: var(--type-ui-medium);
+  color: var(--text-primary);
+}
+.needt-v3 .pop-body {
+  margin: 0;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+.needt-v3 .pop-bullets {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.needt-v3 .pop-bullet {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font: var(--type-ui);
+  color: var(--text-secondary);
+}
+.needt-v3 .pop-bullet svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--text-tertiary);
+}
+.needt-v3 .pop-image {
+  position: relative;
+  min-height: 220px;
+  background: var(--fill-3);
+}
+.needt-v3 .pop-image img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.needt-v3 .pop-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.needt-v3 .pop-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  text-align: left;
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--fill-3);
+  color: var(--text-primary);
+  cursor: default;
+}
+.needt-v3 .pop-card:hover {
+  background: var(--fill-4);
+}
+.needt-v3 .pop-card-title {
+  font: var(--type-ui-medium);
+}
+.needt-v3 .pop-card-line {
+  font: var(--type-meta);
+  color: var(--text-tertiary);
+}
+.needt-v3 .pop-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+.needt-v3 .pop-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+}
+
+/* Phone: a bottom sheet. */
+.needt-v3 .pop-scrim.is-phone {
+  place-items: end center;
+}
+.needt-v3 .pop-sheet.is-phone {
+  width: 100%;
+  max-height: 88dvh;
+  grid-template-columns: minmax(0, 1fr);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.needt-v3 .pop-sheet.is-phone .pop-image {
+  min-height: 160px;
+  order: -1;
+}
+.needt-v3 .pop-sheet.is-phone .pop-text {
+  padding: 20px 16px 16px;
+}
+
+@media (max-width: 700px) {
+  .needt-v3 .pop-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

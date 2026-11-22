@@ -19,6 +19,7 @@ import { useBoards } from "@/lib/needt3/hooks/boards";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import type { V3Board } from "@/lib/needt3/map";
 import { notify } from "@/lib/notifications";
+import { reportLimitHit } from "@/lib/popups/client";
 
 import strings from "../../../../docs/port/prototype/port/strings/en.json";
 import { registerCtx } from "../ctx/registry";
@@ -65,6 +66,7 @@ const upgrade = () => openPaywall(mb.unlimited_moodboards);
 
 /** The desktop's notice when a new board is refused by the Free allowance. */
 export function notifyBoardsBlocked() {
+  reportLimitHit("boards");
   const kept = `Free keeps ${FREE_BOARDS === 1 ? "one board" : `${FREE_BOARDS} boards`}.`;
   /* A store build states the limit and points nowhere. */
   if (isStoreDistribution()) {

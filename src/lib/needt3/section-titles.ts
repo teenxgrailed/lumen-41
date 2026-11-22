@@ -32,6 +32,7 @@ export const SECTION_TITLES = {
   adminEmail: "Email",
   adminFlags: "Flags",
   adminFeedback: "Feedback",
+  adminPopups: "Popups",
   adminPromo: "Promo codes",
   adminBugs: "Bug reports",
   system: "System settings",

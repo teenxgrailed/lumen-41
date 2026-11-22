@@ -9,11 +9,13 @@ import {
 } from "@/services/admin/overview";
 import { getAdminUserDetail, searchAdminUsers } from "@/services/admin/users";
 import { listBugReports } from "@/services/bug-reports/bug-report-service";
+import { createAnnouncement } from "@/services/popups/announcements";
 import { z } from "zod";
 
 import { isAdminUserId } from "@/lib/auth/admin-role";
 import { logger } from "@/lib/logger";
 import { ADMIN_READ_SCOPE, type McpScope } from "@/lib/mcp-config";
+import { announcementCreateSchema } from "@/lib/popups/schema";
 import { prisma } from "@/lib/prisma";
 
 import type { McpTool, McpToolContext, McpToolResult } from "./tools";
@@ -21,11 +23,16 @@ import type { McpTool, McpToolContext, McpToolResult } from "./tools";
 const LOG_SOURCE = "McpAdminTools";
 
 /**
- * Read-only MCP view of the Admin area (`needt.admin.read`).
+ * MCP view of the Admin area (`needt.admin.read`).
  *
- * - Every tool reads through the same service the admin pages use; no tool
- *   writes, and there is deliberately no grant, toggle, delete or
- *   impersonation here.
+ * - Every tool in ADMIN_TOOLS reads through the same service the admin pages
+ *   use and writes nothing; there is deliberately no grant, toggle, delete
+ *   or impersonation here.
+ * - The one exception is ADMIN_DRAFT_TOOLS: `needt_announcement_draft_create`
+ *   writes an in-app announcement as a draft and nothing else. It needs
+ *   needt.admin.read and needt.write together, cannot set a status, and no
+ *   MCP tool publishes, unpublishes, edits or deletes an announcement:
+ *   publishing stays in the admin UI (session-only `requireAdmin` route).
  * - The transport (`/api/mcp`) refuses a call without the scope or from a
  *   person who is not an admin right now, and rate-limits these calls on
  *   their own. Each tool checks both again, so a call that reaches it some
@@ -514,6 +521,94 @@ export const ADMIN_TOOLS: McpTool[] = [
   }),
 ];
 
+/**
+ * The draft tool's arguments: announcementCreateSchema's fields with dates as
+ * ISO strings (MCP clients send JSON) and no status. The full schema,
+ * incl. its start/end check, is applied again in the tool.
+ */
+const isoDate = z.string().datetime({ offset: true }).nullable().optional();
+const announcementDraftInput = z
+  .object({
+    // Same fields; the four dates below replace the shape's coerced dates.
+    ...announcementCreateSchema.shape,
+    startsAt: isoDate,
+    endsAt: isoDate,
+    signedUpBefore: isoDate,
+    signedUpAfter: isoDate,
+  })
+  .strict();
+
+const draftScopes = (): McpScope[] => [ADMIN_READ_SCOPE, "needt.write"];
+
+/** Admin tools that write: drafts only, never a status change. */
+export const ADMIN_DRAFT_TOOLS: McpTool[] = [
+  defineAdminTool({
+    name: "needt_announcement_draft_create",
+    description:
+      "Admin only. Drafts an in-app announcement (popup): slug and title required; kind, badge, body, up to 5 bullets, image, one call to action, targeting (plans, platforms, min app version, sign-up window, min active days) and a show window are optional. Always saved as a draft: this tool cannot publish, and no MCP tool can; an admin publishes it in the Admin area. Recorded in the admin audit log. Needs needt.admin.read and needt.write.",
+    annotations: {
+      title: "Draft announcement",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    scopes: draftScopes,
+    input: announcementDraftInput,
+    invoke: async (ctx, args) => {
+      if (
+        !ctx.auth.scopes.includes("needt.write") ||
+        !(await adminCallAllowed(ctx))
+      ) {
+        return refusal(
+          "Forbidden: this needs an admin with needt.admin.read and needt.write."
+        );
+      }
+      const parsed = announcementCreateSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          ...result({
+            error: "Invalid arguments",
+            issues: parsed.error.issues,
+          }),
+          isError: true,
+        };
+      }
+      const created = await createAnnouncement(parsed.data);
+      if (!created.ok) return refusal("That slug is taken.");
+      const { announcement } = created;
+      await recordAdminAudit({
+        actorId: ctx.userId,
+        action: "announcement.create",
+        details: {
+          announcementId: announcement.id,
+          slug: announcement.slug,
+          via: "mcp",
+          tool: "needt_announcement_draft_create",
+          tokenKind: ctx.auth.kind,
+          clientId: ctx.auth.clientId ?? null,
+        },
+      });
+      await logger.info(
+        "Announcement drafted over MCP",
+        { announcementId: announcement.id, actorId: ctx.userId },
+        LOG_SOURCE
+      );
+      return result({
+        announcement: {
+          id: announcement.id,
+          slug: announcement.slug,
+          title: announcement.title,
+          status: announcement.status,
+        },
+        note: "Saved as a draft. Publishing is done by an admin in the Admin area.",
+      });
+    },
+  }),
+];
+
 export function isAdminTool(tool: Pick<McpTool, "name">): boolean {
-  return ADMIN_TOOLS.some((candidate) => candidate.name === tool.name);
+  return [...ADMIN_TOOLS, ...ADMIN_DRAFT_TOOLS].some(
+    (candidate) => candidate.name === tool.name
+  );
 }

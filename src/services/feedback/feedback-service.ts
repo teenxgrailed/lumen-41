@@ -1,3 +1,4 @@
+import { claimPopupSlot, popupSlotOpen } from "@/services/popups/popups";
 import { Prisma } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
@@ -106,27 +107,45 @@ export async function offerFeedbackPrompt(
     return null;
   const activeDays = await countActiveDays(userId, now);
 
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw(
-      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`feedback-prompt:${userId}`}, 0))`
-    );
-    // Re-checked inside the lock: another tab may have created a row since.
-    const history = await readHistory(tx);
-    const kind = nextFeedbackPrompt(base, history, { activeDays }, now);
-    if (!kind) return null;
-    const row = await tx.feedbackPrompt.create({
-      data: {
-        userId,
-        kind,
-        shownAt: now,
-        platform: context.platform,
-        appVersion: context.appVersion,
-      },
-      select: { id: true },
+  // The shared popup cap (announcements, plan moments, this prompt): a cheap
+  // read first, then the real claim inside the transaction below.
+  if (!(await popupSlotOpen(userId, "feedback", "prompt", {}, now)))
+    return null;
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw(
+        Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`feedback-prompt:${userId}`}, 0))`
+      );
+      // Re-checked inside the lock: another tab may have created a row since.
+      const history = await readHistory(tx);
+      const kind = nextFeedbackPrompt(base, history, { activeDays }, now);
+      if (!kind) return null;
+      const row = await tx.feedbackPrompt.create({
+        data: {
+          userId,
+          kind,
+          shownAt: now,
+          platform: context.platform,
+          appVersion: context.appVersion,
+        },
+        select: { id: true },
+      });
+      // The feedback prompt's own 14-day rule above still holds; on top, it
+      // must win the shared popup slot, or neither row is written.
+      if (!(await claimPopupSlot(tx, userId, "feedback", row.id, now))) {
+        throw new PopupSlotTaken();
+      }
+      return { id: row.id, kind };
     });
-    return { id: row.id, kind };
-  });
+  } catch (error) {
+    if (error instanceof PopupSlotTaken) return null;
+    throw error;
+  }
 }
+
+/** Rolls the transaction back when another popup won the slot. */
+class PopupSlotTaken extends Error {}
 
 export interface FeedbackSummary {
   shown: number;

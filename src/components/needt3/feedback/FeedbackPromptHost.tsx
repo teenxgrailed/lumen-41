@@ -32,6 +32,7 @@ import {
   type FeedbackKind as PopupKind,
   type ReviewRoute,
 } from "../popups";
+import { usePopupSlot } from "../popups/use-popup-slot";
 import { usePhoneUi } from "../root/phone-ui-context";
 import { useFeedbackPrompt } from "./use-feedback-prompt";
 
@@ -103,6 +104,9 @@ export function FeedbackPromptHost() {
   const answered = useRef(false);
   const { prompt, setPrompt, fetchPrompt, send, dismiss } = useFeedbackPrompt();
   const asked = useRef(false);
+  // The shared popup coordinator: one popup per session and per 3 days across
+  // announcements, plan moments and this prompt.
+  const slot = usePopupSlot();
   // A dialog that opens after the prompt was fetched (it is not in the store
   // flags above) hides the popup until it is gone.
   const [domBlocked, setDomBlocked] = useState(false);
@@ -125,6 +129,7 @@ export function FeedbackPromptHost() {
         if (
           document.visibilityState !== "visible" ||
           otherDialogOpen() ||
+          !slot.canShow() ||
           promptedThisSession(safeSession()) ||
           skippedToday(safeLocal(), newDate())
         )
@@ -142,6 +147,8 @@ export function FeedbackPromptHost() {
             return;
           }
           markPromptedThisSession(safeSession());
+          // The server already wrote the show; this marks the session.
+          void slot.claim(offered.id);
           answered.current = false;
         });
       };
@@ -154,7 +161,7 @@ export function FeedbackPromptHost() {
       if (idle !== null && typeof window.cancelIdleCallback === "function")
         window.cancelIdleCallback(idle);
     };
-  }, [blocked, prompt, fetchPrompt]);
+  }, [blocked, prompt, fetchPrompt, slot]);
 
   const close = useCallback(() => setPrompt(null), [setPrompt]);
   const onClose = useCallback(() => {

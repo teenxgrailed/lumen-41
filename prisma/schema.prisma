@@ -161,6 +161,8 @@ model User {
   subscription                 Subscription?
   lifetimeHold                 LifetimeHold?
   trialGrant                   TrialGrant?
+  announcementViews            AnnouncementView[]
+  popupMomentViews             PopupMomentView[]
   accounts                     Account[]
   sessions                     Session[]
   calendars                    CalendarFeed[]
@@ -2922,6 +2924,9 @@ model UserSettings {
   // The occasional in-app feedback prompt (src/services/feedback). On unless the
   // person turns it off in Settings; the server reads it before it offers one.
   feedbackPrompts   Boolean   @default(true)
+  // "Product updates" (Settings): off hides announcements only. Plan moments
+  // (a limit that blocked an action, a trial ending) still show.
+  productUpdates    Boolean   @default(true)
 
   @@index([userId])
 }
@@ -4863,4 +4868,89 @@ model FeedbackPrompt {
   @@index([userId, shownAt])
   @@index([kind, shownAt])
   @@index([shownAt])
+}
+
+enum AnnouncementKind {
+  update
+  tip
+  event
+  offer
+}
+
+enum AnnouncementStatus {
+  draft
+  published
+}
+
+/// An in-app popup authored as data (what's new, a tip, an event, an offer).
+/// Shown at most once per person (AnnouncementView), subject to the global
+/// popup frequency rules in src/lib/popups/pick.ts.
+model Announcement {
+  id             String             @id @default(cuid())
+  slug           String             @unique
+  kind           AnnouncementKind   @default(update)
+  status         AnnouncementStatus @default(draft)
+  badge          String?
+  title          String
+  body           String             @default("")
+  /// [{ icon, text }], at most 5. `icon` names an in-app icon, never a letter.
+  bullets        Json               @default("[]")
+  imageUrl       String?
+  /// { label, href?, action? }: a same-origin path, or an in-app action.
+  primaryCta     Json?
+  secondaryLabel String?
+  priority       Int                @default(0)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  // Audience. An empty array means everybody.
+  plans          String[]           @default([])
+  platforms      String[]           @default([])
+  minAppVersion  String?
+  signedUpBefore DateTime?
+  signedUpAfter  DateTime?
+  minActiveDays  Int?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  publishedAt    DateTime?
+  views          AnnouncementView[]
+
+  @@index([status, startsAt, endsAt])
+}
+
+model AnnouncementView {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  shownAt        DateTime     @default(now())
+  /// When the popup was drawn on screen. Null while it is claimed but not yet
+  /// drawn; such a claim can be released (event "release").
+  seenAt      DateTime?
+  dismissedAt    DateTime?
+  clickedAt      DateTime?
+
+  @@unique([userId, announcementId])
+  @@index([userId, shownAt])
+  @@index([announcementId])
+}
+
+/// One plan moment (a limit hit, a trial ending) or another popup source that
+/// shares the frequency cap (the feedback prompt writes source "feedback").
+/// `key` names the moment: "limit:habits", "trial:3d", "trial:1d", "trial:ended".
+model PopupMomentView {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source      String
+  key         String
+  shownAt     DateTime  @default(now())
+  /// When the popup was drawn on screen. Null while it is claimed but not yet
+  /// drawn; such a claim can be released (event "release").
+  seenAt      DateTime?
+  dismissedAt DateTime?
+  clickedAt   DateTime?
+
+  @@index([userId, shownAt])
+  @@index([userId, source, key, shownAt])
 }
