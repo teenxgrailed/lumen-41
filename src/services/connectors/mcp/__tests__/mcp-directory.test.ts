@@ -1,5 +1,9 @@
 import { GET } from "@/app/.well-known/mcp/server-card.json/route";
-import { ADMIN_TOOLS } from "@/services/connectors/mcp/admin-tools";
+import {
+  ADMIN_DRAFT_TOOLS,
+  ADMIN_TOOLS,
+  isAdminTool,
+} from "@/services/connectors/mcp/admin-tools";
 import { isHubTool } from "@/services/connectors/mcp/hub-tools";
 import { mcpServerCard } from "@/services/connectors/mcp/server-card";
 import { MCP_TOOLS, isQuitTool } from "@/services/connectors/mcp/tools";
@@ -8,7 +12,7 @@ jest.mock("@/lib/prisma", () => ({ prisma: {} }));
 
 describe("MCP tool annotations (directory review)", () => {
   it("registers admin tools in the same registry", () => {
-    for (const admin of ADMIN_TOOLS) {
+    for (const admin of [...ADMIN_TOOLS, ...ADMIN_DRAFT_TOOLS]) {
       expect(MCP_TOOLS.map((t) => t.name)).toContain(admin.name);
     }
   });
@@ -51,10 +55,7 @@ describe("MCP server card", () => {
       "https://mcp.needt.app/.well-known/oauth-protected-resource/mcp"
     );
     const publicTools = MCP_TOOLS.filter(
-      (t) =>
-        !ADMIN_TOOLS.some((a) => a.name === t.name) &&
-        !isHubTool(t) &&
-        !isQuitTool(t)
+      (t) => !isAdminTool(t) && !isHubTool(t) && !isQuitTool(t)
     );
     expect(card.tools.map((t: { name: string }) => t.name)).toEqual(
       publicTools.map((t) => t.name)

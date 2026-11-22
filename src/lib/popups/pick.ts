@@ -14,13 +14,6 @@ export const POPUP_CAP_MS = 3 * DAY_MS;
 export const POPUP_QUIET_AFTER_SIGNUP_MS = 2 * DAY_MS;
 /** A limit popup appears at most once per limit in this window. */
 export const LIMIT_REPEAT_MS = 7 * DAY_MS;
-/**
- * Trial moments are two days apart (3 days left, 1 day left), so the 3-day
- * cap cannot apply to them or the second would never show. They keep a
- * shorter gap from whatever was shown last.
- */
-export const TRIAL_GAP_MS = 20 * 60 * 60 * 1000;
-
 /** Lower comes first: limit-hit, then trial ending, then announcements, then feedback. */
 const SOURCE_RANK: Record<PopupSource, number> = {
   limit: 0,
@@ -60,9 +53,10 @@ function shownBefore(
  * - Never during onboarding or focus, with another dialog open, or twice in
  *   one session (`ctx`).
  * - Never in the first 2 days after signup, except a trial-ending moment.
- * - At most 1 popup per 3 days across every source. A limit hit bypasses the
- *   cap (the person was just blocked; it has its own once-per-limit-per-7-days
- *   rule); a trial moment uses a shorter gap so 3 days / 1 day can both land.
+ * - At most 1 popup per 3 days across every source. Owner rulings
+ *   (22.11.2026): a limit hit bypasses the cap but repeats at most once per
+ *   limit per 7 days; each trial moment (3d, 1d, ended) bypasses the cap and
+ *   shows at most once.
  * - An announcement is shown once ever, and not at all when the person turned
  *   product updates off. Plan moments ignore that switch.
  * - Priority: limit-hit > trial ending > announcement (by `priority`, higher
@@ -99,10 +93,14 @@ export function pickPopup(
 
     switch (c.source) {
       case "limit":
+        // Ruling (Needt main, 22.11.2026): a limit hit bypasses the 3-day cap
+        // (the person was just blocked) but repeats at most once per 7 days.
         return !shownBefore(history, "limit", c.key, nowMs - LIMIT_REPEAT_MS);
       case "trial":
-        if (shownBefore(history, "trial", c.key, null)) return false;
-        return last === null || nowMs - last >= TRIAL_GAP_MS;
+        // Ruling (Needt main, 22.11.2026): each trial moment shows at most
+        // once and bypasses the 3-day cap, so "3 days left" and "1 day left"
+        // (two days apart) can both land.
+        return !shownBefore(history, "trial", c.key, null);
       case "announcement":
         if (shownBefore(history, "announcement", c.key, null)) return false;
         return last === null || nowMs - last >= POPUP_CAP_MS;

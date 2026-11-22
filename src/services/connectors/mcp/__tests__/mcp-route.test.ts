@@ -13,6 +13,7 @@ import {
   authenticateBearer,
 } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
+import { isAdminTool } from "@/services/connectors/mcp/admin-tools";
 import { isHubTool } from "@/services/connectors/mcp/hub-tools";
 import {
   MCP_TOOLS,
@@ -171,7 +172,7 @@ describe("remote MCP endpoint", () => {
     expect(result.tools.map((tool: { name: string }) => tool.name)).toEqual(
       MCP_TOOLS.filter(
         (tool) =>
-          !tool.name.startsWith("needt_admin_") &&
+          !isAdminTool(tool) &&
           !isHubTool(tool) &&
           !isQuitTool(tool) &&
           // The flag row is null here, so the day plan kill switch is off.

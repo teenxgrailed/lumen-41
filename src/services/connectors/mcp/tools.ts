@@ -155,7 +155,7 @@ import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 
 import { TaskStatus } from "@/types/task";
 
-import { ADMIN_TOOLS, isAdminTool } from "./admin-tools";
+import { ADMIN_DRAFT_TOOLS, ADMIN_TOOLS, isAdminTool } from "./admin-tools";
 import { HUB_TOOLS, isHubTool } from "./hub-tools";
 import { type JsonSchema, zodToJsonSchema } from "./json-schema";
 
@@ -2830,6 +2830,8 @@ MCP_TOOLS.unshift(
 
 // Read-only Admin area tools; listed and callable only with needt.admin.read.
 MCP_TOOLS.push(...ADMIN_TOOLS);
+// The announcement draft tool: needt.admin.read plus needt.write, drafts only.
+MCP_TOOLS.push(...ADMIN_DRAFT_TOOLS);
 
 // Agent hub tools; listed and callable only for accounts with the agent_hub flag.
 MCP_TOOLS.push(...HUB_TOOLS);
@@ -2885,7 +2887,8 @@ export function isWriteCall(tool: McpTool, args: unknown): boolean {
 
 /**
  * The tools a connection is shown. Admin tools appear only to a token that
- * carries needt.admin.read; the role itself is checked when one is called.
+ * carries needt.admin.read (the draft tool also needs needt.write); the role
+ * itself is checked when one is called.
  */
 export function listMcpTools(
   scopes: readonly McpScope[] = [],
@@ -2900,6 +2903,9 @@ export function listMcpTools(
   return MCP_TOOLS.filter(
     (tool) =>
       (admin || !isAdminTool(tool)) &&
+      // An admin tool that also needs needt.write is hidden without it.
+      (!isAdminTool(tool) ||
+        requiredScopes(tool, {}).every((scope) => scopes.includes(scope))) &&
       (options.hub || !isHubTool(tool)) &&
       (options.quit || !isQuitTool(tool)) &&
       // Only an explicit false hides them: the public server card lists all.

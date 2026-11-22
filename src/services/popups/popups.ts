@@ -11,6 +11,7 @@ import { matchesAudience } from "@/lib/popups/audience";
 import { limitMoment, trialMoments } from "@/lib/popups/moments";
 import { isPopupLimit } from "@/lib/popups/moments";
 import { pickPopup } from "@/lib/popups/pick";
+import { LIMIT_REPEAT_MS } from "@/lib/popups/pick";
 import {
   type PopupEventName,
   announcementCreateSchema,
@@ -58,7 +59,15 @@ export interface PopupFacts {
   trialEndsAt: Date | null;
   /** Days between signing up and the last time the app was used. */
   activeDays: number;
+  /** Onboarding finished. Until then only a trial moment may show. */
+  onboardingDone: boolean;
 }
+
+/** The tables the shared popup history lives in: the client, or a transaction. */
+type HistoryDb = Pick<
+  Prisma.TransactionClient,
+  "announcementView" | "popupMomentView"
+>;
 
 export async function loadPopupFacts(
   userId: string,
@@ -70,6 +79,7 @@ export async function loadPopupFacts(
       id: true,
       createdAt: true,
       lastActiveAt: true,
+      onboardingCompletedAt: true,
       subscription: {
         select: {
           plan: true,
@@ -94,6 +104,7 @@ export async function loadPopupFacts(
       productUpdates: row.userSettings?.productUpdates ?? true,
     },
     trialEndsAt: row.trialGrant?.endsAt ?? null,
+    onboardingDone: row.onboardingCompletedAt !== null,
     activeDays: Math.max(
       0,
       Math.floor((lastActive.getTime() - signedUpAt.getTime()) / DAY_MS)
@@ -108,15 +119,16 @@ export async function loadPopupFacts(
  */
 export async function loadPopupHistory(
   userId: string,
-  now: Date
+  now: Date,
+  db: HistoryDb = prisma
 ): Promise<PopupHistoryEntry[]> {
   const since = newDate(now.getTime() - HISTORY_DAYS * DAY_MS);
   const [announcements, moments] = await Promise.all([
-    prisma.announcementView.findMany({
+    db.announcementView.findMany({
       where: { userId },
       select: { announcementId: true, shownAt: true },
     }),
-    prisma.popupMomentView.findMany({
+    db.popupMomentView.findMany({
       where: {
         userId,
         OR: [{ shownAt: { gte: since } }, { source: "trial" }],
@@ -217,7 +229,45 @@ export interface NextPopupParams {
   ctx: PopupContext;
 }
 
-/** The popup to show this person now, or null. Read-only: `shown` is recorded by the event call. */
+/** The advisory lock every popup source takes before it claims the slot. */
+export function popupSlotLockSql(userId: string): Prisma.Sql {
+  return Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`popup-slot:${userId}`}, 0))`;
+}
+
+/**
+ * Inside `tx`, which already holds `popupSlotLockSql`: writes the show of the
+ * winner so the next request (another tab, another device) sees it. Returns
+ * false when this person already has that show (an announcement is once ever).
+ */
+async function writeShow(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  winner: PopupCandidate,
+  now: Date
+): Promise<boolean> {
+  if (winner.source === "announcement") {
+    const existing = await tx.announcementView.findUnique({
+      where: {
+        userId_announcementId: { userId, announcementId: winner.key },
+      },
+      select: { id: true },
+    });
+    if (existing) return false;
+    await tx.announcementView.create({
+      data: { userId, announcementId: winner.key, shownAt: now },
+    });
+    return true;
+  }
+  return (await recordPopupShown(userId, winner.source, winner.key, now, tx))
+    .created;
+}
+
+/**
+ * The popup to show this person now, or null. Claims the slot on the server:
+ * the pick and the write of the show happen in one transaction under a
+ * per-person advisory lock, so two tabs or two devices asking at once get
+ * one popup between them, not two. The later `shown` event is idempotent.
+ */
 export async function getNextPopup(
   userId: string,
   params: NextPopupParams,
@@ -229,26 +279,39 @@ export async function getNextPopup(
   const candidates: PopupCandidate[] = [
     ...trialMoments(facts.user.plan, facts.trialEndsAt, now),
   ];
-  if (params.limit) {
-    const moment = limitMoment(params.limit, facts.user.plan);
-    if (moment) candidates.push(moment);
+  // Until onboarding is done, only a trial moment may show (review L7).
+  if (facts.onboardingDone) {
+    if (params.limit) {
+      const moment = limitMoment(params.limit, facts.user.plan);
+      if (moment) candidates.push(moment);
+    }
+    if (facts.user.productUpdates) {
+      candidates.push(
+        ...(await announcementCandidates(
+          facts,
+          params.platform,
+          params.appVersion,
+          now
+        ))
+      );
+    }
   }
-  // A limit hit is shown at once and does not wait on announcements.
-  if (facts.user.productUpdates || candidates.length === 0) {
-    candidates.push(
-      ...(await announcementCandidates(
-        facts,
-        params.platform,
-        params.appVersion,
-        now
-      ))
-    );
+  if (candidates.length === 0) return null;
+
+  // A cheap look first, without the lock: most requests end here.
+  const outside = await loadPopupHistory(userId, now);
+  if (!pickPopup(facts.user, candidates, outside, now, params.ctx)) {
+    return null;
   }
 
-  const history = await loadPopupHistory(userId, now);
-  return (
-    pickPopup(facts.user, candidates, history, now, params.ctx)?.view ?? null
-  );
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw(popupSlotLockSql(userId));
+    // Re-read inside the lock: another request may have claimed the slot.
+    const history = await loadPopupHistory(userId, now, tx);
+    const winner = pickPopup(facts.user, candidates, history, now, params.ctx);
+    if (!winner) return null;
+    return (await writeShow(tx, userId, winner, now)) ? winner.view : null;
+  });
 }
 
 /** The moment keys the event endpoint accepts for each source. */
@@ -263,19 +326,44 @@ function momentKeyValid(source: PopupSource, key: string): boolean {
 }
 
 /**
- * Writes one row to the shared history. The feedback prompt calls this when
- * it shows (`source: "feedback"`), so its show counts against the same cap.
+ * How far back a show of the same moment makes a new show a repeat. A limit
+ * may come back after 7 days; a trial moment and a feedback prompt (keyed by
+ * its own id) are once ever.
+ */
+function repeatSince(source: PopupSource, now: Date): Date | null {
+  return source === "limit" ? newDate(now.getTime() - LIMIT_REPEAT_MS) : null;
+}
+
+/**
+ * Writes one show to the shared history, once per moment: a second call for
+ * the same moment (the client's `shown` after the server already claimed it,
+ * a retry, another tab) writes nothing. The feedback prompt's show goes
+ * through here (`source: "feedback"`) so it counts against the same cap.
  */
 export async function recordPopupShown(
   userId: string,
   source: PopupSource,
   key: string,
-  now: Date = newDate()
-) {
-  return prisma.popupMomentView.create({
+  now: Date = newDate(),
+  db: Pick<Prisma.TransactionClient, "popupMomentView"> = prisma
+): Promise<{ id: string; created: boolean }> {
+  const since = repeatSince(source, now);
+  const existing = await db.popupMomentView.findFirst({
+    where: {
+      userId,
+      source,
+      key,
+      ...(since ? { shownAt: { gt: since } } : {}),
+    },
+    orderBy: { shownAt: "desc" },
+    select: { id: true },
+  });
+  if (existing) return { id: existing.id, created: false };
+  const row = await db.popupMomentView.create({
     data: { userId, source, key, shownAt: now },
     select: { id: true },
   });
+  return { id: row.id, created: true };
 }
 
 export type RecordEventResult = "ok" | "not_found";
@@ -313,8 +401,9 @@ export async function recordPopupEvent(
     return "ok";
   }
 
-  const exists = await prisma.announcement.findUnique({
-    where: { id },
+  // Only a published announcement can have been shown (review L6).
+  const exists = await prisma.announcement.findFirst({
+    where: { id, status: AnnouncementStatus.published },
     select: { id: true },
   });
   if (!exists) return "not_found";
@@ -332,24 +421,11 @@ export async function recordPopupEvent(
   return "ok";
 }
 
-/**
- * For the feedback prompt (and any later popup source): may a popup from
- * `source` show to this person now under the shared rules (3-day cap, quiet
- * first days, not after the same key)? Server-side; the browser half is
- * `usePopupSlot` in `src/components/needt3/popups/use-popup-slot.ts`.
- * When it shows, record it with `recordPopupShown(userId, source, key)`.
- */
-export async function popupSlotOpen(
-  userId: string,
+function slotCandidate(
   source: Extract<PopupSource, "feedback">,
-  key: string,
-  ctx: PopupContext = {},
-  now: Date = newDate()
-): Promise<boolean> {
-  const facts = await loadPopupFacts(userId, now);
-  if (!facts) return false;
-  const history = await loadPopupHistory(userId, now);
-  const candidate: PopupCandidate = {
+  key: string
+): PopupCandidate {
+  return {
     source,
     key,
     priority: 0,
@@ -369,5 +445,55 @@ export async function popupSlotOpen(
       feature: null,
     },
   };
-  return pickPopup(facts.user, [candidate], history, now, ctx) !== null;
+}
+
+/**
+ * For the feedback prompt (and any later popup source): may a popup from
+ * `source` show to this person now under the shared rules (3-day cap, quiet
+ * first days, not during onboarding)? A read without the lock, for a cheap
+ * early "no". To actually show, claim with `claimPopupSlot` inside the
+ * caller's transaction. The browser half is `usePopupSlot`.
+ */
+export async function popupSlotOpen(
+  userId: string,
+  source: Extract<PopupSource, "feedback">,
+  key: string,
+  ctx: PopupContext = {},
+  now: Date = newDate()
+): Promise<boolean> {
+  const facts = await loadPopupFacts(userId, now);
+  if (!facts || !facts.onboardingDone) return false;
+  const history = await loadPopupHistory(userId, now);
+  return (
+    pickPopup(facts.user, [slotCandidate(source, key)], history, now, ctx) !==
+    null
+  );
+}
+
+/**
+ * Claims the shared popup slot for `source`/`key` inside `tx`: takes the
+ * per-person popup lock, re-checks the rules against the history as `tx`
+ * sees it, and writes the show. True when this caller won the slot; then the
+ * popup may show. The feedback prompt calls it in the same transaction that
+ * creates its own row, so a lost race creates neither.
+ */
+export async function claimPopupSlot(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  source: Extract<PopupSource, "feedback">,
+  key: string,
+  now: Date = newDate()
+): Promise<boolean> {
+  await tx.$executeRaw(popupSlotLockSql(userId));
+  const facts = await loadPopupFacts(userId, now);
+  if (!facts || !facts.onboardingDone) return false;
+  const history = await loadPopupHistory(userId, now, tx);
+  const winner = pickPopup(
+    facts.user,
+    [slotCandidate(source, key)],
+    history,
+    now
+  );
+  if (!winner) return false;
+  return (await recordPopupShown(userId, source, key, now, tx)).created;
 }

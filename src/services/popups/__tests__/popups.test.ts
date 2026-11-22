@@ -1,17 +1,30 @@
 import { prisma } from "@/lib/prisma";
 
 import {
+  claimPopupSlot,
   getNextPopup,
   popupPlanOf,
   popupSlotOpen,
   recordPopupEvent,
+  recordPopupShown,
 } from "../popups";
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
+    $transaction: jest.fn(),
+    $executeRaw: jest.fn(),
     user: { findUnique: jest.fn() },
-    announcement: { findMany: jest.fn(), findUnique: jest.fn() },
-    announcementView: { findMany: jest.fn(), upsert: jest.fn() },
+    announcement: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    announcementView: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      upsert: jest.fn(),
+    },
     popupMomentView: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -25,9 +38,20 @@ const DAY = 24 * 60 * 60 * 1000;
 const NOW = new Date("2026-11-22T12:00:00Z");
 const ago = (ms: number) => new Date(NOW.getTime() - ms);
 const db = prisma as unknown as {
+  $transaction: jest.Mock;
+  $executeRaw: jest.Mock;
   user: { findUnique: jest.Mock };
-  announcement: { findMany: jest.Mock; findUnique: jest.Mock };
-  announcementView: { findMany: jest.Mock; upsert: jest.Mock };
+  announcement: {
+    findMany: jest.Mock;
+    findUnique: jest.Mock;
+    findFirst: jest.Mock;
+  };
+  announcementView: {
+    findMany: jest.Mock;
+    findUnique: jest.Mock;
+    create: jest.Mock;
+    upsert: jest.Mock;
+  };
   popupMomentView: {
     findMany: jest.Mock;
     findFirst: jest.Mock;
@@ -41,6 +65,7 @@ function userRow(over: Record<string, unknown> = {}) {
     id: "u1",
     createdAt: ago(60 * DAY),
     lastActiveAt: ago(DAY),
+    onboardingCompletedAt: ago(59 * DAY),
     subscription: null,
     trialGrant: null,
     userSettings: { productUpdates: true },
@@ -85,8 +110,17 @@ const params = (over = {}) => ({
   ...over,
 });
 
+/** A transaction runs its callback against the same mocked client. */
+function plainTransactions() {
+  db.$transaction.mockImplementation((fn: (tx: unknown) => unknown) =>
+    fn(prisma)
+  );
+  db.popupMomentView.create.mockResolvedValue({ id: "m-new" });
+}
+
 beforeEach(() => {
   jest.resetAllMocks();
+  plainTransactions();
   db.user.findUnique.mockResolvedValue(userRow());
   db.announcement.findMany.mockResolvedValue([]);
   db.announcementView.findMany.mockResolvedValue([]);
@@ -267,7 +301,7 @@ describe("getNextPopup: plan moments", () => {
 
 describe("recordPopupEvent", () => {
   it("records shown once per person for an announcement", async () => {
-    db.announcement.findUnique.mockResolvedValue({ id: "a1" });
+    db.announcement.findFirst.mockResolvedValue({ id: "a1" });
     expect(await recordPopupEvent("u1", "a1", "shown", NOW)).toBe("ok");
     expect(db.announcementView.upsert).toHaveBeenCalledWith({
       where: { userId_announcementId: { userId: "u1", announcementId: "a1" } },
@@ -277,7 +311,7 @@ describe("recordPopupEvent", () => {
   });
 
   it("stamps dismiss and click on the same view row", async () => {
-    db.announcement.findUnique.mockResolvedValue({ id: "a1" });
+    db.announcement.findFirst.mockResolvedValue({ id: "a1" });
     await recordPopupEvent("u1", "a1", "dismiss", NOW);
     await recordPopupEvent("u1", "a1", "click", NOW);
     const updates = db.announcementView.upsert.mock.calls.map(
@@ -287,7 +321,7 @@ describe("recordPopupEvent", () => {
   });
 
   it("is not found for an unknown announcement", async () => {
-    db.announcement.findUnique.mockResolvedValue(null);
+    db.announcement.findFirst.mockResolvedValue(null);
     expect(await recordPopupEvent("u1", "nope", "shown", NOW)).toBe(
       "not_found"
     );
@@ -362,5 +396,157 @@ describe("popupSlotOpen (the feedback prompt's slot)", () => {
     await expect(
       popupSlotOpen("u1", "feedback", "week-1", { dialogOpen: true }, NOW)
     ).resolves.toBe(false);
+  });
+});
+
+describe("review rulings and fixes", () => {
+  it("L7: before onboarding is done, only a trial moment may show", async () => {
+    db.user.findUnique.mockResolvedValue(
+      userRow({ onboardingCompletedAt: null })
+    );
+    db.announcement.findMany.mockResolvedValue([announcementRow()]);
+    expect(
+      await getNextPopup("u1", params({ limit: "habits" }), NOW)
+    ).toBeNull();
+
+    db.user.findUnique.mockResolvedValue(
+      userRow({
+        onboardingCompletedAt: null,
+        trialGrant: { endsAt: new Date(NOW.getTime() + DAY - 1000) },
+      })
+    );
+    expect((await getNextPopup("u1", params(), NOW))?.key).toBe("trial:1d");
+  });
+
+  it("L6: events are accepted for published announcements only", async () => {
+    db.announcement.findFirst.mockResolvedValue(null);
+    expect(await recordPopupEvent("u1", "draft-1", "click", NOW)).toBe(
+      "not_found"
+    );
+    expect(db.announcement.findFirst).toHaveBeenCalledWith({
+      where: { id: "draft-1", status: "published" },
+      select: { id: true },
+    });
+  });
+
+  it("ruling: a limit hit bypasses the 3-day cap but keeps its 7-day repeat", async () => {
+    db.announcementView.findMany.mockResolvedValue([
+      { announcementId: "a0", shownAt: ago(DAY) },
+    ]);
+    expect(
+      (await getNextPopup("u1", params({ limit: "habits" }), NOW))?.source
+    ).toBe("limit");
+  });
+
+  it("ruling: a trial moment bypasses the 3-day cap, each at most once", async () => {
+    db.user.findUnique.mockResolvedValue(
+      userRow({ trialGrant: { endsAt: new Date(NOW.getTime() + DAY - 1000) } })
+    );
+    db.announcementView.findMany.mockResolvedValue([
+      { announcementId: "a0", shownAt: ago(60 * 60 * 1000) },
+    ]);
+    expect((await getNextPopup("u1", params(), NOW))?.key).toBe("trial:1d");
+
+    db.popupMomentView.findMany.mockResolvedValue([
+      { source: "trial", key: "trial:1d", shownAt: ago(60 * 60 * 1000) },
+    ]);
+    expect(await getNextPopup("u1", params(), NOW)).toBeNull();
+  });
+
+  it("claims the slot on the server: the show is written under the lock", async () => {
+    const popup = await getNextPopup("u1", params({ limit: "habits" }), NOW);
+    expect(popup?.source).toBe("limit");
+    expect(db.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(db.popupMomentView.create).toHaveBeenCalledWith({
+      data: {
+        userId: "u1",
+        source: "limit",
+        key: "limit:habits",
+        shownAt: NOW,
+      },
+      select: { id: true },
+    });
+  });
+
+  it("recordPopupShown is idempotent per moment", async () => {
+    db.popupMomentView.findFirst.mockResolvedValue({ id: "m1" });
+    expect(await recordPopupShown("u1", "trial", "trial:3d", NOW)).toEqual({
+      id: "m1",
+      created: false,
+    });
+    expect(db.popupMomentView.create).not.toHaveBeenCalled();
+    // A limit only counts a show from the last 7 days as the same moment.
+    expect(db.popupMomentView.findFirst.mock.calls[0][0].where.shownAt).toBe(
+      undefined
+    );
+    await recordPopupShown("u1", "limit", "limit:habits", NOW);
+    expect(
+      db.popupMomentView.findFirst.mock.calls[1][0].where.shownAt.gt
+    ).toEqual(ago(7 * DAY));
+  });
+
+  it("H2: two requests at once get one popup between them", async () => {
+    // A small stateful database: the advisory lock serialises transactions,
+    // and a written show is visible to the next reader.
+    const moments: { source: string; key: string; shownAt: Date }[] = [];
+    let queue: Promise<unknown> = Promise.resolve();
+    db.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => {
+      const run = queue.then(() => fn(prisma));
+      queue = run.catch(() => undefined);
+      return run;
+    });
+    db.popupMomentView.findMany.mockImplementation(async () => [...moments]);
+    db.popupMomentView.findFirst.mockImplementation(
+      async ({ where }: { where: { source: string; key: string } }) =>
+        moments.find((m) => m.source === where.source && m.key === where.key)
+          ? { id: "m" }
+          : null
+    );
+    db.popupMomentView.create.mockImplementation(
+      async ({
+        data,
+      }: {
+        data: { source: string; key: string; shownAt: Date };
+      }) => {
+        moments.push(data);
+        return { id: `m${moments.length}` };
+      }
+    );
+    db.announcement.findMany.mockResolvedValue([announcementRow()]);
+    db.announcementView.findUnique.mockResolvedValue(null);
+    db.announcementView.create.mockImplementation(
+      async ({ data }: { data: { announcementId: string; shownAt: Date } }) => {
+        moments.push({
+          source: "announcement",
+          key: data.announcementId,
+          shownAt: data.shownAt,
+        });
+        return { id: "v1" };
+      }
+    );
+    db.announcementView.findMany.mockImplementation(async () =>
+      moments
+        .filter((m) => m.source === "announcement")
+        .map((m) => ({ announcementId: m.key, shownAt: m.shownAt }))
+    );
+
+    const [a, b] = await Promise.all([
+      getNextPopup("u1", params(), NOW),
+      getNextPopup("u1", params(), NOW),
+    ]);
+    expect([a, b].filter(Boolean)).toHaveLength(1);
+    expect(moments).toHaveLength(1);
+  });
+
+  it("claimPopupSlot gives the feedback prompt the slot once, and not inside the cap", async () => {
+    expect(
+      await claimPopupSlot(prisma as never, "u1", "feedback", "p1", NOW)
+    ).toBe(true);
+    db.popupMomentView.findMany.mockResolvedValue([
+      { source: "limit", key: "limit:habits", shownAt: ago(DAY) },
+    ]);
+    expect(
+      await claimPopupSlot(prisma as never, "u1", "feedback", "p2", NOW)
+    ).toBe(false);
   });
 });

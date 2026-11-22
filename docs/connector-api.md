@@ -160,7 +160,7 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `fullTime`, `subtasks` (ordered), `dependsOnId`, `originPageId` (the page it came from) and `goalId`, so a task and its steps arrive in one call; `start` places and pins it, `autoSchedule: false` keeps the scheduler off it. See Place and pin |
 | `needt_schedule`             | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                                                                                                                                                   |
 | `needt_reschedule`           | `needt.write`                                  | `POST /api/connect/reschedule`; with `taskIds` or `scope` (today, overdue) and optional `days` it runs `task.spread` instead                                                                                                                                                                                  |
-| `needt_reschedule_preview`   | `needt.write`                                  | `POST /api/connect/reschedule-preview`: `action` preview (with `taskIds`, up to 100: re-plan only those), apply or undo (with `token`). See Reschedule |
+| `needt_reschedule_preview`   | `needt.write`                                  | `POST /api/connect/reschedule-preview`: `action` preview (with `taskIds`, up to 100: re-plan only those), apply or undo (with `token`). See Reschedule                                                                                                                                                        |
 | `needt_control`              | `needt.write` (`needt.read` for `overview`)    | `POST /api/connect/control`; every action the route accepts, deletes need `confirm: true`                                                                                                                                                                                                                     |
 | `needt_update_task`          | `needt.write`                                  | Change title, description, dueDate, estimatedMinutes, priority, energy, status, projectId, goalId, entry, fullTime, dependsOnId, originPageId, and placement (`start`, `pinned`, `autoSchedule`); other fields are refused. Same body as `PATCH /api/connect/tasks/:id`                                       |
 | `needt_add_subtasks`         | `needt.write`                                  | Append ordered subtasks (up to 30 per task) to an existing task                                                                                                                                                                                                                                               |
@@ -261,12 +261,12 @@ polls the hub several times a day does not drain a shared usage budget. The
 limits sit on the agent (`HubAgent.limits`, one nullable Json column) and are
 all optional; an agent with none behaves exactly as before.
 
-| Key | Meaning |
-| --- | --- |
-| `maxInProgress` | Most items held at once (status claimed, in_progress or blocked). |
-| `maxClaimsPerDay` | Most new claims per UTC day. A holder re-claiming its own item to extend the lease does not count. |
-| `inboxLimit` | `needt_agent_inbox` and `needt_agent_next` offer at most this many claimable items, best first (assigned to the agent, closest skill match, due date, age). Items the agent already holds are always shown. |
-| `acceptsLarge` | `false`: items created with `large: true` are not offered and cannot be claimed, unless the owner approved them. |
+| Key               | Meaning                                                                                                                                                                                                     |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxInProgress`   | Most items held at once (status claimed, in_progress or blocked).                                                                                                                                           |
+| `maxClaimsPerDay` | Most new claims per UTC day. A holder re-claiming its own item to extend the lease does not count.                                                                                                          |
+| `inboxLimit`      | `needt_agent_inbox` and `needt_agent_next` offer at most this many claimable items, best first (assigned to the agent, closest skill match, due date, age). Items the agent already holds are always shown. |
+| `acceptsLarge`    | `false`: items created with `large: true` are not offered and cannot be claimed, unless the owner approved them.                                                                                            |
 
 At a cap, `needt_agent_task_claim` is refused with `AGENT_LIMIT` (REST status
 429, MCP: a normal tool error) and `needt_agent_next` returns `item: null`; the
@@ -319,10 +319,17 @@ the secret>`.
   "workspaceId": "cm…",
   "data": {
     "item": {
-      "id": "cm…", "title": "Upload the video", "status": "done",
-      "risks": ["publish"], "assigneeAgentId": "cm…", "claimedByAgentId": "cm…",
-      "creatorKind": "owner", "creatorAgentId": null,
-      "due": null, "question": null, "url": "/agents?item=cm…"
+      "id": "cm…",
+      "title": "Upload the video",
+      "status": "done",
+      "risks": ["publish"],
+      "assigneeAgentId": "cm…",
+      "claimedByAgentId": "cm…",
+      "creatorKind": "owner",
+      "creatorAgentId": null,
+      "due": null,
+      "question": null,
+      "url": "/agents?item=cm…"
     },
     "outcome": "done"
   }
@@ -342,9 +349,12 @@ compare:
 ```js
 // Node
 import { createHmac, timingSafeEqual } from "node:crypto";
+
 function verify(rawBody, header, secret) {
-  const expected = "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
-  const a = Buffer.from(expected), b = Buffer.from(header ?? "");
+  const expected =
+    "sha256=" + createHmac("sha256", secret).update(rawBody).digest("hex");
+  const a = Buffer.from(expected),
+    b = Buffer.from(header ?? "");
   return a.length === b.length && timingSafeEqual(a, b);
 }
 ```
@@ -392,7 +402,7 @@ secret scan; a hit is refused naming the kind, never the value.
   bytes in its own database, so the URL points at Needt and not at an object
   store; a replayed PUT returns the first result instead of a second file.
 - `needt_agent_files` `{ itemId }` lists `{ id, name, mime, size, uploadedBy,
-  createdAt, url, urlExpiresAt }`. `url` is a signed GET valid 24 hours (the
+createdAt, url, urlExpiresAt }`. `url` is a signed GET valid 24 hours (the
   signature is the credential, so anyone holding the link can read the file
   until it expires; call the tool again for a fresh one).
 - REST: `GET` and `POST /api/connect/agent-hub/items/{id}/attachments` (bearer;
@@ -458,8 +468,9 @@ REST: `GET /api/connect/agent-hub/recurrences` (`?includeInactive=true`),
 ### Admin read (`needt.admin.read`)
 
 Read-only access to what the Admin area shows, for an admin's own AI client,
-without sharing a password. There are no admin write tools: nothing here can
-grant a plan, toggle a flag, delete or impersonate anyone.
+without sharing a password. Nothing here can grant a plan, toggle a flag,
+delete or impersonate anyone. The one write is drafting an announcement (see
+Announcement drafts below).
 
 - **Opt-in at consent, never default.** The consent screen shows the box
   "Read admin data: users, sign-ups, plans, flags, logs and bug reports" only
@@ -489,6 +500,24 @@ grant a plan, toggle a flag, delete or impersonate anyone.
 | `needt_admin_flags`    | Feature flags incl. `signups_open`: key, on/off, rollout %, description, override count, known, persisted                                                                                            |
 | `needt_admin_logs`     | `kind: app` (default) the log viewer, filter `level`, `source`, `search`, `from`/`to`; `kind: audit` the admin audit log; `kind: jobs` Operations (queues, cron, failed runs, services). Paged, ≤ 50 |
 | `needt_admin_reports`  | Bug reports, newest first, filter `status`; attachment names and sizes, never bytes. Paged, ≤ 50                                                                                                     |
+
+#### Announcement drafts
+
+`needt_announcement_draft_create` lets an admin's agent draft an in-app
+announcement. It needs `needt.admin.read` **and** `needt.write` (hidden from
+`tools/list` without both), passes the same per-call admin role check and
+admin limit as the reads, and counts as a write.
+
+- Arguments are the admin create form's: `slug` and `title` required; `kind`,
+  `badge`, `body`, `bullets`, `imageUrl`, `primaryCta`, `secondaryLabel`,
+  `priority`, `plans`, `platforms`, `minAppVersion`, `minActiveDays`, and
+  ISO dates `startsAt`, `endsAt`, `signedUpBefore`, `signedUpAfter`. Unknown
+  keys are refused, so `status` or `published` cannot be sent.
+- The result is always a `draft`. Each draft writes an `announcement.create`
+  row to the admin audit log with `via: "mcp"`.
+- No MCP tool publishes, unpublishes, edits or deletes an announcement.
+  Publishing is `POST /api/admin/announcements/:id/publish`, which takes only
+  a signed-in admin session; a `needt_…` or OAuth bearer token gets `401`.
 
 Grant it to claude.ai (owner steps):
 
@@ -714,7 +743,7 @@ curl -X POST … -d '{ "action": "undo", "token": "<undoToken>" }'
   and `undo` only the same tasks. Changes to other tasks in between do not
   matter; a change to one of these tasks or to the calendar, or another task
   now sitting in a target slot (a second preview kept first), answers `409
-  SCHEDULE_PREVIEW_STALE`. Tokens last 15 minutes. `apply` and `undo` send the
+SCHEDULE_PREVIEW_STALE`. Tokens last 15 minutes. `apply` and `undo` send the
   `schedule.changed` webhook.
 - `via` (optional, all three steps): `chat` (default), `home_missed` (the
   Home "tasks from earlier today" card) or `fill` (placed in one click). `chat`

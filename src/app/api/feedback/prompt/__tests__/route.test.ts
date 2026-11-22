@@ -19,6 +19,14 @@ jest.mock("@/lib/prisma", () => ({
       create: jest.fn(),
       updateMany: jest.fn(),
     },
+    // The shared popup history (src/services/popups): the prompt must win
+    // the same slot as announcements and plan moments.
+    announcementView: { findMany: jest.fn() },
+    popupMomentView: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
     $queryRaw: jest.fn(),
     $executeRaw: jest.fn(),
     $transaction: jest.fn(),
@@ -32,6 +40,12 @@ const db = prisma as unknown as {
     findFirst: jest.Mock;
     create: jest.Mock;
     updateMany: jest.Mock;
+  };
+  announcementView: { findMany: jest.Mock };
+  popupMomentView: {
+    findMany: jest.Mock;
+    findFirst: jest.Mock;
+    create: jest.Mock;
   };
   $queryRaw: jest.Mock;
   $executeRaw: jest.Mock;
@@ -64,6 +78,10 @@ beforeEach(() => {
   db.user.findUnique.mockResolvedValue(veteran);
   db.feedbackPrompt.findMany.mockResolvedValue([]);
   db.feedbackPrompt.create.mockResolvedValue({ id: "p1" });
+  db.announcementView.findMany.mockResolvedValue([]);
+  db.popupMomentView.findMany.mockResolvedValue([]);
+  db.popupMomentView.findFirst.mockResolvedValue(null);
+  db.popupMomentView.create.mockResolvedValue({ id: "m1" });
   db.$queryRaw.mockResolvedValue([{ days: 9 }]);
   db.$executeRaw.mockResolvedValue(1);
   db.$transaction.mockImplementation((run: (tx: unknown) => unknown) =>
@@ -160,8 +178,16 @@ describe("two tabs asking at once", () => {
     const bodies = [await a.json(), await b.json()];
     expect(db.feedbackPrompt.create).toHaveBeenCalledTimes(1);
     expect(bodies.filter((x) => x.prompt !== null)).toHaveLength(1);
-    // the lock statement runs first in each transaction
-    expect(db.$executeRaw).toHaveBeenCalledTimes(2);
+    // the feedback lock runs first in each transaction; the winner then also
+    // takes the shared popup-slot lock to write its show
+    const keys = db.$executeRaw.mock.calls.map(
+      (c) => (c[0] as { values: unknown[] }).values[0]
+    );
+    expect(keys).toEqual([
+      "feedback-prompt:u1",
+      "popup-slot:u1",
+      "feedback-prompt:u1",
+    ]);
     const lock = db.$executeRaw.mock.calls[0][0] as {
       sql: string;
       values: unknown[];
@@ -300,5 +326,45 @@ describe("POST /api/feedback/prompt/:id", () => {
     );
     expect((await post("p1", { action: "nonsense" })).status).toBe(400);
     expect(db.feedbackPrompt.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("the shared popup slot (H1)", () => {
+  it("writes the prompt's show to the shared popup history", async () => {
+    const res = await get();
+    expect((await res.json()).prompt).toMatchObject({ id: "p1" });
+    expect(db.popupMomentView.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: "u1",
+        source: "feedback",
+        key: "p1",
+      }),
+      select: { id: true },
+    });
+  });
+
+  it("offers nothing when another popup was shown in the last 3 days", async () => {
+    db.popupMomentView.findMany.mockResolvedValue([
+      {
+        source: "limit",
+        key: "limit:habits",
+        shownAt: new Date(Date.now() - DAY),
+      },
+    ]);
+    const res = await get();
+    expect((await res.json()).prompt).toBeNull();
+    expect(db.feedbackPrompt.create).not.toHaveBeenCalled();
+  });
+
+  it("creates no prompt row when it loses the slot inside the lock", async () => {
+    // Open on the cheap read, taken by the time the lock is held.
+    db.popupMomentView.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([
+        { source: "announcement", key: "a1", shownAt: new Date() },
+      ]);
+    const res = await get();
+    expect((await res.json()).prompt).toBeNull();
+    expect(db.popupMomentView.create).not.toHaveBeenCalled();
   });
 });
