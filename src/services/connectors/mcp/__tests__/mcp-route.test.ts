@@ -14,7 +14,11 @@ import {
 } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
 import { isHubTool } from "@/services/connectors/mcp/hub-tools";
-import { MCP_TOOLS, isQuitTool } from "@/services/connectors/mcp/tools";
+import {
+  MCP_TOOLS,
+  isDayPlanTool,
+  isQuitTool,
+} from "@/services/connectors/mcp/tools";
 import { WorkspaceKind, WorkspaceRole } from "@prisma/client";
 
 import { resolveWorkspaceAccess } from "@/lib/auth/workspace-auth";
@@ -169,7 +173,9 @@ describe("remote MCP endpoint", () => {
         (tool) =>
           !tool.name.startsWith("needt_admin_") &&
           !isHubTool(tool) &&
-          !isQuitTool(tool)
+          !isQuitTool(tool) &&
+          // The flag row is null here, so the day plan kill switch is off.
+          !isDayPlanTool(tool)
       ).map((tool) => tool.name)
     );
     expect(result.tools[0].name).toBe("needt_whoami");

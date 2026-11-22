@@ -238,15 +238,15 @@ describe("phone sign-in: the form", () => {
     expect(q(".mau-pair button")?.textContent).toContain(
       "Continue with Google"
     );
-    expect(host.textContent).toContain("or with email");
+    expect(host.querySelector(".mau-or")?.textContent).toBe("or");
   });
 
-  it("the Microsoft button says what Microsoft's guidelines say", () => {
+  it("the Microsoft button says Continue with Microsoft", () => {
     mountAuth({
       providers: [{ id: "azure-ad", label: "Microsoft", icon: () => null }],
     });
     expect(q(".mau-pair button")?.textContent).toContain(
-      "Sign in with Microsoft"
+      "Continue with Microsoft"
     );
   });
 

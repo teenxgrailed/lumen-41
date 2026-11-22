@@ -16,8 +16,10 @@ jest.mock("@/services/agent-hub/agents", () => ({
   listAgentsForOwner: jest.fn(async () => []),
 }));
 const listItems = jest.fn(async (): Promise<unknown[]> => []);
+const countOlderItems = jest.fn(async () => 0);
 jest.mock("@/services/agent-hub/items", () => ({
   listItems: () => listItems(),
+  countOlderItems: () => countOlderItems(),
 }));
 const mediaStubs = jest.fn(
   async (_scope: unknown, ids: string[]) =>
@@ -94,5 +96,20 @@ describe("GET /api/agent-hub/overview", () => {
       expect.objectContaining({ error: "db down" }),
       "agent-hub-overview"
     );
+  });
+
+  it("says how many items the default window leaves out", async () => {
+    countOlderItems.mockResolvedValueOnce(4);
+    const body = await ((await get()) as NextResponse).json();
+    expect(body.olderCount).toBe(4);
+    expect(countOlderItems).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not count older items when they are already included", async () => {
+    const body = await (
+      (await get("?includeArchived=true")) as NextResponse
+    ).json();
+    expect(body.olderCount).toBe(0);
+    expect(countOlderItems).not.toHaveBeenCalled();
   });
 });

@@ -13,7 +13,12 @@ import { type Root, createRoot } from "react-dom/client";
 import { fetchJson } from "@/lib/needt3/hooks/core";
 
 import { AgentsScreen } from "../AgentsScreen";
-import { CONNECTOR_URL, connectorSteps, guideSnippets } from "../connect-guide";
+import {
+  CONNECTOR_URL,
+  PROTOCOL_PROMPT,
+  connectorSteps,
+  guideSnippets,
+} from "../connect-guide";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -23,6 +28,8 @@ jest.mock("next/navigation", () => ({
   // The guide lives on the Agents tab; the screen opens on the Map otherwise.
   useSearchParams: () => new URLSearchParams("tab=agents"),
 }));
+// The picker pulls in lucide-react (ESM), which jest does not transform.
+jest.mock("@/components/ui/needt-picker", () => ({ NeedtPicker: () => null }));
 jest.mock("@/lib/notifications", () => ({
   notify: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
@@ -132,5 +139,14 @@ describe("Connect an agent guide", () => {
     expect(code.text).toContain("https://use.needt.app/api/mcp");
     expect(json.text).toContain('"url": "https://use.needt.app/api/mcp"');
     expect(rest.text).toContain("https://use.needt.app/api/connect/");
+  });
+});
+
+describe("PROTOCOL_PROMPT", () => {
+  it("is self-sufficient for outside users", () => {
+    expect(PROTOCOL_PROMPT).not.toMatch(/docs\/agents|hub-protocol/);
+    expect(PROTOCOL_PROMPT).not.toContain("Settings > Connections");
+    expect(PROTOCOL_PROMPT).toContain("use.needt.app/connections");
+    expect(PROTOCOL_PROMPT).not.toMatch(/ask the owner/i);
   });
 });

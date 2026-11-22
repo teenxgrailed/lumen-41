@@ -7,10 +7,12 @@ import {
   type SignInProviderConfig,
   buildSignInProviders,
   crossSiteCallbackCookies,
+  isProviderConfigured,
   normalizeApplePrivateKey,
   readSignInProviderConfig,
   resetSignInProviderConfigCache,
   signAppleClientSecret,
+  signInProviderConfigFrom,
 } from "@/lib/auth/sign-in-providers";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -372,5 +374,74 @@ describe("crossSiteCallbackCookies", () => {
     expect(cookies).not.toHaveProperty("callbackUrl");
     expect(cookies).not.toHaveProperty("sessionToken");
     expect(cookies).not.toHaveProperty("csrfToken");
+  });
+});
+
+describe("Microsoft sign-in is on only when its variables are set", () => {
+  const saved = { ...process.env };
+  afterEach(() => {
+    process.env = { ...saved };
+  });
+
+  const fromEnv = () => {
+    delete process.env.AZURE_AD_CLIENT_ID;
+    delete process.env.AZURE_AD_CLIENT_SECRET;
+    delete process.env.AZURE_AD_TENANT_ID;
+    return signInProviderConfigFrom;
+  };
+
+  it("is off with no variables, and the provider is not built", () => {
+    const config = fromEnv()({});
+    expect(isProviderConfigured("azure-ad", config)).toBe(false);
+    expect(
+      buildSignInProviders(config).map((p) => (p as { id: string }).id)
+    ).not.toContain("azure-ad");
+  });
+
+  it("is off with an id but no secret, or a secret but no id", () => {
+    fromEnv();
+    process.env.AZURE_AD_CLIENT_ID = "client-id";
+    expect(isProviderConfigured("azure-ad", signInProviderConfigFrom({}))).toBe(
+      false
+    );
+    delete process.env.AZURE_AD_CLIENT_ID;
+    process.env.AZURE_AD_CLIENT_SECRET = "client-secret";
+    expect(isProviderConfigured("azure-ad", signInProviderConfigFrom({}))).toBe(
+      false
+    );
+  });
+
+  it("treats blank variables as unset", () => {
+    fromEnv();
+    process.env.AZURE_AD_CLIENT_ID = "   ";
+    process.env.AZURE_AD_CLIENT_SECRET = "   ";
+    expect(isProviderConfigured("azure-ad", signInProviderConfigFrom({}))).toBe(
+      false
+    );
+  });
+
+  it("is on with both, in the multi-tenant tenant `common` by default", () => {
+    fromEnv();
+    process.env.AZURE_AD_CLIENT_ID = "client-id";
+    process.env.AZURE_AD_CLIENT_SECRET = "client-secret";
+    const config = signInProviderConfigFrom({});
+    expect(config["azure-ad"]).toEqual({
+      clientId: "client-id",
+      clientSecret: "client-secret",
+      tenantId: "common",
+    });
+    expect(isProviderConfigured("azure-ad", config)).toBe(true);
+    expect(
+      buildSignInProviders(config).map((p) => (p as { id: string }).id)
+    ).toEqual(["azure-ad"]);
+  });
+
+  it("a System Settings value wins over the variable", () => {
+    fromEnv();
+    process.env.AZURE_AD_CLIENT_ID = "env-id";
+    process.env.AZURE_AD_CLIENT_SECRET = "env-secret";
+    const config = signInProviderConfigFrom({ outlookClientId: "db-id" });
+    expect(config["azure-ad"].clientId).toBe("db-id");
+    expect(config["azure-ad"].clientSecret).toBe("env-secret");
   });
 });

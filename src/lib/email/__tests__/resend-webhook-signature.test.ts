@@ -20,6 +20,19 @@ const base = {
   nowSeconds: TIMESTAMP,
 };
 
+describe("signing secret as pasted into an env file", () => {
+  const signature = EXPECTED;
+  it.each([
+    ["double-quoted", `"${SECRET}"`],
+    ["single-quoted", `'${SECRET}'`],
+    ["with a trailing newline", `${SECRET}\n`],
+    ["with an escaped newline", `${SECRET}\\n`],
+    ["upper-case prefix", SECRET.replace("whsec_", "WHSEC_")],
+  ])("accepts a secret %s", (_name, secret) => {
+    expect(verifySvixSignature({ ...base, secret, signature })).toBe(true);
+  });
+});
+
 describe("verifySvixSignature", () => {
   it("accepts the Svix published test vector", () => {
     expect(verifySvixSignature({ ...base, signature: EXPECTED })).toBe(true);

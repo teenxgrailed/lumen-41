@@ -84,7 +84,7 @@ html[data-ground="page"]:has(
    * above the display edge (additions-2/phone-shell .ps-dock); 10 px of that
    * is the menu's own margin, the rest is the lift. With Safari's tab bar at
    * the bottom of a tab it lifts 54 px more (below). */
-  --v3-dock-lift: 20px;
+  --v3-dock-lift: max(20px, calc(var(--v3-sab) - 6px));
   /* How far a full-screen fixed layer stands in from the top and bottom edge. */
   --v3-edge: 8px;
   /* Height of the fog under the dock, from the display edge: 128 px, or the
@@ -133,7 +133,16 @@ html[data-ground="page"]:has(
 .needt-v3[data-ui="phone"] .pk-tail {
   /* The last row ends 16 px above the fog (and above the dock's lift), so it
    * is never half under the dotted fade, with or without Safari's tab bar. */
-  height: max(calc(112px + var(--v3-dock-lift)), calc(var(--ps-fog-h) + 16px));
+  height: var(--v3-tail-h);
+}
+/* One number for "how far the last row stands off the bottom": the tail uses
+ * it, and so does the calendar's sticky Auto-fit pill (it must never sit lower
+ * than the tail, nor on the snack, which stands 92 px up). */
+.needt-v3[data-ui="phone"] {
+  --v3-tail-h: max(
+    calc(112px + var(--v3-dock-lift)),
+    calc(var(--ps-fog-h) + 16px)
+  );
 }
 /* In a Safari tab the status bar is Safari's own and lies outside the page
  * (the inset is 0): the header starts at the top of the viewport, right under

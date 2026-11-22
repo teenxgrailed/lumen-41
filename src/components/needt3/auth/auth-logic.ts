@@ -80,6 +80,17 @@ export function refusalText(
   return null;
 }
 
+/**
+ * Under a refused email + password. The refusal is the same for a wrong
+ * password, an unknown address and an account that never had a password (made
+ * with Google or a mailed code), because the server must not say which; so
+ * the way out is offered to everyone who sees it.
+ */
+export const WRONG_PAIR_HELP = {
+  lead: "Signed up with Google or a code?",
+  action: "Send me a code",
+} as const;
+
 /** The recovery link's resend countdown, "0:07". */
 export function resendClock(seconds: number): string {
   return "0:" + String(Math.max(0, seconds)).padStart(2, "0");
@@ -129,7 +140,8 @@ export function formReady(f: { mail: string; pass: string }): boolean {
  * The text on a sign-in provider's button, as each provider's own button
  * guidelines word it. One place so the desktop and the phone say the same.
  * Google: "Continue with Google"; Apple (HIG): "Sign in with Apple";
- * Microsoft: "Sign in with Microsoft"; OpenAI: "Sign in with ChatGPT";
+ * Microsoft: "Continue with Microsoft" (owner wording, 2026-11-22); OpenAI:
+ * "Sign in with ChatGPT";
  * LinkedIn: "Sign in with LinkedIn"; X: "Sign in with X".
  */
 const SIGN_IN_VERB: Readonly<Record<string, "Sign in with" | "Continue with">> =
@@ -137,7 +149,7 @@ const SIGN_IN_VERB: Readonly<Record<string, "Sign in with" | "Continue with">> =
     google: "Continue with",
     apple: "Sign in with",
     github: "Continue with",
-    "azure-ad": "Sign in with",
+    "azure-ad": "Continue with",
     openai: "Sign in with",
     discord: "Continue with",
     twitter: "Sign in with",

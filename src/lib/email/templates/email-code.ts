@@ -1,26 +1,41 @@
 import { APP_NAME } from "@/lib/app-config";
 
-import { renderEmail } from "./layout";
+import { type RenderedEmail, footerAddress, renderEmail } from "./layout";
 
 /**
- * The mailed sign-in code. The code is the subject and the heading, so a
- * phone's lock screen and the keyboard's one-time-code suggestion both show
- * it. No button: nothing here is a link to click.
+ * The mailed sign-in code. It wears the shared layout (logo, card, footer,
+ * dark mode) and fills its `code` slot: the code very large and monospace in
+ * a grey box, then the expiry line and one line of "not you?". The code is
+ * also the subject and the hidden preheader, so a phone's lock screen and the
+ * keyboard's one-time-code suggestion both show it.
  */
 export function getEmailCodeTemplate(input: {
   code: string;
   minutes?: number;
-}) {
+}): RenderedEmail {
   const minutes = input.minutes ?? 10;
+  const subject = `${input.code} is your ${APP_NAME} code`;
+  const expiry = `Expires in ${minutes} minutes.`;
+  const ignore = "If you didn't ask for this, ignore this email.";
+
   return renderEmail({
-    subject: `${input.code} is your ${APP_NAME} code`,
-    preheader: `Your ${APP_NAME} sign-in code. It works once and expires in ${minutes} minutes.`,
-    heading: input.code,
-    paragraphs: [
-      `Enter this code to sign in to ${APP_NAME}.`,
-      `It works once and expires in ${minutes} minutes.`,
-    ],
-    note: `If you did not ask for this code, you can ignore this email. Nobody can sign in without it, and ${APP_NAME} never asks you for it anywhere else.`,
+    subject,
+    preheader: subject,
+    heading: "Your sign-in code",
+    paragraphs: [],
+    code: input.code,
+    note: `${expiry} ${ignore}`,
     kind: "security",
+    // No "you get this because" line: the code mail only carries the name.
+    footerNote: "",
+    text: [
+      subject,
+      "",
+      expiry,
+      ignore,
+      "",
+      "--",
+      `${APP_NAME} - ${footerAddress()}`,
+    ].join("\n"),
   });
 }

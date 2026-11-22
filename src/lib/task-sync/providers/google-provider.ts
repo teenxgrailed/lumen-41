@@ -140,6 +140,10 @@ export class GoogleTaskProvider implements TaskProviderInterface {
     }, "getTasks");
   }
 
+  // todo: createTask, updateTask and deleteTask call write endpoints that need
+  // the full `https://www.googleapis.com/auth/tasks` scope, not tasks.readonly.
+  // They are unreachable while supportsWriteBack() is false; request the full
+  // scope again if write-back is ever built.
   async createTask(listId: string, task: TaskToCreate): Promise<ExternalTask> {
     return this.apiCall(async () => {
       const body: tasks_v1.Schema$Task = {

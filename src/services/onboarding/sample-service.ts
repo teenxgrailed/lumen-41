@@ -72,7 +72,7 @@ export function shiftDay(today: string, offset: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function validZone(zone: string | null | undefined): string {
+export function validZone(zone: string | null | undefined): string {
   if (!zone) return "UTC";
   try {
     formatInTimeZone(newDate(), zone, "yyyy-MM-dd");
@@ -127,11 +127,21 @@ export async function seedSampleData(
     uses?: readonly unknown[];
     timeZone?: string | null;
     now?: Date;
+    /** Leave out tasks that start out overdue (the first-replan demo day). */
+    skipOverdue?: boolean;
   },
   db: Db = prisma
 ): Promise<SeedResult> {
   const use = primaryUse(input.uses);
-  const day = SAMPLE_DAYS[use];
+  const full = SAMPLE_DAYS[use];
+  // The first-replan demo day is a calm one: no overdue example, so no red
+  // "1 overdue" next to the card. Every other sample day keeps it.
+  const day = input.skipOverdue
+    ? {
+        ...full,
+        tasks: full.tasks.filter((t) => t.due === undefined || t.due >= 0),
+      }
+    : full;
   const now = input.now ?? newDate();
 
   return db.$transaction(async (tx) => {

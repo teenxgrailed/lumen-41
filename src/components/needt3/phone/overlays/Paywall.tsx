@@ -10,21 +10,15 @@ import {
 } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  LuCheck,
-  LuCircleAlert,
-  LuCloudOff,
-  LuLock,
-  LuX,
-} from "react-icons/lu";
+import { LuCircleAlert, LuCloudOff } from "react-icons/lu";
 
 import { startTrial } from "@/lib/needt3/hooks/account";
 import { ApiError, sendJson } from "@/lib/needt3/hooks/core";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import {
-  freeIncludes,
+  keepProCopy,
+  keepProItems,
   paywallNeedsWaiver,
-  proIncludes,
 } from "@/lib/needt3/paywall";
 import { priceStrings } from "@/lib/needt3/pricing";
 import { qk } from "@/lib/needt3/query-keys";
@@ -32,31 +26,21 @@ import { showsStudentPrices } from "@/lib/needt3/student-prices";
 import { notify } from "@/lib/notifications";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 
+import { KeepProCard } from "../../paywall/KeepProCard";
 import { WithdrawalWaiver } from "../../paywall/WithdrawalWaiver";
-import { PxSky } from "../../scenes";
-import { PkButton, PkGlass, PkSheet, pkCx } from "../kit";
+import { PkButton, PkSheet } from "../kit";
 import { PkStoreProSheet } from "./StoreProSheet";
 import {
   type PwPick,
   checkoutBody,
-  freeSummary,
   pickOf,
   pwDisabled,
   pwView,
 } from "./paywallModel";
-import {
-  pkPaywall,
-  pwFeature,
-  pwFeatures,
-  pwFree,
-  pwPlans,
-  pwScene,
-  pwStatus,
-} from "./strings";
+import { pkPaywall, pwScene, pwStatus } from "./strings";
 
-/* Both lists come from PLAN_LIMITS, the numbers the server enforces. */
-const FREE = freeIncludes();
-const PRO = proIncludes();
+/* The list comes from PLAN_LIMITS, the numbers the server enforces. */
+const ITEMS = keepProItems();
 
 /* The sheet is the prototype's `Paywall phone` as a full PkSheet (phone-
    overlays.jsx `PkPaywall`). The painted sky is PxSky (variant b), mounted
@@ -267,7 +251,6 @@ function PkPurchasePaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
     void checkout.start(pick);
   };
 
-  const proOn = pick !== "lifetime";
   const status = (
     <Status
       offline={offline}
@@ -276,27 +259,7 @@ function PkPurchasePaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
       retrying={checkout.busy}
     />
   );
-
-  const seg = (
-    id: "monthly" | "annual",
-    label: string,
-    extra?: React.ReactNode
-  ) => (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={cyc === id}
-      data-pw-cycle={id}
-      className={pkCx("pw-seg-b", cyc === id && "is-on")}
-      onClick={(e) => {
-        e.stopPropagation();
-        setPicked(id);
-      }}
-    >
-      {label}
-      {extra}
-    </button>
-  );
+  const copy = keepProCopy(plan, feature ?? null);
 
   return (
     <PkSheet
@@ -315,188 +278,46 @@ function PkPurchasePaywall({ open, onClose, feature, cycle }: PkPaywallProps) {
         data-pov-paywall=""
       >
         <div
-          className="pw-phone"
-          data-px-scope=""
+          className="pw-phone kp-sky kp-phone"
           data-pw-open={open ? "1" : "0"}
         >
-          {open || sky ? (
-            <div className="pw-sky">
-              <PxSky variant="b" intensity={1} />
-            </div>
-          ) : null}
-          <div className="pw-top">
-            <div className="pw-scene-abs">
-              <PkGlass
-                as="button"
-                round
-                className="pw-x"
-                aria-label={pwScene.close}
-                data-pw-close=""
-                onClick={onClose}
-              >
-                <LuX size={15} />
-              </PkGlass>
-              <div className="pw-scene-abs-6" data-px-calm="">
-                {feature ? (
-                  <span className="pw-feature" data-pw-feature={feature}>
-                    <LuLock size={12} />
-                    <span>
-                      {pwFeature.unlock} <b>{feature}</b> {pwFeature.with_pro}
-                    </span>
-                  </span>
-                ) : null}
-                <span className="pw-brand">
-                  <span className="pw-kicker">{pwScene.needt_pro}</span>
-                </span>
-                <h2 className="pw-h pw-scene-text">
-                  {pwScene.get} <em>more</em>
-                  <br />
-                  {pwScene.out_of_needt}
-                </h2>
-              </div>
-            </div>
-          </div>
-          <div className="pw-body">
-            <div className="pw-freeline" data-pw-free="">
-              <span className="pw-freeline-tag">{view.freeTag}</span>
-              <span>
-                <b>{pwFree.free}</b> — {freeSummary(FREE)}
-                {pwFree.yours_to_keep}
-              </span>
-            </div>
-            <div className="pw-plans" role="group" aria-label={pwPlans.plans}>
-              <PkGlass
-                className={pkCx("pw-plan", "pw-plan-pro", proOn && "is-picked")}
-                data-pw-plan={cyc}
-                onClick={() => setPicked(cyc)}
-              >
-                <span className="pw-name">
-                  <span
-                    className={pkCx("pw-radio", proOn && "is-on")}
-                    aria-hidden="true"
+          <div className="pw-body kp-phone-body">
+            <KeepProCard
+              title={copy.title}
+              line={copy.line}
+              feature={feature ?? null}
+              pick={pick}
+              onPick={setPicked}
+              cycle={cyc}
+              prices={p}
+              lifetimeLeft={plan?.lifetimeLeft}
+              lifetimeOpen={plan ? plan.lifetimeAvailable !== false : true}
+              items={ITEMS}
+              status={status}
+              waiver={
+                needsWaiver ? (
+                  <WithdrawalWaiver
+                    checked={waiver}
+                    onChange={setWaiver}
+                    product={pick === "lifetime" ? "Lifetime" : "Pro"}
+                    className="auth-age kp-waiver"
                   />
-                  {pwPlans.pro}
-                  <span
-                    className="pw-seg"
-                    role="radiogroup"
-                    aria-label={pwPlans.billing}
-                  >
-                    {seg("monthly", pwPlans.monthly)}
-                    {seg(
-                      "annual",
-                      pwPlans.yearly,
-                      <span className="pw-seg-save" data-pw-save="">
-                        −{p.savePct}%
-                      </span>
-                    )}
-                  </span>
-                </span>
-                <span className="pw-price">
-                  <span className="pw-amount" data-pw-price={cyc}>
-                    {cyc === "monthly" ? p.monthly : p.yearlyPerMonth}
-                  </span>
-                  <span className="pw-per">/ month</span>
-                </span>
-                <span className="pw-sub">
-                  {cyc === "monthly" ? (
-                    pwPlans.billed_monthly_cancel_any_time
-                  ) : (
-                    <>
-                      {pwPlans.billed} {p.yearly} {pwPlans.yearly_2}{" "}
-                      <b className="pw-save">save {p.saveAmount}</b>
-                    </>
-                  )}
-                </span>
-              </PkGlass>
-              <PkGlass
-                as="button"
-                className={pkCx("pw-plan", pick === "lifetime" && "is-picked")}
-                data-pw-plan="lifetime"
-                aria-pressed={pick === "lifetime"}
-                onClick={() => setPicked("lifetime")}
-              >
-                <span className="pw-name">
-                  <span
-                    className={pkCx("pw-radio", pick === "lifetime" && "is-on")}
-                    aria-hidden="true"
-                  />
-                  {pwPlans.lifetime}
-                  <span className="pw-limited">{pwPlans.limited}</span>
-                </span>
-                <span className="pw-price">
-                  <span className="pw-amount" data-pw-price="lifetime">
-                    {p.lifetime}
-                  </span>
-                  <span className="pw-per">one-time</span>
-                </span>
-                <span className="pw-sub">
-                  {pwPlans.for_the_first} {p.lifetimeCap} people
-                </span>
-                <span className="pw-meter" data-pw-left="">
-                  {view.lifetimePct !== null ? (
-                    <span className="pw-meter-bar">
-                      <span style={{ width: view.lifetimePct + "%" }} />
-                    </span>
-                  ) : null}
-                  <span className="pw-meter-t">{view.lifetimeLine}</span>
-                </span>
-              </PkGlass>
-            </div>
-            <div className="pw-paywall-text">
-              <PkGlass className="pw-feats-card">
-                <span className="pw-kick">
-                  {pwFeatures.every_pro_plan_includes}
-                </span>
-                <ul className="pw-list pw-feats">
-                  {PRO.map(([t, n]) => (
-                    <li key={t}>
-                      <span className="pw-ck">
-                        <LuCheck size={11} />
-                      </span>
-                      <span>
-                        {t}
-                        {n ? <span className="pw-note"> — {n}</span> : null}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </PkGlass>
-            </div>
-            <div className="pw-foot" data-pw-foot="">
-              {p.footnote}
-            </div>
-          </div>
-          <div className="pw-bar">
-            {status}
-            {needsWaiver ? (
-              <WithdrawalWaiver
-                checked={waiver}
-                onChange={setWaiver}
-                product={pick === "lifetime" ? "Lifetime" : "Pro"}
-                className="auth-age pw-waiver"
-              />
-            ) : null}
-            <PkButton
-              kind="primary"
-              block
-              data-pw-cta={pick}
-              disabled={off}
-              onClick={go}
-            >
-              {checkout.busy
-                ? cta.action === "trial"
-                  ? "Starting your trial…"
-                  : "Opening checkout…"
-                : cta.label}
-            </PkButton>
-            <span className="pw-go-sub" data-pw-cta-sub="">
-              {cta.blocked ?? cta.sub}
-            </span>
-            {cta.terms && cta.blocked === null ? (
-              <span className="pw-go-sub" data-pw-terms="">
-                {cta.terms}
-              </span>
-            ) : null}
+                ) : null
+              }
+              cta={{
+                label: checkout.busy
+                  ? cta.action === "trial"
+                    ? "Starting your trial…"
+                    : "Opening checkout…"
+                  : cta.label,
+                disabled: off,
+                onClick: go,
+                sub: cta.blocked ?? cta.sub,
+                terms: cta.terms && cta.blocked === null ? cta.terms : null,
+              }}
+              onClose={onClose}
+              closeLabel={pwScene.close}
+            />
           </div>
         </div>
       </div>

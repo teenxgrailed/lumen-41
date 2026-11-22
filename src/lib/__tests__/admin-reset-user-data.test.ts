@@ -32,6 +32,7 @@ const KEPT = [
   "EmailPreference",
   "EmailSend",
   "ProGift",
+  "ActivationEvent",
 ];
 
 function delegateName(model: string) {

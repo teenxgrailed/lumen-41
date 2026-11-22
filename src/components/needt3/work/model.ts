@@ -12,6 +12,7 @@ import {
   weekday,
 } from "@/lib/needt3/derive";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import {
   hourOn,
   isOnToday,
@@ -24,6 +25,7 @@ import {
   comparatorFor,
   groupTasks,
   overdueOnTop,
+  overdueOrder,
   showsTask,
 } from "@/lib/needt3/task-view";
 
@@ -54,6 +56,28 @@ type WorkTask = Pick<
 
 /** Open and due before today (`@/lib/needt3/task-day`, the one rule). */
 export const isOverdue = (t: WorkTask, today: string) => overdue(t, today);
+
+/**
+ * A row drops its due date on the Tasks "Today" tab when it is due today: the
+ * tab already says so, and "15 Nov" on every line is noise (Home's `hideDue`).
+ * Overdue rows keep theirs: the date is the news there.
+ */
+export const hidesDue = (
+  tab: WorkTab,
+  projectsOnly: boolean,
+  t: Pick<V3Task, "dueDate">,
+  today: string
+) => !projectsOnly && tab === "today" && t.dueDate === today;
+
+/** The notice after "Move to today": all moved, or how many of them. */
+export const movedLabel = (moved: number, total: number) =>
+  moved === total
+    ? `${total} ${total === 1 ? "task" : "tasks"} moved to today`
+    : `Moved ${moved} of ${total} to today`;
+
+/** The Overdue section carries "Move to today" (desktop Tasks, not Projects). */
+export const hasMoveToToday = (sectionKey: string, projectsOnly: boolean) =>
+  sectionKey === "overdue" && !projectsOnly;
 
 /** Today's order: timed ones by the hour of their block today, untimed last. */
 export const byTimeOn =
@@ -214,11 +238,13 @@ export function workModel(opts: {
     );
   }
   const order = (key: string) =>
-    view.sort === "time"
-      ? key === "today"
-        ? byTimeOn(today)
-        : byTime
-      : comparatorFor(view.sort);
+    key === "overdue"
+      ? overdueOrder(view.sort)
+      : view.sort === "time"
+        ? key === "today"
+          ? byTimeOn(today)
+          : byTime
+        : comparatorFor(view.sort);
   sections = sections
     .map((s) => ({
       ...s,
@@ -309,6 +335,46 @@ export function cardTasks(projectId: string, tasks: readonly V3Task[], n = 4) {
     tasks.filter((t) => t.projectId === projectId && !t.done),
     byTime
   ).slice(0, n);
+}
+
+/**
+ * A project's open tasks as a folder counts them: not done, not "no slot",
+ * not in Trash. The count and the sheets both come from this list.
+ */
+export const folderOpen = (projectId: string, tasks: readonly V3Task[]) =>
+  tasks.filter(
+    (t) => t.projectId === projectId && !t.done && !t.noSlot && !t.trashedAt
+  );
+
+/**
+ * The next open tasks a project folder shows, soonest first: by the day each
+ * is drawn on (`taskDay`, overdue ones lead, no day last), then by the hour
+ * it sits at, then by title so the order never flickers.
+ */
+export function nextTasks(
+  projectId: string,
+  tasks: readonly V3Task[],
+  today: string,
+  n = 3
+) {
+  return folderOpen(projectId, tasks)
+    .map((t) => ({ t, day: taskDay(t, today) ?? "9999-12-31" }))
+    .sort(
+      (a, b) =>
+        (a.day < b.day ? -1 : a.day > b.day ? 1 : 0) ||
+        (hourOn(a.t, a.day) ?? 99) - (hourOn(b.t, b.day) ?? 99) ||
+        a.t.title.localeCompare(b.t.title)
+    )
+    .slice(0, n)
+    .map(({ t }) => t);
+}
+
+/** "Today" / "Overdue" / "4 Sep" / undefined: the line under a sheet's title. */
+export function peekMeta(t: V3Task, today: string) {
+  const day = taskDay(t, today);
+  if (!day) return undefined;
+  if (day === today) return "Today";
+  return day < today ? "Overdue" : (dayLabel(day) ?? undefined);
 }
 
 type ProjectGroupKey = "Overdue" | "Today" | "Upcoming" | "No date";
@@ -417,8 +483,9 @@ export const PROJECT_SWATCHES: readonly [string, string][] = [
 ];
 
 /** A project's colour, or the neutral mark when it has none. */
-export const projectHue = (p: Pick<V3Project, "color"> | null | undefined) =>
-  p?.color || "var(--text-tertiary)";
+export const projectHue = (
+  p: Pick<V3Project, "id" | "color"> | null | undefined
+) => (p ? projectColor(p.id, p.color) : "var(--text-tertiary)");
 
 /** True when `name` is taken by another project (case-insensitive). */
 export function nameTaken(

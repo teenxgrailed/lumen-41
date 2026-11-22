@@ -79,7 +79,7 @@ export function PtkTile({
   p,
   big,
 }: {
-  p: Pick<V3Project, "color">;
+  p: Pick<V3Project, "id" | "color">;
   big?: boolean;
 }) {
   return (

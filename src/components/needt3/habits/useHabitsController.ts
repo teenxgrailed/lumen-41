@@ -113,6 +113,14 @@ export function useHabitsController(opts: HabitsControllerOptions) {
     toggleDay.mutate({ id: h.id, date, done });
   };
 
+  /**
+   * Mark or unmark one day, pinned to that date (not "today at the moment the
+   * request runs"). Resolves once the server has it, with `undo` to take it
+   * back; rejects (after the hook reverted and told the person) on failure.
+   */
+  const setDay = (h: V3Habit, date: string, done: boolean) =>
+    toggleDay.mutateAsync({ id: h.id, date, done });
+
   /** A new habit past the Free allowance goes to the paywall, not the sheet. */
   const blocked = () => {
     if (!quota.atLimit) return false;
@@ -227,6 +235,7 @@ export function useHabitsController(opts: HabitsControllerOptions) {
     saving,
     tick,
     tickDay,
+    setDay,
     openNew,
     openEdit,
     closeForm,

@@ -2,6 +2,8 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
+import { onPageActive } from "@/lib/needt3/page-activity";
+
 /**
  * The Chat's voice wave (owner's final reference, 05.11.26): 19 rounded
  * capsules with blurred ghosts behind, breathing at 5.2 s. Four modes:
@@ -244,12 +246,13 @@ export const ChatWave = forwardRef<
         ctx.fill();
       }
     };
+    // Hidden or left alone: the loop stops (the last frame stays on the
+    // canvas) and the next input, or the tab coming back, starts it again.
+    let awake = true;
     const frame = (now: number) => {
+      raf = 0;
+      if (!awake || document.hidden) return;
       raf = requestAnimationFrame(frame);
-      if (document.hidden) {
-        last = now;
-        return;
-      }
       if (now - drawn < FRAME - 2) return;
       drawn = now;
       const dt = Math.min(0.05, (now - last) / 1000 || 0.016);
@@ -279,7 +282,15 @@ export const ChatWave = forwardRef<
       });
       ro.observe(el.parentElement);
     }
+    const offActivity = onPageActive((active) => {
+      awake = active;
+      if (active && !still && !raf) {
+        last = performance.now();
+        raf = requestAnimationFrame(frame);
+      }
+    });
     return () => {
+      offActivity();
       if (raf) cancelAnimationFrame(raf);
       ro?.disconnect();
     };

@@ -1,0 +1,1 @@
+- Agents: the Agents, Tasks, Activity and Memory tabs lose the big hero ("Your team", the serif title, the counts pill) and take the window like the Map and Chat. "Connect an agent" and "New task" sit in the filter bar, and on the phone the Tasks filters are one scrolling row with no box.

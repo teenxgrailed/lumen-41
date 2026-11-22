@@ -1,0 +1,60 @@
+/* Idle pause (15.11.26, "my Mac lags with the tab left open").
+ *
+ * src/lib/needt3/page-activity.ts sets `data-needt-idle` on <html> while the
+ * tab is hidden or nobody has touched the page for REST_MS, and removes it on
+ * the next input. While it is set every CSS animation is PAUSED, not removed:
+ * the same keyframes resume from the same frame, so the designed motion is
+ * unchanged for anyone looking. A paused animation produces no frames, so the
+ * GPU and the compositor go quiet (PORT.md: pause, never delete motion).
+ *
+ * What stays alive: anything that says a wait is in progress (spinners, the
+ * shimmer of a skeleton, a progress bar, a streaming caret or thinking dots),
+ * because a frozen spinner reads as a hang.
+ */
+html[data-needt-idle]
+  *:not(
+    :where(
+      [class*="spin"],
+      [class*="shimmer"],
+      [class*="skel"],
+      [class*="caret"],
+      [class*="dots"],
+      [class*="think"],
+      [class*="progress"],
+      [role="progressbar"],
+      [aria-busy="true"],
+      [aria-busy="true"] *
+    )
+  ),
+html[data-needt-idle]
+  *:not(
+    :where(
+      [class*="spin"],
+      [class*="shimmer"],
+      [class*="skel"],
+      [class*="caret"],
+      [class*="dots"],
+      [class*="think"],
+      [class*="progress"],
+      [role="progressbar"],
+      [aria-busy="true"],
+      [aria-busy="true"] *
+    )
+  )::before,
+html[data-needt-idle]
+  *:not(
+    :where(
+      [class*="spin"],
+      [class*="shimmer"],
+      [class*="skel"],
+      [class*="caret"],
+      [class*="dots"],
+      [class*="think"],
+      [class*="progress"],
+      [role="progressbar"],
+      [aria-busy="true"],
+      [aria-busy="true"] *
+    )
+  )::after {
+  animation-play-state: paused !important;
+}

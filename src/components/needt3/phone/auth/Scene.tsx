@@ -10,6 +10,7 @@ import * as React from "react";
 
 import type { IconType } from "react-icons";
 
+import { AuthSky } from "../../auth/AuthSky";
 import { PwDateCard, PxSky } from "../../scenes";
 import { NeedtLockup } from "../../wordmark";
 import { PkGlyph, PkHueTile, pkCx } from "../kit";
@@ -165,28 +166,38 @@ export function MaNote({
 export function MaScene({
   variant,
   parked,
+  staticSky,
   children,
 }: React.PropsWithChildren<{
   variant: "a" | "b" | "c" | "d";
   /** No sky frames while something is being dragged. */
   parked?: boolean;
+  /** The CSS-only sky (sign-in): no canvas, no frame loop. */
+  staticSky?: boolean;
 }>) {
+  const stage = (
+    <div className="mau-stage">
+      {children}
+      <div className="mau-band" aria-hidden="true">
+        <span className="mau-band-blur is-1" />
+        <span className="mau-band-blur is-2" />
+        <span className="mau-band-blur is-3" />
+      </div>
+    </div>
+  );
   return (
     <div
       className="mau-scene"
       data-mau-scene={variant}
       style={{ position: "fixed", inset: 0, zIndex: 950 }}
     >
-      <PxSky variant={variant} fps={15} parked={parked}>
-        <div className="mau-stage">
-          {children}
-          <div className="mau-band" aria-hidden="true">
-            <span className="mau-band-blur is-1" />
-            <span className="mau-band-blur is-2" />
-            <span className="mau-band-blur is-3" />
-          </div>
-        </div>
-      </PxSky>
+      {staticSky ? (
+        <AuthSky variant={variant}>{stage}</AuthSky>
+      ) : (
+        <PxSky variant={variant} fps={15} parked={parked}>
+          {stage}
+        </PxSky>
+      )}
     </div>
   );
 }

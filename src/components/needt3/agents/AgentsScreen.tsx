@@ -24,9 +24,10 @@ import { fetchJson, sendJson } from "@/lib/needt3/hooks/core";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 
-import { StScreen } from "../states/StScreen";
+import { screenState } from "../states/status";
 import { ActivityTab } from "./ActivityTab";
 import { AgentHueProvider, agentHueMap } from "./AgParts";
+import { AgError, AgLoad, AgSkeleton } from "./AgStates";
 import { AgentsMap } from "./AgentsMap";
 import { AgentsSetup, onboardingSeen } from "./AgentsSetup";
 import {
@@ -40,6 +41,7 @@ import {
 import { type ChatAlert, ChatTab } from "./ChatTab";
 import { MemoryTab, noteTags } from "./MemoryTab";
 import { useHubThreads } from "./MessagesTab";
+import { NewTaskSheet } from "./NewTaskSheet";
 import {
   type HubItemRow,
   type HubNoteRow,
@@ -67,6 +69,8 @@ interface Overview {
   reservations?: HubReservationRow[];
   /** `?graph=1`: the Map's compact links and counts; null when it failed. */
   graph?: MapGraph | null;
+  /** Items closed over 14 days ago, which the default window leaves out. */
+  olderCount?: number;
 }
 
 type Tab = "map" | "agents" | "tasks" | "chat" | "activity" | "memory";
@@ -80,6 +84,16 @@ const TABS: readonly [Tab, string][] = [
   ["memory", "Memory"],
 ];
 const TAB_IDS = TABS.map(([id]) => id);
+
+/** What each tab is called in its error line ("Couldn't load your tasks"). */
+const WHAT: Record<Tab, string> = {
+  map: "your agents",
+  agents: "your agents",
+  tasks: "your tasks",
+  chat: "what agents asked you",
+  activity: "activity",
+  memory: "memory",
+};
 
 /** Old links keep working: Messages became Chat (owner, 05.11.26). */
 function tabOf(param: string | null): Tab | null {
@@ -236,9 +250,9 @@ function Chip({
 
 /**
  * The Agents screen: the agent hub, kept apart from the person's own tasks,
- * on one night ground in both themes (owner, 05.11.26). A centred hero
- * (eyebrow, display title, one line, a status pill with real counts), the
- * tabs on a pill that sticks with each tab's filters, and six tabs:
+ * on one night ground in both themes (owner, 05.11.26). No hero (owner,
+ * 22.11.26): every tab takes the window like the Map and Chat, with the tabs
+ * in the dock and one compact bar of filters and actions on top. Six tabs:
  *
  *  - Map (the default): the live constellation of sources, agents and their
  *    work, redrawn from a new seed on every visit (`?seed=` pins one);
@@ -285,6 +299,7 @@ export function AgentsScreen() {
   const [activityAgent, setActivityAgent] = useState("");
   const [memTag, setMemTag] = useState("");
   const [memQ, setMemQ] = useState("");
+  const [newTask, setNewTask] = useState(false);
 
   // A deep link belongs to its tab; leaving the tab drops it, so a reload
   // opens where you are and not where the link once pointed.
@@ -500,8 +515,9 @@ export function AgentsScreen() {
     stableMap.current = { key: shape, data: freshMap };
   const mapData = stableMap.current.data;
   const stats = mapStats(freshMap);
+  const overviewState = screenState(overview);
   const mapReady =
-    !overview.isLoading && !threads.isLoading && !connections.isLoading;
+    overview.data !== undefined && !threads.isLoading && !connections.isLoading;
 
   const showGuide =
     manualGuide ?? (overview.data !== undefined && agents.length === 0);
@@ -624,109 +640,139 @@ export function AgentsScreen() {
   const toolbar =
     tab === "agents" ? (
       <div className="ag-bar" data-ag-bar="agents">
-        {(
-          [
-            ["all", "All"],
-            ["working", "Working"],
-            ["idle", "Idle"],
-            ["offline", "Offline"],
-          ] as const
-        ).map(([id, label]) => (
-          <Chip
-            key={id}
-            pressed={agentsView === id}
-            count={agentCounts[id]}
-            onClick={() => setAgentsView(id)}
-          >
-            {label}
-          </Chip>
-        ))}
+        <div className="ag-chips">
+          {(
+            [
+              ["all", "All"],
+              ["working", "Working"],
+              ["idle", "Idle"],
+              ["offline", "Offline"],
+            ] as const
+          ).map(([id, label]) => (
+            <Chip
+              key={id}
+              pressed={agentsView === id}
+              count={agentCounts[id]}
+              onClick={() => setAgentsView(id)}
+            >
+              {label}
+            </Chip>
+          ))}
+        </div>
         <Search
           value={agentsQ}
           onChange={setAgentsQ}
           label="Search agents"
           inputRef={searchRef}
         />
+        <button
+          type="button"
+          className="ag-btn"
+          aria-pressed={showGuide}
+          data-ag-connect=""
+          onClick={() => {
+            setManualGuide(true);
+            setTab("agents");
+          }}
+        >
+          <FiPlus size={13} aria-hidden />
+          Connect an agent
+        </button>
       </div>
     ) : tab === "tasks" ? (
       <div className="ag-bar" data-ag-bar="tasks">
-        {TASK_VIEWS.map(([id, label]) => (
-          <Chip
-            key={id}
-            pressed={filters.view === id}
-            count={items.filter((i) => inView(i, id)).length}
-            attr={`data-ag-view-${id}`}
-            onClick={() => setFilters({ ...filters, view: id })}
-          >
-            {label}
-          </Chip>
-        ))}
-        {live.length > 1 ? (
-          <span className="ag-bar-agents" role="group" aria-label="Agent">
-            {live.map((a) => (
-              <Chip
-                key={a.id}
-                pressed={filters.agent === a.id}
-                onClick={() =>
-                  setFilters({
-                    ...filters,
-                    agent: filters.agent === a.id ? "" : a.id,
-                  })
-                }
-              >
-                {a.name}
-              </Chip>
-            ))}
-          </span>
-        ) : null}
+        <div className="ag-chips">
+          {TASK_VIEWS.map(([id, label]) => (
+            <Chip
+              key={id}
+              pressed={filters.view === id}
+              count={items.filter((i) => inView(i, id)).length}
+              attr={`data-ag-view-${id}`}
+              onClick={() => setFilters({ ...filters, view: id })}
+            >
+              {label}
+            </Chip>
+          ))}
+          {live.length > 1 ? (
+            <span className="ag-bar-agents" role="group" aria-label="Agent">
+              {live.map((a) => (
+                <Chip
+                  key={a.id}
+                  pressed={filters.agent === a.id}
+                  onClick={() =>
+                    setFilters({
+                      ...filters,
+                      agent: filters.agent === a.id ? "" : a.id,
+                    })
+                  }
+                >
+                  {a.name}
+                </Chip>
+              ))}
+            </span>
+          ) : null}
+        </div>
         <Search
           value={filters.q}
           onChange={(q) => setFilters({ ...filters, q })}
           label="Search tasks"
           inputRef={searchRef}
         />
-        {/* //todo: "New task" from the reference; owners create hub items
-            through agents today, there is no owner create route. */}
+        {overview.data ? (
+          <button
+            type="button"
+            className="ag-btn"
+            data-ag-new-task-open=""
+            onClick={() => setNewTask(true)}
+          >
+            <FiPlus size={13} aria-hidden />
+            New task
+          </button>
+        ) : null}
       </div>
     ) : tab === "activity" ? (
       <div className="ag-bar" data-ag-bar="activity">
-        <Chip pressed={!activityAgent} onClick={() => setActivityAgent("")}>
-          All agents
-        </Chip>
-        {live.map((a) => (
-          <Chip
-            key={a.id}
-            pressed={activityAgent === a.id}
-            onClick={() => setActivityAgent(a.id)}
-          >
-            <span
-              className="ag-dotc"
-              aria-hidden="true"
-              style={{ background: hues.get(a.id) }}
-            />
-            {a.name}
+        <div className="ag-chips">
+          <Chip pressed={!activityAgent} onClick={() => setActivityAgent("")}>
+            All agents
           </Chip>
-        ))}
+          {live.map((a) => (
+            <Chip
+              key={a.id}
+              pressed={activityAgent === a.id}
+              onClick={() => setActivityAgent(a.id)}
+            >
+              <span
+                className="ag-dotc"
+                aria-hidden="true"
+                style={{ background: hues.get(a.id) }}
+              />
+              {a.name}
+            </Chip>
+          ))}
+        </div>
       </div>
     ) : tab === "memory" ? (
       <div className="ag-bar" data-ag-bar="memory">
-        <Chip
-          pressed={!memTag}
-          count={notes.length}
-          onClick={() => setMemTag("")}
-        >
-          All
-        </Chip>
-        {tags.map(([t, n]) => (
+        <div className="ag-chips">
           <Chip
-            key={t}
-            pressed={memTag === t}
-            count={n}
-            onClick={() => setMemTag(t)}
+            pressed={!memTag}
+            count={notes.length}
+            onClick={() => setMemTag("")}
           >
-            {t}
+            All
           </Chip>
-        ))}
+          {tags.map(([t, n]) => (
+            <Chip
+              key={t}
+              pressed={memTag === t}
+              count={n}
+              onClick={() => setMemTag(t)}
+            >
+              {t}
+            </Chip>
+          ))}
+        </div>
         <Search
           value={memQ}
           onChange={setMemQ}
@@ -766,6 +812,7 @@ export function AgentsScreen() {
           syncUrl({ item: null });
         }}
         archived={archived}
+        hasOlder={(overview.data?.olderCount ?? 0) > 0}
         onArchived={setArchived}
         run={run}
         markSeen={markSeen}
@@ -811,6 +858,15 @@ export function AgentsScreen() {
             className="ag-map-stage ag-chat-stage"
           >
             {content}
+            {overviewState === "error" || overviewState === "offline" ? (
+              <div className="ag-chat-state">
+                <AgError
+                  what={WHAT.chat}
+                  offline={overviewState === "offline"}
+                  onRetry={overview.refetch}
+                />
+              </div>
+            ) : null}
           </div>
         ) : tab === "map" ? (
           // The Map takes the whole window: no hero (owner, 05.11.26).
@@ -833,8 +889,16 @@ export function AgentsScreen() {
                 onOpenItem={openItem}
                 onOpenThread={openThread}
               />
+            ) : overviewState === "error" || overviewState === "offline" ? (
+              <AgError
+                what={WHAT.map}
+                offline={overviewState === "offline"}
+                onRetry={overview.refetch}
+              />
             ) : (
-              <div className="ag-map-panel is-loading" aria-busy="true" />
+              <div className="ag-map-panel is-loading" aria-busy="true">
+                <AgSkeleton kind="map" />
+              </div>
             )}
             {showOnboarding ? (
               <AgentsSetup
@@ -855,36 +919,6 @@ export function AgentsScreen() {
             className="scroll-inner nx-scroll cn-wrap cn-screen-abs ag-scroll"
           >
             <div className="ag-page">
-              <header className="ag-hero nx-swap">
-                <span className="ag-eyebrow">Your team</span>
-                <h1 className="px-display ag-h1">Agents</h1>
-                <span className="ag-hero-row">
-                  {overview.data ? (
-                    <span className="ag-pill" data-ag-status="">
-                      <i aria-hidden="true" />
-                      {statsLine(stats)}
-                    </span>
-                  ) : overview.isError ? (
-                    <span className="ag-pill is-none" data-ag-status="error">
-                      Could not load your agents
-                    </span>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="ag-btn"
-                    aria-pressed={tab === "agents" && showGuide}
-                    data-ag-connect=""
-                    onClick={() => {
-                      setManualGuide(true);
-                      setTab("agents");
-                    }}
-                  >
-                    <FiPlus size={13} aria-hidden />
-                    Connect an agent
-                  </button>
-                </span>
-              </header>
-
               <div ref={sentinel} className="cn-sentinel" aria-hidden="true" />
               {toolbar ? (
                 <div
@@ -902,9 +936,17 @@ export function AgentsScreen() {
                 className="ag-tabpanel"
                 key={tab}
               >
-                <StScreen query={overview} kind="list" screen="agents">
-                  {content}
-                </StScreen>
+                {tab === "activity" ? (
+                  content
+                ) : (
+                  <AgLoad
+                    query={overview}
+                    kind={tab === "agents" ? "cards" : "rows"}
+                    what={WHAT[tab]}
+                  >
+                    {content}
+                  </AgLoad>
+                )}
               </div>
             </div>
           </div>
@@ -940,6 +982,12 @@ export function AgentsScreen() {
             </button>
           ))}
         </div>
+        <NewTaskSheet
+          open={newTask}
+          agents={agents}
+          onClose={() => setNewTask(false)}
+          run={run}
+        />
       </div>
     </AgentHueProvider>
   );

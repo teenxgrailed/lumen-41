@@ -15,6 +15,7 @@ import {
   placeAt,
 } from "@/lib/needt3/derive";
 import type { V3Task, V3TaskPatch } from "@/lib/needt3/map";
+import type { TaskIconKey } from "@/lib/needt3/task-icon";
 
 type T = Pick<
   V3Task,
@@ -160,3 +161,8 @@ export const deadlinePatch = (n: number | null, today: string): V3TaskPatch =>
   n == null
     ? { deadline: null, hardDeadline: false }
     : { deadline: addDays(today, n) };
+
+/** The icon the person picked; `null` hands the choice back to the title's keywords. */
+export const iconPatch = (key: TaskIconKey | null): V3TaskPatch => ({
+  icon: key,
+});

@@ -8,6 +8,8 @@ import { act, createElement as h } from "react";
 
 import { type Root, createRoot } from "react-dom/client";
 
+import { useFirstReplanGate } from "@/store/first-replan";
+
 import { SampleBanner } from "../SampleBanner";
 
 (
@@ -17,6 +19,12 @@ import { SampleBanner } from "../SampleBanner";
 const mutate = jest.fn();
 let status: { present: boolean } | undefined;
 let pending = false;
+let current: string | null = null;
+const goTo = jest.fn();
+
+jest.mock("@/lib/needt3/hooks/first-replan", () => ({
+  useFirstReplanHints: () => ({ current, goTo }),
+}));
 
 jest.mock("@/lib/needt3/hooks/sample", () => ({
   useSampleStatus: () => ({ data: status }),
@@ -28,6 +36,8 @@ let root: Root;
 beforeEach(() => {
   jest.clearAllMocks();
   pending = false;
+  current = null;
+  useFirstReplanGate.getState().reset();
   host = document.createElement("div");
   root = createRoot(host);
 });
@@ -64,4 +74,43 @@ it("disables the button while clearing", async () => {
   expect(
     host.querySelector<HTMLButtonElement>("[data-hd-sample-clear]")!.disabled
   ).toBe(true);
+});
+
+it("waits for its turn in the hint sequence, then appears", async () => {
+  status = { present: true };
+  for (const other of ["card", "replanned", "review"]) {
+    current = other;
+    await mount();
+    expect(host.querySelector("[data-hd-sample]")).toBeNull();
+  }
+  current = "sample";
+  await mount();
+  expect(host.querySelector("[data-hd-sample]")).not.toBeNull();
+});
+
+it("in the sequence it can be closed, which moves on to the review and stays closed", async () => {
+  status = { present: true };
+  current = "sample";
+  await mount();
+  host
+    .querySelector<HTMLButtonElement>("[data-hd-sample-close]")!
+    .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await mount();
+  expect(goTo).toHaveBeenCalledWith("review");
+  expect(useFirstReplanGate.getState().bannerDismissed).toBe(true);
+  expect(host.querySelector("[data-hd-sample]")).toBeNull();
+});
+
+it("outside the sequence there is no close button", async () => {
+  status = { present: true };
+  current = null;
+  await mount();
+  expect(host.querySelector("[data-hd-sample-close]")).toBeNull();
+});
+
+it("moves on to the review when the examples are cleared during its turn", async () => {
+  status = { present: false };
+  current = "sample";
+  await mount();
+  expect(goTo).toHaveBeenCalledWith("review");
 });

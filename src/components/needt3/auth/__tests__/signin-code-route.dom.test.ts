@@ -45,6 +45,7 @@ jest.mock("@/lib/logger", () => ({
 let host: HTMLDivElement;
 let root: Root;
 let requestStatus = 200;
+let mediaListeners: Array<(e: { matches: boolean }) => void> = [];
 const location = {
   href: "http://localhost/auth/signin",
   origin: "http://localhost",
@@ -55,13 +56,15 @@ const location = {
 beforeEach(() => {
   jest.clearAllMocks();
   requestStatus = 200;
+  mediaListeners = [];
   location.href = "http://localhost/auth/signin";
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: (query: string) => ({
       matches: false,
       media: query,
-      addEventListener() {},
+      addEventListener: (_: string, fn: (e: { matches: boolean }) => void) =>
+        mediaListeners.push(fn),
       removeEventListener() {},
     }),
   });
@@ -186,5 +189,22 @@ describe("sign in with a code", () => {
       q<HTMLElement>("[data-auth-send-code]")?.click();
     });
     expect(host.textContent).toContain("Too many requests");
+  });
+
+  it("still leaves when the face is swapped while the code is being checked", async () => {
+    let finish!: (v: unknown) => void;
+    signIn.mockReturnValue(new Promise((r) => (finish = r)));
+    getSession.mockResolvedValue({ newAccount: false });
+    await mount();
+    await sendAndEnterCode();
+    // The viewport crosses the phone breakpoint: the screen (and the code
+    // form's state) is replaced before the request answers.
+    await act(async () => {
+      mediaListeners.forEach((fn) => fn({ matches: true }));
+    });
+    await act(async () => {
+      finish({ ok: true });
+    });
+    expect(location.href).toBe("/calendar");
   });
 });

@@ -15,16 +15,24 @@ on:
 # held the real release and every pull request's no-op trigger together.
 # Queued runs in one group cancel each other as newer ones arrive, which is
 # how a merge to main could finish CI and never be published. Key the group
-# on the branch whose CI actually ran.
+# on the branch whose CI actually ran. Runs that will skip anyway (CI failed,
+# was cancelled, or was not a push) get a group of their own, otherwise they
+# take the slot and cancel a pending green release.
 concurrency:
   group: >-
-    needt-production-${{ github.event.workflow_run.head_branch || github.ref }}
+    ${{ (github.event_name == 'workflow_run' &&
+         (github.event.workflow_run.conclusion != 'success' ||
+          github.event.workflow_run.event != 'push'))
+      && format('needt-skip-{0}', github.run_id)
+      || format('needt-production-{0}', github.event.workflow_run.head_branch || github.ref) }}
   cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/teenxgrailed/needt
-  # Only `changes` reads this; every later job uses the SHA it decided.
+  # Only `changes` reads this, as the commit that triggered the run; it then
+  # decides the real release SHA (newest green tip of main) and every later
+  # job uses that.
   HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 # Production runs prebuilt images. CI builds web, worker and collaboration
@@ -45,12 +53,18 @@ jobs:
     environment: production
     permissions:
       contents: read
+      # `gh run list` reads CI conclusions below.
+      actions: read
     outputs:
       sha: ${{ steps.decide.outputs.sha }}
       deploy: ${{ steps.decide.outputs.deploy }}
       previous_sha: ${{ steps.decide.outputs.previous_sha }}
     env:
       WEB_HEALTH_URL: ${{ secrets.NEEDT_PRODUCTION_HEALTH_URL }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      EVENT_NAME: ${{ github.event_name }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -61,17 +75,88 @@ jobs:
       - name: Decide what this run releases
         id: decide
         run: |
+          # Retry a flaky call up to three times; prints its output.
+          retry() {
+            local out i
+            for i in 1 2 3; do
+              if out=$("$@"); then
+                printf '%s' "$out"
+                return 0
+              fi
+              sleep $((i * 3))
+            done
+            return 1
+          }
+
           previous_sha=unknown
-          response=$(curl --silent --show-error --max-time 30 "${WEB_HEALTH_URL:-}" || true)
-          candidate=$(printf '%s' "$response" | jq -r \
-            'if .ok == true and .db == "ok" then (.buildSha // empty) else empty end' \
-            2>/dev/null || true)
-          if [[ "$candidate" =~ ^[0-9a-fA-F]{40}$ ]]; then
+          candidate=
+          for attempt in 1 2 3; do
+            response=$(curl --silent --show-error --max-time 30 "${WEB_HEALTH_URL:-}" || true)
+            candidate=$(printf '%s' "$response" | jq -r \
+              'if .ok == true and .db == "ok" then (.buildSha // empty) else empty end' \
+              2>/dev/null || true)
+            [[ "$candidate" =~ ^[0-9a-fA-F]{40}$ ]] && break
+            candidate=
+            sleep $((attempt * 5))
+          done
+          if [ -n "$candidate" ]; then
             previous_sha=$candidate
+          else
+            echo "::warning::Could not read the production build SHA after 3 tries; releasing without the older-than-production check."
           fi
           echo "previous_sha=$previous_sha" >> "$GITHUB_OUTPUT"
 
-          echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          skip() {
+            echo "$1"
+            echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          RELEASE_SHA=$HEAD_SHA
+          if [ "$EVENT_NAME" = workflow_run ]; then
+            # Several merges in a row queue several of these runs, and a run
+            # can fire for an old merge long after newer ones landed. Release
+            # the newest commit whose CI passed, never merely the one that
+            # triggered us. HEAD_SHA itself is green (the job `if`).
+            if tip=$(retry gh api "repos/$GH_REPO/commits/$DEFAULT_BRANCH" --jq .sha) &&
+              git fetch --quiet origin "$DEFAULT_BRANCH"; then
+              if [ "$tip" != "$HEAD_SHA" ]; then
+                # Newest first, first-parent only, at most 20 lookups.
+                for c in $(git rev-list --first-parent --max-count=20 "$HEAD_SHA..$tip"); do
+                  if ok=$(retry gh run list --workflow ci.yml --branch "$DEFAULT_BRANCH" \
+                    --event push --commit "$c" --limit 10 --json status,conclusion \
+                    --jq 'any(.[]; .status == "completed" and .conclusion == "success")'); then
+                    if [ "$ok" = true ]; then
+                      RELEASE_SHA=$c
+                      break
+                    fi
+                  else
+                    echo "::warning::Could not read CI for $c; releasing the triggering commit $HEAD_SHA."
+                    RELEASE_SHA=$HEAD_SHA
+                    break
+                  fi
+                done
+              fi
+            else
+              echo "::warning::Could not resolve the tip of $DEFAULT_BRANCH; releasing the triggering commit $HEAD_SHA."
+            fi
+            echo "Triggered by $HEAD_SHA; releasing $RELEASE_SHA."
+            if [ "$RELEASE_SHA" != "$HEAD_SHA" ]; then
+              git checkout --quiet --detach "$RELEASE_SHA"
+            fi
+            # Never go back to something strictly older than production. An
+            # equal SHA falls through: release-is-needed.sh can still repair
+            # the worker or collaboration image.
+            if [ "$previous_sha" != unknown ] &&
+              [ "$RELEASE_SHA" != "$previous_sha" ] &&
+              git cat-file -e "$previous_sha^{commit}" 2>/dev/null &&
+              git merge-base --is-ancestor "$RELEASE_SHA" "$previous_sha"; then
+              skip "Production already runs $previous_sha, newer than $RELEASE_SHA; nothing to release."
+            fi
+          fi
+
+          echo "sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
           # Compare against what production actually runs, not HEAD~1, so
           # merges that landed while a release was skipped are never lost.
           # Unknown history means deploy: a skipped release is the worse error.
@@ -79,7 +164,7 @@ jobs:
             echo "deploy=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          changed=$(git diff --name-only "$previous_sha" "$HEAD_SHA")
+          changed=$(git diff --name-only "$previous_sha" "$RELEASE_SHA")
           shipped=$(printf '%s\n' "$changed" | grep -vE \
             '^(docs/|openspec/|\.agents/|\.claude/|design-refs/)|\.md$' || true)
           if [ -z "$changed" ] || [ -n "$shipped" ]; then

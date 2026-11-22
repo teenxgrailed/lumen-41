@@ -1,11 +1,12 @@
 import { Prisma } from "@prisma/client";
 
-import { newDate } from "@/lib/date-utils";
+import { recordActivation } from "@/lib/activation-events";
 import {
   POSITION_STEP,
   initialPositions,
   movePosition,
 } from "@/lib/board-position";
+import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
@@ -96,9 +97,7 @@ export async function updateBoard(
       ...(updates.name !== undefined ? { name: updates.name.trim() } : {}),
       ...(updates.icon !== undefined ? { icon: updates.icon } : {}),
       ...(updates.groupBy !== undefined ? { groupBy: updates.groupBy } : {}),
-      ...(updates.position !== undefined
-        ? { position: updates.position }
-        : {}),
+      ...(updates.position !== undefined ? { position: updates.position } : {}),
     },
     include: boardWithColumns,
   });
@@ -163,9 +162,7 @@ export async function updateColumn(
     data: {
       ...(updates.name !== undefined ? { name: updates.name.trim() } : {}),
       ...(updates.color !== undefined ? { color: updates.color } : {}),
-      ...(updates.position !== undefined
-        ? { position: updates.position }
-        : {}),
+      ...(updates.position !== undefined ? { position: updates.position } : {}),
     },
   });
 }
@@ -270,7 +267,7 @@ export async function addCard(
     select: { boardPosition: true },
   });
 
-  return prisma.task.create({
+  const card = await prisma.task.create({
     data: {
       title: input.title.trim() || "Untitled",
       status: "todo",
@@ -292,4 +289,6 @@ export async function addCard(
       }),
     },
   });
+  recordActivation("task_created", userId, { source: "board" });
+  return card;
 }

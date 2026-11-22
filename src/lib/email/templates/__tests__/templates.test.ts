@@ -8,15 +8,21 @@ describe("email templates", () => {
     expect(mail).toMatchSnapshot();
   });
 
-  it.each(emails)("%s has a plain-text twin and one button", (_name, mail) => {
+  const noButton = ["sign-in-code", "ops-alert"];
+  it.each(emails)("%s has a plain-text twin and one button", (name, mail) => {
     expect(mail.text.length).toBeGreaterThan(20);
-    expect(mail.text).toContain("https://use.needt.app");
-    expect((mail.html.match(/class="btn-a"/g) ?? []).length).toBe(1);
+    if (!noButton.includes(name)) {
+      expect(mail.text).toContain("https://use.needt.app");
+    }
+    expect((mail.html.match(/class="btn-a"/g) ?? []).length).toBe(
+      noButton.includes(name) ? 0 : 1
+    );
     expect(mail.html).toContain('name="color-scheme"');
-    // One image only: the logo, absolute https, with the wordmark as text beside it.
+    // One image only: the logo, absolute https, with alt text.
     const imgs = mail.html.match(/<img[^>]*>/gi) ?? [];
     expect(imgs).toHaveLength(1);
-    expect(imgs[0]).toContain('src="https://use.needt.app/icons/icon-192.png"');
+    expect(imgs[0]).toContain('src="https://needt.app/icon-192.png"');
+    expect(imgs[0]).toMatch(/alt="Needt"/);
     expect(imgs[0]).toContain("width=");
     expect(mail.html).toContain("[data-ogsc]");
     expect(mail.html).toContain("[data-ogsb]");
@@ -24,6 +30,27 @@ describe("email templates", () => {
     expect(mail.html).not.toMatch(/var\(--/);
     expect(mail.html).not.toMatch(/#fff(fff)?\b|#000(000)?\b/i);
     expect(mail.html).toMatch(/<div style="display:none[^"]*">/);
+  });
+
+  it.each(emails)(
+    "%s is 560 wide at most, with a dark-mode block",
+    (_n, mail) => {
+      expect(mail.html).toContain("max-width:560px");
+      expect(mail.html).not.toMatch(/max-width:(?!560px)\d{3,}px;"/);
+      expect(mail.html).toMatch(
+        /@media \(prefers-color-scheme:dark\)\{[^}]*\.paper/
+      );
+      expect(mail.html).toContain('name="supported-color-schemes"');
+      expect(mail.html).not.toMatch(/background-image|url\(/i);
+    }
+  );
+
+  it("keeps the sign-in code in one piece, selectable as a unit", () => {
+    const mail = sampleEmails()["sign-in-code"];
+    expect(mail.html).toContain(">208670</td>");
+    expect(mail.html).not.toMatch(/2\s+0\s+8|2<[^>]*>0<[^>]*>8/);
+    expect(mail.html).toContain("user-select:all");
+    expect(mail.html).toContain("letter-spacing:6px");
   });
 
   it("escapes every interpolation", () => {

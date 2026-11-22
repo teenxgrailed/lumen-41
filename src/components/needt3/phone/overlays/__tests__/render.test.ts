@@ -180,18 +180,23 @@ describe("PkTaskSheet", () => {
 
 describe("PkComposer", () => {
   const out = html(h(PkComposer, { open: true, onClose: none }));
-  it("one big field, the three chips, Add disabled while empty", () => {
+  it("one big field with its mirror, the form rows, Add and Add another", () => {
     expect(out).toContain("data-pov-line");
-    for (const c of ["date", "project", "priority"])
-      expect(out).toContain(`data-pov-chip="${c}"`);
+    expect(out).toContain("pov-mirror");
+    for (const r of ["when", "duration", "project", "priority", "more"])
+      expect(out).toContain(`data-pov-fact="${r}"`);
+    expect(out).not.toContain("data-pov-chip");
     expect(out).not.toContain("data-pov-attach-btn");
     expect(out).toMatch(
       /<button[^>]*disabled[^>]*data-pov-add|data-pov-add[^>]*disabled/
     );
+    expect(out).toMatch(
+      /<button[^>]*disabled[^>]*data-pov-another|data-pov-another[^>]*disabled/
+    );
     expect(out).toContain("Say when, which project, how urgent");
   });
   it("is a sheet that can grow out of the pill", () => {
-    expect(out).toContain("pk-sheet-morph");
+    expect(out).not.toContain("pk-sheet-morph");
     expect(out).toContain("pov-composer");
   });
 });
@@ -337,13 +342,12 @@ describe("PkPaywall", () => {
     expect(out).toContain("−30%");
     expect(out).toContain("Choose Pro · $59 / year");
     expect(out).not.toContain("Start 14-day free trial");
-    expect(out).toContain("Prices in USD. Taxes may apply.");
+    expect(out).toContain("Everything you made stays.");
     expect(out).toContain("First 300 buyers");
     expect(out).not.toContain("212");
   });
   it("names the feature that asked, and lists what Pro includes", () => {
-    expect(out).toContain("Unlock <b>Plan my day</b> with Pro");
-    expect(out).toContain("Every Pro plan includes");
+    expect(out).toContain("Plan my day is part of Pro");
     expect(out).toContain("AI included");
   });
   it("is a sheet, a close button and a bar with the call to action", () => {

@@ -1,24 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAdminGrowth } from "@/services/admin/growth";
+import { getOverviewStats } from "@/services/admin/overview-stats-data";
 
 import { requireAdmin } from "@/lib/auth/api-auth";
-import { logger } from "@/lib/logger";
 
 import { GET } from "../route";
 
 jest.mock("@/lib/auth/api-auth", () => ({ requireAdmin: jest.fn() }));
-jest.mock("@/services/admin/overview", () => ({
-  getAdminOverview: jest.fn().mockResolvedValue({
-    users: { total: 1, newLast7Days: 0 },
-    activeTrials: 0,
-    plans: { pro: 0, lifetime: 0, free: 1 },
-    waitlist: 0,
-    generatedAt: "2026-10-16T12:00:00.000Z",
-  }),
-}));
-jest.mock("@/services/admin/growth", () => ({
-  getAdminGrowth: jest.fn().mockResolvedValue({ weeklyActives: 5 }),
+jest.mock("@/services/admin/overview-stats-data", () => ({
+  getOverviewStats: jest
+    .fn()
+    .mockResolvedValue({ users: { total: 1, newLast7Days: 0 } }),
 }));
 jest.mock("@/lib/health/build-info", () => ({
   readBuildInfo: jest
@@ -29,40 +21,42 @@ jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-const request = () => new NextRequest("http://needt.test/api/admin/overview");
+const request = (query = "") =>
+  new NextRequest(`http://needt.test/api/admin/overview${query}`);
 
 describe("GET /api/admin/overview", () => {
+  beforeEach(() => jest.clearAllMocks());
+
   it("refuses a caller requireAdmin refuses, and reads nothing", async () => {
     (requireAdmin as jest.Mock).mockResolvedValue(
       NextResponse.json({ error: "Forbidden" }, { status: 403 })
     );
     const response = await GET(request());
     expect(response.status).toBe(403);
+    expect(getOverviewStats).not.toHaveBeenCalled();
   });
 
-  it("returns the overview and the build for an admin", async () => {
+  it("returns the stats and the build for an admin, internal left out", async () => {
     (requireAdmin as jest.Mock).mockResolvedValue(null);
     const response = await GET(request());
     const body = await response.json();
     expect(response.status).toBe(200);
-    expect(body.overview.users.total).toBe(1);
+    expect(body.stats.users.total).toBe(1);
     expect(body.build.buildSha).toBe("a".repeat(40));
     expect(body.build.workerBuildSha).toBeNull();
-    expect(body.growth.weeklyActives).toBe(5);
+    expect(getOverviewStats).toHaveBeenCalledWith(true);
   });
 
-  it("still answers, with growth null, when growth fails", async () => {
+  it("includes internal accounts only when asked", async () => {
     (requireAdmin as jest.Mock).mockResolvedValue(null);
-    (getAdminGrowth as jest.Mock).mockRejectedValueOnce(new Error("db down"));
+    await GET(request("?internal=include"));
+    expect(getOverviewStats).toHaveBeenCalledWith(false);
+  });
+
+  it("answers 500 with a plain message when the read fails", async () => {
+    (requireAdmin as jest.Mock).mockResolvedValue(null);
+    (getOverviewStats as jest.Mock).mockRejectedValueOnce(new Error("db down"));
     const response = await GET(request());
-    const body = await response.json();
-    expect(response.status).toBe(200);
-    expect(body.growth).toBeNull();
-    expect(body.overview.users.total).toBe(1);
-    expect(logger.error).toHaveBeenCalledWith(
-      "Admin growth failed",
-      expect.anything(),
-      "AdminOverviewAPI"
-    );
+    expect(response.status).toBe(500);
   });
 });

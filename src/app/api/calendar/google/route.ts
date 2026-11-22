@@ -4,6 +4,7 @@ import { GaxiosError } from "gaxios";
 import { google } from "googleapis";
 import { v4 as uuidv4 } from "uuid";
 
+import { recordActivation } from "@/lib/activation-events";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { calendarProviderNeedsReconnect } from "@/lib/calendar-connection-status";
 import {
@@ -159,6 +160,11 @@ export async function GET(request: NextRequest) {
             userId: auth.userId,
           },
         }));
+      /* Also on re-auth (the feed already exists): the event is once-keyed
+         per account, so a repeat is a no-op and a reconnect still counts. */
+      recordActivation("calendar_connected", auth.userId, {
+        provider: "google",
+      });
       feedIds.push(feed.id);
     }
 
@@ -233,6 +239,7 @@ export async function POST(request: NextRequest) {
         userId: auth.userId,
       },
     });
+    recordActivation("calendar_connected", auth.userId, { provider: "google" });
 
     await syncGoogleCalendar(feed, { forceFullSync: true });
     await registerCalendarWebhookBestEffort(feed.id, "GOOGLE");

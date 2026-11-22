@@ -74,7 +74,21 @@ export function endsAt(run: FocusRun, nowMs: number, timeZone: string) {
 
 export const LENGTHS = ["25", "50", "90", "custom"] as const;
 export type LengthChoice = (typeof LENGTHS)[number];
-export const SOUNDS = ["off", "rain", "cafe", "noise"] as const;
+/**
+ * What can play under a session. "off" is silence; "brown" and "pink" are
+ * noise the browser makes itself (Web Audio, no download); the "lofi-*" ids
+ * are the four CC0 tracks in /public/focus-sounds (see its CREDITS.md), fetched
+ * only when picked.
+ */
+export const SOUNDS = [
+  "off",
+  "brown",
+  "pink",
+  "lofi-loop",
+  "lofi-chill",
+  "lofi-rain",
+  "lofi-country",
+] as const;
 export type Sound = (typeof SOUNDS)[number];
 
 export const MIN_LENGTH = 1;
@@ -87,6 +101,18 @@ export const QUICK_MINUTES = 25;
 
 export const isSound = (v: unknown): v is Sound =>
   typeof v === "string" && (SOUNDS as readonly string[]).includes(v);
+
+/**
+ * The saved choice as a sound. Before the sounds were real the pref held
+ * "rain", "cafe" or "noise" (labels only, nothing played): "noise" becomes the
+ * default brown noise, the other two stay silent rather than surprise anyone.
+ */
+export const soundOf = (v: unknown): Sound =>
+  isSound(v) ? v : v === "noise" ? "brown" : "off";
+
+/** Where a track lives; null for silence and the generated noises. */
+export const trackUrl = (s: Sound): string | null =>
+  s.startsWith("lofi-") ? `/focus-sounds/${s}.m4a` : null;
 
 /** The saved default length ("50") as a choice and a custom box. */
 export function lengthFromPref(pref: unknown): {

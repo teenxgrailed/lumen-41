@@ -1,0 +1,206 @@
+/**
+ * @jest-environment jsdom
+ *
+ * The first-replan card on Today: nothing without a demo, a Replan and Skip
+ * pair while the meeting overlaps the task, a before-to-after line with the
+ * task name, both days and the reason on the preview (Keep and Not now), and
+ * Undo with Remove once kept.
+ */
+import { act, createElement as h } from "react";
+
+import { type Root, createRoot } from "react-dom/client";
+
+import type { FirstReplanState } from "@/lib/onboarding/first-replan";
+
+import { FirstReplanCard } from "../FirstReplanCard";
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+const reportShown = jest.fn();
+const flow = {
+  step: { kind: "idle" } as Record<string, unknown>,
+  replan: jest.fn(),
+  keep: jest.fn(),
+  undo: jest.fn(),
+  remove: jest.fn(),
+  notNow: jest.fn(),
+  close: jest.fn(),
+};
+let current: string | null = "card";
+let demo: FirstReplanState | null | undefined;
+
+jest.mock("@/lib/needt3/hooks/first-replan", () => ({
+  useFirstReplanDemo: () => ({ data: demo }),
+  useFirstReplan: () => flow,
+  useFirstReplanHints: () => ({ current }),
+  useReportCardShown: (shown: boolean) => reportShown(shown),
+}));
+jest.mock("@/lib/needt3/hooks/settings", () => ({
+  useTimeZone: () => "UTC",
+}));
+
+const conflict: FirstReplanState = {
+  conflict: true,
+  task: {
+    id: "t",
+    title: "Demo: write the weekly plan",
+    start: "2026-11-18T10:00:00.000Z",
+    end: "2026-11-18T11:00:00.000Z",
+  },
+  meeting: {
+    id: "m",
+    title: "Demo: sync with Alex",
+    start: "2026-11-18T10:15:00.000Z",
+    end: "2026-11-18T11:00:00.000Z",
+  },
+};
+
+let host: HTMLDivElement;
+let root: Root;
+beforeEach(() => {
+  jest.useFakeTimers({
+    now: new Date("2026-11-18T08:00:00Z"),
+    doNotFake: [
+      "setTimeout",
+      "clearTimeout",
+      "setInterval",
+      "clearInterval",
+      "setImmediate",
+      "clearImmediate",
+      "queueMicrotask",
+      "nextTick",
+    ],
+  });
+  jest.clearAllMocks();
+  flow.step = { kind: "idle" };
+  current = "card";
+  demo = conflict;
+  host = document.createElement("div");
+  root = createRoot(host);
+});
+afterEach(() => {
+  jest.useRealTimers();
+  act(() => root.unmount());
+});
+const mount = () => act(async () => root.render(h(FirstReplanCard)));
+const press = (key: string) =>
+  act(async () => {
+    host
+      .querySelector<HTMLButtonElement>(`[data-fr="${key}"]`)!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+
+it("draws nothing without a demo", async () => {
+  demo = null;
+  await mount();
+  expect(host.querySelector("[data-hd-first-replan]")).toBeNull();
+  demo = undefined;
+  await mount();
+  expect(host.querySelector("[data-hd-first-replan]")).toBeNull();
+});
+
+it("says it is a demo and offers Replan or Skip", async () => {
+  await mount();
+  expect(host.textContent).toContain("Demo, not on any calendar");
+  await press("replan");
+  expect(flow.replan).toHaveBeenCalledTimes(1);
+  await press("skip");
+  expect(flow.remove).toHaveBeenCalledTimes(1);
+  // Skip is the one removal that counts as skipping the first card.
+  expect(flow.remove).toHaveBeenCalledWith("skip");
+});
+
+it("reports that the card was shown only while there is something to replan", async () => {
+  await mount();
+  expect(reportShown).toHaveBeenLastCalledWith(true);
+  demo = { ...conflict, conflict: false };
+  await mount();
+  expect(reportShown).toHaveBeenLastCalledWith(false);
+});
+
+it("names the task, both times with the day, and the reason", async () => {
+  flow.step = {
+    kind: "preview",
+    token: "tok",
+    to: { start: "2026-11-18T11:00:00.000Z", end: "2026-11-18T12:00:00.000Z" },
+  };
+  await mount();
+  const text = host.textContent ?? "";
+  expect(text).toContain("Demo: write the weekly plan");
+  const shift = host.querySelector("[data-fr-shift]")!;
+  expect(shift.querySelector(".hd-fr-from")!.textContent).toBe("Today 10:00");
+  expect(shift.querySelector(".hd-fr-to")!.textContent).toBe("Today 11:00");
+  expect(text).toContain("Overlaps with Sync with Alex");
+  expect(text).toContain("Nothing changes until you press Keep");
+  // The old wording said neither which task nor which day.
+  expect(text).not.toContain("Move the task to");
+});
+
+it("says Tomorrow or the weekday when the move crosses a day", async () => {
+  flow.step = {
+    kind: "preview",
+    token: "tok",
+    to: { start: "2026-11-19T09:30:00.000Z", end: "2026-11-19T10:30:00.000Z" },
+  };
+  await mount();
+  expect(host.querySelector(".hd-fr-to")!.textContent).toBe("Tomorrow 09:30");
+  flow.step = {
+    kind: "preview",
+    token: "tok",
+    to: { start: "2026-11-20T09:30:00.000Z", end: "2026-11-20T10:30:00.000Z" },
+  };
+  await mount();
+  expect(host.querySelector(".hd-fr-to")!.textContent).toBe("Fri 09:30");
+});
+
+it("keeps only on Keep", async () => {
+  flow.step = {
+    kind: "preview",
+    token: "tok",
+    to: { start: "2026-11-18T11:00:00.000Z", end: "2026-11-18T12:00:00.000Z" },
+  };
+  await mount();
+  expect(flow.keep).not.toHaveBeenCalled();
+  await press("keep");
+  expect(flow.keep).toHaveBeenCalledWith("tok");
+  await press("not-now");
+  expect(flow.notNow).toHaveBeenCalledTimes(1);
+});
+
+it("names the day when the demo waits for another one", async () => {
+  jest.setSystemTime(new Date("2026-11-14T22:00:00Z"));
+  await mount();
+  expect(host.textContent).toContain("Wed 10:00");
+  expect(host.textContent).toContain("Wed 10:15");
+});
+
+it("after Keep offers Undo and removing the demo", async () => {
+  flow.step = { kind: "kept", undoToken: "undo-tok" };
+  await mount();
+  expect(host.textContent).toContain("Replanned");
+  expect(host.textContent).toContain("Demo: write the weekly plan now starts");
+  await press("undo");
+  expect(flow.undo).toHaveBeenCalledWith("undo-tok");
+  await press("remove");
+  expect(flow.remove).toHaveBeenCalledTimes(1);
+  // After Keep, removing is not a skip.
+  expect(flow.remove).toHaveBeenCalledWith();
+});
+
+it("the Replanned card has a close button that hands over to the next hint", async () => {
+  flow.step = { kind: "kept", undoToken: "undo-tok" };
+  current = "replanned";
+  await mount();
+  await press("close");
+  expect(flow.close).toHaveBeenCalledTimes(1);
+});
+
+it("steps aside once a later hint has its turn", async () => {
+  for (const next of ["sample", "review", null]) {
+    current = next;
+    await mount();
+    expect(host.querySelector("[data-hd-first-replan]")).toBeNull();
+  }
+});

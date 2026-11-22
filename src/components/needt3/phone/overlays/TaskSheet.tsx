@@ -54,9 +54,16 @@ import {
   useUpdateTask,
 } from "@/lib/needt3/hooks/tasks";
 import type { V3Task, V3TaskPatch } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 import { REPEAT_CHOICES, repeatKey, repeatLabel } from "@/lib/needt3/repeat";
+import {
+  TASK_ICON_KEYS,
+  isTaskIconKey,
+  taskIconKey,
+} from "@/lib/needt3/task-icon";
 import { notify } from "@/lib/notifications";
 
+import { TaskGlyphBare } from "../home/TaskGlyph";
 import { PkButton, PkField, PkGlass, PkSheet, pkCx } from "../kit";
 import { PovFact, PovOpt, PovPickRow } from "./parts";
 import { snack } from "./snack";
@@ -83,6 +90,7 @@ import {
   durationPatch,
   durationWords,
   hourPatch,
+  iconPatch,
   noDayPatch,
   placementPatch,
   scheduleSummary,
@@ -184,6 +192,9 @@ function TaskSheetBody({
   if (pick) lastPick.current = pick;
   const pickShown = pick ?? lastPick.current;
   const [newPart, setNewPart] = useState("");
+  const [iconOpen, setIconOpen] = useState(false);
+  const chosenIcon = isTaskIconKey(t.icon) ? t.icon : null;
+  const shownIcon = chosenIcon ?? taskIconKey(t.title);
 
   const edit = useCallback(
     (patch: V3TaskPatch) =>
@@ -446,7 +457,7 @@ function TaskSheetBody({
             className="pov-hue"
             style={
               {
-                "--hue": project.color ?? "var(--text-muted)",
+                "--hue": projectColor(project.id, project.color),
               } as React.CSSProperties
             }
             aria-hidden="true"
@@ -525,6 +536,24 @@ function TaskSheetBody({
           >
             {t.done ? <LuCheck size={16} /> : null}
           </button>
+          <button
+            type="button"
+            className={pkCx("pov-icon-btn is-sheet", iconOpen && "is-open")}
+            aria-label="Task icon"
+            aria-expanded={iconOpen}
+            data-pov-icon=""
+            data-task-icon={shownIcon}
+            style={
+              project
+                ? ({
+                    "--hue": projectColor(project.id, project.color),
+                  } as React.CSSProperties)
+                : undefined
+            }
+            onClick={() => setIconOpen((v) => !v)}
+          >
+            <TaskGlyphBare iconKey={shownIcon} size={20} />
+          </button>
           <label className="sr-only" htmlFor={`pov-title-${idSuffix}`}>
             {copy.title}
           </label>
@@ -541,6 +570,37 @@ function TaskSheetBody({
             readOnly={!!provider}
           />
         </div>
+        {iconOpen ? (
+          <div className="pov-icons" data-pov-pick="icon">
+            {TASK_ICON_KEYS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                className={pkCx("pov-icon-opt", chosenIcon === k && "is-on")}
+                aria-label={k}
+                aria-pressed={chosenIcon === k}
+                data-pov-icon-key={k}
+                onClick={() => {
+                  void edit(iconPatch(k));
+                  setIconOpen(false);
+                }}
+              >
+                <TaskGlyphBare iconKey={k} size={20} />
+              </button>
+            ))}
+            <div className="pov-icons-auto">
+              <PovOpt
+                on={chosenIcon === null}
+                onClick={() => {
+                  void edit(iconPatch(null));
+                  setIconOpen(false);
+                }}
+              >
+                Automatic
+              </PovOpt>
+            </div>
+          </div>
+        ) : null}
         <div className="pov-step" data-pov-step="">
           <LuArrowRight size={14} />
           <label className="pov-step-label" htmlFor={`pov-entry-${idSuffix}`}>
@@ -646,7 +706,7 @@ function TaskSheetBody({
             {projects.map((p) => (
               <PovOpt
                 key={p.id}
-                hue={p.color ?? "var(--text-muted)"}
+                hue={projectColor(p.id, p.color)}
                 on={t.projectId === p.id}
                 onClick={() => void edit({ projectId: p.id })}
               >

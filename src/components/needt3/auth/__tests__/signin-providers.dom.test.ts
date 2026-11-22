@@ -106,9 +106,10 @@ describe.each([
     narrow = isNarrow;
   });
 
-  it("shows Google, Apple and GitHub, then More ways for the rest", async () => {
+  it("shows Google, Apple, Microsoft and ChatGPT, then More ways for the rest", async () => {
     await mount();
-    expect(shown()).toEqual(["google", "apple", "github"]);
+    // ChatGPT stays out of the visible card for now (owner, 2026-11-20).
+    expect(shown()).toEqual(["google", "apple", "azure-ad"]);
     expect(moreWays()).toBeDefined();
 
     await act(async () => {
@@ -117,24 +118,42 @@ describe.each([
     expect(shown()).toEqual([
       "google",
       "apple",
-      "github",
       "azure-ad",
-      "openai",
+      "github",
       "discord",
       "twitter",
       "linkedin",
     ]);
     expect(moreWays()).toBeUndefined();
     expect(host.textContent).toContain("Sign in with Apple");
-    expect(host.textContent).toContain("Sign in with ChatGPT");
-    expect(host.textContent).toContain("Sign in with Microsoft");
+    expect(host.textContent).toContain("Continue with Microsoft");
   });
 
-  it("draws only what the server reports, and no More ways without extras", async () => {
+  it("draws only what the server reports; GitHub waits behind More ways", async () => {
+    // Apple and Microsoft are not drawn until the server has their keys.
     available = reported(["credentials", "google", "github"]);
     await mount();
-    expect(shown()).toEqual(["google", "github"]);
+    expect(shown()).toEqual(["google"]);
+    expect(moreWays()).toBeDefined();
+    available = reported(["credentials", "google"]);
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await mount();
+    expect(shown()).toEqual(["google"]);
     expect(moreWays()).toBeUndefined();
+  });
+
+  it("draws Microsoft only when the server reports it", async () => {
+    available = reported(["credentials", "google"]);
+    await mount();
+    expect(shown()).not.toContain("azure-ad");
+    expect(host.textContent).not.toContain("Microsoft");
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    available = reported(["credentials", "google", "azure-ad"]);
+    await mount();
+    expect(shown()).toEqual(["google", "azure-ad"]);
+    expect(host.textContent).toContain("Continue with Microsoft");
   });
 
   it("starts the provider's sign-in on a click", async () => {
@@ -142,10 +161,10 @@ describe.each([
     await mount();
     await act(async () => {
       host
-        .querySelector('[data-provider="github"]')!
+        .querySelector('[data-provider="google"]')!
         .dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
-    expect(signIn).toHaveBeenCalledWith("github", {
+    expect(signIn).toHaveBeenCalledWith("google", {
       callbackUrl: "/calendar",
     });
   });

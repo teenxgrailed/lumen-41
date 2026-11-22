@@ -1,6 +1,8 @@
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
 
+import { KeepProPreview } from "@/components/needt3/auth/KeepProPreview";
+import { OnboardingMap } from "@/components/needt3/auth/OnboardingMap";
 import { Ob3Flow } from "@/components/onboarding/Ob3Flow";
 import {
   ACCOUNT_STEP_INDEX,
@@ -21,16 +23,25 @@ export const metadata = {
 };
 
 /**
- * The 18-screen onboarding. Public: the first half runs before there is an
+ * The 19-screen onboarding. Public: the first half runs before there is an
  * account. A signed-in visitor (back from Apple/Google, or someone who already
  * has an account) is carried past the account screens.
  */
 export default async function StartPage({
   searchParams,
 }: {
-  searchParams: Promise<{ step?: string }>;
+  searchParams: Promise<{
+    step?: string;
+    preview?: string;
+    plan?: string;
+    state?: string;
+  }>;
 }) {
-  const { step } = await searchParams;
+  const { step, preview, plan, state } = await searchParams;
+  // TEMPORARY review page (auth redo, 2026-11-20): the proposed five-step map.
+  if (preview === "map") return <OnboardingMap step={step} plan={plan} />;
+  // TEMPORARY review page: the Keep Pro card with fixed facts.
+  if (preview === "keep") return <KeepProPreview state={state} />;
   const session = await getServerSession(await getAuthOptions());
   const userId = session?.user?.id ?? null;
   // Every screen after "account" needs one; without it the flow resumes there.

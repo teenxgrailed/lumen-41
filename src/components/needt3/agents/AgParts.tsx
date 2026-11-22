@@ -55,27 +55,6 @@ export function useAgentHue() {
     (key ? map.get(key) : undefined) ?? NEUTRAL_HUE;
 }
 
-/** A square avatar in the agent's hue with its first letter. */
-export function AgAvatar({
-  name,
-  hue,
-  size = 40,
-}: {
-  name: string;
-  hue: string;
-  size?: number;
-}) {
-  return (
-    <span
-      className="ag-av"
-      aria-hidden="true"
-      style={{ background: hue, width: size, height: size }}
-    >
-      {name.slice(0, 1).toUpperCase()}
-    </span>
-  );
-}
-
 export type AgTone =
   | "none"
   | "muted"
@@ -247,12 +226,15 @@ export function AgBtn({
   tone = "secondary",
   pressed,
   disabled,
+  title,
   onClick,
 }: {
   children: ReactNode;
   tone?: "secondary" | "text" | "danger";
   disabled?: boolean;
   pressed?: boolean;
+  /** The full wording, when the label is the short one. */
+  title?: string;
   onClick?: () => void;
 }) {
   return (
@@ -261,6 +243,7 @@ export function AgBtn({
       className={`nx-btn nx-btn-sm nx-btn-${tone}`}
       aria-pressed={pressed}
       disabled={disabled}
+      title={title}
       onClick={onClick}
     >
       {children}

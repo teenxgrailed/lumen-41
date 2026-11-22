@@ -1,0 +1,1 @@
+- Signing in with an emailed code now always continues into the app, even if the sign-in screen was swapped or reset while the code was being checked; the code is also sent only once.

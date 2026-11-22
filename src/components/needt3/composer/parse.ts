@@ -28,6 +28,7 @@ import {
 import { toLocalDateKey } from "@/lib/date-utils";
 import { addDays, addMinutes, hhmm, weekday } from "@/lib/needt3/derive";
 import type { V3Priority, V3Project, V3TaskPatch } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 
 export type { CoFacetKind, CoKind, CoMark };
 
@@ -109,7 +110,7 @@ export function composerVocabulary(
     projects: projects.map((p) => ({
       id: p.id,
       name: p.name,
-      hue: p.color ?? "",
+      hue: projectColor(p.id, p.color),
       glyph: p.icon ?? "",
     })),
     aliases: {},
@@ -349,7 +350,7 @@ export function composerParse(
       label: f.project.label,
       span: f.project.span,
       id: f.project.project.id,
-      color: p?.color ?? null,
+      color: p ? projectColor(p.id, p.color) : null,
     };
   } else {
     let hit: V3Project | null = null;

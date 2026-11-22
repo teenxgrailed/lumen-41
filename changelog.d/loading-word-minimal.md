@@ -1,0 +1,1 @@
+- Switching between places no longer shows the Needt word: it is back to the place's own outline, and the word stays for a cold start, an update reload and Budget opening.

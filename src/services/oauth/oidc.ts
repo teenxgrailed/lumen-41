@@ -2,6 +2,9 @@ import crypto from "crypto";
 import { promisify } from "util";
 
 import { newDate } from "@/lib/date-utils";
+import { getPlan } from "@/lib/entitlements";
+import { isFeatureEnabled } from "@/lib/feature-flags";
+import { BUDGET_PRO_ACCESS } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { oauthIssuer } from "@/lib/mcp-config";
 import { prisma } from "@/lib/prisma";
@@ -178,23 +181,43 @@ export interface IdentityClaims {
   email: string | null;
   email_verified: boolean;
   name: string | null;
+  /**
+   * The person's Needt plan for Needt Budget ("pro" covers trial and
+   * Lifetime). Only while the `budget_pro_access` flag is on for them;
+   * otherwise absent and never sent.
+   */
+  needt_plan?: "pro" | "free";
 }
 
-/** Who a Needt user is, as OpenID Connect says it. null when they are gone. */
+/** The one client `needt_plan` is for (`budget_pro_access`). */
+const BUDGET_CLIENT_ID = "needt-budget";
+
+/**
+ * Who a Needt user is, as OpenID Connect says it. null when they are gone.
+ * `clientId` is the public client id the claims are for: only Needt Budget
+ * ever learns the plan, never another client.
+ */
 export async function identityClaims(
-  userId: string
+  userId: string,
+  clientId?: string
 ): Promise<IdentityClaims | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, email: true, emailVerified: true, name: true },
   });
   if (!user) return null;
-  return {
+  const claims: IdentityClaims = {
     sub: user.id,
     email: user.email,
     email_verified: user.email != null && user.emailVerified != null,
     name: user.name,
   };
+  if (
+    clientId === BUDGET_CLIENT_ID &&
+    (await isFeatureEnabled(BUDGET_PRO_ACCESS, user.id))
+  )
+    claims.needt_plan = (await getPlan(user.id)) === "FREE" ? "free" : "pro";
+  return claims;
 }
 
 /** What a scope list lets out: `email` and `profile` are separate asks. */
@@ -211,6 +234,7 @@ export function claimsForScope(
   if (asked.includes("profile") && claims.name !== null) {
     out.name = claims.name;
   }
+  if (claims.needt_plan) out.needt_plan = claims.needt_plan;
   return out;
 }
 
@@ -226,6 +250,8 @@ export async function signIdToken(input: {
   email: string | null;
   emailVerified: boolean;
   name: string | null;
+  /** Only when `identityClaims` set it (the `budget_pro_access` flag). */
+  needtPlan?: "pro" | "free";
 }): Promise<string> {
   const key = await loadSigningKey();
   if (!key) throw new Error("OIDC_SIGNING_KEY is not configured");
@@ -244,6 +270,7 @@ export async function signIdToken(input: {
     claims.email_verified = input.emailVerified;
   }
   if (input.name !== null) claims.name = input.name;
+  if (input.needtPlan) claims.needt_plan = input.needtPlan;
   const signingInput = `${base64url(
     JSON.stringify({ alg: "RS256", typ: "JWT", kid: key.kid })
   )}.${base64url(JSON.stringify(claims))}`;
@@ -268,6 +295,7 @@ export async function resolveUserinfoToken(token: string) {
       resource: true,
       revokedAt: true,
       expiresAt: true,
+      client: { select: { clientId: true } },
     },
   });
   if (
@@ -280,7 +308,11 @@ export async function resolveUserinfoToken(token: string) {
   ) {
     return null;
   }
-  return { userId: stored.userId, scope: stored.scope };
+  return {
+    userId: stored.userId,
+    scope: stored.scope,
+    clientId: stored.client?.clientId,
+  };
 }
 
 /** OpenID Connect Discovery 1.0 document for the issuer. */

@@ -118,6 +118,21 @@ export interface MenuProps {
   onSettings: () => void;
   /** True at the first moving frame, false once it settles. */
   onMoving?: (moving: boolean) => void;
+  /**
+   * The bottom bar's look (`prefs.barStyle`). "float": the floating bar
+   * (FloatBar) is the dock, so this menu draws nothing at rest at the pill
+   * and is only the card that `openRequest` opens.
+   */
+  variant?: "classic" | "float";
+  /** Each new value (> 0) opens the card, as a tap on the dot grid does. */
+  openRequest?: number;
+  /**
+   * The tile menu is the app menu: the dot grid, a tap on the pill and a swipe
+   * up on it call this instead of growing the card.
+   */
+  onOpenTiles?: () => void;
+  /** The card opened (card or full) or closed to the pill. */
+  onOpenChange?: (open: boolean) => void;
 }
 
 /** A drag in progress. */
@@ -240,8 +255,13 @@ function fling(S: State, el: HTMLElement, v: number, onFrame: () => void) {
 export function Menu(props: MenuProps) {
   const { side, screen, tiles, counts, me, away, morph, focus, focusOn } =
     props;
+  const float = props.variant === "float";
   const top = tiles.slice(0, 3);
-  const rows = menuRows(top, { agents: counts?.agents !== undefined });
+  const rows = menuRows(top, {
+    agents: counts?.agents !== undefined,
+    budget: counts?.budget !== undefined,
+    learn: counts?.learn !== undefined,
+  });
   const [mode, setMode] = useState<NvaMode>("pill");
   const [hint, setHint] = useState<"more" | "tuck" | null>(null);
   const [holding, setHolding] = useState(false);
@@ -502,7 +522,18 @@ export function Menu(props: MenuProps) {
     if (propsRef.current.away || useNeedt3Ui.getState().composerOpen) return;
     const at = document.activeElement;
     if (at && at !== document.body && !R.root?.contains(at)) return;
-    R.dots?.focus({ preventScroll: true });
+    // the floating bar's menu slot opened it; the dot grid is not drawn. The
+    // bar is inert until PhoneShell hears the menu settle (onMoving false),
+    // so focus waits two frames for that commit.
+    if (propsRef.current.variant === "float")
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+          document
+            .querySelector<HTMLElement>("[data-nfb-menu]")
+            ?.focus({ preventScroll: true })
+        )
+      );
+    else R.dots?.focus({ preventScroll: true });
   }, [R, S]);
   const rest = useCallback(() => {
     const el = R.root;
@@ -608,11 +639,11 @@ export function Menu(props: MenuProps) {
   /* A focus session starts or ends: the same frame, the other dock row. */
   useLayoutEffect(() => {
     const g = S.g;
-    if (!g || g.focus === !!focusOn) return;
-    S.g = nvaGeom(g.fw, g.fh, !!focusOn);
+    if (!g || (g.focus === !!focusOn && g.float === float)) return;
+    S.g = nvaGeom(g.fw, g.fh, !!focusOn, float);
     sizeGlass(S.glassHid, true);
     paint();
-  }, [S, focusOn, paint, sizeGlass]);
+  }, [S, focusOn, float, paint, sizeGlass]);
 
   /* Size: the frame's screen box. One ResizeObserver, on the menu and its list. */
   useLayoutEffect(() => {
@@ -626,7 +657,8 @@ export function Menu(props: MenuProps) {
       const g = nvaGeom(
         el.clientWidth || r.width,
         (el.clientHeight || r.height) - sab + 2 * pkEdgeInset(el),
-        !!propsRef.current.focusOn
+        !!propsRef.current.focusOn,
+        propsRef.current.variant === "float"
       );
       S.g = g;
       el.style.setProperty("--nva-w", `${g.W}px`);
@@ -713,6 +745,15 @@ export function Menu(props: MenuProps) {
     if (away && modeRef.current !== "pill") go("pill");
   }, [away, go]);
 
+  /* The floating bar's menu slot asks for the card. */
+  const openRequest = props.openRequest ?? 0;
+  const openHandled = useRef(openRequest);
+  useEffect(() => {
+    if (openRequest === openHandled.current) return;
+    openHandled.current = openRequest;
+    if (modeRef.current === "pill") go("card");
+  }, [openRequest, go]);
+
   /* A tucked-away dock (the handle) comes back on its own when the person
      moves to another place: a screen never starts with the dock gone, which
      read as the bottom of the page being cropped. */
@@ -762,6 +803,9 @@ export function Menu(props: MenuProps) {
   /* While the card is up the screen behind it is not reachable by keyboard,
      pointer or screen reader (it is the host `ShellFrame` marks). */
   const isOpen = menuIsOpen(mode);
+  useEffect(() => {
+    propsRef.current.onOpenChange?.(isOpen);
+  }, [isOpen]);
   const sky = usePkSkyMood();
   useEffect(() => {
     const host =
@@ -803,6 +847,18 @@ export function Menu(props: MenuProps) {
         scrollTop: sc ? sc.scrollTop : 0,
         t: S.t.x,
       });
+      // a swipe up on the pill opens the tile menu, not the card
+      if (
+        d.kind === "drag" &&
+        d.m === "pill" &&
+        dy < 0 &&
+        propsRef.current.onOpenTiles
+      ) {
+        d.kind = "none";
+        S.gestureEnd = performance.now();
+        propsRef.current.onOpenTiles();
+        return;
+      }
       d.yk = d.y0;
       d.px0 = nvaSpringsToTrack(g, S.p.x, S.t.x); // count from the touch-down
       S.dragging = true;
@@ -934,6 +990,13 @@ export function Menu(props: MenuProps) {
     }
   };
 
+  /** The card, or the tile menu where that is the app menu. */
+  const openCard = () => {
+    const tiles = propsRef.current.onOpenTiles;
+    if (tiles) tiles();
+    else go("card");
+  };
+
   const pick = (id: MenuPlaceId) => {
     if (id === "settings") propsRef.current.onSettings();
     else propsRef.current.onPick(id);
@@ -942,7 +1005,7 @@ export function Menu(props: MenuProps) {
   const onShapeClick = (e: React.MouseEvent) => {
     // the pill's ground (not one of the three) opens; the handle comes back
     if ((e.target as Element).closest("button")) return;
-    if (modeRef.current === "pill") go("card");
+    if (modeRef.current === "pill") openCard();
     else if (modeRef.current === "hidden") go("pill");
   };
 
@@ -965,7 +1028,8 @@ export function Menu(props: MenuProps) {
         (side === "dark" ? "is-dark" : "is-light") +
         (away ? " is-away" : "") +
         (morph ? " is-morph" : "") +
-        (focusOn ? " is-focus" : "")
+        (focusOn ? " is-focus" : "") +
+        (float ? " is-float" : "")
       }
       data-nva-mode={mode}
       data-nav-variant="A"
@@ -1143,7 +1207,14 @@ export function Menu(props: MenuProps) {
                         key={id}
                         type="button"
                         tabIndex={open ? 0 : -1}
-                        className={"nva-row" + (screen === id ? " is-on" : "")}
+                        className={
+                          "nva-row" +
+                          (screen === id ? " is-on" : "") +
+                          ((id === "budget" && counts?.budget?.locked) ||
+                          (id === "learn" && counts?.learn?.locked)
+                            ? " is-locked"
+                            : "")
+                        }
                         onClick={() => pick(id)}
                         data-nva-row={id}
                       >
@@ -1257,7 +1328,7 @@ export function Menu(props: MenuProps) {
               type="button"
               className={"nva-dots" + (!here ? " is-here" : "")}
               tabIndex={mode === "pill" ? 0 : -1}
-              onClick={() => go("card")}
+              onClick={openCard}
               aria-expanded={open}
               aria-controls={cardId}
               aria-label={

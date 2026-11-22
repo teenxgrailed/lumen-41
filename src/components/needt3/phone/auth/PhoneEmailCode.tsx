@@ -25,6 +25,7 @@ export function PhoneEmailCode({
   signup,
   offline,
   onUsePassword,
+  beforeSubmit,
 }: {
   flow: EmailCodeFlow;
   mail: string;
@@ -32,6 +33,8 @@ export function PhoneEmailCode({
   signup: boolean;
   offline: boolean;
   onUsePassword?: () => void;
+  /** Sits right above the "Send code" button (the sign-up's 16+ line). */
+  beforeSubmit?: React.ReactNode;
 }) {
   if (flow.step === "code") {
     return (
@@ -134,6 +137,7 @@ export function PhoneEmailCode({
           {CODE_TEXT.net}
         </MaNote>
       ) : null}
+      {beforeSubmit}
       <MaButton
         primary
         type="submit"

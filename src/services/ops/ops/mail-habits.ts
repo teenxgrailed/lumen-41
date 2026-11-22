@@ -4,6 +4,7 @@ import {
 } from "@/services/habits/habit-service";
 import { z } from "zod";
 
+import { recordActivation } from "@/lib/activation-events";
 import { newDate } from "@/lib/date-utils";
 import { getMailMessage } from "@/lib/mail-db";
 
@@ -63,7 +64,11 @@ export const mailToTask = defineOp({
       before: null,
       inverse: { op: "task.archive", input: { taskId: task.id } },
       touched: [touched("task", task, null)],
-      afterCommit: [publishTasksUpdated(ctx.userId)],
+      afterCommit: [
+        publishTasksUpdated(ctx.userId),
+        () =>
+          recordActivation("task_created", ctx.userId, { source: ctx.actor }),
+      ],
     };
   },
 });

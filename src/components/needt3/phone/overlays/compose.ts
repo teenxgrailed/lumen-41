@@ -16,6 +16,7 @@ import { toLocalDateKey } from "@/lib/date-utils";
 import { createDraft } from "@/lib/needt3/day";
 import { toDate } from "@/lib/needt3/derive";
 import type { V3Project, V3TaskPatch } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 
 /**
  * The words this person's projects are known by. Labels stay out of the
@@ -27,7 +28,7 @@ export function vocabularyOf(projects: readonly V3Project[]): CoVocabulary {
     projects: projects.map((p) => ({
       id: p.id,
       name: p.name,
-      hue: p.color ?? "",
+      hue: projectColor(p.id, p.color),
       glyph: p.icon ?? "",
     })),
     aliases: {},
@@ -55,7 +56,8 @@ export interface ComposedTask {
  */
 export function composeFromParse(
   p: CoParse,
-  today: string
+  today: string,
+  notes?: string | null
 ): ComposedTask | null {
   const title = p.title.trim();
   if (!title) return null;
@@ -68,6 +70,7 @@ export function composeFromParse(
       duration: f.duration ? f.duration.minutes : null,
       projectId: f.project ? f.project.project.id : undefined,
       priority: f.priority ? f.priority.level : null,
+      notes: notes?.trim() || undefined,
     },
     today
   );
@@ -87,8 +90,11 @@ export function composeFromLine(
   return composeFromParse(coParse(text, now, vocabularyOf(projects)), today);
 }
 
-/** The chip a facet kind is drawn by: the three the phone composer offers. */
-export type ChipKind = Extract<CoFacetKind, "date" | "project" | "priority">;
+/** The facets the phone composer can write into the line. */
+export type ChipKind = Extract<
+  CoFacetKind,
+  "date" | "time" | "duration" | "project" | "priority" | "deadline"
+>;
 
 /**
  * A chip's pick written into the line: the words the line already used for
@@ -107,7 +113,8 @@ export function writeFacet(
     : words
       ? `${line.replace(/\s+$/, "")} ${words}`
       : line;
-  return out.replace(/\s{2,}/g, " ").replace(/^\s+/, "");
+  const tidy = out.replace(/\s{2,}/g, " ").replace(/^\s+/, "");
+  return words ? tidy : tidy.trimEnd();
 }
 
 /** The words each chip offers: [label shown, words written into the line]. */
@@ -120,6 +127,24 @@ export const CHIP_ROWS: Record<
     ["Tomorrow", "tomorrow"],
     ["This weekend", "this weekend"],
     ["Next week", "next week"],
+  ],
+  time: [
+    ["9:00", "at 9am"],
+    ["12:00", "at noon"],
+    ["15:00", "at 3pm"],
+    ["18:00", "at 6pm"],
+  ],
+  duration: [
+    ["15 min", "for 15 min"],
+    ["30 min", "for 30 min"],
+    ["45 min", "for 45 min"],
+    ["1 h", "for 1 h"],
+    ["2 h", "for 2 h"],
+  ],
+  deadline: [
+    ["Tomorrow", "by tomorrow"],
+    ["Friday", "by friday"],
+    ["Sunday", "by sunday"],
   ],
   priority: [
     ["Urgent", "urgent"],

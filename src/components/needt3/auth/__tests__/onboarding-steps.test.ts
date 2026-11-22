@@ -31,9 +31,14 @@ const ALL = [
 
 describe("steps", () => {
   it("are three, with an optional import", () => {
-    expect(STEP_IDS).toEqual(["use", "calendar", "hours", "import"]);
+    expect(STEP_IDS).toEqual(["use", "calendar", "hours", "import", "bar"]);
     expect(stepsFor(false)).toEqual(["use", "calendar", "hours"]);
-    expect(stepsFor(true)).toEqual(STEP_IDS);
+    expect(stepsFor(true)).toEqual(["use", "calendar", "hours", "import"]);
+  });
+  it("show the bottom bar step on a phone only, last", () => {
+    expect(stepsFor(false, true)).toEqual(["use", "calendar", "hours", "bar"]);
+    expect(stepsFor(true, true)).toEqual(STEP_IDS);
+    expect(stepsFor(true, false)).not.toContain("bar");
   });
   it("clamps into range", () => {
     expect(clampStep(-3)).toBe(0);

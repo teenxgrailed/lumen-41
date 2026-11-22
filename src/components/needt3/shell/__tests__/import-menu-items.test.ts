@@ -7,7 +7,6 @@ describe("sidebar Import menu rows", () => {
   it("lists the design's rows in order, and always has the CSV", () => {
     expect(importMenuItems(undefined, handlers()).map(title)).toEqual([
       "From Markdown files",
-      "From Google Docs",
       "From a calendar file (.ics)",
       "From a CSV of tasks",
     ]);
@@ -25,24 +24,39 @@ describe("sidebar Import menu rows", () => {
       "From Markdown files",
       "From Notion",
       "From Todoist",
-      "From Google Docs",
       "From a calendar file (.ics)",
       "From a CSV of tasks",
     ]);
   });
 
-  it("does not fake Markdown, Google Docs or .ics: Soon, and off", () => {
+  it("does not fake Markdown or .ics: Soon, and off", () => {
     const rows = importMenuItems(undefined, handlers());
-    for (const name of [
-      "From Markdown files",
-      "From Google Docs",
-      "From a calendar file (.ics)",
-    ]) {
+    for (const name of ["From Markdown files", "From a calendar file (.ics)"]) {
       expect(rows.find((r) => title(r) === name)).toMatchObject({
         disabled: true,
         kbd: "Soon",
       });
     }
+  });
+
+  it("draws Notion and Todoist with their own marks, and lists no Google Docs row", () => {
+    const rows = importMenuItems(
+      {
+        enabled: true,
+        sources: {
+          notion: { configured: true },
+          todoist: { configured: true },
+        },
+      },
+      handlers()
+    );
+    expect(rows.find((r) => title(r) === "From Notion")).toMatchObject({
+      brand: "notion",
+    });
+    expect(rows.find((r) => title(r) === "From Todoist")).toMatchObject({
+      brand: "todoist",
+    });
+    expect(rows.map(title)).not.toContain("From Google Docs");
   });
 
   it("runs the CSV picker and the Notion start", () => {

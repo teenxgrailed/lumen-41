@@ -153,10 +153,15 @@ describe("page change: what moves", () => {
     expect(source).not.toMatch(/\.pk-fog/);
   });
 
-  it("the loading skeleton does not start a second entry", () => {
+  it("the loading word does not start a second entry", () => {
+    // the word is a direct child of the route slot while a place loads; if the
+    // page-in selector matched it, the entry would run on it and again on the
+    // real page (e2e phone-page-motion: "seen twice")
     for (const a of animations())
       if (/v3-pg-in-/.test(a.value))
-        expect(a.selector).toContain(":not(.pk-screen, .st-route-loading)");
+        expect(a.selector).toContain(
+          ":not(.pk-screen, .st-route-loading, .nl-root)"
+        );
   });
 
   it("nothing is fixed, shadowed, will-changed or a layout property", () => {

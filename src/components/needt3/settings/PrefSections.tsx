@@ -1,13 +1,20 @@
 "use client";
 
+import { BUDGET_SIDEBAR_PREF } from "@/lib/needt3/budget";
 import { type CityPlace, parseCityPlace } from "@/lib/needt3/city";
+import { useBudgetNav } from "@/lib/needt3/hooks/budget";
+import { useNavPins, useRankedPlaces } from "@/lib/needt3/hooks/nav-rank";
+import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
   useSetPref,
   useSetPrefs,
   useSettings,
 } from "@/lib/needt3/hooks/settings";
+import { isPro } from "@/lib/needt3/paywall";
 
+import { ProBadge } from "../paywall";
+import { PLACES, placeById } from "../shell/places";
 import { CityField } from "./CityField";
 import { useMark } from "./SettingsContext";
 import { type PrefKey, minutes, readPref } from "./derive";
@@ -39,6 +46,8 @@ export function GeneralSection() {
   const p = usePrefs();
   return (
     <>
+      <PinnedGroup />
+      <BudgetGroup p={p} />
       <SGroup title="Links">
         <SRow
           title="Open document links in"
@@ -84,6 +93,77 @@ export function GeneralSection() {
         </SRow>
       </SGroup>
     </>
+  );
+}
+
+/**
+ * Pinned places. The sidebar and the menu arrange themselves by use: the
+ * sidebar's places in the order in use; a pinned one
+ * keeps its spot when the weekly ranking moves the others.
+ */
+function PinnedGroup() {
+  const mark = useMark();
+  const ranked = useRankedPlaces();
+  const pins = useNavPins();
+  const ids = ranked.filter((id) => PLACES.some((p) => p.id === id));
+  return (
+    <SGroup
+      title="Pinned"
+      hint="The sidebar follows what you open most, once a week. A pinned place stays where it is."
+    >
+      {ids.map((id) => {
+        const place = placeById(id);
+        if (!place) return null;
+        return (
+          <SRow key={id} title={place.label}>
+            <V3Switch
+              label={`Pin ${place.label}`}
+              checked={pins.pinned.includes(id)}
+              disabled={!pins.ready}
+              onChange={() =>
+                void pins.toggle(id).then((saved) => saved && mark())
+              }
+            />
+          </SRow>
+        );
+      })}
+    </SGroup>
+  );
+}
+
+/**
+ * Needt Budget in the sidebar, while its place exists for the person. Pro can
+ * hide it; on Free the place stays (it is how Budget is found), so the switch
+ * is on and locked.
+ */
+function BudgetGroup({ p }: { p: ReturnType<typeof usePrefs> }) {
+  const nav = useBudgetNav();
+  const plan = usePlan();
+  if (!nav.enabled || !plan.data) return null;
+  const pro = isPro(plan.data.kind);
+  return (
+    <SGroup title="Sidebar">
+      <SRow
+        title={
+          <>
+            Needt Budget{" "}
+            {pro ? null : <ProBadge size="sm" locked feature="Needt Budget" />}
+          </>
+        }
+        desc={
+          pro
+            ? "Show Budget in the sidebar and the menu."
+            : "Budget stays in the sidebar on Free. With Pro you can hide it."
+        }
+      >
+        <V3Switch
+          label="Show Needt Budget in the sidebar"
+          checked={pro ? p.get(BUDGET_SIDEBAR_PREF) : true}
+          disabled={p.off || !pro}
+          onChange={(v) => p.set(BUDGET_SIDEBAR_PREF, v)}
+        />
+      </SRow>
+    </SGroup>
   );
 }
 

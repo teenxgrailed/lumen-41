@@ -67,7 +67,7 @@ describe("Google Tasks connect: consent start", () => {
     else process.env.NEXTAUTH_URL = original;
   });
 
-  it("asks for the Tasks scope (and the account email) and no calendar or mail scope", async () => {
+  it("asks for the read-only Tasks scope (and the account email) and no calendar or mail scope", async () => {
     const res = await call(
       new NextRequest("http://0.0.0.0:3000/api/task-sync/google/auth")
     );
@@ -78,7 +78,7 @@ describe("Google Tasks connect: consent start", () => {
       ...GOOGLE_TASKS_SCOPES,
       "https://www.googleapis.com/auth/userinfo.email",
     ]);
-    expect(scopes).toContain("https://www.googleapis.com/auth/tasks");
+    expect(scopes).toContain("https://www.googleapis.com/auth/tasks.readonly");
     for (const scope of scopes) {
       expect(scope).not.toContain("/auth/calendar");
       expect(scope).not.toContain("gmail");

@@ -4,8 +4,12 @@
  * the app (use.needt.app). The landing site writes and reads the same cookie.
  *
  * Only strictly necessary storage (auth and session cookies, theme, look)
- * runs without a choice. Analytics (self-hosted Umami) loads after Accept.
+ * runs without a choice. The choice gates the campaign-tag cookie
+ * (`needt_utm`, see `attribution.ts`). Analytics (self-hosted Umami) is
+ * cookieless, stores nothing on the device and sends no personal data (its
+ * payloads are reduced by `umami-scrub.ts`), so it loads without a choice.
  */
+import { UMAMI_BEFORE_SEND, umamiBeforeSend } from "@/lib/umami-scrub";
 
 export type ConsentChoice = "accepted" | "declined";
 
@@ -63,25 +67,34 @@ export function writeConsent(choice: ConsentChoice): void {
   window.dispatchEvent(new Event(CONSENT_CHANGED_EVENT));
 }
 
-/** Umami's own switch: with this set its script records nothing. */
-export function setAnalyticsDisabled(disabled: boolean): void {
+/**
+ * Earlier builds wrote Umami's `umami.disabled` flag on Decline. Analytics no
+ * longer waits for a choice, so a leftover flag would silently drop a
+ * returning visitor: remove it.
+ */
+export function clearLegacyAnalyticsFlag(): void {
   try {
-    if (disabled) window.localStorage.setItem("umami.disabled", "1");
-    else window.localStorage.removeItem("umami.disabled");
+    window.localStorage.removeItem("umami.disabled");
   } catch {
-    // storage blocked: the script is simply not loaded
+    // storage blocked: nothing to clear
   }
 }
 
-/** Adds the Umami script once. Called only after the visitor accepted. */
+/**
+ * Adds the Umami script once. Cookieless; honours Do Not Track; every payload
+ * goes through `umamiBeforeSend` (path and campaign tags only).
+ */
 export function loadAnalytics(websiteId: string | undefined): void {
   if (!websiteId) return;
   if (document.querySelector("script[data-needt-umami]")) return;
+  (window as unknown as Record<string, unknown>)[UMAMI_BEFORE_SEND] =
+    umamiBeforeSend;
   const script = document.createElement("script");
   script.defer = true;
   script.src = UMAMI_SCRIPT_SRC;
   script.setAttribute("data-website-id", websiteId);
   script.setAttribute("data-do-not-track", "true");
+  script.setAttribute("data-before-send", UMAMI_BEFORE_SEND);
   script.setAttribute("data-needt-umami", "");
   document.head.appendChild(script);
 }

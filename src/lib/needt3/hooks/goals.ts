@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import type { GoalCheckInView, GoalView } from "@/lib/goals";
 import { notify } from "@/lib/notifications";
@@ -47,6 +52,21 @@ export function useGoal(id: string | null) {
     enabled: !!id,
     queryFn: () =>
       fetchJson<GoalDetail>(`/api/goals/${encodeURIComponent(id ?? "")}`),
+  });
+}
+
+/**
+ * The detail of several goals at once (goal cards read each one's linked
+ * tasks for its next step). Same key and read as `useGoal`, so a card and an
+ * open goal share one cache entry.
+ */
+export function useGoalDetails(ids: readonly string[]) {
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: [...GOALS, "one", id],
+      queryFn: () =>
+        fetchJson<GoalDetail>(`/api/goals/${encodeURIComponent(id)}`),
+    })),
   });
 }
 

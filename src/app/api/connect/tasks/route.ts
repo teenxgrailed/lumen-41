@@ -21,6 +21,7 @@ import {
 } from "@/services/tasks/task-placement";
 import { WorkspaceRole } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
 import { prisma } from "@/lib/prisma";
@@ -305,6 +306,7 @@ export async function POST(request: NextRequest) {
       },
     },
   });
+  recordActivation("task_created", userId, { source: "api" });
 
   if (placement?.ok && placement.frozen) {
     await writeFrozenPlacement({

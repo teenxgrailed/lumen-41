@@ -124,7 +124,7 @@ describe("sign-in provider buttons", () => {
       "Continue with Google"
     );
     expect(oauthButtonLabel({ id: "azure-ad", label: "Microsoft" })).toBe(
-      "Sign in with Microsoft"
+      "Continue with Microsoft"
     );
     expect(oauthButtonLabel({ id: "apple", label: "Apple" })).toBe(
       "Sign in with Apple"

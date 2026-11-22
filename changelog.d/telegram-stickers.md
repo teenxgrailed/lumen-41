@@ -1,0 +1,1 @@
+- The Telegram bot understands stickers: a ✅ 👍 👌 💪 sticker marks your next task done, and 🌙 💤 ⏭ moves it to later. A done task can be answered with a sticker too.

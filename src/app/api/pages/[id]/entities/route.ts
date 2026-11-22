@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { PageAccessRole, WorkspaceRole } from "@prisma/client";
 
+import { recordActivation } from "@/lib/activation-events";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { resolvePageAccess } from "@/lib/auth/page-auth";
 import { prisma } from "@/lib/prisma";
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       },
       select: { id: true, title: true },
     });
+    recordActivation("task_created", auth.userId, { source: "page" });
     return NextResponse.json(
       {
         entity: {

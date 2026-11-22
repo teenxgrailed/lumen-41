@@ -7,7 +7,7 @@ import {
   hubRoute,
   queryOf,
 } from "@/services/agent-hub/http";
-import { listItems } from "@/services/agent-hub/items";
+import { countOlderItems, listItems } from "@/services/agent-hub/items";
 import { mapGraph } from "@/services/agent-hub/map-graph";
 import { searchNotes } from "@/services/agent-hub/notes";
 import { listReservations } from "@/services/agent-hub/reservations";
@@ -30,28 +30,34 @@ export async function GET(request: NextRequest) {
     const includeArchived = params.get("includeArchived") === "true";
     const tag = params.get("tag")?.trim();
     const withGraph = params.get("graph") === "1";
-    const [agents, items, notes, reservations, graph] = await Promise.all([
-      listAgentsForOwner(auth.scope),
-      listItems(auth.scope, { includeArchived }),
-      searchNotes(auth.scope, {
-        all: true,
-        limit: 100,
-        ...(tag ? { tags: [tag] } : {}),
-      }),
-      listReservations(auth.scope),
-      // The graph is decoration: if it fails, the overview still goes out
-      // whole, with `graph: null`, and the Map draws without its counts.
-      withGraph
-        ? mapGraph(auth.scope).catch((error: unknown) => {
-            logger.error(
-              "Map graph failed; overview sent without it",
-              { error: error instanceof Error ? error.message : String(error) },
-              LOG_SOURCE
-            );
-            return null;
-          })
-        : null,
-    ]);
+    const [agents, items, notes, reservations, graph, olderCount] =
+      await Promise.all([
+        listAgentsForOwner(auth.scope),
+        listItems(auth.scope, { includeArchived }),
+        searchNotes(auth.scope, {
+          all: true,
+          limit: 100,
+          ...(tag ? { tags: [tag] } : {}),
+        }),
+        listReservations(auth.scope),
+        // The graph is decoration: if it fails, the overview still goes out
+        // whole, with `graph: null`, and the Map draws without its counts.
+        withGraph
+          ? mapGraph(auth.scope).catch((error: unknown) => {
+              logger.error(
+                "Map graph failed; overview sent without it",
+                {
+                  error: error instanceof Error ? error.message : String(error),
+                },
+                LOG_SOURCE
+              );
+              return null;
+            })
+          : null,
+        // Older items are left out of the default window; the screen offers
+        // "Show older" only when there are some.
+        includeArchived ? 0 : countOlderItems(auth.scope),
+      ]);
     const waiting = items.filter((i) => i.status === "needs_owner");
     const media = await mediaStubs(
       auth.scope,
@@ -67,6 +73,7 @@ export async function GET(request: NextRequest) {
         : items,
       notes: notes.notes,
       reservations: reservations.reservations,
+      olderCount,
       ...(withGraph ? { graph } : {}),
     });
   });

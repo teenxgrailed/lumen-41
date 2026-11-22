@@ -1,0 +1,130 @@
+/* The loading screen (NeedtLoading): only the Needt logo in the middle of the
+ * app background, fading in softly and breathing gently. Nothing else.
+ *
+ * It appears after 150 ms so a quick load never flashes it. The breathe is
+ * opacity and a 0.98 to 1 scale over 2.4 s, nothing more.
+ *
+ * Scoped under `.needt-v3`. The one place it draws outside that scope (the new
+ * version reload on a page with no v3 frame) sits in `.nl-host`, which states
+ * a literal ground so the overlay is never transparent. */
+:is(.needt-v3, .nl-host) .nl-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: nl-in 400ms ease-out 150ms backwards;
+}
+:is(.needt-v3, .nl-host) .nl-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--background, #fcfdfe);
+  border-radius: inherit;
+}
+:is(.needt-v3, .nl-host) .nl-fixed {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  background: var(--background, #fcfdfe);
+}
+:is(.needt-v3, .nl-host) .nl-logo {
+  display: inline-flex;
+}
+/* The breathe starts once the icon (or the fallback tile) is on screen. */
+:is(.needt-v3, .nl-host) .nl-logo.nl-loaded {
+  animation: nl-breathe 2.4s ease-in-out infinite;
+}
+/* The last fallback: a rounded tile in the text colour at a ladder alpha. */
+:is(.needt-v3, .nl-host) .nl-tile {
+  display: block;
+  width: 64px;
+  height: 64px;
+  border-radius: 22%;
+  background: var(--text-disabled, rgba(26, 28, 30, 0.25));
+}
+/* Outside the v3 scope there are no tokens: a literal light and dark ground. */
+.nl-host .nl-fixed {
+  background: #fcfdfe;
+}
+@media (prefers-color-scheme: dark) {
+  .nl-host .nl-fixed {
+    background: #111214;
+  }
+  .nl-host .nl-tile {
+    background: rgba(249, 249, 249, 0.25);
+  }
+}
+/* An explicit theme on <html> (ThemeProvider writes data-theme) beats the OS
+ * preference above. */
+html[data-theme="light"] .nl-host .nl-fixed,
+html[data-theme="paper"] .nl-host .nl-fixed {
+  background: #fcfdfe;
+}
+html[data-theme="warm"] .nl-host .nl-fixed {
+  background: #f7f1e4;
+}
+html[data-theme="dark"] .nl-host .nl-fixed {
+  background: #111214;
+}
+html[data-theme="dim"] .nl-host .nl-fixed {
+  background: #1d1f22;
+}
+html[data-theme="light"] .nl-host .nl-tile,
+html[data-theme="paper"] .nl-host .nl-tile,
+html[data-theme="warm"] .nl-host .nl-tile {
+  background: rgba(26, 28, 30, 0.25);
+}
+html[data-theme="dark"] .nl-host .nl-tile,
+html[data-theme="dim"] .nl-host .nl-tile {
+  background: rgba(249, 249, 249, 0.25);
+}
+@keyframes nl-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes nl-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+/* The same 150 ms wait, then the logo simply appears. */
+@keyframes nl-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* Reduced motion: no fade and no breathe; the 150 ms delay stays so a quick
+ * load is still clean. */
+:is(.needt-v3, .nl-host) .nl-still {
+  animation: nl-appear 1ms linear 150ms backwards;
+}
+:is(.needt-v3, .nl-host) .nl-still .nl-logo.nl-loaded {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.needt-v3, .nl-host) .nl-root {
+    animation: nl-appear 1ms linear 150ms backwards;
+  }
+  :is(.needt-v3, .nl-host) .nl-logo.nl-loaded {
+    animation: none;
+  }
+}
+/* A screen that takes over from one already on screen does not fade in again
+ * (the breathe carries on, so it is not a restart either). */
+:is(.needt-v3, .nl-host) .nl-root[data-continued] {
+  animation: none;
+}

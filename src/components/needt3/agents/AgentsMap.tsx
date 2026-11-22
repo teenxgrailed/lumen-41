@@ -11,6 +11,8 @@ import {
 import { createPortal } from "react-dom";
 import { FiMaximize2, FiMinimize2, FiMonitor, FiShuffle } from "react-icons/fi";
 
+import { onPageActive } from "@/lib/needt3/page-activity";
+
 import { useV3PortalContainer } from "../ctx/PortalScope";
 import { AgentIcon } from "./AgentIcon";
 import {
@@ -1568,12 +1570,18 @@ export function AgentsMap({
     );
     loop.current = run;
     let onScreen = true;
+    // Idle (no input for a while) or hidden: the loop stops with the last
+    // frame left on the canvas; the next input starts it again.
+    let awake = true;
     const sync = () =>
-      onScreen && !document.hidden && !pausedRef.current
+      onScreen && awake && !document.hidden && !pausedRef.current
         ? run.run()
         : run.pause();
     resync.current = sync;
-    sync();
+    const offActivity = onPageActive((active) => {
+      awake = active;
+      sync();
+    });
     document.addEventListener("visibilitychange", sync);
     let io: IntersectionObserver | null = null;
     if (typeof IntersectionObserver === "function") {
@@ -1585,6 +1593,7 @@ export function AgentsMap({
     }
     return () => {
       run.pause();
+      offActivity();
       io?.disconnect();
       document.removeEventListener("visibilitychange", sync);
       loop.current = null;

@@ -15,10 +15,13 @@ import { type HomeController, useHomeController } from "./useHomeController";
  */
 export function HomeFaces({
   desktop,
+  v2 = false,
 }: {
   desktop: (ctl: HomeController) => ReactNode;
+  /** Home v2 (flag `home_v2`): the phone's three-block order. */
+  v2?: boolean;
 }) {
   const phone = usePhoneUi() === "phone";
   const ctl = useHomeController();
-  return phone ? <PhoneHome ctl={ctl} /> : desktop(ctl);
+  return phone ? <PhoneHome ctl={ctl} v2={v2} /> : desktop(ctl);
 }

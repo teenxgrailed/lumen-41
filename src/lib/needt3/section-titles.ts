@@ -31,11 +31,14 @@ export const SECTION_TITLES = {
   adminUsers: "Users",
   adminEmail: "Email",
   adminFlags: "Flags",
+  adminFeedback: "Feedback",
   adminPromo: "Promo codes",
   adminBugs: "Bug reports",
   system: "System settings",
   connectApp: "Connect an app",
   agents: "Agents",
+  budget: "Budget",
+  learn: "Learn",
   notFound: "Not found",
 } as const;
 

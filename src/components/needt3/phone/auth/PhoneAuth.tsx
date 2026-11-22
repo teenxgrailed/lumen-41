@@ -1,5 +1,7 @@
 "use client";
 
+// todo(auth-redo): unused since the one-card sign-in (V3SignInRoute always renders AuthScreen). Delete this file and its tests in a follow-up.
+
 /* SIGN-IN / SIGN-UP / PASSWORD RECOVERY, ON A PHONE (prototype MobileAuth.jsx
    MbAuth). The desktop pairs a form with a live plate of the day; a phone has
    no room for that, so the persuasion is one line and a small mark and the
@@ -36,10 +38,12 @@ import { useStoreDistribution } from "@/lib/use-store-distribution";
 
 import { AgeConfirm, useAgeState } from "../../auth/AgeConfirm";
 import { type AuthScreenProps, NO_EMAIL_CODE } from "../../auth/AuthScreen";
+import { PlanChip } from "../../auth/PlanChip";
 import {
   MIN_PASSWORD,
   MORE_SIGN_IN_WAYS_LABEL,
   WAITLIST,
+  WRONG_PAIR_HELP,
   formReady,
   mailProblem,
   mailProblemText,
@@ -50,11 +54,16 @@ import {
   refusalText,
   resendClock,
   showWaitlist,
-  splitSignInProviders,
 } from "../../auth/auth-logic";
+import { redoProviders } from "../../auth/auth-redo";
+import { REDO_ICONS } from "../../auth/auth-redo-icons";
 import { CODE_TEXT } from "../../auth/email-code-logic";
 import { useAuthFields, useAuthSteps } from "../../auth/use-auth-fields";
-import { useEmailCodeFlow } from "../../auth/use-email-code-flow";
+import { useAuthRedo } from "../../auth/use-auth-redo";
+import {
+  useCodeInstead,
+  useEmailCodeFlow,
+} from "../../auth/use-email-code-flow";
 import { PhoneEmailCode } from "./PhoneEmailCode";
 import {
   MaBrand,
@@ -119,11 +128,23 @@ export function PhoneAuth({
   });
   const { touched, setTouched, refused, setRefused, recover, setRecover } =
     useAuthSteps(steps);
+  const codeInstead = useCodeInstead({
+    codeMode,
+    flow: codeFlow,
+    setUsePassword: emailCode?.setUsePassword,
+    clearRefusal: () => setRefused(null),
+  });
   const [busy, setBusy] = React.useState(false);
   /* Google, Apple and GitHub show; the rest wait behind "More ways". */
   const [moreWays, setMoreWays] = React.useState(false);
-  const { main: mainProviders, more: moreProviders } =
-    splitSignInProviders(providers);
+  const redo = useAuthRedo();
+  const { main: mainProviders, more: moreProviders } = redoProviders(
+    providers,
+    REDO_ICONS,
+    { ...redo, preview: false }
+  );
+  /* A button with no provider behind it (review only) says so, once. */
+  const [previewNote, setPreviewNote] = React.useState(false);
   const shownProviders = moreWays
     ? [...mainProviders, ...moreProviders]
     : mainProviders;
@@ -279,7 +300,7 @@ export function PhoneAuth({
 
   if (recover) {
     return (
-      <MaScene variant="a">
+      <MaScene variant="a" staticSky>
         <div className="mau-scroll" data-auth-screen={"recover-" + recover}>
           <MaBrand />
           <MaHead
@@ -389,8 +410,20 @@ export function PhoneAuth({
     );
   }
 
+  /* The 16+ / Terms box, one 12px line right above the button that makes the
+     account (nothing sits between it and the providers any more). */
+  const ageLine = signup ? (
+    <AgeConfirm
+      age={age}
+      missing={ageMissing}
+      termsHref={termsHref}
+      privacyHref={privacyHref}
+      className="auth-age auth-age-line mau-age"
+    />
+  ) : null;
+
   return (
-    <MaScene variant={signup ? "c" : "a"}>
+    <MaScene variant={signup ? "c" : "a"} staticSky>
       <div
         className="mau-scroll"
         data-auth-screen={signup ? "signup" : "login"}
@@ -423,23 +456,17 @@ export function PhoneAuth({
             }}
           >
             {offlineNote}
+            {redo.plan ? (
+              <PlanChip plan={redo.plan} onFree={redo.dismissPlan} />
+            ) : null}
             {notice ? (
               <MaNote tone="attention" icon={LuCircleAlert}>
                 {notice}
               </MaNote>
             ) : null}
-            {signup ? (
-              <AgeConfirm
-                age={age}
-                missing={ageMissing}
-                termsHref={termsHref}
-                privacyHref={privacyHref}
-                className="auth-age mau-age"
-              />
-            ) : null}
             {/* The ways in that need no typing come first: on a phone a
                 password is the most expensive thing on the screen. */}
-            {providers.length ? (
+            {mainProviders.length ? (
               <>
                 {/* Two short labels share a row; three or more stack, as
                     "Continue with Google" does not fit half a phone. */}
@@ -452,15 +479,27 @@ export function PhoneAuth({
                     <MaButton
                       key={p.id}
                       data-provider={p.id}
+                      data-visual-only={p.visualOnly ? "true" : undefined}
                       onClick={() => {
-                        if (ageOk()) onProvider?.(p.id);
+                        if (!ageOk()) return;
+                        if (p.visualOnly) setPreviewNote(true);
+                        else onProvider?.(p.id);
                       }}
-                      disabled={offline || providerBusy !== null}
+                      disabled={offline || providerBusy !== null || p.soon}
                     >
                       <p.icon size={17} aria-hidden />
                       {providerBusy === p.id ? "Opening…" : oauthButtonLabel(p)}
+                      {p.soon ? (
+                        <span className="auth-oauth-soon">Soon</span>
+                      ) : null}
                     </MaButton>
                   ))}
+                  {previewNote ? (
+                    <span className="mau-resend" role="status">
+                      Review build: this button is not connected to a provider
+                      yet.
+                    </span>
+                  ) : null}
                   {moreProviders.length && !moreWays ? (
                     <button
                       type="button"
@@ -474,7 +513,7 @@ export function PhoneAuth({
                 </div>
                 <span className="mau-or">
                   <span aria-hidden="true" className="mau-or-rule" />
-                  <span>or with email</span>
+                  <span>or</span>
                   <span aria-hidden="true" className="mau-or-rule" />
                 </span>
               </>
@@ -487,6 +526,7 @@ export function PhoneAuth({
                 signup={signup}
                 offline={offline}
                 onUsePassword={() => emailCode?.setUsePassword(true)}
+                beforeSubmit={ageLine}
               />
             ) : (
               <>
@@ -553,8 +593,23 @@ export function PhoneAuth({
                     {refusal}
                   </MaNote>
                 ) : null}
+                {wrongPair && emailCode && !signup ? (
+                  <span className="mau-resend" data-auth-wrong-help>
+                    {WRONG_PAIR_HELP.lead}{" "}
+                    <button
+                      type="button"
+                      className="mau-link"
+                      data-auth-wrong-code
+                      disabled={offline}
+                      onClick={codeInstead}
+                    >
+                      {WRONG_PAIR_HELP.action}
+                    </button>
+                  </span>
+                ) : null}
                 {!signup ? aside : null}
                 {netRow}
+                {ageLine}
                 <MaButton
                   primary
                   type="submit"

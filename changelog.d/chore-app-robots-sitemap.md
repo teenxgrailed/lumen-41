@@ -1,0 +1,1 @@
+- chore: the terms and privacy pages on use.needt.app can be found by Google; every other app page stays hidden. /sitemap.xml is public.

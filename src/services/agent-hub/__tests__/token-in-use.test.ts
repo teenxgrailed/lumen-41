@@ -26,7 +26,7 @@ describe("one token per agent", () => {
         expect((error as HubError).code).toBe("TOKEN_IN_USE");
         expect((error as HubError).status).toBe(409);
         expect((error as HubError).message).toBe(
-          "This token already belongs to agent Grok Bot. Create a separate token for each agent in Settings > Connections."
+          "This token already belongs to agent Grok Bot. Create a separate token for each agent in Connections (use.needt.app/connections)."
         );
       }
     }

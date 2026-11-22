@@ -46,6 +46,8 @@
  *     AppleNotificationReceipt.
  *   Email consent and history: EmailPreference, EmailSend (a reset must not
  *     re-enable mail the person switched off, or re-send what was sent).
+ *   Product analytics: ActivationEvent (the activation history of the account;
+ *     a data reset does not rewrite what the launch criterion counted).
  *   Workspaces: Workspace (personal one emptied), WorkspaceMember (every
  *     membership, including other users' workspaces).
  *   Admin/operator data: FeatureFlag, FeatureFlagOverride, BugReport,
@@ -121,6 +123,7 @@ function buildPlan(userId, workspaceId) {
     ["HubAgent", "hubAgent", wsOnly],
     ["AiUsage", "aiUsage", uid],
     ["MorningBrief", "morningBrief", uid],
+    ["FeedbackPrompt", "feedbackPrompt", uid],
     ["StarterGameState", "starterGameState", uid],
     ["AiPageChangeProposal", "aiPageChangeProposal", any(uid, { page: G })],
     ["AISettings", "aISettings", uid],
@@ -143,6 +146,11 @@ function buildPlan(userId, workspaceId) {
     ["DailyHighlight", "dailyHighlight", any(uid, ws)],
     ["WeekFocus", "weekFocus", any(uid, ws)],
     ["DailyAgenda", "dailyAgenda", uid],
+    ["DayPlan", "dayPlan", uid],
+    ["PlanSettings", "planSettings", uid],
+    ["SomedayMigrationMove", "somedayMigrationMove", uid],
+    ["ChannelLinkCode", "channelLinkCode", uid],
+    ["ChannelLink", "channelLink", uid],
     ["ClosedDay", "closedDay", uid],
     ["PersonalBlock", "personalBlock", uid],
     ["WeeklyFocusTarget", "weeklyFocusTarget", wsOnly],
@@ -196,6 +204,10 @@ function buildPlan(userId, workspaceId) {
     // Goals (Task.goalId is ON DELETE SET NULL; GoalProject cascades)
     ["GoalCheckIn", "goalCheckIn", any(uid, viaWs("goal"))],
     ["Goal", "goal", any(ws, uid)],
+
+    // Learn (LearnLesson cascades from LearnTopic; deleted first to count it)
+    ["LearnLesson", "learnLesson", uid],
+    ["LearnTopic", "learnTopic", uid],
 
     // Pages, documents, page databases
     ["MeetingNoteProposal", "meetingNoteProposal", any(ws, { page: G })],
@@ -282,6 +294,7 @@ function buildPlan(userId, workspaceId) {
     ["CalendarSettings", "calendarSettings", uid],
     ["NotificationSettings", "notificationSettings", uid],
     ["UserCustomization", "userCustomization", uid],
+    ["PhoneMenuLayout", "phoneMenuLayout", uid],
     ["IntegrationSettings", "integrationSettings", uid],
     ["DataSettings", "dataSettings", uid],
     ["AutoScheduleSettings", "autoScheduleSettings", uid],

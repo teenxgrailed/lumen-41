@@ -24,6 +24,7 @@ import type { V3Project, V3Task } from "@/lib/needt3/map";
 
 import { StScreen } from "../../states/StScreen";
 import { FlowItem, useFlowTick } from "../../work/FlowItem";
+import { ProjectFolder } from "../../work/ProjectFolder";
 import { blockedIds } from "../../work/flow";
 import { projectHue, projectStats } from "../../work/model";
 import type { WorkState } from "../../work/useWorkState";
@@ -65,9 +66,12 @@ const none = () => undefined;
 export function PhoneProjects({
   projectId = null,
   state,
+  folders = false,
 }: {
   projectId?: string | null;
   state: WorkState;
+  /** `folders_v1`: the list is two columns of folders. */
+  folders?: boolean;
 }) {
   const projectsQ = useProjects();
   const tasksQ = useTasks();
@@ -82,6 +86,7 @@ export function PhoneProjects({
         tasks={tasksQ.data ?? NO_TASKS}
         projectId={projectId}
         loaded={projectsQ.isSuccess}
+        folders={folders}
       />
     </StScreen>
   );
@@ -93,12 +98,14 @@ function ProjectsBody({
   tasks,
   projectId,
   loaded,
+  folders,
 }: {
   state: WorkState;
   projects: V3Project[];
   tasks: V3Task[];
   projectId: string | null;
   loaded: boolean;
+  folders: boolean;
 }) {
   const router = useRouter();
   const live = useMemo(() => tasks.filter((t) => !t.noSlot), [tasks]);
@@ -130,6 +137,7 @@ function ProjectsBody({
       <ProjectList
         projects={projects}
         tasks={live}
+        folders={folders}
         onPick={(id) => router.push(`/projects/${encodeURIComponent(id)}`)}
       />
     </div>
@@ -174,12 +182,15 @@ function ProjectRowView({
 function ProjectList({
   projects,
   tasks,
+  folders,
   onPick,
 }: {
   projects: V3Project[];
   tasks: V3Task[];
+  folders: boolean;
   onPick: (id: string) => void;
 }) {
+  const today = usePkToday();
   const openN = openInProjects(tasks, projects);
   const c = copy.PtkProjects;
   return (
@@ -200,10 +211,20 @@ function ProjectList({
       }
     >
       {projects.length ? (
-        <div className="ptk-plist">
-          {projects.map((p) => (
-            <ProjectRowView key={p.id} p={p} tasks={tasks} onPick={onPick} />
-          ))}
+        <div className={`ptk-plist${folders ? " is-folders" : ""}`}>
+          {projects.map((p, i) =>
+            folders ? (
+              <ProjectFolder
+                key={p.id}
+                project={p}
+                tasks={tasks}
+                today={today}
+                index={i}
+              />
+            ) : (
+              <ProjectRowView key={p.id} p={p} tasks={tasks} onPick={onPick} />
+            )
+          )}
         </div>
       ) : (
         <PkEmpty line={c.no_projects_yet_projects_are_made_on_the} />

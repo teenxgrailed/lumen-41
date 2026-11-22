@@ -3,7 +3,8 @@
  *
  * Onboarding in a store build (iOS app, Mac App Store): no plan screen, no
  * card step, no price, no waiver, no checkout. A saved link to either screen
- * lands on the end of the flow. The browser keeps both screens.
+ * lands on the bottom-bar step, the last before the end. The browser keeps
+ * both screens.
  */
 import { act, createElement as h } from "react";
 
@@ -22,6 +23,10 @@ jest.mock("@/styles/v3-entry.css", () => ({}));
 jest.mock("@/lib/needt3/fonts", () => ({ V3_FONT_CLASSES: "" }));
 jest.mock("next-auth/react", () => ({ signIn: jest.fn() }));
 jest.mock("../Ob3Sky", () => ({ Ob3Sky: () => null }));
+/* The picker reads the account's settings; this suite has no query client. */
+jest.mock("@/components/needt3/phone/auth/BarStyleStep", () => ({
+  BarStyleStep: () => null,
+}));
 jest.mock("../ob3-api", () => ({
   browserZone: () => "UTC",
   fetchPlan: jest.fn(() => new Promise(() => undefined)),
@@ -92,14 +97,14 @@ describe("Ob3Flow", () => {
     asStore();
     await mount("plans");
     expect(host.textContent).not.toMatch(/keep pro after/i);
-    expect(host.textContent).toMatch(/Opening your week/);
+    expect(host.textContent).toMatch(/Your bottom bar/);
     expectNoPurchaseUi();
   });
 
   it("store build: a saved link to the card screen skips it and starts no checkout", async () => {
     asStore();
     await mount("card");
-    expect(host.textContent).toMatch(/Opening your week/);
+    expect(host.textContent).toMatch(/Your bottom bar/);
     expectNoPurchaseUi();
     expect(startCheckout).not.toHaveBeenCalled();
   });
@@ -130,6 +135,57 @@ describe("Ob3Flow", () => {
       (b.textContent ?? "").trim()
     );
     expect(buttons.join("|")).not.toMatch(/see what.s in pro|plan|card/i);
+  });
+
+  it("the bottom-bar step continues to the end and goes back to the plans", async () => {
+    await mount("bar");
+    expect(host.textContent).toMatch(/Your bottom bar/);
+    expect(host.textContent).toMatch(/on your phone/);
+    const byText = (re: RegExp) =>
+      Array.from(host.querySelectorAll("button")).find((b) =>
+        re.test(b.textContent ?? "")
+      )!;
+    await act(async () => {
+      byText(/^Back$/).click();
+    });
+    expect(host.textContent).toMatch(/keep pro after/i);
+    await act(async () => {
+      root.unmount();
+      root = createRoot(host);
+    });
+    await mount("bar");
+    await act(async () => {
+      byText(/Continue/).click();
+    });
+    expect(host.textContent).toMatch(/Opening your week/);
+  });
+
+  it("back from checkout, the bar step has no way back to the card", async () => {
+    window.history.replaceState(null, "", "/start?billing=success&step=bar");
+    try {
+      await mount("bar");
+      expect(host.textContent).toMatch(/Your bottom bar/);
+      expect(host.querySelector(".ob3-back")).toBeNull();
+      await act(async () => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+      expect(host.textContent).toMatch(/Your bottom bar/);
+      const phases = Array.from(
+        host.querySelectorAll<HTMLButtonElement>(".ob3-ph")
+      );
+      expect(phases.every((b) => b.disabled)).toBe(true);
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("without a checkout, Escape on the bar step goes back", async () => {
+    await mount("bar");
+    expect(host.querySelector(".ob3-back")).not.toBeNull();
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(host.textContent).toMatch(/keep pro after/i);
   });
 
   it("browser: the plan screen still shows plans and prices", async () => {

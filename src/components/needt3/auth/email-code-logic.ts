@@ -39,7 +39,7 @@ export function canSendCode(mail: string): boolean {
 }
 
 export const CODE_TEXT = {
-  sendLabel: "Send code",
+  sendLabel: "Continue",
   sending: "Sending…",
   verifyLabel: (signup: boolean) => (signup ? "Create account" : "Sign in"),
   verifying: "Checking…",

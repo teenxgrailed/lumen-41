@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import { NextRequest } from "next/server";
 
+import { AGE_COOKIE, expireAgeCookie } from "@/lib/auth/age-confirmation";
 import { getAuthOptions } from "@/lib/auth/auth-options";
 import { classifyCredentialAttempt } from "@/lib/auth/credential-attempt";
 import { credentialsEmail } from "@/lib/auth/credentials-email";
@@ -10,6 +11,7 @@ import {
   allOneTapNonceCookies,
   expireOneTapNonceCookie,
 } from "@/lib/auth/google-one-tap-nonce";
+import { runWithAuthRequest } from "@/lib/auth/request-context";
 import { signInSucceeded } from "@/lib/auth/sign-in-outcome";
 import { newDate } from "@/lib/date-utils";
 import {
@@ -82,12 +84,44 @@ async function getHandler(): Promise<AuthHandler> {
   }
 }
 
+/**
+ * The age confirmation cookie, handed to the `signIn` callback through the
+ * request context (request-context.ts) instead of being read back out of
+ * Next's request store from inside NextAuth.
+ */
+function withAuthRequest<T>(request: NextRequest, fn: () => Promise<T>) {
+  return runWithAuthRequest(
+    { ageToken: request.cookies.get(AGE_COOKIE)?.value },
+    fn
+  );
+}
+
+/** An OAuth return that signed somebody in has used the age cookie up. */
+function spendAgeCookie(request: NextRequest, response: Response) {
+  if (!request.cookies.has(AGE_COOKIE)) return;
+  if (!/\/callback\/[^/]+$/.test(request.nextUrl.pathname)) return;
+  const succeeded = signInSucceeded({
+    status: response.status,
+    location: response.headers.get("location"),
+    body: null,
+  });
+  if (succeeded) response.headers.append("set-cookie", expireAgeCookie());
+}
+
 export async function GET(request: NextRequest, context: AuthRouteContext) {
-  const handler = await getHandler();
-  return handler(request, context);
+  return withAuthRequest(request, async () => {
+    const handler = await getHandler();
+    const response = await handler(request, context);
+    spendAgeCookie(request, response);
+    return response;
+  });
 }
 
 export async function POST(request: NextRequest, context: AuthRouteContext) {
+  return withAuthRequest(request, () => handlePost(request, context));
+}
+
+async function handlePost(request: NextRequest, context: AuthRouteContext) {
   const handler = await getHandler();
   if (request.nextUrl.pathname.endsWith("/callback/credentials")) {
     const email = await credentialsEmail(request);

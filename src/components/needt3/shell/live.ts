@@ -58,11 +58,41 @@ export function nextEventBadge(events: readonly EventLike[], now: string) {
   const mins = minutesBetween(now, next.startAt);
   return {
     text: mins < 60 ? `${mins}m` : next.startAt.slice(11, 16),
+    mins,
     urgent:
       mins <= 10
         ? `“${next.title || "Event"}” starts in ${mins} min`
         : (null as string | null),
   };
+}
+
+/** An event this close (minutes) outranks every other tile badge. */
+export const SOON_EVENT_MIN = 15;
+
+export type BadgeTile = "calendar" | "tasks" | "today" | "mail";
+
+/**
+ * The one tile that wears a badge: three at once (0/13 on Home, 5m on
+ * Calendar, 3 on Tasks) is noise, so only the most urgent shows. An event
+ * within 15 minutes wins, then overdue tasks, then Home's progress on what is
+ * due today, then unread mail, then a later event. Null: nothing to say.
+ * `tiles` are the places on show as tiles.
+ */
+export function leadBadge(args: {
+  tiles: readonly string[];
+  eventMins: number | null;
+  overdue: number;
+  progress: { done: number; total: number } | null;
+  unread: number;
+}): BadgeTile | null {
+  const on = (id: BadgeTile) => args.tiles.includes(id);
+  const soon = args.eventMins != null && args.eventMins <= SOON_EVENT_MIN;
+  if (soon && on("calendar")) return "calendar";
+  if (args.overdue > 0 && on("tasks")) return "tasks";
+  if (args.progress && args.progress.total > 0 && on("today")) return "today";
+  if (args.unread > 0 && on("mail")) return "mail";
+  if (args.eventMins != null && on("calendar")) return "calendar";
+  return null;
 }
 
 /** The urgent wash restarts only for a new reason, not a ticking countdown. */

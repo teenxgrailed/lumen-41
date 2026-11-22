@@ -8,6 +8,7 @@ import {
   project,
 } from "@/lib/needt3/derive";
 import type { V3Task } from "@/lib/needt3/map";
+import { projectColor } from "@/lib/needt3/project-color";
 
 import { isPinned, pinTitle } from "./pin";
 
@@ -98,7 +99,7 @@ export function taskView(
     lateTitle: due ? `Overdue — was due ${due}` : undefined,
     projectName: p?.name ?? null,
     /** The project's colour, or null — each layout picks its own neutral. */
-    hue: p?.color ?? null,
+    hue: p ? projectColor(p.id, p.color) : null,
     parts: parts?.length
       ? { done: partsDone, total: parts.length, open: parts.length - partsDone }
       : null,

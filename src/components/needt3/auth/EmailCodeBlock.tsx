@@ -21,6 +21,7 @@ export function EmailCodeBlock({
   signup,
   offline,
   onUsePassword,
+  beforeSubmit,
 }: {
   flow: EmailCodeFlow;
   mail: string;
@@ -29,6 +30,8 @@ export function EmailCodeBlock({
   offline: boolean;
   /** Reveals the old email + password form; absent on the sign-up tab. */
   onUsePassword?: () => void;
+  /** Sits right above the "Send code" button (the sign-up's 16+ line). */
+  beforeSubmit?: React.ReactNode;
 }) {
   if (flow.step === "code") {
     return (
@@ -71,7 +74,7 @@ export function EmailCodeBlock({
           className="auth-recover-resend"
           data-auth-resend={flow.resendIn > 0 ? flow.resendIn : "ready"}
         >
-          {"Didn’t get it? Check spam, or "}
+          {"Check spam, or "}
           {flow.resendIn > 0 ? (
             <span className="auth-recover-wait">
               resend in {resendClock(flow.resendIn)}
@@ -106,7 +109,8 @@ export function EmailCodeBlock({
       <Field
         value={mail}
         label="Email"
-        placeholder="you@example.com"
+        type="email"
+        placeholder="Your email"
         autoComplete="email"
         inputMode="email"
         invalid={flow.mailBad}
@@ -126,6 +130,7 @@ export function EmailCodeBlock({
           {CODE_TEXT.net}
         </span>
       ) : null}
+      {beforeSubmit}
       <button
         type="button"
         onClick={() => void flow.send()}

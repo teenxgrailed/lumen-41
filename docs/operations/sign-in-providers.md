@@ -71,7 +71,7 @@ Already set up for the calendar connection; sign-in reuses the same client.
    project below.
 3. **OAuth consent screen**: sign-in uses only `openid`, `email`, `profile`
    (non-sensitive). Button: "Continue with Google". Google Tasks has its own
-   consent (`https://www.googleapis.com/auth/tasks`), asked only when a person
+   consent (`https://www.googleapis.com/auth/tasks.readonly`), asked only when a person
    connects Google Tasks in Connections. **Remove `gmail.readonly`** from the
    consent screen's scopes: it is a restricted scope and blocks verification
    (CASA) of the whole app. The main project is verified with Calendar and
@@ -251,7 +251,7 @@ registration.
 
 Sign-in now asks for `openid profile email User.Read` only. It used to ask for
 the calendar and task scopes too; those belong to the Outlook connection.
-Button: "Sign in with Microsoft".
+Button: "Continue with Microsoft". Click-by-click setup: `docs/release/MICROSOFT-SIGNIN.md`.
 
 Env fallback: `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`,
 `AZURE_AD_TENANT_ID`.

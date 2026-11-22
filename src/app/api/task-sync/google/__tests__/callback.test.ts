@@ -54,7 +54,8 @@ const db = prisma as unknown as {
 };
 
 const CALLBACK = "http://0.0.0.0:3000/api/task-sync/google/callback";
-const TASKS = "https://www.googleapis.com/auth/tasks";
+const TASKS = "https://www.googleapis.com/auth/tasks.readonly";
+const TASKS_FULL = "https://www.googleapis.com/auth/tasks";
 
 function callbackRequest(options: {
   query?: Record<string, string>;
@@ -239,6 +240,23 @@ describe("Google Tasks connect: callback", () => {
     );
     expect(mockStoreTokens).not.toHaveBeenCalled();
     expect(db.taskProvider.create).not.toHaveBeenCalled();
+  });
+
+  it("still connects a person who granted the full Tasks scope earlier", async () => {
+    getToken.mockResolvedValue({
+      tokens: {
+        access_token: "at",
+        refresh_token: "rt",
+        expiry_date: 1,
+        scope: `openid https://www.googleapis.com/auth/userinfo.email ${TASKS_FULL}`,
+      },
+    });
+    const { session, cookies } = boundCookies();
+    const res = await call(
+      callbackRequest({ query: { code: "c", state: session.state }, cookies })
+    );
+    expect(res.headers.get("location")).not.toContain("scope_missing");
+    expect(mockStoreTokens).toHaveBeenCalled();
   });
 
   it("says the consent was denied when Google sends access_denied", async () => {

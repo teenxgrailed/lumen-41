@@ -9,6 +9,7 @@ import {
 import { WorkspaceRole } from "@prisma/client";
 import { RRule } from "rrule";
 
+import { recordActivation } from "@/lib/activation-events";
 import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
@@ -298,6 +299,7 @@ export async function POST(request: NextRequest) {
         scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
       },
     });
+    recordActivation("task_created", userId, { source: "app" });
 
     // The app creates tasks with `defaultReminders: false`: its reminders and
     // priority are the person's choice. Other clients keep the defaults.

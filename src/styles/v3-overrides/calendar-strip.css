@@ -182,7 +182,7 @@
 /* The grid lines: one pair of repeating gradients per column, not 48 nodes.
    An hour is a hairline at the border ladder step; the half hour under it is
    the next step down (--fill-3), so the hour reads first and the half hour is
-   only felt. Both are the 1px at the top of their slot, every 26px. */
+   only felt. Both are the 1px at the top of their slot, every 32px. */
 .needt-v3 .c2-hlines {
   position: absolute;
   inset: 0;
@@ -193,16 +193,16 @@
       var(--border) 0,
       var(--border) 1px,
       transparent 1px,
-      transparent 52px
+      transparent 64px
     ),
     repeating-linear-gradient(
       to bottom,
       transparent 0,
-      transparent 26px,
-      var(--fill-3) 26px,
-      var(--fill-3) 27px,
-      transparent 27px,
-      transparent 52px
+      transparent 32px,
+      var(--fill-3) 32px,
+      var(--fill-3) 33px,
+      transparent 33px,
+      transparent 64px
     );
 }
 

@@ -73,6 +73,8 @@ describe("email previews", () => {
       const hrefs = [...mail.html.matchAll(/href="([^"]+)"/g)].map((m) =>
         m[1].replaceAll("&amp;", "&")
       );
+      // The sign-in code and the ops alert carry no link by design.
+      if (["sign-in-code", "ops-alert"].includes(name)) continue;
       expect(hrefs.length).toBeGreaterThan(0);
       for (const href of hrefs) {
         const url = new URL(href);

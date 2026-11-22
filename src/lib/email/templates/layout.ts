@@ -2,15 +2,17 @@ import { APP_NAME } from "@/lib/app-config";
 import { operatorPostalAddress } from "@/lib/legal/operator";
 
 /**
- * The one layout every Needt email wears: wordmark, one card, 16 px body, at
- * most one button. Tables and inline CSS so Outlook and Gmail render it; the
- * only <style> block is progressive (dark mode via prefers-color-scheme and
- * the Outlook.com [data-ogsc]/[data-ogsb] hooks, phone width) and the mail
- * reads correctly without it. The one image is the logo tile; the wordmark
- * next to it is text, so nothing is lost when images are blocked.
+ * The one layout every Needt email wears (the sign-in code included): the
+ * logo top-left, one card at most 560 px wide, one heading, short body lines,
+ * at most one button with a plain link under it, a hairline and a small
+ * footer. Tables and inline CSS so Outlook and Gmail render it; the only
+ * <style> block is progressive (dark mode via prefers-color-scheme and the
+ * Outlook.com [data-ogsc]/[data-ogsb] hooks, phone width) and the mail reads
+ * correctly without it. The one image is the logo, on a light rounded tile so
+ * it holds in both themes; its alt text is the name.
  *
- * Colours follow PORT.md: the button is an ink fill, never the accent; the
- * accent appears only inside the logo mark.
+ * Colours follow PORT.md: the button is an ink fill, never the accent. No pure
+ * white or black, so forced inversion (Gmail, Apple Mail) has room to move.
  */
 
 export function escapeHtml(value: string): string {
@@ -86,32 +88,48 @@ export type EmailContent = {
    * an end user (the owner's operations alerts).
    */
   footerNote?: string;
+  /**
+   * A one-time sign-in code, shown large and monospace in a grey box between
+   * the paragraphs and the button. Printed as one unbroken string so a tap or
+   * double-click selects all of it; the spacing is CSS letter-spacing.
+   */
+  code?: string;
+  /** Plain-text part, when a mail needs wording of its own (sign-in code). */
+  text?: string;
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
 
 const INK = "#1b1a17";
-const PAPER = "#f4f1ec";
-const CARD = "#fbf9f5";
-const MUTED = "#6a665e";
-const RULE = "#e3ded5";
+const BODY = "#47453f";
+const PAPER = "#f7f7f8";
+const CARD = "#fefefe";
+const WELL = "#f0f0f2";
+const MUTED = "#6e6b64";
+const RULE = "#e6e6e9";
 // Dark counterparts, used by the progressive dark-mode rules below. Not pure
 // black or white: Gmail and Outlook invert on their own and handle these.
 const D_PAPER = "#151412";
 const D_CARD = "#1f1e1b";
+const D_WELL = "#2a2926";
 const D_INK = "#ece8e1";
+const D_BODY = "#cdc9c0";
 const D_MUTED = "#a8a399";
-const D_RULE = "#2e2c28";
+const D_RULE = "#33312d";
 const FONT =
   "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Helvetica,Arial,sans-serif";
+const MONO =
+  "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace";
+
+/** Widest the card gets, in px. Fluid below it. */
+export const EMAIL_MAX_WIDTH = 560;
 
 /**
- * The logo is the app icon tile: a PNG with its own dark ground and
- * transparent corners, so it reads on a light and a dark inbox alike. SVG is
- * not used because Gmail does not render it. Absolute https URL on the app
- * host, which serves public/icons.
+ * The logo is the app icon: a PNG with its own ground and transparent corners.
+ * SVG is not used because Gmail does not render it. Absolute https URL on the
+ * marketing host.
  */
-export const EMAIL_LOGO_URL = "https://use.needt.app/icons/icon-192.png";
+export const EMAIL_LOGO_URL = "https://needt.app/icon-192.png";
 
 export function renderEmail(content: EmailContent): RenderedEmail {
   if (content.kind === "commercial" && !content.unsubscribeUrl) {
@@ -129,34 +147,47 @@ export function renderEmail(content: EmailContent): RenderedEmail {
   const address = footer
     ? `${footer.name}, ${footer.address}`
     : footerAddress();
-  const baseLine = content.footerNote
-    ? content.footerNote
-    : content.kind === "commercial"
-      ? `You get this because you have a ${APP_NAME} account.`
-      : content.kind === "notification"
-        ? content.settingsUrl
-          ? `You get this because of your ${APP_NAME} notification settings. Change them here: ${content.settingsUrl}`
-          : `You get this because of your ${APP_NAME} notification settings. You can change them in Settings.`
-        : `You get this because of activity on your ${APP_NAME} account.`;
+  // An empty footerNote means "no reason line" (the sign-in code).
+  const baseLine =
+    content.footerNote !== undefined
+      ? content.footerNote
+      : content.kind === "commercial"
+        ? `You get this because you have a ${APP_NAME} account.`
+        : content.kind === "notification"
+          ? content.settingsUrl
+            ? `You get this because of your ${APP_NAME} notification settings. Change them here: ${content.settingsUrl}`
+            : `You get this because of your ${APP_NAME} notification settings. You can change them in Settings.`
+          : `You get this because of activity on your ${APP_NAME} account.`;
   const footerLine = content.unsubscribeUrl
     ? `${baseLine} Unsubscribe: ${content.unsubscribeUrl}`
     : baseLine;
   const footerHtml = content.unsubscribeUrl
     ? `${escapeHtml(baseLine)} <a href="${escapeHtml(content.unsubscribeUrl)}" class="muted" style="color:${MUTED};text-decoration:underline;">Unsubscribe</a>`
     : escapeHtml(footerLine);
+  const reasonHtml = footerHtml
+    ? `<p class="muted" style="margin:0 0 6px 0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${footerHtml}</p>`
+    : "";
 
   const paragraphs = content.paragraphs
     .map(
       (p) =>
-        `<p class="ink" style="margin:0 0 16px 0;font-family:${FONT};font-size:16px;line-height:24px;color:${INK};">${escapeHtml(p)}</p>`
+        `<p class="body" style="margin:0 0 12px 0;font-family:${FONT};font-size:15px;line-height:22px;color:${BODY};">${escapeHtml(p)}</p>`
     )
     .join("");
 
-  // Bulletproof button: a table cell that carries the fill (bgcolor attribute
-  // and inline style, same-colour border for Outlook) around a padded link.
+  // One unbroken string in one cell: no spaces, no per-digit markup, so it
+  // selects and copies as a unit. The gaps are letter-spacing.
+  const code = content.code
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 16px 0;"><tr><td class="well code ink" align="center" bgcolor="${WELL}" style="background-color:${WELL};border-radius:10px;padding:18px 12px;font-family:${MONO};font-size:32px;line-height:40px;font-weight:600;letter-spacing:6px;color:${INK};-webkit-user-select:all;user-select:all;">${escapeHtml(content.code)}</td></tr></table>`
+    : "";
+
+  // Bulletproof button: VML round-rect for Outlook desktop, otherwise a table
+  // cell that carries the fill (bgcolor attribute and inline style, same
+  // colour border) around a padded link. Under it, the plain link.
   const button = content.button
-    ? `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px 0;"><tr><td class="btn" align="center" bgcolor="${INK}" style="background-color:${INK};border:1px solid ${INK};border-radius:10px;mso-padding-alt:13px 22px;"><a href="${escapeHtml(content.button.url)}" class="btn-a" target="_blank" style="display:inline-block;padding:13px 22px;font-family:${FONT};font-size:16px;line-height:20px;font-weight:600;color:${CARD};text-decoration:none;">${escapeHtml(content.button.label)}</a></td></tr></table>` +
-      `<p class="muted" style="margin:0 0 16px 0;font-family:${FONT};font-size:13px;line-height:20px;color:${MUTED};">Button not working? Paste this link into your browser:<br><a href="${escapeHtml(content.button.url)}" class="muted" target="_blank" style="color:${MUTED};word-break:break-all;">${escapeHtml(content.button.url)}</a></p>`
+    ? `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${escapeHtml(content.button.url)}" style="height:44px;v-text-anchor:middle;width:${Math.min(380, 56 + content.button.label.length * 9)}px;" arcsize="18%" stroke="f" fillcolor="${INK}"><w:anchorlock/><center style="color:${CARD};font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">${escapeHtml(content.button.label)}</center></v:roundrect><![endif]-->` +
+      `<!--[if !mso]><!--><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 12px 0;"><tr><td class="btn" align="center" bgcolor="${INK}" style="background-color:${INK};border:1px solid ${INK};border-radius:8px;"><a href="${escapeHtml(content.button.url)}" class="btn-a" target="_blank" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:15px;line-height:20px;font-weight:600;color:${CARD};text-decoration:none;">${escapeHtml(content.button.label)}</a></td></tr></table><!--<![endif]-->` +
+      `<p class="muted" style="margin:0 0 16px 0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">Button not working? Paste this link into your browser:<br><a href="${escapeHtml(content.button.url)}" class="muted" target="_blank" style="color:${MUTED};word-break:break-all;">${escapeHtml(content.button.url)}</a></p>`
     : "";
 
   const note = content.note
@@ -187,35 +218,43 @@ img{-ms-interpolation-mode:bicubic;border:0;outline:none;text-decoration:none;}
 @media (prefers-color-scheme:dark){
 .paper{background-color:${D_PAPER} !important;}
 .card{background-color:${D_CARD} !important;border-color:${D_RULE} !important;}
-.ink,.mark{color:${D_INK} !important;}
+.well{background-color:${D_WELL} !important;}
+.hair{border-color:${D_RULE} !important;}
+.ink{color:${D_INK} !important;}
+.body{color:${D_BODY} !important;}
 .muted,.muted a{color:${D_MUTED} !important;}
 .btn{background-color:${D_INK} !important;border-color:${D_INK} !important;}
 .btn-a{color:${INK} !important;}
 }
 [data-ogsb] .paper{background-color:${D_PAPER} !important;}
 [data-ogsb] .card{background-color:${D_CARD} !important;border-color:${D_RULE} !important;}
-[data-ogsc] .ink,[data-ogsc] .mark{color:${D_INK} !important;}
+[data-ogsb] .well{background-color:${D_WELL} !important;}
+[data-ogsb] .hair{border-color:${D_RULE} !important;}
+[data-ogsc] .ink{color:${D_INK} !important;}
+[data-ogsc] .body{color:${D_BODY} !important;}
 [data-ogsc] .muted,[data-ogsc] .muted a{color:${D_MUTED} !important;}
 [data-ogsb] .btn{background-color:${D_INK} !important;border-color:${D_INK} !important;}
 [data-ogsc] .btn-a{color:${INK} !important;}
-@media only screen and (max-width:620px){
+@media only screen and (max-width:${EMAIL_MAX_WIDTH + 40}px){
 .wrap{width:100% !important;}
+.gutter{padding:20px 16px !important;}
 .pad{padding:24px 20px !important;}
+.code{font-size:28px !important;letter-spacing:4px !important;}
 }
 </style>
 </head>
 <body class="paper" bgcolor="${PAPER}" style="margin:0;padding:0;background-color:${PAPER};width:100%;">
 <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all;">${escapeHtml(content.preheader)}${preheaderPad}</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="paper" bgcolor="${PAPER}" style="background-color:${PAPER};">
-<tr><td align="center" class="paper" bgcolor="${PAPER}" style="padding:32px 12px;background-color:${PAPER};">
-<!--[if mso]><table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
-<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:600px;max-width:600px;">
-<tr><td style="padding:0 4px 16px 4px;font-family:${FONT};"><table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:0 10px 0 0;vertical-align:middle;"><img src="${EMAIL_LOGO_URL}" width="28" height="28" alt="${escapeHtml(APP_NAME)}" style="display:block;width:28px;height:28px;border:0;border-radius:7px;color:${INK};font-size:12px;"></td><td style="vertical-align:middle;font-family:${FONT};"><span class="mark" style="font-family:${FONT};font-size:20px;line-height:28px;font-weight:700;letter-spacing:-0.3px;color:${INK};">${escapeHtml(APP_NAME)}</span></td></tr></table></td></tr>
-<tr><td class="card pad" bgcolor="${CARD}" style="background-color:${CARD};border:1px solid ${RULE};border-radius:16px;padding:32px;font-family:${FONT};">
-<h1 class="ink" style="margin:0 0 16px 0;font-family:${FONT};font-size:22px;line-height:28px;font-weight:700;color:${INK};">${escapeHtml(content.heading)}</h1>
-${paragraphs}${button}${note}
+<tr><td align="center" class="paper gutter" bgcolor="${PAPER}" style="padding:32px 24px;background-color:${PAPER};">
+<!--[if mso]><table role="presentation" width="${EMAIL_MAX_WIDTH}" cellspacing="0" cellpadding="0" border="0" align="center"><tr><td><![endif]-->
+<table role="presentation" width="${EMAIL_MAX_WIDTH}" cellspacing="0" cellpadding="0" border="0" class="wrap" style="width:100%;max-width:${EMAIL_MAX_WIDTH}px;">
+<tr><td class="card pad" bgcolor="${CARD}" style="background-color:${CARD};border:1px solid ${RULE};border-radius:12px;padding:32px;font-family:${FONT};">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px 0;"><tr><td bgcolor="${CARD}" style="padding:0;background-color:${CARD};border:1px solid ${RULE};border-radius:8px;line-height:0;font-size:0;"><img src="${EMAIL_LOGO_URL}" width="30" height="30" alt="${escapeHtml(APP_NAME)}" style="display:block;width:30px;height:30px;border:0;border-radius:7px;color:${INK};font-family:${FONT};font-size:12px;line-height:30px;"></td></tr></table>
+<h1 class="ink" style="margin:0 0 12px 0;font-family:${FONT};font-size:21px;line-height:28px;font-weight:600;letter-spacing:-0.2px;color:${INK};">${escapeHtml(content.heading)}</h1>
+${paragraphs}${code}${button}${note}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 0 0;"><tr><td class="hair" style="padding:16px 0 0 0;border-top:1px solid ${RULE};font-family:${FONT};">${reasonHtml}<p class="muted" style="margin:0;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${escapeHtml(APP_NAME)} &middot; ${escapeHtml(address)}</p></td></tr></table>
 </td></tr>
-<tr><td class="muted" style="padding:16px 4px 0 4px;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${footerHtml}<br>${escapeHtml(APP_NAME)} &middot; ${escapeHtml(address)}</td></tr>
 </table>
 <!--[if mso]></td></tr></table><![endif]-->
 </td></tr>
@@ -223,18 +262,20 @@ ${paragraphs}${button}${note}
 </body>
 </html>`;
 
-  const text = [
-    content.heading,
-    "",
-    ...content.paragraphs.flatMap((p) => [p, ""]),
-    ...(content.button
-      ? [`${content.button.label}: ${content.button.url}`, ""]
-      : []),
-    ...(content.note ? [content.note, ""] : []),
-    "--",
-    footerLine,
-    `${APP_NAME} - ${address}`,
-  ].join("\n");
+  const text =
+    content.text ??
+    [
+      content.heading,
+      "",
+      ...content.paragraphs.flatMap((p) => [p, ""]),
+      ...(content.button
+        ? [`${content.button.label}: ${content.button.url}`, ""]
+        : []),
+      ...(content.note ? [content.note, ""] : []),
+      "--",
+      ...(footerLine ? [footerLine] : []),
+      `${APP_NAME} - ${address}`,
+    ].join("\n");
 
   return { subject: content.subject, html, text };
 }

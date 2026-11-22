@@ -12,6 +12,8 @@ import {
   sandboxLockedBody,
 } from "@/lib/sandbox/policy";
 import { contentSecurityPolicy } from "@/lib/security/csp";
+import { applySecurityHeaders } from "@/lib/security/headers";
+import { isIndexablePath } from "@/lib/seo/indexable-paths";
 import { isBogusActionId } from "@/lib/stale-deployment";
 
 const CSP_REPORT_ONLY = contentSecurityPolicy({
@@ -63,6 +65,8 @@ const publicRoutes = [
   "/subscription/lifetime/success",
   "/subscription/lifetime/setup-password",
   "/robots.txt",
+  // Crawlers fetch it without a session; it was redirected to sign-in (307).
+  "/sitemap.xml",
 ];
 
 // Routes that only admins can access
@@ -245,7 +249,8 @@ function isDocumentPath(pathname: string): boolean {
 }
 
 /**
- * The app host is never indexed. The header is also set in next.config.js, but
+ * The app host is never indexed, except the legal pages (INDEXABLE_PATHS).
+ * The header is also set in next.config.js, but
  * production responses were observed without it, so every response (redirects
  * and rewrites included) gets it here as well.
  */
@@ -256,7 +261,10 @@ export async function middleware(request: NextRequest) {
     return new NextResponse(null, { status: 400 });
   }
   const response = await handle(request);
-  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (!isIndexablePath(request.nextUrl.pathname)) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+  applySecurityHeaders(response.headers, request.nextUrl.pathname);
   // Which build answered: a page from an older build compares this with its
   // own SHA and offers a reload (src/lib/pwa/build-version.ts).
   const build =

@@ -57,7 +57,7 @@ describe("production deployment workflow", () => {
     // Compared with what production serves, not HEAD~1, so merges landed
     // during a skipped release are never lost.
     expect(changes).toContain(
-      'git diff --name-only "$previous_sha" "$HEAD_SHA"'
+      'git diff --name-only "$previous_sha" "$RELEASE_SHA"'
     );
     expect(changes).toContain("fetch-depth: 0");
     expect(changes).toContain("docs/|openspec/");
@@ -65,6 +65,20 @@ describe("production deployment workflow", () => {
     expect(changes).toContain('if [ "$previous_sha" = unknown ]');
     expect(job("images")).toContain("needs: [changes, gates]");
     expect(job("gates")).toContain("needs.changes.outputs.deploy == 'true'");
+  });
+
+  it("releases the newest green main commit and never an older one", () => {
+    const changes = job("changes");
+    // A stale run never rolls production back: only a strict ancestor of
+    // what production serves is skipped; an equal SHA still reaches the
+    // worker/collaboration repair in release-is-needed.sh.
+    expect(changes).toContain(
+      'git merge-base --is-ancestor "$RELEASE_SHA" "$previous_sha"'
+    );
+    expect(changes).toContain("git rev-list --first-parent");
+    // Failed or non-push CI runs get their own group, so they cannot
+    // cancel a pending green release.
+    expect(workflow).toContain("format('needt-skip-{0}', github.run_id)");
   });
 
   it("builds the three runtimes as amd64 images tagged with the release SHA", () => {

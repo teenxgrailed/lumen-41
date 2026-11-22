@@ -15,12 +15,12 @@ import {
   type Sound,
   clockOf,
   intentionOf,
-  isSound,
   lengthFromPref,
   lengthMinutes,
   nextTask,
   openTasks,
   runOf,
+  soundOf,
   startedLine,
   summaryOf,
   tabTitle,
@@ -46,6 +46,7 @@ import {
 } from "@/lib/needt3/hooks/settings";
 import { useTasks, useUpdateTask } from "@/lib/needt3/hooks/tasks";
 import type { V3Task } from "@/lib/needt3/map";
+import { visibleInterval } from "@/lib/needt3/page-activity";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 
@@ -77,8 +78,9 @@ export function useFocusRun() {
     void pausedAt;
     setNowMs(newDate().getTime());
     if (!ticking) return undefined;
-    const t = window.setInterval(() => setNowMs(newDate().getTime()), 1000);
-    return () => window.clearInterval(t);
+    // Seconds are shown, so it ticks while the tab is visible and not at all
+    // while it is hidden (it reads the clock once on the way back).
+    return visibleInterval(() => setNowMs(newDate().getTime()), 1000);
   }, [ticking, id, pausedAt]);
   const run = useMemo(
     () => (session ? runOf(session, nowMs) : null),
@@ -161,7 +163,7 @@ export function useFocusController() {
       draft: { ...(useFocusWindow.getState().draft ?? base), ...p },
     });
   const rawSound = prefs?.focusAmbient;
-  const sound: Sound = isSound(rawSound) ? rawSound : "off";
+  const sound: Sound = soundOf(rawSound);
   const hide = readPref(prefs, "focusHideOthers");
   const setSound = (v: Sound) => void setPref("focusAmbient", v);
   const setHide = (v: boolean) => void setPref("focusHideOthers", v);
@@ -175,9 +177,9 @@ export function useFocusController() {
   const endedHere = useRef<string | null>(null);
 
   const finish = useCallback(
-    async (how: FocusSummary["how"], quiet = false) => {
+    async (how: FocusSummary["how"], quiet = false, taskDone = false) => {
       const { session: row, run: r, tasks: list } = live.current;
-      if (!row || !r || finishing.current === r.id) return;
+      if (!row || !r || finishing.current === r.id) return false;
       finishing.current = r.id;
       const t = taskOf(list, r);
       const title = r.isBreak ? "Break" : (t?.title ?? r.intention ?? "Focus");
@@ -202,7 +204,7 @@ export function useFocusController() {
             preset: w.breakAfter,
             breakAfter: null,
           });
-        else w.patch({ summary, askDismissed: false });
+        else w.patch({ summary, askDismissed: taskDone });
         useNeedt3Ui.getState().setFocusOpen(true);
       }
       const ok = await actions.stop(row, how === "complete");
@@ -210,13 +212,14 @@ export function useFocusController() {
       if (!ok) {
         endedHere.current = null;
         useFocusWindow.getState().patch({ summary: null, note: null });
-        return;
+        return false;
       }
       useFocusWindow.getState().patch({ confirmEnd: false });
       if (quiet)
         notify.success(
           `Focus session ended · ${summary.minutes} min on “${title}”`
         );
+      return true;
     },
     [actions]
   );
@@ -360,6 +363,19 @@ export function useFocusController() {
     [updateTask]
   );
   const markDone = () => (askTask ? completeTask(askTask) : undefined);
+  /**
+   * Done, from the running screen: the session ends and the task is ticked
+   * in one press. The session goes first (a stop that fails leaves the task
+   * alone); the End view then skips the "Done with ...?" question it would
+   * ask about a task that is being closed.
+   */
+  const doneTask = async () => {
+    const { run: r, tasks: list } = live.current;
+    const t = r && !r.isBreak ? taskOf(list, r) : null;
+    if (!t) return;
+    const ended = await finish(r!.due ? "complete" : "stopped", false, true);
+    if (ended) await completeTask(t);
+  };
   const notYet = () => useFocusWindow.getState().patch({ askDismissed: true });
   /** Another quarter hour on the same task; only after the clock ran out. */
   const focusMore = async () => {
@@ -475,6 +491,7 @@ export function useFocusController() {
     endFullTimeNow,
     askTask: askTask ?? null,
     markDone,
+    doneTask,
     notYet,
     focusMore,
     begin,

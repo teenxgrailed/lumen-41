@@ -109,6 +109,11 @@ model User {
   // a directory reviewer now, a public demo later. Null for every real person.
   // A sandbox account is locked down (src/lib/sandbox) and wiped nightly.
   sandboxKind                  SandboxKind?
+  // Marks an account that is ours (the owner, test addresses, bots), so Admin
+  // statistics can leave it out. Additive and false by default; the Admin
+  // Overview also treats admins, sandbox accounts and a fixed set of address
+  // patterns as internal without this flag (src/services/admin/internal-accounts.ts).
+  internal                     Boolean                    @default(false)
   // When the person confirmed at sign-up that they are 16 or older and accept
   // the Terms and Privacy Policy (audit record). Null for accounts made before
   // the confirmation existed, and for app-provisioned sandbox accounts.
@@ -125,6 +130,7 @@ model User {
   emailPreferences             EmailPreference[]
   emailSends                   EmailSend[]
   proGifts                     ProGift[]
+  feedbackPrompts              FeedbackPrompt[]
   // Student price (docs/students.md). `studentEmail` is the university address
   // the price rests on, unique so one student address backs one account.
   // `studentVerifiedAt` is the last time it was proven (sign-in email, a
@@ -258,6 +264,8 @@ model User {
   personalBlocks               PersonalBlock[]
   goals                        Goal[]
   goalCheckIns                 GoalCheckIn[]
+  learnTopics                  LearnTopic[]
+  learnLessons                 LearnLesson[]
   weeklyFocusTargets           WeeklyFocusTarget[]
   meetingNoteProposals         MeetingNoteProposal[]      @relation("MeetingNoteProposalCreator")
   closedDays                   ClosedDay[]
@@ -277,6 +285,13 @@ model User {
   importRuns                   ImportRun[]
   importItemMaps               ImportItemMap[]
   HabitPush                    HabitPush[]
+  activationEvents             ActivationEvent[]
+  dayPlans                     DayPlan[]
+  phoneMenuLayout              PhoneMenuLayout?
+  planSettings                 PlanSettings?
+  somedayMigrationMoves        SomedayMigrationMove[]
+  channelLinks                 ChannelLink[]
+  channelLinkCodes             ChannelLinkCode[]
 
   @@index([lastActiveAt])
 }
@@ -562,6 +577,12 @@ model MailAccount {
   status               MailAccountStatus @default(ACTIVE)
   syncCursor           String?
   lastSyncAt           DateTime?
+  // Set when sync stopped because the sign-in no longer works (revoked or
+  // expired grant, IMAP login refused). Retrying cannot fix it, so the repeat
+  // job is removed and the account shows "reconnect"; connecting again clears
+  // both columns. syncError is a short code, never provider text.
+  syncPausedAt         DateTime?
+  syncError            String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   messages             MailMessage[]
@@ -863,6 +884,7 @@ model TaskActivity {
   @@index([workspaceId, createdAt])
   @@index([taskId, createdAt])
   @@index([actorId])
+  @@index([actorId, createdAt])
 }
 
 /// A persistent, editable work journal for one local calendar day. Tasks stay
@@ -885,6 +907,8 @@ model Task {
   id          String  @id @default(cuid())
   title       String
   description String?
+  // The icon the person picked, a key of src/lib/needt3/task-icon.ts; null = automatic (the keyword map reads the title).
+  icon        String?
   status      String // enum: 'todo', 'in_progress', 'completed'
 
   // Time Management
@@ -1027,8 +1051,14 @@ model Task {
   // `null`, per the contract's three-state convention, when it still can't
   // be).
   entry                  String? // The task's two-minute first step.
-  noSlot                 Boolean          @default(false) // Belongs to no day/rail.
+  noSlot                 Boolean                @default(false) // Belongs to no day/rail.
   lastTouchedAt          DateTime? // Backs `age` without updatedAt's reschedule noise.
+  /// Someday (openspec finish-today-daily-planner): set while an open task sits
+  /// in the Someday bucket. null = on the normal lists.
+  somedayAt              DateTime?
+  somedayReason          String? // stale | review | button | migration | manual | cleanup
+  dayPlanItems           DayPlanItem[]
+  somedayMigrationMoves  SomedayMigrationMove[]
   previousScheduledStart DateTime? // Backs `movedFrom`: where the scheduler moved it from.
   valueCents             Int? // Money task: what it is worth, in integer cents.
   earnedCents            Int? // Money task: what has come in, in integer cents.
@@ -1041,7 +1071,7 @@ model Task {
   originKind             String?
   originId               String?
   originQuote            String?
-  splitAllowed           Boolean          @default(true)
+  splitAllowed           Boolean                @default(true)
   /// Focus runs the whole planned time even if the task is ticked early.
   /// null = auto (see effectiveFullTime in src/lib/needt3/full-time.ts).
   fullTime               Boolean?
@@ -1049,7 +1079,7 @@ model Task {
   /// The goal this task moves forward (src/services/goals). A goal is never a
   /// task: only linked tasks are scheduled, the goal itself never is.
   goalId                 String?
-  goal                   Goal?            @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  goal                   Goal?                  @relation(fields: [goalId], references: [id], onDelete: SetNull)
 
   @@unique([recurrenceMasterId, recurrenceInstanceAt])
   @@unique([habitId, habitOccurrenceAt])
@@ -1088,6 +1118,7 @@ model Task {
   @@index([blockDirty, userId])
   @@index([blockFeedId])
   @@index([globalStage])
+  @@index([userId, somedayAt])
   @@index([habitId, habitOccurrenceAt])
   @@index([userId, trashedAt])
   @@index([originKind, originId])
@@ -2847,6 +2878,9 @@ model UserSettings {
   // Onboarding v3 (ob3): the answers behind the first week, as the API validates
   // them (src/lib/onboarding/answers.ts). Null until someone has saved a week.
   onboarding        Json?
+  // The occasional in-app feedback prompt (src/services/feedback). On unless the
+  // person turns it off in Settings; the server reads it before it offers one.
+  feedbackPrompts   Boolean   @default(true)
 
   @@index([userId])
 }
@@ -4557,4 +4591,235 @@ model HubWebhookDelivery {
   @@index([webhookId, createdAt])
   @@index([status, nextAttemptAt])
   @@index([createdAt])
+}
+
+/// Product activation events (launch criterion 2026-11-14): one row each time a
+/// person does one of six things. Only the user id, the event name and the time;
+/// no content. Founder/admin and sandbox accounts are excluded when it is read.
+model ActivationEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String // account_created | calendar_connected | task_created | replan_shown | keep_applied | undo_applied | fill_applied | plan_applied
+  createdAt DateTime @default(now())
+  /// Set to the event name for once-per-account events (account_created,
+  /// calendar_connected) so a unique index makes them race-proof; null otherwise.
+  onceKey   String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, onceKey])
+  @@index([name, createdAt])
+  @@index([userId, name])
+  @@index([createdAt])
+}
+
+/// Learn (openspec module-blocks-and-learn, on for everybody): a topic the
+/// person names ("Deutsch", "Design") and the lessons in it. Lessons are
+/// written by the AI (Pro) or copied from the built-in samples.
+model LearnTopic {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  /// A palette key (`LEARN_COLORS`): the wash the topic's cards wear.
+  color     String        @default("violet")
+  /// A glyph key for the folder's sticker (`LEARN_ICONS`).
+  icon      String?
+  goal      String?
+  level     String?
+  /// The built-in sample this topic was made from ("deutsch"), if any.
+  sampleKey String?
+  order     Float         @default(0)
+  lessons   LearnLesson[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([userId, sampleKey])
+  @@index([userId, order])
+}
+
+model LearnLesson {
+  id               String     @id @default(cuid())
+  topicId          String
+  topic            LearnTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  /// Where it came from, shown under the title ("AI", "Sample").
+  source           String     @default("AI")
+  minutes          Int        @default(5)
+  /// `learnLessonBodySchema`: reading blocks and check questions.
+  body             Json
+  status           String     @default("new") // new|done
+  order            Float      @default(0)
+  /// The task "Put in calendar" made for it.
+  scheduledTaskId  String?
+  completedAt      DateTime?
+  /// When it was first finished; never cleared, so Free's one lesson a day
+  /// cannot be won back by marking a lesson new and done again.
+  firstCompletedAt DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([topicId, order])
+  @@index([userId, completedAt])
+  @@index([userId, firstCompletedAt])
+}
+
+/// The plan of one local day (openspec finish-today-daily-planner, PR A). One
+/// per person and date. `draft` is built the evening before, `active` once the
+/// day starts, `closed` when every leftover has a resolution.
+model DayPlan {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date           DateTime      @db.Date
+  status         String        @default("draft") // draft | active | closed
+  source         String        @default("no_note") // note | no_note | fallback
+  builtAt        DateTime      @default(now())
+  closedAt       DateTime?
+  /// Set the first time the person changes the plan; a rebuild never
+  /// overwrites a plan with this set.
+  editedByUserAt DateTime?
+  items          DayPlanItem[]
+
+  @@unique([userId, date])
+  @@index([userId, status])
+}
+
+model DayPlanItem {
+  id         String  @id @default(cuid())
+  planId     String
+  plan       DayPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  taskId     String
+  task       Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  position   Int
+  isMain     Boolean @default(false)
+  addedBy    String  @default("draft") // draft | user | review | channel
+  resolution String? // done | tomorrow | someday | deleted
+
+  @@unique([planId, taskId])
+  @@index([taskId])
+}
+
+/// Per-person plan settings. Times and the two sent-at stamps belong to the
+/// daily touches (PR B); the limits are read by the plan logic.
+model PlanSettings {
+  id                         String    @id @default(cuid())
+  userId                     String    @unique
+  user                       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskLimit                  Int       @default(5)
+  mainLimit                  Int       @default(3)
+  focusMinutes               Int       @default(300)
+  morningTime                String    @default("08:00")
+  eveningTime                String    @default("21:00")
+  morningOn                  Boolean   @default(true)
+  eveningOn                  Boolean   @default(true)
+  lastMorningAt              DateTime?
+  lastEveningAt              DateTime?
+  limitSuggestion            Int?
+  limitSuggestionDismissedAt DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+}
+
+/// Which tasks the one-time Someday launch migration moved, so "Return all"
+/// restores exactly these and nothing the person moved by hand.
+model SomedayMigrationMove {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId     String
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  movedAt    DateTime  @default(now())
+  restoredAt DateTime?
+  batch      String
+  /// The database copy taken before the run (the id the operator passed).
+  backupId   String?
+
+  @@unique([taskId, batch])
+  @@index([userId, batch])
+}
+
+/// A messenger chat linked to a Needt account (openspec finish-today-daily-planner,
+/// PR C). One chat links to at most one account; unlinking keeps the row with
+/// `unlinkedAt` set, so the chat can be linked again and old rows stay auditable.
+model ChannelLink {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel        String // telegram
+  externalChatId String
+  linkedAt       DateTime  @default(now())
+  unlinkedAt     DateTime?
+
+  @@unique([channel, externalChatId])
+  @@index([userId, channel])
+}
+
+/// A single-use code that links a messenger chat to an account. Only the hash
+/// is stored; it expires 10 minutes after creation.
+model ChannelLinkCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   String
+  codeHash  String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, channel])
+  @@index([expiresAt])
+}
+
+/// Messenger update ids already handled, so a redelivered update does nothing
+/// twice. Rows older than a few days are removed by a cleanup.
+model ChannelUpdate {
+  id               String   @id @default(cuid())
+  channel          String
+  externalUpdateId String
+  createdAt        DateTime @default(now())
+
+  @@unique([channel, externalUpdateId])
+  @@index([createdAt])
+}
+
+// The phone app menu: one row per account, absent until the person changes
+// something (the API then answers with the default set). `tiles` is the ordered
+// list the zod schema in src/services/phone-menu/layout.ts validates;
+// `style` is "tiles" or the older "card" menu.
+model PhoneMenuLayout {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  style     String   @default("tiles")
+  tiles     Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// One in-app feedback prompt (src/services/feedback): the row is made when the
+/// prompt is offered, so `shownAt` also counts a prompt that was dismissed or
+/// never answered. Read in the admin panel only; nothing else consumes it.
+model FeedbackPrompt {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// rating | idea | annoyance | nps
+  kind        String
+  shownAt     DateTime  @default(now())
+  answeredAt  DateTime?
+  dismissedAt DateTime?
+  /// kind "rating": 1 to 5
+  rating      Int?
+  /// kind "nps": 0 to 10
+  score       Int?
+  text        String?
+  /// web | ios | mac | desktop
+  platform    String
+  appVersion  String?
+
+  @@index([userId, shownAt])
+  @@index([kind, shownAt])
+  @@index([shownAt])
 }

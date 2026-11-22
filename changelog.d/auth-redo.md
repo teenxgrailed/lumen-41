@@ -1,0 +1,3 @@
+- Sign-in, sign-up, reset and the link screens are one frosted card on a still sky, with the app icon over its top edge; Google, Apple and Microsoft sit above an "or" and the email form. A plan that rode along shows as one quiet row with "Start with 14 days free".
+- The upgrade prompt is now "Keep Pro": one card with a Monthly / Yearly switch, the price, the withdrawal box, what Pro includes and Lifetime as a small row. `/upgrade` opens it, and the trial emails link there.
+- /start?preview=map shows the proposed four-step onboarding; /start?preview=keep shows the Keep Pro card.

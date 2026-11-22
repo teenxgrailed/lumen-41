@@ -157,6 +157,41 @@ function OwnGlyph({ id }: { id: MenuPlaceId }) {
           <rect x="8.6" y="16" width="6.8" height="1.8" rx=".9" fill={I} />
         </>
       );
+    case "budget":
+      // a wallet: the body, its flap, the clasp
+      return svg(
+        <>
+          <rect
+            x="3"
+            y="6"
+            width="18"
+            height="14"
+            rx="3.6"
+            fill={tint(S, 35)}
+          />
+          <rect x="3" y="4" width="14" height="5" rx="2.5" fill={S} />
+          <rect x="13.4" y="11" width="7.6" height="5" rx="2.5" fill={W} />
+          <circle cx="16.4" cy="13.5" r="1.2" fill={A} />
+        </>
+      );
+    case "learn":
+      // an open book with a ribbon
+      return svg(
+        <>
+          <rect
+            x="3"
+            y="5"
+            width="8.6"
+            height="14"
+            rx="2.4"
+            fill={tint(I, 35)}
+          />
+          <rect x="12.4" y="5" width="8.6" height="14" rx="2.4" fill={I} />
+          <rect x="5.4" y="9" width="4" height="1.6" rx=".8" fill={W} />
+          <rect x="5.4" y="12.4" width="3" height="1.6" rx=".8" fill={W} />
+          <rect x="15.6" y="4" width="2.4" height="7" rx="1.2" fill={A} />
+        </>
+      );
     default:
       // settings: three sliders
       return svg(
