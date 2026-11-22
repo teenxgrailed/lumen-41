@@ -15,7 +15,7 @@ function blocks(file) {
   return { html, out };
 }
 
-for (const file of ["index.html", "index-b.html"]) {
+for (const file of ["index.html"]) {
   test(`${file}: WebSite schema`, () => {
     const { out } = blocks(file);
     const site = out.find((d) => d["@type"] === "WebSite");

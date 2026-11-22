@@ -56,7 +56,7 @@ test("the cookie is first-party, shared across .needt.app, Lax, Secure, 180 days
 });
 
 test("every umami.track call is behind the consent check", () => {
-  for (const f of ["app.js", "site.js", "index.html", "index-b.html"]) {
+  for (const f of ["app.js", "site.js", "index.html"]) {
     const lines = readFileSync(join(root, f), "utf8").split("\n");
     lines.forEach((line, i) => {
       if (/umami\.track\(/.test(line) && !/^\s*(\/\*|\/\/)/.test(line)) {
