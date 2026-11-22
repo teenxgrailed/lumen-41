@@ -2,6 +2,7 @@ import {
   getConfiguredSchedulerAI,
   getPreparedSchedulerAI,
 } from "@/services/ai/settings";
+import { releaseHostedAiAction } from "@/services/ai/usage";
 
 import { generateEntryPlan } from "../generate";
 import { FALLBACK_ENTRY } from "../rules";
@@ -14,6 +15,12 @@ jest.mock("@/services/ai/settings", () => ({
   getPreparedSchedulerAI: jest.fn(),
 }));
 
+jest.mock("@/services/ai/usage", () => ({
+  releaseHostedAiAction: jest.fn().mockResolvedValue(undefined),
+  usageMonth: jest.fn().mockReturnValue("2026-11"),
+}));
+
+const release = jest.mocked(releaseHostedAiAction);
 const configured = jest.mocked(getConfiguredSchedulerAI);
 const prepared = jest.mocked(getPreparedSchedulerAI);
 
@@ -44,11 +51,13 @@ describe("generateEntryPlan", () => {
     // The claim on the plan's allowance happens inside getPreparedSchedulerAI.
     expect(prepared).toHaveBeenCalledTimes(1);
     expect(streamChat).toHaveBeenCalledTimes(1);
-    expect(plan).toEqual({
+    expect(plan).toMatchObject({
       entry: "Find last year's return",
       subtasks: ["Collect payslips", "Open the form", "Fill in income"],
       source: "ai",
     });
+    // A real answer keeps the claim: the action is spent.
+    expect(release).not.toHaveBeenCalled();
   });
 
   it("quotes the task as data, not as instructions", async () => {
@@ -77,11 +86,79 @@ describe("generateEntryPlan", () => {
     } as never);
     const plan = await generateEntryPlan(request);
     expect(prepared).not.toHaveBeenCalled();
-    expect(plan).toEqual({
+    expect(plan).toMatchObject({
       entry: FALLBACK_ENTRY,
       subtasks: [],
       source: "fallback",
     });
+  });
+
+  it("Free plan with its own key (BYOK): gets the AI breakdown", async () => {
+    const { ai, streamChat } = aiAnswering('{"entry":"Open it","subtasks":[]}');
+    configured.mockResolvedValue({
+      source: "byok",
+      usage: { plan: "FREE", slowMode: false },
+    } as never);
+    prepared.mockResolvedValue({ ai, source: "byok" } as never);
+
+    const plan = await generateEntryPlan(request);
+
+    expect(streamChat).toHaveBeenCalledTimes(1);
+    expect(plan).toMatchObject({ entry: "Open it", source: "ai" });
+    // Its own key: nothing was claimed from the hosted allowance.
+    expect(release).not.toHaveBeenCalled();
+  });
+
+  it("an unreadable answer gives the claimed hosted action back", async () => {
+    configured.mockResolvedValue({
+      source: "hosted",
+      usage: { plan: "PRO", slowMode: false },
+    } as never);
+    prepared.mockResolvedValue({
+      ai: aiAnswering("I cannot help with that").ai,
+      source: "hosted",
+      hostedMode: "normal",
+    } as never);
+
+    const plan = await generateEntryPlan(request);
+
+    expect(plan.source).toBe("fallback");
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalledWith("u1", "2026-11");
+  });
+
+  it("a claim that landed in the slow lane is given back, and the fallback is used", async () => {
+    configured.mockResolvedValue({
+      source: "hosted",
+      usage: { plan: "PRO", slowMode: false },
+    } as never);
+    prepared.mockResolvedValue({
+      ai: aiAnswering('{"entry":"Open it","subtasks":[]}').ai,
+      source: "hosted",
+      hostedMode: "slow",
+    } as never);
+
+    const plan = await generateEntryPlan(request);
+
+    expect(plan.source).toBe("fallback");
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("the result's release gives the action back for a later failed write", async () => {
+    configured.mockResolvedValue({
+      source: "hosted",
+      usage: { plan: "PRO", slowMode: false },
+    } as never);
+    prepared.mockResolvedValue({
+      ai: aiAnswering('{"entry":"Open it","subtasks":[]}').ai,
+      source: "hosted",
+      hostedMode: "normal",
+    } as never);
+
+    const plan = await generateEntryPlan(request);
+    expect(release).not.toHaveBeenCalled();
+    await plan.release();
+    expect(release).toHaveBeenCalledWith("u1", "2026-11");
   });
 
   it("allowance spent: the fixed fallback, no claim, no error", async () => {
@@ -93,7 +170,7 @@ describe("generateEntryPlan", () => {
     const plan = await generateEntryPlan(request);
 
     expect(prepared).not.toHaveBeenCalled();
-    expect(plan).toEqual({
+    expect(plan).toMatchObject({
       entry: FALLBACK_ENTRY,
       subtasks: [],
       source: "fallback",

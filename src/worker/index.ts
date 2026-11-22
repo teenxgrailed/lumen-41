@@ -16,6 +16,7 @@ import {
 import { syncBugReportToGithub } from "@/services/bug-reports/bug-report-service";
 import { sweepSomeday } from "@/services/day-plan/someday";
 import { runDayPlanTouchSweep } from "@/services/day-plan/touches";
+import { runEasyStartBackfill } from "@/services/easy-start/backfill";
 import { simplifyTask } from "@/services/easy-start/service";
 import { runEasyStartSweep } from "@/services/easy-start/sweep";
 import { sendDueBroadcasts } from "@/services/email-broadcasts/send";
@@ -305,6 +306,11 @@ async function processReminder(job: Job<ReminderJobData>) {
   if (job.data.kind === "easy-start-sweep") {
     // One flag row read while the kill switch is off.
     await runEasyStartSweep();
+    return;
+  }
+  if (job.data.kind === "easy-start-backfill") {
+    // Existing open tasks with no entry, a small batch per person per run.
+    await runEasyStartBackfill();
     return;
   }
   if (job.data.kind === "someday-sweep") {
@@ -655,6 +661,13 @@ export async function start(): Promise<void> {
     "easy-start-sweep",
     { every: 30 * 60_000 },
     { name: "sweep-easy-start", data: { kind: "easy-start-sweep" } }
+  );
+  // Every 3 hours: a small batch of existing tasks with no entry gets one
+  // (the backfill). The run reads one flag row while the kill switch is off.
+  await getReminderQueue().upsertJobScheduler(
+    "easy-start-backfill",
+    { every: 3 * 60 * 60_000 },
+    { name: "backfill-easy-start", data: { kind: "easy-start-backfill" } }
   );
   // Daily at 03:00 UTC. Registered always; the sweep itself checks both flags,
   // so with `someday_sweep` off it reads two flag rows and returns.

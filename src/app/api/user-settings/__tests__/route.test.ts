@@ -112,6 +112,49 @@ describe("PATCH /api/user-settings prefs", () => {
     expect(raw).not.toHaveBeenCalled();
   });
 
+  it("stores Always easy start's mode and excluded projects as typed columns", async () => {
+    const res = await patch({
+      easyStartMode: "suggest",
+      easyStartExcludedProjectIds: ["p1", "p2"],
+    });
+    expect(res.status).toBe(200);
+    expect(upsert.mock.calls[0][0].update).toEqual({
+      easyStartMode: "suggest",
+      easyStartExcludedProjectIds: ["p1", "p2"],
+    });
+    // typed columns, so no prefs merge ran
+    expect(raw).not.toHaveBeenCalled();
+  });
+
+  it("accepts each mode and an empty exclusion list", async () => {
+    for (const easyStartMode of ["auto", "suggest", "off"]) {
+      expect((await patch({ easyStartMode })).status).toBe(200);
+    }
+    expect((await patch({ easyStartExcludedProjectIds: [] })).status).toBe(200);
+  });
+
+  it("refuses an unknown mode, a non-list, and a list that is too long", async () => {
+    expect((await patch({ easyStartMode: "always" })).status).toBe(400);
+    expect((await patch({ easyStartMode: true })).status).toBe(400);
+    expect((await patch({ easyStartExcludedProjectIds: "p1" })).status).toBe(
+      400
+    );
+    expect((await patch({ easyStartExcludedProjectIds: [""] })).status).toBe(
+      400
+    );
+    expect(
+      (
+        await patch({
+          easyStartExcludedProjectIds: Array.from(
+            { length: 201 },
+            (_, i) => `p${i}`
+          ),
+        })
+      ).status
+    ).toBe(400);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
   it("accepts null for a checked key (removal), still rejects a bad value", async () => {
     expect((await patch({ prefs: { taskView: null } })).status).toBe(200);
     expect((await patch({ prefs: { taskView: "nonsense" } })).status).toBe(400);

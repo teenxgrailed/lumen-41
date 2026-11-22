@@ -52,6 +52,7 @@ export const TOUCHED_MODELS = [
   "page",
   "personalBlock",
   "goal",
+  "taskPart",
 ] as const;
 export type TouchedModel = (typeof TOUCHED_MODELS)[number];
 

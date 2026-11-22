@@ -68,7 +68,8 @@ export type ReminderJobData =
   /** Always easy start: an easy first step for a task just created. */
   | { kind: "easy-start-create"; taskId: string }
   /** Always easy start: stuck tasks made smaller, overloaded days eased. */
-  | { kind: "easy-start-sweep" };
+  | { kind: "easy-start-sweep" }
+  | { kind: "easy-start-backfill" };
 
 /** A delayed job per running Focus session, due at its planned end. */
 export interface FocusJobData {

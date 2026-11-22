@@ -19,7 +19,8 @@ const settings: V3Settings = {
   timeZone: "Europe/Zurich",
   weekStartDay: "monday",
   timeFormat: "24h",
-  alwaysEasyStart: true,
+  easyStartMode: "auto",
+  easyStartExcludedProjectIds: [],
   prefs: { accent: "green", docsSort: "viewed" },
 };
 

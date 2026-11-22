@@ -19,8 +19,13 @@ export interface V3Settings {
   timeZone: string;
   weekStartDay: string;
   timeFormat: string;
-  /** Always easy start: new tasks get an easy first step, stuck ones get smaller. */
-  alwaysEasyStart: boolean;
+  /**
+   * Always easy start: "auto" gives new tasks an easy first step and makes
+   * stuck ones smaller (undoable), "suggest" only proposes, "off" does nothing.
+   */
+  easyStartMode: "auto" | "suggest" | "off";
+  /** Projects whose tasks easy start never touches. */
+  easyStartExcludedProjectIds: string[];
   /** UI-only keys: sidebarTiles, docsSort, boardsSort, accent, … */
   prefs: Record<string, unknown>;
   /** When the settings row was made (read-only): the account's age. */
@@ -44,7 +49,17 @@ export function useSettings() {
         timeZone: row.timeZone || browserTimeZone(),
         weekStartDay: row.weekStartDay ?? "monday",
         timeFormat: row.timeFormat ?? "24h",
-        alwaysEasyStart: row.alwaysEasyStart !== false,
+        easyStartMode:
+          row.easyStartMode === "suggest" || row.easyStartMode === "off"
+            ? row.easyStartMode
+            : "auto",
+        easyStartExcludedProjectIds: Array.isArray(
+          row.easyStartExcludedProjectIds
+        )
+          ? row.easyStartExcludedProjectIds.filter(
+              (id): id is string => typeof id === "string"
+            )
+          : [],
         prefs:
           row.prefs && typeof row.prefs === "object"
             ? (row.prefs as Record<string, unknown>)
@@ -162,15 +177,36 @@ export function useSetPrefs() {
 }
 
 /**
- * "Always easy start" (`UserSettings.alwaysEasyStart`, a typed column the
- * worker reads, so not a prefs key). On until the stored value says otherwise.
+ * "Always easy start" (`UserSettings.easyStartMode` and
+ * `easyStartExcludedProjectIds`, typed columns the worker reads, so not prefs
+ * keys). "auto" until the stored value says otherwise; nothing excluded.
  */
-export function useAlwaysEasyStart() {
+export function useEasyStart() {
   const settings = useSettings();
   const update = useUpdateSettings();
+  const excluded = settings.data?.easyStartExcludedProjectIds ?? [];
   return {
     loaded: Boolean(settings.data),
-    on: settings.data?.alwaysEasyStart ?? true,
-    set: (value: boolean) => update.mutateAsync({ alwaysEasyStart: value }),
+    mode: settings.data?.easyStartMode ?? "auto",
+    excluded,
+    setMode: (value: V3Settings["easyStartMode"]) =>
+      update.mutateAsync({ easyStartMode: value }),
+    /** Add the project to the excluded list, or take it off when it is on. */
+    toggleExcluded: (projectId: string) =>
+      update.mutateAsync({
+        easyStartExcludedProjectIds: excluded.includes(projectId)
+          ? excluded.filter((id) => id !== projectId)
+          : [...excluded, projectId],
+      }),
   };
 }
+
+/** The options of the "Always easy start" row. */
+export const EASY_START_MODES = [
+  ["auto", "Automatic"],
+  ["suggest", "Suggest"],
+  ["off", "Off"],
+] as const;
+
+export const EASY_START_HELP =
+  "New tasks get an easy first step and a task that keeps slipping is made smaller. Automatic changes can be undone; Suggest asks first.";

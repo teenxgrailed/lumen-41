@@ -14,7 +14,9 @@ import { useEveningPushSwitch } from "@/lib/needt3/hooks/habit-evening";
 import { useFreshQuitGate } from "@/lib/needt3/hooks/habits-quit";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
-  useAlwaysEasyStart,
+  EASY_START_HELP,
+  EASY_START_MODES,
+  useEasyStart,
   useSetPref,
   useSetPrefs,
   useSettings,
@@ -115,7 +117,7 @@ export function GeneralPage() {
 
 export function TasksPage() {
   const p = usePrefs();
-  const easy = useAlwaysEasyStart();
+  const easy = useEasyStart();
   const mark = useMark();
   const projects = useProjects();
   const list = (projects.data ?? []).filter((x) => !x.archived);
@@ -139,17 +141,42 @@ export function TasksPage() {
           disabled={p.off}
           onChange={(v) => p.set("project", v)}
         />
-        <PsRow
+        <PsPick
           title="Always easy start"
-          desc="New tasks get an easy first step, and a task that keeps slipping is made smaller. Every change can be undone."
-          control={
-            <PsSwitch
-              label="Always easy start"
-              on={easy.on}
-              disabled={!easy.loaded}
-              onChange={(v) => void easy.set(v).then(mark, noop)}
-            />
+          desc={EASY_START_HELP}
+          value={easy.mode}
+          options={EASY_START_MODES}
+          disabled={!easy.loaded}
+          onChange={(v) =>
+            void easy
+              .setMode(v as (typeof EASY_START_MODES)[number][0])
+              .then(mark, noop)
           }
+        />
+        <PsPick
+          title="Keep out of easy start"
+          desc="Tasks in a project you pick here are never changed. Pick it again to bring it back."
+          value="none"
+          options={[
+            [
+              "none",
+              easy.excluded.length
+                ? `${easy.excluded.length} selected`
+                : "None",
+            ],
+            ...list.map(
+              (x) =>
+                [
+                  x.id,
+                  x.name,
+                  easy.excluded.includes(x.id) ? "Kept out" : undefined,
+                ] as const
+            ),
+          ]}
+          disabled={!easy.loaded || list.length === 0 || easy.mode === "off"}
+          onChange={(id) => {
+            if (id !== "none") void easy.toggleExcluded(id).then(mark, noop);
+          }}
         />
       </PsGroup>
       <PsGroup title="Display">

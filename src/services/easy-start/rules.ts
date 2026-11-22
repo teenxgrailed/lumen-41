@@ -55,10 +55,21 @@ export interface EasyTaskFacts {
   recurrenceMasterId: string | null;
   habitId: string | null;
   externalTaskId: string | null;
+  /** The task's project; tasks in an excluded project are never touched. */
+  projectId?: string | null;
 }
 
-/** Work the person owns and is still to do; never a habit, a series or a synced row. */
-export function isPersonalOpenTask(task: EasyTaskFacts): boolean {
+/**
+ * Work the person owns and is still to do; never a habit, a series or a synced
+ * row, and never a task in a project the person excluded.
+ */
+export function isPersonalOpenTask(
+  task: EasyTaskFacts,
+  excludedProjectIds: readonly string[] = []
+): boolean {
+  if (task.projectId && excludedProjectIds.includes(task.projectId)) {
+    return false;
+  }
   return (
     task.status === "todo" &&
     !task.isArchived &&
@@ -74,9 +85,24 @@ export function isPersonalOpenTask(task: EasyTaskFacts): boolean {
 
 /** A freshly created task gets an entry only when it has none. */
 export function needsEntryOnCreate(
-  task: EasyTaskFacts & { entry: string | null }
+  task: EasyTaskFacts & { entry: string | null },
+  excludedProjectIds: readonly string[] = []
 ): boolean {
-  return isPersonalOpenTask(task) && !(task.entry ?? "").trim();
+  return (
+    isPersonalOpenTask(task, excludedProjectIds) && !(task.entry ?? "").trim()
+  );
+}
+
+/**
+ * An existing open task with no entry that Always easy start has not looked at
+ * yet gets one once (the backfill). `simplifiedAt` is the "looked at" stamp, so
+ * a task that was skipped or already given an entry never comes round again.
+ */
+export function needsBackfill(
+  task: EasyTaskFacts & { entry: string | null; simplifiedAt: Date | null },
+  excludedProjectIds: readonly string[] = []
+): boolean {
+  return !task.simplifiedAt && needsEntryOnCreate(task, excludedProjectIds);
 }
 
 export interface StuckFacts extends EasyTaskFacts {
@@ -92,8 +118,12 @@ export interface StuckFacts extends EasyTaskFacts {
 export type StuckReason = "rescheduled" | "not_started";
 
 /** Why a task is stuck, or null. A cooling-down task is never stuck. */
-export function stuckReason(task: StuckFacts, now: Date): StuckReason | null {
-  if (!isPersonalOpenTask(task)) return null;
+export function stuckReason(
+  task: StuckFacts,
+  now: Date,
+  excludedProjectIds: readonly string[] = []
+): StuckReason | null {
+  if (!isPersonalOpenTask(task, excludedProjectIds)) return null;
   if (task.doneParts > 0) return null;
   if (
     task.simplifiedAt &&
@@ -203,12 +233,25 @@ export function parseEntryPlan(
 
 const LINE_MAX = 110;
 
+/** "Simplify? ..." in "suggest" mode: what Apply would do, one line. */
+export function proposalLine(input: { title: string; entry: string }): string {
+  return clip(
+    `Simplify? ${clip(input.title, 40)}, first step "${clip(input.entry, 50)}"`,
+    LINE_MAX
+  );
+}
+
 /** "Simplified: ..." as the person reads it, one line. */
 export function simplifiedLine(
   input:
     | { kind: "entry" | "resplit"; title: string; entry: string }
     | { kind: "spread"; moved: number }
+    | { kind: "backfill"; count: number }
 ): string {
+  if (input.kind === "backfill") {
+    const n = input.count;
+    return `Simplified: gave ${n} ${n === 1 ? "task" : "tasks"} a first step`;
+  }
   if (input.kind === "spread") {
     const n = input.moved;
     return `Simplified: moved ${n} ${n === 1 ? "task" : "tasks"} to later days`;

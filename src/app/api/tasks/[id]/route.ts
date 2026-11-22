@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
+import { movedToLaterDay } from "@/services/easy-start/moves";
 import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
 import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
@@ -28,6 +29,7 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { isTaskPlacementBlocked } from "@/lib/flexible-hours-guard-server";
+import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
 import { parseV3Fields, taskV3FieldsSchema } from "@/lib/needt3/api-fields";
 import { expandOriginPage, withOriginPageId } from "@/lib/needt3/origin-page";
@@ -405,6 +407,32 @@ export async function PUT(
     if (claim.response) return claim.response;
     offlineRecordId = claim.recordId;
 
+    // Always easy start: a move to a later day counts, whoever made it.
+    // (The person's zone is read only when a date is being set; clearing one
+    // can never be a move to a later day.)
+    const movesDate = Boolean(updates.dueDate || updates.scheduledStart);
+    const movedLater =
+      movesDate &&
+      movedToLaterDay(
+        task,
+        {
+          dueDate: updates.dueDate as Date | string | null | undefined,
+          scheduledStart: updates.scheduledStart as
+            | Date
+            | string
+            | null
+            | undefined,
+        },
+        normalizeUserTimeZone(
+          (
+            await prisma.userSettings.findUnique({
+              where: { userId },
+              select: { timeZone: true },
+            })
+          )?.timeZone
+        )
+      );
+
     const taskUpdate: Prisma.TaskUpdateArgs = {
       where: {
         id: id,
@@ -412,6 +440,7 @@ export async function PUT(
       },
       data: {
         ...updates,
+        ...(movedLater && { rescheduleCount: { increment: 1 } }),
         ...(requestedAssigneeId !== undefined && {
           assigneeId: requestedAssigneeId,
         }),

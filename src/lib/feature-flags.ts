@@ -16,6 +16,7 @@ import {
   HOME_V2,
   SOMEDAY_SWEEP,
 } from "@/lib/feature-flags-keys";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 export function rolloutBucket(flagKey: string, userId: string) {
@@ -175,24 +176,51 @@ export async function somedaySweepEnabled(userId: string | null | undefined) {
   }
 }
 
+export type EasyStartMode = "auto" | "suggest" | "off";
+
+export interface EasyStartSettings {
+  mode: EasyStartMode;
+  /** Projects whose tasks no rule touches. */
+  excludedProjectIds: string[];
+}
+
+const EASY_START_OFF: EasyStartSettings = {
+  mode: "off",
+  excludedProjectIds: [],
+};
+
 /**
- * Always easy start is on for this account: the `always_easy_start` kill
- * switch, then the person's own `UserSettings.alwaysEasyStart`. Fails closed:
- * no user, or a read that throws, is "off", so no task is ever changed on a
- * doubt. A person with no settings row yet has the default, on.
+ * What Always easy start may do for this account: the `always_easy_start` kill
+ * switch, then the person's own `easyStartMode` ("auto" by default; a person
+ * with no settings row has the default) and the projects they excluded. Fails
+ * closed: no user, or a read that throws, is "off", so no task is ever changed
+ * on a doubt.
  */
-export async function alwaysEasyStartEnabled(
+export async function easyStartSettings(
   userId: string | null | undefined
-) {
-  if (!userId) return false;
+): Promise<EasyStartSettings> {
+  if (!userId) return EASY_START_OFF;
   try {
-    if (!(await isFeatureEnabled(ALWAYS_EASY_START, userId))) return false;
+    if (!(await isFeatureEnabled(ALWAYS_EASY_START, userId))) {
+      return EASY_START_OFF;
+    }
     const settings = await prisma.userSettings.findUnique({
       where: { userId },
-      select: { alwaysEasyStart: true },
+      select: { easyStartMode: true, easyStartExcludedProjectIds: true },
     });
-    return settings?.alwaysEasyStart ?? true;
-  } catch {
-    return false;
+    const raw = settings?.easyStartMode;
+    const mode: EasyStartMode =
+      raw === "suggest" || raw === "off" ? raw : "auto";
+    return {
+      mode,
+      excludedProjectIds: settings?.easyStartExcludedProjectIds ?? [],
+    };
+  } catch (error) {
+    logger.warn(
+      "Always easy start settings could not be read; treating it as off",
+      { error: error instanceof Error ? error.message : String(error) },
+      "feature-flags"
+    );
+    return EASY_START_OFF;
   }
 }

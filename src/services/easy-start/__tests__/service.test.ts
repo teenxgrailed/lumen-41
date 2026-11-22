@@ -1,7 +1,7 @@
 import { loadSpreadDays } from "@/services/scheduling/spread-capacity";
 import { WorkspaceRole } from "@prisma/client";
 
-import { alwaysEasyStartEnabled } from "@/lib/feature-flags";
+import { easyStartSettings } from "@/lib/feature-flags";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
 
 import { undoAction } from "../../ops";
@@ -59,7 +59,7 @@ jest.mock("@/lib/queue/enqueue", () => ({
   enqueueEasyStartCreate: jest.fn(),
 }));
 jest.mock("@/lib/feature-flags", () => ({
-  alwaysEasyStartEnabled: jest.fn(),
+  easyStartSettings: jest.fn(),
 }));
 jest.mock("../generate", () => ({ generateEntryPlan: jest.fn() }));
 jest.mock("@/lib/auth/workspace-auth", () => {
@@ -69,7 +69,8 @@ jest.mock("@/lib/auth/workspace-auth", () => {
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const workspaceAuth = require("@/lib/auth/workspace-auth");
-const enabled = jest.mocked(alwaysEasyStartEnabled);
+const settingsMock = jest.mocked(easyStartSettings);
+const AUTO = { mode: "auto" as const, excludedProjectIds: [] as string[] };
 const generate = jest.mocked(generateEntryPlan);
 const publish = jest.mocked(publishRealtimeEvent);
 
@@ -96,7 +97,7 @@ beforeEach(async () => {
   });
   mockState.db = createFakePrisma();
   db = mockState.db;
-  enabled.mockResolvedValue(true);
+  settingsMock.mockResolvedValue(AUTO);
   workspaceAuth.resolveWorkspaceAccess.mockImplementation(async () =>
     access(WorkspaceRole.OWNER)
   );
@@ -121,6 +122,7 @@ describe("a new task gets an easy first step", () => {
       entry: "Find last year's return",
       subtasks: ["Collect payslips", "Open the form", "Fill in income"],
       source: "ai",
+      release: jest.fn(),
     });
 
     const outcome = await simplifyTask({ taskId: task.id, reason: "create" });
@@ -157,7 +159,7 @@ describe("a new task gets an easy first step", () => {
 
   it("AI allowance spent: the fixed fallback entry, no subtasks", async () => {
     const task = await seedTask(db, {});
-    generate.mockResolvedValue(fallbackPlan());
+    generate.mockResolvedValue({ ...fallbackPlan(), release: jest.fn() });
 
     const outcome = await simplifyTask({ taskId: task.id, reason: "create" });
 
@@ -197,6 +199,7 @@ describe("a stuck task is made smaller", () => {
       entry: "Open the tax site",
       subtasks: ["Log in"],
       source: "ai",
+      release: jest.fn(),
     });
 
     const outcome = await simplifyTask({
@@ -243,6 +246,7 @@ describe("a stuck task is made smaller", () => {
       entry: "Open the tax site",
       subtasks: [],
       source: "ai",
+      release: jest.fn(),
     });
     await simplifyTask({ taskId: task.id, reason: "rescheduled" });
     await touchRow(db, "task", task.id, { title: "My own edit" });
@@ -278,6 +282,7 @@ describe("a stuck task is made smaller", () => {
       entry: "Find the number",
       subtasks: [],
       source: "ai",
+      release: jest.fn(),
     });
     expect(
       await simplifyTask({ taskId: task.id, reason: "not_started" })
@@ -287,7 +292,7 @@ describe("a stuck task is made smaller", () => {
 
 describe("toggle and kill switch", () => {
   it("off (the person's setting or the flag): nothing is read, written or announced", async () => {
-    enabled.mockResolvedValue(false);
+    settingsMock.mockResolvedValue({ mode: "off", excludedProjectIds: [] });
     const fresh = await seedTask(db, { title: "New" });
     const stuck = await seedTask(db, { title: "Old", rescheduleCount: 4 });
     for (let i = 0; i < 10; i += 1) {

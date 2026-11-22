@@ -1,4 +1,5 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
+import { movedToLaterDay } from "@/services/easy-start/moves";
 import { queueEasyStart } from "@/services/easy-start/queue";
 import {
   SPREAD_DEFAULT_DAYS,
@@ -139,6 +140,11 @@ const restorableFields = z
     scheduleScore: z.number().nullable(),
     startDate: isoOrNull,
     lastCompletedDate: isoOrNull,
+    /** The scheduler's not-before date (Always easy start sets it on a spread). */
+    postponedUntil: isoOrNull,
+    /** Always easy start's bookkeeping, put back with the entry on undo. */
+    rescheduleCount: z.number().int().min(0),
+    simplifiedAt: isoOrNull,
   })
   .partial()
   .strict();
@@ -156,6 +162,8 @@ const DATE_FIELDS = new Set([
   "scheduledEnd",
   "startDate",
   "lastCompletedDate",
+  "postponedUntil",
+  "simplifiedAt",
 ]);
 
 function pickRestorable(
@@ -623,6 +631,25 @@ export const taskUpdate = defineOp({
       }
     }
 
+    // Always easy start: a move to a later day counts, by hand or not.
+    if (
+      movedToLaterDay(
+        task,
+        {
+          dueDate: data.dueDate as Date | string | null | undefined,
+          scheduledStart: data.scheduledStart as
+            | Date
+            | string
+            | null
+            | undefined,
+        },
+        await userTimeZone(ctx.tx, ctx.userId)
+      )
+    ) {
+      data.rescheduleCount = { increment: 1 };
+      keys.push("rescheduleCount");
+    }
+
     const fields = pickRestorable(task, keys);
     const previousTagIds = task.tags.map((tag) => tag.id);
     // The frozen block replaces every block of the task, so undo puts them all back.
@@ -976,11 +1003,6 @@ export const taskMoveToDay = defineOp({
     const task = await findScopedTask(ctx, input.taskId);
     assertProjectActive(task);
     const timeZone = await userTimeZone(ctx.tx, ctx.userId);
-    const fields = pickRestorable(task, [
-      "scheduledStart",
-      "scheduledEnd",
-      "dueDate",
-    ]);
     const blocks = await snapshotBlocks(ctx, task.id);
 
     const data: Prisma.TaskUncheckedUpdateInput = {};
@@ -993,6 +1015,22 @@ export const taskMoveToDay = defineOp({
     } else {
       data.dueDate = startOfZonedDay(input.date, timeZone);
     }
+    // Always easy start: a move to a later day counts.
+    const later = movedToLaterDay(
+      task,
+      {
+        dueDate: data.dueDate as Date | undefined,
+        scheduledStart: data.scheduledStart as Date | undefined,
+      },
+      timeZone
+    );
+    if (later) data.rescheduleCount = { increment: 1 };
+    const fields = pickRestorable(task, [
+      "scheduledStart",
+      "scheduledEnd",
+      "dueDate",
+      ...(later ? (["rescheduleCount"] as const) : []),
+    ]);
 
     const updated = await ctx.tx.task.update({
       where: { id: task.id },
@@ -1171,16 +1209,49 @@ export const taskSimplify = defineOp({
       entry: entrySchema,
       title: z.string().trim().min(1).max(160).optional(),
       subtasks: subtaskListSchema.max(3).optional(),
-      reason: z.enum(["create", "rescheduled", "not_started"]),
+      reason: z.enum(["create", "rescheduled", "not_started", "backfill"]),
+      /**
+       * What the plan was made from. The task is read again inside the
+       * transaction; if it no longer matches (the person edited it, or a
+       * second job simplified it first) nothing is written.
+       */
+      expected: z
+        .object({
+          simplifiedAt: isoOrNull,
+          entry: z.string().nullable(),
+          title: z.string(),
+        })
+        .optional(),
     })
     .strict(),
   async run(ctx, input) {
     const task = await findScopedTask(ctx, input.taskId);
     assertProjectActive(task);
-    const fields = pickRestorable(
-      task,
-      input.title ? ["title", "entry"] : ["entry"]
-    );
+    if (
+      (input.reason === "create" || input.reason === "backfill") &&
+      (task.entry ?? "").trim()
+    ) {
+      throw new OpError("CONFLICT", "The task already has a first step");
+    }
+    if (input.expected) {
+      const seen = input.expected;
+      const same =
+        (task.simplifiedAt?.toISOString() ?? null) === seen.simplifiedAt &&
+        (task.entry ?? null) === seen.entry &&
+        task.title === seen.title;
+      if (!same) {
+        throw new OpError(
+          "CONFLICT",
+          "The task changed after its first step was prepared"
+        );
+      }
+    }
+    const fields = pickRestorable(task, [
+      ...(input.title ? (["title"] as const) : []),
+      "entry",
+      "rescheduleCount",
+      "simplifiedAt",
+    ]);
     const drafts = normalizeSubtasks(input.subtasks);
     const existing = await ctx.tx.taskPart.findMany({
       where: { taskId: task.id },
@@ -1190,6 +1261,7 @@ export const taskSimplify = defineOp({
     const room = Math.max(0, MAX_SUBTASKS - existing.length);
     const start = existing.length ? existing[0].position + 1 : 0;
     const addedIds: string[] = [];
+    const addedParts: { id: string; updatedAt: Date }[] = [];
     for (const [index, draft] of drafts.slice(0, room).entries()) {
       const part = await ctx.tx.taskPart.create({
         data: {
@@ -1198,9 +1270,10 @@ export const taskSimplify = defineOp({
           done: false,
           position: start + index,
         },
-        select: { id: true },
+        select: { id: true, updatedAt: true },
       });
       addedIds.push(part.id);
+      addedParts.push(part);
     }
     const updated = await ctx.tx.task.update({
       where: { id: task.id },
@@ -1225,7 +1298,12 @@ export const taskSimplify = defineOp({
         op: "task.restore",
         input: { taskId: task.id, fields, removePartIds: addedIds },
       },
-      touched: [touched("task", updated, task)],
+      // The added subtasks are versioned too: undo refuses (a conflict) when the
+      // person ticked, renamed or deleted one, instead of dropping their work.
+      touched: [
+        touched("task", updated, task),
+        ...addedParts.map((part) => touched("taskPart", part, null)),
+      ],
       afterCommit: [publishTasksUpdated(ctx.userId)],
     };
   },
@@ -1245,6 +1323,12 @@ export const taskSpread = defineOp({
       days: z.number().int().min(1).max(14).optional(),
       /** Only days after this one take a task (Always easy start eases a day). */
       afterDay: dayKeySchema.optional(),
+      /**
+       * Hold each moved task on its new day: set the scheduler's not-before
+       * date to that day (so the next run does not pull it back) and never
+       * invent a due date a task did not have.
+       */
+      notBefore: z.boolean().optional(),
     })
     .strict()
     .refine((value) => !value.taskIds !== !value.scope, {
@@ -1336,12 +1420,17 @@ export const taskSpread = defineOp({
         "deadline",
         "scheduledStart",
         "scheduledEnd",
+        ...(input.notBefore ? (["postponedUntil"] as const) : []),
       ]);
       const blocks = await snapshotBlocks(ctx, task.id);
       const dueDate = startOfZonedDay(date, timeZone);
-      const data: Prisma.TaskUncheckedUpdateInput = { dueDate };
-      const deadline = deadlineForPatch(task, { dueDate });
-      if (deadline !== undefined) data.deadline = deadline;
+      const data: Prisma.TaskUncheckedUpdateInput = {};
+      if (!input.notBefore || task.dueDate) {
+        data.dueDate = dueDate;
+        const deadline = deadlineForPatch(task, { dueDate });
+        if (deadline !== undefined) data.deadline = deadline;
+      }
+      if (input.notBefore) data.postponedUntil = dueDate;
       let shiftMs = 0;
       if (task.scheduledStart && task.scheduledEnd) {
         const start = moveInstantToDay(task.scheduledStart, date, timeZone);

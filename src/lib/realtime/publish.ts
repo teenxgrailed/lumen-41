@@ -23,6 +23,7 @@ export async function publishRealtimeEvent(
     | "taskId"
     | "taskTitle"
     | "actionId"
+    | "proposalId"
   >
 ): Promise<void> {
   if (!process.env.REDIS_URL?.trim()) {

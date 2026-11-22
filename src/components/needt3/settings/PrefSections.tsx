@@ -7,7 +7,9 @@ import { useNavPins, useRankedPlaces } from "@/lib/needt3/hooks/nav-rank";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
-  useAlwaysEasyStart,
+  EASY_START_HELP,
+  EASY_START_MODES,
+  useEasyStart,
   useSetPref,
   useSetPrefs,
   useSettings,
@@ -168,21 +170,54 @@ function BudgetGroup({ p }: { p: ReturnType<typeof usePrefs> }) {
   );
 }
 
-function EasyStartRow() {
-  const easy = useAlwaysEasyStart();
+function EasyStartRows({
+  projects,
+}: {
+  projects: readonly { id: string; name: string }[];
+}) {
+  const easy = useEasyStart();
   const mark = useMark();
+  const skipped = projects.filter((x) => easy.excluded.includes(x.id)).length;
   return (
-    <SRow
-      title="Always easy start"
-      desc="New tasks get an easy first step, and a task that keeps slipping is made smaller. Every change can be undone."
-    >
-      <V3Switch
-        label="Always easy start"
-        checked={easy.on}
-        disabled={!easy.loaded}
-        onChange={(v) => void easy.set(v).then(mark, () => undefined)}
-      />
-    </SRow>
+    <>
+      <SRow title="Always easy start" desc={EASY_START_HELP}>
+        <SSelect
+          label="Always easy start"
+          width={130}
+          value={easy.mode}
+          options={EASY_START_MODES}
+          disabled={!easy.loaded}
+          onChange={(v) =>
+            void easy
+              .setMode(v as (typeof EASY_START_MODES)[number][0])
+              .then(mark, () => undefined)
+          }
+        />
+      </SRow>
+      <SRow
+        title="Keep out of easy start"
+        desc="Tasks in a project you pick here are never changed. Pick a project again to bring it back."
+      >
+        <SSelect
+          label="Keep out of easy start"
+          width={160}
+          value={skipped ? `${skipped} selected` : "None"}
+          options={projects.map(
+            (x) =>
+              [
+                x.id,
+                `${easy.excluded.includes(x.id) ? "✓ " : ""}${x.name}`,
+              ] as const
+          )}
+          disabled={
+            !easy.loaded || projects.length === 0 || easy.mode === "off"
+          }
+          onChange={(id) =>
+            void easy.toggleExcluded(id).then(mark, () => undefined)
+          }
+        />
+      </SRow>
+    </>
   );
 }
 
@@ -216,7 +251,7 @@ export function TasksSection() {
             onChange={(v) => p.set("project", v)}
           />
         </SRow>
-        <EasyStartRow />
+        <EasyStartRows projects={list} />
       </SGroup>
       <SGroup title="Display">
         <SRow

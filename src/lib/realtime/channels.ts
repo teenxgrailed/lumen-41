@@ -22,6 +22,8 @@ export interface RealtimeEvent {
   taskTitle?: string;
   /** easy-start: the action Undo runs (POST /api/agent/actions/:id/undo). */
   actionId?: string | null;
+  /** easy-start in "suggest" mode: the proposal Apply runs. */
+  proposalId?: string | null;
 }
 
 export function getUserRealtimeChannel(userId: string): string {

@@ -101,16 +101,22 @@ export function useRealtimeSync(): void {
     };
 
     // Always easy start changed a task or a day: one line with Undo, which
-    // runs the logged action's inverse and refreshes.
+    // runs the logged action's inverse and refreshes. In "suggest" mode the
+    // line is a proposal with Apply, which runs the same task.simplify.
     const onEasyStart = (event: Event) => {
       refreshTasks();
-      announceEasyStart(
-        parseEasyStart((event as MessageEvent<string>).data),
-        async (actionId) => {
+      announceEasyStart(parseEasyStart((event as MessageEvent<string>).data), {
+        undo: async (actionId) => {
           await sendJson(`/api/agent/actions/${actionId}/undo`, "POST");
           refreshTasks();
-        }
-      );
+        },
+        apply: async (proposalId) => {
+          await sendJson(`/api/easy-start/proposals/${proposalId}`, "POST", {
+            action: "apply",
+          });
+          refreshTasks();
+        },
+      });
     };
 
     const connect = () => {

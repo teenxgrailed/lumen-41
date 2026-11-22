@@ -40,6 +40,8 @@ const HAS_UPDATED_AT = new Set([
   "page",
   "personalBlock",
   "goal",
+  "taskPart",
+  "easyStartProposal",
 ]);
 
 function clone<T>(value: T): T {
@@ -92,6 +94,8 @@ export function createFakePrisma() {
     goalCheckIn: [],
     taskPart: [],
     taskListMapping: [],
+    workspaceMember: [],
+    easyStartProposal: [],
   };
   let clock = Date.parse("2026-10-01T00:00:00.000Z");
   let ids = 0;
@@ -233,6 +237,14 @@ export function createFakePrisma() {
         row.tags = tags;
         continue;
       }
+      if (
+        isPlainObject(value) &&
+        Object.keys(value).length === 1 &&
+        typeof value.increment === "number"
+      ) {
+        row[key] = ((row[key] as number | null) ?? 0) + value.increment;
+        continue;
+      }
       row[key] = value instanceof Date ? new Date(value) : clone(value);
     }
     if (HAS_UPDATED_AT.has(model)) row.updatedAt = tick();
@@ -353,6 +365,18 @@ export function createFakePrisma() {
           lastCheckInAt: null,
           sourceTaskId: null,
           archivedAt: null,
+        });
+      }
+      if (model === "easyStartProposal") {
+        Object.assign(base, {
+          status: "pending",
+          workspaceId: null,
+          title: null,
+          baseTitle: null,
+          baseEntry: null,
+          actionId: null,
+          resolvedAt: null,
+          subtasks: [],
         });
       }
       if (model === "taskPart")

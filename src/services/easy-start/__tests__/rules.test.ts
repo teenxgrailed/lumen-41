@@ -1,11 +1,15 @@
 import {
   DAY_TASK_LIMIT,
   FALLBACK_ENTRY,
+  STUCK_RESCHEDULES,
+  STUCK_START_DAYS,
   type StuckFacts,
   fallbackPlan,
+  needsBackfill,
   needsEntryOnCreate,
   overflowIds,
   parseEntryPlan,
+  proposalLine,
   simplifiedLine,
   stuckReason,
 } from "../rules";
@@ -164,7 +168,68 @@ describe("parseEntryPlan", () => {
   });
 });
 
+describe("thresholds", () => {
+  it("are the owner's: one later-day move or 2 days not started; 6 tasks a day", () => {
+    expect(STUCK_RESCHEDULES).toBe(1);
+    expect(STUCK_START_DAYS).toBe(2);
+    expect(DAY_TASK_LIMIT).toBe(6);
+  });
+});
+
+describe("projects kept out", () => {
+  const inProject = { ...base, projectId: "p1" };
+
+  it("no rule reaches a task in an excluded project", () => {
+    expect(needsEntryOnCreate({ ...inProject, entry: null }, ["p1"])).toBe(
+      false
+    );
+    expect(needsEntryOnCreate({ ...inProject, entry: null }, ["p2"])).toBe(
+      true
+    );
+    expect(needsBackfill({ ...inProject, entry: null }, ["p1"])).toBe(false);
+    expect(
+      stuckReason({ ...inProject, rescheduleCount: 2 }, NOW, ["p1"])
+    ).toBeNull();
+    expect(stuckReason({ ...inProject, rescheduleCount: 2 }, NOW, [])).toBe(
+      "rescheduled"
+    );
+  });
+
+  it("a task with no project is never excluded", () => {
+    expect(needsEntryOnCreate({ ...base, entry: null }, ["p1"])).toBe(true);
+  });
+});
+
+describe("needsBackfill", () => {
+  it("an open task with no entry that was never looked at", () => {
+    expect(needsBackfill({ ...base, entry: null })).toBe(true);
+  });
+
+  it("not a task that has an entry or was already looked at", () => {
+    expect(needsBackfill({ ...base, entry: "Open it" })).toBe(false);
+    expect(needsBackfill({ ...base, entry: null, simplifiedAt: NOW })).toBe(
+      false
+    );
+  });
+});
+
 describe("fallback and the line", () => {
+  it("the suggestion line asks Simplify? and stays on one line", () => {
+    const line = proposalLine({
+      title: "Do the whole tax return for the year",
+      entry: "Find last year's return",
+    });
+    expect(line.startsWith("Simplify? ")).toBe(true);
+    expect(line).not.toContain("\n");
+    expect(line.length).toBeLessThanOrEqual(110);
+  });
+
+  it("the backfill line is one summed sentence", () => {
+    expect(simplifiedLine({ kind: "backfill", count: 12 })).toBe(
+      "Simplified: gave 12 tasks a first step"
+    );
+  });
+
   it("the fallback is fixed and adds nothing else", () => {
     expect(fallbackPlan()).toEqual({
       entry: FALLBACK_ENTRY,

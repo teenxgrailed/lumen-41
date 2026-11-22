@@ -185,6 +185,7 @@ model User {
   hubReservations              HubReservation[]
   agentRuns                    AgentRun[]
   agentActions                 AgentAction[]
+  easyStartProposals           EasyStartProposal[]
   aiUsage                      AiUsage[]
   connectorSettings            ConnectorSettings?
   personalApiTokens            PersonalApiToken[]
@@ -1056,6 +1057,7 @@ model Task {
   rescheduleCount        Int                    @default(0)
   /// When Always easy start last rewrote this task's entry and title; a 7-day cooldown.
   simplifiedAt           DateTime?
+  easyStartProposals     EasyStartProposal[]
   dayPlanItems           DayPlanItem[]
   somedayMigrationMoves  SomedayMigrationMove[]
   previousScheduledStart DateTime? // Backs `movedFrom`: where the scheduler moved it from.
@@ -2637,6 +2639,36 @@ model AgentRun {
 /// One applied operation from src/services/ops. The inverse is computed and
 /// stored when the operation is applied; targetVersions holds the updatedAt
 /// of every row it touched, so undo can refuse to overwrite later changes.
+/// Always easy start in "suggest" mode: what the job would change, kept until
+/// the person applies it (runs task.simplify, undoable) or dismisses it.
+model EasyStartProposal {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  taskId      String
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  /// create | rescheduled | not_started | backfill
+  reason      String
+  entry       String
+  title       String?
+  subtasks    String[]  @default([])
+  /// ai | fallback
+  source      String    @default("fallback")
+  /// The task's title and entry the proposal was made from; Apply refuses
+  /// (stale) when the person has changed either since.
+  baseTitle   String?
+  baseEntry   String?
+  /// pending | applied | dismissed | stale
+  status      String    @default("pending")
+  actionId    String?
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  @@index([userId, status])
+  @@index([taskId, status])
+}
+
 model AgentAction {
   id             String    @id @default(cuid())
   runId          String?
@@ -2853,33 +2885,34 @@ model AutoScheduleSettings {
 }
 
 model UserSettings {
-  id                String    @id @default(cuid())
-  userId            String    @unique
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  theme             String    @default("dark") // "light", "dark", "system"
-  defaultView       String    @default("week") // "day", "week", "month", "agenda"
-  timeZone          String
-  secondaryTimeZone String?
-  weekStartDay      String    @default("sunday") // "monday", "sunday"
-  timeFormat        String    @default("12h") // "12h", "24h"
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id                          String    @id @default(cuid())
+  userId                      String    @unique
+  user                        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme                       String    @default("dark") // "light", "dark", "system"
+  defaultView                 String    @default("week") // "day", "week", "month", "agenda"
+  timeZone                    String
+  secondaryTimeZone           String?
+  weekStartDay                String    @default("sunday") // "monday", "sunday"
+  timeFormat                  String    @default("12h") // "12h", "24h"
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
   // Design v3: UI-only preferences in one map; anything the server reads gets a typed column.
-  prefs             Json      @default("{}")
+  prefs                       Json      @default("{}")
   // "Let Needt learn about me": off until the person turns it on. Off means nothing
   // is learned and no memory is used.
-  learnAboutMe      Boolean   @default(false)
+  learnAboutMe                Boolean   @default(false)
   // When the last learning pass ran, so passes are at most daily.
-  learnedAt         DateTime?
-  learnedContentAt  DateTime?
+  learnedAt                   DateTime?
+  learnedContentAt            DateTime?
   // Learned lines the person deleted (`workspaceId:sourceKey`); not recomputed until Forget all.
-  learnedSkips      String[]  @default([])
-  // Always easy start: Needt gives new tasks an easy first step and makes stuck
-  // ones smaller. On for everyone; the person's own switch.
-  alwaysEasyStart   Boolean   @default(true)
+  learnedSkips                String[]  @default([])
+  // Always easy start: "auto" (changes itself, undoable), "suggest" (proposes,
+  // the person applies) or "off". Tasks in the listed projects are never touched.
+  easyStartMode               String    @default("auto")
+  easyStartExcludedProjectIds String[]  @default([])
   // Onboarding v3 (ob3): the answers behind the first week, as the API validates
   // them (src/lib/onboarding/answers.ts). Null until someone has saved a week.
-  onboarding        Json?
+  onboarding                  Json?
 
   @@index([userId])
 }

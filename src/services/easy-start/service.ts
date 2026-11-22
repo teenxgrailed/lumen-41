@@ -8,12 +8,13 @@ import {
 import { WorkspaceRole } from "@prisma/client";
 
 import {
+  type WorkspaceAccess,
   WorkspaceAuthorizationError,
   resolveWorkspaceAccess,
   workspaceDataScopeWhere,
 } from "@/lib/auth/workspace-auth";
 import { addCalendarDays, formatInTimeZone, newDate } from "@/lib/date-utils";
-import { alwaysEasyStartEnabled } from "@/lib/feature-flags";
+import { easyStartSettings } from "@/lib/feature-flags";
 import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -25,8 +26,10 @@ import {
   DAY_TASK_LIMIT,
   SPREAD_PAUSE_HOURS,
   type StuckReason,
+  needsBackfill,
   needsEntryOnCreate,
   overflowIds,
+  proposalLine,
   simplifiedLine,
   stuckReason,
 } from "./rules";
@@ -34,10 +37,13 @@ import {
 const LOG_SOURCE = "easy-start";
 
 /** A person's row says no (the sweep never reads their tasks). */
-export const settingsOff = { userSettings: { is: { alwaysEasyStart: false } } };
+export const settingsOff = { userSettings: { is: { easyStartMode: "off" } } };
+
+export type SimplifyReason = "create" | "backfill" | StuckReason;
 
 export type SimplifyOutcome =
   | { status: "simplified"; actionId: string | null; source: "ai" | "fallback" }
+  | { status: "proposed"; proposalId: string; source: "ai" | "fallback" }
   | {
       status: "skipped";
       why: "off" | "not_found" | "not_eligible" | "no_access" | "failed";
@@ -47,6 +53,7 @@ export const taskSelect = {
   id: true,
   userId: true,
   workspaceId: true,
+  projectId: true,
   title: true,
   description: true,
   entry: true,
@@ -82,7 +89,12 @@ async function workspaceFor(userId: string, workspaceId: string | null) {
 
 async function announce(
   userId: string,
-  event: { message: string; actionId: string | null; taskId?: string }
+  event: {
+    message: string;
+    actionId?: string | null;
+    proposalId?: string | null;
+    taskId?: string;
+  }
 ) {
   try {
     await publishRealtimeEvent(userId, "easy-start", event);
@@ -96,16 +108,52 @@ async function announce(
 }
 
 /**
- * Give one task its easy first step: a new task with no entry (`create`), or a
- * stuck one made smaller (`rescheduled`, `not_started`). Re-checks everything
- * itself (the setting, the kill switch, eligibility), so a late or repeated
- * job changes nothing it should not. The write is `task.simplify`, which logs
- * an action with an inverse; the open app then shows one line with Undo.
+ * Mark a task as looked at, so it leaves every candidate set (the stuck sweep,
+ * the backfill). Only when nobody changed the stamp meanwhile. Used whenever a
+ * task was examined and nothing was written, so a row that can never be
+ * changed (a touched task, an archived project, a Free fallback already in
+ * place) is not picked again and again.
+ */
+export async function stampLookedAt(
+  task: { id: string; simplifiedAt: Date | null },
+  now: Date
+) {
+  try {
+    await prisma.task.updateMany({
+      where: { id: task.id, simplifiedAt: task.simplifiedAt },
+      data: { simplifiedAt: now },
+    });
+  } catch (error) {
+    logger.warn(
+      "Could not stamp a task as looked at",
+      {
+        taskId: task.id,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      LOG_SOURCE
+    );
+  }
+}
+
+/**
+ * Give one task its easy first step: a new task with no entry (`create`), an
+ * existing one with none (`backfill`), or a stuck one made smaller
+ * (`rescheduled`, `not_started`). Re-checks everything itself (the mode, the
+ * kill switch, the excluded projects, eligibility), so a late or repeated job
+ * changes nothing it should not.
+ *
+ * In "auto" mode the write is `task.simplify`, which logs an action with an
+ * inverse; the open app shows one line with Undo. In "suggest" mode nothing
+ * changes: a proposal is stored and the line reads "Simplify?" with Apply.
+ * Whenever a task was examined and not changed, it is stamped (`simplifiedAt`)
+ * so it does not come round again.
  */
 export async function simplifyTask(input: {
   taskId: string;
-  reason: "create" | StuckReason;
+  reason: SimplifyReason;
   now?: Date;
+  /** The caller announces (the backfill sums a batch into one line). */
+  quiet?: boolean;
 }): Promise<SimplifyOutcome> {
   const now = input.now ?? newDate();
   const task = await prisma.task.findUnique({
@@ -113,33 +161,91 @@ export async function simplifyTask(input: {
     select: taskSelect,
   });
   if (!task?.userId) return { status: "skipped", why: "not_found" };
-  if (!(await alwaysEasyStartEnabled(task.userId))) {
-    return { status: "skipped", why: "off" };
-  }
+  const settings = await easyStartSettings(task.userId);
+  if (settings.mode === "off") return { status: "skipped", why: "off" };
+  const excluded = settings.excludedProjectIds;
   const facts = { ...task, doneParts: task.parts.filter((p) => p.done).length };
   const eligible =
     input.reason === "create"
-      ? needsEntryOnCreate(task)
-      : stuckReason(facts, now) === input.reason;
-  if (!eligible) return { status: "skipped", why: "not_eligible" };
+      ? needsEntryOnCreate(task, excluded)
+      : input.reason === "backfill"
+        ? needsBackfill(task, excluded)
+        : stuckReason(facts, now, excluded) === input.reason;
+  if (!eligible) {
+    if (input.reason !== "create") await stampLookedAt(task, now);
+    return { status: "skipped", why: "not_eligible" };
+  }
 
   const workspace = await workspaceFor(task.userId, task.workspaceId);
-  if (!workspace) return { status: "skipped", why: "no_access" };
+  if (!workspace) {
+    if (input.reason !== "create") await stampLookedAt(task, now);
+    return { status: "skipped", why: "no_access" };
+  }
 
+  if (settings.mode === "suggest") {
+    const pending = await prisma.easyStartProposal.findFirst({
+      where: { taskId: task.id, status: "pending" },
+      select: { id: true },
+    });
+    if (pending) return { status: "skipped", why: "not_eligible" };
+  }
+
+  const resplit = input.reason !== "create" && input.reason !== "backfill";
   const plan = await generateEntryPlan({
     userId: task.userId,
     title: task.title,
     notes: task.description,
-    ...(input.reason === "create"
-      ? {}
-      : {
+    ...(resplit
+      ? {
           previousEntry: task.entry ?? "",
           previousSubtasks: task.parts.map((p) => p.title),
-        }),
+        }
+      : {}),
   });
   // Nothing to change: the task already says what the fallback would.
-  if (input.reason !== "create" && task.entry === plan.entry && !plan.title) {
+  if (resplit && task.entry === plan.entry && !plan.title) {
+    await plan.release();
+    await stampLookedAt(task, now);
     return { status: "skipped", why: "not_eligible" };
+  }
+
+  if (settings.mode === "suggest") {
+    try {
+      const proposal = await prisma.easyStartProposal.create({
+        data: {
+          userId: task.userId,
+          workspaceId: workspace.workspaceId,
+          taskId: task.id,
+          reason: input.reason,
+          entry: plan.entry,
+          title: plan.title ?? null,
+          subtasks: plan.subtasks,
+          source: plan.source,
+          baseTitle: task.title,
+          baseEntry: task.entry ?? null,
+        },
+        select: { id: true },
+      });
+      await stampLookedAt(task, now);
+      if (!input.quiet) {
+        await announce(task.userId, {
+          message: proposalLine({
+            title: plan.title ?? task.title,
+            entry: plan.entry,
+          }),
+          proposalId: proposal.id,
+          taskId: task.id,
+        });
+      }
+      return {
+        status: "proposed",
+        proposalId: proposal.id,
+        source: plan.source,
+      };
+    } catch (error) {
+      await plan.release();
+      throw error;
+    }
   }
 
   try {
@@ -151,18 +257,27 @@ export async function simplifyTask(input: {
         ...(plan.title ? { title: plan.title } : {}),
         ...(plan.subtasks.length ? { subtasks: plan.subtasks } : {}),
         reason: input.reason,
+        // What the plan was made from: the op reads the task again inside its
+        // transaction and refuses if the person (or a second job) changed it.
+        expected: {
+          simplifiedAt: task.simplifiedAt?.toISOString() ?? null,
+          entry: task.entry ?? null,
+          title: task.title,
+        },
       },
       { userId: task.userId, workspace, actor: "agent" }
     );
-    await announce(task.userId, {
-      message: simplifiedLine({
-        kind: input.reason === "create" ? "entry" : "resplit",
-        title: run.result.task.title,
-        entry: run.result.entry,
-      }),
-      actionId: run.actionId,
-      taskId: task.id,
-    });
+    if (!input.quiet) {
+      await announce(task.userId, {
+        message: simplifiedLine({
+          kind: resplit ? "resplit" : "entry",
+          title: run.result.task.title,
+          entry: run.result.entry,
+        }),
+        actionId: run.actionId,
+        taskId: task.id,
+      });
+    }
     logger.info(
       "Task simplified",
       { taskId: task.id, reason: input.reason, source: plan.source },
@@ -174,22 +289,119 @@ export async function simplifyTask(input: {
       source: plan.source,
     };
   } catch (error) {
+    // Nothing was written: give a claimed action back, so a retry (or a task
+    // that can never be changed) does not keep paying for the same answer.
+    await plan.release();
     if (error instanceof OpError) {
       logger.info(
         "Task not simplified",
         { taskId: task.id, code: error.code },
         LOG_SOURCE
       );
+      // A conflict means the person (or another job) got there first; the
+      // task is already theirs. Anything else leaves the candidate set.
+      if (error.code !== "CONFLICT") await stampLookedAt(task, now);
       return { status: "skipped", why: "failed" };
     }
     throw error;
   }
 }
 
+/* ---------- proposals ("suggest" mode) ---------- */
+
+export type ApplyOutcome =
+  | { status: "applied"; actionId: string | null }
+  | { status: "not_found" | "stale" | "off" | "failed" };
+
+/**
+ * Apply a stored proposal: the same `task.simplify` as "auto" mode, run for
+ * the person who pressed Apply, so it is undoable the same way. A proposal made
+ * from a title or entry the person has since changed is marked stale and not
+ * applied.
+ */
+export async function applyProposal(
+  proposalId: string,
+  userId: string
+): Promise<ApplyOutcome> {
+  const proposal = await prisma.easyStartProposal.findFirst({
+    where: { id: proposalId, userId, status: "pending" },
+  });
+  if (!proposal) return { status: "not_found" };
+  const settings = await easyStartSettings(userId);
+  if (settings.mode === "off") return { status: "off" };
+
+  const task = await prisma.task.findUnique({
+    where: { id: proposal.taskId },
+    select: taskSelect,
+  });
+  const resolve = (status: "stale" | "applied", actionId?: string | null) =>
+    prisma.easyStartProposal.update({
+      where: { id: proposal.id },
+      data: {
+        status,
+        resolvedAt: newDate(),
+        ...(actionId ? { actionId } : {}),
+      },
+    });
+  if (
+    !task ||
+    task.userId !== userId ||
+    task.title !== (proposal.baseTitle ?? task.title) ||
+    (task.entry ?? null) !== (proposal.baseEntry ?? null) ||
+    (settings.excludedProjectIds.length > 0 &&
+      task.projectId !== null &&
+      settings.excludedProjectIds.includes(task.projectId))
+  ) {
+    await resolve("stale");
+    return { status: "stale" };
+  }
+  const workspace = await workspaceFor(userId, task.workspaceId);
+  if (!workspace) return { status: "failed" };
+  try {
+    const run = await runOp(
+      "task.simplify",
+      {
+        taskId: task.id,
+        entry: proposal.entry,
+        ...(proposal.title ? { title: proposal.title } : {}),
+        ...(proposal.subtasks.length ? { subtasks: proposal.subtasks } : {}),
+        reason: proposal.reason,
+        expected: {
+          simplifiedAt: task.simplifiedAt?.toISOString() ?? null,
+          entry: task.entry ?? null,
+          title: task.title,
+        },
+      },
+      { userId, workspace, actor: "user" }
+    );
+    await resolve("applied", run.actionId);
+    return { status: "applied", actionId: run.actionId };
+  } catch (error) {
+    if (error instanceof OpError) {
+      if (error.code === "CONFLICT") {
+        await resolve("stale");
+        return { status: "stale" };
+      }
+      return { status: "failed" };
+    }
+    throw error;
+  }
+}
+
+/** Dismiss a pending proposal. */
+export async function dismissProposal(proposalId: string, userId: string) {
+  const result = await prisma.easyStartProposal.updateMany({
+    where: { id: proposalId, userId, status: "pending" },
+    data: { status: "dismissed", resolvedAt: newDate() },
+  });
+  return result.count > 0;
+}
+
 /* ---------- overloaded days ---------- */
 
 type DayRow = {
   id: string;
+  projectId: string | null;
   priorityLevel: string;
   dueDate: Date | null;
   scheduledStart: Date | null;
@@ -205,6 +417,7 @@ type DayRow = {
 
 const dayRowSelect = {
   id: true,
+  projectId: true,
   priorityLevel: true,
   dueDate: true,
   scheduledStart: true,
@@ -220,9 +433,10 @@ const dayRowSelect = {
 
 /**
  * Only an auto-scheduled task moves. Anything pinned, locked, placed by hand,
- * frozen or tied to a hard deadline stays, as does a habit, series or synced row.
+ * frozen or tied to a hard deadline stays, as does a habit, series or synced
+ * row, and a task in a project the person excluded.
  */
-function isFixed(task: DayRow): boolean {
+function isFixed(task: DayRow, excludedProjectIds: readonly string[]): boolean {
   return (
     !task.isAutoScheduled ||
     task.scheduleLocked ||
@@ -232,8 +446,7 @@ function isFixed(task: DayRow): boolean {
     task.isRecurring ||
     Boolean(task.recurrenceMasterId) ||
     Boolean(task.externalTaskId) ||
-    // Placed by hand: it has a time and the scheduler does not own it.
-    (!task.isAutoScheduled && task.scheduledStart !== null)
+    (task.projectId !== null && excludedProjectIds.includes(task.projectId))
   );
 }
 
@@ -243,18 +456,42 @@ export interface BalanceOutcome {
   skipped?: "off" | "paused" | "no_access";
 }
 
+/** Every workspace the person can edit, once each (the personal one included). */
+async function editableWorkspaces(userId: string): Promise<WorkspaceAccess[]> {
+  const memberships = await prisma.workspaceMember.findMany({
+    where: {
+      userId,
+      role: { in: [WorkspaceRole.OWNER, WorkspaceRole.EDITOR] },
+    },
+    select: { workspaceId: true },
+    take: 50,
+  });
+  const found = new Map<string, WorkspaceAccess>();
+  for (const id of [null, ...memberships.map((m) => m.workspaceId)]) {
+    const access = await workspaceFor(userId, id);
+    if (access && !found.has(access.workspaceId)) {
+      found.set(access.workspaceId, access);
+    }
+  }
+  return [...found.values()];
+}
+
 /**
  * Ease a day with more than 6 open tasks: the lowest-priority tasks beyond the
  * 6th that are free to move go to later days through `task.spread`, the
- * scheduler's own spread (its room per day, its order). One action per day
- * eased, each undoable. After the person undoes one, nothing is moved for them
- * for a day.
+ * scheduler's own spread (its room per day, its order). Each workspace is
+ * balanced on its own. A moved task is held on its new day (the scheduler's
+ * not-before date) and never given a due date it did not have, so the next
+ * scheduler run leaves it there. One action per day eased, each undoable. After
+ * the person undoes one, nothing is moved for them for a day. Only in "auto"
+ * mode: a suggestion mode never moves anything on its own.
  */
 export async function balanceOverloadedDays(
   userId: string,
   now: Date = newDate()
 ): Promise<BalanceOutcome> {
-  if (!(await alwaysEasyStartEnabled(userId))) {
+  const settings = await easyStartSettings(userId);
+  if (settings.mode !== "auto") {
     return { moved: 0, actionIds: [], skipped: "off" };
   }
   const undone = await prisma.agentAction.findFirst({
@@ -271,14 +508,38 @@ export async function balanceOverloadedDays(
   });
   if (undone) return { moved: 0, actionIds: [], skipped: "paused" };
 
-  const workspace = await workspaceFor(userId, null);
-  if (!workspace) return { moved: 0, actionIds: [], skipped: "no_access" };
+  const workspaces = await editableWorkspaces(userId);
+  if (workspaces.length === 0) {
+    return { moved: 0, actionIds: [], skipped: "no_access" };
+  }
 
-  const settings = await prisma.userSettings.findUnique({
+  const userSettings = await prisma.userSettings.findUnique({
     where: { userId },
     select: { timeZone: true },
   });
-  const timeZone = normalizeUserTimeZone(settings?.timeZone);
+  const timeZone = normalizeUserTimeZone(userSettings?.timeZone);
+  const out: BalanceOutcome = { moved: 0, actionIds: [] };
+  for (const workspace of workspaces) {
+    const part = await balanceWorkspace(
+      userId,
+      workspace,
+      now,
+      timeZone,
+      settings.excludedProjectIds
+    );
+    out.moved += part.moved;
+    out.actionIds.push(...part.actionIds);
+  }
+  return out;
+}
+
+async function balanceWorkspace(
+  userId: string,
+  workspace: WorkspaceAccess,
+  now: Date,
+  timeZone: string,
+  excluded: readonly string[]
+): Promise<BalanceOutcome> {
   const today = formatInTimeZone(now, timeZone, "yyyy-MM-dd");
   const dayKeys = Array.from({ length: BALANCE_DAYS }, (_, i) =>
     formatInTimeZone(addCalendarDays(now, i, timeZone), timeZone, "yyyy-MM-dd")
@@ -318,7 +579,7 @@ export async function balanceOverloadedDays(
         id: row.id,
         priorityLevel: row.priorityLevel,
         dueDate: row.dueDate,
-        fixed: isFixed(row),
+        fixed: isFixed(row, excluded),
       })),
       DAY_TASK_LIMIT
     );
@@ -329,6 +590,7 @@ export async function balanceOverloadedDays(
         {
           taskIds: ids,
           afterDay: day,
+          notBefore: true,
           days: Math.min(14, offset + SPREAD_DEFAULT_DAYS),
         },
         { userId, workspace, actor: "agent" }

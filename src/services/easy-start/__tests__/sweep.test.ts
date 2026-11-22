@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
-import { balanceOverloadedDays, simplifyTask } from "../service";
-import { runEasyStartSweep } from "../sweep";
+import { balanceOverloadedDays, simplifyTask, stampLookedAt } from "../service";
+import { resetSweepCursor, runEasyStartSweep } from "../sweep";
 
 jest.mock("@/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -13,9 +13,10 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 jest.mock("../service", () => ({
-  settingsOff: { userSettings: { is: { alwaysEasyStart: false } } },
+  settingsOff: { userSettings: { is: { easyStartMode: "off" } } },
   taskSelect: {},
   simplifyTask: jest.fn(),
+  stampLookedAt: jest.fn(),
   balanceOverloadedDays: jest.fn(),
 }));
 
@@ -23,6 +24,7 @@ const flag = prisma.featureFlag.findUnique as jest.Mock;
 const findMany = prisma.task.findMany as jest.Mock;
 const groupBy = prisma.task.groupBy as jest.Mock;
 const simplify = jest.mocked(simplifyTask);
+const stamp = jest.mocked(stampLookedAt);
 const balance = jest.mocked(balanceOverloadedDays);
 
 const NOW = new Date("2026-11-22T10:00:00.000Z");
@@ -52,7 +54,8 @@ const row = (
 });
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.resetAllMocks();
+  resetSweepCursor();
   flag.mockResolvedValue({ enabled: true });
   findMany.mockResolvedValue([]);
   groupBy.mockResolvedValue([]);
@@ -77,17 +80,30 @@ describe("runEasyStartSweep", () => {
     expect(simplify).not.toHaveBeenCalled();
   });
 
-  it("asks only for tasks of people whose setting is not off", async () => {
+  it("asks only for tasks of people whose mode is not off", async () => {
     await runEasyStartSweep(NOW);
-    expect(findMany.mock.calls[0][0].where.user).toEqual({
-      NOT: { userSettings: { is: { alwaysEasyStart: false } } },
-    });
-    expect(groupBy.mock.calls[0][0].where.user).toEqual({
-      NOT: { userSettings: { is: { alwaysEasyStart: false } } },
+    const off = { userSettings: { is: { easyStartMode: "off" } } };
+    expect(findMany.mock.calls[0][0].where.user).toEqual({ NOT: off });
+    expect(groupBy.mock.calls[0][0].where.user).toEqual({ NOT: off });
+  });
+
+  it("the candidate query leaves out ticked, archived, recurring and synced tasks", async () => {
+    await runEasyStartSweep(NOW);
+    const where = findMany.mock.calls[0][0].where;
+    expect(where).toMatchObject({
+      status: "todo",
+      isArchived: false,
+      trashedAt: null,
+      somedayAt: null,
+      isSample: false,
+      isRecurring: false,
+      habitId: null,
+      externalTaskId: null,
+      parts: { none: { done: true } },
     });
   });
 
-  it("re-splits a task moved once, and re-checks every candidate", async () => {
+  it("re-splits a task moved once, and stamps the candidates it will not change", async () => {
     findMany.mockResolvedValue([
       row("stuck", "u1"),
       row("fine", "u1", { rescheduleCount: 0 }),
@@ -101,6 +117,11 @@ describe("runEasyStartSweep", () => {
       now: NOW,
     });
     expect(result.rewritten).toBe(1);
+    // The other two leave the candidate set instead of being read forever.
+    expect(stamp.mock.calls.map(([task]) => task.id)).toEqual([
+      "fine",
+      "started",
+    ]);
   });
 
   it("not started 2 days after its start: re-split as not_started", async () => {
@@ -116,21 +137,57 @@ describe("runEasyStartSweep", () => {
     );
   });
 
-  it("no more than 3 rewrites for one person in a run", async () => {
+  it("no more than 3 rewrites for one person in a run, and the rest are not stamped", async () => {
     findMany.mockResolvedValue(
       Array.from({ length: 6 }, (_, i) => row(`t${i}`, "u1"))
     );
     const result = await runEasyStartSweep(NOW);
     expect(simplify).toHaveBeenCalledTimes(3);
     expect(result.rewritten).toBe(3);
+    // Held back by the cap, not judged: they stay candidates for the next run.
+    expect(stamp).not.toHaveBeenCalled();
   });
 
-  it("a task that could not be rewritten does not stop the run", async () => {
+  it("a proposal in suggest mode counts as a rewrite", async () => {
+    findMany.mockResolvedValue([row("a", "u1")]);
+    simplify.mockResolvedValue({
+      status: "proposed",
+      proposalId: "p1",
+      source: "ai",
+    });
+    expect((await runEasyStartSweep(NOW)).rewritten).toBe(1);
+  });
+
+  it("a task that could not be rewritten does not stop the run, and leaves the set", async () => {
     findMany.mockResolvedValue([row("a", "u1"), row("b", "u2")]);
     simplify.mockRejectedValueOnce(new Error("boom"));
     const result = await runEasyStartSweep(NOW);
     expect(simplify).toHaveBeenCalledTimes(2);
     expect(result.rewritten).toBe(1);
+    expect(stamp.mock.calls.map(([task]) => task.id)).toEqual(["a"]);
+  });
+
+  it("pages through more than 200 ineligible tasks and still reaches the stuck one behind them", async () => {
+    const ineligible = Array.from({ length: 250 }, (_, i) =>
+      row(`a${String(i).padStart(3, "0")}`, "u1", { rescheduleCount: 0 })
+    );
+    const all = [...ineligible, row("z-stuck", "u2")];
+    findMany.mockImplementation(
+      async (args: { where: { id?: { gt: string } }; take: number }) => {
+        const after = args.where.id?.gt;
+        return all.filter((r) => !after || r.id > after).slice(0, args.take);
+      }
+    );
+
+    const result = await runEasyStartSweep(NOW);
+
+    expect(result.rewritten).toBe(1);
+    expect(simplify).toHaveBeenCalledWith(
+      expect.objectContaining({ taskId: "z-stuck" })
+    );
+    expect(stamp).toHaveBeenCalledTimes(250);
+    // the second page asked for rows after the first page's last id
+    expect(findMany.mock.calls[1][0].where.id).toEqual({ gt: "a199" });
   });
 
   it("eases the days of people with more than 6 open tasks ahead", async () => {
@@ -144,5 +201,23 @@ describe("runEasyStartSweep", () => {
     expect(balance).toHaveBeenCalledWith("u1", NOW);
     expect(balance).toHaveBeenCalledWith("u2", NOW);
     expect(result.eased).toBe(2);
+  });
+
+  it("the crowded-day scan resumes after the last account of a full page", async () => {
+    const full = Array.from({ length: 100 }, (_, i) => ({
+      userId: `u${String(i).padStart(3, "0")}`,
+    }));
+    groupBy
+      .mockResolvedValueOnce(full)
+      .mockResolvedValueOnce([{ userId: "u200" }]);
+    await runEasyStartSweep(NOW);
+    expect(groupBy.mock.calls[1][0].where.userId).toEqual({ gt: "u099" });
+    expect(balance).toHaveBeenCalledTimes(101);
+
+    // The list ended, so the next run starts again from the first account.
+    groupBy.mockClear();
+    groupBy.mockResolvedValue([]);
+    await runEasyStartSweep(NOW);
+    expect(groupBy.mock.calls[0][0].where.userId).toEqual({ not: null });
   });
 });
