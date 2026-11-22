@@ -127,13 +127,16 @@
   border-radius: 50%;
   cursor: default;
   -webkit-tap-highlight-color: transparent;
-  translate: calc(
+  /* transform, not translate: globals.css resets `translate` on every button
+   * when animations are off, which would stack the discs on one spot */
+  transform: translateX(
+    calc(
       var(--nfb-pad) + var(--nfb-j) * (var(--nfb-d) + var(--nfb-gap)) +
         var(--nfb-s) * var(--nfb-xw)
     )
-    0;
+  );
   transition:
-    translate 0.34s var(--nfb-ease),
+    transform 0.34s var(--nfb-ease),
     background-color 0.2s ease,
     box-shadow 0.2s ease,
     color 0.2s ease;
