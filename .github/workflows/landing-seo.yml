@@ -4,17 +4,26 @@ name: Landing SEO
 # as <path>/index.html, has no noindex, and its canonical is itself. Every
 # internal link must point straight at a file, so none needs a redirect.
 # Runs against the files nginx serves, so it needs no network.
+#
+# Three jobs:
+#   sitemap  the sitemap/link gate, the dev-files gate (docker/landing keeps tests,
+#            notes and backups out of the image and answers 404 for them) and the
+#            landing unit tests;
+#   lastmod  (pull requests) sitemap lastmod values match the last text change;
+#   nginx    `nginx -t` on docker/landing/nginx.conf and curl checks of the redirects.
 
 on:
   pull_request:
     paths:
       - "landing-site/**"
+      - "docker/landing/**"
       - "scripts/seo/**"
       - ".github/workflows/landing-seo.yml"
   push:
     branches: [landing]
     paths:
       - "landing-site/**"
+      - "docker/landing/**"
       - "scripts/seo/**"
   workflow_dispatch:
 
@@ -30,9 +39,87 @@ jobs:
         with:
           sparse-checkout: |
             landing-site
+            docker/landing
             scripts/seo
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Check the sitemap and internal links
         run: node scripts/seo/check-sitemap.mjs --dir landing-site --base https://needt.app
+      - name: Check that the deploy serves no dev files
+        run: node scripts/seo/check-dev-files.mjs --dir landing-site
+      - name: Landing unit tests
+        run: node --test landing-site/tests/*.mjs
+
+  lastmod:
+    # The lastmod of a page is the date of the commit that last changed its text, so this
+    # needs the whole history, and the PR head itself (not the merge commit, whose date is
+    # the time of the run). Pages whose text last changed on the base branch are skipped.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Check the sitemap lastmod values
+        run: node scripts/seo/sitemap-lastmod.mjs --check --since "origin/${{ github.base_ref }}"
+
+  nginx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          sparse-checkout: |
+            landing-site
+            docker/landing
+      - name: Start the landing config in nginx and check it
+        run: |
+          set -euo pipefail
+          # Same layout as docker/landing/Dockerfile: the stock default.conf is dropped.
+          docker run --detach --name landing -p 8080:80 \
+            --volume "$PWD/landing-site:/usr/share/nginx/html:ro" \
+            --volume "$PWD/docker/landing/nginx.conf:/etc/nginx/conf.d/landing.conf:ro" \
+            --volume "$PWD/docker/landing/security-headers.conf:/etc/nginx/landing/security-headers.conf:ro" \
+            nginx:1.27-alpine sh -c 'rm -f /etc/nginx/conf.d/default.conf && exec nginx -g "daemon off;"'
+          docker exec landing nginx -t
+          for i in $(seq 1 20); do curl -fsS -o /dev/null http://127.0.0.1:8080/healthz && break; sleep 0.5; done
+
+          fail=0
+          # status and Location of a raw request target (no curl URL normalising)
+          probe() { curl -s -o /dev/null --path-as-is -D - "http://127.0.0.1:8080$1" | tr -d '\r'; }
+          expect_redirect() { # target, expected Location
+            h=$(probe "$1"); code=$(echo "$h" | head -1 | cut -d' ' -f2); loc=$(echo "$h" | sed -n 's/^[Ll]ocation: //p')
+            if [ "$code" = 301 ] && [ "$loc" = "$2" ]; then echo "ok   $1 -> 301 $loc"; else echo "FAIL $1 -> $code '$loc' (want 301 '$2')"; fail=1; fi
+          }
+          expect_status() { # target, expected status, must have no Location
+            h=$(probe "$1"); code=$(echo "$h" | head -1 | cut -d' ' -f2); loc=$(echo "$h" | sed -n 's/^[Ll]ocation: //p')
+            if [ "$code" = "$2" ] && [ -z "$loc" ]; then echo "ok   $1 -> $code"; else echo "FAIL $1 -> $code '$loc' (want $2, no Location)"; fail=1; fi
+          }
+          expect_redirect /index.html /
+          expect_redirect /resources/index.html /resources/
+          expect_redirect '/resources/mcp/index.html?a=1&b=2' '/resources/mcp/?a=1&b=2'
+          # Open redirect: these must never answer with a Location that leaves the site.
+          for t in '//evil.com/index.html' '///evil.com/index.html' '/\evil.com/index.html' '/%5Cevil.com/index.html'; do
+            h=$(probe "$t"); loc=$(echo "$h" | sed -n 's/^[Ll]ocation: //p')
+            case "$loc" in
+              ""|/[!/\\]*) echo "ok   $t -> no off-site Location ('$loc')";;
+              *) echo "FAIL $t -> Location '$loc'"; fail=1;;
+            esac
+          done
+          expect_status /resources/mcp/ 200
+          expect_status /templates/daily-planner/needt-daily-planner.md 200
+          # Dev files are copied into this container as they are in the repo; nginx alone must hide them.
+          expect_status /README.md 404
+          expect_status /tests/seo-scripts.test.mjs 404
+          expect_status /styles.css.orig 404
+          expect_status /edge-debug.js 404
+          exit $fail
+      - name: nginx log on failure
+        if: failure()
+        run: docker logs landing || true

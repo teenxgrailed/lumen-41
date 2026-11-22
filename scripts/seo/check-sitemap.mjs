@@ -13,6 +13,7 @@
 // pointing at the page itself.
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const args = process.argv.slice(2);
 const dirAt = args.indexOf("--dir");
@@ -63,14 +64,20 @@ export function hreflangs(html) {
   }
   return out;
 }
-function brand(url, html) {
+// What is missing from a page's brand signals, as short reasons (empty = fine).
+export function brandProblems(url, html) {
+  const out = [];
   if (!/<meta property=["']og:site_name["'] content=["']Needt["']/i.test(html)) {
-    fail(url, "no og:site_name Needt");
+    out.push("no og:site_name Needt");
   }
   const h = hreflangs(html);
   for (const lang of ["en", "x-default"]) {
-    if (h[lang] !== url) fail(url, `hreflang ${lang} is ${h[lang] ?? "missing"}`);
+    if (h[lang] !== url) out.push(`hreflang ${lang} is ${h[lang] ?? "missing"}`);
   }
+  return out;
+}
+function brand(url, html) {
+  for (const why of brandProblems(url, html)) fail(url, why);
 }
 
 async function urlMode() {
@@ -148,7 +155,7 @@ function dirMode() {
   console.log(`checked ${urls.length} URLs and the links on ${pages.length} pages in ${dir}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   if (!dir && !sitemapUrl) {
     console.error("usage: check-sitemap.mjs <sitemap-url> | --dir <folder> [--base <origin>]");
     process.exit(2);
