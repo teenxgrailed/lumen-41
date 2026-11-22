@@ -38,6 +38,23 @@ export function lateMovable(late: readonly V3Task[]) {
 export const spreadLeads = (overbooked: boolean, movable: number) =>
   overbooked && movable > 0;
 
+/**
+ * The two Overdue actions as the day plan draws them: what each takes and
+ * which leads. null when nothing overdue is open. Move to today takes every
+ * open overdue task; Spread only the ones a spread may move (a fixed time
+ * stays where it is).
+ */
+export function lateActions(late: readonly V3Task[], overbooked: boolean) {
+  const open = late.filter((t) => !t.done);
+  if (!open.length) return null;
+  const spreadIds = lateMovable(open).map((t) => t.id);
+  return {
+    count: open.length,
+    spreadIds,
+    spreadFirst: spreadLeads(overbooked, spreadIds.length),
+  };
+}
+
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** "Today", "Tomorrow", else "Mon 26 Oct". */

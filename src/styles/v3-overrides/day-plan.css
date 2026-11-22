@@ -225,6 +225,51 @@
   color: var(--dp-ink-2);
 }
 
+/* overdue work behind "All tasks": Spread and Move to today, text only */
+.needt-v3 .dp-late {
+  margin-top: 12px;
+  border-top: 1px solid var(--dp-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 2px;
+  border-bottom: 1px solid var(--dp-line);
+}
+.needt-v3 .dp-late-n {
+  font: 500 13px/1 var(--font-sans);
+  color: var(--dp-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .dp-late-acts {
+  display: inline-flex;
+  align-items: center;
+}
+.needt-v3 .dp-late-btn {
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  font: 500 13px/1 var(--font-sans);
+  color: var(--dp-ink-2);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.needt-v3 .dp-late-btn[data-lead="1"] {
+  color: var(--dp-ink);
+}
+.needt-v3 .dp-late-btn:last-child {
+  padding-right: 0;
+}
+.needt-v3 .dp-late-btn:disabled {
+  opacity: 0.5;
+}
+.needt-v3 .dp-late + .dp-links {
+  margin-top: 0;
+  border-top: 0;
+}
+
 /* the way to the full list and to Someday, one tap */
 .needt-v3 .dp-links {
   margin-top: 12px;
