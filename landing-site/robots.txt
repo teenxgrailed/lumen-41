@@ -1,6 +1,7 @@
 # needt.app
 User-agent: *
 Allow: /
+Disallow: /_archive/
 
 # AI search crawlers (needed to appear in ChatGPT search and Perplexity)
 User-agent: OAI-SearchBot

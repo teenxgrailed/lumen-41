@@ -185,70 +185,6 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     }
   })();
 
-  /* v45 relay */
-  /* ── Fold: agents hand one task along the board, then ask you ── */
-  const fold = $("#fold"), rl = $("#rl");
-  const tiles = $$(".rl-tile", rl), core = $(".rl-core", rl), svg = $(".rl-lines", rl);
-  const chipA = $('.rl-chip[data-k="a"]', rl), chipB = $('.rl-chip[data-k="b"]', rl);
-  const narrow = matchMedia("(max-width: 640px)");
-  /* The ask card shows a few example requests in turn while it waits for you (opacity only). */
-  const ASKS = [["Send the invoice batch", "Codex wants to send 3 emails"], ["Move Friday’s review", "Claude wants to reschedule 2 tasks"], ["Archive the old board", "Grok Bot wants to archive 12 done tasks"]];
-  let askI = 0;
-  /* positions in % of the stage: the arc of agents, the Needt mark, where a task sits on the board */
-  const L = () => narrow.matches
-    ? { t: [[14, 22], [38, 9], [62, 9], [86, 22]], c: [50, 42], board: [50, 86], near: () => [50, 66] }
-    : { t: [[14, 36], [34, 14], [66, 14], [86, 36]], c: [50, 50], board: [50, 82], near: (i) => [[25, 58], [34, 31], [66, 31]][i] };
-  const at = (el, [x, y]) => { el.style.left = x + "%"; el.style.top = y + "%"; };
-  const layout = () => {
-    const l = L();
-    tiles.forEach((t, i) => at(t, l.t[i])); at(core, l.c);
-    svg.innerHTML = l.t.map(([x, y]) => `<path d="M${x} ${y} Q ${(x + l.c[0]) / 2} ${y + 14} ${l.c[0]} ${l.c[1]}"/>`).join("");
-  };
-  layout(); narrow.addEventListener("change", () => { layout(); last = -1; onFold(); });
-  const set = (chip, o) => {
-    chip.classList.toggle("on", !!o.on);
-    if (o.at) at(chip, o.at);
-    if (o.pill) { const p = $("[data-p]", chip); p.className = "rl-pill " + o.pill[0]; p.textContent = o.pill[1]; }
-    if (o.sub) $("[data-s]", chip).textContent = o.sub;
-    ["done", "asking", "tap", "answered"].forEach((k) => chip.classList.toggle(k, !!o[k]));
-  };
-  /* one state per stretch of scroll */
-  const STEPS = [.08, .2, .32, .44, .56, .68, .8, .88];
-  const show = (n) => {
-    const l = L(), hot = [-1, 0, -1, 1, 1, 2, -1, -1, -1][n];
-    tiles.forEach((t, i) => t.classList.toggle("hot", i === hot));
-    $$("path", svg).forEach((p, i) => p.classList.toggle("hot", i === hot));
-    const a = [
-      { on: false, at: l.near(0) },
-      { on: true, at: l.near(0), pill: ["", "Created by Claude"], sub: "Shop · from the board" },
-      { on: true, at: l.board, pill: ["", "On the board"], sub: "Shop · from the board" },
-      { on: true, at: l.near(1), pill: ["claim", "Claimed by Grok Bot"], sub: "Shop · from the board" },
-      { on: true, at: l.near(1), pill: ["ok", "Done ✓"], sub: "14 orders sorted", done: true },
-    ];
-    set(chipA, a[Math.min(n, 4)].on && n > 4 ? { on: false, done: true } : a[Math.min(n, 4)]);
-    const b = n < 5 ? { on: false, at: l.near(2), pill: ["ask", "Needs you"], sub: ASKS[askI][1] }
-      : n === 5 ? { on: true, at: l.near(2), pill: ["ask", "Needs you"], sub: ASKS[askI][1], asking: true }
-      : n === 6 ? { on: true, at: l.board, pill: ["ask", "Needs you"], sub: ASKS[askI][1], asking: true }
-      : n === 7 ? { on: true, at: l.board, pill: ["ask", "Needs you"], sub: ASKS[askI][1], asking: true, tap: true }
-      : { on: true, at: l.board, pill: ["ok", "Approved ✓"], sub: "Codex sends them now", answered: true };
-    set(chipB, b);
-    fold.classList.toggle("done", n >= 5);
-  };
-  let last = -1;
-  const onFold = () => {
-    let n;
-    if (calm) n = 6;
-    else { const r = fold.getBoundingClientRect(), total = r.height - innerHeight, p = clamp(-r.top / total, 0, 1); n = STEPS.filter((s) => p >= s).length; }
-    if (n !== last) { last = n; show(n); }
-  };
-
-  if (!calm) setInterval(() => {
-    if (!chipB.classList.contains("asking") || chipB.classList.contains("tap") || document.hidden) return;
-    chipB.classList.add("swap");
-    setTimeout(() => { askI = (askI + 1) % ASKS.length; $("b", chipB).textContent = ASKS[askI][0]; $("[data-s]", chipB).textContent = ASKS[askI][1]; chipB.classList.remove("swap"); }, 240);
-  }, 3600);
-
-
   /* Screens: a gentle parallax while a phone is on screen (transform only, skipped for reduced motion and phones). */
   (() => {
     const figs = $$(".scr"); if (!figs.length || calm || matchMedia("(max-width: 860px)").matches) return;
@@ -258,31 +194,6 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     function tick() { raf = 0; vis.forEach((f) => { const r = f.getBoundingClientRect(), p = clamp((r.top + r.height / 2 - innerHeight / 2) / innerHeight, -1, 1); f.style.setProperty("--p", p.toFixed(3)); }); }
     addEventListener("scroll", () => { if (vis.size && !raf) raf = requestAnimationFrame(tick); }, { passive: true });
   })();
-  /* ── Composer ──────────────────────────────────────── */
-  const line = $("#cmp-line"), chips = $("#cmp-chips"), add = $("#cmp-add"), landed = $("#landed");
-  const TYPES = { Task: "Add task", Event: "Add event", Doc: "Create doc" };
-  let ctype = "Task";
-  $$(".cmp-type").forEach((b) => b.addEventListener("click", () => { $$(".cmp-type").forEach((x) => x.classList.toggle("on", x === b)); ctype = b.dataset.type; add.textContent = TYPES[ctype] + " ↵"; }));
-  async function composerRun() {
-    const words = "Send the client update Friday Clients";
-    chips.innerHTML = ""; add.disabled = true; landed.textContent = "One line. Needt reads the day and the project from the words.";
-    let s = "";
-    for (const ch of words) {
-      s += ch;
-      line.innerHTML = s.replace(/Friday/, '<span class="tok date">Friday</span>').replace(/Clients$/, '<span class="tok proj">Clients</span>') + '<span class="caret"></span>';
-      if (s.endsWith("Friday") && !$(".chip.date-c", chips)) chips.insertAdjacentHTML("beforeend", '<span class="chip date-c" style="--c:#2e6de9">Friday, 4 Sep</span>');
-      if (s.endsWith("Clients") && !$(".chip.proj-c", chips)) chips.insertAdjacentHTML("beforeend", '<span class="chip proj-c" style="--c:#f07a3a">Clients</span>');
-      add.disabled = s.length < 4;
-      await wait(calm ? 0 : 55 + Math.random() * 50);
-    }
-    await wait(900);
-    add.style.transform = "scale(.95)"; await wait(140); add.style.transform = "";
-    landed.textContent = `✓ ${ctype} added to Friday · Clients`;
-  }
-  let composerDone = false;
-  new IntersectionObserver((es) => { if (es[0].isIntersecting && !composerDone) { composerDone = true; composerRun(); } }, { threshold: .6 }).observe($("#composer"));
-  add.addEventListener("click", () => { composerDone = true; composerRun(); });
-
   /* ── Tour ──────────────────────────────────────────── */
   const tour = $("#tour"), items = $$(".rail-item"), shots = $$(".shot", $("#frame")), frame = $("#frame"), cap = $("#cap");
   const CAPS = [
@@ -306,31 +217,6 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     glide(top);
   }));
   setStage(0);
-
-  /* ── AI block ──────────────────────────────────────── */
-  const call = $("#b-call"), ghost = $("#b-ghost"), rev = $("#b-rev"), inv = $("#b-inv"), c1 = $("#c1"), c2 = $("#c2");
-  const apply = $("#ai-apply"), undo = $("#ai-undo"), status = $("#ai-status");
-  /* v37: move by transform (composite only), not `top` (layout every frame) */
-  const setTop = (el, k) => { el.style.transform = `translateY(${(+el.dataset[k]) - (+el.dataset.a)}px)`; };
-  async function aiRun() {
-    await wait(600);
-    ghost.style.opacity = 1; setTop(call, "b"); $("#b-call-t").textContent = "14:00–15:00"; call.classList.add("moved");
-    await wait(900); c1.classList.add("on"); await wait(500); c2.classList.add("on");
-  }
-  apply.addEventListener("click", async () => {
-    c1.classList.add("on"); c2.classList.add("on");
-    setTop(rev, "b"); $("#b-rev-t").textContent = "11:00–12:00"; rev.classList.add("moved");
-    await wait(250); setTop(inv, "b"); inv.classList.add("moved");
-    ghost.style.opacity = 0; call.classList.remove("moved");
-    apply.disabled = true; undo.disabled = false; status.textContent = "Applied · 2 moves. Undo puts all of it back.";
-  });
-  undo.addEventListener("click", () => {
-    setTop(rev, "a"); $("#b-rev-t").textContent = "14:00–15:00"; setTop(inv, "a");
-    rev.classList.remove("moved"); inv.classList.remove("moved"); ghost.style.opacity = 1;
-    apply.disabled = false; undo.disabled = true; status.textContent = "Undone. The day is back as it was.";
-  });
-  let aiDone = false;
-  new IntersectionObserver((es) => { if (es[0].isIntersecting && !aiDone) { aiDone = true; aiRun(); } }, { threshold: .35 }).observe($("#day"));
 
   /* ── Bento: drag with quarter-hour snap ─────────────── */
   const lane = $("#lane"), blk = $("#dblk"), tip = $("#dtip"), dtime = $("#dtime");
@@ -408,23 +294,13 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
      veil logic mid-scroll and drew under the scroll). */
   function setPark(sk) { const v = holding || !!sk.veil; if (sk.held !== v) { sk.held = v; sk.park(v); } }
 
-  /* ── Night ─────────────────────────────────────────── */
-  const night = $("#night"), veil = $("#dusk-veil"), nightSky = $(".night-zone .sky"), shotD = $(".duo .shot-d");
-  let lastNt = "", lastVt = "";
+  /* ── Night zone: the header turns dark over the final call and footer ─────── */
+  const nightZone = $(".night-zone");
   const phoneNight = matchMedia("(max-width: 860px)");
   const onNight = () => {
-    const r = night.getBoundingClientRect(), p = clamp(-r.top / (r.height - innerHeight), 0, 1), nt = clamp((p - .1) / .55, 0, 1);
-    const vt = r.top < 0 ? nt : 0;
-    /* --nt goes only to the two things that use it, not to the whole section
-       (a custom property on #night restyled its whole subtree every frame). */
-    const nts = nt.toFixed(3), vts = vt.toFixed(3);
-    if (nts !== lastNt) { lastNt = nts; if (shotD) shotD.parentElement.style.setProperty("--nt", nts); }
-    if (vts !== lastVt) { lastVt = vts; veil.style.setProperty("--nt", vts); }
-    /* Under a fully opaque veil the night sky has nothing to show: park it. */
-    const ns = nightSky && nightSky.__sky; const park = vt < .02 && r.top > -10;
-    if (ns && ns.veil !== park) { ns.veil = park; setPark(ns); }
-    /* v35: phones keep the light header and menu over the night card (the dark theme made the open menu unreadable). */
-    document.body.classList.toggle("is-night", !phoneNight.matches && ((r.top < innerHeight * .1 && nt > .45) || r.bottom < innerHeight * .5));
+    if (!nightZone) return;
+    const r = nightZone.getBoundingClientRect();
+    document.body.classList.toggle("is-night", !phoneNight.matches && r.top < innerHeight * .1);
   };
 
   /* ── The name at the floor — the old site's wordmark, as is ─────
@@ -499,7 +375,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     clearTimeout(scrollHold);
     scrollHold = setTimeout(() => { holding = false; skiesNow().forEach((h) => setPark(h.__sky)); }, 160);
   };
-  const onScroll = () => { onFold(); onTour(); onNight(); holdSkies(); };
+  const onScroll = () => { onTour(); onNight(); holdSkies(); };
   addEventListener("scroll", onScroll, { passive: true }); addEventListener("resize", onScroll); onScroll();
 })();
 
@@ -630,7 +506,7 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
    edge, including ones whose section is off screen (see styles.css v31). */
 (() => {
   if (!("IntersectionObserver" in window)) return;
-  const els = document.querySelectorAll(".sky-wrap .sky, .fold-pin, .tour-pin, .night-pin, .dusk-veil");
+  const els = document.querySelectorAll(".sky-wrap .sky, .tour-pin");
   if (!els.length) return;
   const byHost = new Map();
   els.forEach((el) => {
@@ -749,26 +625,6 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
     new IntersectionObserver((es) => { seen = es[0].isIntersecting; if (!seen) host.classList.remove("fx-on"); }).observe(host);
   });
 
-  /* Updates: the sticky stage shows the artifact of the row under the pointer, or the row in
-     the middle of the screen. Phones: each row's own artifact plays once when it comes into view. */
-  const stage = document.getElementById("up-stage"), list = document.getElementById("up-list");
-  if (stage && list) {
-    const rows = [...list.querySelectorAll(".up-row")];
-    const arts = Object.fromEntries([...stage.querySelectorAll(".ua")].map((a) => [a.dataset.k, a]));
-    let cur = rows[0] && rows[0].dataset.k, hover = false;
-    const show = (k) => { if (!k || k === cur && arts[k].classList.contains("on")) return;
-      if (arts[cur]) arts[cur].classList.remove("on"); rows.forEach((r) => r.classList.toggle("on", r.dataset.k === k));
-      cur = k; void arts[k].offsetWidth; arts[k].classList.add("on"); };
-    const wide = matchMedia("(min-width: 901px)");
-    rows.forEach((r) => { r.addEventListener("pointerenter", () => { hover = true; show(r.dataset.k); });
-      r.addEventListener("pointerleave", () => { hover = false; }); r.addEventListener("focus", () => show(r.dataset.k)); });
-    const mid = new IntersectionObserver((es) => { if (hover || !wide.matches) return;
-      es.forEach((e) => { if (e.isIntersecting) show(e.target.dataset.k); }); }, { rootMargin: "-46% 0px -46% 0px" });
-    rows.forEach((r) => mid.observe(r));
-    if (rows[0]) rows[0].classList.add("on");
-    const inl = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("on"); inl.unobserve(e.target); } }), { threshold: .45 });
-    list.querySelectorAll(".up-inl").forEach((el) => inl.observe(el));
-  }
 })();
 
 /* Inside Needt: play each tile once when it comes into view; on desktop, again on hover. */
