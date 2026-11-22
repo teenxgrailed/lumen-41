@@ -45,6 +45,7 @@ CREATE TABLE "AnnouncementView" (
     "userId" TEXT NOT NULL,
     "announcementId" TEXT NOT NULL,
     "shownAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "seenAt" TIMESTAMP(3),
     "dismissedAt" TIMESTAMP(3),
     "clickedAt" TIMESTAMP(3),
 
@@ -58,6 +59,7 @@ CREATE TABLE "PopupMomentView" (
     "source" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "shownAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "seenAt" TIMESTAMP(3),
     "dismissedAt" TIMESTAMP(3),
     "clickedAt" TIMESTAMP(3),
 

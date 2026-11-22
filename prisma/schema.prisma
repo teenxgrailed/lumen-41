@@ -4879,6 +4879,9 @@ model AnnouncementView {
   announcementId String
   announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   shownAt        DateTime     @default(now())
+  /// When the popup was drawn on screen. Null while it is claimed but not yet
+  /// drawn; such a claim can be released (event "release").
+  seenAt      DateTime?
   dismissedAt    DateTime?
   clickedAt      DateTime?
 
@@ -4897,6 +4900,9 @@ model PopupMomentView {
   source      String
   key         String
   shownAt     DateTime  @default(now())
+  /// When the popup was drawn on screen. Null while it is claimed but not yet
+  /// drawn; such a claim can be released (event "release").
+  seenAt      DateTime?
   dismissedAt DateTime?
   clickedAt   DateTime?
 

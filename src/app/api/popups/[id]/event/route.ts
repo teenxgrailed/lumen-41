@@ -13,9 +13,11 @@ export const runtime = "nodejs";
 type RouteContext = { params: Promise<{ id: string }> };
 
 /**
- * POST /api/popups/:id/event  `{ event: "shown" | "dismiss" | "click" }`
+ * POST /api/popups/:id/event  `{ event: "shown" | "dismiss" | "click" | "release" }`
  *
  * `:id` is an announcement id, or `moment:<source>:<key>` for a plan moment.
+ * `release` gives back a slot that /next claimed but the browser never drew
+ * (under 10 minutes old, never seen); anything else about it is unchanged.
  * `shown` is what makes a popup count against the frequency cap and, for an
  * announcement, what keeps it from being shown to the person again.
  */
@@ -47,6 +49,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { error: error instanceof Error ? error.message : "Unknown error" },
       LOG_SOURCE
     );
-    return NextResponse.json({ error: "Could not save that." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not save that." },
+      { status: 500 }
+    );
   }
 }

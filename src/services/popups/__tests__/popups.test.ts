@@ -24,12 +24,14 @@ jest.mock("@/lib/prisma", () => ({
       findUnique: jest.fn(),
       create: jest.fn(),
       upsert: jest.fn(),
+      deleteMany: jest.fn(),
     },
     popupMomentView: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      deleteMany: jest.fn(),
     },
   },
 }));
@@ -51,12 +53,14 @@ const db = prisma as unknown as {
     findUnique: jest.Mock;
     create: jest.Mock;
     upsert: jest.Mock;
+    deleteMany: jest.Mock;
   };
   popupMomentView: {
     findMany: jest.Mock;
     findFirst: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
+    deleteMany: jest.Mock;
   };
 };
 
@@ -305,8 +309,8 @@ describe("recordPopupEvent", () => {
     expect(await recordPopupEvent("u1", "a1", "shown", NOW)).toBe("ok");
     expect(db.announcementView.upsert).toHaveBeenCalledWith({
       where: { userId_announcementId: { userId: "u1", announcementId: "a1" } },
-      create: { userId: "u1", announcementId: "a1", shownAt: NOW },
-      update: {},
+      create: { userId: "u1", announcementId: "a1", shownAt: NOW, seenAt: NOW },
+      update: { seenAt: NOW },
     });
   });
 
@@ -548,5 +552,64 @@ describe("review rulings and fixes", () => {
     expect(
       await claimPopupSlot(prisma as never, "u1", "feedback", "p2", NOW)
     ).toBe(false);
+  });
+});
+
+describe("release: a claimed slot that never reached the screen", () => {
+  const MIN = 60 * 1000;
+
+  it("the client's shown marks the claimed moment as seen", async () => {
+    db.popupMomentView.findFirst.mockResolvedValue({ id: "m1" });
+    await recordPopupEvent("u1", "moment:trial:trial:1d", "shown", NOW);
+    expect(db.popupMomentView.create).not.toHaveBeenCalled();
+    expect(db.popupMomentView.update).toHaveBeenCalledWith({
+      where: { id: "m1" },
+      data: { seenAt: NOW },
+    });
+  });
+
+  it("deletes the newest claim only if it is under 10 minutes old and unseen", async () => {
+    db.popupMomentView.findFirst.mockResolvedValue({ id: "m1" });
+    expect(
+      await recordPopupEvent("u1", "moment:trial:trial:1d", "release", NOW)
+    ).toBe("ok");
+    expect(db.popupMomentView.deleteMany).toHaveBeenCalledWith({
+      where: {
+        id: "m1",
+        seenAt: null,
+        shownAt: { gt: new Date(NOW.getTime() - 10 * MIN) },
+      },
+    });
+    expect(db.popupMomentView.update).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when there is no claim to release", async () => {
+    db.popupMomentView.findFirst.mockResolvedValue(null);
+    await recordPopupEvent("u1", "moment:limit:limit:habits", "release", NOW);
+    expect(db.popupMomentView.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("releases an announcement view only when unseen and fresh", async () => {
+    db.announcement.findFirst.mockResolvedValue({ id: "a1" });
+    await recordPopupEvent("u1", "a1", "release", NOW);
+    expect(db.announcementView.deleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: "u1",
+        announcementId: "a1",
+        seenAt: null,
+        shownAt: { gt: new Date(NOW.getTime() - 10 * MIN) },
+      },
+    });
+    expect(db.announcementView.upsert).not.toHaveBeenCalled();
+  });
+
+  it("marks an announcement seen on the client's shown", async () => {
+    db.announcement.findFirst.mockResolvedValue({ id: "a1" });
+    await recordPopupEvent("u1", "a1", "shown", NOW);
+    expect(db.announcementView.upsert).toHaveBeenCalledWith({
+      where: { userId_announcementId: { userId: "u1", announcementId: "a1" } },
+      create: { userId: "u1", announcementId: "a1", shownAt: NOW, seenAt: NOW },
+      update: { seenAt: NOW },
+    });
   });
 });

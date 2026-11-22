@@ -122,7 +122,7 @@ export type AnnouncementCreateInput = z.infer<typeof announcementCreateSchema>;
 export type AnnouncementUpdateInput = z.infer<typeof announcementUpdateSchema>;
 
 export const popupEventSchema = z
-  .object({ event: z.enum(["shown", "dismiss", "click"]) })
+  .object({ event: z.enum(["shown", "dismiss", "click", "release"]) })
   .strict();
 
 export type PopupEventName = z.infer<typeof popupEventSchema>["event"];

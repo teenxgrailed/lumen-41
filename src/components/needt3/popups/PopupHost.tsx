@@ -8,15 +8,8 @@ import { logger } from "@/lib/logger";
 import { usePlan } from "@/lib/needt3/hooks/plan";
 import { priceStrings } from "@/lib/needt3/pricing";
 import { showsStudentPrices } from "@/lib/needt3/student-prices";
-import {
-  LIMIT_HIT_EVENT,
-  type LimitHitDetail,
-} from "@/lib/popups/client";
-import type {
-  PopupLimit,
-  PopupPlanCard,
-  PopupView,
-} from "@/lib/popups/types";
+import { LIMIT_HIT_EVENT, type LimitHitDetail } from "@/lib/popups/client";
+import type { PopupLimit, PopupPlanCard, PopupView } from "@/lib/popups/types";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 import { getAppVersion } from "@/lib/version";
 
@@ -40,7 +33,12 @@ const MAX_TRIES = 6;
 /** The exit animation of the sheet. */
 const EXIT_MS = 220;
 
-async function sendEvent(id: string, event: "shown" | "dismiss" | "click") {
+type PopupEvent = "shown" | "dismiss" | "click" | "release";
+
+/** How often a popup that waits (a dialog, focus) looks whether it may show. */
+const PENDING_POLL_MS = 1_000;
+
+async function sendEvent(id: string, event: PopupEvent) {
   try {
     await fetch(`/api/popups/${encodeURIComponent(id)}/event`, {
       method: "POST",
@@ -97,9 +95,21 @@ export function PopupHost() {
   const [popup, setPopup] = useState<PopupView | null>(null);
   const [open, setOpen] = useState(false);
   const busy = useRef(false);
+  /**
+   * A popup the server already claimed (it wrote the show in /next) that
+   * could not be drawn yet: a dialog opened or focus started while the answer
+   * was in flight. It is drawn as soon as the page is free again; if the page
+   * closes first, the claim is released so the moment is not used up unseen.
+   */
+  const [pending, setPending] = useState<PopupView | null>(null);
+  const pendingRef = useRef<PopupView | null>(null);
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
   const leaving = useRef<number | null>(null);
 
   const show = useCallback((next: PopupView) => {
+    setPending(null);
     markPopupShown();
     setPopup(next);
     setOpen(true);
@@ -118,16 +128,16 @@ export function PopupHost() {
 
   const check = useCallback(
     async (limit: PopupLimit | null) => {
-      if (busy.current || !canShowPopup()) return false;
+      if (busy.current || pendingRef.current || !canShowPopup()) return false;
       busy.current = true;
       try {
         const next = await fetchNext(limit);
-        // The page may have opened a dialog while the answer was in flight.
-        if (next && canShowPopup()) {
-          show(next);
-          return true;
-        }
-        return false;
+        if (!next) return false;
+        // The page may have opened a dialog while the answer was in flight:
+        // keep the claimed popup and draw it when the page is free again.
+        if (canShowPopup()) show(next);
+        else setPending(next);
+        return true;
       } finally {
         busy.current = false;
       }
@@ -165,6 +175,23 @@ export function PopupHost() {
     window.addEventListener(LIMIT_HIT_EVENT, onHit);
     return () => window.removeEventListener(LIMIT_HIT_EVENT, onHit);
   }, [check]);
+
+  // A waiting popup: drawn the moment nothing else is in the way.
+  useEffect(() => {
+    if (!pending) return;
+    const id = window.setInterval(() => {
+      if (canShowPopup()) show(pending);
+    }, PENDING_POLL_MS);
+    return () => window.clearInterval(id);
+  }, [pending, show]);
+
+  // The page closes with a popup still waiting: give the slot back.
+  useEffect(() => {
+    if (!pending) return;
+    const release = () => void sendEvent(pending.id, "release");
+    window.addEventListener("pagehide", release);
+    return () => window.removeEventListener("pagehide", release);
+  }, [pending]);
 
   useEffect(
     () => () => {

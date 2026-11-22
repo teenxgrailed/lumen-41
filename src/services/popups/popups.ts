@@ -378,8 +378,22 @@ export async function recordPopupEvent(
   const moment = parseMomentId(id);
   if (moment) {
     if (!momentKeyValid(moment.source, moment.key)) return "not_found";
+    if (event === "release") {
+      await releaseMoment(userId, moment.source, moment.key, now);
+      return "ok";
+    }
     if (event === "shown") {
-      await recordPopupShown(userId, moment.source, moment.key, now);
+      // The server claimed the show in /next; this marks it drawn on screen.
+      const { id: rowId } = await recordPopupShown(
+        userId,
+        moment.source,
+        moment.key,
+        now
+      );
+      await prisma.popupMomentView.update({
+        where: { id: rowId },
+        data: { seenAt: now },
+      });
       return "ok";
     }
     const latest = await prisma.popupMomentView.findFirst({
@@ -407,18 +421,59 @@ export async function recordPopupEvent(
     select: { id: true },
   });
   if (!exists) return "not_found";
+  if (event === "release") {
+    await prisma.announcementView.deleteMany({
+      where: releasable({ userId, announcementId: id }, now),
+    });
+    return "ok";
+  }
   const stamp =
     event === "click"
       ? { clickedAt: now }
       : event === "dismiss"
         ? { dismissedAt: now }
-        : {};
+        : { seenAt: now };
   await prisma.announcementView.upsert({
     where: { userId_announcementId: { userId, announcementId: id } },
     create: { userId, announcementId: id, shownAt: now, ...stamp },
     update: stamp,
   });
   return "ok";
+}
+
+/** A claim younger than this that never reached the screen may be released. */
+export const RELEASE_WINDOW_MS = 10 * 60 * 1000;
+
+/** Claimed in the last 10 minutes and never drawn: the only rows a release removes. */
+function releasable<T extends object>(where: T, now: Date) {
+  return {
+    ...where,
+    seenAt: null,
+    shownAt: { gt: newDate(now.getTime() - RELEASE_WINDOW_MS) },
+  };
+}
+
+/**
+ * Gives back a slot the server claimed (in /next) but the browser never drew:
+ * the page closed while the popup waited for a dialog or focus to end. Only
+ * the newest claim of that moment, only if it is under 10 minutes old and was
+ * never seen, so a release can never erase a popup the person saw.
+ */
+async function releaseMoment(
+  userId: string,
+  source: PopupSource,
+  key: string,
+  now: Date
+): Promise<void> {
+  const latest = await prisma.popupMomentView.findFirst({
+    where: { userId, source, key },
+    orderBy: { shownAt: "desc" },
+    select: { id: true },
+  });
+  if (!latest) return;
+  await prisma.popupMomentView.deleteMany({
+    where: releasable({ id: latest.id }, now),
+  });
 }
 
 function slotCandidate(

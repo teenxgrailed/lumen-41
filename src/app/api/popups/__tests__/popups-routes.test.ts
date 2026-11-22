@@ -90,7 +90,7 @@ describe("POST /api/popups/:id/event", () => {
     expect(recordPopupEvent).not.toHaveBeenCalled();
   });
 
-  it.each(["shown", "dismiss", "click"])("accepts %s", async (name) => {
+  it.each(["shown", "dismiss", "click", "release"])("accepts %s", async (name) => {
     jest.mocked(recordPopupEvent).mockResolvedValue("ok");
     expect((await event("a1", { event: name })).status).toBe(200);
     expect(recordPopupEvent).toHaveBeenCalledWith("u1", "a1", name);
