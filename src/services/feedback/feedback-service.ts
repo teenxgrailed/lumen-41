@@ -107,7 +107,9 @@ export async function offerFeedbackPrompt(
   const activeDays = await countActiveDays(userId, now);
 
   return prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
+    await tx.$executeRaw(
+      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`feedback-prompt:${userId}`}, 0))`
+    );
     // Re-checked inside the lock: another tab may have created a row since.
     const history = await readHistory(tx);
     const kind = nextFeedbackPrompt(base, history, { activeDays }, now);

@@ -162,9 +162,13 @@ describe("two tabs asking at once", () => {
     expect(bodies.filter((x) => x.prompt !== null)).toHaveLength(1);
     // the lock statement runs first in each transaction
     expect(db.$executeRaw).toHaveBeenCalledTimes(2);
-    expect(String(db.$executeRaw.mock.calls[0][0].join(""))).toContain(
-      "pg_advisory_xact_lock(hashtext("
-    );
+    const lock = db.$executeRaw.mock.calls[0][0] as {
+      sql: string;
+      values: unknown[];
+    };
+    expect(lock.sql).toContain("pg_advisory_xact_lock(hashtextextended(");
+    // its own key space, not another feature's lock on the bare user id
+    expect(lock.values).toEqual(["feedback-prompt:u1", 0].slice(0, 1));
   });
 });
 

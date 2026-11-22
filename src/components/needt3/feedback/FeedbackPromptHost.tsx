@@ -127,6 +127,9 @@ export function FeedbackPromptHost() {
           platform: platformNow(),
           appVersion: getAppVersion(),
         }).then((offered) => {
+          // Only the server's own "no prompt" is remembered for the day; a
+          // network error or a 5xx is retried on the next load.
+          if (offered === "failed") return;
           if (!offered) {
             markSkippedToday(safeLocal(), newDate());
             return;

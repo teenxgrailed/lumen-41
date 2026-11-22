@@ -41,7 +41,7 @@ export function useFeedbackPrompt() {
     async (context: {
       platform: string;
       appVersion: string;
-    }): Promise<OfferedPrompt | null> => {
+    }): Promise<OfferedPrompt | null | "failed"> => {
       try {
         const query = new URLSearchParams({
           platform: context.platform,
@@ -50,13 +50,14 @@ export function useFeedbackPrompt() {
         const res = await fetch(`/api/feedback/prompt?${query}`, {
           cache: "no-store",
         });
-        if (!res.ok) return null;
+        if (!res.ok) return "failed";
         const body = (await res.json()) as { prompt?: unknown };
-        if (!isOffered(body.prompt)) return null;
+        if (body.prompt === null) return null;
+        if (!isOffered(body.prompt)) return "failed";
         setPrompt(body.prompt);
         return body.prompt;
       } catch {
-        return null;
+        return "failed";
       }
     },
     []
