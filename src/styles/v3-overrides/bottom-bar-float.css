@@ -359,3 +359,31 @@
     transform: translateX(-50%) scale(0.3);
   }
 }
+
+/* ── One bar on every screen ──────────────────────────────────────────────────
+ * The tile menu carries its own places bar (TileMenu .ntm-bar). In the
+ * floating style it wears the same raised material and the same geometry as
+ * the dock: a capsule of discs, the chosen one in ink. */
+.needt-v3 .ntm-bar.is-float {
+  gap: 8px;
+  height: 60px;
+  padding: 0 8px;
+  border-radius: 30px;
+}
+.needt-v3 .ntm-bar.is-float .ntm-tab {
+  width: 44px;
+  height: 44px;
+}
+.needt-v3 .ntm-bar.is-float .ntm-tab.is-on {
+  background: var(--v3-raised-ink);
+  color: var(--v3-raised-on-ink);
+  box-shadow: var(--v3-raised-ink-shadow);
+}
+
+/* ── No halftone band behind the floating bar ─────────────────────────────────
+ * The screen fog (.pk-fog) melts rows into the bottom edge with a drifting dot
+ * pattern. The raised capsule carries its own shadow and needs no dots under
+ * it; the blur and wash of the fog stay, only the dots go. */
+.needt-v3[data-ui="phone"]:has([data-bar-style="float"]) .pk-fog-dots {
+  display: none;
+}
