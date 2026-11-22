@@ -1,0 +1,1 @@
+- A task's icon can be changed from its sheet on the phone: tap the icon beside the title, pick one, or go back to Automatic. The choice is saved on the task and can be read and written through the API (`icon`). The Next plate on Home now shows the icon you picked.
