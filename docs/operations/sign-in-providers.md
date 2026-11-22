@@ -220,7 +220,7 @@ registration.
 
 Sign-in now asks for `openid profile email User.Read` only. It used to ask for
 the calendar and task scopes too; those belong to the Outlook connection.
-Button: "Sign in with Microsoft".
+Button: "Continue with Microsoft". Click-by-click setup: `docs/release/MICROSOFT-SIGNIN.md`.
 
 Env fallback: `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`,
 `AZURE_AD_TENANT_ID`.

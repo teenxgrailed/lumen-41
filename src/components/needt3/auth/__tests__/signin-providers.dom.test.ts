@@ -126,21 +126,34 @@ describe.each([
     ]);
     expect(moreWays()).toBeUndefined();
     expect(host.textContent).toContain("Sign in with Apple");
-    expect(host.textContent).toContain("Sign in with Microsoft");
+    expect(host.textContent).toContain("Continue with Microsoft");
   });
 
   it("draws only what the server reports; GitHub waits behind More ways", async () => {
-    // Apple and Microsoft are drawn visual-only until they are wired.
+    // Apple and Microsoft are not drawn until the server has their keys.
     available = reported(["credentials", "google", "github"]);
     await mount();
-    expect(shown()).toEqual(["google", "apple", "azure-ad"]);
+    expect(shown()).toEqual(["google"]);
     expect(moreWays()).toBeDefined();
     available = reported(["credentials", "google"]);
     await act(async () => root.unmount());
     root = createRoot(host);
     await mount();
-    expect(shown()).toEqual(["google", "apple", "azure-ad"]);
+    expect(shown()).toEqual(["google"]);
     expect(moreWays()).toBeUndefined();
+  });
+
+  it("draws Microsoft only when the server reports it", async () => {
+    available = reported(["credentials", "google"]);
+    await mount();
+    expect(shown()).not.toContain("azure-ad");
+    expect(host.textContent).not.toContain("Microsoft");
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    available = reported(["credentials", "google", "azure-ad"]);
+    await mount();
+    expect(shown()).toEqual(["google", "azure-ad"]);
+    expect(host.textContent).toContain("Continue with Microsoft");
   });
 
   it("starts the provider's sign-in on a click", async () => {
