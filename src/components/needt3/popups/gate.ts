@@ -47,7 +47,8 @@ function anotherDialogOpen(): boolean {
     '[role="dialog"], [role="alertdialog"]'
   );
   for (const el of dialogs) {
-    if (!el.closest("[data-popup]")) return true;
+    // Our own popups wear a dialog too: the one that holds a popup does not count.
+    if (!el.querySelector("[data-pp]")) return true;
   }
   return false;
 }

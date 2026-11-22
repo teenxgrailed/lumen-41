@@ -14,6 +14,8 @@ export function limitCards(opts: {
   limit: string;
   onTrial: () => void;
   onPlans: () => void;
+  /** The Lifetime card's own action; it falls back to `onPlans`. */
+  onLifetime?: () => void;
   /** False once the trial was used: the first card then points at the plans. */
   canTrial: boolean;
   student?: boolean;
@@ -48,7 +50,7 @@ export function limitCards(opts: {
         title: "Pay once",
         body: `Lifetime is ${p.lifetime}, paid once. Pro for good.`,
         cta: "See plans",
-        onSelect: opts.onPlans,
+        onSelect: opts.onLifetime ?? opts.onPlans,
       },
     ],
   };
@@ -56,6 +58,8 @@ export function limitCards(opts: {
 
 export function trialCards(opts: {
   daysLeft: number;
+  /** The trial already lapsed into Free: the words change, the cards do not. */
+  ended?: boolean;
   onKeep: () => void;
   onStayFree: () => void;
   student?: boolean;
@@ -68,8 +72,10 @@ export function trialCards(opts: {
         ? "Your trial ends tomorrow"
         : `Your trial ends in ${opts.daysLeft} days`;
   return {
-    title: when,
-    body: "After that you go back to Free unless you choose a plan. Nothing is charged by itself.",
+    title: opts.ended ? "Your trial has ended" : when,
+    body: opts.ended
+      ? "You are on Free now. Pro brings back what Free does not include."
+      : "After that you go back to Free unless you choose a plan. Nothing is charged by itself.",
     cards: [
       {
         key: "keep",
