@@ -479,14 +479,37 @@ body.is-night .soon { background: rgba(255,255,255,.1); color: rgba(244,243,251,
 }
 
 /* ── Phone menu ──────────────────────────────────────── */
+.nav-burger { display: none; width: 38px; height: 38px; border: 0; border-radius: 11px; background: rgba(10,13,18,.05); cursor: pointer; place-items: center; }
+.nav-burger span { display: block; width: 16px; height: 1.6px; background: var(--ink); border-radius: 2px; box-shadow: 0 -5px 0 var(--ink), 0 5px 0 var(--ink); }
 @media (max-width: 860px) {
   .nav-links { display: none; }
+  .nav-burger { display: grid; }
+  body.nav-open .nav-links { display: flex; position: fixed; top: 76px; left: 12px; right: 12px; flex-direction: column; align-items: stretch; gap: 2px; padding: 10px; border-radius: 20px; background: #fff; box-shadow: var(--shadow-floating); }
   .nav-pill { width: auto; min-height: 0; padding: 6px 6px 6px 14px; border-radius: 22px; }
   .nav-pill .nav-right .btn-sm { height: 38px; padding: 0 14px; font-size: 14px; }
   .nav-pill .brand-word { font-size: 25px; } .nav-pill .brand img { width: 28px; height: 28px; }
   .nav-pill .nav-link .chev { display: inline; }
   .nav-pill::before { height: 100% !important; border-radius: 22px; }
   .nav-links { flex: none; }
+  body.nav-open .nav-item .menu { position: static; transform: none; opacity: 1; visibility: visible; pointer-events: auto; padding: 0; margin: 2px 0 6px; }
+  body.nav-open .mega, body.nav-open .mega-main { display: block; }
+  body.nav-open .menu a { display: grid; grid-template-columns: 36px 1fr; column-gap: 12px; align-items: center; min-height: 0; padding: 8px; background: none; box-shadow: none; row-gap: 0; }
+  body.nav-open .menu a span { grid-column: 2; }
+  body.nav-open .menu .mi { grid-row: span 2; }
+  body.nav-open .menu .ms .mi { grid-row: auto; width: 36px; height: 36px; }
+  /* Phone menu (v21): a few big tiles with the app's glyphs, like the app's places grid —
+     no descriptions, no secondary links (they live in the footer and on the hubs). */
+  body.nav-open .menu .mega-side { display: none; }
+  body.nav-open .mega-main { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
+  body.nav-open .menu a.mc { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px; border-radius: 18px; background: #f6f4f0; min-height: 0; }
+  body.nav-open .menu a.mc span { display: none; }
+  body.nav-open .menu a.mc b { font-size: 17px; }
+  body.nav-open .menu a.mc .mi { width: 40px; height: 40px; background: #fff; border-radius: 12px; }
+  body.nav-open .menu a.mc .mi svg { width: 26px; height: 26px; }
+  body.nav-open .nav-links > .nav-link { font-size: 18px; font-weight: 600; height: 48px; }
+  body.nav-open .nav-item > .nav-trigger { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); height: 34px; pointer-events: none; }
+  body.nav-open .nav-item > .nav-trigger .chev { display: none; }
+  body.nav-open .nav-links { max-height: calc(100dvh - 92px); overflow-y: auto; overscroll-behavior: contain; }
 }
 
 /* ── Responsive ──────────────────────────────────────── */
@@ -780,6 +803,12 @@ drives --nt on the veil, which ::before inherits. */
 .xp-soon em { background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); }
 @media (max-width: 860px) {
   .nav-x .nav-x-btn { display: none; }
+  body.nav-open .xpanel { position: static; transform: none; width: auto; visibility: visible; pointer-events: auto; clip-path: none; margin-top: 8px; }
+  body.nav-open .xp-in { padding: 14px; border-radius: 18px; }
+  body.nav-open .xp-head { padding: 4px 4px 10px; } body.nav-open .xp-head b { font-size: 20px; }
+  body.nav-open .xp-card { opacity: 1; transform: none; min-height: 120px; padding: 14px; }
+  body.nav-open .xp-soon { display: none; } body.nav-open .xp-deck { grid-template-columns: 1fr 1fr; }
+  body.nav-open .xp-ic { width: 36px; height: 36px; border-radius: 11px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .xpanel, .xpanel.is-open { transition: none; clip-path: none; }
@@ -879,8 +908,8 @@ drives --nt on the veil, which ::before inherits. */
 @media (max-width: 860px) {
   .sec { padding: 104px 0; }
   .hero { padding: 112px 0 64px; }
-  .sky-wrap { inset: 8px 8px 0; border-radius: 30px; overflow: hidden; }
-  .page-night > .sky-wrap, .night-zone > .sky-wrap { inset: 0 8px 8px; }
+  .sky-wrap { inset: 0; border-radius: 0; overflow: hidden; }
+  .page-night > .sky-wrap, .night-zone > .sky-wrap { inset: 0; }
   .sky-wrap .sky { position: absolute !important; top: 0; left: 0; right: 0; height: 100vh; }
   .sky-wrap:has(> .sky[data-sky="lavender"]) { background: #ece6ea; }
   .sky-wrap:has(> .sky[data-sky="night"]) { background: #3a3760; }
@@ -903,7 +932,7 @@ drives --nt on the veil, which ::before inherits. */
 }
 .nw { white-space: nowrap; }
 @media (max-width: 860px) { html, body, body.is-night, body.page { background-color: #f7f5f3 !important; } main#top { background-color: #f7f5f3; } }
-@media (max-width: 860px) { body .pw { margin: 8px 8px 0; border-radius: 30px; } }
+@media (max-width: 860px) { body .pw { margin: 0; border-radius: 0; } }
 @media (max-width: 860px) { body .pw .sky-wrap { inset: 0; border-radius: 0; } }
 
 /* ── v34 (29.10.26): section pass ─────────────────────────────────────
@@ -1013,6 +1042,9 @@ drives --nt on the veil, which ::before inherits. */
   .hero .cta-row { margin-top: 26px; }
   .hero-phone { margin-top: 36px; margin-bottom: -60px; }
   .hero-phone video { clip-path: inset(0 round 13% / 6%); }
+  body.nav-open .nav-links { flex-direction: row; flex-wrap: wrap; column-gap: 8px; }
+  body.nav-open .nav-links > .nav-item, body.nav-open .nav-links > .nav-x { flex: 1 1 100%; }
+  body.nav-open .nav-links > .nav-link { flex: 1 1 calc(50% - 4px); justify-content: center; text-align: center; height: 52px; margin: 6px 0 4px; border-radius: 16px; background: #f6f4f0; font-size: 17px; }
 }
 @media (max-width: 860px) { .hero::after { display: block !important; height: 70px; z-index: 4; } }
 
@@ -1073,7 +1105,7 @@ main:focus { outline: none; }
 html, body { overflow-x: clip; }
 main#top { overflow-x: clip; }
 @media (max-width: 860px) {
-  .night-zone, .page-night { clip-path: inset(0 8px 8px 8px round 30px); }
+  .night-zone, .page-night { clip-path: none; }
   .hero-phone { margin-bottom: -120px; }
   .hero-clouds { height: 270px; -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.85) 30%, #000 48%); mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,.85) 30%, #000 48%); }
 }
@@ -1447,4 +1479,19 @@ main#top { overflow-x: clip; }
 @media (prefers-reduced-motion: reduce) {
   .scr .iph, .am-st span { animation: none !important; } .scr .scr-par { transform: none; }
   .am-st .c { opacity: 1; } .am-st .a, .am-st .b { opacity: 0; }
+}
+
+/* v68 (22.11.26): phone Safari fixes after the owner's iPhone test.
+   - Sections and the footer run edge to edge on phones: no side margins, no rounded corners at the
+     screen edge (the 8px inset cards left paper-coloured gaps, and a white strip under the URL bar).
+   - iOS budget mode: the header scrim (a full-width fixed blurred strip at the top, v #759) is gone;
+     Safari tinted the status bar from it and showed a frosted band with the content under it. Nothing
+     full-width is fixed or sticky at the top or bottom edge, the root colours stay static. */
+@media (max-width: 860px) {
+  .sky-wrap, .page-night > .sky-wrap, .night-zone > .sky-wrap, body .pw .sky-wrap { inset: 0 !important; border-radius: 0 !important; }
+  body .pw, .night-zone, .page-night, .foot { margin-left: 0; margin-right: 0; border-radius: 0; }
+}
+@supports (-webkit-touch-callout: none) {
+  .nav::before { display: none !important; content: none !important; }
+  html { overscroll-behavior-y: none; }
 }

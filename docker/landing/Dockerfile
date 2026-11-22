@@ -16,6 +16,8 @@ RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
 COPY docker/landing/nginx.conf /etc/nginx/conf.d/landing.conf
 COPY docker/landing/security-headers.conf /etc/nginx/landing/security-headers.conf
 COPY landing-site/ /usr/share/nginx/html/
+# Parked section fragments (landing-site/_archive) are notes, not pages: not served, not Umami-checked.
+RUN rm -rf /usr/share/nginx/html/_archive
 
 # Umami website ID, injected at build time and never committed.
 # Coolify: add UMAMI_SITE_ID in the application's Environment Variables and tick

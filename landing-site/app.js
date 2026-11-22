@@ -100,6 +100,9 @@ if (/[?&]edgedebug\b/.test(location.search)) { const s = document.createElement(
   sheet(); addEventListener("resize", sheet);
   document.addEventListener("click", () => closeMenus());
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenus(); });
+  /* Phone menu */
+  const burger = $(".nav-burger");
+  if (burger) burger.addEventListener("click", (e) => { e.stopPropagation(); const on = document.body.classList.toggle("nav-open"); burger.setAttribute("aria-expanded", String(on)); });
 
   /* Split headlines into words */
   $$("[data-split]").forEach((el) => {

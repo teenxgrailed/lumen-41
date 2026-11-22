@@ -19,7 +19,7 @@
 <link rel="preload" href="assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/sky-tokens.css?v=27">
 <link rel="stylesheet" href="map-sec.css?v=2">
-<link rel="stylesheet" href="styles.css?v=67">
+<link rel="stylesheet" href="styles.css?v=68">
 <link rel="canonical" href="https://needt.app/">
 <link rel="stylesheet" href="consent.css?v=1">
 <script src="consent.js?v=4" data-umami-id="__UMAMI_SITE_ID__" defer></script>
@@ -30,7 +30,7 @@
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 
-<!-- Where every "Try it free" goes. Sign-up lives on the sign-in page. -->
+<!-- Where every "Log in" goes. Sign-up lives on the sign-in page. -->
 <script>window.NEEDT_SIGNUP = "https://use.needt.app/auth/signin";</script>
 
 <!-- ── Header: one glass pill ─────────────────────────── -->
@@ -79,8 +79,8 @@
       <div class="nav-item nav-x"><button class="nav-link nav-x-btn" type="button" aria-expanded="false" aria-controls="m-x"><span class="nx-orb" aria-hidden="true"><i></i><i></i><i></i><i></i></span>More</button><div class="xpanel" id="m-x" role="menu" aria-label="More from Needt"><div class="xp-in"><div class="xp-head"><b>More from Needt</b><span>Made the same way</span></div><div class="xp-deck"><a role="menuitem" class="xp-card xp-plug" href="plugin/" style="--n:0"><span class="xp-ic xp-img"><img src="assets/plugin/icon.svg" width="44" height="44" alt="" style="border-radius:10px"></span><em>Free</em><b>Needt Plugin</b><span>Ten skills for your AI</span></a><a role="menuitem" class="xp-card xp-bud" href="budget/" style="--n:1"><span class="xp-ic xp-img"><img src="assets/budget/icon.svg" width="44" height="44" alt="" style="border-radius:12px"></span><em>In Pro</em><b>Needt Budget</b><span>Your money, sorted</span></a><a role="menuitem" class="xp-card xp-stu" href="students/" style="--n:2"><span class="xp-ic xp-img"><img src="assets/students/icon.svg" width="44" height="44" alt="" style="border-radius:10px"></span><em>40% off</em><b>Students</b><span>Pro for less while you study</span></a><a role="menuitem" class="xp-card xp-agt" href="agents/" style="--n:3"><span class="xp-ic xp-img"><img src="assets/agents/icon.svg" width="44" height="44" alt="" style="border-radius:12px"></span><em>Free to start</em><b>Needt Agents</b><span>Your AI agents, one board</span></a></div></div></div></div>
     </nav>
     <div class="nav-right">
-      <a class="btn btn-raised btn-sm" href="https://use.needt.app/auth/signin">Log in</a>
-      <a class="btn btn-primary btn-sm js-signup" href="https://use.needt.app/auth/signin">Try it free</a>
+      <a class="btn btn-primary btn-sm js-signup" href="https://use.needt.app/auth/signin">Log in</a>
+      <button class="nav-burger" aria-label="Menu" aria-expanded="false"><span></span></button>
     </div>
   </div>
 </header>
@@ -94,7 +94,7 @@
     <h1 id="hero-h" class="display split" data-split data-px-calm>Everything you’re working on,<br> <i class="nw">in one place.</i></h1>
     <p class="lead rv" style="--d:.35s" data-px-calm>Needt is an AI day planner that keeps your tasks, calendar, docs and habits in one place. Move a meeting and Needt reshuffles the rest. You press Keep.</p>
     <div class="cta-row rv" style="--d:.5s" data-px-calm>
-      <a class="btn btn-primary btn-lg js-signup" href="https://use.needt.app/auth/signin">Try it free <span class="arr">→</span></a>
+      <a class="btn btn-primary btn-lg js-signup" href="https://use.needt.app/auth/signin">Log in <span class="arr">→</span></a>
       <a class="btn btn-raised btn-lg" href="#tour">See how it works</a>
     </div>
     <p class="cta-note rv" style="--d:.6s">Free plan + 14 days of Pro. Add a card only if you keep Pro.</p>
@@ -361,7 +361,7 @@
     <img class="icon3d rv" src="assets/icon-dark.svg" alt="" loading="lazy" decoding="async">
     <h2 id="final-h" class="display split" data-split data-px-calm>Your day, <i>finally planned.</i></h2>
     <div class="cta-row rv" data-px-calm>
-      <a class="btn btn-primary btn-lg js-signup" href="https://use.needt.app/auth/signin">Try it free <span class="arr">→</span></a>
+      <a class="btn btn-primary btn-lg js-signup" href="https://use.needt.app/auth/signin">Log in <span class="arr">→</span></a>
       <a class="btn btn-raised btn-lg" href="https://use.needt.app/auth/signin">Log in</a>
     </div>
     <p class="cta-note rv">Free plan + 14 days of Pro. Add a card only if you keep Pro.</p>
@@ -386,7 +386,7 @@
           <div><span class="fh">Product</span><a href="#tour">Tour</a><a href="pricing/">Pricing</a><a href="templates/">Templates</a><a href="integrations/">Integrations</a><a href="download/">Download</a><a href="plugin/">Needt Plugin</a><a href="budget/">Needt Budget</a><a href="agents/">Needt Agents</a><a href="students/">Student discount</a><a href="changelog/">Changelog</a></div>
           <div><span class="fh">Use cases</span><a href="for/freelancers/">Freelancers</a><a href="for/students/">Students</a><a href="for/founders/">Founders</a><a href="for/content-creators/">Creators</a><a href="for/adhd/">ADHD</a><a href="for/">All use cases</a></div>
           <div><span class="fh">Resources</span><a href="learn/">Learn</a><a href="blog/">Blog</a><a href="resources/mcp/">Connect AI (MCP)</a><a href="resources/api/">API</a><a href="compare/">Compare</a><a href="glossary/">Glossary</a><a href="help/">Help</a><a href="https://use.needt.app/support">Support</a></div>
-          <div><span class="fh">Company</span><a href="mailto:hello@needt.app">hello@needt.app</a><a href="https://x.com/needtapp" rel="noopener">@needtapp</a><a href="https://use.needt.app/auth/signin">Log in to the Needt app</a><a class="js-signup" href="https://use.needt.app/auth/signin">Try it free</a></div>
+          <div><span class="fh">Company</span><a href="mailto:hello@needt.app">hello@needt.app</a><a href="https://x.com/needtapp" rel="noopener">@needtapp</a><a href="https://use.needt.app/auth/signin">Log in to the Needt app</a><a class="js-signup" href="https://use.needt.app/auth/signin">Log in</a></div>
           <div><span class="fh">Legal</span><a href="https://use.needt.app/privacy">Privacy</a><a href="https://use.needt.app/terms">Terms</a><a href="security/">Security</a><a href="#cookie-settings" data-cookie-settings>Cookie settings</a></div>
         </div>
       </div>
@@ -400,9 +400,9 @@
 
 </main>
 
-<a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Try it free <span>· 14 days of Pro</span></a>
+<a class="m-cta js-signup" href="https://use.needt.app/auth/signin">Log in</a>
 <script src="vendor/sky.js?v=29" defer></script>
 <script src="map-sec.js?v=2" defer></script>
-<script src="app.js?v=54" defer></script>
+<script src="app.js?v=55" defer></script>
 </body>
 </html>
