@@ -1651,6 +1651,21 @@ function archiveWhere(includeArchived: boolean): Prisma.HubItemWhereInput {
   return { OR: [{ closedAt: null }, { closedAt: { gte: cutoff } }] };
 }
 
+/**
+ * How many items the screen's default window leaves out: closed more than
+ * 14 days ago. The complement of `archiveWhere(false)`.
+ */
+export async function countOlderItems(key: WorkspaceKey) {
+  const cutoff = newDate(newDate().getTime() - ARCHIVE_AFTER_MS);
+  return prisma.hubItem.count({
+    where: {
+      userId: key.userId,
+      workspaceId: key.workspaceId,
+      closedAt: { lt: cutoff },
+    },
+  });
+}
+
 /** The Work list for the screen and the owner REST route. */
 export async function listItems(
   key: WorkspaceKey,

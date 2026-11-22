@@ -3701,3 +3701,192 @@
 .needt-v3[data-ui="phone"] .ag-tabs.ag-dock {
   bottom: var(--ag-dock-bottom);
 }
+
+/* ── Finish pass: every tab, every state ───────────────────────────────── */
+
+/* Phone: the app's own dock (pill, + button) floats `--v3-dock-lift` above the
+   display edge, which already counts the safe area (and Safari's tab bar).
+   The Agents tab bar stands 12 px above the pill's top edge, Chat's input and
+   its cards stand on the tab bar, and every page keeps room under its last
+   row through `--ag-dock-space`, which reads the same offset. The pill's top
+   edge is lift + 82 px above the display; the window reaches one `--v3-edge`
+   below it, so the bar's offset adds that edge back. */
+.needt-v3[data-ui="phone"] .ag-night {
+  --ag-dock-bottom: calc(
+    var(--v3-dock-lift, 20px) + var(--v3-edge, 8px) + 94px
+  );
+}
+.needt-v3[data-ui="phone"] .ag-composer {
+  bottom: calc(var(--ag-dock-bottom) + 54px);
+}
+.needt-v3[data-ui="phone"] .ag-cmsgs {
+  bottom: calc(var(--ag-dock-bottom) + 120px);
+}
+.needt-v3[data-ui="phone"] .ag-pending {
+  bottom: calc(var(--ag-dock-bottom) + 116px);
+}
+.needt-v3[data-ui="phone"] .ag-chat2.has-pending .ag-cmsgs {
+  bottom: calc(var(--ag-dock-bottom) + 166px);
+}
+
+/* Task rows on a phone: the time column is as wide as the column the row
+   gives it, so the label no longer runs past the row's right padding. */
+@container ag (max-width: 760px) {
+  .needt-v3 button.ag-main.ag-trow {
+    grid-template-columns: 4px 22px minmax(0, 1fr) auto;
+    padding-right: 14px;
+  }
+  .needt-v3 .ag-trow .ag-when {
+    width: auto;
+    min-width: 0;
+    white-space: nowrap;
+  }
+}
+/* An action never outgrows the row: the label is shortened in code, and what
+   still does not fit wraps to the next line instead of being cut. */
+.needt-v3 .ag-tdetail .ag-actions .nx-btn {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+
+/* Loading and error live in the tab's own body. */
+.needt-v3 .ag-sk {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.needt-v3 .ag-sk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 150px;
+  padding: 16px;
+}
+.needt-v3 .ag-sk-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.needt-v3 .ag-sk-rows {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+.needt-v3 .ag-sk-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 48px;
+  padding: 0 14px;
+  box-shadow: var(--border) 0 -1px 0 0 inset;
+}
+.needt-v3 .ag-sk-row:last-child {
+  box-shadow: none;
+}
+.needt-v3 .ag-sk.is-map {
+  position: absolute;
+  inset: 0;
+}
+.needt-v3 .ag-sk-map {
+  position: absolute;
+  inset: 0;
+}
+.needt-v3 .ag-sk-map .st-sk {
+  position: absolute;
+}
+.needt-v3 .ag-sk-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 96px 20px 0;
+}
+.needt-v3 .ag-state-error {
+  display: flex;
+  justify-content: center;
+  padding: 28px 0;
+}
+.needt-v3 .ag-map-stage > .ag-state-error {
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  padding: 0 16px;
+}
+.needt-v3 .ag-chat-stage > .ag-chat-state {
+  position: absolute;
+  top: 72px;
+  left: 12px;
+  right: 12px;
+  z-index: 8;
+  display: flex;
+  justify-content: center;
+}
+.needt-v3 .ag-chat-state .ag-state-error {
+  padding: 0;
+}
+
+/* New task: a sheet on the night, one form-row geometry (label over field). */
+.needt-v3 .tdc-card.ag-sheet {
+  width: min(520px, 100%);
+  background: var(--surface-floating);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+.needt-v3 .ag-sheet-in {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+}
+.needt-v3 .ag-sheet-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 12px 8px 20px;
+}
+.needt-v3 .ag-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 20px 14px;
+}
+.needt-v3 .ag-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.needt-v3 .ag-field > span:first-child {
+  font: 500 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+}
+.needt-v3 .ag-field .ag-area {
+  height: auto;
+  min-height: 64px;
+  padding: 8px var(--space-8);
+  font: var(--type-ui);
+  resize: vertical;
+}
+.needt-v3 .ag-field-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.needt-v3 .ag-sheet-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+  box-shadow: var(--border) 0 1px 0 0 inset;
+}
+.needt-v3 .ag-sheet-note {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+}

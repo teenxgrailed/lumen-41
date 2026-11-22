@@ -14,7 +14,8 @@ import {
 } from "@/lib/date-utils";
 import { fetchJson } from "@/lib/needt3/hooks/core";
 
-import { AgBtn, AgEmpty, listKeys, useAgentHue } from "./AgParts";
+import { AgBtn, listKeys, useAgentHue } from "./AgParts";
+import { AgError, AgSkeleton } from "./AgStates";
 
 export interface ActivityEvent {
   id: string;
@@ -109,19 +110,18 @@ export function ActivityTab({
 
   if (feed.isLoading) {
     return (
-      <div className="ag-state" data-ag-activity="" aria-busy="true">
-        Loading activity
+      <div data-ag-activity="">
+        <AgSkeleton kind="rows" />
       </div>
     );
   }
-  if (feed.isError) {
+  if (feed.isError && !feed.data) {
     return (
       <div data-ag-activity="">
-        <AgEmpty
-          art="task"
-          title="Could not load activity"
-          line="Check the connection and try again."
-          action={<AgBtn onClick={() => void feed.refetch()}>Try again</AgBtn>}
+        <AgError
+          what="activity"
+          offline={feed.fetchStatus === "paused"}
+          onRetry={() => void feed.refetch()}
         />
       </div>
     );
@@ -183,8 +183,11 @@ export function ActivityTab({
                         </span>
                         {event.message ? <span>{event.message}</span> : null}
                       </span>
-                      {/* //todo: Undo where the action can be reversed; the
-                          hub has no undo route for events yet. */}
+                      {/* //todo: Undo where the action can be reversed. The
+                          server has no inverse for any hub event (needt_undo
+                          reverses the person's tasks and pages through
+                          services/ops, not hub items), so there is nothing
+                          to call yet. */}
                       {onOpenItem ? (
                         <button
                           type="button"
