@@ -6,6 +6,7 @@
  * in "Unsorted". Pure, so it is tested apart from the DOM; no request is
  * made here.
  */
+import { type FolderStyleId, folderStyleOf } from "@/lib/needt3/folder-style";
 import type { V3Doc, V3Project } from "@/lib/needt3/map";
 
 import { folderCopy } from "./folder-copy";
@@ -22,6 +23,8 @@ export interface DocGroup {
   color: string | null;
   /** Archived, or a project that is not in the loaded list: a muted folder. */
   muted: boolean;
+  /** The project's chosen folder look (1..6), or null for Auto. */
+  folderStyle?: number | null;
   /** Newest update first. */
   docs: V3Doc[];
 }
@@ -32,6 +35,10 @@ export interface DocFolderModel {
   count: number;
   caption?: string;
   hue: string | null;
+  /** The look this folder wears: the project's choice, else Auto by id. */
+  style: FolderStyleId;
+  /** When the newest page changed (ms), or null. */
+  updatedAt: number | null;
   peeks: { key: string; title: string; meta?: string }[];
 }
 
@@ -54,7 +61,8 @@ function byUpdated(docs: readonly V3Doc[]): V3Doc[] {
  */
 export function groupDocs(
   docs: readonly V3Doc[],
-  projects: readonly Pick<V3Project, "id" | "name" | "color" | "archived">[]
+  projects: readonly (Pick<V3Project, "id" | "name" | "color" | "archived"> &
+    Partial<Pick<V3Project, "folderStyle">>)[]
 ): DocGroup[] {
   const byId = new Map(projects.map((p) => [p.id, p] as const));
   const buckets = new Map<string, V3Doc[]>();
@@ -76,6 +84,7 @@ export function groupDocs(
       label: unsorted ? folderCopy.unsorted : p ? p.name : folderCopy.project,
       color: p && !muted ? p.color : null,
       muted,
+      folderStyle: p?.folderStyle ?? null,
       docs: byUpdated(list),
     });
   }
@@ -113,6 +122,10 @@ export function folderModel(group: DocGroup, now: number): DocFolderModel {
     count: group.docs.length,
     caption: updatedCaption(group.docs[0]?.updatedAt, now),
     hue: group.color,
+    style: folderStyleOf(group.key, group.folderStyle),
+    updatedAt: Number.isFinite(time(group.docs[0]?.updatedAt))
+      ? time(group.docs[0]?.updatedAt)
+      : null,
     peeks: group.docs.slice(0, 3).map((d) => ({
       key: d.id,
       title: d.title || "Untitled",
