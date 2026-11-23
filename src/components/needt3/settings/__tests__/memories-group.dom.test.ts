@@ -108,6 +108,31 @@ it("lists every line with its source and date", () => {
   expect(text).toMatch(/Oct\w* 2, 2026|2 Oct\w* 2026/);
 });
 
+it("labels a line an assistant saved, and never prints undefined", () => {
+  state = {
+    enabled: true,
+    memories: [
+      {
+        ...LINES[0],
+        id: "m3",
+        content: "Wants short replies",
+        source: "assistant",
+      },
+      {
+        ...LINES[0],
+        id: "m4",
+        content: "From a source this build does not know",
+        source: "brand-new" as MemoriesState["memories"][number]["source"],
+      },
+    ],
+  };
+  render();
+  const text = host.textContent ?? "";
+  expect(text).toContain("Saved by an assistant");
+  expect(text).toContain("Saved, ");
+  expect(text).not.toContain("undefined");
+});
+
 it("stays readable with the switch off", () => {
   state = { enabled: false, memories: LINES };
   render();

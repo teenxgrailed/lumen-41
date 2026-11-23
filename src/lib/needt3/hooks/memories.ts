@@ -11,7 +11,13 @@ import { fetchJson, sendJson } from "./core";
  * The list is readable with the switch off; nothing in it is used then.
  */
 
-export type MemorySource = "chat" | "inferred" | "habit" | "document" | "mail";
+export type MemorySource =
+  | "chat"
+  | "inferred"
+  | "habit"
+  | "document"
+  | "mail"
+  | "assistant";
 
 export interface Memory {
   id: string;

@@ -47,6 +47,17 @@
   --px-chip-ink: var(--text-tertiary);
   color: var(--text-primary);
   color-scheme: dark;
+  /* Raised buttons: the night roots also carry `v3-raised-dark` (see
+   * raised.css), which gives the dark disc, rim and shadow tokens. Three of
+   * its tokens are read from the theme's `--v2p-*` and this block does not
+   * redefine those: in the light app theme `--v3-raised-ink`, `-mark` and
+   * `-on-ink` resolve to the light theme's ink (#121214), dark on a dark disc.
+   * Nothing on the Agents screens reads them (no `v3-raised-ink`, no
+   * `v3-raised-disc`, no `.ds-btn`; `nx-btn-secondary` takes the disc, rim and
+   * shadow only). A raised ink pill added here must first set `--v2p-ink`,
+   * `--v2p-ground` and `--v2p-plate` on `.ag-night` to the `.dark` values in
+   * motion.css. Not done now: other `--v2p-*` readers inside the night would
+   * change in the light theme, which is a visual-baseline change of its own. */
 }
 
 /* The window: the night with a soft glow from above that breathes. */

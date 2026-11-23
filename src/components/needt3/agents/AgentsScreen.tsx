@@ -878,7 +878,9 @@ export function AgentsScreen() {
   return (
     <AgentHueProvider value={hues}>
       <div
-        className="nx-window cn-screen-box ag-night"
+        // The night is dark in the light app theme too: `v3-raised-dark` gives
+        // the raised buttons (nx-btn-secondary) their dark tokens, not a white disc.
+        className="nx-window cn-screen-box ag-night v3-raised-dark"
         data-v3-screen="agents"
         data-ag-screen={tab}
       >

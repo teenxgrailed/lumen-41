@@ -2,8 +2,7 @@
 
 import { SBtn, SGroup, SRow, V3Switch } from "./kit";
 import {
-  SOURCE_LABEL,
-  memoryDay,
+  memoryCaption,
   useMemoriesControl,
 } from "./use-memories-control";
 
@@ -85,7 +84,7 @@ export function MemoriesGroup({
           <SRow
             key={memory.id}
             title={memory.content}
-            desc={`${SOURCE_LABEL[memory.source]}, ${memoryDay(memory.updatedAt)}`}
+            desc={memoryCaption(memory.source, memory.updatedAt)}
           >
             <SBtn
               onClick={() =>

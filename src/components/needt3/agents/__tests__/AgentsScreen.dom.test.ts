@@ -14,6 +14,7 @@ import { type Root, createRoot } from "react-dom/client";
 
 import { fetchJson } from "@/lib/needt3/hooks/core";
 
+import { V3PortalScope } from "../../ctx/PortalScope";
 import { AgentsScreen } from "../AgentsScreen";
 
 (
@@ -268,7 +269,11 @@ async function mount(query = "") {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await act(async () => {
     root.render(
-      h(QueryClientProvider, { client: qc }, h(AgentsScreen as never))
+      h(
+        QueryClientProvider,
+        { client: qc },
+        h(V3PortalScope, null, h(AgentsScreen as never))
+      )
     );
   });
   await settle();
@@ -804,5 +809,41 @@ describe("Agents screen: loading, error and older items", () => {
     );
     await mount("tab=tasks");
     expect(host.textContent).toContain("Show older");
+  });
+
+  // The Agents night is dark in the light app theme too. `.ag-night` redefines
+  // the text and fill tokens; `v3-raised-dark` gives the raised buttons
+  // (nx-btn-secondary) their dark tokens. Without it Edit, Create token and
+  // the webhook chips are white on white in the light theme.
+  describe("night roots carry the dark raised tokens", () => {
+    const night = (el: Element | null | undefined) => {
+      expect(el).not.toBeNull();
+      expect(el).toBeDefined();
+      expect(el!.classList.contains("ag-night")).toBe(true);
+      expect(el!.classList.contains("v3-raised-dark")).toBe(true);
+    };
+
+    it("the screen, on every tab", async () => {
+      for (const id of ["map", "agents", "tasks", "memory"]) {
+        await mount(`tab=${id}`);
+        night(host.querySelector('[data-v3-screen="agents"]'));
+        act(() => root.unmount());
+        root = createRoot(host);
+      }
+    });
+
+    it("the Map's window panel", async () => {
+      await mount("tab=map");
+      await click(host.querySelector("[data-ag-map-full]"));
+      night(document.querySelector(".ag-map-panel.is-full"));
+    });
+
+    it("the New task sheet", async () => {
+      await mount("tab=tasks");
+      await click(host.querySelector("[data-ag-new-task-open]"));
+      const form = document.querySelector("[data-ag-new-task]");
+      expect(form).not.toBeNull();
+      night(form!.closest(".ag-sheet"));
+    });
   });
 });

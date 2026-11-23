@@ -1676,7 +1676,7 @@ export function AgentsMap({
         // In the window the panel is portalled out of the screen: it takes
         // the night's tokens with it.
         (full === "window"
-          ? " is-full ag-night"
+          ? " is-full ag-night v3-raised-dark"
           : full === "screen"
             ? " is-screen"
             : "")

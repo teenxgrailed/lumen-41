@@ -73,7 +73,7 @@ export function NewTaskSheet({
       onClose={onClose}
       title="New task"
       scrimClassName="tdc-scrim"
-      className="tdc-card ag-night ag-sheet"
+      className="tdc-card ag-night v3-raised-dark ag-sheet"
     >
       <form
         className="ag-sheet-in"
