@@ -54,10 +54,15 @@
 .needt-v3 .ds-i::after {
   content: "";
   position: absolute;
-  inset-block: min(0px, calc((var(--ds-h, var(--ds-hit)) - var(--ds-hit)) / 2));
-  inset-inline: min(
-    0px,
-    calc((var(--ds-w, var(--ds-hit)) - var(--ds-hit)) / 2)
+  /* an inset is measured from the padding box, so a control with a border
+   * (--ds-bw) reaches that much further out to still be 44 */
+  inset-block: calc(
+    min(0px, calc((var(--ds-h, var(--ds-hit)) - var(--ds-hit)) / 2)) -
+      var(--ds-bw, 0px)
+  );
+  inset-inline: calc(
+    min(0px, calc((var(--ds-w, var(--ds-hit)) - var(--ds-hit)) / 2)) -
+      var(--ds-bw, 0px)
   );
 }
 @media (hover: hover) {
@@ -296,6 +301,7 @@
   --ds-tone: var(--hue-pink);
 }
 .needt-v3 .ds-chip[data-variant="empty"] {
+  --ds-bw: 1px;
   padding-inline: calc(var(--ds-space-8) - 1px);
   border: 1px dashed var(--ds-ink-25);
   color: var(--ds-ink-55);

@@ -41,6 +41,23 @@ describe("the hit area", () => {
     expect(decl(after[0], "inset-block")).toContain("--ds-hit");
   });
 
+  it("a control with a border says so, so the hit area still reaches 44", () => {
+    const after = rules((r) => r.selector === ".needt-v3 .ds-i::after");
+    expect(decl(after[0], "inset-block")).toContain("--ds-bw");
+    expect(decl(after[0], "inset-inline")).toContain("--ds-bw");
+    // every control that draws a border sets it
+    const bordered = rules(
+      (r) =>
+        !!decl(r, "border") &&
+        !/^(0|none)\b/.test(decl(r, "border")!) &&
+        /\.ds-(chip|btn|icon-btn|seg-item|dock-item|row|switch)\b/.test(
+          r.selector
+        )
+    );
+    expect(bordered.length).toBeGreaterThan(0);
+    for (const rule of bordered) expect(decl(rule, "--ds-bw")).toBe("1px");
+  });
+
   it("the hit area is 44", () => {
     expect(tokens).toMatch(/--ds-hit:\s*44px/);
   });
