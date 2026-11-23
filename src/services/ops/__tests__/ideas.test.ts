@@ -752,6 +752,18 @@ describe("idea.cards", () => {
     expect(stamped()).toHaveLength(0);
   });
 
+  it("a skipped card counts against the day without idea.shown", async () => {
+    for (let i = 0; i < 6; i += 1) await seedIdea({ title: `Idea ${i}` });
+    const first = (await cards()).result.cards;
+    await run("idea.skip", { taskId: first[0].id });
+    await run("idea.skip", { taskId: first[1].id });
+    expect(iso(taskRow(db, first[0].id).ideaLastShownAt)).toBe(
+      NOW.toISOString()
+    );
+    // both of today's slots are used: no fresh cards after two skips
+    expect((await cards()).result.cards).toHaveLength(0);
+  });
+
   it("marking shown does nothing when idea cards are off", async () => {
     jest.mocked(ideaCardsEnabled).mockResolvedValue(false);
     const idea = await seedIdea();

@@ -216,6 +216,25 @@ export const ideaConvert = defineOp({
  * day's two are already used by other ideas, when the idea is snoozed,
  * archived or trashed, and a no-op when idea cards are off.
  */
+/**
+ * A card acted on (taken or skipped) counts against the day's cards even when
+ * the screen never sent `idea.shown`, so a client that skips without marking
+ * cannot draw two fresh cards on every read.
+ */
+async function shownStamp(
+  ctx: OpContext,
+  task: { ideaLastShownAt: Date | null },
+  now: Date
+): Promise<{ ideaLastShownAt?: Date }> {
+  const timeZone = await userTimeZone(ctx.tx, ctx.userId);
+  const today = localDay(now, timeZone);
+  const already =
+    !!task.ideaLastShownAt &&
+    task.ideaLastShownAt >= today.start &&
+    task.ideaLastShownAt < today.end;
+  return already ? {} : { ideaLastShownAt: now };
+}
+
 export const ideaShown = defineOp({
   name: "idea.shown",
   description:
@@ -294,6 +313,7 @@ export const ideaSkip = defineOp({
     assertProjectActive(task);
     const now = newDate();
     const skip = skipResult(task.ideaSkipCount, now);
+    const stamp = await shownStamp(ctx, task, now);
     const fields = pickRestorable(task, [
       "ideaSkipCount",
       "ideaSnoozedUntil",
@@ -305,6 +325,7 @@ export const ideaSkip = defineOp({
       data: {
         ideaSkipCount: skip.ideaSkipCount,
         ideaSnoozedUntil: skip.ideaSnoozedUntil,
+        ...stamp,
         ...(skip.archive ? { isArchived: true, archivedAt: now } : {}),
         ...activity(
           ctx,
@@ -362,6 +383,7 @@ export const ideaTake = defineOp({
     const today = formatInTimeZone(now, timeZone, "yyyy-MM-dd");
     const minutes =
       task.estimatedMinutes ?? task.duration ?? TAKE_DEFAULT_MINUTES;
+    const stamp = await shownStamp(ctx, task, now);
 
     // Which day has room: today's free time, and fewer than the day limit
     // tasks already on it; else the first day after it that fits.
@@ -421,6 +443,7 @@ export const ideaTake = defineOp({
         ideaSnoozedUntil: null,
         // The person took it: the sweep never turns it back into an idea.
         ideaCheckedAt: now,
+        ...stamp,
         status: "todo",
         isAutoScheduled: true,
         estimatedMinutes: minutes,
