@@ -1,0 +1,1 @@
+- Phone: the last card on Today (the Next up card with Start focus and Done) is no longer hidden under the floating bar when you scroll to the bottom in the installed app. The page now ends above the bar by the bar's own height, measured, not guessed.

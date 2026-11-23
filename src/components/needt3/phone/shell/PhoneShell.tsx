@@ -59,6 +59,7 @@ import {
   scrollRestore,
   scrollTakePop,
 } from "./scrollMemory";
+import { useDockClearance } from "./useDockClearance";
 
 /**
  * How long the pill stays out after the composer closes: the sheet goes back
@@ -170,6 +171,8 @@ export function PhoneShell() {
   /* The page scrolls (kit/scroll.ts), so a new screen starts at the top and
      going back returns to where that screen was left. */
   usePageScrollPerRoute(pathname);
+  // The installed app: the last row ends above the dock at the bottom of the page.
+  useDockClearance(pathname);
 
   /* A place switch gets the one-shot halftone sweep; the first screen does not. */
   const lastScreen = useRef<MenuPlaceId | null>(screen);
