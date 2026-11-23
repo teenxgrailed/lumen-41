@@ -1,0 +1,169 @@
+/* A ground under the status bar, in the installed app (owner decision 23.11.26,
+ * "Add a background"). It replaces, for the installed app only, the ruling of
+ * 25.10.26 that content scrolls under the status bar.
+ *
+ * Why it is built this way (read phone-ground.css first):
+ *
+ * - A Safari TAB gets nothing from this file. Safari 26 / 27 paints its own
+ *   status-bar area and keeps the tint it sampled from any full-width fixed or
+ *   sticky element that touches the top edge (owner-confirmed 20.10.26: live
+ *   theme-color, html background changes and opaque edge strips all failed).
+ *   What works there is no fixed top element, a static `body` colour equal to
+ *   the page's top colour, and `overscroll-behavior-y: none`: all of it is
+ *   already in phone-ground.css (`data-ground="page"` keeps body equal to a
+ *   reader's paper). So `.pk-statusbg` is `display: none` everywhere except
+ *   `html[data-display-mode="standalone"]`, which VIEWPORT_BOOT_SCRIPT
+ *   (lib/needt3/safari-bar.ts) writes before first paint from
+ *   `navigator.standalone` / `(display-mode: standalone)`.
+ *
+ * - In the installed app there is no Safari chrome, but the 20.10 comment
+ *   records that bands showed there too, so the strip is built like the bottom
+ *   fog and not as an edge element. The host (`.pk-statusbg`) is fixed, zero
+ *   tall, FULLY TRANSPARENT (no background, no backdrop of its own: Safari 26
+ *   tinted a bar from a fixed box's own opaque background) and parked at the
+ *   INNER edge of the bar (`top: safe-area-inset-top`, nowhere near the display
+ *   edge). The blur lives in `::before`, the colour in `::after`; pseudo-
+ *   elements are not read. The blur paints no colour of its own; the wash,
+ *   which does, stops `--v3-gap-top` (6 px on iOS) short of the display edge,
+ *   where the static body ground (the same colour) shows. Nothing opaque
+ *   touches an edge, and nothing is a fixed or sticky header at `top: 0`.
+ *
+ * - The colour is the ground at 97% (`--ps-fog`, the bottom fog's own token, so
+ *   light and dark mirror it): nearly solid under the clock, so it stays
+ *   readable over scrolled content. The wash and a 14 px backdrop blur fade out
+ *   together across the lower edge of the bar: 10 px inside it and 6 px below
+ *   it, so scrolled content dissolves into the bar with no hard line. The fade
+ *   reaches no further down on purpose: the large title starts 10 px under the
+ *   bar (`.pk-head` padding), and at rest it must not be touched. No accent,
+ *   no grey: it is the page colour and nothing else (PORT.md rules 1 and 3).
+
+ * - Where the web view starts below the bar, the inset is 0 and there is
+ *   nothing under the bar to cover, so both heights collapse to 0 and the
+ *   strip draws nothing. The fade parts are `min(6px, inset * 1000)` and
+ *   `min(10px, inset)` for that reason: 0 at 0, the full size at any real
+ *   inset, no script. (As configured, the app asks for the other case: meta
+ *   `apple-mobile-web-app-status-bar-style: black-translucent`, `capable`,
+ *   `viewport-fit=cover`, so a standalone launch runs UNDER the bar with the
+ *   real inset. The 0-inset launch seen on 22.11.26 is an app installed with
+ *   an opaque bar; not verifiable here, check with ?edgedebug.)
+ *
+ * - Stacking: above the page and its fog (9), below the dock (45), scrims
+ *   (50), sheets (60) and every full-screen layer (20 to 40). It takes no
+ *   input, so nothing needs data-assistant-avoid; the assistant, the dock and
+ *   the toasts all stand above it. */
+
+.needt-v3[data-ui="phone"] {
+  /* The bar's height: the real inset. A variable so a screenshot run (where
+   * Chromium reports 0) can set it; the app never does. */
+  --v3-sat: env(safe-area-inset-top, 0px);
+  --sb-fog: var(--ps-fog);
+  --sb-fog-0: var(--ps-fog-0);
+}
+/* A page whose own paper runs to the top is the ground while it is open
+ * (phone-ground.css data-ground="page"): the strip wears that paper. */
+html[data-ground="page"] .needt-v3[data-ui="phone"] {
+  --sb-fog: color-mix(
+    in srgb,
+    var(--v3-page-ground-l, #f6f6f3) 97%,
+    transparent
+  );
+  --sb-fog-0: color-mix(
+    in srgb,
+    var(--v3-page-ground-l, #f6f6f3) 0%,
+    transparent
+  );
+}
+html[data-ground="page"]
+  .needt-v3[data-ui="phone"]:is([data-theme="dark"], [data-theme="dim"]) {
+  --sb-fog: color-mix(
+    in srgb,
+    var(--v3-page-ground-d, #141416) 97%,
+    transparent
+  );
+  --sb-fog-0: color-mix(
+    in srgb,
+    var(--v3-page-ground-d, #141416) 0%,
+    transparent
+  );
+}
+
+.pk-statusbg {
+  display: none;
+}
+html[data-display-mode="standalone"] .needt-v3[data-ui="phone"] .pk-statusbg {
+  /* the fade: --sb-in inside the bar, --sb-out below it */
+  --sb-in: min(10px, var(--v3-sat));
+  --sb-out: min(6px, calc(var(--v3-sat) * 1000));
+  /* where the paint stops being solid, and where it is about half gone
+   * (display coordinates, from the top edge) */
+  --sb-solid: calc(var(--v3-sat) - var(--sb-in));
+  --sb-half: calc(var(--sb-solid) + (var(--sb-in) + var(--sb-out)) * 0.45);
+  display: block;
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* the inner edge of the bar, never the display edge */
+  top: var(--v3-sat);
+  height: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+html[data-display-mode="standalone"]
+  .needt-v3[data-ui="phone"]
+  .pk-statusbg::before,
+html[data-display-mode="standalone"]
+  .needt-v3[data-ui="phone"]
+  .pk-statusbg::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(-1 * var(--v3-sat));
+  height: calc(var(--v3-sat) + var(--sb-out));
+}
+/* Blur: it paints no colour of its own, so it may run to the display edge. */
+html[data-display-mode="standalone"]
+  .needt-v3[data-ui="phone"]
+  .pk-statusbg::before {
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  -webkit-mask: linear-gradient(
+    to bottom,
+    #000 var(--sb-solid),
+    color-mix(in srgb, #000 45%, transparent) var(--sb-half),
+    transparent 100%
+  );
+  mask: linear-gradient(
+    to bottom,
+    #000 var(--sb-solid),
+    color-mix(in srgb, #000 45%, transparent) var(--sb-half),
+    transparent 100%
+  );
+}
+/* Wash: the ground. It paints a colour, so it stops `--v3-gap-top` short of
+ * the display edge (0 off iOS); its stops are measured from its own top. */
+html[data-display-mode="standalone"]
+  .needt-v3[data-ui="phone"]
+  .pk-statusbg::after {
+  top: calc(var(--v3-gap-top) - var(--v3-sat));
+  height: calc(var(--v3-sat) - var(--v3-gap-top) + var(--sb-out));
+  background: linear-gradient(
+    to bottom,
+    var(--sb-fog) calc(var(--sb-solid) - var(--v3-gap-top)),
+    color-mix(in srgb, var(--sb-fog) 55%, transparent)
+      calc(var(--sb-half) - var(--v3-gap-top)),
+    var(--sb-fog-0) 100%
+  );
+}
+/* A sheet or the open menu darkens the page with a scrim; the strip is under
+ * it (10 < 50), so it dims with the page. */
+/* One live blur per moving thing (motion.css, rule 12): while a sheet, the
+ * menu or a screen move, the mover's blur is the one. The strip is a sibling
+ * of the page host, not under it, so the host's marks reach it through :has.
+ * The wash alone keeps the bar's ground meanwhile. */
+html[data-display-mode="standalone"]
+  .needt-v3[data-ui="phone"]:has([data-pk-moving], [data-nva-moving])
+  .pk-statusbg::before {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

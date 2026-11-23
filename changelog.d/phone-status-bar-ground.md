@@ -1,0 +1,1 @@
+- On the phone, the installed app now has a background under the status bar: content that scrolls up under the clock and battery fades out behind a blurred strip in the page colour, light and dark.
