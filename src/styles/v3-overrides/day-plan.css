@@ -549,7 +549,6 @@
 .needt-v3[data-theme="dark"] {
   --dp-grain-a: 0.22;
 }
-.needt-v3[data-theme="dark"] .dp-grain,
 .needt-v3[data-theme="dark"] .pk-row.is-tex::before {
   filter: invert(1);
 }
@@ -618,68 +617,6 @@
 .needt-v3 .dp-rest {
   border-top: 0;
   padding-top: 0;
-}
-
-/* Next / Highlight plate: the task's colour on the raised ground + grain,
-   replacing the sky. The plate's own tokens (--v2p-plate*) are set here, so
-   the buttons keep reading. */
-.needt-v3 .dp-plate {
-  --v2p-plate: var(--v2p-ground);
-  --v2p-plate-raise: color-mix(in oklab, var(--v2p-ink) 8%, transparent);
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border-radius: 26px;
-  color: var(--v2p-ink);
-  background:
-    linear-gradient(
-      color-mix(in oklab, var(--hue, transparent) 34%, transparent),
-      color-mix(in oklab, var(--hue, transparent) 34%, transparent)
-    ),
-    var(--surface-raised);
-  box-shadow: inset 0 0 0 1px
-    color-mix(in oklab, var(--hue, var(--v2p-ink)) 22%, transparent);
-}
-.needt-v3 .dp-plate .dp-grain {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: var(--dp-grain);
-  opacity: var(--dp-grain-a);
-  pointer-events: none;
-}
-.needt-v3 .dp-plate-in {
-  position: relative;
-  z-index: 1;
-}
-.needt-v3 .dp-plate .ha-hl-line {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-top: 4px;
-}
-.needt-v3 .dp-plate .ha-hl-line .ha-hl-title {
-  margin: 0;
-  min-width: 0;
-  flex: 1;
-}
-.needt-v3 .dp-plate .ha-hl-mark {
-  flex: none;
-  display: grid;
-  place-items: center;
-}
-.needt-v3 .dp-plate .ha-hl-mark .dp-glyph {
-  width: 52px;
-  height: 52px;
-  background: color-mix(
-    in oklab,
-    var(--hue, var(--v2p-ink)) 28%,
-    var(--surface-raised)
-  );
-}
-.needt-v3 .dp-plate .ha-hl-mark .dp-glyph svg {
-  width: 24px;
-  height: 24px;
 }
 
 /* habits: a textured chip in the habit's colour */

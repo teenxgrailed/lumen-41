@@ -6,3 +6,5 @@
   in the menu take two lines instead of being cut, the Plan tile shows titles
   without the time, and the Tasks tabs and "Move to today" have a 44 px touch
   area.
+- Phone: Home's Now / Next card is the glossy sky plate again, the same
+  material as Calendar's cards, instead of a flat tint of the task colour.
