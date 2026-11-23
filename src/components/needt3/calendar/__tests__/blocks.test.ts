@@ -74,6 +74,34 @@ describe("calendarItems", () => {
     expect(timed[0]).toMatchObject({ date: "2026-09-02", at: 9.25, len: 30 });
   });
 
+  it("does not draw a task closed on an earlier day at its stale slot", () => {
+    const { timed, loose } = calendarItems({
+      tasks: [
+        task({
+          id: "stale",
+          done: true,
+          status: "completed",
+          completedAt: "2026-08-31T18:48",
+          scheduledStart: "2026-09-01T11:30",
+        }),
+        task({ id: "live", scheduledStart: "2026-09-01T11:30" }),
+        task({
+          id: "same-day",
+          done: true,
+          status: "completed",
+          completedAt: "2026-09-01T09:00",
+          scheduledStart: "2026-09-01T10:00",
+        }),
+      ],
+      events: [],
+      today,
+      hideDone: false,
+    });
+    expect(timed.map((b) => b.id)).toEqual(["live", "same-day"]);
+    expect(loose).toHaveLength(1);
+    expect(loose[0]).toMatchObject({ id: "stale", date: "2026-08-31" });
+  });
+
   it("lists tasks without an hour (or no slot) as all-day rows", () => {
     const { timed, loose } = calendarItems({
       tasks: [

@@ -4,7 +4,8 @@
  * `scheduledStart`; a task due on a day without an hour (or marked "no slot")
  * and an all-day event become the Agenda's all-day rows. Trashed tasks live
  * on Trash only, overdue ones in Home's overdue list; Hide done takes closed
- * tasks out (events are never hidden).
+ * tasks out (events are never hidden). A task closed on an earlier day than its
+ * slot is a done row of the day it was closed, not a block at the stale slot.
  */
 import {
   type ProjectLike,
@@ -131,7 +132,19 @@ export function calendarItems({
 
   shown.forEach((t) => {
     const at = hourOf(t.scheduledStart);
-    if (t.scheduledStart && at != null && !t.noSlot) {
+    const closedDay = t.completedAt?.slice(0, 10);
+    if (
+      t.done &&
+      t.scheduledStart &&
+      closedDay &&
+      closedDay < t.scheduledStart.slice(0, 10)
+    ) {
+      // Finished on an earlier day than its planned slot: the slot it kept is
+      // stale (the scheduler already freed it), so it is not drawn there on top
+      // of whatever now sits at that time. It is a done row of the day it was
+      // closed on.
+      loose.push(taskItem(t, closedDay, null, projects));
+    } else if (t.scheduledStart && at != null && !t.noSlot) {
       timed.push(
         taskItem(t, t.scheduledStart.slice(0, 10), at, projects) as CalTimed
       );
