@@ -13,6 +13,7 @@ const RELATIONS: Record<
   scheduledBlock: { task: { model: "task", key: "taskId" } },
   calendarEvent: { feed: { model: "calendarFeed", key: "feedId" } },
   dayPlanItem: { plan: { model: "dayPlan", key: "planId" } },
+  taskDependency: { blocked: { model: "task", key: "blockedTaskId" } },
 };
 const CHILDREN: Record<
   string,
@@ -102,6 +103,10 @@ export function createFakePrisma() {
     workspaceMember: [],
     easyStartProposal: [],
     featureFlag: [],
+    taskDependency: [],
+    projectBlocker: [],
+    planSettings: [],
+    schedulingPreferences: [],
   };
   let clock = Date.parse("2026-10-01T00:00:00.000Z");
   let ids = 0;
@@ -117,6 +122,7 @@ export function createFakePrisma() {
     if (key === "OR") {
       return (condition as Where[]).some((part) => matches(model, row, part));
     }
+    if (key === "NOT") return !matches(model, row, condition as Where);
     if (key === "AND") {
       return (condition as Where[]).every((part) => matches(model, row, part));
     }

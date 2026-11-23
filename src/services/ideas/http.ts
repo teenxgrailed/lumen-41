@@ -131,6 +131,26 @@ export const ideaHandlers = {
   take: (caller: Caller, id: string, logSource: string) =>
     respond(logSource, () => runOp("idea.take", { taskId: id }, caller)),
 
+  /** POST /ideas/:id/shown { position? }: the screen displayed the card. */
+  shown: (
+    request: NextRequest,
+    caller: Caller,
+    id: string,
+    logSource: string
+  ) =>
+    respond(logSource, async () => {
+      const body = await readBody(request);
+      const position =
+        body && typeof body === "object" && "position" in body
+          ? (body as { position?: unknown }).position
+          : undefined;
+      return runOp(
+        "idea.shown",
+        { taskId: id, ...(position === undefined ? {} : { position }) },
+        caller
+      );
+    }),
+
   /** POST /ideas/:id/skip */
   skip: (caller: Caller, id: string, logSource: string) =>
     respond(logSource, () => runOp("idea.skip", { taskId: id }, caller)),

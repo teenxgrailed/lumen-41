@@ -152,7 +152,7 @@ import { PLAN_LIMITS } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma";
 import type { RealtimeEventType } from "@/lib/realtime/channels";
 import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
-import { ideaWhere, openTaskWhere } from "@/lib/tasks/open-task";
+import { kindWhere } from "@/lib/tasks/open-task";
 
 import { TaskStatus } from "@/types/task";
 
@@ -462,11 +462,7 @@ async function listRows(
             where: {
               ...scope,
               // Tasks unless asked: an idea (idea cards) is never a surprise.
-              ...(args.kind === "idea"
-                ? ideaWhere()
-                : args.kind === "any"
-                  ? {}
-                  : openTaskWhere()),
+              ...kindWhere(args.kind, userId),
               ...(args.includeArchived
                 ? {}
                 : { isArchived: false, trashedAt: null }),
@@ -633,7 +629,8 @@ async function getRow(
   switch (type) {
     case "task": {
       const task = await prisma.task.findFirst({
-        where: { id, ...scope },
+        // another member's idea is not found (ideas are personal)
+        where: { id, ...scope, ...kindWhere("any", userId) },
         include: {
           scheduledBlocks: { orderBy: { chunkIndex: "asc" } },
           ...taskPartsInclude,

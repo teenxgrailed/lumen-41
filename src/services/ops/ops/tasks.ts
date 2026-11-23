@@ -45,7 +45,7 @@ import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { getPlan } from "@/lib/entitlements";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
 import { defaultTaskReminderRows } from "@/lib/task-default-reminders";
-import { ideaWhere, openTaskWhere } from "@/lib/tasks/open-task";
+import { kindWhere, openTaskWhere } from "@/lib/tasks/open-task";
 import { normalizeRecurrenceRule } from "@/lib/utils/normalize-recurrence-rules";
 
 import { sanitizeDescriptionForStorage as sanitizeTaskDescriptionForStorage } from "../description-sanitizer";
@@ -159,11 +159,7 @@ export const taskList = defineOp({
         ...ctx.scope,
         // Ideas only when the caller asks: an agent that lists tasks never sees
         // one by surprise.
-        ...(input.kind === "task"
-          ? openTaskWhere()
-          : input.kind === "idea"
-            ? ideaWhere()
-            : {}),
+        ...kindWhere(input.kind, ctx.userId),
         ...(input.includeArchived
           ? {}
           : { isArchived: false, trashedAt: null }),

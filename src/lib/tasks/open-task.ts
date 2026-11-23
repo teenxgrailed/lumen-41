@@ -24,3 +24,17 @@ export function openTaskWhere(): Pick<Prisma.TaskWhereInput, "kind"> {
 export function ideaWhere(): Pick<Prisma.TaskWhereInput, "kind"> {
   return { kind: "IDEA" };
 }
+
+/**
+ * Which kind a list asks for: tasks by default, `idea` for the caller's own
+ * ideas, `any` for tasks and the caller's own ideas. An idea is personal, so in
+ * a shared workspace another member's ideas are never listed.
+ */
+export function kindWhere(
+  kind: string | null | undefined,
+  userId: string
+): Prisma.TaskWhereInput {
+  if (kind === "idea") return { kind: "IDEA", userId };
+  if (kind === "any") return { NOT: { kind: "IDEA", userId: { not: userId } } };
+  return openTaskWhere();
+}

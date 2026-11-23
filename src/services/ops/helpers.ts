@@ -88,6 +88,10 @@ export async function findScopedTask(
     },
   });
   if (!task) throw new OpError("NOT_FOUND", "Task not found");
+  // An idea is personal: in a shared workspace another member's is not found.
+  if (task.kind === "IDEA" && task.userId !== ctx.userId) {
+    throw new OpError("NOT_FOUND", "Task not found");
+  }
   return task;
 }
 

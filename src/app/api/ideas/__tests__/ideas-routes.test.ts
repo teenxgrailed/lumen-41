@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { POST as connectConvert } from "@/app/api/connect/ideas/[id]/convert/route";
+import { POST as connectShown } from "@/app/api/connect/ideas/[id]/shown/route";
 import { GET as connectCards } from "@/app/api/connect/ideas/cards/route";
 import {
   POST as connectCreate,
@@ -8,6 +9,7 @@ import {
 } from "@/app/api/connect/ideas/route";
 import { POST as convert } from "@/app/api/ideas/[id]/convert/route";
 import { PATCH as patchIdea } from "@/app/api/ideas/[id]/route";
+import { POST as shown } from "@/app/api/ideas/[id]/shown/route";
 import { POST as skip } from "@/app/api/ideas/[id]/skip/route";
 import { POST as take } from "@/app/api/ideas/[id]/take/route";
 import { GET as cards } from "@/app/api/ideas/cards/route";
@@ -232,6 +234,73 @@ describe("the app door: /api/ideas", () => {
     expect(second.result.cards.map((c: { id: string }) => c.id)).toEqual(
       first.result.cards.map((c: { id: string }) => c.id)
     );
+  });
+
+  it("cards is a pure read; shown marks a card displayed, once, with the position", async () => {
+    const idea = await seedIdea({ title: "A" });
+    await cards(req("/api/ideas/cards?visibleTasks=6"));
+    expect(taskRow(db, idea.id).ideaLastShownAt).toBeNull();
+    const res = await shown(
+      req(`/api/ideas/${idea.id}/shown`, "POST", { position: 2 }),
+      idParams(idea.id)
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).result).toMatchObject({ shown: true });
+    expect(taskRow(db, idea.id).ideaLastShownAt).toBeInstanceOf(Date);
+    const again = await shown(
+      req(`/api/ideas/${idea.id}/shown`, "POST"),
+      idParams(idea.id)
+    );
+    expect((await again.json()).result).toMatchObject({ reason: "already" });
+  });
+
+  it("shown needs an editor seat", async () => {
+    const idea = await seedIdea();
+    await shown(req(`/api/ideas/${idea.id}/shown`, "POST"), idParams(idea.id));
+    expect(session).toHaveBeenLastCalledWith(expect.anything(), "ideas-api", {
+      requiredRole: WorkspaceRole.EDITOR,
+    });
+  });
+
+  it("another member's idea cannot be edited, taken or marked shown", async () => {
+    const theirs = await seedIdea({ userId: "other", assigneeId: "other" });
+    expect(
+      (
+        await patchIdea(
+          req(`/api/ideas/${theirs.id}`, "PATCH", { title: "Mine" }),
+          idParams(theirs.id)
+        )
+      ).status
+    ).toBe(404);
+    expect(
+      (
+        await take(
+          req(`/api/ideas/${theirs.id}/take`, "POST"),
+          idParams(theirs.id)
+        )
+      ).status
+    ).toBe(404);
+    expect(
+      (
+        await shown(
+          req(`/api/ideas/${theirs.id}/shown`, "POST"),
+          idParams(theirs.id)
+        )
+      ).status
+    ).toBe(404);
+    expect(taskRow(db, theirs.id).title).toBe("Check AI agents news");
+    const listed = await (await list(req("/api/ideas"))).json();
+    expect(listed.result.ideas).toHaveLength(0);
+  });
+
+  it("the connector door marks shown too", async () => {
+    const idea = await seedIdea();
+    const res = await connectShown(
+      req(`/api/connect/ideas/${idea.id}/shown`, "POST"),
+      idParams(idea.id)
+    );
+    expect(res.status).toBe(200);
+    expect(taskRow(db, idea.id).ideaLastShownAt).toBeInstanceOf(Date);
   });
 
   it("answers the session's refusal as it is", async () => {

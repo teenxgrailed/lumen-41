@@ -33,7 +33,7 @@ import {
   ChangeType,
   TaskChangeTracker,
 } from "@/lib/task-sync/task-change-tracker";
-import { ideaWhere, openTaskWhere } from "@/lib/tasks/open-task";
+import { kindWhere } from "@/lib/tasks/open-task";
 import { normalizeRecurrenceRule } from "@/lib/utils/normalize-recurrence-rules";
 
 import { EnergyLevel, TaskStatus, TimePreference } from "@/types/task";
@@ -81,11 +81,7 @@ export async function GET(request: NextRequest) {
     const tasks = await prisma.task.findMany({
       where: {
         ...workspaceDataScopeWhere(auth.workspace, userId),
-        ...(kind === "idea"
-          ? ideaWhere()
-          : kind === "any"
-            ? {}
-            : openTaskWhere()),
+        ...kindWhere(kind, userId),
         isArchived: archived,
         ...(originPageId && { originKind: DOC_ORIGIN, originId: originPageId }),
         ...(!archived && { AND: [activeProjectTaskWhere] }),

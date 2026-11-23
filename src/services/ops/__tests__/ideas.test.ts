@@ -510,13 +510,49 @@ describe("take", () => {
     expect(taskRow(db, idea.id).dueDate).toBeNull();
   });
 
-  it("a day that already holds the day limit of tasks has no room", async () => {
-    for (let i = 0; i < 6; i += 1) {
+  const seedToday = async (n: number) => {
+    for (let i = 0; i < n; i += 1) {
       await seedTask(db, {
         title: `Task ${i}`,
         scheduledStart: new Date("2026-11-23T11:00:00.000Z"),
       });
     }
+  };
+
+  it("uses the person's own day limit: 5 tasks on a limit of 5 fill the day", async () => {
+    await db.seed("planSettings", {
+      userId: OWNER_ID,
+      taskLimit: 5,
+      focusMinutes: 240,
+      morningTime: "08:00",
+      eveningTime: "21:00",
+      morningOn: true,
+      eveningOn: true,
+    });
+    await seedToday(5);
+    const idea = await seedIdea();
+    const out = await run<{ day: string }>("idea.take", { taskId: idea.id });
+    expect(out.result.day).toBe("2026-11-24");
+  });
+
+  it("a higher personal limit leaves room: 6 tasks on a limit of 10", async () => {
+    await db.seed("planSettings", {
+      userId: OWNER_ID,
+      taskLimit: 10,
+      focusMinutes: 240,
+      morningTime: "08:00",
+      eveningTime: "21:00",
+      morningOn: true,
+      eveningOn: true,
+    });
+    await seedToday(6);
+    const idea = await seedIdea();
+    const out = await run<{ day: string }>("idea.take", { taskId: idea.id });
+    expect(out.result.day).toBe("2026-11-23");
+  });
+
+  it("without plan settings the default limit (5) applies", async () => {
+    await seedToday(5);
     const idea = await seedIdea();
     const out = await run<{ day: string }>("idea.take", { taskId: idea.id });
     expect(out.result.day).toBe("2026-11-24");
@@ -606,13 +642,25 @@ describe("take", () => {
 describe("idea.cards", () => {
   type Cards = {
     day: string;
-    cards: { id: string; title: string; after: number; minutes: number }[];
+    cards: {
+      id: string;
+      title: string;
+      after: number;
+      minutes: number;
+      shown: boolean;
+    }[];
     none?: string;
   };
   const cards = (input: Record<string, unknown> = {}) =>
     run<Cards>("idea.cards", { visibleTasks: 8, ...input });
+  const shown = (taskId: string, extra: Record<string, unknown> = {}) =>
+    run<{ shown: boolean; reason?: string }>("idea.shown", {
+      taskId,
+      ...extra,
+    });
+  const stamped = () => db.tables.task.filter((r) => r.ideaLastShownAt);
 
-  it("returns at most 2 a day, and the same 2 on every read", async () => {
+  it("returns at most 2 a day, the same 2 on every read, and writes nothing", async () => {
     for (let i = 0; i < 10; i += 1) {
       await seedIdea({ title: `Idea ${i}` });
     }
@@ -624,8 +672,93 @@ describe("idea.cards", () => {
       const again = await cards();
       expect(again.result.cards.map((c) => c.id)).toEqual(ids);
     }
-    // each shown card is stamped
-    expect(db.tables.task.filter((r) => r.ideaLastShownAt).length).toBe(2);
+    // a read is a read: no card is marked shown, so no slot is used
+    expect(stamped()).toHaveLength(0);
+    expect(first.result.cards.every((c) => !c.shown)).toBe(true);
+    expect(recordActivation).not.toHaveBeenCalled();
+  });
+
+  it("a read-scope token cannot use up the day's slots", async () => {
+    for (let i = 0; i < 4; i += 1) await seedIdea({ title: `Idea ${i}` });
+    for (let i = 0; i < 5; i += 1) await cards();
+    expect(stamped()).toHaveLength(0);
+    const viewer = await runOp<Cards>(
+      "idea.cards",
+      { visibleTasks: 8 },
+      { ...opts(WorkspaceRole.VIEWER), actor: "mcp" }
+    );
+    expect(viewer.result.cards).toHaveLength(2);
+    expect(stamped()).toHaveLength(0);
+    // and marking shown needs write access
+    await expect(
+      runOp(
+        "idea.shown",
+        { taskId: viewer.result.cards[0].id },
+        { ...opts(WorkspaceRole.VIEWER), actor: "mcp" }
+      )
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("marks a card shown: it counts against the day and records idea_shown once", async () => {
+    await seedIdea({ title: "A private title", ideaSource: "converted" });
+    const first = (await cards()).result.cards[0];
+    const out = await shown(first.id, { position: first.after });
+    expect(out.result.shown).toBe(true);
+    expect(iso(taskRow(db, first.id).ideaLastShownAt)).toBe(NOW.toISOString());
+    const calls = jest.mocked(recordActivation).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(calls[0][0]).toBe("idea_shown");
+    expect(calls[0][2]).toEqual({ source: "converted", position: 2 });
+    expect(JSON.stringify(calls)).not.toContain("private");
+    // a second call the same day changes nothing and records nothing
+    const again = await shown(first.id, { position: first.after });
+    expect(again.result).toMatchObject({ shown: true, reason: "already" });
+    expect(jest.mocked(recordActivation)).toHaveBeenCalledTimes(1);
+    // and the card now says so
+    expect((await cards()).result.cards[0].shown).toBe(true);
+  });
+
+  it("the same 2 cards after one is marked shown, in the same order", async () => {
+    for (let i = 0; i < 6; i += 1) await seedIdea({ title: `Idea ${i}` });
+    const first = (await cards()).result.cards.map((c) => c.id);
+    await shown(first[1]);
+    expect((await cards()).result.cards.map((c) => c.id)).toEqual(first);
+    await shown(first[0]);
+    expect((await cards()).result.cards.map((c) => c.id)).toEqual(first);
+  });
+
+  it("refuses a third card: the day's 2 are used", async () => {
+    const ideas = [];
+    for (let i = 0; i < 3; i += 1)
+      ideas.push(await seedIdea({ title: `I${i}` }));
+    await shown(ideas[0].id);
+    await shown(ideas[1].id);
+    await expect(shown(ideas[2].id)).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+    expect(stamped()).toHaveLength(2);
+  });
+
+  it("refuses an idea that is snoozed or archived, and a task", async () => {
+    const snoozed = await seedIdea({
+      ideaSnoozedUntil: new Date(NOW.getTime() + DAY),
+    });
+    const archived = await seedIdea({ isArchived: true });
+    const task = await seedTask(db);
+    for (const t of [snoozed, archived]) {
+      await expect(shown(t.id)).rejects.toMatchObject({ code: "CONFLICT" });
+    }
+    await expect(shown(task.id)).rejects.toBeInstanceOf(OpError);
+    expect(stamped()).toHaveLength(0);
+  });
+
+  it("marking shown does nothing when idea cards are off", async () => {
+    jest.mocked(ideaCardsEnabled).mockResolvedValue(false);
+    const idea = await seedIdea();
+    const out = await shown(idea.id);
+    expect(out.result).toMatchObject({ shown: false, reason: "off" });
+    expect(stamped()).toHaveLength(0);
+    expect(recordActivation).not.toHaveBeenCalled();
   });
 
   it("gives each card its project, its minutes and a position hint", async () => {
@@ -659,15 +792,6 @@ describe("idea.cards", () => {
     await seedIdea({ title: "B" });
     const few = await cards({ visibleTasks: 1 });
     expect(few.result.cards.map((c) => c.after)).toEqual([1, 1]);
-
-    mockState.db = createFakePrisma();
-    db = mockState.db;
-    await db.seed("userSettings", {
-      userId: OWNER_ID,
-      timeZone: "Europe/Zurich",
-    });
-    await seedIdea({ title: "A" });
-    await seedIdea({ title: "B" });
     const empty = await cards({ visibleTasks: 0 });
     expect(empty.result.cards).toHaveLength(1);
     expect(empty.result.cards[0].after).toBe(0);
@@ -703,20 +827,21 @@ describe("idea.cards", () => {
     expect(out.result.cards.map((c) => c.id)).not.toContain(fresh.id);
   });
 
-  it("skipping one of the 2 does not open a third", async () => {
+  it("skipping a shown card does not open a third", async () => {
     for (let i = 0; i < 5; i += 1) await seedIdea({ title: `Idea ${i}` });
     const first = await cards();
+    for (const card of first.result.cards) await shown(card.id);
     await run("idea.skip", { taskId: first.result.cards[0].id });
     const after = await cards();
     expect(after.result.cards.map((c) => c.id)).toEqual([
       first.result.cards[1].id,
     ]);
-    expect(after.result.cards).toHaveLength(1);
   });
 
-  it("taking one does not open a third either", async () => {
+  it("taking a shown card does not open a third either", async () => {
     for (let i = 0; i < 5; i += 1) await seedIdea({ title: `Idea ${i}` });
     const first = await cards();
+    for (const card of first.result.cards) await shown(card.id);
     await run("idea.take", { taskId: first.result.cards[0].id });
     const after = await cards();
     expect(after.result.cards).toHaveLength(1);
@@ -726,6 +851,7 @@ describe("idea.cards", () => {
   it("the next day picks the 2 least recently shown, not yesterday's", async () => {
     for (let i = 0; i < 6; i += 1) await seedIdea({ title: `Idea ${i}` });
     const monday = (await cards()).result.cards.map((c) => c.id);
+    for (const id of monday) await shown(id);
     setClock(new Date(NOW.getTime() + DAY));
     const tuesday = (await cards()).result.cards.map((c) => c.id);
     expect(tuesday).toHaveLength(2);
@@ -737,11 +863,11 @@ describe("idea.cards", () => {
       title: "Snoozed",
       ideaSnoozedUntil: new Date(NOW.getTime() + 3 * DAY),
     });
-    const none = await cards();
-    expect(none.result.cards).toHaveLength(0);
+    expect((await cards()).result.cards).toHaveLength(0);
     setClock(new Date(NOW.getTime() + 8 * DAY));
-    const back = await cards();
-    expect(back.result.cards.map((c) => c.title)).toEqual(["Snoozed"]);
+    expect((await cards()).result.cards.map((c) => c.title)).toEqual([
+      "Snoozed",
+    ]);
   });
 
   it("an archived idea (3 skips) is never chosen", async () => {
@@ -751,18 +877,16 @@ describe("idea.cards", () => {
 
   it("none when the person has no ideas", async () => {
     await seedTask(db);
-    const out = await cards();
-    expect(out.result).toMatchObject({ cards: [], none: "no_ideas" });
+    expect((await cards()).result).toMatchObject({
+      cards: [],
+      none: "no_ideas",
+    });
   });
 
-  it("none, and no stamp, when idea cards are off", async () => {
+  it("none when idea cards are off; the ideas stay listable", async () => {
     jest.mocked(ideaCardsEnabled).mockResolvedValue(false);
     await seedIdea();
-    const out = await cards();
-    expect(out.result).toMatchObject({ cards: [], none: "off" });
-    expect(db.tables.task.filter((r) => r.ideaLastShownAt)).toHaveLength(0);
-    expect(recordActivation).not.toHaveBeenCalled();
-    // the idea itself stays and can still be listed
+    expect((await cards()).result).toMatchObject({ cards: [], none: "off" });
     const listed = await run<{ ideas: unknown[] }>("idea.list", {});
     expect(listed.result.ideas).toHaveLength(1);
   });
@@ -770,46 +894,142 @@ describe("idea.cards", () => {
   it("none on the evening review and the day plan", async () => {
     await seedIdea();
     for (const surface of ["review", "plan"]) {
-      const out = await cards({ surface });
-      expect(out.result).toMatchObject({ cards: [], none: "surface" });
+      expect((await cards({ surface })).result).toMatchObject({
+        cards: [],
+        none: "surface",
+      });
     }
-    expect(db.tables.task.filter((r) => r.ideaLastShownAt)).toHaveLength(0);
   });
 
   it("none for another day than the person's today", async () => {
     await seedIdea();
-    const out = await cards({ day: "2026-11-22" });
-    expect(out.result).toMatchObject({ cards: [], none: "other_day" });
+    expect((await cards({ day: "2026-11-22" })).result).toMatchObject({
+      cards: [],
+      none: "other_day",
+    });
   });
 
   it("uses the person's day, not UTC's", async () => {
-    await seedIdea({ title: "Late" });
+    const idea = await seedIdea({ title: "Late" });
     // 23:30 UTC on Monday is already Tuesday in Zurich
     setClock(new Date("2026-11-23T23:30:00.000Z"));
     const out = await cards();
     expect(out.result.day).toBe("2026-11-24");
-    expect(
-      iso(db.tables.task.find((r) => r.title === "Late")?.ideaLastShownAt)
-    ).toBe("2026-11-23T23:30:00.000Z");
+    await shown(idea.id);
+    expect(iso(taskRow(db, idea.id).ideaLastShownAt)).toBe(
+      "2026-11-23T23:30:00.000Z"
+    );
     expect(TODAY_START).toBe("2026-11-22T23:00:00.000Z");
-  });
-
-  it("records idea_shown with a source and a position, never the title", async () => {
-    await seedIdea({ title: "A private title", ideaSource: "converted" });
-    await cards();
-    const calls = jest.mocked(recordActivation).mock.calls;
-    expect(calls).toHaveLength(1);
-    expect(calls[0][0]).toBe("idea_shown");
-    expect(calls[0][2]).toEqual({ source: "converted", position: 2 });
-    expect(JSON.stringify(calls)).not.toContain("private");
-    // a second read shows nothing new, so records nothing new
-    await cards();
-    expect(jest.mocked(recordActivation)).toHaveBeenCalledTimes(1);
   });
 
   it("reads only the person's own ideas", async () => {
     await seedIdea({ userId: "someone-else", assigneeId: "someone-else" });
     expect((await cards()).result.cards).toHaveLength(0);
+  });
+});
+
+describe("ideas are personal", () => {
+  const OTHER = "someone-else";
+  const theirs = () =>
+    seedIdea({ title: "Theirs", userId: OTHER, assigneeId: OTHER });
+
+  it("another member's idea is not found, read, edited, taken, skipped or converted", async () => {
+    const idea = await theirs();
+    for (const [name, input] of [
+      ["task.get", { taskId: idea.id }],
+      ["task.update", { taskId: idea.id, title: "Mine now" }],
+      ["idea.take", { taskId: idea.id }],
+      ["idea.skip", { taskId: idea.id }],
+      ["idea.convert", { taskId: idea.id, to: "task" }],
+      ["idea.shown", { taskId: idea.id }],
+    ] as const) {
+      await expect(run(name, input)).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+    }
+    expect(taskRow(db, idea.id)).toMatchObject({
+      title: "Theirs",
+      kind: "IDEA",
+    });
+  });
+
+  it("task.list kind idea and any show only the caller's own ideas", async () => {
+    await theirs();
+    const mine = await seedIdea({ title: "Mine" });
+    await seedTask(db, { title: "Real task" });
+    const ideas = await run<{ tasks: { id: string }[] }>("task.list", {
+      kind: "idea",
+    });
+    expect(ideas.result.tasks.map((t) => t.id)).toEqual([mine.id]);
+    const any = await run<{ tasks: { title: string }[] }>("task.list", {
+      kind: "any",
+    });
+    expect(any.result.tasks.map((t) => t.title).sort()).toEqual([
+      "Mine",
+      "Real task",
+    ]);
+  });
+
+  it("idea.list shows only the caller's own", async () => {
+    await theirs();
+    const mine = await seedIdea({ title: "Mine" });
+    const listed = await run<{ ideas: { id: string }[] }>("idea.list", {
+      state: "all",
+    });
+    expect(listed.result.ideas.map((i) => i.id)).toEqual([mine.id]);
+  });
+});
+
+describe("a task that others wait on is not an idea", () => {
+  it("refuses a task another task depends on", async () => {
+    const blocker = await seedTask(db, { title: "Read the spec" });
+    await seedTask(db, { title: "Build it", dependsOnId: blocker.id });
+    await expect(
+      run("idea.convert", { taskId: blocker.id, to: "idea" })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(taskRow(db, blocker.id).kind).toBe("TASK");
+  });
+
+  it("refuses a task that blocks another through a dependency edge or a project blocker", async () => {
+    const edge = await seedTask(db, { title: "Watch the demo" });
+    const blocked = await seedTask(db, { title: "Ship" });
+    await db.seed("taskDependency", {
+      blockerTaskId: edge.id,
+      blockedTaskId: blocked.id,
+      removedAt: null,
+    });
+    await expect(
+      run("idea.convert", { taskId: edge.id, to: "idea" })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    const projectBlock = await seedTask(db, { title: "Read the brief" });
+    await db.seed("projectBlocker", {
+      blockerTaskId: projectBlock.id,
+      resolvedAt: null,
+    });
+    await expect(
+      run("idea.convert", { taskId: projectBlock.id, to: "idea" })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+  });
+
+  it("a finished dependent, a removed edge or a resolved blocker do not count", async () => {
+    const blocker = await seedTask(db, { title: "Read the spec" });
+    await seedTask(db, {
+      title: "Done",
+      dependsOnId: blocker.id,
+      status: "completed",
+    });
+    const blocked = await seedTask(db, { title: "Ship", status: "completed" });
+    await db.seed("taskDependency", {
+      blockerTaskId: blocker.id,
+      blockedTaskId: blocked.id,
+      removedAt: null,
+    });
+    await db.seed("projectBlocker", {
+      blockerTaskId: blocker.id,
+      resolvedAt: NOW,
+    });
+    await run("idea.convert", { taskId: blocker.id, to: "idea" });
+    expect(taskRow(db, blocker.id).kind).toBe("IDEA");
   });
 });
 

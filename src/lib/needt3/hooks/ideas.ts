@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -35,6 +35,14 @@ interface Written<T> {
  * with where it went and an `undo()` that turns it back into an idea. `skip(id)`
  * hides the idea for 7 days (the 3rd skip archives it). Both remove the card at
  * once and refresh the task lists.
+ *
+ * Reading the cards writes nothing on the server. Call `markShown(card)` when a
+ * card is actually drawn on screen (an effect on mount, or when it scrolls into
+ * view): that is what counts it against the day's two and records `idea_shown`.
+ * It is safe to call on every render of the same card: each id is sent once per
+ * page load, and a card with `shown: true` is not sent at all. A refusal (the
+ * day's two are used, the idea was snoozed meanwhile) is swallowed; the next read
+ * simply no longer returns the card.
  */
 export function useIdeaCards(
   options: {
@@ -98,6 +106,34 @@ export function useIdeaCards(
     [qc, refresh]
   );
 
+  const sent = useRef(new Set<string>());
+  const markShown = useCallback(
+    async (card: Pick<IdeaCardData, "id" | "after" | "shown">) => {
+      if (card.shown || sent.current.has(card.id)) return;
+      sent.current.add(card.id);
+      try {
+        await sendJson(`/api/ideas/${card.id}/shown`, "POST", {
+          position: card.after,
+        });
+        qc.setQueriesData<IdeaCardsResponse>({ queryKey: key }, (data) =>
+          data
+            ? {
+                ...data,
+                cards: data.cards.map((c) =>
+                  c.id === card.id ? { ...c, shown: true } : c
+                ),
+              }
+            : data
+        );
+      } catch {
+        // Refused (the day's two are used, snoozed meanwhile) or offline: the
+        // card is not counted and not retried this page load; a later read
+        // decides what is shown.
+      }
+    },
+    [qc, key]
+  );
+
   const takeMutation = useMutation({
     mutationFn: (id: string) =>
       sendJson<Written<IdeaTakeResult>>(`/api/ideas/${id}/take`, "POST"),
@@ -124,6 +160,8 @@ export function useIdeaCards(
     /** Why there are none, when there are none. */
     none: cardsQuery.data?.none,
     loading: cardsQuery.isLoading,
+    /** The screen drew this card: counts it against the day's two, once. */
+    markShown,
     /** Take: the idea becomes a task, placed now. Resolves with the result and its `actionId`. */
     take: (id: string) => takeMutation.mutateAsync(id),
     /** Skip: hidden for 7 days. Resolves with its `actionId`. */

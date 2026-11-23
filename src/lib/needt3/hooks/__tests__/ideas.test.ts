@@ -17,7 +17,7 @@ jest.mock("@/lib/notifications", () => ({
 
 type Hook = ReturnType<typeof useIdeaCards>;
 
-const card = (id: string, after: number) => ({
+const card = (id: string, after: number, shown = false) => ({
   id,
   title: `Idea ${id}`,
   icon: null,
@@ -28,6 +28,7 @@ const card = (id: string, after: number) => ({
   source: "user",
   skipCount: 0,
   after,
+  shown,
 });
 
 const fetchMock = jest.fn();
@@ -133,6 +134,60 @@ describe("useIdeaCards", () => {
     });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(hook().cards).toEqual([]);
+    unmount();
+  });
+
+  it("markShown posts once per card with its position, and never for one already shown", async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.endsWith("/shown")
+        ? json({ result: { shown: true }, actionId: "a" })
+        : json({
+            result: {
+              day: "2026-11-23",
+              cards: [card("a", 2), card("b", 5, true)],
+            },
+          })
+    );
+    const { hook, unmount } = await mount(new QueryClient());
+    // reading the cards sent nothing but the read itself
+    expect(fetchMock.mock.calls.map((c) => c[0])).toEqual(["/api/ideas/cards"]);
+    const [a, b] = hook().cards;
+    await act(async () => {
+      await hook().markShown(a);
+      await hook().markShown(a);
+      await hook().markShown(b);
+    });
+    await tick();
+    const posts = fetchMock.mock.calls.filter(([url]) =>
+      String(url).endsWith("/shown")
+    );
+    expect(posts).toHaveLength(1);
+    expect(posts[0][0]).toBe("/api/ideas/a/shown");
+    expect(JSON.parse(posts[0][1].body)).toEqual({ position: 2 });
+    expect(hook().cards.find((c) => c.id === "a")?.shown).toBe(true);
+    unmount();
+  });
+
+  it("a refused markShown is swallowed and not retried", async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.endsWith("/shown")
+        ? {
+            ok: false,
+            status: 409,
+            statusText: "Conflict",
+            text: async () => '{"error":"The day\'s cards are already shown"}',
+          }
+        : json({ result: { day: "2026-11-23", cards: [card("a", 2)] } })
+    );
+    const { hook, unmount } = await mount(new QueryClient());
+    const a = hook().cards[0];
+    await act(async () => {
+      await hook().markShown(a);
+      await hook().markShown(a);
+    });
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/shown"))
+    ).toHaveLength(1);
     unmount();
   });
 

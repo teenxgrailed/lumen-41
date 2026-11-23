@@ -1,6 +1,5 @@
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
-import { recordActivation } from "@/lib/activation-events";
 import { newDate } from "@/lib/date-utils";
 import { ideaCardsEnabled } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
@@ -30,6 +29,8 @@ export interface IdeaCard {
   skipCount: number;
   /** Sits after this many visible tasks (0 = the only row). */
   after: number;
+  /** Already marked shown today (`idea.shown`); the screen marks the rest when it draws them. */
+  shown: boolean;
 }
 
 export interface IdeaCardsResult {
@@ -46,9 +47,9 @@ const OPEN = ["todo", "in_progress"];
 
 /**
  * The cards for today: at most two ideas per local day, least recently shown
- * first, never-shown first. Reading stamps `ideaLastShownAt`, so a second read
- * (or another device) the same day returns the same ones, and a skipped or
- * taken card still counts against the day.
+ * first, never-shown first. A read writes nothing (a token with read scope cannot
+ * use up the day's slots); the screen marks a card shown with `idea.shown` when it
+ * draws it, and a skipped or taken card still counts against the day.
  *
  * Never throws for "nothing to show": it answers with an empty list and why.
  */
@@ -104,70 +105,49 @@ export async function readIdeaCards(input: {
       },
     }));
 
-  // Two readers (two devices) at once must not both pick: one at a time per
-  // person, and the second sees the first one's stamps.
-  const cards = await prisma.$transaction(async (tx) => {
-    await tx.$executeRaw(
-      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`idea-cards:${input.userId}`}, 0))`
-    );
-    // Every idea shown today counts, a taken or skipped one included.
-    const stamped = await tx.task.count({
-      where: { userId: input.userId, ...shownToday },
-    });
-    const open = await tx.task.findMany({
-      where: { ...own, kind: "IDEA", ...shownToday, ...offered },
-      orderBy: [
-        { ideaLastShownAt: "asc" },
-        { createdAt: "asc" },
-        { id: "asc" },
-      ],
-    });
-    const slots = cardSlots({ stampedToday: stamped, visibleTasks });
-    let fresh: typeof open = [];
-    if (slots > 0) {
-      const base = {
-        ...own,
-        kind: "IDEA" as const,
-        ...offered,
-      };
-      // Never shown first, then the one shown longest ago.
-      const never = await tx.task.findMany({
-        where: { ...base, ideaLastShownAt: null },
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        take: slots,
-      });
-      const older =
-        never.length < slots
-          ? await tx.task.findMany({
-              where: { ...base, ideaLastShownAt: { lt: today.start } },
-              orderBy: [
-                { ideaLastShownAt: "asc" },
-                { createdAt: "asc" },
-                { id: "asc" },
-              ],
-              take: slots - never.length,
-            })
-          : [];
-      // One order however they were found, so a second read sorts the same.
-      fresh = [...never, ...older].sort(
-        (a, b) =>
-          a.createdAt.getTime() - b.createdAt.getTime() ||
-          a.id.localeCompare(b.id)
-      );
-      if (fresh.length) {
-        await tx.task.updateMany({
-          where: { id: { in: fresh.map((idea) => idea.id) }, kind: "IDEA" },
-          data: { ideaLastShownAt: now },
-        });
-      }
-    }
-    return { open, fresh };
+  // Reading never writes: it only says which ideas are today's cards. Those
+  // already marked shown today (`idea.shown`, which the screen calls when a card
+  // is actually displayed) come first; the rest of the day's slots go to the
+  // least recently shown, never-shown first, in one fixed order, so a second
+  // read (or another device) names the same cards until something changes.
+  // Every idea marked shown today counts, a taken or skipped one included.
+  const stamped = await prisma.task.count({
+    where: { userId: input.userId, ...shownToday },
   });
-
-  const picked = [
-    ...cards.open,
-    ...cards.fresh.map((idea) => ({ ...idea, ideaLastShownAt: now })),
-  ];
+  const open = await prisma.task.findMany({
+    where: { ...own, kind: "IDEA", ...shownToday, ...offered },
+  });
+  const slots = cardSlots({ stampedToday: stamped, visibleTasks });
+  let fresh: typeof open = [];
+  if (slots > 0) {
+    const base = { ...own, kind: "IDEA" as const, ...offered };
+    // Never shown first, then the one shown longest ago.
+    const never = await prisma.task.findMany({
+      where: { ...base, ideaLastShownAt: null },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      take: slots,
+    });
+    const older =
+      never.length < slots
+        ? await prisma.task.findMany({
+            where: { ...base, ideaLastShownAt: { lt: today.start } },
+            orderBy: [
+              { ideaLastShownAt: "asc" },
+              { createdAt: "asc" },
+              { id: "asc" },
+            ],
+            take: slots - never.length,
+          })
+        : [];
+    fresh = [...never, ...older];
+  }
+  const shownIds = new Set(open.map((idea) => idea.id));
+  // One order however the cards were found, and whether or not they were marked
+  // shown yet, so the positions do not move when the screen marks one.
+  const picked = [...open, ...fresh].sort(
+    (a, b) =>
+      a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id)
+  );
   if (picked.length === 0) {
     const any = await prisma.task.count({
       where: { ...own, kind: "IDEA", isArchived: false, trashedAt: null },
@@ -201,21 +181,13 @@ export async function readIdeaCards(input: {
       source: idea.ideaSource ?? "user",
       skipCount: idea.ideaSkipCount ?? 0,
       after: cardAfter(index, visibleTasks),
+      shown: shownIds.has(idea.id),
     };
   });
 
-  // One event per card newly shown, by short kinds only: never the title.
-  for (const card of result) {
-    if (cards.fresh.some((idea) => idea.id === card.id)) {
-      recordActivation("idea_shown", input.userId, {
-        source: card.source,
-        position: card.after,
-      });
-    }
-  }
   logger.debug(
     "Idea cards read",
-    { userId: input.userId, cards: result.length, fresh: cards.fresh.length },
+    { userId: input.userId, cards: result.length, shown: shownIds.size },
     LOG_SOURCE
   );
   return { day: today.key, cards: result };

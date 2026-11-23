@@ -80,11 +80,16 @@ describe("GET /api/tasks", () => {
 
   it("lists ideas, or both, when asked", async () => {
     await get("?kind=idea");
-    expect(whereOf().kind).toBe("IDEA");
+    // only the caller's own ideas: an idea is personal
+    expect(whereOf()).toMatchObject({ kind: "IDEA", userId: "user-1" });
     jest.clearAllMocks();
     task.findMany.mockResolvedValue([]);
     await get("?kind=any");
     expect(whereOf()).not.toHaveProperty("kind");
+    expect(whereOf().NOT).toEqual({
+      kind: "IDEA",
+      userId: { not: "user-1" },
+    });
   });
 
   it("an unknown kind is the default, tasks", async () => {
@@ -105,7 +110,7 @@ describe("GET /api/connect/tasks", () => {
     jest.clearAllMocks();
     task.findMany.mockResolvedValue([]);
     await get("?kind=idea");
-    expect(whereOf().kind).toBe("IDEA");
+    expect(whereOf()).toMatchObject({ kind: "IDEA", userId: "user-1" });
   });
 });
 

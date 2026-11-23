@@ -1,17 +1,25 @@
+import { getPlanSettings } from "@/services/day-plan/settings";
 import { queueEasyStart } from "@/services/easy-start/queue";
-import { DAY_TASK_LIMIT } from "@/services/easy-start/rules";
 import { readIdeaCards } from "@/services/ideas/cards";
-import { TAKE_DEFAULT_MINUTES, skipResult } from "@/services/ideas/rules";
+import {
+  CARDS_PER_DAY,
+  TAKE_DEFAULT_MINUTES,
+  isOffered,
+  localDay,
+  skipResult,
+} from "@/services/ideas/rules";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import {
   SPREAD_DEFAULT_DAYS,
   spreadAcrossDays,
 } from "@/services/scheduling/spread";
 import { loadSpreadDays } from "@/services/scheduling/spread-capacity";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { recordActivation } from "@/lib/activation-events";
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
+import { ideaCardsEnabled } from "@/lib/feature-flags";
 import { logger } from "@/lib/logger";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
 import { ideaWhere, openTaskWhere } from "@/lib/tasks/open-task";
@@ -114,14 +122,14 @@ export const ideaList = defineOp({
 });
 
 /**
- * The cards for a local day. Reading stamps the ideas it returns as shown, so
- * the same day gives the same cards on every device (it is a read for roles and
- * logs, but it keeps this one bookkeeping column).
+ * The cards for a local day. A pure read: it writes nothing, so a read-scope
+ * token cannot use up the day's two slots. The screen marks a card shown with
+ * `idea.shown` when it draws it.
  */
 export const ideaCards = defineOp({
   name: "idea.cards",
   description:
-    "The idea cards to show now: at most 2 per local day, least recently shown first, each with an `after` hint (how many visible tasks it sits after). Reading marks them shown, so the same day returns the same cards. None when idea cards are off, on the evening review or day plan screens, or when there are no ideas.",
+    "The idea cards to show now: at most 2 per local day, least recently shown first, each with an `after` hint (how many visible tasks it sits after). Reading writes nothing and names the same cards until something changes; call idea.shown for a card the screen actually displays. None when idea cards are off, on the evening review or day plan screens, or when there are no ideas.",
   risk: "read",
   input: z
     .object({
@@ -202,6 +210,79 @@ export const ideaConvert = defineOp({
   },
 });
 
+/**
+ * A card was displayed: it counts against the day's two. Idempotent for the
+ * day (a second call changes nothing and records nothing). Refused when the
+ * day's two are already used by other ideas, when the idea is snoozed,
+ * archived or trashed, and a no-op when idea cards are off.
+ */
+export const ideaShown = defineOp({
+  name: "idea.shown",
+  description:
+    "Mark an idea card as displayed now: it counts against the day's 2 cards and records idea_shown once. Idempotent for the day; refused (conflict) when 2 other ideas were already shown today or the idea is snoozed or archived. Not undoable.",
+  risk: "reversible",
+  input: z
+    .object({
+      taskId,
+      /** The card's `after` hint, for the measurement. */
+      position: z.number().int().min(0).max(50).optional(),
+    })
+    .strict(),
+  async run(ctx, input) {
+    const idea = await findIdea(ctx, input.taskId);
+    const now = newDate();
+    const timeZone = await userTimeZone(ctx.tx, ctx.userId);
+    const today = localDay(now, timeZone);
+    const noChange = (shown: boolean, reason?: string) => ({
+      result: { shown, ...(reason ? { reason } : {}), taskId: idea.id },
+    });
+    if (!(await ideaCardsEnabled(ctx.userId))) return noChange(false, "off");
+    if (!isOffered(idea, now)) {
+      throw new OpError("CONFLICT", "That idea is not offered now");
+    }
+    // One reader at a time per person, so two screens cannot both take the
+    // last slot.
+    await ctx.tx.$executeRaw(
+      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`idea-cards:${ctx.userId}`}, 0))`
+    );
+    const already =
+      !!idea.ideaLastShownAt &&
+      idea.ideaLastShownAt >= today.start &&
+      idea.ideaLastShownAt < today.end;
+    if (already) return noChange(true, "already");
+    const stamped = await ctx.tx.task.count({
+      where: {
+        userId: ctx.userId,
+        ideaLastShownAt: { gte: today.start, lt: today.end },
+      },
+    });
+    if (stamped >= CARDS_PER_DAY) {
+      throw new OpError("CONFLICT", "The day's cards are already shown");
+    }
+    const updated = await ctx.tx.task.update({
+      where: { id: idea.id },
+      data: { ideaLastShownAt: now },
+      select: { id: true, updatedAt: true },
+    });
+    return {
+      result: { shown: true, taskId: idea.id },
+      before: null,
+      // Bookkeeping, nothing to undo.
+      inverse: null,
+      touched: [touched("task", updated, idea)],
+      afterCommit: [
+        () =>
+          recordActivation("idea_shown", ctx.userId, {
+            source: idea.ideaSource ?? "user",
+            ...(input.position !== undefined
+              ? { position: input.position }
+              : {}),
+          }),
+      ],
+    };
+  },
+});
+
 export const ideaSkip = defineOp({
   name: "idea.skip",
   description:
@@ -257,7 +338,7 @@ export const ideaSkip = defineOp({
 /**
  * Take: the idea becomes a task and the scheduler places it now. The first free
  * slot today from the current time; when today has no room (the working day is
- * over, or the day already holds as many tasks as the day limit) it goes to the
+ * over, or the day already holds as many tasks as the person's own day limit) it goes to the
  * first later day with room, held there by the scheduler's not-before date. It
  * is placed, never given a due date. The scheduler owns its own transactions,
  * so this op is not transactional (as `schedule.auto`): the flip is one write,
@@ -301,6 +382,8 @@ export const ideaTake = defineOp({
         ],
       },
     });
+    // The person's own day limit (Plan settings), not a fixed number.
+    const { taskLimit } = await getPlanSettings(ctx.userId);
     const days = (
       await loadSpreadDays({
         userId: ctx.userId,
@@ -312,9 +395,7 @@ export const ideaTake = defineOp({
         exclude: new Set([task.id]),
       })
     ).map((day) =>
-      day.date === today && onToday >= DAY_TASK_LIMIT
-        ? { ...day, free: 0 }
-        : day
+      day.date === today && onToday >= taskLimit ? { ...day, free: 0 } : day
     );
     const plan = spreadAcrossDays([{ id: task.id, minutes }], days);
     const day = plan.placed[0]?.date ?? null;
@@ -432,6 +513,7 @@ export const ideaTake = defineOp({
 export const ideaOps = [
   ideaList,
   ideaCards,
+  ideaShown,
   ideaCreate,
   ideaConvert,
   ideaSkip,

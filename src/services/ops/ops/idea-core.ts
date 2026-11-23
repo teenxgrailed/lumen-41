@@ -228,6 +228,34 @@ export async function convertTask(
     throw new OpError("CONFLICT", "The task is in the day plan");
   }
 
+  // Something still waits on it: it is work, not an optional thing.
+  const [dependents, edges, projectBlocks] = await Promise.all([
+    ctx.tx.task.count({
+      where: {
+        dependsOnId: task.id,
+        status: { not: "completed" },
+        isArchived: false,
+        trashedAt: null,
+      },
+    }),
+    ctx.tx.taskDependency.count({
+      where: {
+        blockerTaskId: task.id,
+        removedAt: null,
+        blocked: { status: { not: "completed" }, isArchived: false },
+      },
+    }),
+    ctx.tx.projectBlocker.count({
+      where: { blockerTaskId: task.id, resolvedAt: null },
+    }),
+  ]);
+  if (dependents + edges + projectBlocks > 0) {
+    throw new OpError(
+      "CONFLICT",
+      "Other tasks are waiting on this task. Remove that dependency first."
+    );
+  }
+
   const keys = [
     ...Object.keys(TO_IDEA),
     "ideaSource",

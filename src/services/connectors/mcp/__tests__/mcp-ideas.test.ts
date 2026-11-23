@@ -199,6 +199,15 @@ describe("MCP idea tools", () => {
     expect(await titles()).toEqual(["Real task"]);
     expect(await titles({ kind: "idea" })).toEqual(["An idea"]);
     expect(await titles({ kind: "any" })).toEqual(["An idea", "Real task"]);
+    // another member's idea is never listed
+    await mockState.db.seed("task", {
+      title: "Theirs",
+      kind: "IDEA",
+      userId: "user-2",
+      workspaceId: "personal-1",
+    });
+    expect(await titles({ kind: "idea" })).toEqual(["An idea"]);
+    expect(await titles({ kind: "any" })).toEqual(["An idea", "Real task"]);
   });
 
   it("needt_update_task with kind converts a task to an idea and back, alone", async () => {

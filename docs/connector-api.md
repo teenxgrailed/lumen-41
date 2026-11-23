@@ -1560,20 +1560,26 @@ refused with `400` and the message "An idea has no due date, deadline, start
 date or schedule"; it is never silently dropped. Setting a date to `null` is
 fine.
 
+An idea is personal: in a shared workspace another member's ideas are never
+listed, read, edited, taken or skipped (they answer `404`). A task other tasks
+wait on (a dependency or a project blocker) cannot be made an idea (`409`).
+
 Task lists (`GET /api/tasks`, `GET /api/connect/tasks`, `task.list`,
-`needt_list`) return **tasks only** unless asked: `kind=idea` or `kind=any`.
+`needt_list`) return **tasks only** unless asked: `kind=idea` or `kind=any`
+(your own ideas only).
 Ideas are left out of every overdue list and count, reminder, nudge and digest,
 the day plan, Always easy start's cap and rewrites, and scheduler capacity.
 
-| Verb                                  | Does                                                                                                                                                                                                           |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/connect/ideas`              | `idea.list`: `state` (`ready`, `snoozed`, `all`), `query`, `limit`, `cursor`                                                                                                                                   |
-| `POST /api/connect/ideas`             | `idea.create`: `title`, `notes`, `projectId`, `goalId`, `tagIds`, `estimateMinutes`, `priority`. Source `agent`                                                                                                |
-| `GET /api/connect/ideas/cards`        | `idea.cards`: the cards for the day (`day`, `surface`, `visibleTasks`). Reading marks them shown, so it is for a screen, not a poll                                                                            |
-| `PATCH /api/connect/ideas/:id`        | Edit an idea (`task.update`); a date is refused                                                                                                                                                                |
-| `POST /api/connect/ideas/:id/take`    | `idea.take`: the idea becomes an open, auto-scheduled task (its estimate, or 30 minutes) placed in the first free slot today from now, or on the first later day with room. No due date. Answers with `placed` |
-| `POST /api/connect/ideas/:id/skip`    | `idea.skip`: hidden for 7 days; the 3rd skip archives it (still listed with `state=all`)                                                                                                                       |
-| `POST /api/connect/ideas/:id/convert` | `idea.convert` with `{ "to": "idea" }` (a task becomes an idea: its due date, schedule, blocks and reminders are cleared) or `{ "to": "task" }` (a plain task, no placement)                                   |
+| Verb                                  | Does                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/connect/ideas`              | `idea.list`: `state` (`ready`, `snoozed`, `all`), `query`, `limit`, `cursor`                                                                                                                                                                                                                                |
+| `POST /api/connect/ideas`             | `idea.create`: `title`, `notes`, `projectId`, `goalId`, `tagIds`, `estimateMinutes`, `priority`. Source `agent`                                                                                                                                                                                             |
+| `GET /api/connect/ideas/cards`        | `idea.cards`: the cards for the day (`day`, `surface`, `visibleTasks`). A pure read: it writes nothing and names the same cards until something changes                                                                                                                                                     |
+| `PATCH /api/connect/ideas/:id`        | Edit an idea (`task.update`); a date is refused                                                                                                                                                                                                                                                             |
+| `POST /api/connect/ideas/:id/take`    | `idea.take`: the idea becomes an open, auto-scheduled task (its estimate, or 30 minutes) placed in the first free slot today from now, or on the first later day with room. No due date. Answers with `placed`                                                                                              |
+| `POST /api/connect/ideas/:id/shown`   | `idea.shown` (`position` optional): a screen displayed this card. It counts against the day's 2 and records `idea_shown` once; a second call the same day changes nothing; refused (`409`) when 2 other ideas were already shown today or the idea is snoozed or archived. Needs write access, not undoable |
+| `POST /api/connect/ideas/:id/skip`    | `idea.skip`: hidden for 7 days; the 3rd skip archives it (still listed with `state=all`)                                                                                                                                                                                                                    |
+| `POST /api/connect/ideas/:id/convert` | `idea.convert` with `{ "to": "idea" }` (a task becomes an idea: its due date, schedule, blocks and reminders are cleared) or `{ "to": "task" }` (a plain task, no placement)                                                                                                                                |
 
 The app's own screens use the same verbs at `/api/ideas/*` with the session.
 Every write answers with `actionId`; `POST /api/agent/actions/:id/undo` reverses

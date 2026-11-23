@@ -202,9 +202,9 @@ describe("project, habit, event, mail and board mapping", () => {
     });
     expect(gone.trashedAt).toBe("2026-11-03T08:00:00.000Z");
     expect(projectFromApi({ id: "x", name: "X" }).trashedAt).toBeNull();
-    expect(projectPatchToApi({ trashedAt: "2026-11-03T08:00:00.000Z" })).toEqual(
-      { trashed: true }
-    );
+    expect(
+      projectPatchToApi({ trashedAt: "2026-11-03T08:00:00.000Z" })
+    ).toEqual({ trashed: true });
     expect(projectPatchToApi({ trashedAt: null })).toEqual({ trashed: false });
   });
 
