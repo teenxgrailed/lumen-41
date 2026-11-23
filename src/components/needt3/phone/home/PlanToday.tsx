@@ -223,10 +223,7 @@ export function PlanToday({
         <div className="dp-group dp-rest" data-day-rest="">
           {parts.map((g) => (
             <section key={g.part} className="dp-part" data-day-part={g.part}>
-              <p className="dp-label">
-                {DAY_PART_LABEL[g.part]}
-                <span>{g.items.length}</span>
-              </p>
+              <p className="dp-label">{DAY_PART_LABEL[g.part]}</p>
               {g.items.map((t) => one(t, "compact"))}
             </section>
           ))}

@@ -413,16 +413,18 @@
  * three files with three radii (12, 18, 26 px: the streak read as a capsule)
  * and three margins. They now share one 14 px radius (a literal: --ha-r-row is
  * only defined inside .ha-phone, and the overdue row sits outside it) and one
- * 12 px gap. A missed streak day is a quiet dot (a field of crosses is noise:
+ * 16 px gap (--ph-grp). A missed streak day is a quiet dot (a field of crosses is noise:
  * the card says how many days in a row, the checks say which). A row's title is
  * the phone row type, 16 px, and may take two lines: 17 px with an ellipsis cut
  * "Watch video tutorial and make two vi…" off at the edge. */
-.needt-v3[data-ui="phone"] .ha-ph-stack { gap: 12px; }
+.needt-v3[data-ui="phone"] .ha-ph-stack { gap: var(--ph-grp); }
+/* the day plan and the cards under it are two sections: one section gap */
+.needt-v3[data-ui="phone"] .dp-list ~ .ha-ph-stack { margin-top: var(--ph-sec); }
 .needt-v3[data-ui="phone"] .ha-ph-stack > .ha-card,
 .needt-v3[data-ui="phone"] .hv2-aux .nd-card,
 .needt-v3[data-ui="phone"] .hv2-late-main { border-radius: 14px; }
-.needt-v3[data-ui="phone"] .hv2-aux .nd-card { margin-bottom: 12px; }
-.needt-v3[data-ui="phone"] .hv2-late { margin: 12px 0; }
+.needt-v3[data-ui="phone"] .hv2-aux .nd-card { margin-bottom: var(--ph-grp); }
+.needt-v3[data-ui="phone"] .hv2-late { margin: var(--ph-grp) 0; }
 .needt-v3[data-ui="phone"] .hv2-late-main { min-height: 44px; padding: 0 16px; }
 .needt-v3[data-ui="phone"] .ha-streak { padding: 12px 16px; }
 .needt-v3[data-ui="phone"] .ha-streak-n { align-items: baseline; }

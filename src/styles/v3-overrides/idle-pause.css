@@ -10,6 +10,15 @@
  * What stays alive: anything that says a wait is in progress (spinners, the
  * shimmer of a skeleton, a progress bar, a streaming caret or thinking dots),
  * because a frozen spinner reads as a hang.
+ *
+ * What is never paused: an entry animation of the phone Today (.dp-rise, the
+ * greeting, the plan rows, the Now plate). They start from opacity 0 and are
+ * over in 0.42 s. A row that mounts while the page is idle (data arriving after
+ * 12 s without a touch, or while the tab is in the background) would otherwise
+ * freeze on its first frame, invisible, and leave its height as an empty gap in
+ * the list until the next touch (23.11.26). No :is() in this list: the build's
+ * prefixer also emits a :-moz-any() copy of the rule, a selector WebKit does not
+ * know, and :where() silently drops it, so the copy paused the rows anyway.
  */
 html[data-needt-idle]
   *:not(
@@ -23,7 +32,12 @@ html[data-needt-idle]
       [class*="progress"],
       [role="progressbar"],
       [aria-busy="true"],
-      [aria-busy="true"] *
+      [aria-busy="true"] *,
+      .dp-rise,
+      .dp-hello,
+      .dp-main > .pk-rw,
+      .dp-part > .pk-rw,
+      .v2p-next
     )
   ),
 html[data-needt-idle]
@@ -38,7 +52,12 @@ html[data-needt-idle]
       [class*="progress"],
       [role="progressbar"],
       [aria-busy="true"],
-      [aria-busy="true"] *
+      [aria-busy="true"] *,
+      .dp-rise,
+      .dp-hello,
+      .dp-main > .pk-rw,
+      .dp-part > .pk-rw,
+      .v2p-next
     )
   )::before,
 html[data-needt-idle]
@@ -53,7 +72,12 @@ html[data-needt-idle]
       [class*="progress"],
       [role="progressbar"],
       [aria-busy="true"],
-      [aria-busy="true"] *
+      [aria-busy="true"] *,
+      .dp-rise,
+      .dp-hello,
+      .dp-main > .pk-rw,
+      .dp-part > .pk-rw,
+      .v2p-next
     )
   )::after {
   animation-play-state: paused !important;

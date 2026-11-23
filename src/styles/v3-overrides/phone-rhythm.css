@@ -1,0 +1,71 @@
+/* Phone rhythm fixes (23.11.26 audit of the phone PWA). Scoped under
+   .needt-v3[data-ui="phone"] or a phone-only class, so desktop is untouched.
+   Rules kept (docs/handoff/PORT.md §0, §6): one ink at ladder alphas · chrome
+   type 13 and 12 px · the accent is never a fill · a label that does not fit is
+   cut to a second line, not given a wider column. The vertical rhythm itself
+   (--ph-sec / --ph-grp / --ph-row) lives in day-plan.css. */
+
+/* ── Easy start: "for: <title>" may take two lines, then the ellipsis ───────
+   tasks.css sets it nowrap with an ellipsis, so a long project or task name cut
+   the line at one ("for: Indie Hackers…"). The row text above it already takes
+   two lines on Today (ha-home.css). */
+.needt-v3[data-ui="phone"] .esr-sub-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* ── Tasks: a row's title takes two lines, as it does on Today ───────────── */
+.needt-v3[data-ui="phone"] [data-pk-screen="tasks"] .pk-row-title {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* ── Tasks: 44 px to hit, the drawn size unchanged ───────────────────────────
+   The tabs are 34 px and the "Move to today" chip 32 px. The hit area is a
+   transparent pseudo-element, the pattern of settings-phone.css. */
+.needt-v3 .ptk-seg-btn,
+.needt-v3 .pk-sec-action .pk-btn.is-chip {
+  position: relative;
+}
+.needt-v3 .ptk-seg-btn::before,
+.needt-v3 .pk-sec-action .pk-btn.is-chip::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 22px);
+  height: 44px;
+}
+
+/* ── Menu, Plan tile: the title, not the time ────────────────────────────────
+   Each line was a check, the start time and the title in a 26 px chip, so a
+   title lost half its width to the time and was cut at "Get FOP d…". The time
+   is gone from the Plan tile (the Plan screen has it); the chip grows to two
+   lines. The Calendar tile keeps its times: there the time is the thing. */
+.needt-v3 .ntm-tile[data-tile="today"] .ntm-chip-row {
+  align-items: flex-start;
+  height: auto;
+  min-height: 26px;
+  padding-block: 5px;
+}
+.needt-v3 .ntm-tile[data-tile="today"] .ntm-check {
+  margin-top: 1.5px;
+}
+.needt-v3 .ntm-tile[data-tile="today"] .ntm-txt {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}

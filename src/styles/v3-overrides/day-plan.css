@@ -10,6 +10,16 @@
    In the sheets the ink follows the plate (--ha-*), so light and dark both
    read whichever way the sheet is themed. */
 
+.needt-v3 {
+  /* Phone Today has ONE vertical rhythm, three values and nothing else:
+     a section (the greeting to the list, the list to the cards) is 24 px, a
+     group (the main tasks, a part of the day, Needs a decision) is 16 px, a
+     row under its neighbour or its label is 8 px. A gap is written once, on the
+     container, never as a sum of the children's own margins. */
+  --ph-sec: 24px;
+  --ph-grp: 16px;
+  --ph-row: 8px;
+}
 .needt-v3 :is(.dp-screen, .dp-sheet) {
   --dp-ink: var(--ha-ink, var(--v2p-ink));
   --dp-ink-2: var(--ha-ink-2, var(--v2p-ink-2));
@@ -61,7 +71,7 @@
 
 /* ── Greeting: two-tone sentence, small icons before the counts ──────────── */
 .needt-v3 .dp-hello {
-  padding: 16px 0 0;
+  padding: var(--ph-grp) 0 0;
 }
 .needt-v3 .dp-sentence {
   margin: 0;
@@ -83,7 +93,7 @@
   color: var(--dp-ink);
 }
 .needt-v3 .dp-stats {
-  margin: 14px 0 0;
+  margin: var(--ph-row) 0 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -99,31 +109,29 @@
 }
 
 /* ── Plan list: same ground, parted from the greeting by air and a hairline ─ */
-.needt-v3 .dp-list {
-  margin-top: 28px;
-  padding-top: 4px;
+.needt-v3 .v2p-day.dp-list {
+  /* the day's own 22 px flex gap is not a rhythm value: the siblings below are
+     spaced once, by the owl rule */
+  gap: 0;
+  margin-top: var(--ph-sec);
+  padding-top: var(--ph-grp);
   border-top: 1px solid var(--dp-line);
 }
-.needt-v3 .dp-group + .dp-group {
-  margin-top: 10px;
+/* every block of the list sits one group below the one before it */
+.needt-v3 .dp-list > * + *,
+.needt-v3 .dp-rest > .dp-part + .dp-part {
+  margin-top: var(--ph-grp);
 }
 .needt-v3 .dp-rest {
   border-top: 1px solid var(--dp-line);
   padding-top: 2px;
 }
+/* a part of the day: a plain 13 px sentence-case label (as every phone section
+   label, ha-home.css 22.11.26), no count over rows that are already on screen */
 .needt-v3 .dp-label {
-  margin: 16px 2px 2px;
-  display: flex;
-  gap: 6px;
-  font: 600 12px/1 var(--font-sans);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  margin: 0 2px var(--ph-row);
+  font: 500 13px/16px var(--font-sans);
   color: var(--dp-ink-2);
-}
-.needt-v3 .dp-label span {
-  letter-spacing: 0;
-  color: var(--dp-ink-3);
-  font-variant-numeric: tabular-nums;
 }
 
 /* main tasks: larger rows with an icon; the rest: compact */
@@ -227,7 +235,6 @@
 
 /* overdue work behind "All tasks": Spread and Move to today, text only */
 .needt-v3 .dp-late {
-  margin-top: 12px;
   border-top: 1px solid var(--dp-line);
   display: flex;
   align-items: center;
@@ -272,7 +279,6 @@
 
 /* the way to the full list and to Someday, one tap */
 .needt-v3 .dp-links {
-  margin-top: 12px;
   border-top: 1px solid var(--dp-line);
   display: flex;
   flex-direction: column;
@@ -550,7 +556,11 @@
 
 /* the plan's rows are cards on the one ground: air between, no hairlines */
 .needt-v3 .dp-list .pk-rw {
-  margin: 0 0 8px;
+  margin: 0 0 var(--ph-row);
+}
+/* the last row of a block leaves the gap to the block, not 8 px and the gap */
+.needt-v3 .dp-list .pk-rw:last-child {
+  margin-bottom: 0;
 }
 .needt-v3 .dp-list .pk-rw-in {
   border-radius: 22px;
