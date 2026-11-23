@@ -136,6 +136,28 @@ describe("calendarItems", () => {
     expect(hidden.doneHidden).toBe(1);
   });
 
+  it("Hide done reports what it removed, by the day each would be drawn on", () => {
+    const tasks = [
+      // drawn by its block on the 2nd although due earlier
+      task({
+        id: "blk",
+        done: true,
+        status: "completed",
+        dueDate: "2026-09-01",
+        scheduledStart: "2026-09-02T09:00",
+      }),
+      // loose on its due day
+      task({ id: "due", done: true, status: "completed", dueDate: today }),
+      task({ id: "open", dueDate: today }),
+    ];
+    const r = calendarItems({ tasks, events: [], today, hideDone: true });
+    expect(r.doneHiddenByDay).toEqual({ "2026-09-02": 1, [today]: 1 });
+    expect(
+      calendarItems({ tasks, events: [], today, hideDone: false })
+        .doneHiddenByDay
+    ).toEqual({});
+  });
+
   it("draws events grey with their calendar's name; own ones are deletable", () => {
     const { timed } = calendarItems({
       tasks: [],

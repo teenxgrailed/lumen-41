@@ -69,7 +69,11 @@ export function menuStatus(id: MenuPlaceId, c: MenuCounts = {}): MenuStatus {
     case "home":
       if (c.overdue)
         return {
-          text: `${c.overdue} overdue · ${c.today ?? 0} left today`,
+          // left today waits for the plan: say only what is known
+          text:
+            c.today === undefined
+              ? `${c.overdue} overdue`
+              : `${c.overdue} overdue · ${c.today} left today`,
           alert: true,
         };
       return c.today === undefined ? sub : { text: `${c.today} left today` };

@@ -508,7 +508,7 @@ describe("Home", () => {
     expect(host.textContent).toContain("Wednesday, 2 September · week 36");
   });
 
-  it("the day's count waits until the plan has answered, then shows", () => {
+  it("the day's count waits until the plan has answered, then shows", async () => {
     client.removeQueries({ queryKey: qk.dayPlan(TODAY) });
     mount(PhoneHome);
     expect(host.querySelector("[data-v2p-count]")).toBeNull();
@@ -521,6 +521,7 @@ describe("Home", () => {
         limitSuggestion: null,
       });
     });
+    await flush();
     expect(q("[data-v2p-count]").getAttribute("data-v2p-count")).toBe("1/3");
   });
 

@@ -128,7 +128,7 @@ export interface DayStats {
   mins: number;
 }
 
-export function dayStats(day: readonly V3Task[], today?: string): DayStats {
+export function dayStats(day: readonly V3Task[], today: string): DayStats {
   const open = day.filter((t) => !t.done);
   return {
     total: day.length,

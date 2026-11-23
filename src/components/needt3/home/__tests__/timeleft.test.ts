@@ -44,6 +44,7 @@ describe("timeLeft", () => {
 
   it("compares planned work with the free time", () => {
     const t = timeLeft({
+      day: "2026-09-01",
       capacity: 240,
       eventsAhead: 60,
       openTasks: [open(60), open(30), { done: true, estimatedMinutes: 500 }],
@@ -82,6 +83,7 @@ describe("timeLeft", () => {
 
   it("warns softly when overbooked", () => {
     const t = timeLeft({
+      day: "2026-09-01",
       capacity: 120,
       eventsAhead: 60,
       openTasks: [open(120)],
@@ -92,6 +94,7 @@ describe("timeLeft", () => {
 
   it("lets personal blocks take from the free time", () => {
     const t = timeLeft({
+      day: "2026-09-01",
       capacity: 240,
       blocked: 120,
       eventsAhead: 0,
@@ -102,13 +105,28 @@ describe("timeLeft", () => {
 
   it("is null on a day off, after work, or with nothing planned", () => {
     expect(
-      timeLeft({ capacity: null, eventsAhead: 0, openTasks: [open(60)] })
+      timeLeft({
+        day: "2026-09-01",
+        capacity: null,
+        eventsAhead: 0,
+        openTasks: [open(60)],
+      })
     ).toBeNull();
     expect(
-      timeLeft({ capacity: 0, eventsAhead: 0, openTasks: [open(60)] })
+      timeLeft({
+        day: "2026-09-01",
+        capacity: 0,
+        eventsAhead: 0,
+        openTasks: [open(60)],
+      })
     ).toBeNull();
     expect(
-      timeLeft({ capacity: 200, eventsAhead: 0, openTasks: [open(null)] })
+      timeLeft({
+        day: "2026-09-01",
+        capacity: 200,
+        eventsAhead: 0,
+        openTasks: [open(null)],
+      })
     ).toBeNull();
   });
 });

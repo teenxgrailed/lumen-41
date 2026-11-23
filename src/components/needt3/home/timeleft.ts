@@ -66,7 +66,7 @@ export function timeLeft(o: {
   blocked?: number;
   eventsAhead: number;
   /** The day the tasks sit on: a block on another day adds no minutes. */
-  day?: string;
+  day: string;
   /** Today's tasks (`daySummary(...).items`); the open ones are counted. */
   openTasks: readonly {
     done: boolean;

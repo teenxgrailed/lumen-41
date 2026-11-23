@@ -202,26 +202,27 @@ export function itemLabel(b: CalItem) {
 
 /**
  * The day heading's second line: "3 planned · 2 h booked · 2 events · 1
- * overlap". "Planned" and "booked" are the TASKS drawn for the day (`tasks`:
- * their count and minutes, the same 30 min rule as the grid), so the line never
- * claims a row that is not there; events are counted apart, so a meeting never
- * makes the tasks look like more. With Hide done on, done tasks are not drawn:
- * `hiddenDone` says how many the line holds back.
+ * overlap". "Planned" and "booked" are the day's TASKS from the one day set
+ * (`daySummary`: Home's count and minutes, done included, the 30 min rule);
+ * events are counted apart, so a meeting never makes the tasks look like more.
+ * `tasks` is null while the day plan has not answered: only the events show.
+ * With Hide done on, `hiddenDone` is how many done tasks it took off the grid
+ * for this day.
  */
 export function dayMeta(
   p: Pick<DayPlan, "timed" | "allDay">,
-  tasks: Pick<DaySummary, "total" | "minutes">,
-  /** Done tasks the Hide done setting keeps out of the rows (not in `tasks`). */
+  tasks: Pick<DaySummary, "total" | "minutes"> | null,
   hiddenDone = 0
 ) {
   const events = [...p.timed, ...p.allDay].filter((b) => b.event).length;
+  const n = tasks?.total ?? 0;
   const parts = [
-    tasks.total ? `${tasks.total} planned` : "",
-    tasks.total && tasks.minutes ? `${cvDur(tasks.minutes)} booked` : "",
+    n ? `${n} planned` : "",
+    n && tasks?.minutes ? `${cvDur(tasks.minutes)} booked` : "",
     events ? `${events} ${events === 1 ? "event" : "events"}` : "",
     hiddenDone ? `${hiddenDone} done hidden` : "",
   ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "Nothing planned";
+  return parts.length ? parts.join(" · ") : tasks ? "Nothing planned" : "";
 }
 
 /** What the event sheet shows for a tapped item (PkEventSheet's `facts`). */

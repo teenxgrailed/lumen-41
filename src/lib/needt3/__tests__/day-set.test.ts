@@ -112,15 +112,17 @@ describe("daySummary: done of total, and minutes", () => {
 
 describe("taskMinutes", () => {
   it("estimate first, else 30 for a task with a time (as the Calendar draws it), else 0", () => {
-    expect(taskMinutes({ estimatedMinutes: 45 })).toBe(45);
+    expect(taskMinutes({ estimatedMinutes: 45 }, TODAY)).toBe(45);
     expect(
-      taskMinutes({
-        estimatedMinutes: null,
-        scheduledStart: "2026-09-02T09:00",
-      })
+      taskMinutes(
+        { estimatedMinutes: null, scheduledStart: `${TODAY}T09:00` },
+        TODAY
+      )
     ).toBe(TIMED_DEFAULT_MINUTES);
-    expect(taskMinutes({ estimatedMinutes: null })).toBe(0);
-    expect(taskMinutes({ estimatedMinutes: 0, scheduledStart: null })).toBe(0);
+    expect(taskMinutes({ estimatedMinutes: null }, TODAY)).toBe(0);
+    expect(
+      taskMinutes({ estimatedMinutes: 0, scheduledStart: null }, TODAY)
+    ).toBe(0);
   });
 
   it("30 only for a block on the counted day: a stale block yesterday adds nothing", () => {
@@ -128,7 +130,6 @@ describe("taskMinutes", () => {
       estimatedMinutes: null,
       scheduledStart: "2026-09-01T19:00",
     };
-    expect(taskMinutes(stale)).toBe(30); // no day given: any valid block
     expect(taskMinutes(stale, TODAY)).toBe(0);
     expect(
       taskMinutes({ ...stale, scheduledStart: `${TODAY}T10:00` }, TODAY)

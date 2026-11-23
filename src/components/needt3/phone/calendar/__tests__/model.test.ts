@@ -144,6 +144,11 @@ describe("dayPlan", () => {
       "5 planned · 2 h 30 min booked"
     );
   });
+  it("while the plan has not answered only events show, never 'Nothing planned'", () => {
+    const p = dayPlan([ev("m", 9, 60)], [], TODAY, TODAY, 9);
+    expect(dayMeta(p, null)).toBe("1 event");
+    expect(dayMeta(dayPlan([], [], TODAY, TODAY, 9), null)).toBe("");
+  });
   it("a day of meetings only is not 'planned' tasks", () => {
     const p = dayPlan([ev("m", 9, 60), ev("n", 11, 30)], [], TODAY, TODAY, 9);
     expect(dayMeta(p, { total: 0, minutes: 0 })).toBe("2 events");

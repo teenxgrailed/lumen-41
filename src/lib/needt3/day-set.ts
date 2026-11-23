@@ -19,10 +19,17 @@
  * - done tasks stay in the set (they are what "x of y" counts), and `done`
  *   says which. A hidden-done view setting never changes a count.
  *
- * Minutes are the task's estimate, else 30 for a task with a time (the length
- * the Calendar draws it at, `taskMinutes` is the one rule), else 0.
+ * Minutes (`taskMinutes`, the one rule): the task's estimate, else 30 when it
+ * has a block on that day (the length the Calendar draws a timed task at),
+ * else 0. Done work counts in the day total; "left" figures use `open*`.
+ *
+ * What reads this set: the phone Home (greeting, "x of y", focus total,
+ * progress, time-left), the Calendar's day line ("planned" and "booked",
+ * events apart) and the menu's Today and Calendar rows. The Calendar's ROWS
+ * and the week/month dots are still drawn from `calendarItems` (a task by its
+ * block or due date), which can differ for a pick with no date; only the
+ * "N done hidden" figure comes from what Hide done really removed.
  */
-import { hourOf } from "./derive";
 import { hourOn, taskDay } from "./task-day";
 import type { DayFields } from "./task-day";
 
@@ -39,17 +46,14 @@ export interface DaySetTask extends DayFields {
 /**
  * Minutes a task takes: its estimate, else 30 when it has a time ON `day` (a
  * stale block on another day is not a time today), else 0. The Calendar draws
- * its blocks with this same rule (`blocks.ts`), so "booked" is what the grid
- * shows. Without `day`, any valid `scheduledStart` is a time.
+ * its timed blocks with this same rule (`blocks.ts`).
  */
 export function taskMinutes(
   t: Pick<DaySetTask, "estimatedMinutes" | "scheduledStart">,
-  day?: string
+  day: string
 ): number {
   if (t.estimatedMinutes && t.estimatedMinutes > 0) return t.estimatedMinutes;
-  const timed =
-    day != null ? hourOn(t, day) != null : hourOf(t.scheduledStart) != null;
-  return timed ? TIMED_DEFAULT_MINUTES : 0;
+  return hourOn(t, day) != null ? TIMED_DEFAULT_MINUTES : 0;
 }
 
 /**

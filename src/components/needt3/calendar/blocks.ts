@@ -60,10 +60,8 @@ function taskItem(
     id: t.id,
     date,
     at,
-    len: taskMinutes({
-      estimatedMinutes: t.estimatedMinutes,
-      scheduledStart: at == null ? null : t.scheduledStart,
-    }),
+    // a drawn block is a timed one: the one rule; a loose row has its estimate
+    len: at == null ? t.estimatedMinutes || 0 : taskMinutes(t, date),
     title: t.title,
     done: t.done,
     project: project(t.projectId, projects)?.name ?? null,
@@ -185,7 +183,20 @@ export function calendarItems({
   const doneHidden = hideDone
     ? live.filter((t) => t.done && (t.scheduledStart || t.dueDate)).length
     : 0;
-  return { timed, loose, doneHidden };
+  // The done tasks Hide done took off the grid, by the day each would have
+  // been drawn on (its block's day, else its due day): what a day line says.
+  const doneHiddenByDay: Record<string, number> = {};
+  if (hideDone)
+    live.forEach((t) => {
+      if (!t.done) return;
+      const at = hourOf(t.scheduledStart);
+      const day =
+        t.scheduledStart && at != null && !t.noSlot
+          ? t.scheduledStart.slice(0, 10)
+          : t.dueDate;
+      if (day) doneHiddenByDay[day] = (doneHiddenByDay[day] ?? 0) + 1;
+    });
+  return { timed, loose, doneHidden, doneHiddenByDay };
 }
 
 /** Title for the Hide done toggle (prototype wording). */
