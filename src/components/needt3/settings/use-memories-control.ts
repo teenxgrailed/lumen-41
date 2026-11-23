@@ -2,27 +2,15 @@
 
 import { useState } from "react";
 
-import {
-  type Memory,
-  useMemories,
-  useMemoryActions,
-} from "@/lib/needt3/hooks/memories";
+import { useMemories, useMemoryActions } from "@/lib/needt3/hooks/memories";
 import { notify } from "@/lib/notifications";
 
-export const SOURCE_LABEL: Record<Memory["source"], string> = {
-  chat: "You told Ask",
-  inferred: "Learned",
-  habit: "Your work habits",
-  document: "Your documents",
-  mail: "Your mail subjects",
-};
-
-export const memoryDay = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+export {
+  SOURCE_LABEL,
+  memoryCaption,
+  memoryDay,
+  memorySourceLabel,
+} from "./memory-labels";
 
 const fail = (error: unknown) =>
   notify.error(

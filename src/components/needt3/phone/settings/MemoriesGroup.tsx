@@ -1,8 +1,7 @@
 "use client";
 
 import {
-  SOURCE_LABEL,
-  memoryDay,
+  memoryCaption,
   useMemoriesControl,
 } from "../../settings/use-memories-control";
 import { PkButton } from "../kit";
@@ -100,7 +99,7 @@ export function PhoneMemoriesGroup() {
           <PsRow
             key={memory.id}
             title={memory.content}
-            desc={`${SOURCE_LABEL[memory.source]}, ${memoryDay(memory.updatedAt)}`}
+            desc={memoryCaption(memory.source, memory.updatedAt)}
             control={
               <>
                 <PkButton
