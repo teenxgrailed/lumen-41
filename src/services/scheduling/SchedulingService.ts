@@ -7,6 +7,7 @@ import { ENERGY_CURVE } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { type Chronotype, isChronotype } from "@/lib/needt3/chronotype";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { useSettingsStore } from "@/store/settings";
 
@@ -259,6 +260,7 @@ export class SchedulingService {
         id: {
           in: tasks.map((t) => t.id),
         },
+        ...openTaskWhere(),
         userId,
       },
     });

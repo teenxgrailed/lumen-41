@@ -9,6 +9,7 @@ import {
 import { endOfMonth, newDate, startOfMonth } from "@/lib/date-utils";
 import { PLAN_LIMITS } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 export { PLAN_LIMITS } from "@/lib/plan-limits";
 
@@ -179,6 +180,7 @@ export async function canAutoScheduleMore(
     prisma.task.count({
       where: {
         userId,
+        ...openTaskWhere(),
         isSample: false,
         lastScheduled: {
           gte: startOfMonth(now),

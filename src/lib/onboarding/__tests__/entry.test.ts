@@ -104,7 +104,9 @@ describe("readOnboardingSnapshot", () => {
       hasData: true,
     });
     expect(prisma.task.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { userId: "u1", isSample: false } })
+      expect.objectContaining({
+        where: { userId: "u1", kind: "TASK", isSample: false },
+      })
     );
   });
 

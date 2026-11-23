@@ -10,6 +10,7 @@ import {
 } from "@/lib/date-utils";
 import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { isLearningEnabled, listMemoriesForUse, touchMemories } from "./memory";
 import { runLearning } from "./memory-learning";
@@ -35,6 +36,7 @@ export async function getTodayScheduleSummary(
     prisma.task.findMany({
       where: {
         ...workspaceDataScopeWhere(workspace, userId),
+        ...openTaskWhere(),
         isArchived: false,
         status: { not: "completed" },
         // The person's own day: what is assigned to them, and what they

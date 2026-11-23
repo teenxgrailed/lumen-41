@@ -158,7 +158,9 @@ describe("workspace-scoped API surfaces", () => {
     expect(chat).toContain("workspaceDataScopeWhere(workspace, userId)");
     expect(chat).toContain("auth.workspace?.role === WorkspaceRole.VIEWER");
     expect(preview).toContain("value.workspaceId !== workspaceId");
-    expect(preview).toContain("where: { ...scope, isArchived: false }");
+    expect(preview).toContain(
+      "where: { ...scope, ...openTaskWhere(), isArchived: false }"
+    );
   });
 
   it("keeps connector-triggered scheduling in the authorized workspace", () => {

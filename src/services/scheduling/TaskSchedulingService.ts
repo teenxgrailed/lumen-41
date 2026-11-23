@@ -20,6 +20,7 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
 import { deriveProjectBlockerDependencies } from "@/lib/projects/blockers";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { ProjectStatus } from "@/types/project";
 import {
@@ -430,6 +431,7 @@ async function scheduleAllTasksForUserLocked(
     const pinnedRows = await prisma.task.findMany({
       where: {
         ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+        ...openTaskWhere(),
         isAutoScheduled: false,
         autoScheduled: false,
         assigneeId: userId,
@@ -464,6 +466,7 @@ async function scheduleAllTasksForUserLocked(
     let dbTasks = (await prisma.task.findMany({
       where: {
         ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+        ...openTaskWhere(),
         OR: [{ isAutoScheduled: true }, { autoScheduled: true }],
         ...NOT_IN_SOMEDAY,
         status: {
@@ -665,6 +668,7 @@ async function scheduleAllTasksForUserLocked(
     const updatedDbTasks = (await prisma.task.findMany({
       where: {
         ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+        ...openTaskWhere(),
         assigneeId: userId,
         isArchived: false,
         AND: [activeProjectTaskWhere],

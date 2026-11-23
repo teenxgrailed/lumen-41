@@ -273,6 +273,71 @@ describe("projects kept out of easy start", () => {
     ).toMatchObject({ status: "simplified" });
   });
 
+  it("ideas on a day are not counted toward the overload cap and are never moved", async () => {
+    jest.mocked(loadSpreadDays).mockResolvedValue([
+      { date: "2026-10-23", free: 900 },
+      { date: TOMORROW, free: 900 },
+    ]);
+    for (let i = 1; i <= 6; i += 1) {
+      await seedTask(db, {
+        title: `Task ${i}`,
+        dueDate: TODAY,
+        estimatedMinutes: 30,
+        isAutoScheduled: true,
+      });
+    }
+    // 6 tasks and 5 ideas: the cap sees 6, so nothing moves
+    const ideas = [];
+    for (let i = 1; i <= 5; i += 1) {
+      ideas.push(
+        await seedTask(db, {
+          title: `Idea ${i}`,
+          kind: "IDEA",
+          dueDate: TODAY,
+          estimatedMinutes: 30,
+        })
+      );
+    }
+    const outcome = await balanceOverloadedDays(OWNER_ID);
+    expect(outcome.moved).toBe(0);
+    for (const idea of ideas) {
+      expect(taskRow(db, idea.id).kind).toBe("IDEA");
+    }
+  });
+
+  it("a day with 7 tasks and 5 ideas moves one task, never an idea", async () => {
+    jest.mocked(loadSpreadDays).mockResolvedValue([
+      { date: "2026-10-23", free: 900 },
+      { date: TOMORROW, free: 900 },
+    ]);
+    for (let i = 1; i <= 7; i += 1) {
+      await seedTask(db, {
+        title: `Task ${i}`,
+        dueDate: TODAY,
+        estimatedMinutes: 30,
+        isAutoScheduled: true,
+      });
+    }
+    const ideas = [];
+    for (let i = 1; i <= 5; i += 1) {
+      ideas.push(
+        await seedTask(db, {
+          title: `Idea ${i}`,
+          kind: "IDEA",
+          dueDate: TODAY,
+          estimatedMinutes: 30,
+        })
+      );
+    }
+    const outcome = await balanceOverloadedDays(OWNER_ID);
+    expect(outcome.moved).toBe(1);
+    for (const idea of ideas) {
+      expect((taskRow(db, idea.id).dueDate as Date).getTime()).toBe(
+        TODAY.getTime()
+      );
+    }
+  });
+
   it("a crowded day never moves a task from an excluded project", async () => {
     jest.mocked(loadSpreadDays).mockResolvedValue([
       { date: "2026-10-23", free: 900 },

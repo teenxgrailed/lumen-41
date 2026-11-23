@@ -260,7 +260,8 @@ async function canAdd(
 async function ownTask(userId: string, taskId: string) {
   return prisma.task.findFirst({
     where: { id: taskId, OR: [{ userId }, { assigneeId: userId }] },
-    select: { id: true },
+    // An idea has no reminders (idea cards): the caller reads `kind`.
+    select: { id: true, kind: true },
   });
 }
 
@@ -315,8 +316,12 @@ export async function createReminder(
   userId: string,
   input: ReminderCreate
 ): Promise<ServiceResult<ReminderView>> {
-  if (input.taskId && !(await ownTask(userId, input.taskId))) {
-    return { ok: false, status: 404, error: "Task not found" };
+  if (input.taskId) {
+    const owned = await ownTask(userId, input.taskId);
+    if (!owned) return { ok: false, status: 404, error: "Task not found" };
+    if (owned.kind === "IDEA") {
+      return { ok: false, status: 400, error: "An idea has no reminders" };
+    }
   }
   if (input.eventId && !(await ownEvent(userId, input.eventId))) {
     return { ok: false, status: 404, error: "Event not found" };

@@ -162,6 +162,43 @@ describe("D1 evening note and draft", () => {
   });
 });
 
+describe("ideas (idea cards)", () => {
+  it("an idea is not plan material: the draft never picks one, and it does not count toward the limit", async () => {
+    for (let i = 0; i < 4; i += 1) {
+      seedTask(db(), { title: `Real ${i}`, dueDate: dayDate(TOMORROW) });
+    }
+    const ideas = [];
+    for (let i = 0; i < 4; i += 1) {
+      ideas.push(
+        seedTask(db(), {
+          title: `Idea ${i}`,
+          kind: "IDEA",
+          dueDate: dayDate(TOMORROW),
+        })
+      );
+    }
+    const { plan } = await buildDraft(USER, TOMORROW, { now: NOW });
+    expect(plan.taskCount).toBe(4);
+    expect(titles(plan.items).every((t) => t.startsWith("Real"))).toBe(true);
+    for (const idea of ideas) {
+      expect(plan.items.map((i) => i.taskId)).not.toContain(idea.id);
+    }
+  });
+
+  it("an idea cannot be put in a plan: it is answered like a missing task", async () => {
+    const real = seedTask(db(), { title: "Real" });
+    const idea = seedTask(db(), { title: "Idea", kind: "IDEA" });
+    await expect(
+      updateDayPlan(
+        USER,
+        { date: TOMORROW, items: [{ taskId: real.id }, { taskId: idea.id }] },
+        NOW
+      )
+    ).rejects.toMatchObject({ code: "not_found", status: 404 });
+    expect(db().tables.dayPlanItem).toHaveLength(0);
+  });
+});
+
 describe("D2 limit", () => {
   it("test_default_plan_has_five_tasks_three_main", async () => {
     for (let i = 0; i < 12; i += 1) {

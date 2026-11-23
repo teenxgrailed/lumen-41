@@ -4,6 +4,7 @@ import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { ALWAYS_EASY_START } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import {
   BALANCE_DAYS,
@@ -80,6 +81,7 @@ export async function runEasyStartSweep(
   const startCutoff = addCalendarDays(now, -STUCK_START_DAYS);
   const candidateWhere: Prisma.TaskWhereInput = {
     userId: { not: null },
+    ...openTaskWhere(),
     status: "todo",
     isArchived: false,
     trashedAt: null,
@@ -127,7 +129,11 @@ export async function runEasyStartSweep(
   let resume = taskCursor;
   scan: for (let page = 0; page < SWEEP_MAX_PAGES; page += 1) {
     const candidates = await prisma.task.findMany({
-      where: { ...candidateWhere, ...(cursor ? { id: { gt: cursor } } : {}) },
+      where: {
+        ...candidateWhere,
+        ...openTaskWhere(),
+        ...(cursor ? { id: { gt: cursor } } : {}),
+      },
       select: taskSelect,
       orderBy: { id: "asc" },
       take: SWEEP_TASK_PAGE,
@@ -194,6 +200,7 @@ async function easeCrowdedDays(now: Date): Promise<number> {
       by: ["userId"],
       where: {
         userId: crowdedCursor ? { gt: crowdedCursor } : { not: null },
+        ...openTaskWhere(),
         isArchived: false,
         trashedAt: null,
         somedayAt: null,

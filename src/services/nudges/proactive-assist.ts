@@ -7,6 +7,7 @@ import {
 } from "@/lib/date-utils";
 import { canUseAdvancedNudges } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 import { type WeekHours } from "@/lib/work-week";
 import { loadWeekHours } from "@/lib/work-week-server";
 
@@ -93,6 +94,7 @@ async function freeTimeDraft(
   const unplaced = await prisma.task.count({
     where: {
       userId,
+      ...openTaskWhere(),
       isArchived: false,
       status: { not: "completed" },
       scheduledStart: null,
@@ -115,6 +117,7 @@ async function freeTimeDraft(
     prisma.task.findMany({
       where: {
         userId,
+        ...openTaskWhere(),
         isArchived: false,
         status: { not: "completed" },
         scheduledStart: { lt: new Date(window.end) },
@@ -224,6 +227,7 @@ export async function generateProactiveNudges(now = new Date()) {
       const tasks = await prisma.task.findMany({
         where: {
           userId: user.id,
+          ...openTaskWhere(),
           isArchived: false,
           status: { not: "completed" },
           OR: [

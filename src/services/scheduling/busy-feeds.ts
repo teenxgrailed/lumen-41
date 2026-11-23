@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 export function parseFeedIdList(value: string | null | undefined): string[] {
   if (!value) return [];
@@ -49,7 +50,7 @@ export async function pushedBlockExternalIds(
   userId: string
 ): Promise<Set<string>> {
   const pushed = await prisma.task.findMany({
-    where: { userId, blockEventId: { not: null } },
+    where: { userId, ...openTaskWhere(), blockEventId: { not: null } },
     select: { blockEventId: true },
   });
   return new Set(

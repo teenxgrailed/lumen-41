@@ -32,6 +32,8 @@ export async function pushTaskBlock(userId: string, taskId: string) {
   try {
     // Load task and user settings in parallel
     const [task, settings, userSettings] = await Promise.all([
+      // idea-exempt: a task made an idea has no block, so pushing it removes
+      // the calendar event it left behind.
       prisma.task.findUnique({
         where: { id: taskId, assigneeId: userId },
       }),
@@ -579,6 +581,7 @@ export async function removeAllTaskBlocks(userId: string) {
     logger.info(`Removing all task blocks for user`, { userId }, LOG_SOURCE);
 
     // Find all tasks with pushed events
+    // idea-exempt: clearing a person's blocks must reach every row, ideas too.
     const tasksWithEvents = await prisma.task.findMany({
       where: {
         assigneeId: userId,
@@ -647,6 +650,7 @@ export async function repushDirtyBlocks(userId: string, workspaceId?: string) {
     // Find tasks that need pushing:
     // 1. blockDirty=true (failed pushes, including failed deletes)
     // 2. scheduledStart/End set, status not completed, but blockEventId null (new schedules)
+    // idea-exempt: a failed delete for a task made an idea is retried too.
     const tasks = await prisma.task.findMany({
       where: {
         assigneeId: userId,

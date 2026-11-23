@@ -17,6 +17,7 @@ import {
 } from "@/lib/date-utils";
 import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 import { type WeekHours } from "@/lib/work-week";
 import { loadWeekHours } from "@/lib/work-week-server";
 
@@ -136,6 +137,7 @@ export async function getScheduleCapacity(
     prisma.task.findMany({
       where: {
         ...workspaceDataScopeWhere(workspace, userId),
+        ...openTaskWhere(),
         isArchived: false,
         status: { not: "completed" },
         OR: [{ isAutoScheduled: true }, { autoScheduled: true }],

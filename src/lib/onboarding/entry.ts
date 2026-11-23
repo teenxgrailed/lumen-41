@@ -2,6 +2,7 @@ import { newDate } from "@/lib/date-utils";
 import { isFeatureEnabled } from "@/lib/feature-flags";
 import { ONBOARDING_V3 } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { ONBOARDING_RESUME_PATH, SETUP_PATH, START_PATH } from "./paths";
 
@@ -65,7 +66,7 @@ export async function readOnboardingSnapshot(
   }
   const [task, habit, project, feed] = await Promise.all([
     prisma.task.findFirst({
-      where: { userId, isSample: false },
+      where: { userId, ...openTaskWhere(), isSample: false },
       select: { id: true },
     }),
     prisma.habit.findFirst({

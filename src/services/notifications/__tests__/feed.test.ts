@@ -568,3 +568,16 @@ describe("snoozeNotifications", () => {
     ).rejects.toBeInstanceOf(NotificationReadError);
   });
 });
+
+describe("getNotificationFeed (idea cards)", () => {
+  it("keeps ideas out of the overdue and the due-soon reads", async () => {
+    for (const group of ["activity", "reminders"] as const) {
+      db.task.findMany.mockClear();
+      await getNotificationFeed({ userId: "u1", group, now });
+      const wheres = db.task.findMany.mock.calls.map((call) => call[0].where);
+      expect(wheres.length).toBeGreaterThan(0);
+      // an idea has no due date and is never overdue; the read also says so
+      for (const where of wheres) expect(where.kind).toBe("TASK");
+    }
+  });
+});

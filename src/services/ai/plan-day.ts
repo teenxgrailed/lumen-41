@@ -5,6 +5,7 @@ import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 /**
  * PLAN MY DAY, server side.
@@ -121,6 +122,7 @@ async function unplacedTasks(userId: string, workspace: WorkspaceAccess) {
   const tasks = await prisma.task.findMany({
     where: {
       ...workspaceDataScopeWhere(workspace, userId),
+      ...openTaskWhere(),
       isArchived: false,
       isAutoScheduled: true,
       status: { in: ["todo", "in_progress"] },

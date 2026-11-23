@@ -3,6 +3,7 @@ import { CalendarEvent } from "@prisma/client";
 import { areIntervalsOverlapping } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { Conflict, TimeSlot } from "@/types/scheduling";
 
@@ -105,6 +106,7 @@ export class CalendarServiceImpl implements CalendarService {
     // Only check task conflicts if there are no calendar conflicts
     const scheduledTasks = await prisma.task.findMany({
       where: {
+        ...openTaskWhere(),
         isAutoScheduled: true,
         scheduledStart: { not: null },
         scheduledEnd: { not: null },
@@ -233,6 +235,7 @@ export class CalendarServiceImpl implements CalendarService {
     // Fetch all scheduled tasks once
     const scheduledTasks = await prisma.task.findMany({
       where: {
+        ...openTaskWhere(),
         isAutoScheduled: true,
         scheduledStart: { not: null },
         scheduledEnd: { not: null },
@@ -252,6 +255,7 @@ export class CalendarServiceImpl implements CalendarService {
         await prisma.task.findMany({
           where: {
             userId,
+            ...openTaskWhere(),
             isArchived: false,
             blockEventId: { not: null },
             AND: [activeProjectTaskWhere],

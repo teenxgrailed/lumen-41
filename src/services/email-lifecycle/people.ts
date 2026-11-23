@@ -7,6 +7,7 @@ import { normalizeMailbox, suppressionKey } from "@/lib/email/suppression";
 import { effectiveSubscriptionPlan } from "@/lib/entitlements";
 import { rolloutBucket } from "@/lib/feature-flags";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import type { Person } from "./types";
 import { minutesOfDay } from "./zone";
@@ -140,13 +141,14 @@ export async function loadPeople(
     }),
     prisma.task.groupBy({
       by: ["userId"],
-      where: { userId: { in: ids }, isSample: false },
+      where: { userId: { in: ids }, ...openTaskWhere(), isSample: false },
       _count: { _all: true },
     }),
     prisma.task.groupBy({
       by: ["userId"],
       where: {
         userId: { in: ids },
+        ...openTaskWhere(),
         isSample: false,
         scheduledStart: { not: null },
       },
@@ -171,6 +173,7 @@ export async function loadPeople(
           by: ["userId"],
           where: {
             userId: { in: ids },
+            ...openTaskWhere(),
             isSample: false,
             completedAt: {
               gte: lastMonthRange(now).from,

@@ -186,6 +186,8 @@ type Scope = { workspaceId: string } | { userId: string };
 
 /** Tasks that count towards progress: live, not a finished-occurrence record. */
 const COUNTED_TASK = {
+  // An idea is not work: it never counts towards a goal's progress.
+  kind: "TASK",
   isArchived: false,
   trashedAt: null,
   recurrenceMasterId: null,

@@ -1,5 +1,6 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
+import { IDEA_NO_DATES, ideaPatchRefused } from "@/services/ideas/rules";
 import { getPage } from "@/services/pages/page-service";
 import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
@@ -134,6 +135,10 @@ export async function updateTaskFields(input: {
   }
   if (task.project?.status === "archived") {
     return { ok: false, status: 409, error: "PROJECT_ARCHIVED" };
+  }
+  // An idea (idea cards) carries no date or schedule and is never finished.
+  if (task.kind === "IDEA" && ideaPatchRefused(patch)) {
+    return { ok: false, status: 400, error: IDEA_NO_DATES };
   }
 
   const workspaceId = task.workspaceId ?? workspace.workspaceId;

@@ -44,6 +44,7 @@ import { getMailMessage } from "@/lib/mail-db";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 const LOG_SOURCE = "ai-chat";
 
@@ -899,6 +900,7 @@ export async function executeTool(
       const tasks = await prisma.task.findMany({
         where: {
           ...scope,
+          ...openTaskWhere(),
           isArchived: false,
           status: { not: "completed" },
         },
