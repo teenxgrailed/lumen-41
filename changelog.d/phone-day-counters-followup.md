@@ -1,0 +1,1 @@
+- Phone Calendar: with Hide done on, a done task closed before its slot is counted in "N done hidden" on the day it was closed, the day it is drawn on, instead of the day of its slot. On a cold load the day line no longer says "Nothing planned" before the tasks have arrived.
