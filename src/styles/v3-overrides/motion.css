@@ -1141,3 +1141,32 @@
     transform: none;
   }
 }
+
+/* The close "tick" (vendored v3/app.css: scale 0.4 -> 1.16 plus a 10px ring on
+ * every [aria-checked="true"] / [data-state="checked"]) is for MARKS: a check
+ * box, a radio dot, a switch. A checked ROW is a whole line wide, so the tick
+ * made it wider than its container for ~300ms: a menu's horizontal scrollbar
+ * flashed in on open and the row jerked (Settings > Your day > Working hours;
+ * the sound list, the paywall plan pickers). The row stays still; its check
+ * glyph already says "this one".
+ *
+ * Opt-out, not invert: marks are anonymous Radix buttons with no shared class,
+ * so "tick only marks" cannot be written without enumerating every one of
+ * them. Rows are named instead: menu items and options by role, the rest by
+ * class. Checked on 23.11.26: .docs-seg-cell already has no tick and
+ * .hb-today-card runs nx-swap instead, so neither is listed.
+ * (The v2 twin lives in globals.css, because needt-motion.css is vendored.)
+ * No [attr] inside :is() here on purpose: jsdom cannot match it, and
+ * src/styles/__tests__/checked-row-tick.dom.test.ts computes this rule. */
+.needt-v3
+  [role="menuitemradio"]:is([aria-checked="true"], [data-state="checked"]),
+.needt-v3
+  [role="menuitemcheckbox"]:is([aria-checked="true"], [data-state="checked"]),
+.needt-v3 [role="option"]:is([aria-checked="true"], [data-state="checked"]),
+.needt-v3
+  :is(.fc-snd-row, .docs-share-role, .kp-seg-b, .pw-apple-opt):is(
+    [aria-checked="true"],
+    [data-state="checked"]
+  ) {
+  animation: none;
+}

@@ -199,6 +199,9 @@ export function SSelect({
                   : "max(160px, var(--radix-dropdown-menu-trigger-width))",
               maxHeight: 280,
               overflowY: "auto",
+              // A vertical list never scrolls sideways: leave the x axis shut
+              // so nothing that grows while it opens can show a scrollbar.
+              overflowX: "hidden",
               padding: 6,
               boxSizing: "border-box",
               borderRadius: 14,
