@@ -5,10 +5,11 @@ import { SubscriptionPlan, WorkspaceKind, WorkspaceRole } from "@prisma/client";
 import { ensurePersonalWorkspaceRow } from "@/lib/auth/personal-workspace";
 import { getPlan } from "@/lib/entitlements";
 import { isFeatureEnabled } from "@/lib/feature-flags";
+import { WORKSPACES } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
 import { createTtlCache } from "@/lib/ttl-cache";
 
-export const WORKSPACES_FEATURE_FLAG = "workspaces";
+export const WORKSPACES_FEATURE_FLAG = WORKSPACES;
 export const WORKSPACE_HEADER = "x-workspace-id";
 
 // These resources intentionally follow the user across workspace switches.

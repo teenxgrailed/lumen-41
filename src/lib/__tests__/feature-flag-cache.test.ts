@@ -107,6 +107,17 @@ describe("feature flag cache", () => {
     expect(await agentHubEnabled("u1")).toBe(false);
   });
 
+  it("only caches flags that are known", () => {
+    for (const key of CACHEABLE_FLAGS) {
+      expect(KNOWN_FEATURE_FLAGS).toHaveProperty([key]);
+    }
+  });
+
+  it("never caches the workspaces access gate", () => {
+    expect(CACHEABLE_FLAGS.has("workspaces")).toBe(false);
+    expect(UNCACHED_FLAGS.has("workspaces")).toBe(true);
+  });
+
   it("classifies every known flag exactly once", () => {
     for (const key of Object.keys(KNOWN_FEATURE_FLAGS)) {
       const inCache = CACHEABLE_FLAGS.has(key);

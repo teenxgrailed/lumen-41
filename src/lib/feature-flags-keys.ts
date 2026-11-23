@@ -192,7 +192,11 @@ export const SOMEDAY_SWEEP = "someday_sweep";
  */
 export const DAY_PLAN_TOUCHES = "day_plan_touches";
 
-/** The workspaces rollout (`WORKSPACES_FEATURE_FLAG` in workspace-auth). */
+/**
+ * Workspaces: decides whether a call is scoped to a workspace or to the person
+ * (an access gate, so never cached). `WORKSPACES_FEATURE_FLAG` in
+ * workspace-auth is this same constant.
+ */
 export const WORKSPACES = "workspaces";
 
 /**
@@ -208,7 +212,6 @@ export const WORKSPACES = "workspaces";
  * can lag up to 30 s there.
  */
 export const CACHEABLE_FLAGS: ReadonlySet<string> = new Set([
-  WORKSPACES,
   HABITS_QUIT,
   ENERGY_CURVE,
   FOCUS_BLOCKING,
@@ -225,6 +228,7 @@ export const CACHEABLE_FLAGS: ReadonlySet<string> = new Set([
  * `CACHEABLE_FLAGS` and this list (a test checks it).
  */
 export const UNCACHED_FLAGS: ReadonlySet<string> = new Set([
+  WORKSPACES,
   BILLING_CHECKOUT,
   SIGNUPS_OPEN,
   ONBOARDING_V3,
@@ -244,6 +248,8 @@ export const UNCACHED_FLAGS: ReadonlySet<string> = new Set([
 ]);
 
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
+  [WORKSPACES]:
+    "Workspaces: shared and personal workspaces instead of one account scope.",
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",
   [ENERGY_CURVE]: "Chronotype energy curve in auto-scheduling (Pro).",
