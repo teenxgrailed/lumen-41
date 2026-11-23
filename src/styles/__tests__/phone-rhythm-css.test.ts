@@ -60,8 +60,8 @@ describe("phone rhythm fixes", () => {
   });
 
   it("the Tasks tabs and the Move to today chip hit 44 px, drawn size unchanged", () => {
-    expect(r).toMatch(/\.ptk-seg-btn::before[\s\S]*?height: 44px/);
-    expect(r).not.toMatch(/\.ptk-seg-btn \{[^}]*height/);
+    expect(r).toMatch(/\[data-ptk-tab\]::before[\s\S]*?height: 44px/);
+    expect(r).not.toMatch(/\[data-ptk-tab\] \{[^}]*height/);
   });
 
   it("the Plan tile line gives the width to the title and may take two lines", () => {

@@ -32,12 +32,12 @@
 /* ── Tasks: 44 px to hit, the drawn size unchanged ───────────────────────────
    The tabs are 34 px and the "Move to today" chip 32 px. The hit area is a
    transparent pseudo-element, the pattern of settings-phone.css. */
-.needt-v3 .ptk-seg-btn,
-.needt-v3 .pk-sec-action .pk-btn.is-chip {
+.needt-v3 [data-ptk-tab],
+.needt-v3 .pk-sec-action :is(button, a) {
   position: relative;
 }
-.needt-v3 .ptk-seg-btn::before,
-.needt-v3 .pk-sec-action .pk-btn.is-chip::before {
+.needt-v3 [data-ptk-tab]::before,
+.needt-v3 .pk-sec-action :is(button, a)::before {
   content: "";
   position: absolute;
   left: 0;
