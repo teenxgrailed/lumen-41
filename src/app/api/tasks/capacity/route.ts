@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getScheduleCapacity } from "@/services/scheduling/capacity";
-
 import { authenticateRequest } from "@/lib/auth/api-auth";
+import { getScheduleCapacity } from "@/services/scheduling/capacity";
 
 const LOG_SOURCE = "ScheduleCapacityAPI";
 
