@@ -158,6 +158,7 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
   const inflight = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const noteField = useRef<HTMLTextAreaElement>(null);
+  const line = useRef<HTMLDivElement>(null);
   const rowRef = useRef<Row | null>(null);
   rowRef.current = row;
 
@@ -184,6 +185,14 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
   useEffect(() => {
     if (notesAsked) noteField.current?.focus({ preventScroll: false });
   }, [notesAsked]);
+  /* The title is two layers: the mirror is what is seen, the textarea takes the
+     caret. A long title scrolls the textarea (the layers stop at 240px), so
+     the mirror follows its scrollTop or the words and the caret part. */
+  const syncMirror = () => {
+    const mirror = line.current?.querySelector<HTMLElement>(".pov-mirror");
+    if (mirror && input.current) mirror.scrollTop = input.current.scrollTop;
+  };
+  useLayoutEffect(syncMirror, [text]);
   const vocabulary = useMemo(() => vocabularyOf(projects), [projects]);
   const parse = useMemo(
     () => coParse(text, newDate(), vocabulary),
@@ -353,7 +362,7 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
         >
           <ShownGlyph size={20} aria-hidden="true" />
         </button>
-        <div className="pov-line">
+        <div className="pov-line" ref={line}>
           <Mirror text={text} marks={parse.marks} projectHue={projectHue} />
           <textarea
             ref={input}
@@ -366,6 +375,7 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
             placeholder={copy.new_task}
             aria-label={copy.new_task}
             data-pov-line=""
+            onScroll={syncMirror}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {

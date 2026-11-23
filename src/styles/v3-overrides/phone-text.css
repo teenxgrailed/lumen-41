@@ -1,0 +1,45 @@
+/* Phone: text that can be read, selected and copied, and a composer title that
+   scrolls. HAND-WRITTEN, loaded after the vendored phone sheets.
+   phone-kit.css:23 turns selection off for the whole `.pk-scroll`, which is
+   right for controls (buttons, the tab bar, swipe handles, the check ring) but
+   also took it from a task's title, its note and an error line, so none of it
+   could be selected or copied. Controls keep none; the words below get text
+   back. Look is unchanged: this touches selection and scrolling only. */
+
+/* ── 1 · words on a phone page can be selected and copied ── */
+.needt-v3 .pk-title,
+.needt-v3 .pk-sub,
+.needt-v3 .pk-row-title,
+.needt-v3 .pk-row-meta,
+.needt-v3 .pk-empty-title,
+.needt-v3 .pk-empty-line,
+.needt-v3 .ptk-sub,
+.needt-v3 .ptk-prow-name,
+.needt-v3 .ptk-prow-meta,
+.needt-v3 .ptk-ph-name,
+.needt-v3 .ptk-edit-err,
+.needt-v3 .phb-err,
+.needt-v3 .phb-note-line,
+.needt-v3 .phb-item-note,
+.needt-v3 .ps-row-desc,
+.needt-v3 .ppl-perm-desc,
+.needt-v3 .pd-sp-note {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ── 2 · the composer's title scrolls past its 240px cap ──
+   The mirror (what is seen) and the textarea (what takes the caret) sit on one
+   another. Both stop at 240px; the textarea now scrolls and Composer.tsx copies
+   its scrollTop to the mirror, so the text and the caret stay together. The
+   scrollbar is hidden: its width would narrow the textarea and wrap the lines
+   differently from the mirror. */
+.needt-v3 .pov-line .pov-big {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+.needt-v3 .pov-line .pov-big::-webkit-scrollbar {
+  display: none;
+}

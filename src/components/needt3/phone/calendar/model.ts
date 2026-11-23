@@ -120,7 +120,8 @@ export function dayPlan(
   if (plate && plate === nowB) plateLine = `until ${c2Time(end(plate))}`;
   else if (plate && isToday) {
     const min = Math.round((plate.at - nowHour) * 60);
-    plateLine = `in ${min >= 60 ? cvDur(min) : `${min} min`}`;
+    plateLine =
+      min <= 0 ? "now" : `in ${min >= 60 ? cvDur(min) : `${min} min`}`;
   }
   return {
     isToday,

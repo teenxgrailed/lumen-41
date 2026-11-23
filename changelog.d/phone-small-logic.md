@@ -1,0 +1,4 @@
+- On the phone, task titles, notes and error lines can be selected and copied again.
+- On the phone, a long title in the new-task sheet scrolls and keeps its caret in view instead of being cut off.
+- The calendar's next-meeting card says "now" instead of "in 0 min".
+- A task you swipe away on the phone comes back if saving the change fails, instead of staying off the screen.

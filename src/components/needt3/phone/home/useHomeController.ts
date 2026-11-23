@@ -99,7 +99,9 @@ export function useHomeController() {
               .trash(t.id)
               .then(({ undo }) => snack("Moved to Trash", undo))
           : toggleTask.toggle(t);
-    void run.catch(none).finally(() => hide(t.id, false));
+    // Returned, so a failed write brings a swiped row back (PkRow); the
+    // `hide` is put back either way.
+    return run.finally(() => hide(t.id, false));
   });
 
   /** The ring: a closed task reopens at once, an open one leaves in steps. */
