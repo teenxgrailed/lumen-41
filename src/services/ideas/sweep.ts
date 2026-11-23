@@ -21,6 +21,7 @@ import { openTaskWhere } from "@/lib/tasks/open-task";
 import {
   MAX_CONVERT_PER_DAY,
   MAX_CONVERT_PER_RUN,
+  looksLikeIdea,
   movedToIdeasLine,
   shouldAutoConvert,
 } from "./rules";
@@ -117,9 +118,11 @@ interface PersonRun {
  * most 5 per person per run and 20 per day. With the kill switch off it reads
  * one flag row and returns; a person who turned idea cards off is never touched.
  *
- * Every task that is examined and not converted gets `ideaCheckedAt`, so a task
- * that can never qualify leaves the candidate set instead of being read on every
- * run. A task skipped only for a cap is left as it was. The stamp is cleared when
+ * A task whose title cannot be an idea (no optional-activity word, or a
+ * commitment word) and that is examined gets `ideaCheckedAt`, so it leaves the
+ * candidate set instead of being read on every run. A task that reads like an
+ * idea but does not qualify yet (not overdue enough, no move to a later day) is
+ * not stamped: the clock or a move can make it qualify. A task skipped only for a cap is left as it was. The stamp is cleared when
  * the title changes; an undone conversion is stamped too, so it is never redone.
  */
 export async function runIdeaSweep(
@@ -232,7 +235,11 @@ export async function runIdeaSweep(
         person.excluded
       );
       if (!qualifies) {
-        leave.push(task.id);
+        // Stamp only what can never qualify until its title changes (the stamp
+        // is cleared then). A task that reads like an idea but is not overdue
+        // enough yet, or has a future date, qualifies later by the clock or a
+        // move to a later day, so it stays in the candidate set.
+        if (!looksLikeIdea(task.title)) leave.push(task.id);
         continue;
       }
       // Over a cap: left as it was, for a later run.

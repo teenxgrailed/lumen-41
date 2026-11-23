@@ -2,8 +2,11 @@ import { dayInZone } from "@/services/scheduling/spread";
 
 import {
   addCalendarDays,
+  calendarDayDifference,
   formatInTimeZone,
   fromZonedTime,
+  newDateFromYMD,
+  toLocalDateKey,
 } from "@/lib/date-utils";
 
 /**
@@ -220,22 +223,21 @@ export const looksLikeIdea = (title: string) =>
 
 /* ---------- days ---------- */
 
-const dayNumber = (key: string) => {
+/** A "YYYY-MM-DD" key as a local calendar date. */
+const keyDate = (key: string) => {
   const [year, month, day] = key.split("-").map(Number);
-  return Date.UTC(year, month - 1, day) / 86_400_000;
+  return newDateFromYMD(year, month - 1, day);
 };
 
 /** Whole calendar days from `from` to `to` (both "YYYY-MM-DD"). */
 export const daysBetween = (from: string, to: string) =>
-  Math.round(dayNumber(to) - dayNumber(from));
+  calendarDayDifference(keyDate(to), keyDate(from));
 
 /** Today's key in the zone, and its start and end as instants. */
 export function localDay(now: Date, timeZone: string) {
   const key = formatInTimeZone(now, timeZone, "yyyy-MM-dd");
   const [year, month, day] = key.split("-").map(Number);
-  const next = new Date(Date.UTC(year, month - 1, day + 1))
-    .toISOString()
-    .slice(0, 10);
+  const next = toLocalDateKey(newDateFromYMD(year, month - 1, day + 1));
   return {
     key,
     start: fromZonedTime(`${key}T00:00:00`, timeZone),

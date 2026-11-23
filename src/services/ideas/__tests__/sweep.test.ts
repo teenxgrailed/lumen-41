@@ -111,7 +111,7 @@ const overdue = (fields: Record<string, unknown> = {}) =>
   });
 
 describe("runIdeaSweep", () => {
-  it("moves overdue optional tasks to Ideas and leaves everything else a task, stamped", async () => {
+  it("moves overdue optional tasks to Ideas and leaves everything else a task", async () => {
     const converts = await overdue();
     const moved = await overdue({
       title: "Watch the breakdown",
@@ -138,11 +138,19 @@ describe("runIdeaSweep", () => {
         dueDate: null,
       });
     }
-    for (const left of [fresh, oneDay, commitment, plain]) {
+    for (const left of [commitment, plain]) {
       const row = taskRow(db, left.id);
       expect(row.kind).toBe("TASK");
-      // examined and left: stamped, so it is not read again
+      // a title that can never be an idea: stamped, so it is not read again
       expect(row.ideaCheckedAt).not.toBeNull();
+    }
+    // reads like an idea but does not qualify yet: left a task, NOT stamped, so
+    // the clock or a move to a later day can still make it qualify
+    for (const waiting of [fresh, oneDay]) {
+      expect(taskRow(db, waiting.id)).toMatchObject({
+        kind: "TASK",
+        ideaCheckedAt: null,
+      });
     }
     // high priority and a future due date are kept out by the read itself: not
     // read, so not stamped (the future one is looked at when its day comes)
@@ -155,6 +163,25 @@ describe("runIdeaSweep", () => {
     // the old due date stays in the action's snapshot
     const action = db.tables.agentAction.find((a) => a.op === "idea.convert");
     expect(JSON.stringify(action?.before)).toContain("2026-11-20");
+  });
+
+  it("a task checked while not yet overdue is converted once it is overdue 2 days", async () => {
+    const task = await overdue({ dueDate: day("2026-11-22") });
+    expect((await runIdeaSweep(NOW)).converted).toBe(0);
+    expect(taskRow(db, task.id).ideaCheckedAt).toBeNull();
+    // two days later it is 3 days overdue
+    const later = new Date(NOW.getTime() + 2 * 86_400_000);
+    expect((await runIdeaSweep(later)).converted).toBe(1);
+    expect(taskRow(db, task.id).kind).toBe("IDEA");
+  });
+
+  it("a task with no date is converted after it is moved to a later day", async () => {
+    const task = await seedTask(db, { title: "Read news", dueDate: null });
+    expect((await runIdeaSweep(NOW)).converted).toBe(0);
+    expect(taskRow(db, task.id).ideaCheckedAt).toBeNull();
+    taskRow(db, task.id).rescheduleCount = 1;
+    expect((await runIdeaSweep(NOW)).converted).toBe(1);
+    expect(taskRow(db, task.id).kind).toBe("IDEA");
   });
 
   it("sends one summed line for the run, with the run to undo", async () => {
