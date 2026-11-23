@@ -1,0 +1,918 @@
+/* Folders lab (src/components/needt3/folders-lab): six candidate folders,
+ * admin only, not wired into the product.
+ *
+ * PORT.md holds here too: every grey is the text colour at a ladder alpha,
+ * type is 13px / 12px, the accent is never used (a folder's colour is its
+ * OWN project hue, a glow, a tint and a mark), elevation is a ring. Texture
+ * is the object's colour plus grain.
+ *
+ * Shared anatomy inside .fl-art (z-index in brackets): glow (-1), back wall
+ * with a tab (0), sheets / tiles (1-3), front wall (4), front furniture (5+).
+ * A folder is one button; hover and press lift the sheets, raise the glow and
+ * show a quiet card behind the whole object. Light and dark come from the
+ * tokens; V6 is dark glass in both. */
+
+.fl-lab {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  max-width: 1500px;
+}
+.fl-lab-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fl-lab-title {
+  margin: 0;
+  font: 600 13px/17px var(--font-sans);
+  color: var(--text-primary);
+}
+.fl-lab-sub {
+  margin: 0;
+  max-width: 62ch;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+}
+.fl-variant {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.fl-variant-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.fl-variant-label {
+  font: 600 13px/17px var(--font-sans);
+  color: var(--text-primary);
+}
+.fl-variant-name {
+  font: 500 13px/17px var(--font-sans);
+  color: var(--text-secondary);
+}
+.fl-variant-line {
+  flex-basis: 100%;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+}
+.fl-stages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr));
+  gap: 16px;
+}
+.needt-v3 .fl-stage {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  padding: 36px 22px 22px;
+  border-radius: 20px;
+  background: var(--background);
+  box-shadow: var(--shadow-ring);
+  overflow: hidden;
+}
+.fl-stage-tag {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-muted);
+}
+.fl-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 22px 12px;
+}
+@media (max-width: 560px) {
+  .fl-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 10px;
+  }
+  .needt-v3 .fl-stage {
+    padding: 36px 12px 16px;
+  }
+}
+
+/* ------------------------------------------------------------ the shell */
+
+.fl {
+  --fl-hue: var(--text-muted);
+  --fl-lift: 0px;
+  --fl-glow-a: 0.3;
+  --fl-glow-hover: 0.5;
+  --fl-gloss-a: rgba(255, 255, 255, 0.62);
+  --fl-gloss-b: rgba(255, 255, 255, 0.2);
+  --fl-edge: rgba(255, 255, 255, 0.7);
+  --fl-grain-img: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n' x='0' y='0' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --fl-grain-a: 0.16;
+  /* volume: soft raised material, layered shadows and an inner highlight */
+  --fl-vol-out:
+    0 14px 22px -12px rgba(20, 16, 8, 0.3), 0 3px 6px -1px rgba(20, 16, 8, 0.1);
+  --fl-vol-in: inset 0 -12px 18px -10px rgba(20, 16, 8, 0.12);
+  --fl-vol-sheet:
+    0 1px 1px rgba(20, 16, 8, 0.05), 0 5px 9px -3px rgba(20, 16, 8, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  position: relative;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 10px 10px 12px;
+  border: 0;
+  border-radius: 22px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.needt-v3[data-theme="dark"] .fl {
+  --fl-glow-a: 0.42;
+  --fl-glow-hover: 0.62;
+  --fl-gloss-a: rgba(255, 255, 255, 0.14);
+  --fl-gloss-b: rgba(255, 255, 255, 0.04);
+  --fl-edge: rgba(255, 255, 255, 0.16);
+  --fl-grain-img: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n' x='0' y='0' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  --fl-grain-a: 0.12;
+  --fl-vol-out:
+    0 14px 24px -12px rgba(0, 0, 0, 0.7), 0 3px 6px -1px rgba(0, 0, 0, 0.35);
+  --fl-vol-in: inset 0 -12px 18px -10px rgba(0, 0, 0, 0.3);
+  --fl-vol-sheet:
+    0 1px 1px rgba(0, 0, 0, 0.3), 0 5px 9px -3px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.fl:hover,
+.fl:focus-visible {
+  --fl-lift: 8px;
+}
+.fl:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+.needt-v3 .fl,
+.needt-v3 .fl:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* the quiet card that comes up behind the whole object on hover or press */
+.fl-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  background: var(--fill-2);
+  box-shadow: var(--shadow-ring);
+  opacity: 0;
+  transition: opacity var(--transition-hover);
+}
+.fl:hover .fl-card,
+.fl:focus-visible .fl-card {
+  opacity: 1;
+}
+
+.fl-art {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  aspect-ratio: 1.15 / 1;
+  transition: transform var(--transition-hover);
+}
+.fl:active .fl-art {
+  transform: scale(0.97);
+}
+
+/* the glow: the object's own colour, blurred, under it */
+.fl-glow {
+  position: absolute;
+  z-index: -1;
+  left: 8%;
+  right: 8%;
+  bottom: -5%;
+  height: 36%;
+  border-radius: 50%;
+  background: var(--fl-hue);
+  opacity: var(--fl-glow-a);
+  filter: blur(20px);
+  transition:
+    opacity var(--transition-hover),
+    transform var(--transition-hover);
+}
+.fl:hover .fl-glow,
+.fl:focus-visible .fl-glow {
+  opacity: var(--fl-glow-hover);
+  transform: translateY(3px) scale(1.06);
+}
+
+.fl-back,
+.fl-front {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+.fl-back {
+  top: 13%;
+  border-radius: 0 18px 18px 18px;
+  background: color-mix(in oklab, var(--fl-hue) 18%, var(--surface-raised));
+  box-shadow: var(--shadow-ring), var(--fl-vol-in), var(--fl-vol-out);
+}
+/* the tab */
+.fl-back::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -13px;
+  width: 40%;
+  height: 16px;
+  border-radius: 12px 12px 0 0;
+  background: inherit;
+  box-shadow: var(--shadow-ring);
+  clip-path: inset(-2px -2px 3px -2px);
+}
+.fl-front {
+  z-index: 4;
+  top: 42%;
+  overflow: hidden;
+  border-radius: 18px;
+}
+.fl-grain {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: var(--fl-grain-img);
+  opacity: var(--fl-grain-a);
+  pointer-events: none;
+}
+
+/* the sheets: paper standing in the folder */
+.fl-sheet {
+  position: absolute;
+  left: var(--l);
+  top: var(--t);
+  width: var(--w);
+  height: 40%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 3px 7px 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: color-mix(
+    in oklab,
+    var(--fl-hue) var(--tint, 0%),
+    var(--surface-raised)
+  );
+  box-shadow: var(--shadow-ring), var(--fl-vol-sheet);
+  transform-origin: 50% 100%;
+  transform: translateY(calc(0px - var(--fl-lift))) rotate(var(--r, 0deg));
+  transition: transform var(--transition-hover);
+}
+.fl-sheet-title {
+  min-width: 0;
+  flex: 1;
+  font: 500 12px/16px var(--font-sans);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fl-mark {
+  flex: none;
+  margin-top: 3px;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 1.5px solid var(--fl-hue);
+  background: color-mix(in oklab, var(--fl-hue) 24%, transparent);
+}
+.fl-mark.is-doc {
+  border-radius: 3px;
+  border-width: 1.5px;
+}
+
+/* under the folder */
+.fl-foot {
+  display: block;
+  position: relative;
+  min-width: 0;
+  margin-top: 10px;
+  padding: 0 4px;
+}
+.fl-title {
+  display: block;
+  font: 500 13px/17px var(--font-sans);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fl-meta {
+  display: block;
+  margin-top: 1px;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the furniture shared by several variants */
+.fl-badge,
+.fl-count-chip,
+.fl-front-count {
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font: 600 12px/1 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.fl-pill,
+.fl-updated {
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: calc(100% - 20px);
+  height: 22px;
+  padding: 0 9px 0 7px;
+  border-radius: 999px;
+  font: 400 12px/1 var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fl-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fl-hue);
+}
+
+/* ------------------------------------------------------------------ V1
+   Frosted white: a pale, milky glass with a count badge and a status pill. */
+.fl-v1 .fl-back {
+  background: color-mix(in oklab, var(--fl-hue) 14%, var(--surface-raised));
+}
+.fl-v1 .fl-front {
+  background:
+    linear-gradient(180deg, var(--fl-gloss-a), var(--fl-gloss-b)),
+    color-mix(in oklab, var(--surface-raised) 55%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  backdrop-filter: blur(16px) saturate(1.25);
+  box-shadow:
+    var(--shadow-ring),
+    inset 0 1px 0 var(--fl-edge),
+    var(--fl-vol-in),
+    var(--fl-vol-out);
+}
+.fl-v1 .fl-badge {
+  top: calc(42% + 10px);
+  right: 10px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-ring);
+}
+.fl-v1 .fl-pill {
+  left: 10px;
+  bottom: 10px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-ring);
+}
+
+/* ------------------------------------------------------------------ V2
+   Coloured glass: the project colour as tinted glass, a glyph pressed into
+   the front, small cards standing behind it. */
+.fl-v2 .fl-back {
+  background: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--fl-hue) 62%, var(--surface-raised)),
+    color-mix(in oklab, var(--fl-hue) 82%, #000)
+  );
+  box-shadow:
+    var(--shadow-ring),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    var(--fl-vol-in),
+    var(--fl-vol-out);
+}
+.fl-v2 .fl-front {
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.5),
+      rgba(255, 255, 255, 0) 46%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--fl-hue) 58%, transparent),
+      color-mix(in oklab, var(--fl-hue) 78%, transparent)
+    );
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  backdrop-filter: blur(12px) saturate(1.5);
+  box-shadow:
+    var(--shadow-ring),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -14px 28px color-mix(in oklab, var(--fl-hue) 60%, transparent),
+    var(--fl-vol-in),
+    var(--fl-vol-out);
+}
+.fl-v2 .fl-sheet {
+  background: color-mix(in oklab, var(--surface-raised) 88%, var(--fl-hue));
+}
+.fl-v2 .fl-emboss {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: calc(42% + (58% / 2));
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  color: color-mix(in oklab, var(--fl-hue) 55%, #000);
+  opacity: 0.78;
+  filter: drop-shadow(0 1.5px 0 rgba(255, 255, 255, 0.5))
+    drop-shadow(0 -1px 0 rgba(0, 0, 0, 0.22));
+}
+.fl-v2 .fl-count-chip {
+  top: calc(42% + 9px);
+  right: 9px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.36);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+}
+
+/* ------------------------------------------------------------------ V3
+   Papers peeking: a slim pocket, a fan of papers, a task title and its due
+   day on each. */
+.fl-v3 .fl-back {
+  top: 10%;
+  background: color-mix(in oklab, var(--fl-hue) 22%, var(--surface-raised));
+}
+.fl-v3 .fl-front {
+  top: 60%;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--fl-hue) 26%, var(--surface-raised));
+  box-shadow:
+    var(--shadow-ring),
+    inset 0 1px 0 var(--fl-edge),
+    var(--fl-vol-in),
+    var(--fl-vol-out);
+}
+.fl-v3 .fl-paper {
+  position: absolute;
+  left: var(--l);
+  top: var(--t);
+  width: var(--w);
+  height: 66%;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-auto-rows: min-content;
+  align-content: start;
+  column-gap: 5px;
+  row-gap: 4px;
+  padding: 7px 7px 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: color-mix(
+    in oklab,
+    var(--fl-hue) var(--tint, 0%),
+    var(--surface-raised)
+  );
+  box-shadow: var(--shadow-ring), var(--fl-vol-sheet);
+  transform-origin: 50% 100%;
+  transform: translateY(calc(0px - var(--fl-lift))) rotate(var(--r, 0deg));
+  transition: transform var(--transition-hover);
+}
+.fl-v3 .fl-paper .fl-mark {
+  margin-top: 3px;
+}
+.fl-paper-title {
+  min-width: 0;
+  font: 500 12px/16px var(--font-sans);
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.fl-paper-due {
+  grid-column: 2;
+  justify-self: start;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+}
+.fl-line {
+  grid-column: 1 / -1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--fill-5);
+}
+.fl-line.is-short {
+  width: 60%;
+}
+.fl-v3 .fl-front-count {
+  top: calc(60% + 8px);
+  right: 9px;
+  height: 20px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-ring);
+}
+
+/* ------------------------------------------------------------------ V4
+   Stamp and clip: a manila folder, the sticker or app icon on a postage
+   stamp, a paper clip holding the papers. */
+.fl-v4 .fl-back {
+  background: color-mix(in oklab, var(--fl-hue) 30%, var(--surface-raised));
+}
+.fl-v4 .fl-front {
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--fl-hue) 24%, var(--surface-raised)),
+    color-mix(in oklab, var(--fl-hue) 34%, var(--surface-raised))
+  );
+  box-shadow:
+    var(--shadow-ring),
+    inset 0 1px 0 var(--fl-edge),
+    var(--fl-vol-in),
+    var(--fl-vol-out);
+}
+.fl-v4 {
+  --fl-grain-a: 0.26;
+}
+.fl-v4 .fl-front::after {
+  /* the stitched edge a manila folder has */
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 13px;
+  border: 1.5px dashed color-mix(in oklab, var(--fl-hue) 38%, transparent);
+  pointer-events: none;
+}
+.fl-clip-wrap {
+  position: absolute;
+  z-index: 6;
+  left: 18%;
+  top: calc(42% - 17px);
+  color: var(--text-tertiary);
+  transform: rotate(-4deg) translateY(calc(0px - var(--fl-lift) / 2));
+  transition: transform var(--transition-hover);
+}
+.fl-clip {
+  display: block;
+  filter: drop-shadow(0 1px 0 rgba(var(--foreground-rgb), 0.12));
+}
+.fl-stamp {
+  position: absolute;
+  z-index: 5;
+  right: 10%;
+  bottom: 12%;
+  width: 54px;
+  height: 64px;
+  transform: rotate(7deg);
+  filter: drop-shadow(0 1.5px 1.5px rgba(0, 0, 0, 0.22));
+  transition: transform var(--transition-hover);
+}
+.fl:hover .fl-stamp,
+.fl:focus-visible .fl-stamp {
+  transform: rotate(4deg) scale(1.04);
+}
+.fl-stamp-shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.fl-stamp-shape path {
+  fill: #fffdf8;
+}
+.fl-stamp-face {
+  position: absolute;
+  inset: 8px;
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--fl-hue) 20%, #fffdf8);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in oklab, var(--fl-hue) 38%, transparent);
+}
+.fl-stamp-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+.fl-v4 .fl-front-count {
+  left: 12px;
+  bottom: 12px;
+  height: 20px;
+  background: color-mix(in oklab, var(--surface-raised) 80%, transparent);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-ring);
+}
+
+/* ------------------------------------------------------------------ V5
+   App icons peeking: the connected apps stand in the folder. */
+.fl-v5 .fl-back {
+  background: color-mix(in oklab, var(--fl-hue) 12%, var(--surface-raised));
+}
+.fl-v5 .fl-front {
+  background:
+    linear-gradient(180deg, var(--fl-gloss-a), var(--fl-gloss-b)),
+    color-mix(in oklab, var(--surface-raised) 58%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  backdrop-filter: blur(16px) saturate(1.25);
+  box-shadow:
+    var(--shadow-ring),
+    inset 0 1px 0 var(--fl-edge),
+    var(--fl-vol-in),
+    var(--fl-vol-out);
+}
+.fl-v5 .fl-front {
+  top: 46%;
+}
+.fl-tile {
+  position: absolute;
+  left: var(--l);
+  top: var(--t);
+  display: block;
+  line-height: 0;
+  transform-origin: 50% 100%;
+  transform: translateY(calc(0px - var(--fl-lift))) rotate(var(--r, 0deg));
+  transition: transform var(--transition-hover);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.16));
+}
+.fl-more {
+  position: absolute;
+  left: 80%;
+  top: 26%;
+  box-sizing: border-box;
+  height: 22px;
+  min-width: 22px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-ring);
+  font: 500 12px/1 var(--font-sans);
+  transform: translateY(calc(0px - var(--fl-lift)));
+  transition: transform var(--transition-hover);
+}
+.fl-v5 .fl-badge {
+  top: calc(46% + 10px);
+  right: 10px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-ring);
+}
+.fl-v5 .fl-pill {
+  left: 10px;
+  bottom: 10px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-ring);
+}
+.fl-v5 .fl-dot {
+  background: var(--fl-hue);
+}
+
+/* ------------------------------------------------------------------ V6
+   Dark frosted: dark glass in both themes, light type on it. Avatars and
+   when it last changed. The sheets stay paper. */
+.fl-v6 {
+  --fl-glow-a: 0.4;
+  --fl-glow-hover: 0.62;
+}
+.fl-v6 .fl-back {
+  background: color-mix(in oklab, var(--fl-hue) 16%, #1b1d21);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    var(--fl-vol-in),
+    var(--fl-vol-out);
+}
+.fl-v6 .fl-front {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.16),
+      rgba(255, 255, 255, 0.02) 60%
+    ),
+    color-mix(in oklab, var(--fl-hue) 24%, rgba(28, 30, 34, 0.72));
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    var(--fl-vol-in),
+    var(--fl-vol-out);
+}
+.fl-v6 .fl-grain {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n' x='0' y='0' width='100%25' height='100%25'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  opacity: 0.12;
+}
+.fl-v6 .fl-updated {
+  top: calc(42% + 10px);
+  right: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  padding: 0 9px;
+}
+.fl-stack {
+  position: absolute;
+  z-index: 6;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+.fl-avatar {
+  position: relative;
+  box-sizing: border-box;
+  width: 26px;
+  height: 26px;
+  margin-left: -9px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #25272c;
+  color: #fff;
+  font: 600 12px/1 var(--font-sans);
+  text-transform: uppercase;
+}
+.fl-avatar:first-child {
+  margin-left: 0;
+}
+.fl-avatar.is-more {
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fl:hover,
+  .fl:focus-visible {
+    --fl-lift: 0px;
+  }
+  .fl-art,
+  .fl-sheet,
+  .fl-paper,
+  .fl-tile,
+  .fl-more,
+  .fl-glow,
+  .fl-card,
+  .fl-stamp,
+  .fl-clip-wrap {
+    transition: none;
+  }
+  .fl:active .fl-art {
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------- in the product */
+
+/* the glyph: an emoji, a letter or an icon, sized by the look that wears it */
+.fl-glyph {
+  display: grid;
+  place-items: center;
+  width: var(--g, 40px);
+  height: var(--g, 40px);
+  font: 700 calc(var(--g, 40px) * 0.74) / 1 var(--font-sans);
+  text-transform: uppercase;
+}
+.fl-glyph > svg {
+  width: 100%;
+  height: 100%;
+}
+.fl-sheet-title.is-muted,
+.fl-paper-title.is-muted {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+/* look 6 without people: the count sits where the avatars would */
+.fl-v6 .fl-count-chip {
+  left: 10px;
+  bottom: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+/* the grids: a folder is one cell, quiet when its project is archived */
+.fl.is-muted {
+  opacity: 0.55;
+}
+.fl.is-muted:hover,
+.fl.is-muted:focus-visible {
+  opacity: 1;
+}
+
+/* ------------------------------------------------- the style picker */
+
+.fp {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.fp-label {
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-tertiary);
+}
+.fp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 8px;
+}
+.fp-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+  padding: 6px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-ring);
+  -webkit-tap-highlight-color: transparent;
+}
+.fp-opt:hover {
+  background: var(--fill-2);
+}
+.fp-opt:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+.fp-opt.is-on {
+  background: var(--fill-3);
+  box-shadow: 0 0 0 1.5px var(--text-primary);
+  color: var(--text-primary);
+}
+.fp-thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 1.15 / 1;
+  overflow: hidden;
+  border-radius: 10px;
+}
+.fp-thumb .fl {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 200%;
+  padding: 0;
+  transform: scale(0.5);
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+.fp-thumb .fl-card,
+.fp-thumb .fl-foot,
+.fp-thumb .nx-folder-desc {
+  display: none;
+}
+.fp-auto {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--fill-3);
+  color: var(--text-secondary);
+}
+.fp-name {
+  font: 400 12px/16px var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 420px) {
+  .fp-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

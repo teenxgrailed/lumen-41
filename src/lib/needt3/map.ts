@@ -22,6 +22,7 @@
  */
 import { formatInTimeZone, fromZonedTime } from "@/lib/date-utils";
 import { notesText } from "@/lib/needt3/derive";
+import { isFolderStyle } from "@/lib/needt3/folder-style";
 import {
   type FullTimeAuto,
   effectiveFullTime,
@@ -508,6 +509,11 @@ export interface ApiProject {
   status?: string;
   description?: string | null;
   trashedAt?: string | null;
+  /** 1..6, or null for Auto (random by id). */
+  folderStyle?: number | null;
+  updatedAt?: string | null;
+  /** Task apps the project syncs with (TaskProvider.type), list route only. */
+  connectedApps?: string[];
 }
 
 export interface V3Project {
@@ -520,6 +526,12 @@ export interface V3Project {
   archived: boolean;
   /** When it went to Trash, or null while it is live. */
   trashedAt?: string | null;
+  /** The chosen folder look 1..6; null is Auto. */
+  folderStyle?: number | null;
+  /** Last change, ISO; null when the API did not send it. */
+  updatedAt?: string | null;
+  /** Provider types of the connected task apps (`brandIdFor` turns them into marks). */
+  connectedApps?: string[];
 }
 
 export function projectFromApi(row: ApiProject): V3Project {
@@ -532,6 +544,9 @@ export function projectFromApi(row: ApiProject): V3Project {
     position: row.position ?? 0,
     archived: row.status === "archived",
     trashedAt: row.trashedAt ?? null,
+    folderStyle: isFolderStyle(row.folderStyle) ? row.folderStyle : null,
+    updatedAt: row.updatedAt ?? null,
+    connectedApps: row.connectedApps ?? [],
   };
 }
 
@@ -539,7 +554,14 @@ export function projectPatchToApi(
   patch: Partial<Omit<V3Project, "id">>
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const k of ["name", "color", "icon", "ground", "position"] as const) {
+  for (const k of [
+    "name",
+    "color",
+    "icon",
+    "ground",
+    "position",
+    "folderStyle",
+  ] as const) {
     if (k in patch) out[k] = patch[k];
   }
   if ("archived" in patch) out.status = patch.archived ? "archived" : "active";

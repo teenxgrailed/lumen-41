@@ -6,16 +6,14 @@ import { useRouter } from "next/navigation";
 
 import { logger } from "@/lib/logger";
 import { usePlan } from "@/lib/needt3/hooks/plan";
-import { priceStrings } from "@/lib/needt3/pricing";
 import { showsStudentPrices } from "@/lib/needt3/student-prices";
 import { LIMIT_HIT_EVENT, type LimitHitDetail } from "@/lib/popups/client";
-import type { PopupLimit, PopupPlanCard, PopupView } from "@/lib/popups/types";
+import type { PopupLimit, PopupView } from "@/lib/popups/types";
 import { useStoreDistribution } from "@/lib/use-store-distribution";
 import { getAppVersion } from "@/lib/version";
 
 import { openPaywall } from "../paywall/store";
-import { usePhoneUi } from "../root/phone-ui-context";
-import { PopupCard } from "./PopupCard";
+import { type PlanPick, PopupContent } from "./PopupContent";
 import {
   canShowPopup,
   markPopupShown,
@@ -77,20 +75,19 @@ async function fetchNext(limit: PopupLimit | null): Promise<PopupView | null> {
 }
 
 /**
- * Mounted once in the permanent hosts. Two ways in, one shell and one set of
- * rules (the server's `pickPopup`):
+ * Mounted once in the permanent hosts. Two ways in, one set of rules (the
+ * server's `pickPopup`) and one style (`PopupContent` draws What's new or the
+ * upsell, desktop or phone):
  * - a quiet check a few seconds after load (announcements, a trial ending);
  * - a limit hit, reported by `reportLimitHit(limit)`, shown at once.
  */
 export function PopupHost() {
   const router = useRouter();
-  const phone = usePhoneUi() === "phone";
   const store = useStoreDistribution();
   const { data: plan } = usePlan();
-  const prices = priceStrings(undefined, {
-    student: showsStudentPrices(plan),
-  });
+  const student = showsStudentPrices(plan);
   const lifetimeOpen = plan?.lifetimeAvailable !== false;
+  const trialEligible = plan?.trialEligible === true;
 
   const [popup, setPopup] = useState<PopupView | null>(null);
   const [open, setOpen] = useState(false);
@@ -213,22 +210,22 @@ export function PopupHost() {
     else if (cta.href) router.push(cta.href);
   };
 
-  const onCard = (card: PopupPlanCard) => {
+  const onPlans = (pick: PlanPick) => {
     close("click");
-    openPaywall({ cycle: card.pick, feature: popup.feature });
+    openPaywall({ cycle: pick, feature: popup.feature });
   };
 
   return (
-    <PopupCard
+    <PopupContent
       popup={popup}
       open={open}
-      phone={phone}
       store={store}
-      prices={prices}
       lifetimeOpen={lifetimeOpen}
+      trialEligible={trialEligible}
+      student={student}
       onDismiss={() => close("dismiss")}
       onPrimary={onPrimary}
-      onCard={onCard}
+      onPlans={onPlans}
     />
   );
 }

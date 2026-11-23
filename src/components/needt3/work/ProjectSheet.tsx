@@ -8,6 +8,7 @@ import type { V3Project } from "@/lib/needt3/map";
 import { useNeedt3Ui } from "@/store/needt3-ui";
 
 import { Sheet } from "../ctx/Sheet";
+import { FolderStylePicker } from "../ui/FolderStylePicker";
 import { PROJECT_SWATCHES, nameTaken } from "./model";
 
 /**
@@ -24,12 +25,13 @@ export function ProjectSheet({
   cta = "Create",
   values,
   onValues,
+  onFolderStyle,
 }: {
   open: boolean;
   onClose: () => void;
   onSave: (p: { name: string; color: string }) => void;
   projects: readonly Pick<V3Project, "id" | "name">[];
-  initial?: Pick<V3Project, "id" | "name" | "color"> | null;
+  initial?: Pick<V3Project, "id" | "name" | "color" | "folderStyle"> | null;
   title?: string;
   cta?: string;
   /**
@@ -39,6 +41,8 @@ export function ProjectSheet({
    */
   values?: { name: string; color: string } | null;
   onValues?: (v: { name: string; color: string }) => void;
+  /** Editing only: pick the folder look; it applies at once, not on Save. */
+  onFolderStyle?: (style: number | null) => void;
 }) {
   const accent = useNeedt3Ui((st) => st.accent);
   const [ownName, setOwnName] = useState("");
@@ -104,6 +108,14 @@ export function ProjectSheet({
           />
         ))}
       </div>
+      {initial && onFolderStyle ? (
+        <FolderStylePicker
+          id={initial.id}
+          value={initial.folderStyle}
+          hue={hue}
+          onChange={onFolderStyle}
+        />
+      ) : null}
       {dupe ? (
         <span className="wk-sheet-error">A project with this name exists.</span>
       ) : null}

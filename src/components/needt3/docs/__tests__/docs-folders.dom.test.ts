@@ -77,6 +77,7 @@ jest.mock("@/lib/needt3/hooks/docs", () => ({
   useUpdateDoc: () => ({ mutateAsync: jest.fn() }),
 }));
 jest.mock("@/lib/needt3/hooks/projects", () => ({
+  useUpdateProject: () => ({ mutateAsync: jest.fn() }),
   useProjects: () => ({
     ...projectsState,
     data: projectsState.isPending
@@ -171,7 +172,7 @@ describe.each(["desktop", "phone"] as const)("Docs folders, %s", (ui) => {
     expect(ops.textContent).toContain("2");
     expect(ops.textContent).toContain("Updated");
     expect(ops.getAttribute("aria-label")).toBe("Open Operations, 2 pages");
-    expect(ops.style.getPropertyValue("--nx-folder-hue")).toBe("#d80");
+    expect(ops.style.getPropertyValue("--fl-hue")).toBe("#d80");
     expect(folder("unsorted")!.textContent).toContain("Unsorted");
     expect(folder("unsorted")!.getAttribute("aria-label")).toBe(
       "Open Unsorted, 1 page"

@@ -43,8 +43,12 @@ export interface WhatsNewPopupProps {
   learnMore?: { label: string; href: string };
   /** Up to three lines, each with a mark. */
   items?: readonly WhatsNewItem[];
-  /** The main action, the light button ("Try Plan my day"). */
-  primary: { label: string; onClick: () => void };
+  /**
+   * The main action, the light button ("Try Plan my day"). Omit it when the
+   * announcement has nowhere to send anyone: the one button left is then the
+   * light one and says "Got it".
+   */
+  primary?: { label: string; onClick: () => void };
   /** The quiet button ("Later"). Calls `onClose` unless `onSecondary` is given. */
   secondaryLabel?: string;
   onSecondary?: () => void;
@@ -69,7 +73,7 @@ export function WhatsNewPopup({
   learnMore,
   items = [],
   primary,
-  secondaryLabel = "Later",
+  secondaryLabel,
   onSecondary,
   art,
   artNode,
@@ -86,22 +90,32 @@ export function WhatsNewPopup({
       name="whats-new"
       art={picture}
       actions={
-        <>
+        primary ? (
+          <>
+            <button
+              type="button"
+              className="pp-btn pp-btn-primary nx-press"
+              onClick={primary.onClick}
+            >
+              {primary.label}
+            </button>
+            <button
+              type="button"
+              className="pp-btn pp-btn-quiet nx-press"
+              onClick={onSecondary ?? onClose}
+            >
+              {secondaryLabel ?? "Later"}
+            </button>
+          </>
+        ) : (
           <button
             type="button"
             className="pp-btn pp-btn-primary nx-press"
-            onClick={primary.onClick}
-          >
-            {primary.label}
-          </button>
-          <button
-            type="button"
-            className="pp-btn pp-btn-quiet nx-press"
             onClick={onSecondary ?? onClose}
           >
-            {secondaryLabel}
+            {secondaryLabel ?? "Got it"}
           </button>
-        </>
+        )
       }
     >
       <span className="pp-badge pp-rise" style={rise(0)} data-pp-kind={kind}>

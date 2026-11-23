@@ -430,6 +430,14 @@ function WorkScreenContent({
         initial={editing}
         values={editing ? state.edit : null}
         onValues={state.setEdit}
+        onFolderStyle={
+          editing
+            ? (folderStyle) =>
+                void updateProject
+                  .mutateAsync({ id: editing.id, patch: { folderStyle } })
+                  .catch(() => undefined)
+            : undefined
+        }
         title={editing ? "Edit project" : undefined}
         cta={editing ? "Save" : undefined}
       />

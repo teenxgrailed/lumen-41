@@ -9,5 +9,6 @@ export {
   type BrandId,
   brandIdFor,
   brandIdForConnection,
+  brandIdForTaskProvider,
   hasBrandIcon,
 } from "./ids";

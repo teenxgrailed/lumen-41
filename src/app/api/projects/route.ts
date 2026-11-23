@@ -6,10 +6,7 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
-import {
-  parseV3Fields,
-  projectV3FieldsSchema,
-} from "@/lib/needt3/api-fields";
+import { parseV3Fields, projectV3FieldsSchema } from "@/lib/needt3/api-fields";
 import { prisma } from "@/lib/prisma";
 import { deriveProjectProgress } from "@/lib/projects/progress";
 
@@ -65,21 +62,31 @@ export async function GET(request: NextRequest) {
           where: { resolvedAt: null },
           select: { id: true },
         },
+        // The task apps this project is connected to (its folder shows them).
+        taskListMappings: {
+          where: { syncEnabled: true, provider: { enabled: true } },
+          select: { provider: { select: { type: true } } },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(
-      projects.map(({ tasks, stages, blockers, ...project }) => ({
-        ...project,
-        ...deriveProjectProgress(tasks),
-        stages: stages.map(({ tasks: stageTasks, ...stage }) => ({
-          ...stage,
-          ...deriveProjectProgress(stageTasks),
-        })),
-        blockerCount: blockers.length,
-        _count: { tasks: tasks.length },
-      }))
+      projects.map(
+        ({ tasks, stages, blockers, taskListMappings, ...project }) => ({
+          ...project,
+          connectedApps: [
+            ...new Set(taskListMappings.map((m) => m.provider.type)),
+          ],
+          ...deriveProjectProgress(tasks),
+          stages: stages.map(({ tasks: stageTasks, ...stage }) => ({
+            ...stage,
+            ...deriveProjectProgress(stageTasks),
+          })),
+          blockerCount: blockers.length,
+          _count: { tasks: tasks.length },
+        })
+      )
     );
   } catch (error) {
     logger.error(

@@ -18,7 +18,6 @@
 @import "./v3-overrides/auth-redo.css";
 @import "./v3-overrides/onboarding-map.css";
 @import "./v3-overrides/keep-pro.css";
-@import "./v3-overrides/popups.css";
 @import "./v3-overrides/settings-phone.css";
 @import "./v3-overrides/phone-perf.css";
 @import "./v3-overrides/doc-opened.css";
@@ -77,6 +76,7 @@
 @import "./v3-overrides/folder.css";
 @import "./v3-overrides/popup-style.css";
 @import "./v3-overrides/raised.css";
+@import "./v3-overrides/folder-lab.css";
 @import "./v3-overrides/bottom-bar-float.css";
 @import "./v3-overrides/menu-tiles.css";
 @import "./v3-overrides/idle-pause.css";
