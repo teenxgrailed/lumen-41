@@ -200,6 +200,11 @@ export function taskView(task: {
   updatedAt: Date;
   /** Legacy scale; "none" is "No priority". */
   priority?: string | null;
+  /** `task` (default) or `idea` (idea cards): an optional thing, never late. */
+  kind?: "TASK" | "IDEA";
+  ideaSource?: string | null;
+  ideaSnoozedUntil?: Date | null;
+  ideaSkipCount?: number;
   isRecurring?: boolean;
   recurrenceRule?: string | null;
   scheduleId?: string | null;
@@ -216,6 +221,14 @@ export function taskView(task: {
     id: task.id,
     title: task.title,
     entry: task.entry ?? null,
+    kind: task.kind === "IDEA" ? "idea" : "task",
+    ...(task.kind === "IDEA"
+      ? {
+          ideaSource: task.ideaSource ?? null,
+          ideaSnoozedUntil: iso(task.ideaSnoozedUntil),
+          ideaSkipCount: task.ideaSkipCount ?? 0,
+        }
+      : {}),
     notes: task.description,
     status: task.status,
     dueDate: iso(task.dueDate),

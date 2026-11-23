@@ -12,6 +12,7 @@ const RELATIONS: Record<
 > = {
   scheduledBlock: { task: { model: "task", key: "taskId" } },
   calendarEvent: { feed: { model: "calendarFeed", key: "feedId" } },
+  dayPlanItem: { plan: { model: "dayPlan", key: "planId" } },
 };
 const CHILDREN: Record<
   string,
@@ -29,6 +30,7 @@ const CHILDREN: Record<
       orderBy: "createdAt",
     },
     parts: { model: "taskPart", foreignKey: "taskId", orderBy: "position" },
+    dayPlanItems: { model: "dayPlanItem", foreignKey: "taskId" },
   },
 };
 const HAS_UPDATED_AT = new Set([
@@ -42,6 +44,7 @@ const HAS_UPDATED_AT = new Set([
   "goal",
   "taskPart",
   "easyStartProposal",
+  "dayPlan",
 ]);
 
 function clone<T>(value: T): T {
@@ -93,9 +96,12 @@ export function createFakePrisma() {
     goalProject: [],
     goalCheckIn: [],
     taskPart: [],
+    dayPlan: [],
+    dayPlanItem: [],
     taskListMapping: [],
     workspaceMember: [],
     easyStartProposal: [],
+    featureFlag: [],
   };
   let clock = Date.parse("2026-10-01T00:00:00.000Z");
   let ids = 0;
@@ -131,6 +137,16 @@ export function createFakePrisma() {
           matches(child.model, candidate, condition.some as Where)
       );
     }
+    if (child && isPlainObject(condition) && "none" in condition) {
+      return !tables[child.model].some(
+        (candidate) =>
+          candidate[child.foreignKey] === row.id &&
+          matches(child.model, candidate, condition.none as Where)
+      );
+    }
+    // A filter through the owner's relations (settings, flags) is not
+    // modelled here: the code under test checks those in code as well.
+    if (model === "task" && key === "user") return true;
     if (key.includes("_") && isPlainObject(condition) && !(key in row)) {
       // Compound unique key, e.g. habitId_date.
       return Object.entries(condition).every(([part, value]) =>
@@ -143,6 +159,8 @@ export function createFakePrisma() {
       switch (operator) {
         case "in":
           return (operand as unknown[]).some((entry) => same(value, entry));
+        case "notIn":
+          return !(operand as unknown[]).some((entry) => same(value, entry));
         case "not":
           return isPlainObject(operand)
             ? !matchField(model, row, key, operand)
@@ -310,6 +328,18 @@ export function createFakePrisma() {
           externalTaskId: null,
           rescheduleCount: 0,
           simplifiedAt: null,
+          // Idea cards: a row is a task unless it says otherwise.
+          kind: "TASK",
+          ideaSource: null,
+          ideaSnoozedUntil: null,
+          ideaLastShownAt: null,
+          ideaSkipCount: 0,
+          ideaCheckedAt: null,
+          startDate: null,
+          postponedUntil: null,
+          somedayReason: null,
+          icon: null,
+          priority: null,
           assigneeId: null,
           workspaceId: null,
           userId: null,
@@ -464,6 +494,8 @@ export function createFakePrisma() {
 
   const client: Record<string, unknown> = {};
   for (const model of Object.keys(tables)) client[model] = delegate(model);
+  // The advisory lock a reader takes is a no-op for one process.
+  client.$executeRaw = async () => 0;
   client.$transaction = async (fn: (tx: unknown) => Promise<unknown>) => {
     // Roll back on throw, like a real transaction.
     const snapshot = clone(tables);
