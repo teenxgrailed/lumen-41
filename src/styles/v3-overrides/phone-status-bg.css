@@ -130,13 +130,13 @@ html[data-display-mode="standalone"]
   -webkit-mask: linear-gradient(
     to bottom,
     #000 var(--sb-solid),
-    rgba(0, 0, 0, 0.45) var(--sb-half),
+    color-mix(in srgb, #000 45%, transparent) var(--sb-half),
     transparent 100%
   );
   mask: linear-gradient(
     to bottom,
     #000 var(--sb-solid),
-    rgba(0, 0, 0, 0.45) var(--sb-half),
+    color-mix(in srgb, #000 45%, transparent) var(--sb-half),
     transparent 100%
   );
 }
