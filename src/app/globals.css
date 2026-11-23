@@ -1979,6 +1979,16 @@ html[data-needt-motion="off"] .needt-aurora-blob {
 .needt-page-bar[data-kb="rest"] .needt-page-bar-done {
   display: none;
 }
+/* v2 twin of the v3-overrides/motion.css opt-out (needt-motion.css is
+ * vendored): a checked menu row or option is a whole line wide, so the tick
+ * (scale to 1.16) made it overflow its menu and flash a scrollbar. */
+.needt-v2
+  [role="menuitemradio"]:is([aria-checked="true"], [data-state="checked"]),
+.needt-v2
+  [role="menuitemcheckbox"]:is([aria-checked="true"], [data-state="checked"]),
+.needt-v2 [role="option"]:is([aria-checked="true"], [data-state="checked"]) {
+  animation: none;
+}
 /* The app-wide check "tick" (v3 app.css) is for checkboxes: a chosen block
  * type or a pressed mark must not pop and ring. */
 .needt-page-bar.needt-page-bar
