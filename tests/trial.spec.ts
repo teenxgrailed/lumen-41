@@ -4,7 +4,6 @@ import { expect, request as playwrightRequest, test } from "@playwright/test";
 import { createHash } from "node:crypto";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
-import { EMAIL_VERIFICATION_SETTING_TTL_MS } from "@/lib/auth/email-verification-access";
 import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
@@ -40,15 +39,7 @@ test.describe("no-card Pro trial", () => {
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async () => {
-    // The server keeps the verification setting for EMAIL_VERIFICATION_SETTING_TTL_MS
-    // (#812). The specs before this one run with it on, so a write made here
-    // from another process is only seen after the cached value expires; the
-    // first request below would otherwise get EMAIL_VERIFICATION_REQUIRED.
-    test.setTimeout(EMAIL_VERIFICATION_SETTING_TTL_MS + 45_000);
     await keepVerificationOptional();
-    await new Promise((resolve) =>
-      setTimeout(resolve, EMAIL_VERIFICATION_SETTING_TTL_MS + 1_000)
-    );
   });
 
   test.afterAll(async () => {
