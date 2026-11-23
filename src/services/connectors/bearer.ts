@@ -76,20 +76,24 @@ function bearerToken(authorization: string | null | undefined): string | null {
 
 async function personalToken(token: string): Promise<BearerAuth | null> {
   if (!token.startsWith(PERSONAL_PREFIX)) return null;
-  const settings = await prisma.connectorSettings.findUnique({
-    where: { tokenHash: hashConnectorToken(token) },
-    select: { userId: true, tokenExpiresAt: true, tokenLastUsedAt: true },
-  });
+  // A token is either the legacy one or a named one, never both: look both up
+  // at once (the legacy hit wins, as before) instead of one after the other.
+  const [settings, named] = await Promise.all([
+    prisma.connectorSettings.findUnique({
+      where: { tokenHash: hashConnectorToken(token) },
+      select: { userId: true, tokenExpiresAt: true, tokenLastUsedAt: true },
+    }),
+    resolveNamedPersonalToken(token),
+  ]);
   if (settings) {
     if (isConnectorTokenExpired(settings.tokenExpiresAt)) return null;
-    await touchLegacyToken(settings.userId, settings.tokenLastUsedAt);
+    touchLegacyToken(settings.userId, settings.tokenLastUsedAt);
     return {
       userId: settings.userId,
       scopes: [...PERSONAL_TOKEN_SCOPES],
       kind: "personal",
     };
   }
-  const named = await resolveNamedPersonalToken(token);
   return named
     ? {
         userId: named.userId,

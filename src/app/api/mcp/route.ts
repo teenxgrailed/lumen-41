@@ -151,13 +151,18 @@ export async function POST(request: NextRequest) {
     return jsonRpcError(403, "Forbidden origin");
   }
 
+  // The IP limit and the token lookup do not depend on each other: run them
+  // together. A limited caller gets the limit answer and the lookup is
+  // dropped (its failure, if any, is not reported).
+  const authLookup = authenticateBearer(request);
+  authLookup.catch(() => undefined);
   const ipLimited = await enforceRateLimits(
     [ipRule(request, "mcp:ip", MCP_IP_LIMIT_PER_MINUTE, 60)],
     { route: ROUTE }
   );
   if (ipLimited) return ipLimited;
 
-  const auth = await authenticateBearer(request);
+  const auth = await authLookup;
   if (!auth) return unauthorized();
 
   const userLimited = await enforceRateLimits(

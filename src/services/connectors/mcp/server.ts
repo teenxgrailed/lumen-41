@@ -144,13 +144,12 @@ async function callTool(ctx: McpToolContext, id: JsonRpcId, params: unknown) {
   const tool = findMcpTool(name);
   if (!tool)
     return failure(id, INVALID_PARAMS, `Unknown tool: ${String(name)}`);
-  if (await hubToolHidden(tool, ctx.userId)) {
-    return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
-  }
-  if (await quitToolHidden(tool, ctx.userId)) {
-    return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
-  }
-  if (await dayPlanToolHidden(tool, ctx.userId)) {
+  const hidden = await Promise.all([
+    hubToolHidden(tool, ctx.userId),
+    quitToolHidden(tool, ctx.userId),
+    dayPlanToolHidden(tool, ctx.userId),
+  ]);
+  if (hidden.some(Boolean)) {
     return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
   }
 
@@ -215,14 +214,16 @@ export async function handleMcpMessage(
       });
     case "ping":
       return result(id, {});
-    case "tools/list":
+    case "tools/list": {
+      const [hub, quit, dayPlan] = await Promise.all([
+        agentHubEnabled(ctx.userId),
+        isFeatureEnabled(HABITS_QUIT, ctx.userId),
+        dayPlanEnabled(ctx.userId),
+      ]);
       return result(id, {
-        tools: listMcpTools(ctx.auth.scopes, {
-          hub: await agentHubEnabled(ctx.userId),
-          quit: await isFeatureEnabled(HABITS_QUIT, ctx.userId),
-          dayPlan: await dayPlanEnabled(ctx.userId),
-        }),
+        tools: listMcpTools(ctx.auth.scopes, { hub, quit, dayPlan }),
       });
+    }
     case "tools/call":
       return callTool(ctx, id, params);
     default:

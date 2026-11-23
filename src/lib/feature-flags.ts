@@ -19,13 +19,40 @@ import {
 } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { createTtlCache } from "@/lib/ttl-cache";
+
+/**
+ * One read per flag and person per 30 s in this process (a flag read is two
+ * statements, and a single MCP call asks for several). A change an admin makes
+ * through the admin route clears it at once in that process; in other
+ * instances it shows within the TTL, which is fine for a rollout switch.
+ */
+export const FEATURE_FLAG_CACHE_TTL_MS = 30_000;
+const flagCache = createTtlCache<boolean>({
+  name: "feature-flags",
+  ttlMs: FEATURE_FLAG_CACHE_TTL_MS,
+});
+
+const hubPlanCache = createTtlCache<boolean>({
+  name: "feature-flags",
+  ttlMs: FEATURE_FLAG_CACHE_TTL_MS,
+});
 
 export function rolloutBucket(flagKey: string, userId: string) {
   const digest = createHash("sha256").update(`${flagKey}:${userId}`).digest();
   return digest.readUInt32BE(0) % 100;
 }
 
-export async function isFeatureEnabled(flagKey: string, userId: string) {
+export function isFeatureEnabled(
+  flagKey: string,
+  userId: string
+): Promise<boolean> {
+  return flagCache.get(`${flagKey}:${userId}`, () =>
+    readFeatureFlag(flagKey, userId)
+  );
+}
+
+async function readFeatureFlag(flagKey: string, userId: string) {
   const flag = await prisma.featureFlag.findUnique({
     where: { key: flagKey },
     include: {
@@ -63,7 +90,13 @@ export async function isFeatureEnabledForEveryone(flagKey: string) {
  */
 export async function agentHubEnabled(userId: string) {
   if (!(await isFeatureEnabled(AGENT_HUB, userId))) return false;
-  return (await canUseAgentHub(userId)).allowed;
+  // Only "allowed" is kept (30 s): a person who has just upgraded must not
+  // wait out a remembered "no".
+  return hubPlanCache.get(userId, async () => {
+    const allowed = (await canUseAgentHub(userId)).allowed;
+    if (!allowed) hubPlanCache.delete(userId);
+    return allowed;
+  });
 }
 
 /**

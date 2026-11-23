@@ -1,4 +1,4 @@
-import { type HubItem, Prisma } from "@prisma/client";
+import { type HubItem, type HubItemEvent, Prisma } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
@@ -26,35 +26,47 @@ import {
   rankReady,
 } from "./deps";
 import { agentNames, getItem, itemView, unmatchedItemIds } from "./items";
-import { type HistoryWindow, historyWindow } from "./limits";
+import { historyWindow } from "./limits";
 import { unreadMessageCount } from "./messages";
 import { myReservations } from "./reservations";
 import type { InboxInput, NextInput } from "./schemas";
 import { sweepHub } from "./sweep";
 
-async function eventsFor(userId: string, itemIds: readonly string[]) {
+/**
+ * The latest events of each item, oldest first: one query for all items (not
+ * one per item), grouped here.
+ */
+export async function eventsFor(userId: string, itemIds: readonly string[]) {
   const window = await historyWindow(userId);
-  const byItem = new Map<string, Awaited<ReturnType<typeof fetchEvents>>>();
-  for (const id of itemIds) byItem.set(id, await fetchEvents(id, window));
-  return byItem;
-}
-
-async function fetchEvents(itemId: string, window: HistoryWindow) {
+  const byItem = new Map<string, HubItemEvent[]>();
+  if (!itemIds.length) return byItem;
   const rows = await prisma.hubItemEvent.findMany({
-    where: { itemId, at: { gte: window.since } },
+    where: { itemId: { in: [...itemIds] }, at: { gte: window.since } },
     orderBy: [{ at: "desc" }],
-    take: INBOX_EVENTS_PER_ITEM,
   });
+  for (const row of rows) {
+    const list = byItem.get(row.itemId) ?? [];
+    if (list.length < INBOX_EVENTS_PER_ITEM) list.push(row);
+    byItem.set(row.itemId, list);
+  }
   // Free: an item the agent can still act on keeps its single latest event
   // (why it waits), even when it is older than the window.
-  if (!rows.length && window.limited) {
-    return prisma.hubItemEvent.findMany({
-      where: { itemId },
-      orderBy: [{ at: "desc" }],
-      take: 1,
-    });
+  if (window.limited) {
+    const bare = itemIds.filter((id) => !byItem.has(id));
+    if (bare.length) {
+      const older = await prisma.hubItemEvent.findMany({
+        where: { itemId: { in: bare } },
+        orderBy: [{ at: "desc" }],
+      });
+      for (const row of older) {
+        if (!byItem.has(row.itemId)) byItem.set(row.itemId, [row]);
+      }
+    }
   }
-  return rows.reverse();
+  for (const id of itemIds) {
+    byItem.set(id, (byItem.get(id) ?? []).slice().reverse());
+  }
+  return byItem;
 }
 
 /**
