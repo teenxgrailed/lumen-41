@@ -167,6 +167,9 @@ test("Overbooked Home offers Spread across the week, and Spread leads on Overdue
       page.locator(`.hd-title[title="${LONG_TITLE}"]`).first()
     ).toBeVisible();
   }
+  // Opening the overdue row may scroll the page (it did in one run, not in the
+  // next); the shot is always taken from the top.
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(350);
 
   await expect(page).toHaveScreenshot("home-overbooked.png", {
