@@ -1,0 +1,2 @@
+- The floating bottom bar is now a white capsule with real depth (dark in the dark theme) holding round raised buttons. The place you are in is a dark pill with its mark and its name, and it slides to the next one. The picker in setup and in Settings shows the new look.
+- In the floating style the menu's places bar is the same raised capsule as the dock, and the dotted band behind the bar is gone.

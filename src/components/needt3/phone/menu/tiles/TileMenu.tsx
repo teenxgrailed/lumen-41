@@ -83,6 +83,8 @@ export interface TileMenuProps {
   onProject: (id: string) => void;
   /** The Focus tile was chosen: the Focus sheet opens. */
   onFocus: () => void;
+  /** The floating bar style: the places bar wears the raised material. */
+  float?: boolean;
 }
 
 /** True while `open`, and for `ms` after it turns false. */
@@ -120,6 +122,7 @@ export function TileMenu({
   onPick,
   onProject,
   onFocus,
+  float = false,
 }: TileMenuProps) {
   const mounted = useLinger(open, OUT_MS);
   // The dock steps down and away under the menu: it draws its own way out.
@@ -133,6 +136,7 @@ export function TileMenu({
       onPick={onPick}
       onProject={onProject}
       onFocus={onFocus}
+      float={float}
     />
   );
 }
@@ -151,6 +155,7 @@ function TileMenuLayer({
   onPick,
   onProject,
   onFocus,
+  float = false,
 }: TileMenuProps) {
   const layout = usePhoneMenu();
   const save = useSavePhoneMenu();
@@ -752,10 +757,13 @@ function TileMenuLayer({
             <LuX size={22} aria-hidden />
           </button>
         ) : (
-          <nav className="ntm-bar" aria-label="Places">
+          <nav
+            className={pkCx("ntm-bar", float && "is-float v3-raised")}
+            aria-label="Places"
+          >
             <button
               type="button"
-              className="ntm-tab"
+              className={pkCx("ntm-tab", float && "v3-raised-disc")}
               aria-label="Today"
               data-ntm-tab="home"
               onClick={() => {
@@ -767,7 +775,11 @@ function TileMenuLayer({
             </button>
             <button
               type="button"
-              className={pkCx("ntm-tab", !places && "is-on")}
+              className={pkCx(
+                "ntm-tab",
+                float && (!places ? "v3-raised-ink" : "v3-raised-disc"),
+                !places && "is-on"
+              )}
               aria-label="Menu"
               aria-pressed={!places}
               data-ntm-tab="menu"
@@ -777,7 +789,11 @@ function TileMenuLayer({
             </button>
             <button
               type="button"
-              className={pkCx("ntm-tab", places && "is-on")}
+              className={pkCx(
+                "ntm-tab",
+                float && (places ? "v3-raised-ink" : "v3-raised-disc"),
+                places && "is-on"
+              )}
               aria-label="All places"
               aria-pressed={places}
               data-ntm-places=""
@@ -787,7 +803,7 @@ function TileMenuLayer({
             </button>
             <button
               type="button"
-              className="ntm-tab"
+              className={pkCx("ntm-tab", float && "v3-raised-disc")}
               aria-label="Ask Needt"
               data-ntm-tab="ask"
               onClick={() => {

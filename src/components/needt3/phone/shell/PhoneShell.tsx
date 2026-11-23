@@ -347,6 +347,7 @@ export function PhoneShell() {
         onPick={onPick}
         onProject={onProject}
         onFocus={onFocus}
+        float={float}
       />
       <PhoneOverlays />
       <PageSnapshot pathname={pathname} />

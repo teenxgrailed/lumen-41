@@ -2,9 +2,10 @@
  * @jest-environment jsdom
  *
  * The floating bottom bar and the picker that chooses it, mounted for real:
- * - the bar holds the places, + and the menu opener, five slots; the place
- *   you are in is the one solid circle, or the menu opener when you are
- *   somewhere the bar does not hold;
+ * - the bar holds the places, + and the menu opener, five round slots in a
+ *   capsule; the place you are in carries the one ink pill (its name in it),
+ *   or the menu opener does, named "More", when you are somewhere the bar
+ *   does not hold; the pill is placed by an index, never resized;
  * - a tap picks a place, opens the composer, opens the card;
  * - it steps out (inert) while the card, a cover or the composer is up;
  * - the picker shows both bars, marks the chosen one, reports a tap, and its
@@ -72,18 +73,44 @@ describe("FloatBar", () => {
     expect(q("[data-nva-pill]")).not.toBeNull();
   });
 
-  it("puts the one circle on the place you are in", () => {
+  it("puts the ink pill on the place you are in, with its name", () => {
     bar({ screen: "docs" });
     expect(qa(".nfb-slot.is-on")).toEqual([q('[data-nfb-place="docs"]')]);
     expect(q('[data-nfb-place="docs"]')?.getAttribute("aria-current")).toBe(
       "page"
     );
+    expect(q(".nfb-pill")?.getAttribute("data-nfb-at")).toBe("1");
+    expect(q<HTMLElement>(".nfb-pill")?.style.getPropertyValue("--nfb-i")).toBe(
+      "1"
+    );
+    expect(qa(".nfb-ink")).toHaveLength(1);
+    expect(q(".nfb-label")?.textContent).toBe("Docs");
   });
 
-  it("puts the circle on the menu opener when the place is not in the bar", () => {
+  it("numbers the slots in order: places, +, the menu opener", () => {
+    bar();
+    const js = qa(".nfb-slot").map((b) =>
+      (b as HTMLElement).style.getPropertyValue("--nfb-j")
+    );
+    expect(js).toEqual(["0", "1", "2", "3", "4"]);
+  });
+
+  it("puts the ink pill on the menu opener, named More, when the place is not in the bar", () => {
     bar({ screen: "mail" });
     expect(qa(".nfb-slot.is-on")).toEqual([q("[data-nfb-menu]")]);
     expect(q("[data-nfb-menu]")?.getAttribute("aria-label")).toContain("Mail");
+    expect(q(".nfb-pill")?.getAttribute("data-nfb-at")).toBe("4");
+    expect(q(".nfb-label")?.textContent).toBe("More");
+  });
+
+  it("moves the ink pill to the next place without remounting the capsule", () => {
+    bar({ screen: "home" });
+    const pill = q(".nfb-pill");
+    const ink = q(".nfb-ink");
+    bar({ screen: "ask" });
+    expect(q(".nfb-pill")).toBe(pill);
+    expect(q(".nfb-ink")).toBe(ink);
+    expect(q(".nfb-pill")?.getAttribute("data-nfb-at")).toBe("2");
   });
 
   it("picks, composes and opens the card", () => {
@@ -124,7 +151,7 @@ describe("FloatBar", () => {
     expect(q("[data-nva-pill]")).toBeNull();
   });
 
-  it("wears the dark frost on the dark theme", () => {
+  it("wears the dark capsule on the dark theme", () => {
     bar({ side: "dark" });
     expect(q(".nfb")?.classList.contains("is-dark")).toBe(true);
   });

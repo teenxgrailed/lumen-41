@@ -1,0 +1,109 @@
+/*
+ * The raised material: one volume for every small object that should read as
+ * a thing you can press, not a flat shape. Owner ref, 2026-11-22
+ * (volume-2211/ref-dock-volume, ref-inline-objects; first used by the floating
+ * bottom bar, bottom-bar-float.css): a soft fill, a 1px light rim, an inner
+ * top highlight, a tight contact shadow under a wide ambient one. A button
+ * inside a raised container is a smaller raised object of its own; the one
+ * that is active turns to ink.
+ *
+ * Three classes, one set of tokens, light and dark:
+ *
+ *   .v3-raised       the container: a capsule, a bar, a card of buttons
+ *   .v3-raised-disc  a button, chip or toggle standing on the container (or
+ *                    on the page: it carries its own shadow)
+ *   .v3-raised-ink   the active one: neutral ink with the ground colour for
+ *                    its mark and its name. Never the accent (the accent is
+ *                    never a fill)
+ *
+ * The tokens (`--v3-raised-*`) are read from the theme: light, and dark under
+ * `data-theme="dark" | "dim"`, a `.dark` subtree, or `.v3-raised-dark` on
+ * the element itself (a dock that follows the app's `side` before the theme
+ * attribute has landed). A consumer sets only its geometry (size, radius,
+ * padding); anything it needs to switch off (the active slot's own disc)
+ * it overrides with a more specific rule.
+ *
+ * Tokens:
+ *   --v3-raised-fill       the container's fill (see-through: a little
+ *                          backdrop blur sits under it)
+ *   --v3-raised-edge       the 1px light rim, inside the edge
+ *   --v3-raised-rim        the hairline outside the edge
+ *   --v3-raised-hi         the inner top highlight colour
+ *   --v3-raised-shadow     container shadow: highlight, rim, contact, ambient
+ *   --v3-raised-disc-top / --v3-raised-disc   the button's fill, top to bottom
+ *   --v3-raised-disc-shadow button shadow: rim, highlight, contact, ambient
+ *   --v3-raised-ink        the active pill's fill (neutral ink)
+ *   --v3-raised-on-ink     the mark and the name on it
+ *   --v3-raised-ink-shadow the active pill's shadow
+ *   --v3-raised-mark       the mark on a raised button
+ */
+.needt-v3 {
+  --v3-raised-fill: color-mix(in srgb, var(--v2p-plate, #fff) 90%, transparent);
+  --v3-raised-edge: #fff;
+  --v3-raised-rim: rgba(18, 18, 20, 0.07);
+  --v3-raised-hi: #fff;
+  --v3-raised-shadow:
+    inset 0 0 0 1px var(--v3-raised-edge), 0 0 0 1px var(--v3-raised-rim),
+    inset 0 2px 3px -1px var(--v3-raised-hi), 0 2px 5px rgba(18, 16, 40, 0.07),
+    0 16px 34px -10px rgba(18, 16, 40, 0.22);
+  --v3-raised-disc-top: #fff;
+  --v3-raised-disc: #fbfbf9;
+  --v3-raised-disc-shadow:
+    inset 0 0 0 1px rgba(18, 18, 20, 0.035), inset 0 1px 0 var(--v3-raised-hi),
+    0 1px 1px rgba(18, 16, 40, 0.06), 0 4px 9px -3px rgba(18, 16, 40, 0.14);
+  --v3-raised-ink: var(--v2p-ink, #121214);
+  --v3-raised-on-ink: var(--v2p-plate, #fff);
+  --v3-raised-ink-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 1px 2px rgba(18, 16, 40, 0.3),
+    0 6px 12px -4px rgba(18, 16, 40, 0.38);
+  --v3-raised-mark: var(--v2p-ink, #121214);
+}
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3 .dark,
+.needt-v3 .v3-raised-dark {
+  --v3-raised-fill: color-mix(
+    in srgb,
+    var(--v2p-raise, #1e1e22) 92%,
+    transparent
+  );
+  --v3-raised-edge: rgba(246, 245, 250, 0.09);
+  --v3-raised-rim: rgba(246, 245, 250, 0.08);
+  --v3-raised-hi: rgba(246, 245, 250, 0.09);
+  --v3-raised-shadow:
+    inset 0 0 0 1px var(--v3-raised-edge), 0 0 0 1px var(--v3-raised-rim),
+    inset 0 2px 3px -1px var(--v3-raised-hi), 0 2px 5px rgba(0, 0, 0, 0.35),
+    0 18px 36px -10px rgba(0, 0, 0, 0.6);
+  --v3-raised-disc-top: #34343b;
+  --v3-raised-disc: #2a2a30;
+  --v3-raised-disc-shadow:
+    inset 0 0 0 1px rgba(246, 245, 250, 0.05),
+    inset 0 1px 0 rgba(246, 245, 250, 0.1), 0 1px 1px rgba(0, 0, 0, 0.4),
+    0 4px 9px -3px rgba(0, 0, 0, 0.5);
+  --v3-raised-ink: var(--v2p-ink, #f6f5fa);
+  --v3-raised-on-ink: var(--v2p-ground, #141416);
+  --v3-raised-ink-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 6px 14px -4px rgba(0, 0, 0, 0.55);
+  --v3-raised-mark: var(--v2p-ink, #f6f5fa);
+}
+
+.needt-v3 .v3-raised {
+  background: var(--v3-raised-fill);
+  box-shadow: var(--v3-raised-shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+}
+.needt-v3 .v3-raised-disc {
+  background: linear-gradient(
+    180deg,
+    var(--v3-raised-disc-top) 0%,
+    var(--v3-raised-disc) 100%
+  );
+  color: var(--v3-raised-mark);
+  box-shadow: var(--v3-raised-disc-shadow);
+}
+.needt-v3 .v3-raised-ink {
+  background: var(--v3-raised-ink);
+  color: var(--v3-raised-on-ink);
+  box-shadow: var(--v3-raised-ink-shadow);
+}

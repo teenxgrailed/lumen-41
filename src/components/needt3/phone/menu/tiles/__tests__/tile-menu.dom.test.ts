@@ -256,6 +256,16 @@ describe("the tile menu", () => {
     expect(q("[data-v2p-host]")!.hasAttribute("inert")).toBe(false);
   });
 
+  it("in the floating style the places bar is the raised capsule, the chosen tab in ink", () => {
+    mount();
+    expect(document.querySelector(".ntm-bar.is-float")).toBeNull();
+    mount({ float: true });
+    const bar = document.querySelector(".ntm-bar");
+    expect(bar?.classList.contains("v3-raised")).toBe(true);
+    expect(bar?.querySelectorAll(".v3-raised-ink").length).toBe(1);
+    expect(bar?.querySelectorAll(".v3-raised-disc").length).toBe(3);
+  });
+
   it("takes the dock away (a cover) while it is open", () => {
     expect(phoneCover.active()).toBe(false);
     mount();

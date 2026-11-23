@@ -2,23 +2,36 @@
  * The floating bottom bar (FloatBar.tsx, `prefs.barStyle = "float"`), the
  * second look of the phone's dock beside menu A's classic pill.
  *
- * One frosted pill over the content: the page ground at a see-through alpha
- * over a backdrop blur cut to the pill, a hairline edge, no heavy shadow.
- * Five slots, no labels. The slot you are in sits in a solid circle, the
- * pill's raised ground (white on light, the raised dark on dark): a ground
- * shift, never the accent. Icons are the one ink at the ladder's alphas.
+ * Owner ref, 2026-11-22 (bottom-dock-2211/ref-dock-pill): a white capsule
+ * with real volume (a hairline rim, an inner top highlight, a tight contact
+ * shadow under a wide ambient one) holding separate round buttons, each a
+ * slightly raised disc of its own. The place you are in is a wide dark pill
+ * with its mark and its name in light: it slides to the next one.
+ *
+ * Proportions are the ref's, taken off the 4x crop: disc 60, capsule 85 (the
+ * padding is 0.2 of a disc), gap 0.2 of a disc, the active pill 2.4 discs
+ * wide (2.7 here: a 13 px name has to fit, "Ask Needt" is the longest).
+ *
+ * Five slots: the places, + and the menu opener. The active one carries the
+ * ink pill (neutral ink, never the accent; the ground colour for the mark and
+ * the name). The pill and the slots after it move with `translate` only: the
+ * pill's width never changes, so nothing here is laid out again while it
+ * slides, and there is no spring (PORT.md: people do not sway). Dark: the
+ * same volume turned over: a dark capsule, lighter raised discs, a light
+ * active pill.
  *
  * While it is the dock, menu A draws nothing at rest at the pill; its card
  * still opens (from the bar's dot grid) and grows from the pill's place.
  */
 .needt-v3 .nfb {
-  /* 48 px, smaller only on a narrow phone; menu-a.ts nvaFloatSlot is the same
-     formula, so the card grows out of this exact pill */
-  --nfb-slot: clamp(36px, calc((100vw - 40px) / 5.6), 48px);
-  --nfb-pad: 6px;
-  --nfb-ground: var(--v2p-plate);
-  --nfb-on: var(--v2p-plate);
-  --nfb-alpha: 0.62;
+  /* 44 px, smaller only on a narrow phone; menu-a.ts nvaFloatSlot is the same
+     formula, so the card grows out of this exact capsule */
+  --nfb-d: clamp(36px, calc((100vw - 80px) / 6.7), 44px);
+  --nfb-pad: 8px;
+  --nfb-gap: 8px;
+  /* what the active pill has over a round button */
+  --nfb-xw: calc(var(--nfb-d) * 1.7);
+  --nfb-ease: cubic-bezier(0.2, 0.9, 0.25, 1);
   position: fixed;
   left: 50%;
   bottom: calc(var(--v3-dock-lift, 20px) + 10px);
@@ -29,11 +42,6 @@
   transform: translateX(-50%);
   pointer-events: none;
   transition: opacity 0.2s ease;
-}
-.needt-v3 .nfb.is-dark {
-  --nfb-ground: var(--v2p-raise);
-  --nfb-on: var(--v2p-raise-2);
-  --nfb-alpha: 0.66;
 }
 /* Out (the card, a cover or the composer is up, and until the card has
  * settled back): a fade only, never a move, so the pill's box stays where
@@ -54,66 +62,129 @@
   transform: none;
 }
 
+/* The capsule: its box is the five slots, the ink pill's extra width and the
+ * padding all round, so the card's geometry (menu-a.ts nvaFloatPill) is the
+ * same sum. */
 .needt-v3 .nfb-pill {
   position: relative;
   isolation: isolate;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: var(--nfb-pad);
-  border-radius: calc(var(--nfb-slot) / 2 + var(--nfb-pad));
+  display: block;
+  box-sizing: border-box;
+  width: calc(
+    2 * var(--nfb-pad) + 5 * var(--nfb-d) + 4 * var(--nfb-gap) + var(--nfb-xw)
+  );
+  height: calc(var(--nfb-d) + 2 * var(--nfb-pad));
+  border-radius: calc(var(--nfb-d) / 2 + var(--nfb-pad));
   pointer-events: auto;
-  box-shadow:
-    inset 0 0 0 0.5px var(--v2p-line),
-    0 8px 24px -16px rgba(18, 16, 40, 0.28);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  backdrop-filter: blur(18px) saturate(1.6);
-}
-.needt-v3 .nfb-pill::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: var(--nfb-ground);
-  opacity: var(--nfb-alpha);
 }
 
+/* The ink pill: neutral ink, the width of one round button and its name.
+ * It is moved by translate and never resized. */
+.needt-v3 .nfb-ink {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  top: var(--nfb-pad);
+  display: flex;
+  align-items: center;
+  /* the name stands right after the mark, as in the ref */
+  justify-content: flex-start;
+  box-sizing: border-box;
+  width: calc(var(--nfb-d) + var(--nfb-xw));
+  height: var(--nfb-d);
+  padding: 0 10px 0 calc(var(--nfb-d) - 2px);
+  border-radius: calc(var(--nfb-d) / 2);
+  translate: calc(
+      var(--nfb-pad) + var(--nfb-i) * (var(--nfb-d) + var(--nfb-gap))
+    )
+    0;
+  transition: translate 0.34s var(--nfb-ease);
+  pointer-events: none;
+}
+.needt-v3 .nfb-label {
+  /* the chrome type scale: 13 px */
+  font: 600 13px/18px var(--font-sans);
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  max-width: calc(var(--nfb-xw) - 8px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* A slot: a round, slightly raised button. Its place is `translate`: the
+ * ones after the active slot stand one ink-width further on. */
 .needt-v3 .nfb-slot {
-  position: relative;
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  top: var(--nfb-pad);
   display: grid;
   place-items: center;
-  flex: none;
-  width: var(--nfb-slot);
-  height: var(--nfb-slot);
+  box-sizing: border-box;
+  width: var(--nfb-d);
+  height: var(--nfb-d);
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: transparent;
-  color: var(--v2p-ink-2);
   cursor: default;
   -webkit-tap-highlight-color: transparent;
+  /* transform, not translate: globals.css resets `translate` on every button
+   * when animations are off, which would stack the discs on one spot */
+  transform: translateX(
+    calc(
+      var(--nfb-pad) + var(--nfb-j) * (var(--nfb-d) + var(--nfb-gap)) +
+        var(--nfb-s) * var(--nfb-xw)
+    )
+  );
   transition:
-    background-color 0.18s ease,
-    color 0.18s ease;
+    transform 0.34s var(--nfb-ease),
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease;
 }
+/* A press keeps the slot where it stands. The app-wide press rule
+ * (`.needt-v2 button:active { transform: scale(0.965) }`) replaces `transform`,
+ * which here is the slots place: the disc jumped to the capsules left edge
+ * under the finger, so the tap ended on the capsule and never reached the
+ * button. Same place, scaled. */
+.needt-v3 .nfb-slot:active {
+  transform: translateX(
+      calc(
+        var(--nfb-pad) + var(--nfb-j) * (var(--nfb-d) + var(--nfb-gap)) +
+          var(--nfb-s) * var(--nfb-xw)
+      )
+    )
+    scale(0.94);
+}
+/* the slot you are in: its disc steps back into the ink pill under it, and
+ * its mark turns to the pill's colour */
 .needt-v3 .nfb-slot.is-on {
-  background: var(--nfb-on);
-  color: var(--v2p-ink);
-  box-shadow:
-    inset 0 0 0 0.5px var(--v2p-line),
-    0 1px 2px rgba(18, 16, 40, 0.08);
+  background: transparent;
+  color: var(--v3-raised-on-ink);
+  box-shadow: none;
 }
-.needt-v3 .nfb.is-dark .nfb-slot.is-on {
-  box-shadow: inset 0 0 0 0.5px var(--v2p-line);
-}
+/* The marks are the landing's glyphs, drawn as one ink: the shapes keep their
+ * alpha, so the two tones of a mark stay two tones. */
 .needt-v3 .nfb-slot .nva-glyph {
-  width: 26px;
-  height: 26px;
-  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.25, 1);
+  width: 22px;
+  height: 22px;
+  filter: brightness(0);
+  opacity: 0.86;
+  transition:
+    transform 0.18s var(--nfb-ease),
+    opacity 0.2s ease;
+}
+.needt-v3 .nfb-slot.is-on .nva-glyph {
+  filter: brightness(0) invert(1);
+  opacity: 1;
+}
+.needt-v3 .nfb.is-dark .nfb-slot .nva-glyph {
+  filter: brightness(0) invert(1);
+}
+.needt-v3 .nfb.is-dark .nfb-slot.is-on .nva-glyph {
+  filter: brightness(0);
 }
 .needt-v3 .nfb-slot svg {
-  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.25, 1);
+  transition: transform 0.18s var(--nfb-ease);
 }
 .needt-v3 .nfb-slot:active .nva-glyph,
 .needt-v3 .nfb-slot.is-add:active svg {
@@ -121,7 +192,7 @@
 }
 .needt-v3 .nfb-slot:focus-visible {
   outline: 2px solid var(--v2p-ink-3);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 /* left of the pill, outside its box: the pill stays centred where menu A's
@@ -151,7 +222,7 @@
  * closing back into the pill) and open, it is the card as always. */
 .needt-v3
   .nva.is-float[data-nva-mode="pill"]:not([data-moving])
-  :is(.nva-body, .nva-glass),
+  :is(.nva-body, .nva-glass, .nva-icon, .nva-pillbits),
 .needt-v3 .nva.is-float :is(.nva-add, .nva-focus, .nva-hint) {
   visibility: hidden !important;
   pointer-events: none !important;
@@ -159,7 +230,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .needt-v3 .nfb,
+  .needt-v3 .nfb-ink,
   .needt-v3 .nfb-slot,
+  .needt-v3 .nfb-slot svg,
   .needt-v3 .nfb-slot .nva-glyph {
     transition: none;
   }
@@ -226,7 +299,7 @@
   left: 50%;
   bottom: 12px;
   display: block;
-  transform: translateX(-50%) scale(0.46);
+  transform: translateX(-50%) scale(0.355);
   transform-origin: 50% 100%;
   white-space: nowrap;
 }
@@ -300,6 +373,34 @@
     height: 96px;
   }
   .needt-v3 .bsp-scale {
-    transform: translateX(-50%) scale(0.38);
+    transform: translateX(-50%) scale(0.3);
   }
+}
+
+/* ── One bar on every screen ──────────────────────────────────────────────────
+ * The tile menu carries its own places bar (TileMenu .ntm-bar). In the
+ * floating style it wears the same raised material and the same geometry as
+ * the dock: a capsule of discs, the chosen one in ink. */
+.needt-v3 .ntm-bar.is-float {
+  gap: 8px;
+  height: 60px;
+  padding: 0 8px;
+  border-radius: 30px;
+}
+.needt-v3 .ntm-bar.is-float .ntm-tab {
+  width: 44px;
+  height: 44px;
+}
+.needt-v3 .ntm-bar.is-float .ntm-tab.is-on {
+  background: var(--v3-raised-ink);
+  color: var(--v3-raised-on-ink);
+  box-shadow: var(--v3-raised-ink-shadow);
+}
+
+/* ── No halftone band behind the floating bar ─────────────────────────────────
+ * The screen fog (.pk-fog) melts rows into the bottom edge with a drifting dot
+ * pattern. The raised capsule carries its own shadow and needs no dots under
+ * it; the blur and wash of the fog stay, only the dots go. */
+.needt-v3[data-ui="phone"]:has([data-bar-style="float"]) .pk-fog-dots {
+  display: none;
 }
