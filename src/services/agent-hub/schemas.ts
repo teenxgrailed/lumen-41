@@ -122,8 +122,27 @@ export const createItemInput = z.object({
     .describe(
       "Your own key: repeating a create with it returns the same item."
     ),
+  idempotencyKey: z
+    .string()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe(
+      "Retry key: repeating the create with the same key returns the item it already made instead of a duplicate. Takes the place of clientRef when both are sent."
+    ),
 });
 export type CreateItemInput = z.infer<typeof createItemInput>;
+
+/**
+ * The key a create is deduplicated on: idempotencyKey, else clientRef. Both are
+ * stored in the one clientRef column, so old callers keep working unchanged.
+ */
+export function withCreateKey<
+  T extends { clientRef?: string; idempotencyKey?: string },
+>(input: T): T {
+  const clientRef = input.idempotencyKey?.trim() || input.clientRef;
+  return { ...input, idempotencyKey: undefined, clientRef };
+}
 
 /** Repeat this brief on a schedule (Pro). The item being created is the first occurrence. */
 export const recurrenceInput = z
@@ -251,6 +270,14 @@ export const completeInput = z.object({
   criteriaNote: z.string().max(300).optional(),
   usage: usageSchema.optional(),
   expectedVersion: z.number().int().min(1).optional(),
+  idempotencyKey: z
+    .string()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe(
+      "Retry key: repeating the complete with the same key after it went through returns the finished item with replayed: true instead of an error."
+    ),
 });
 export type CompleteInput = z.infer<typeof completeInput>;
 
@@ -297,7 +324,10 @@ export type LinkInput = z.infer<typeof linkInput>;
 
 export const ownerLinkInput = linkInput.omit({ fromId: true });
 
-const planStepInput = createItemInput.omit({ clientRef: true });
+const planStepInput = createItemInput.omit({
+  clientRef: true,
+  idempotencyKey: true,
+});
 
 export const planCreateInput = createItemInput
   .extend({

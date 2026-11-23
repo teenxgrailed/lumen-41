@@ -4369,6 +4369,11 @@ model HubItem {
   recurrenceId        String?
   /// The scheduled moment of that occurrence; unique per recurrence, so a retried spawn cannot double up.
   occurrenceAt        DateTime?
+  /// When this occurrence's lease ends: 24 hours after it opened, or the next fire if sooner.
+  /// Once passed, the hub marks the unfinished item missed (cancelled) so it cannot block the next one.
+  occurrenceExpiresAt DateTime?
+  /// The idempotency key of the call that finished this item; a repeat with it returns the same result.
+  completionKey       String?
   /// The done-criteria as a checklist; doneCriteria keeps the same text for readers of the old shape.
   criteriaItems       String[]            @default([])
   /// Reported by the agent on update / complete: running totals for the item.
@@ -4392,6 +4397,7 @@ model HubItem {
   @@unique([userId, creatorAgentId, clientRef])
   @@unique([recurrenceId, occurrenceAt])
   @@index([recurrenceId, status])
+  @@index([occurrenceExpiresAt])
   @@index([workspaceId, status, assigneeAgentId])
   @@index([status, leaseExpiresAt])
   @@index([workspaceId, closedAt])

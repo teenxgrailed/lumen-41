@@ -429,6 +429,17 @@ createdAt, url, urlExpiresAt }`. `url` is a signed GET valid 24 hours (the
   with `PLAN_LIMIT` (402, `resource` `attachments`): "Upgrade to Pro for
   attachments". Listing and downloading files already stored stays allowed.
 
+**Idempotency keys.** `needt_agent_task_create` (and `POST
+/api/connect/agent-hub/items`) takes an optional `idempotencyKey` (up to 100
+characters): repeating the create with the same key returns the item already
+made (`created: false`) instead of a duplicate. It is the same key as the older
+`clientRef`; send either, `idempotencyKey` wins when both are present.
+`needt_agent_task_complete` (and `POST /api/connect/agent-hub/items/{id}/complete`)
+takes an optional `idempotencyKey` too: if the first complete went through and
+its answer was lost, the retry with the same key returns the finished item with
+`replayed: true`, writes nothing a second time and is not an error. Without a
+key a second complete is refused (`TERMINAL`), as before.
+
 **Recurring items (Pro).** `needt_agent_task_create` takes an optional
 `recurrence`: `{ "rrule": "FREQ=WEEKLY;BYDAY=MO;BYHOUR=9", "timezone":
 "Europe/Kyiv", "allowOverlap": false }`. The item you create is the first
@@ -444,9 +455,17 @@ occurrence, so a standing job reaches the inbox without anyone re-creating it.
 - A worker sweeps every five minutes, so an item appears within about five
   minutes of its time. A missed run is not caught up: after downtime the
   series continues from the next occurrence after now.
-- No new occurrence while the previous one is unfinished (status not done,
-  failed or cancelled), unless `allowOverlap` is true. That occurrence is
-  skipped, not queued.
+- The hub owns the schedule: it opens each occurrence by its own clock, and
+  an agent only claims, works and completes it, never creating or triggering
+  the next one.
+- Each occurrence has a lease: 24 hours after it opened, or until the next
+  occurrence if that is sooner (`occurrenceExpiresAt` on the item). An
+  occurrence still unfinished then is closed as missed (status `cancelled`,
+  event `occurrence_expired`) and no longer blocks the next one. An agent
+  holding it under a live claim lease keeps it until 24 hours after it opened.
+- No new occurrence while the previous one is unfinished and inside its lease
+  (status not done, failed or cancelled), unless `allowOverlap` is true. That
+  occurrence is skipped, not queued.
 - A skipped occurrence is recorded on the recurrence as `lastSkip`:
   `previous_open`, `plan_limit` (the Free open-item limit would be exceeded),
   `plan` (the person is no longer on Pro), `assignee_unavailable`,

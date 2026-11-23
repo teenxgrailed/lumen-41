@@ -1,4 +1,9 @@
-import { type HubAgent, type HubRecurrence, Prisma } from "@prisma/client";
+import {
+  type HubAgent,
+  type HubItem,
+  type HubRecurrence,
+  Prisma,
+} from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 import { canUseHubRecurring } from "@/lib/entitlements";
@@ -7,13 +12,22 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 import {
+  HELD_STATUSES,
+  OCCURRENCE_LEASE_MS,
+  RECURRENCE_EXPIRY_BATCH,
   RECURRENCE_MAX_PER_USER,
   RECURRENCE_SWEEP_BATCH,
   TERMINAL_STATUSES,
 } from "./constants";
 import type { Actor, HubScope, WorkspaceKey } from "./context";
+import { noteUnblocked } from "./deps";
 import { HubError } from "./errors";
-import { type CreateItemHooks, createItem, writeEvents } from "./items";
+import {
+  type CreateItemHooks,
+  createItem,
+  findByCreateKey,
+  writeEvents,
+} from "./items";
 import { assertHubLimitFor } from "./limits";
 import { trackHub } from "./metrics";
 import {
@@ -21,10 +35,11 @@ import {
   describeRule,
   nextOccurrence,
 } from "./recurrence-rule";
-import type {
-  CreateItemWithRecurrenceInput,
-  RecurrenceUpdateInput,
-  RecurrencesListInput,
+import {
+  type CreateItemWithRecurrenceInput,
+  type RecurrenceUpdateInput,
+  type RecurrencesListInput,
+  withCreateKey,
 } from "./schemas";
 
 const LOG_SOURCE = "agent-hub-recurrence";
@@ -34,6 +49,13 @@ const LOG_SOURCE = "agent-hub-recurrence";
  * the worker (every five minutes) opens a fresh item from each due one. Pro
  * only. A missed run is not caught up: after downtime the series continues
  * from the next occurrence after now, so a restart never floods the inbox.
+ *
+ * The hub owns the schedule: an occurrence opens because the worker says so,
+ * never because an agent finished or asked for the previous one. Each
+ * occurrence also carries a lease (`occurrenceExpiresAt`): 24 hours, or until
+ * the next fire if that is sooner. An unfinished occurrence whose lease has
+ * passed is closed as missed (status cancelled, event `occurrence_expired`)
+ * and no longer blocks the next one.
  */
 
 export type SkipReason =
@@ -49,7 +71,7 @@ const SKIP_TEXT: Record<SkipReason, string> = {
   hub_disabled: "The agent hub is off for this account.",
   plan: "Recurring items need the Pro plan.",
   plan_limit: "The Free plan's open-item limit was reached.",
-  previous_open: "The previous occurrence is still open.",
+  previous_open: "The previous occurrence is still open and within its lease.",
   assignee_unavailable: "The assigned agent is gone or disabled.",
   creator_unavailable: "The agent that created this is gone or disabled.",
   invalid_rule: "The schedule could not be read; the recurrence was paused.",
@@ -150,6 +172,143 @@ async function namesFor(rows: readonly HubRecurrence[]) {
 }
 
 // ---------------------------------------------------------------------------
+// Occurrence lease
+// ---------------------------------------------------------------------------
+
+/**
+ * When the lease of an occurrence opened at `openedAt` ends: 24 hours later,
+ * or at the next fire when that comes sooner (null: the series has no more).
+ */
+export function occurrenceLeaseEnd(
+  openedAt: Date,
+  nextFire: Date | null
+): Date {
+  const cap = newDate(openedAt.getTime() + OCCURRENCE_LEASE_MS);
+  return nextFire && nextFire.getTime() < cap.getTime() ? nextFire : cap;
+}
+
+type LeasedItem = Pick<
+  HubItem,
+  | "status"
+  | "createdAt"
+  | "occurrenceAt"
+  | "occurrenceExpiresAt"
+  | "leaseExpiresAt"
+>;
+
+/**
+ * True when an unfinished occurrence has outlived its lease. A row from before
+ * leases existed has none stored: it gets the plain 24 hours from when it
+ * opened. An agent that holds the item under a live claim lease (it is working
+ * on it right now) keeps it until the 24 hour cap, so a run in progress is not
+ * pulled away at the next fire.
+ */
+export function occurrenceExpired(item: LeasedItem, now: Date): boolean {
+  if (TERMINAL_STATUSES.includes(item.status)) return false;
+  const openedAt = item.occurrenceAt ?? item.createdAt;
+  const end =
+    item.occurrenceExpiresAt ??
+    newDate(openedAt.getTime() + OCCURRENCE_LEASE_MS);
+  if (end.getTime() > now.getTime()) return false;
+  const working =
+    HELD_STATUSES.includes(item.status) &&
+    item.leaseExpiresAt !== null &&
+    item.leaseExpiresAt.getTime() > now.getTime();
+  const hardCap = item.createdAt.getTime() + OCCURRENCE_LEASE_MS;
+  return !(working && hardCap > now.getTime());
+}
+
+/**
+ * Closes one expired occurrence as missed: status cancelled, claim released,
+ * one `occurrence_expired` event. Conditional on the version, so two sweeps
+ * cannot both close it and a late write by an agent wins over the sweep.
+ */
+async function expireOccurrence(
+  tx: Prisma.TransactionClient,
+  item: HubItem,
+  now: Date
+): Promise<boolean> {
+  const marked = await tx.hubItem.updateMany({
+    where: { id: item.id, version: item.version },
+    data: {
+      status: "cancelled",
+      claimedByAgentId: null,
+      leaseExpiresAt: null,
+      leaseExpiredNotedAt: null,
+      blockedOn: null,
+      ownerUnread: false,
+      closedAt: now,
+      version: { increment: 1 },
+    },
+  });
+  if (marked.count === 0) return false;
+  await writeEvents(
+    tx,
+    item.id,
+    undefined,
+    [
+      {
+        type: "occurrence_expired",
+        from: item.status,
+        to: "cancelled",
+        message:
+          "Missed: this occurrence was not finished before its lease ended, so the hub closed it and the series moved on.",
+        data: {
+          recurrenceId: item.recurrenceId,
+          occurrenceAt: item.occurrenceAt?.toISOString() ?? null,
+          leaseEndedAt: (
+            item.occurrenceExpiresAt ??
+            newDate(
+              (item.occurrenceAt ?? item.createdAt).getTime() +
+                OCCURRENCE_LEASE_MS
+            )
+          ).toISOString(),
+        },
+      },
+    ],
+    now
+  );
+  // Cancelled counts as finished for anything it was holding back.
+  await noteUnblocked(tx, item, newDate(now.getTime() + 5));
+  return true;
+}
+
+/**
+ * Closes every unfinished occurrence (all recurrences, up to a batch) whose
+ * lease has ended. Runs at the start of each worker sweep, so a missed run is
+ * marked within about five minutes of its lease, not only when the next one is
+ * due.
+ */
+export async function expireStaleOccurrences(now: Date = newDate()) {
+  const staleBefore = newDate(now.getTime() - OCCURRENCE_LEASE_MS);
+  const rows = await prisma.hubItem.findMany({
+    where: {
+      recurrenceId: { not: null },
+      status: { notIn: [...TERMINAL_STATUSES] },
+      OR: [
+        { occurrenceExpiresAt: { lte: now } },
+        // Opened before leases existed.
+        { occurrenceExpiresAt: null, createdAt: { lte: staleBefore } },
+      ],
+    },
+    orderBy: { createdAt: "asc" },
+    take: RECURRENCE_EXPIRY_BATCH,
+  });
+  let expired = 0;
+  for (const row of rows) {
+    if (!occurrenceExpired(row, now)) continue;
+    const closed = await prisma.$transaction((tx) =>
+      expireOccurrence(tx, row, now)
+    );
+    if (closed) expired += 1;
+  }
+  if (expired) {
+    await logger.info("Hub occurrences expired", { expired }, LOG_SOURCE);
+  }
+  return { expired };
+}
+
+// ---------------------------------------------------------------------------
 // Create
 // ---------------------------------------------------------------------------
 
@@ -160,10 +319,26 @@ async function namesFor(rows: readonly HubRecurrence[]) {
  */
 export async function createItemWithRecurrence(
   scope: HubScope,
-  input: CreateItemWithRecurrenceInput
+  rawInput: CreateItemWithRecurrenceInput
 ) {
-  const { recurrence, ...brief } = input;
+  const { recurrence, ...brief } = withCreateKey(rawInput);
   if (!recurrence) return createItem(scope, brief);
+
+  // A retry with the same key returns the first answer, before any gate or
+  // limit can refuse it.
+  const earlier = await findByCreateKey(scope, brief.clientRef);
+  if (earlier) {
+    const row = earlier.recurrenceId
+      ? await prisma.hubRecurrence.findUnique({
+          where: { id: earlier.recurrenceId },
+        })
+      : null;
+    const result = await createItem(scope, brief);
+    return {
+      ...result,
+      recurrence: row ? recurrenceView(row, await namesFor([row])) : null,
+    };
+  }
 
   await assertRecurrenceAllowed(scope.userId);
   const timezone =
@@ -212,7 +387,11 @@ export async function createItemWithRecurrence(
       });
       return tx.hubItem.update({
         where: { id: created.id },
-        data: { recurrenceId: made.id, occurrenceAt: now },
+        data: {
+          recurrenceId: made.id,
+          occurrenceAt: now,
+          occurrenceExpiresAt: occurrenceLeaseEnd(now, next),
+        },
       });
     },
   };
@@ -378,6 +557,25 @@ export async function processDueRecurrence(
   if (!(await agentHubEnabled(rec.userId))) return skip("hub_disabled");
   if (!(await canUseHubRecurring(rec.userId)).allowed) return skip("plan");
 
+  // Close occurrences that outlived their lease first: a missed run must not
+  // block this one, nor count against the open-item limit.
+  const unfinished = await tx.hubItem.findMany({
+    where: {
+      recurrenceId: rec.id,
+      status: { notIn: [...TERMINAL_STATUSES] },
+    },
+    orderBy: { createdAt: "asc" },
+    take: RECURRENCE_EXPIRY_BATCH,
+  });
+  let stillOpen = 0;
+  for (const item of unfinished) {
+    if (occurrenceExpired(item, now)) {
+      if (!(await expireOccurrence(tx, item, now))) stillOpen += 1;
+    } else {
+      stillOpen += 1;
+    }
+  }
+
   if (rec.assigneeAgentId && !(await liveAgent(tx, rec.assigneeAgentId))) {
     return skip("assignee_unavailable");
   }
@@ -401,16 +599,7 @@ export async function processDueRecurrence(
     return { kind: "spawned", itemId: already.id };
   }
 
-  if (!rec.allowOverlap) {
-    const open = await tx.hubItem.findFirst({
-      where: {
-        recurrenceId: rec.id,
-        status: { notIn: [...TERMINAL_STATUSES] },
-      },
-      select: { id: true },
-    });
-    if (open) return skip("previous_open");
-  }
+  if (stillOpen > 0 && !rec.allowOverlap) return skip("previous_open");
 
   const actor: Actor = creator
     ? { kind: "agent", agent: creator }
@@ -443,6 +632,7 @@ export async function processDueRecurrence(
       clientRef: `recurrence:${rec.id}:${occurrenceAt.toISOString()}`,
       recurrenceId: rec.id,
       occurrenceAt,
+      occurrenceExpiresAt: occurrenceLeaseEnd(now, next),
     },
   });
   await writeEvents(
@@ -490,6 +680,18 @@ export async function processDueRecurrence(
 export async function spawnDueRecurrences(now: Date = newDate()) {
   let spawned = 0;
   let skipped = 0;
+  let expired = 0;
+  try {
+    expired = (await expireStaleOccurrences(now)).expired;
+  } catch (error) {
+    // Opening the due occurrences does not wait on this: each one closes its
+    // own stale predecessors before it spawns.
+    await logger.error(
+      "Hub occurrence expiry failed",
+      { error: error instanceof Error ? error.message : String(error) },
+      LOG_SOURCE
+    );
+  }
   for (let handled = 0; handled < RECURRENCE_SWEEP_BATCH; handled += 1) {
     const outcome = await prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<{ id: string }[]>`
@@ -516,5 +718,5 @@ export async function spawnDueRecurrences(now: Date = newDate()) {
       LOG_SOURCE
     );
   }
-  return { spawned, skipped };
+  return { spawned, skipped, expired };
 }

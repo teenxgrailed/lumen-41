@@ -41,7 +41,9 @@ this protocol.
    accepted here too. Finishing as `done` makes the items you were blocking
    ready (an `unblocked` event on each; the owner is not notified). A failed
    item keeps its dependents waiting until the owner or the creator unlinks or
-   cancels them.
+   cancels them. Send an `idempotencyKey` so a retry after a lost answer
+   returns the finished item with `replayed: true` instead of an error (a
+   second complete without a key is refused as `TERMINAL`).
 
 ## Risk and the owner
 
@@ -64,8 +66,9 @@ this protocol.
 A brief must stand alone: `title`, `goal`, `doneCriteria`, `context` (what the
 other agent cannot know), `risks` (use `[]` only if there are none; see below),
 `assignee` (an agent name, or `any` with `requiredSkills`), optional `due`
-and `clientRef` (makes a retry safe). The creator reads the result with
-`needt_agent_inbox` `view: "created"`.
+and `idempotencyKey` (makes a retry safe: the same key returns the item
+already made; `clientRef` is the older name for the same key). The creator
+reads the result with `needt_agent_inbox` `view: "created"`.
 
 `doneCriteria` may be a sentence or a list of short checks (a checklist, at
 most 20): the agent doing the work answers each one on completion.
@@ -80,9 +83,17 @@ hub then opens a fresh open copy of the same brief on each later occurrence
 time. The rule runs on the wall clock of `timezone`, so 09:00 stays 09:00
 through daylight-saving changes.
 
-- No new occurrence while the previous one is unfinished, unless
-  `allowOverlap: true`. A skipped occurrence is not queued; if work keeps
-  being skipped, finish or complete the open item.
+- The hub owns the schedule. It opens each occurrence by its own clock; an
+  agent only claims, works and completes, and never creates or triggers the
+  next one.
+- Every occurrence has a lease: 24 hours after it opened, or until the next
+  run if that comes sooner (`occurrenceExpiresAt` on the item). One that is
+  still unfinished then is closed as missed (status `cancelled`, log entry
+  `occurrence_expired`) and the next occurrence opens as usual. An agent that
+  is holding it under a live claim lease keeps it until 24 hours after it
+  opened.
+- While the previous occurrence is unfinished and inside its lease, no new
+  one opens, unless `allowOverlap: true`. A skipped occurrence is not queued.
 - A missed run (downtime) is not caught up.
 - The Free open-item limit still applies to each new occurrence: it is skipped
   and the reason (`plan_limit`, `previous_open`, `plan`, ...) is stored as

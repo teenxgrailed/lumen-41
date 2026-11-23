@@ -2,7 +2,7 @@
  * Recurring hub items: the Pro gate, the idempotent spawn, the overlap rule and
  * the open-item limit. The database is mocked; the SQL lock is checked by text.
  */
-import type { HubRecurrence } from "@prisma/client";
+import type { HubItem, HubRecurrence } from "@prisma/client";
 
 import {
   canAddToHub,
@@ -16,6 +16,9 @@ import type { HubScope } from "../context";
 import { HubError } from "../errors";
 import {
   createItemWithRecurrence,
+  expireStaleOccurrences,
+  occurrenceExpired,
+  occurrenceLeaseEnd,
   processDueRecurrence,
   spawnDueRecurrences,
   updateRecurrence,
@@ -34,7 +37,12 @@ jest.mock("@/lib/prisma", () => ({
       delete: jest.fn(),
     },
     hubAgent: { findMany: jest.fn(), findUnique: jest.fn() },
-    hubItem: { findFirst: jest.fn(), create: jest.fn() },
+    hubItem: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      updateMany: jest.fn(),
+    },
     hubItemEvent: { findMany: jest.fn(), create: jest.fn() },
     hubItemLink: { findMany: jest.fn() },
     $transaction: jest.fn(),
@@ -58,10 +66,17 @@ const db = prisma as unknown as {
   userSettings: { findUnique: jest.Mock };
   hubRecurrence: Record<string, jest.Mock>;
   hubAgent: { findMany: jest.Mock; findUnique: jest.Mock };
-  hubItem: { findFirst: jest.Mock; create: jest.Mock };
+  hubItem: {
+    findFirst: jest.Mock;
+    findMany: jest.Mock;
+    create: jest.Mock;
+    updateMany: jest.Mock;
+  };
   $transaction: jest.Mock;
 };
 
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 const NOW = new Date("2026-11-09T14:05:00Z"); // Monday 09:05 in New York
 const DUE = new Date("2026-11-09T14:00:00Z");
 
@@ -105,6 +120,7 @@ function tx() {
     hubRecurrence: db.hubRecurrence,
     hubAgent: db.hubAgent,
     hubItemEvent: { create: jest.fn() },
+    hubItemLink: { findMany: jest.fn().mockResolvedValue([]) },
     $queryRaw: jest.fn(),
   };
 }
@@ -131,6 +147,8 @@ beforeEach(() => {
     limited: false,
   });
   db.hubItem.findFirst.mockResolvedValue(null);
+  db.hubItem.findMany.mockResolvedValue([]);
+  db.hubItem.updateMany.mockResolvedValue({ count: 1 });
   db.hubItem.create.mockImplementation(async ({ data }) => ({
     id: "item2",
     ...data,
@@ -208,11 +226,31 @@ describe("spawn", () => {
   });
 });
 
+/** An unfinished item of rec1, opened at `openedAt`, with a stored lease. */
+function openItem(patch: Partial<HubItem> = {}): HubItem {
+  const openedAt = new Date("2026-11-08T14:00:00Z");
+  return {
+    id: "item1",
+    userId: "u1",
+    workspaceId: "ws1",
+    title: "Collect weekly metrics",
+    status: "open",
+    recurrenceId: "rec1",
+    occurrenceAt: openedAt,
+    occurrenceExpiresAt: new Date(openedAt.getTime() + DAY),
+    claimedByAgentId: null,
+    leaseExpiresAt: null,
+    version: 4,
+    createdAt: openedAt,
+    ...patch,
+  } as HubItem;
+}
+
 describe("overlap", () => {
-  it("skips while the previous occurrence is still open", async () => {
-    db.hubItem.findFirst
-      .mockResolvedValueOnce(null) // this occurrence not opened yet
-      .mockResolvedValueOnce({ id: "item1" }); // previous one is open
+  it("skips while the previous occurrence is still open and inside its lease", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({ occurrenceExpiresAt: new Date(NOW.getTime() + 60_000) }),
+    ]);
     const outcome = await processDueRecurrence(
       tx() as never,
       recurrence(),
@@ -220,6 +258,7 @@ describe("overlap", () => {
     );
     expect(outcome).toEqual({ kind: "skipped", reason: "previous_open" });
     expect(db.hubItem.create).not.toHaveBeenCalled();
+    expect(db.hubItem.updateMany).not.toHaveBeenCalled();
     const update = db.hubRecurrence.update.mock.calls[0][0].data;
     expect(update.lastSkipReason).toBe("previous_open");
     expect(update.skipCount).toEqual({ increment: 1 });
@@ -229,23 +268,195 @@ describe("overlap", () => {
 
   it("looks only at unfinished items of this recurrence", async () => {
     await processDueRecurrence(tx() as never, recurrence(), NOW);
-    const overlapQuery = db.hubItem.findFirst.mock.calls[1][0].where;
-    expect(overlapQuery.recurrenceId).toBe("rec1");
-    expect(overlapQuery.status.notIn).toEqual(
+    const query = db.hubItem.findMany.mock.calls[0][0].where;
+    expect(query.recurrenceId).toBe("rec1");
+    expect(query.status.notIn).toEqual(
       expect.arrayContaining(["done", "failed", "cancelled"])
     );
   });
 
   it("opens another occurrence next to an open one when allowOverlap is true", async () => {
-    db.hubItem.findFirst.mockResolvedValue(null);
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({ occurrenceExpiresAt: new Date(NOW.getTime() + 60_000) }),
+    ]);
     const outcome = await processDueRecurrence(
       tx() as never,
       recurrence({ allowOverlap: true }),
       NOW
     );
     expect(outcome.kind).toBe("spawned");
-    // Only the idempotency lookup ran; the overlap lookup was not needed.
-    expect(db.hubItem.findFirst).toHaveBeenCalledTimes(1);
+    expect(db.hubItem.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("occurrence lease", () => {
+  it("an open expired occurrence does not block the next one", async () => {
+    // Opened a week ago, never finished: the case that skipped 49 runs.
+    const stale = openItem({
+      occurrenceAt: new Date("2026-11-02T14:00:00Z"),
+      createdAt: new Date("2026-11-02T14:00:00Z"),
+      occurrenceExpiresAt: new Date("2026-11-03T14:00:00Z"),
+    });
+    db.hubItem.findMany.mockResolvedValue([stale]);
+    const t = tx();
+    const outcome = await processDueRecurrence(t as never, recurrence(), NOW);
+    expect(outcome).toEqual({ kind: "spawned", itemId: "item2" });
+    // The old one is closed as missed, conditional on the version it was read at.
+    expect(db.hubItem.updateMany).toHaveBeenCalledWith({
+      where: { id: "item1", version: 4 },
+      data: expect.objectContaining({
+        status: "cancelled",
+        claimedByAgentId: null,
+        closedAt: NOW,
+      }),
+    });
+    expect(t.hubItemEvent.create.mock.calls[0][0].data).toMatchObject({
+      itemId: "item1",
+      type: "occurrence_expired",
+      fromStatus: "open",
+      toStatus: "cancelled",
+      actorKind: "system",
+    });
+    expect(db.hubItem.create).toHaveBeenCalledTimes(1);
+    expect(db.hubRecurrence.update.mock.calls[0][0].data).toMatchObject({
+      lastSpawnedItemId: "item2",
+      spawnCount: { increment: 1 },
+    });
+  });
+
+  it("closes the expired one even when allowOverlap is true", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({ occurrenceExpiresAt: new Date(NOW.getTime() - 1) }),
+    ]);
+    await processDueRecurrence(
+      tx() as never,
+      recurrence({ allowOverlap: true }),
+      NOW
+    );
+    expect(db.hubItem.updateMany).toHaveBeenCalledTimes(1);
+    expect(db.hubItem.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("frees the open-item limit before checking it", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({ occurrenceExpiresAt: new Date(NOW.getTime() - 1) }),
+    ]);
+    canAdd.mockResolvedValue({
+      allowed: false,
+      limit: 30,
+      used: 30,
+      plan: "FREE",
+      upgradeRequired: true,
+    });
+    const outcome = await processDueRecurrence(
+      tx() as never,
+      recurrence(),
+      NOW
+    );
+    // The limit still refuses (mocked), but the stale item was closed first.
+    expect(outcome).toEqual({ kind: "skipped", reason: "plan_limit" });
+    expect(db.hubItem.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("still blocks when another sweep closed the item first (version moved)", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({ occurrenceExpiresAt: new Date(NOW.getTime() - 1) }),
+    ]);
+    db.hubItem.updateMany.mockResolvedValue({ count: 0 });
+    const t = tx();
+    const outcome = await processDueRecurrence(t as never, recurrence(), NOW);
+    expect(outcome).toEqual({ kind: "skipped", reason: "previous_open" });
+    expect(t.hubItemEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("an item an agent is working on right now keeps its place until the 24 hour cap", () => {
+    const working = openItem({
+      status: "in_progress",
+      claimedByAgentId: "a1",
+      leaseExpiresAt: new Date(NOW.getTime() + 20 * 60_000),
+      occurrenceExpiresAt: new Date(NOW.getTime() - 60_000),
+      createdAt: new Date(NOW.getTime() - 23 * HOUR),
+    });
+    expect(occurrenceExpired(working, NOW)).toBe(false);
+    // Past the cap even a live claim lease does not hold it.
+    expect(
+      occurrenceExpired(
+        { ...working, createdAt: new Date(NOW.getTime() - 25 * HOUR) },
+        NOW
+      )
+    ).toBe(true);
+    // A claim lease that ran out does not hold it either.
+    expect(
+      occurrenceExpired(
+        { ...working, leaseExpiresAt: new Date(NOW.getTime() - 1) },
+        NOW
+      )
+    ).toBe(true);
+  });
+
+  it("gives an item from before leases existed the plain 24 hours", () => {
+    const legacy = openItem({
+      occurrenceExpiresAt: null,
+      occurrenceAt: new Date(NOW.getTime() - 25 * HOUR),
+    });
+    expect(occurrenceExpired(legacy, NOW)).toBe(true);
+    expect(
+      occurrenceExpired(
+        { ...legacy, occurrenceAt: new Date(NOW.getTime() - 23 * HOUR) },
+        NOW
+      )
+    ).toBe(false);
+  });
+
+  it("never expires a finished item", () => {
+    expect(
+      occurrenceExpired(
+        openItem({
+          status: "done",
+          occurrenceExpiresAt: new Date(NOW.getTime() - DAY),
+        }),
+        NOW
+      )
+    ).toBe(false);
+  });
+
+  describe("lease = min(24 h, next fire)", () => {
+    it("is 24 hours when the next fire is further away", () => {
+      const next = new Date(NOW.getTime() + 7 * DAY);
+      expect(occurrenceLeaseEnd(NOW, next)).toEqual(
+        new Date(NOW.getTime() + DAY)
+      );
+    });
+
+    it("is 24 hours when the series has no more occurrences", () => {
+      expect(occurrenceLeaseEnd(NOW, null)).toEqual(
+        new Date(NOW.getTime() + DAY)
+      );
+    });
+
+    it("is the next fire when that comes sooner", () => {
+      const next = new Date(NOW.getTime() + 6 * HOUR);
+      expect(occurrenceLeaseEnd(NOW, next)).toEqual(next);
+    });
+
+    it("is stored on the occurrence the worker opens (weekly: 24 hours)", async () => {
+      await processDueRecurrence(tx() as never, recurrence(), NOW);
+      const data = db.hubItem.create.mock.calls[0][0].data;
+      expect(data.occurrenceExpiresAt).toEqual(new Date(NOW.getTime() + DAY));
+    });
+
+    it("is stored on the occurrence the worker opens (twice a day: the next fire)", async () => {
+      // 09:00 and 15:00 New York: due 14:00 UTC, next fire 20:00 UTC.
+      await processDueRecurrence(
+        tx() as never,
+        recurrence({ rrule: "FREQ=DAILY;BYHOUR=9,15" }),
+        NOW
+      );
+      const data = db.hubItem.create.mock.calls[0][0].data;
+      expect(data.occurrenceExpiresAt).toEqual(
+        new Date("2026-11-09T20:00:00.000Z")
+      );
+    });
   });
 });
 
@@ -406,9 +617,12 @@ describe("Pro gate on create", () => {
       requiredSkills: ["browser"],
     });
     expect(made.nextRunAt).toBeInstanceOf(Date);
-    expect(inner.hubItem.update.mock.calls[0][0].data.recurrenceId).toBe(
-      "rec-new"
-    );
+    const link = inner.hubItem.update.mock.calls[0][0].data;
+    expect(link.recurrenceId).toBe("rec-new");
+    // The first occurrence gets its lease too: 24 hours (the next Monday is a week away).
+    expect(
+      link.occurrenceExpiresAt.getTime() - link.occurrenceAt.getTime()
+    ).toBe(DAY);
     expect(result).toMatchObject({ created: true });
   });
 });
@@ -471,7 +685,7 @@ describe("sweep", () => {
     db.$transaction.mockImplementation(async (work) => work(inner));
     db.hubRecurrence.findUnique.mockResolvedValue(recurrence());
     const result = await spawnDueRecurrences(NOW);
-    expect(result).toEqual({ spawned: 1, skipped: 0 });
+    expect(result).toEqual({ spawned: 1, skipped: 0, expired: 0 });
     expect(queries[0]).toContain("FOR UPDATE SKIP LOCKED");
     expect(db.hubItem.create).toHaveBeenCalledTimes(1);
   });
@@ -483,6 +697,54 @@ describe("sweep", () => {
     await expect(spawnDueRecurrences(NOW)).resolves.toEqual({
       spawned: 0,
       skipped: 0,
+      expired: 0,
     });
+  });
+
+  it("closes expired occurrences at the start of the sweep, before the next one is due", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({ occurrenceExpiresAt: new Date(NOW.getTime() - 1) }),
+      // Inside its lease: left alone.
+      openItem({
+        id: "item-live",
+        occurrenceExpiresAt: new Date(NOW.getTime() + HOUR),
+      }),
+    ]);
+    const inner = tx();
+    db.$transaction.mockImplementation(async (work) =>
+      work({ ...inner, $queryRaw: jest.fn().mockResolvedValue([]) })
+    );
+    const result = await spawnDueRecurrences(NOW);
+    expect(result).toEqual({ spawned: 0, skipped: 0, expired: 1 });
+    const where = db.hubItem.findMany.mock.calls[0][0].where;
+    expect(where.recurrenceId).toEqual({ not: null });
+    expect(where.OR).toEqual(
+      expect.arrayContaining([{ occurrenceExpiresAt: { lte: NOW } }])
+    );
+    expect(db.hubItem.updateMany).toHaveBeenCalledTimes(1);
+    expect(db.hubItem.updateMany.mock.calls[0][0].where.id).toBe("item1");
+  });
+
+  it("still opens due occurrences when the expiry pass fails", async () => {
+    db.hubItem.findMany.mockRejectedValueOnce(new Error("db down"));
+    const inner = {
+      ...tx(),
+      $queryRaw: jest
+        .fn()
+        .mockResolvedValueOnce([{ id: "rec1" }])
+        .mockResolvedValueOnce([]),
+    };
+    db.$transaction.mockImplementation(async (work) => work(inner));
+    db.hubRecurrence.findUnique.mockResolvedValue(recurrence());
+    db.hubItem.findMany.mockResolvedValue([]);
+    const result = await spawnDueRecurrences(NOW);
+    expect(result).toMatchObject({ spawned: 1, expired: 0 });
+  });
+});
+
+describe("expireStaleOccurrences", () => {
+  it("returns zero when nothing has outlived its lease", async () => {
+    await expect(expireStaleOccurrences(NOW)).resolves.toEqual({ expired: 0 });
+    expect(db.$transaction).not.toHaveBeenCalled();
   });
 });

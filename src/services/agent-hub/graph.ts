@@ -20,7 +20,7 @@ import {
   writeEvents,
 } from "./items";
 import { assertHubLimitFor, historyWindow } from "./limits";
-import type { LinkInput, PlanCreateInput } from "./schemas";
+import { type LinkInput, type PlanCreateInput, withCreateKey } from "./schemas";
 import { emitHubEvent, itemPayload } from "./webhooks";
 
 /**
@@ -269,7 +269,8 @@ async function planView(scope: HubScope, parentId: string) {
  * returns the plan already made.
  */
 export async function createPlan(scope: HubScope, input: PlanCreateInput) {
-  const { children, sequential, ...parentInput } = input;
+  const { children, sequential, ...rest } = input;
+  const parentInput = withCreateKey(rest);
   const creatorAgentId = actorAgentId(scope.actor);
 
   if (creatorAgentId && parentInput.clientRef) {

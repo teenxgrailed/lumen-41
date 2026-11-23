@@ -107,3 +107,11 @@ export const RECURRENCE_MAX_PER_USER = 50;
 /** Due recurrences handled in one worker sweep; the rest wait for the next. */
 export const RECURRENCE_SWEEP_BATCH = 50;
 export const RECURRENCE_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
+/**
+ * An occurrence's lease: it must be finished within this long of opening, or
+ * by the next fire when that comes sooner. After that the hub closes it as
+ * missed so it cannot block the next one.
+ */
+export const OCCURRENCE_LEASE_MS = 24 * 60 * 60 * 1000;
+/** Expired occurrences closed in one worker sweep; the rest wait for the next. */
+export const RECURRENCE_EXPIRY_BATCH = 100;

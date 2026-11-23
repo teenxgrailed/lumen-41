@@ -32,6 +32,7 @@ import { agentForConnection, assistantAgentScope } from "../context";
 import { HubError } from "../errors";
 import { createItem, listItems } from "../items";
 import { writeNote } from "../notes";
+import { spawnDueRecurrences } from "../recurrences";
 import { createAgentToken, revokeAgentToken } from "../tokens";
 
 const describeIntegration =
@@ -1414,6 +1415,98 @@ describeIntegration("Agent hub (real database)", () => {
       inbox.data.items.every((i: Json) => !i.title.startsWith("Cannot do"))
     ).toBe(true);
   });
+  it("closes an unfinished occurrence at its lease, opens the next on schedule and honours idempotency keys", async () => {
+    const standing = brief({
+      title: "Weekly lease check",
+      requiredSkills: ["browser"],
+      idempotencyKey: "lease-check-1",
+      recurrence: {
+        rrule: "FREQ=WEEKLY;BYDAY=MO;BYHOUR=9",
+        timezone: "UTC",
+      },
+    });
+    const made = await tool(claude, "needt_agent_task_create", standing);
+    expect(made.isError).toBe(false);
+    const first: Json = made.data.item;
+    expect(first.recurrenceId).toEqual(expect.any(String));
+    expect(first.occurrenceExpiresAt).toEqual(expect.any(String));
+
+    // Same key again: the same item, no second one.
+    const again = await tool(claude, "needt_agent_task_create", standing);
+    expect(again.data.created).toBe(false);
+    expect(again.data.item.id).toBe(first.id);
+    expect(
+      await prisma.hubItem.count({
+        where: { userId: ownerId, clientRef: "lease-check-1" },
+      })
+    ).toBe(1);
+
+    // The next occurrence is due, but the first is inside its lease: skipped.
+    const recurrenceId: string = first.recurrenceId;
+    const due = () =>
+      prisma.hubRecurrence.update({
+        where: { id: recurrenceId },
+        data: { nextRunAt: new Date(Date.now() - 60_000), active: true },
+      });
+    await due();
+    const held = await spawnDueRecurrences();
+    expect(held).toMatchObject({ spawned: 0, skipped: 1, expired: 0 });
+    expect(
+      (
+        await prisma.hubRecurrence.findUniqueOrThrow({
+          where: { id: recurrenceId },
+        })
+      ).lastSkipReason
+    ).toBe("previous_open");
+
+    // Its lease ends: the old one is closed as missed and the next one opens.
+    await prisma.hubItem.update({
+      where: { id: first.id },
+      data: { occurrenceExpiresAt: new Date(Date.now() - 60_000) },
+    });
+    await due();
+    const swept = await spawnDueRecurrences();
+    expect(swept).toMatchObject({ spawned: 1, expired: 1 });
+    const old = await prisma.hubItem.findUniqueOrThrow({
+      where: { id: first.id },
+      include: { events: true },
+    });
+    expect(old.status).toBe("cancelled");
+    expect(old.events.map((event) => event.type)).toContain(
+      "occurrence_expired"
+    );
+    const open = await prisma.hubItem.findMany({
+      where: { recurrenceId, status: "open" },
+    });
+    expect(open).toHaveLength(1);
+    expect(open[0].id).not.toBe(first.id);
+    expect(open[0].occurrenceExpiresAt!.getTime()).toBeGreaterThan(Date.now());
+
+    // Complete twice with the same key: one completion, no error.
+    const next = open[0].id;
+    const claim = await tool(grok, "needt_agent_task_claim", { id: next });
+    expect(claim.isError).toBe(false);
+    const finish = {
+      id: next,
+      outcome: "done",
+      result: { summary: "Checked." },
+      criteriaMet: true,
+      idempotencyKey: "complete-lease-1",
+    };
+    const done = await tool(grok, "needt_agent_task_complete", finish);
+    expect(done.isError).toBe(false);
+    expect(done.data.item.status).toBe("done");
+    const replay = await tool(grok, "needt_agent_task_complete", finish);
+    expect(replay.isError).toBe(false);
+    expect(replay.data).toMatchObject({ replayed: true });
+    expect(replay.data.item.status).toBe("done");
+    expect(
+      await prisma.hubItemEvent.count({
+        where: { itemId: next, type: "completed" },
+      })
+    ).toBe(1);
+  });
+
   describe("Free plan limits against real rows", () => {
     const freeOwner = {
       userId: freeId,
