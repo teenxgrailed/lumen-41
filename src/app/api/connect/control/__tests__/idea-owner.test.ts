@@ -36,7 +36,7 @@ jest.mock("@/lib/task-block-push", () => ({
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     connectorSettings: { findUnique: jest.fn() },
-    task: { findFirst: jest.fn(), update: jest.fn() },
+    task: { findFirst: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     scheduledBlock: { deleteMany: jest.fn() },
   },
 }));
@@ -70,6 +70,30 @@ const rows = [
   },
 ];
 
+const post = (body: Record<string, unknown>) =>
+  POST(
+    new NextRequest("http://localhost/api/connect/control", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer ndt_oat_token",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    })
+  );
+
+/** The where clause as the database would apply it to the fixture rows. */
+function lookup(where: Record<string, unknown>) {
+  const found = rows.find((r) => r.id === where.id);
+  if (!found || where.workspaceId !== found.workspaceId) return null;
+  const not = where.NOT as
+    | { kind: string; userId: { not: string } }
+    | undefined;
+  if (not && found.kind === not.kind && found.userId !== not.userId.not)
+    return null;
+  return found;
+}
+
 const del = (id: string, confirm = true) =>
   POST(
     new NextRequest("http://localhost/api/connect/control", {
@@ -97,17 +121,10 @@ beforeEach(() => {
     role: WorkspaceRole.EDITOR,
     dataScope: { mode: "workspace", workspaceId: "workspace-1" },
   });
-  // The where clause as the database would apply it to the fixture rows.
-  task.findFirst.mockImplementation(async ({ where }) => {
-    const found = rows.find((r) => r.id === where.id);
-    if (!found || where.workspaceId !== found.workspaceId) return null;
-    const not = where.NOT as
-      | { kind: string; userId: { not: string } }
-      | undefined;
-    if (not && found.kind === not.kind && found.userId !== not.userId.not)
-      return null;
-    return found;
-  });
+  task.findFirst.mockImplementation(async ({ where }) => lookup(where));
+  task.updateMany.mockImplementation(async ({ where }) => ({
+    count: lookup(where) ? 1 : 0,
+  }));
 });
 
 describe("POST /api/connect/control delete_task", () => {
@@ -130,5 +147,29 @@ describe("POST /api/connect/control delete_task", () => {
     const res = await del("their-task");
     expect(res.status).toBe(200);
     expect(task.update).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("POST /api/connect/control restore_task", () => {
+  const restore = (id: string) => post({ action: "restore_task", id });
+
+  it("does not find another member's archived idea", async () => {
+    const res = await restore("their-idea");
+    expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toEqual({ error: "Object not found" });
+  });
+
+  it("still restores the caller's own idea", async () => {
+    const res = await restore("my-idea");
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      restored: true,
+      id: "my-idea",
+    });
+  });
+
+  it("still restores another member's task in the workspace", async () => {
+    const res = await restore("their-task");
+    expect(res.status).toBe(200);
   });
 });

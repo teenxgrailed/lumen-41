@@ -435,7 +435,13 @@ async function handleControl(
     const result =
       action === "restore_task"
         ? await prisma.task.updateMany({
-            where: { id: body.id, ...scope, isArchived: true },
+            where: {
+              id: body.id,
+              ...scope,
+              // an idea is personal: another member's is not found
+              ...kindWhere("any", userId),
+              isArchived: true,
+            },
             data: { isArchived: false, archivedAt: null },
           })
         : action === "restore_project"
