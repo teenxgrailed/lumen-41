@@ -95,9 +95,10 @@ through daylight-saving changes.
   still `open`, `claimed` or `in_progress` then is closed as missed (status
   `cancelled`, log entry `occurrence_expired`; the app shows "Missed") and the
   next occurrence opens as usual. It is never closed while an agent holds it
-  under a live claim lease, and never while it is `needs_owner` or `blocked`:
-  waiting is not a hang, so those keep blocking the next occurrence until they
-  are answered, unblocked or finished. If the agent that held a missed
+  under a live claim lease. An occurrence that is `needs_owner` or `blocked`
+  is waiting, not hung: it keeps blocking the next occurrence for 7 days from
+  when it started waiting (answering or unblocking it starts a fresh 24 hours).
+  After 7 it is closed as missed and the owner gets the usual unread alert. If the agent that held a missed
   occurrence completes it afterwards, the result is accepted; anyone else gets
   `OCCURRENCE_EXPIRED`.
 - While the previous occurrence is unfinished and inside its lease, no new

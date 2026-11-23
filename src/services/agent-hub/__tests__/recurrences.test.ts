@@ -241,8 +241,10 @@ function openItem(patch: Partial<HubItem> = {}): HubItem {
     occurrenceExpiresAt: new Date(openedAt.getTime() + DAY),
     claimedByAgentId: null,
     leaseExpiresAt: null,
+    noAgentAlertedAt: null,
     version: 4,
     createdAt: openedAt,
+    updatedAt: openedAt,
     ...patch,
   } as HubItem;
 }
@@ -398,34 +400,69 @@ describe("occurrence lease", () => {
     ).toBe(true);
   });
 
-  it("never expires an item that waits on the owner or is blocked (H1)", () => {
-    const past = new Date(NOW.getTime() - 3 * DAY);
+  it("an item waiting on the owner or blocked is not expired before its 7 day cap, and is after it (M1)", () => {
+    const waitingFor = (days: number) => ({
+      occurrenceExpiresAt: new Date(NOW.getTime() - days * DAY),
+      createdAt: new Date(NOW.getTime() - 30 * DAY),
+      occurrenceAt: new Date(NOW.getTime() - 30 * DAY),
+    });
     for (const status of ["needs_owner", "blocked"]) {
+      // Lease still in the future: it started waiting less than 7 days ago.
       expect(
         occurrenceExpired(
           openItem({
             status,
-            occurrenceExpiresAt: past,
-            createdAt: past,
-            occurrenceAt: past,
+            ...waitingFor(0),
+            occurrenceExpiresAt: new Date(NOW.getTime() + 2 * DAY),
           }),
           NOW
         )
       ).toBe(false);
+      // Cap ran out.
+      expect(
+        occurrenceExpired(openItem({ status, ...waitingFor(1) }), NOW)
+      ).toBe(true);
     }
-    // Also with no stored lease (a row from before leases existed).
+    // A blocked item whose agent still holds a live claim lease is not closed.
     expect(
       occurrenceExpired(
         openItem({
-          status: "needs_owner",
-          occurrenceExpiresAt: null,
-          createdAt: past,
-          occurrenceAt: past,
+          status: "blocked",
+          ...waitingFor(1),
+          claimedByAgentId: "a1",
+          leaseExpiresAt: new Date(NOW.getTime() + 10 * 60_000),
         }),
         NOW
       )
     ).toBe(false);
-    // An open, claimed or in_progress one with no live lease does expire.
+    // A row from before leases existed: the cap runs from its last change.
+    const legacy = {
+      occurrenceExpiresAt: null,
+      createdAt: new Date(NOW.getTime() - 30 * DAY),
+      occurrenceAt: new Date(NOW.getTime() - 30 * DAY),
+    };
+    expect(
+      occurrenceExpired(
+        openItem({
+          status: "needs_owner",
+          ...legacy,
+          updatedAt: new Date(NOW.getTime() - 6 * DAY),
+        }),
+        NOW
+      )
+    ).toBe(false);
+    expect(
+      occurrenceExpired(
+        openItem({
+          status: "needs_owner",
+          ...legacy,
+          updatedAt: new Date(NOW.getTime() - 8 * DAY),
+        }),
+        NOW
+      )
+    ).toBe(true);
+    // An open, claimed or in_progress one with no live lease expires at 24 h.
+    const past = new Date(NOW.getTime() - 3 * DAY);
     for (const status of ["open", "claimed", "in_progress"]) {
       expect(
         occurrenceExpired(
@@ -436,11 +473,11 @@ describe("occurrence lease", () => {
     }
   });
 
-  it("an expired needs_owner occurrence keeps blocking: nothing is closed and its alert stays", async () => {
+  it("before the cap an occurrence waiting on the owner still blocks the next run and nothing is touched", async () => {
     db.hubItem.findMany.mockResolvedValue([
       openItem({
         status: "needs_owner",
-        occurrenceExpiresAt: new Date(NOW.getTime() - 2 * DAY),
+        occurrenceExpiresAt: new Date(NOW.getTime() + 2 * DAY),
       }),
     ]);
     const outcome = await processDueRecurrence(
@@ -450,6 +487,88 @@ describe("occurrence lease", () => {
     );
     expect(outcome).toEqual({ kind: "skipped", reason: "previous_open" });
     expect(db.hubItem.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("after the cap the occurrence is closed as missed, the owner is alerted and the next run opens", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({
+        status: "needs_owner",
+        ownerUnread: false,
+        occurrenceExpiresAt: new Date(NOW.getTime() - 60_000),
+      }),
+    ]);
+    const t = tx();
+    const outcome = await processDueRecurrence(t as never, recurrence(), NOW);
+    expect(outcome).toEqual({ kind: "spawned", itemId: "item2" });
+    const data = db.hubItem.updateMany.mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      status: "cancelled",
+      ownerUnread: true,
+      ownerAlertedAt: NOW,
+    });
+    const event = t.hubItemEvent.create.mock.calls[0][0].data;
+    expect(event).toMatchObject({
+      type: "occurrence_expired",
+      fromStatus: "needs_owner",
+      toStatus: "cancelled",
+    });
+    expect(event.message).toContain("waited more than 7 days");
+    expect(event.data).toMatchObject({ waited: true });
+  });
+
+  it("closing a blocked occurrence past its cap alerts the owner too", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({
+        status: "blocked",
+        occurrenceExpiresAt: new Date(NOW.getTime() - 60_000),
+      }),
+    ]);
+    await processDueRecurrence(tx() as never, recurrence(), NOW);
+    expect(db.hubItem.updateMany.mock.calls[0][0].data).toMatchObject({
+      ownerUnread: true,
+    });
+  });
+
+  it("closing an open item that got the no-capable-agent alert clears its unread badge (L3)", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({
+        status: "open",
+        ownerUnread: true,
+        noAgentAlertedAt: new Date(NOW.getTime() - 2 * HOUR),
+        occurrenceExpiresAt: new Date(NOW.getTime() - 60_000),
+      }),
+    ]);
+    await processDueRecurrence(tx() as never, recurrence(), NOW);
+    expect(db.hubItem.updateMany.mock.calls[0][0].data).toMatchObject({
+      ownerUnread: false,
+    });
+  });
+
+  it("does not touch ownerUnread when the item never raised that alert", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({
+        status: "open",
+        occurrenceExpiresAt: new Date(NOW.getTime() - 60_000),
+      }),
+    ]);
+    await processDueRecurrence(tx() as never, recurrence(), NOW);
+    expect(db.hubItem.updateMany.mock.calls[0][0].data).not.toHaveProperty(
+      "ownerUnread"
+    );
+    // The alert was raised but the item was claimed since: also left alone.
+    db.hubItem.updateMany.mockClear();
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({
+        status: "claimed",
+        noAgentAlertedAt: new Date(NOW.getTime() - 2 * HOUR),
+        occurrenceExpiresAt: new Date(NOW.getTime() - 60_000),
+        leaseExpiresAt: null,
+      }),
+    ]);
+    await processDueRecurrence(tx() as never, recurrence(), NOW);
+    expect(db.hubItem.updateMany.mock.calls[0][0].data).not.toHaveProperty(
+      "ownerUnread"
+    );
   });
 
   it("closing an occurrence keeps who held it and the owner's unread mark", async () => {
@@ -816,8 +935,10 @@ describe("sweep", () => {
     expect(result).toEqual({ spawned: 0, skipped: 0, expired: 1 });
     const where = db.hubItem.findMany.mock.calls[0][0].where;
     expect(where.recurrenceId).toEqual({ not: null });
-    // Only what can be closed: never needs_owner or blocked (H1)...
-    expect(where.status).toEqual({ in: ["open", "claimed", "in_progress"] });
+    // Unfinished items only...
+    expect(where.status).toEqual({
+      notIn: expect.arrayContaining(["done", "failed", "cancelled"]),
+    });
     expect(where.AND[0].OR).toEqual(
       expect.arrayContaining([{ occurrenceExpiresAt: { lte: NOW } }])
     );

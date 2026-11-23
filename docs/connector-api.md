@@ -469,8 +469,10 @@ occurrence, so a standing job reaches the inbox without anyone re-creating it.
   occurrence still `open`, `claimed` or `in_progress` then is closed as missed
   (status `cancelled`, event `occurrence_expired`) and no longer blocks the
   next one. It is never closed while an agent holds it under a live claim
-  lease, nor while it is `needs_owner` or `blocked` (waiting is not a hang;
-  those keep blocking until answered or finished). The agent that held a
+  lease. One that is `needs_owner` or `blocked` is waiting, not hung: it
+  keeps blocking the next occurrence for 7 days from when it started waiting
+  (answering or unblocking it starts a fresh 24 hours), then it is closed as
+  missed and the owner gets the unread alert (the badge on the Agents screen). The agent that held a
   missed occurrence can still complete it and the result is kept; any other
   caller gets `OCCURRENCE_EXPIRED` (409).
 - No new occurrence while the previous one is unfinished and inside its lease

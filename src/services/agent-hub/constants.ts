@@ -115,3 +115,9 @@ export const RECURRENCE_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 export const OCCURRENCE_LEASE_MS = 24 * 60 * 60 * 1000;
 /** Expired occurrences closed in one worker sweep; the rest wait for the next. */
 export const RECURRENCE_EXPIRY_BATCH = 100;
+/**
+ * An occurrence waiting on the owner (needs_owner) or parked by its agent
+ * (blocked) keeps blocking the next run for this long; after it the hub closes
+ * it as missed and alerts the owner.
+ */
+export const OCCURRENCE_WAITING_CAP_MS = 7 * 24 * 60 * 60 * 1000;

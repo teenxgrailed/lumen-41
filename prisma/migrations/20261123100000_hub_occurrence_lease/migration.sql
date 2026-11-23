@@ -11,13 +11,20 @@ ALTER TABLE "HubItem" ADD COLUMN "occurrenceExpiresAt" TIMESTAMP(3);
 ALTER TABLE "HubItem" ADD COLUMN "completionKey" TEXT;
 ALTER TABLE "HubItem" ADD COLUMN "completionHash" TEXT;
 
--- Unfinished recurring items that can be missed get the plain 24 h lease from when they opened, so the occurrence
--- that has been open for days (the one that blocked every later run) expires on the next sweep. needs_owner and
--- blocked are waiting, not hung: they get no lease and are never closed by it.
+-- Block concurrent writes (an old server during a rolling deploy) from now to the end of this transaction, so no
+-- owner duplicate key can appear between the nulling UPDATE and the unique index build below.
+LOCK TABLE "HubItem" IN SHARE ROW EXCLUSIVE MODE;
+
+-- Unfinished recurring items get a lease from when they opened (24 h) so the occurrence that has been open for
+-- days, the one that blocked every later run, expires on the next sweep. needs_owner and blocked are waiting, not
+-- hung: they get the 7 day waiting cap from their last change instead.
 UPDATE "HubItem"
-SET "occurrenceExpiresAt" = COALESCE("occurrenceAt", "createdAt") + INTERVAL '24 hours'
+SET "occurrenceExpiresAt" = CASE
+  WHEN "status" IN ('needs_owner', 'blocked') THEN "updatedAt" + INTERVAL '7 days'
+  ELSE COALESCE("occurrenceAt", "createdAt") + INTERVAL '24 hours'
+END
 WHERE "recurrenceId" IS NOT NULL
-  AND "status" IN ('open', 'claimed', 'in_progress');
+  AND "status" NOT IN ('done', 'failed', 'cancelled');
 
 CREATE INDEX "HubItem_occurrenceExpiresAt_idx" ON "HubItem"("occurrenceExpiresAt") WHERE "occurrenceExpiresAt" IS NOT NULL;
 

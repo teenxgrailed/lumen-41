@@ -12,7 +12,6 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 import {
-  HELD_STATUSES,
   OCCURRENCE_LEASE_MS,
   RECURRENCE_EXPIRY_BATCH,
   RECURRENCE_MAX_PER_USER,
@@ -30,6 +29,12 @@ import {
 } from "./items";
 import { assertHubLimitFor } from "./limits";
 import { trackHub } from "./metrics";
+import {
+  WAITING_STATUSES,
+  occurrenceEnd,
+  occurrenceExpired,
+  occurrenceLeaseEnd,
+} from "./occurrence-lease";
 import {
   assertRecurrence,
   describeRule,
@@ -55,7 +60,8 @@ const LOG_SOURCE = "agent-hub-recurrence";
  * occurrence also carries a lease (`occurrenceExpiresAt`): 24 hours, or until
  * the next fire if that is sooner. An unfinished occurrence whose lease has
  * passed is closed as missed (status cancelled, event `occurrence_expired`)
- * and no longer blocks the next one.
+ * and no longer blocks the next one. One waiting on the owner or blocked gets
+ * 7 days instead, and closing it alerts the owner (see occurrence-lease.ts).
  */
 
 export type SkipReason =
@@ -175,58 +181,7 @@ async function namesFor(rows: readonly HubRecurrence[]) {
 // Occurrence lease
 // ---------------------------------------------------------------------------
 
-/**
- * When the lease of an occurrence opened at `openedAt` ends: 24 hours later,
- * or at the next fire when that comes sooner (null: the series has no more).
- */
-export function occurrenceLeaseEnd(
-  openedAt: Date,
-  nextFire: Date | null
-): Date {
-  const cap = newDate(openedAt.getTime() + OCCURRENCE_LEASE_MS);
-  return nextFire && nextFire.getTime() < cap.getTime() ? nextFire : cap;
-}
-
-type LeasedItem = Pick<
-  HubItem,
-  | "status"
-  | "createdAt"
-  | "occurrenceAt"
-  | "occurrenceExpiresAt"
-  | "leaseExpiresAt"
->;
-
-/** Only these can be closed as missed. See occurrenceExpired. */
-const EXPIRABLE_STATUSES: readonly string[] = [
-  "open",
-  "claimed",
-  "in_progress",
-];
-
-/**
- * True when an unfinished occurrence has outlived its lease and may be closed
- * as missed. Never closed: an item waiting on the owner (`needs_owner`) or
- * parked by its agent (`blocked`), because waiting is not a hang, and an item
- * an agent holds under a live claim lease (the claim lease, at most 240
- * minutes per renewal, bounds it). A row from before leases existed has none
- * stored and gets the plain 24 hours from when it opened.
- */
-export function occurrenceExpired(item: LeasedItem, now: Date): boolean {
-  if (!EXPIRABLE_STATUSES.includes(item.status)) return false;
-  const openedAt = item.occurrenceAt ?? item.createdAt;
-  //todo: drop this fallback (contract step) once no unfinished recurring
-  // item has a null occurrenceExpiresAt; it covers rows written by a server
-  // that predates the lease during a rolling deploy.
-  const end =
-    item.occurrenceExpiresAt ??
-    newDate(openedAt.getTime() + OCCURRENCE_LEASE_MS);
-  if (end.getTime() > now.getTime()) return false;
-  const working =
-    HELD_STATUSES.includes(item.status) &&
-    item.leaseExpiresAt !== null &&
-    item.leaseExpiresAt.getTime() > now.getTime();
-  return !working;
-}
+export { occurrenceExpired, occurrenceLeaseEnd };
 
 /**
  * Closes one expired occurrence as missed: status cancelled, lease cleared,
@@ -238,6 +193,7 @@ async function expireOccurrence(
   item: HubItem,
   now: Date
 ): Promise<boolean> {
+  const waited = WAITING_STATUSES.includes(item.status);
   const marked = await tx.hubItem.updateMany({
     where: { id: item.id, version: item.version },
     data: {
@@ -248,6 +204,14 @@ async function expireOccurrence(
       leaseExpiredNotedAt: null,
       blockedOn: null,
       closedAt: now,
+      // An item that waited out its cap alerts the owner (the unread mark and
+      // badge, as an escalation does). An open item that carried the "no
+      // capable agent" alert drops its now stale badge.
+      ...(waited
+        ? { ownerUnread: true, ownerAlertedAt: now }
+        : item.noAgentAlertedAt && item.status === "open"
+          ? { ownerUnread: false }
+          : {}),
       version: { increment: 1 },
     },
   });
@@ -261,19 +225,15 @@ async function expireOccurrence(
         type: "occurrence_expired",
         from: item.status,
         to: "cancelled",
-        message:
-          "Missed: this occurrence was not finished before its lease ended, so the hub closed it and the series moved on.",
+        message: waited
+          ? "Missed: this occurrence waited more than 7 days, so the hub closed it and the series moved on."
+          : "Missed: this occurrence was not finished before its lease ended, so the hub closed it and the series moved on.",
         data: {
+          ...(waited ? { waited: true } : {}),
           heldBy: item.claimedByAgentId,
           recurrenceId: item.recurrenceId,
           occurrenceAt: item.occurrenceAt?.toISOString() ?? null,
-          leaseEndedAt: (
-            item.occurrenceExpiresAt ??
-            newDate(
-              (item.occurrenceAt ?? item.createdAt).getTime() +
-                OCCURRENCE_LEASE_MS
-            )
-          ).toISOString(),
+          leaseEndedAt: occurrenceEnd(item).toISOString(),
         },
       },
     ],
@@ -295,9 +255,9 @@ export async function expireStaleOccurrences(now: Date = newDate()) {
   const rows = await prisma.hubItem.findMany({
     where: {
       recurrenceId: { not: null },
-      // Never needs_owner or blocked, and never an item under a live claim
-      // lease: they would match every sweep and crowd out the stale ones.
-      status: { in: [...EXPIRABLE_STATUSES] },
+      status: { notIn: [...TERMINAL_STATUSES] },
+      // Items under a live claim lease are left out here: they would match
+      // every sweep and crowd out the stale ones.
       AND: [
         {
           OR: [

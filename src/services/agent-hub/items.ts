@@ -46,6 +46,7 @@ import {
   normalizeLinks,
 } from "./links";
 import { trackHub } from "./metrics";
+import { leaseOnTransition } from "./occurrence-lease";
 import {
   type CancelInput,
   type ClaimInput,
@@ -877,6 +878,8 @@ export async function claimItem(scope: AgentScope, input: ClaimInput) {
         claimedByAgentId: agent.id,
         leaseExpiresAt: leaseEnd,
         leaseExpiredNotedAt: null,
+        // Taking over a blocked occurrence ends its waiting: a fresh 24 hours.
+        ...leaseOnTransition(item, item.status, status, now),
         version: { increment: 1 },
       },
     });
@@ -1021,6 +1024,9 @@ export async function updateItem(scope: AgentScope, input: UpdateInput) {
           status: next,
           leaseExpiresAt: leaseEnd,
           leaseExpiredNotedAt: null,
+          // Parking an occurrence starts its 7 day cap; unblocking starts a
+          // fresh 24 hours.
+          ...leaseOnTransition(item, item.status, next, now),
           blockedOn:
             next === "blocked"
               ? (input.blockedOn?.trim() ?? item.blockedOn)
@@ -1335,6 +1341,7 @@ export async function escalateItem(scope: AgentScope, input: EscalateInput) {
         data: {
           status: "needs_owner",
           question,
+          ...leaseOnTransition(item, item.status, "needs_owner", now),
           claimedByAgentId: null,
           leaseExpiresAt: null,
           leaseExpiredNotedAt: null,
@@ -1533,22 +1540,36 @@ export async function ownerAnswer(scope: HubScope, id: string, answer: string) {
   const text = answer.trim();
   if (!text) throw new HubError("INVALID", "answer cannot be empty.");
   assertNoSecrets({ answer: text });
-  const updated = await mutateItem(scope, id, undefined, async (item) => {
-    if (item.status !== "needs_owner") {
-      throw new HubError("NOT_HELD", "This item is not waiting for an answer.");
-    }
-    return {
-      data: { status: "open", question: null },
-      events: [
-        {
-          type: "owner_answer",
-          from: "needs_owner",
-          to: "open",
-          message: text,
+  const updated = await mutateItem(
+    scope,
+    id,
+    undefined,
+    async (item, _tx, now) => {
+      if (item.status !== "needs_owner") {
+        throw new HubError(
+          "NOT_HELD",
+          "This item is not waiting for an answer."
+        );
+      }
+      return {
+        data: {
+          status: "open",
+          question: null,
+          // The answer ends the waiting: a fresh 24 hours, so the next sweep
+          // does not close the occurrence before an agent can pick it up.
+          ...leaseOnTransition(item, item.status, "open", now),
         },
-      ],
-    };
-  });
+        events: [
+          {
+            type: "owner_answer",
+            from: "needs_owner",
+            to: "open",
+            message: text,
+          },
+        ],
+      };
+    }
+  );
   trackHub({ name: "escalation_answered", itemId: updated.id });
   return { item: await viewOne(scope, updated, { recent: 5 }) };
 }

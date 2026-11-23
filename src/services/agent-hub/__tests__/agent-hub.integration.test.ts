@@ -1556,7 +1556,7 @@ describeIntegration("Agent hub (real database)", () => {
       "utf8"
     ).match(/UPDATE "HubItem"\nSET "occurrenceExpiresAt"[\s\S]*?;/)![0];
 
-    it("the migration backfill and the first sweep leave needs_owner and blocked occurrences alone, and keep ownerUnread (H1)", async () => {
+    it("the migration backfill and the first sweep leave waiting occurrences alone (7 day cap), and keep ownerUnread (H1)", async () => {
       const waits = await standingJob("Waits for the owner");
       const parked = await standingJob("Parked by its agent");
       const hung = await standingJob("Never claimed");
@@ -1587,8 +1587,13 @@ describeIntegration("Agent hub (real database)", () => {
         data: { occurrenceExpiresAt: null },
       });
       await prisma.$executeRawUnsafe(backfill);
-      expect((await row(waits)).occurrenceExpiresAt).toBeNull();
-      expect((await row(parked)).occurrenceExpiresAt).toBeNull();
+      // Waiting items get the 7 day cap from their last change, not the 24 h lease.
+      for (const id of [waits, parked]) {
+        const waiting = await row(id);
+        expect(waiting.occurrenceExpiresAt!.getTime()).toBe(
+          waiting.updatedAt.getTime() + 7 * 24 * 60 * 60 * 1000
+        );
+      }
       // Open items get the 24 h lease, long past for this one.
       expect((await row(hung)).occurrenceExpiresAt!.getTime()).toBeLessThan(
         Date.now()
@@ -1606,6 +1611,143 @@ describeIntegration("Agent hub (real database)", () => {
         where: { id: kept.recurrenceId! },
       });
       expect(waitsRecurrence.lastSkipReason).toBe("previous_open");
+    });
+
+    it("answering an escalation gives the occurrence a fresh lease, so the next sweep does not close it (H1)", async () => {
+      const id = await standingJob("Answered on Monday");
+      await tool(grok, "needt_agent_task_claim", { id });
+      expect(
+        (
+          await tool(grok, "needt_agent_task_escalate", {
+            id,
+            question: "Post it at 18:00?",
+          })
+        ).isError
+      ).toBe(false);
+      // Escalating started the waiting cap.
+      const waiting = await row(id);
+      expect(waiting.status).toBe("needs_owner");
+      expect(waiting.occurrenceExpiresAt!.getTime()).toBeGreaterThan(
+        Date.now() + 6 * 24 * 60 * 60 * 1000
+      );
+      // The owner is away: its lease runs on the old clock and has passed.
+      await prisma.hubItem.update({
+        where: { id },
+        data: { occurrenceExpiresAt: past() },
+      });
+      const answered = await ownerAction(id, "answer", {
+        answer: "Yes, post it.",
+      });
+      expect(answered.status).toBe(200);
+      const open = await row(id);
+      expect(open.status).toBe("open");
+      expect(open.occurrenceExpiresAt!.getTime()).toBeGreaterThan(
+        Date.now() + 23 * 60 * 60 * 1000
+      );
+      await dueNow(id);
+      await spawnDueRecurrences();
+      expect((await row(id)).status).toBe("open");
+    });
+
+    it("parking an occurrence starts the cap and unblocking it starts a fresh lease (H1)", async () => {
+      const id = await standingJob("Parked then resumed");
+      await tool(grok, "needt_agent_task_claim", { id });
+      const parked = await tool(grok, "needt_agent_task_update", {
+        id,
+        status: "blocked",
+        blockedOn: "waiting for the upload to finish",
+      });
+      expect(parked.isError).toBe(false);
+      expect((await row(id)).occurrenceExpiresAt!.getTime()).toBeGreaterThan(
+        Date.now() + 6 * 24 * 60 * 60 * 1000
+      );
+      // Past the old lease, but its agent still holds a live claim lease.
+      await prisma.hubItem.update({
+        where: { id },
+        data: { occurrenceExpiresAt: past() },
+      });
+      await dueNow(id);
+      await spawnDueRecurrences();
+      expect((await row(id)).status).toBe("blocked");
+      // Unblocking: the agent carries on, the occurrence gets a fresh 24 h.
+      const resumed = await tool(grok, "needt_agent_task_update", {
+        id,
+        status: "in_progress",
+        message: "The upload finished.",
+      });
+      expect(resumed.isError).toBe(false);
+      const after = await row(id);
+      expect(after.status).toBe("in_progress");
+      expect(after.occurrenceExpiresAt!.getTime()).toBeGreaterThan(
+        Date.now() + 23 * 60 * 60 * 1000
+      );
+    });
+
+    it("an occurrence waiting on the owner blocks the next run until its 7 day cap, then is closed as missed with an owner alert (M1)", async () => {
+      const id = await standingJob("Waits for a week");
+      await tool(grok, "needt_agent_task_claim", { id });
+      await tool(grok, "needt_agent_task_escalate", {
+        id,
+        question: "Is the price right?",
+      });
+      // Read, so the later alert is a new one.
+      await prisma.hubItem.update({
+        where: { id },
+        data: { ownerUnread: false },
+      });
+
+      // Before the cap: still there, and the next run is skipped.
+      await dueNow(id);
+      await spawnDueRecurrences();
+      const before = await row(id);
+      expect(before.status).toBe("needs_owner");
+      expect(
+        (
+          await prisma.hubRecurrence.findUniqueOrThrow({
+            where: { id: before.recurrenceId! },
+          })
+        ).lastSkipReason
+      ).toBe("previous_open");
+
+      // The cap runs out: closed as missed, the owner alerted, the next run opens.
+      await prisma.hubItem.update({
+        where: { id },
+        data: { occurrenceExpiresAt: new Date(Date.now() - 60_000) },
+      });
+      await dueNow(id);
+      await spawnDueRecurrences();
+      const missed = await prisma.hubItem.findUniqueOrThrow({
+        where: { id },
+        include: { events: true },
+      });
+      expect(missed.status).toBe("cancelled");
+      expect(missed.ownerUnread).toBe(true);
+      expect(missed.ownerAlertedAt).not.toBeNull();
+      const expiry = missed.events.find(
+        (event) => event.type === "occurrence_expired"
+      );
+      expect(expiry?.data).toMatchObject({ waited: true });
+      expect(
+        await prisma.hubItem.count({
+          where: { recurrenceId: missed.recurrenceId, status: "open" },
+        })
+      ).toBe(1);
+    });
+
+    it("an open item that raised the no-capable-agent alert loses its unread badge when it is closed as missed (L3)", async () => {
+      const id = await standingJob("Nobody can do this");
+      await prisma.hubItem.update({
+        where: { id },
+        data: {
+          noAgentAlertedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+          ownerUnread: true,
+          occurrenceExpiresAt: past(),
+        },
+      });
+      await spawnDueRecurrences();
+      const closed = await row(id);
+      expect(closed.status).toBe("cancelled");
+      expect(closed.ownerUnread).toBe(false);
     });
 
     it("never closes an item under a live claim lease, then takes a late complete from the agent that held it, once (M1, M3)", async () => {
