@@ -4,6 +4,7 @@ import {
   type HubItemEvent,
   Prisma,
 } from "@prisma/client";
+import { createHash } from "node:crypto";
 
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
@@ -45,6 +46,7 @@ import {
   normalizeLinks,
 } from "./links";
 import { trackHub } from "./metrics";
+import { leaseOnTransition } from "./occurrence-lease";
 import {
   type CancelInput,
   type ClaimInput,
@@ -56,6 +58,7 @@ import {
   type UsageInput,
   normalizeTags,
   splitCriteria,
+  withCreateKey,
 } from "./schemas";
 import { assertNoSecrets } from "./secret-scan";
 import { emitHubEvent, itemPayload } from "./webhooks";
@@ -187,6 +190,7 @@ export function itemView(item: HubItem, options: ItemViewOptions) {
     large: item.large,
     largeApproved: Boolean(item.largeApprovedAt),
     recurrenceId: item.recurrenceId,
+    occurrenceExpiresAt: item.occurrenceExpiresAt?.toISOString() ?? null,
     assignee: item.assigneeAgentId
       ? {
           id: item.assigneeAgentId,
@@ -677,29 +681,47 @@ export interface CreateItemHooks {
   ) => Promise<HubItem>;
 }
 
+/**
+ * The item an earlier create with the same key already made, if any. The key
+ * has no expiry and the first answer wins: a different brief under the same
+ * key returns the first item. Agents are protected by the unique index on
+ * (userId, creatorAgentId, clientRef), the owner (no agent id, NULLs are
+ * distinct) by the partial unique index on (userId, clientRef) where
+ * creatorAgentId is null.
+ */
+export async function findByCreateKey(
+  scope: HubScope,
+  clientRef: string | undefined
+) {
+  if (!clientRef) return null;
+  return prisma.hubItem.findFirst({
+    where: {
+      userId: scope.userId,
+      creatorAgentId: actorAgentId(scope.actor),
+      clientRef,
+    },
+  });
+}
+
 export async function createItem(
   scope: HubScope,
-  input: CreateItemInput,
+  rawInput: CreateItemInput,
   hooks: CreateItemHooks = {}
 ) {
-  const prepared = await prepareItem(scope, input);
+  // idempotencyKey and clientRef are one key; it lives in the clientRef column.
+  const input = withCreateKey(rawInput);
   const creatorAgentId = actorAgentId(scope.actor);
 
-  if (creatorAgentId && input.clientRef) {
-    const existing = await prisma.hubItem.findFirst({
-      where: {
-        userId: scope.userId,
-        creatorAgentId,
-        clientRef: input.clientRef,
-      },
-    });
-    if (existing) {
-      return {
-        created: false,
-        item: await viewOne(scope, existing, { recent: 5, untrusted: true }),
-      };
-    }
+  // The key is looked up before the brief is checked: a retry gets the first
+  // answer even when the assignee was disabled or a link target removed since.
+  const earlier = await findByCreateKey(scope, input.clientRef);
+  if (earlier) {
+    return {
+      created: false,
+      item: await viewOne(scope, earlier, { recent: 5, untrusted: true }),
+    };
   }
+  const prepared = await prepareItem(scope, input);
 
   await assertHubLimitFor(scope.userId, scope.actor, "items");
   const now = newDate();
@@ -726,24 +748,17 @@ export async function createItem(
       item: await viewOne(scope, item, { recent: 5, untrusted: true }),
     };
   } catch (error) {
-    // Two creates with the same clientRef at once: the loser returns the winner.
+    // Two creates with the same key at once: the loser returns the winner.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002" &&
-      creatorAgentId &&
       input.clientRef
     ) {
-      const existing = await prisma.hubItem.findFirst({
-        where: {
-          userId: scope.userId,
-          creatorAgentId,
-          clientRef: input.clientRef,
-        },
-      });
-      if (existing) {
+      const winner = await findByCreateKey(scope, input.clientRef);
+      if (winner) {
         return {
           created: false,
-          item: await viewOne(scope, existing, { recent: 5, untrusted: true }),
+          item: await viewOne(scope, winner, { recent: 5, untrusted: true }),
         };
       }
     }
@@ -863,6 +878,8 @@ export async function claimItem(scope: AgentScope, input: ClaimInput) {
         claimedByAgentId: agent.id,
         leaseExpiresAt: leaseEnd,
         leaseExpiredNotedAt: null,
+        // Taking over a blocked occurrence ends its waiting: a fresh 24 hours.
+        ...leaseOnTransition(item, item.status, status, now),
         version: { increment: 1 },
       },
     });
@@ -1007,6 +1024,9 @@ export async function updateItem(scope: AgentScope, input: UpdateInput) {
           status: next,
           leaseExpiresAt: leaseEnd,
           leaseExpiredNotedAt: null,
+          // Parking an occurrence starts its 7 day cap; unblocking starts a
+          // fresh 24 hours.
+          ...leaseOnTransition(item, item.status, next, now),
           blockedOn:
             next === "blocked"
               ? (input.blockedOn?.trim() ?? item.blockedOn)
@@ -1047,9 +1067,63 @@ function approvalsMissing(item: HubItem) {
   return item.risks.filter((risk) => !approvals[risk]);
 }
 
-/** Finishes the item as done or failed with a structured result. */
+/** The item this agent already finished with this idempotency key, if any. */
+async function findCompletion(scope: AgentScope, id: string, key: string) {
+  return prisma.hubItem.findFirst({
+    where: {
+      id,
+      userId: scope.userId,
+      workspaceId: scope.workspaceId,
+      completionKey: key,
+      claimedByAgentId: scope.actor.agent.id,
+      status: { in: ["done", "failed"] },
+    },
+  });
+}
+
+/** What a complete says, for telling a true retry from a reused key. */
+function completionHash(outcome: string, summary: string) {
+  return createHash("sha256").update(`${outcome}\n${summary}`).digest("hex");
+}
+
+async function replayCompletion(
+  scope: AgentScope,
+  item: HubItem,
+  hash: string
+) {
+  if (item.completionHash && item.completionHash !== hash) {
+    throw new HubError(
+      "CONFLICT",
+      `This idempotencyKey already finished the item as ${item.status} with a different result. Use a new key for a different complete.`,
+      { status: item.status }
+    );
+  }
+  return {
+    item: await viewOne(scope, item, { recent: 3, untrusted: true }),
+    replayed: true,
+  };
+}
+
+/**
+ * Finishes the item as done or failed with a structured result. With an
+ * idempotencyKey a retry of a complete that already went through (the answer
+ * was lost) returns the finished item with `replayed: true` instead of an
+ * error and records nothing twice. A retry with the same key but another
+ * outcome or summary is refused (`CONFLICT`). The key has no expiry; the first
+ * answer wins.
+ *
+ * An occurrence the hub closed as missed while this agent held it still takes
+ * the agent's complete: the result is kept and the item ends done or failed.
+ * Anyone else gets OCCURRENCE_EXPIRED.
+ */
 export async function completeItem(scope: AgentScope, input: CompleteInput) {
   const agent = scope.actor.agent;
+  const key = input.idempotencyKey?.trim() || undefined;
+  const hash = completionHash(input.outcome, input.result.summary.trim());
+  if (key) {
+    const done = await findCompletion(scope, input.id, key);
+    if (done) return replayCompletion(scope, done, hash);
+  }
   const summary = input.result.summary.trim();
   if (!summary) {
     throw new HubError(
@@ -1089,102 +1163,133 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
     criteriaNote: input.criteriaNote,
   });
 
-  const updated = await mutateItem(
-    scope,
-    input.id,
-    input.expectedVersion,
-    (item, _tx, now) => {
-      assertHolder(item, agent);
-      const entries = item.criteriaItems ?? [];
-      let checks: boolean[] | null = null;
-      if (entries.length && input.criteriaMet !== undefined) {
-        if (
-          !Array.isArray(input.criteriaMet) ||
-          input.criteriaMet.length !== entries.length
-        ) {
+  let updated: HubItem;
+  try {
+    updated = await mutateItem(
+      scope,
+      input.id,
+      input.expectedVersion,
+      async (item, tx, now) => {
+        let late = false;
+        if (item.status === "cancelled") {
+          const expiry = await tx.hubItemEvent.findFirst({
+            where: { itemId: item.id, type: "occurrence_expired" },
+            select: { at: true },
+          });
+          if (expiry) {
+            if (item.claimedByAgentId !== agent.id) {
+              throw new HubError(
+                "OCCURRENCE_EXPIRED",
+                `This occurrence was not finished before its lease ended and the hub closed it as missed at ${expiry.at.toISOString()}. Only the agent that held it can still report its result; the next occurrence opens on schedule.`,
+                { closedAt: expiry.at.toISOString() }
+              );
+            }
+            late = true;
+          }
+        }
+        if (!late) assertHolder(item, agent);
+        const entries = item.criteriaItems ?? [];
+        let checks: boolean[] | null = null;
+        if (entries.length && input.criteriaMet !== undefined) {
+          if (
+            !Array.isArray(input.criteriaMet) ||
+            input.criteriaMet.length !== entries.length
+          ) {
+            throw new HubError(
+              "INVALID",
+              `criteriaMet: this item has a checklist of ${entries.length}; send one true/false per entry, in order: ${entries.map((entry, index) => `${index + 1}. ${entry}`).join(" | ")}`,
+              { field: "criteriaMet", checklist: entries }
+            );
+          }
+          checks = input.criteriaMet;
+        } else if (Array.isArray(input.criteriaMet)) {
           throw new HubError(
             "INVALID",
-            `criteriaMet: this item has a checklist of ${entries.length}; send one true/false per entry, in order: ${entries.map((entry, index) => `${index + 1}. ${entry}`).join(" | ")}`,
-            { field: "criteriaMet", checklist: entries }
+            "criteriaMet: this item has no checklist; send true or false.",
+            { field: "criteriaMet" }
           );
         }
-        checks = input.criteriaMet;
-      } else if (Array.isArray(input.criteriaMet)) {
-        throw new HubError(
-          "INVALID",
-          "criteriaMet: this item has no checklist; send true or false.",
-          { field: "criteriaMet" }
-        );
-      }
-      const answers = checks;
-      const met = answers
-        ? answers.every(Boolean)
-        : (input.criteriaMet as boolean | undefined);
-      if (input.outcome === "done") {
-        const missing = approvalsMissing(item);
-        if (missing.length) {
-          throw new HubError(
-            "APPROVAL_REQUIRED",
-            `The owner has not approved: ${missing.join(", ")}. Escalate with needt_agent_task_escalate and wait for approval before completing.`,
-            { missing }
-          );
+        const answers = checks;
+        const met = answers
+          ? answers.every(Boolean)
+          : (input.criteriaMet as boolean | undefined);
+        if (input.outcome === "done") {
+          const missing = approvalsMissing(item);
+          if (missing.length) {
+            throw new HubError(
+              "APPROVAL_REQUIRED",
+              `The owner has not approved: ${missing.join(", ")}. Escalate with needt_agent_task_escalate and wait for approval before completing.`,
+              { missing }
+            );
+          }
         }
-      }
-      const result: Prisma.InputJsonObject = {
-        outcome: input.outcome,
-        summary,
-        links,
-        ...(input.result.data
-          ? { data: input.result.data as Prisma.InputJsonObject }
-          : {}),
-        ...(met !== undefined
-          ? {
-              criteriaMet: met,
-              criteriaNote: input.criteriaNote?.trim() ?? "",
-            }
-          : {}),
-        ...(answers
-          ? {
-              checklist: entries.map((text, index) => ({
-                text,
-                met: answers[index],
-              })),
-            }
-          : {}),
-      };
-      return {
-        data: {
-          status: input.outcome,
-          result,
-          leaseExpiresAt: null,
-          leaseExpiredNotedAt: null,
-          blockedOn: null,
-          closedAt: now,
-          ...usageData(input.usage),
-        },
-        after:
-          input.outcome === "done"
-            ? async (tx: Tx) => {
-                await noteUnblocked(tx, item, newDate(now.getTime() + 5));
+        const result: Prisma.InputJsonObject = {
+          outcome: input.outcome,
+          summary,
+          links,
+          ...(input.result.data
+            ? { data: input.result.data as Prisma.InputJsonObject }
+            : {}),
+          ...(met !== undefined
+            ? {
+                criteriaMet: met,
+                criteriaNote: input.criteriaNote?.trim() ?? "",
               }
-            : undefined,
-        events: [
-          {
-            type: input.outcome === "done" ? "completed" : "failed",
-            from: item.status,
-            to: input.outcome,
-            message: summary,
-            data: {
-              ...(met !== undefined ? { criteriaMet: met } : {}),
-              ...(answers ? { checklist: answers } : {}),
-              ...(input.usage ? { usage: input.usage } : {}),
-              links,
-            },
+            : {}),
+          ...(answers
+            ? {
+                checklist: entries.map((text, index) => ({
+                  text,
+                  met: answers[index],
+                })),
+              }
+            : {}),
+        };
+        return {
+          data: {
+            status: input.outcome,
+            result,
+            leaseExpiresAt: null,
+            leaseExpiredNotedAt: null,
+            blockedOn: null,
+            closedAt: now,
+            completionKey: key ?? null,
+            completionHash: key ? hash : null,
+            ...usageData(input.usage),
           },
-        ],
-      };
+          // A missed occurrence already released what it was holding back.
+          after:
+            input.outcome === "done" && !late
+              ? async (tx: Tx) => {
+                  await noteUnblocked(tx, item, newDate(now.getTime() + 5));
+                }
+              : undefined,
+          events: [
+            {
+              type: input.outcome === "done" ? "completed" : "failed",
+              from: item.status,
+              to: input.outcome,
+              message: summary,
+              data: {
+                ...(met !== undefined ? { criteriaMet: met } : {}),
+                ...(answers ? { checklist: answers } : {}),
+                ...(input.usage ? { usage: input.usage } : {}),
+                ...(late ? { late: true } : {}),
+                links,
+              },
+            },
+          ],
+        };
+      }
+    );
+  } catch (error) {
+    // The first attempt won while this one was in flight: same key, same answer.
+    if (key && error instanceof HubError) {
+      const done = await findCompletion(scope, input.id, key);
+      if (done) return replayCompletion(scope, done, hash);
     }
-  );
+    throw error;
+  }
   trackHub({
     name: "hub_item_completed",
     itemId: updated.id,
@@ -1236,6 +1341,7 @@ export async function escalateItem(scope: AgentScope, input: EscalateInput) {
         data: {
           status: "needs_owner",
           question,
+          ...leaseOnTransition(item, item.status, "needs_owner", now),
           claimedByAgentId: null,
           leaseExpiresAt: null,
           leaseExpiredNotedAt: null,
@@ -1434,22 +1540,36 @@ export async function ownerAnswer(scope: HubScope, id: string, answer: string) {
   const text = answer.trim();
   if (!text) throw new HubError("INVALID", "answer cannot be empty.");
   assertNoSecrets({ answer: text });
-  const updated = await mutateItem(scope, id, undefined, async (item) => {
-    if (item.status !== "needs_owner") {
-      throw new HubError("NOT_HELD", "This item is not waiting for an answer.");
-    }
-    return {
-      data: { status: "open", question: null },
-      events: [
-        {
-          type: "owner_answer",
-          from: "needs_owner",
-          to: "open",
-          message: text,
+  const updated = await mutateItem(
+    scope,
+    id,
+    undefined,
+    async (item, _tx, now) => {
+      if (item.status !== "needs_owner") {
+        throw new HubError(
+          "NOT_HELD",
+          "This item is not waiting for an answer."
+        );
+      }
+      return {
+        data: {
+          status: "open",
+          question: null,
+          // The answer ends the waiting: a fresh 24 hours, so the next sweep
+          // does not close the occurrence before an agent can pick it up.
+          ...leaseOnTransition(item, item.status, "open", now),
         },
-      ],
-    };
-  });
+        events: [
+          {
+            type: "owner_answer",
+            from: "needs_owner",
+            to: "open",
+            message: text,
+          },
+        ],
+      };
+    }
+  );
   trackHub({ name: "escalation_answered", itemId: updated.id });
   return { item: await viewOne(scope, updated, { recent: 5 }) };
 }

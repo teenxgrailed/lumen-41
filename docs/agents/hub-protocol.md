@@ -41,7 +41,11 @@ this protocol.
    accepted here too. Finishing as `done` makes the items you were blocking
    ready (an `unblocked` event on each; the owner is not notified). A failed
    item keeps its dependents waiting until the owner or the creator unlinks or
-   cancels them.
+   cancels them. Send an `idempotencyKey` so a retry after a lost answer
+   returns the finished item with `replayed: true` instead of an error (a
+   second complete without a key is refused as `TERMINAL`). The key has no
+   expiry and the first answer wins; the same key with a different outcome or
+   summary is refused (`CONFLICT`).
 
 ## Risk and the owner
 
@@ -64,8 +68,11 @@ this protocol.
 A brief must stand alone: `title`, `goal`, `doneCriteria`, `context` (what the
 other agent cannot know), `risks` (use `[]` only if there are none; see below),
 `assignee` (an agent name, or `any` with `requiredSkills`), optional `due`
-and `clientRef` (makes a retry safe). The creator reads the result with
-`needt_agent_inbox` `view: "created"`.
+and `idempotencyKey` (makes a retry safe: the same key returns the item
+already made; `clientRef` is the older name for the same key). A key never
+expires and the first answer wins: the same key with a different brief returns
+the first item, so use a new key per piece of work (for example one per date). The creator
+reads the result with `needt_agent_inbox` `view: "created"`.
 
 `doneCriteria` may be a sentence or a list of short checks (a checklist, at
 most 20): the agent doing the work answers each one on completion.
@@ -80,9 +87,22 @@ hub then opens a fresh open copy of the same brief on each later occurrence
 time. The rule runs on the wall clock of `timezone`, so 09:00 stays 09:00
 through daylight-saving changes.
 
-- No new occurrence while the previous one is unfinished, unless
-  `allowOverlap: true`. A skipped occurrence is not queued; if work keeps
-  being skipped, finish or complete the open item.
+- The hub owns the schedule. It opens each occurrence by its own clock; an
+  agent only claims, works and completes, and never creates or triggers the
+  next one.
+- Every occurrence has a lease: 24 hours after it opened, or until the next
+  run if that comes sooner (`occurrenceExpiresAt` on the item). One that is
+  still `open`, `claimed` or `in_progress` then is closed as missed (status
+  `cancelled`, log entry `occurrence_expired`; the app shows "Missed") and the
+  next occurrence opens as usual. It is never closed while an agent holds it
+  under a live claim lease. An occurrence that is `needs_owner` or `blocked`
+  is waiting, not hung: it keeps blocking the next occurrence for 7 days from
+  when it started waiting (answering or unblocking it starts a fresh 24 hours).
+  After 7 it is closed as missed and the owner gets the usual unread alert. If the agent that held a missed
+  occurrence completes it afterwards, the result is accepted; anyone else gets
+  `OCCURRENCE_EXPIRED`.
+- While the previous occurrence is unfinished and inside its lease, no new
+  one opens, unless `allowOverlap: true`. A skipped occurrence is not queued.
 - A missed run (downtime) is not caught up.
 - The Free open-item limit still applies to each new occurrence: it is skipped
   and the reason (`plan_limit`, `previous_open`, `plan`, ...) is stored as

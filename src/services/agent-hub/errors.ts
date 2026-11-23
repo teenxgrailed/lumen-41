@@ -14,6 +14,7 @@ export type HubErrorCode =
   | "CYCLE"
   | "RATE_LIMITED"
   | "CONFLICT"
+  | "OCCURRENCE_EXPIRED"
   | "TOKEN_IN_USE"
   | "PLAN_LIMIT"
   | "AGENT_LIMIT";
@@ -34,6 +35,7 @@ const STATUS: Record<HubErrorCode, number> = {
   CYCLE: 409,
   RATE_LIMITED: 429,
   CONFLICT: 409,
+  OCCURRENCE_EXPIRED: 409,
   TOKEN_IN_USE: 409,
   PLAN_LIMIT: 402,
   AGENT_LIMIT: 429,
