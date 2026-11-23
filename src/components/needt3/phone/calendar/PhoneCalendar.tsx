@@ -204,7 +204,9 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   // plan's picks join on today), events apart. Only "done hidden" is what
   // Hide done really took off the grid for this day.
   const picks = usePlanPicks(today);
-  const holdTasks = day === today && !picks.settled;
+  // not said on a cold load either: no tasks yet is not "Nothing planned"
+  const holdTasks =
+    tasksQuery.data === undefined || (day === today && !picks.settled);
   const daySum = useMemo(
     () =>
       daySummary(

@@ -158,6 +158,25 @@ describe("calendarItems", () => {
     ).toEqual({});
   });
 
+  it("Hide done counts a task closed before its slot on the day it was closed", () => {
+    const tasks = [
+      task({
+        id: "early",
+        done: true,
+        status: "completed",
+        scheduledStart: "2026-09-03T09:00",
+        completedAt: "2026-08-31T18:48",
+      }),
+    ];
+    const hidden = calendarItems({ tasks, events: [], today, hideDone: true });
+    expect(hidden.doneHiddenByDay).toEqual({ "2026-08-31": 1 });
+    // and it is the day the row is drawn on when Hide done is off
+    const shown = calendarItems({ tasks, events: [], today, hideDone: false });
+    expect(shown.loose.map((b) => [b.id, b.date])).toEqual([
+      ["early", "2026-08-31"],
+    ]);
+  });
+
   it("draws events grey with their calendar's name; own ones are deletable", () => {
     const { timed } = calendarItems({
       tasks: [],
