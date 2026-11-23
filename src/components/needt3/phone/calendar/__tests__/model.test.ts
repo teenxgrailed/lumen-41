@@ -99,6 +99,14 @@ describe("dayPlan", () => {
     expect(p.nowAt).toBe(0);
     expect(dayPlan(items, [], TODAY, TODAY, 13.0).plateLine).toBe("in 1 h");
   });
+  it("says now, not 'in 0 min', when the next one is under half a minute away", () => {
+    // "soon" starts at 16.0; 15.995 h is 0.3 min before it
+    const p = dayPlan(items, [], TODAY, TODAY, 15.995);
+    expect(p.nowB).toBeNull();
+    expect(p.plate?.id).toBe("soon");
+    expect(p.plateLine).toBe("now");
+    expect(dayPlan(items, [], TODAY, TODAY, 15.97).plateLine).toBe("in 2 min");
+  });
   it("after the last item the now line closes the timeline", () => {
     const p = dayPlan(items, [], TODAY, TODAY, 20);
     expect(p.plate).toBeNull();

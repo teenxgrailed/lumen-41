@@ -11,7 +11,7 @@ import { flowSteps } from "../../work/flow";
 import { isOverdue } from "../../work/model";
 import { PkTaskRow, usePkExit } from "../kit";
 import { useTaskActions, useTrashWithUndo } from "../overlays/schedule";
-import { snack } from "../overlays/snack";
+import { snackAfterWrite } from "../overlays/snackAfterWrite";
 import { usePhoneOverlays } from "../overlays/store";
 import { isAhead, projectOf } from "./model";
 import { SAY } from "./strings";
@@ -60,25 +60,23 @@ export function useTaskRows({
   // the undo of a last step ticked to close its task: it rides on the task's
   // own Undo so one tap puts both back
   const stepUndo = useRef(new Map<string, () => Promise<void>>());
-  const write = (t: V3Task, kind: ExitKind) => {
+  // Returns the write: a rejection (the hook has already told the person and
+  // put the old fields back) lets a row thrown off the edge come back.
+  const write = (t: V3Task, kind: ExitKind): Promise<unknown> => {
     pending.current.delete(t.id);
-    if (kind === "trash") {
-      void trash(t);
-    } else if (kind === "later") {
-      update
+    if (kind === "trash") return trash(t);
+    if (kind === "later")
+      return update
         .mutateAsync({ id: t.id, patch: laterPatch(t, today) })
-        .then(({ undo }) => snack(SAY.tomorrow, undo), none);
-    } else {
-      // The hook has told the person and put the old fields back on a failure.
-      const alsoUndo = stepUndo.current.get(t.id);
-      stepUndo.current.delete(t.id);
-      update
-        .mutateAsync({ id: t.id, patch: { done: true } })
-        .then(({ undo }) => {
-          if (alsoUndo)
-            snack(`Done · “${t.title}”`, () => undo().then(alsoUndo));
-        }, none);
-    }
+        .then(({ undo }) => snackAfterWrite(SAY.tomorrow, undo));
+    const alsoUndo = stepUndo.current.get(t.id);
+    stepUndo.current.delete(t.id);
+    return update
+      .mutateAsync({ id: t.id, patch: { done: true } })
+      .then(({ undo }) => {
+        if (alsoUndo)
+          snackAfterWrite(`Done · “${t.title}”`, () => undo().then(alsoUndo));
+      });
   };
   const writeRef = useRef(write);
   writeRef.current = write;
@@ -86,12 +84,13 @@ export function useTaskRows({
   useEffect(() => {
     const left = pending.current;
     return () => {
-      for (const [, p] of [...left]) writeRef.current(p.t, p.kind);
+      for (const [, p] of [...left])
+        void writeRef.current(p.t, p.kind).catch(none);
     };
   }, []);
   const exit = (t: V3Task, kind: ExitKind) => {
     if (!pending.current.has(t.id)) pending.current.set(t.id, { t, kind });
-    X.exit(t, kind);
+    return X.exit(t, kind);
   };
 
   const reopen = useCallback(

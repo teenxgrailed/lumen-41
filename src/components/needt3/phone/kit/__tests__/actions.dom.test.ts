@@ -280,3 +280,47 @@ describe("haptics on the row", () => {
     expect(vibrate).not.toHaveBeenCalled();
   });
 });
+
+describe("a commit that fails brings the thrown row back", () => {
+  const flush = () =>
+    act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+  it("swipe right: onSwipe rejects, the row is put back", async () => {
+    const onSwipe = jest.fn(() => Promise.reject(new Error("offline")));
+    const { open, row, wrap } = mount({ onSwipe, actions: undefined });
+    drag(open, 10, 160);
+    expect(onSwipe).toHaveBeenCalledWith("done");
+    expect(wrap.classList.contains("is-thrown")).toBe(true);
+    expect(row.style.transform).toContain("112%");
+    await flush();
+    expect(wrap.classList.contains("is-thrown")).toBe(false);
+    expect(row.style.transform).toBe("");
+  });
+
+  it("swipe right: a commit that goes through leaves the row thrown", async () => {
+    const onSwipe = jest.fn(() => Promise.resolve());
+    const { open, wrap } = mount({ onSwipe, actions: undefined });
+    drag(open, 10, 160);
+    await flush();
+    expect(wrap.classList.contains("is-thrown")).toBe(true);
+  });
+
+  it("Delete: onDelete rejects, the row is put back", async () => {
+    const onDelete = jest.fn(() => Promise.reject(new Error("offline")));
+    const { open, row, wrap } = mount({
+      actions: { onSchedule: jest.fn(), onDelete },
+    });
+    drag(open, 300, 200);
+    act(() => {
+      q<HTMLButtonElement>(".pk-act.is-delete").click();
+    });
+    expect(wrap.classList.contains("is-thrown")).toBe(true);
+    await flush();
+    expect(wrap.classList.contains("is-thrown")).toBe(false);
+    expect(row.style.transform).toBe("");
+    expect(wrap.classList.contains("is-open")).toBe(false);
+  });
+});
