@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
+import { kindWhere } from "@/lib/tasks/open-task";
 
 interface DependencyScope {
   userId: string;
@@ -56,7 +57,11 @@ export async function listTaskDependencies(
   scope: DependencyScope,
   taskId: string
 ) {
-  const taskScope = workspaceDataScopeWhere(scope.workspace, scope.userId);
+  // Another member's idea stays private to its owner.
+  const taskScope = {
+    ...workspaceDataScopeWhere(scope.workspace, scope.userId),
+    ...kindWhere("any", scope.userId),
+  };
   const dependencyScope = workspaceDataScopeWhere(
     scope.workspace,
     scope.userId
@@ -122,7 +127,10 @@ export async function addTaskDependency(input: {
     throw new TaskDependencyError("SELF_DEPENDENCY");
   }
 
-  const taskScope = workspaceDataScopeWhere(input.workspace, input.userId);
+  const taskScope = {
+    ...workspaceDataScopeWhere(input.workspace, input.userId),
+    ...kindWhere("any", input.userId),
+  };
   const tasks = await prisma.task.findMany({
     where: {
       ...taskScope,

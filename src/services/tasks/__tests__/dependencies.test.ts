@@ -182,14 +182,15 @@ describe("project-scoped task dependencies", () => {
     taskModel.findFirst.mockResolvedValue(null);
 
     await expect(
-      listTaskDependencies(
-        { userId: "user-1", workspace },
-        "outside-task"
-      )
+      listTaskDependencies({ userId: "user-1", workspace }, "outside-task")
     ).rejects.toMatchObject({ code: "TASK_NOT_FOUND" });
     expect(taskModel.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "outside-task", workspaceId: "workspace-1" },
+        where: {
+          id: "outside-task",
+          workspaceId: "workspace-1",
+          NOT: { kind: "IDEA", userId: { not: "user-1" } },
+        },
       })
     );
     expect(dependencyModel.findMany).not.toHaveBeenCalled();
