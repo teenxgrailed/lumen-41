@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
 import { readPref } from "@/components/needt3/settings/derive";
 
 import { clock } from "@/lib/needt3/day";
-import { planIsShown } from "@/lib/needt3/day-plan";
+import { planIsShown, planSections } from "@/lib/needt3/day-plan";
 import { dayHeader, freeAfterHour } from "@/lib/needt3/day-plan-view";
 import { addDays } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
@@ -118,6 +118,8 @@ import { useHighlightSuggest } from "../../home/useHighlightSuggest";
 import { useHomeStats } from "../../home/useHomeStats";
 import { useSpread } from "../../home/useSpread";
 import { useWeeklyReview } from "../../home/useWeeklyReview";
+import { IdeaMovedToday } from "../../idea-cards/IdeaMovedToday";
+import { useIdeaSlots } from "../../idea-cards/useIdeaSlots";
 import { openPaywall } from "../../paywall/store";
 import {
   StarterGameSlot,
@@ -668,6 +670,44 @@ export function PhoneHome({
   // The day plan's header: the weekday big with a dot, the date at the right,
   // then the greeting sentence and the stats line, filled from data.
   const planShown = ready && planOn && !!dayPlan.snapshot?.plan;
+  // IDEA CARDS. The server says which ideas and after which visible row; the
+  // screen counts its rows (the plan's main and rest rows, or the day's lists
+  // when there is no plan) and draws each card right after its row.
+  const planSec = planSections(dayPlan.snapshot);
+  const planRows = [...planSec.main, ...planSec.rest].filter((i) =>
+    taskById.has(i.taskId)
+  ).length;
+  const dayRows = v2
+    ? chrono.timed.length +
+      (fold.anytimeOpen === true ? chrono.anytime.length : 0)
+    : dayParts.reduce((n, [, l]) => n + l.length, 0);
+  const ideas = useIdeaSlots({
+    day: today,
+    visibleTasks: planShown ? planRows : dayRows,
+    enabled: ready && !v.dayClosed && (dayPlan.off || !dayPlan.query.isPending),
+    renderTaken: (id) => {
+      const t = taskById.get(id);
+      return t
+        ? row(t, {
+            size: "compact",
+            icon: <TaskGlyph title={t.title} icon={t.icon} />,
+          })
+        : null;
+    },
+  });
+  // the day's own lists (no plan): a row, then the card that sits after it.
+  // `before` is how many rows the lists above already drew; the row's place
+  // comes from its list, so a list that grows by itself ("Show all") still
+  // puts every card in the right place.
+  const dayRow = (list: readonly V3Task[], before: number, t: V3Task) => {
+    if (planShown) return row(t);
+    return (
+      <Fragment key={t.id}>
+        {row(t)}
+        {ideas.after(before + list.indexOf(t) + 1, dayRows)}
+      </Fragment>
+    );
+  };
   const dayMeetings = calendarItems.filter((x) => x.event);
   const free = freeAfterHour(dayMeetings, nowHour, hourOfClock(workCap.end));
   const planHead = planShown ? (
@@ -733,6 +773,7 @@ export function PhoneHome({
       <OnboardingResumeBanner />
       <SampleBanner />
       <FirstReplanCard />
+      <IdeaMovedToday />
       {ready && !v2 ? aux : null}
       {ready && planOn && dayPlan.snapshot ? (
         <PlanToday
@@ -744,6 +785,7 @@ export function PhoneHome({
           onAll={() => setFullList((o) => !o)}
           onSomeday={() => setSomedayOpen(true)}
           late={planLate}
+          ideas={ideas}
         />
       ) : null}
       {ready ? (
@@ -870,6 +912,7 @@ export function PhoneHome({
       ) : null}
       {ready ? (
         <div className="v2p-day">
+          {!planShown && dayRows === 0 ? ideas.after(0, 0) : null}
           {!v2 && !folded && v.lateRows.length ? (
             <PkSection
               title={copy.V2pHome.overdue}
@@ -887,7 +930,10 @@ export function PhoneHome({
             <>
               {chrono.timed.length ? (
                 <div className="hv2-list" data-hv2-list="">
-                  <CappedRows list={chrono.timed} render={(t) => row(t)} />
+                  <CappedRows
+                    list={chrono.timed}
+                    render={(t) => dayRow(chrono.timed, 0, t)}
+                  />
                 </div>
               ) : null}
               {chrono.anytime.length ? (
@@ -901,14 +947,30 @@ export function PhoneHome({
                   folded={fold.anytimeOpen !== true}
                   onFold={flip("anytimeOpen")}
                 >
-                  <CappedRows list={chrono.anytime} render={(t) => row(t)} />
+                  <CappedRows
+                    list={chrono.anytime}
+                    render={(t) =>
+                      dayRow(chrono.anytime, chrono.timed.length, t)
+                    }
+                  />
                 </PkSection>
               ) : null}
             </>
           ) : (
-            dayParts.map(([p, list]) => (
+            dayParts.map(([p, list], i) => (
               <PkSection key={p} title={p}>
-                <CappedRows list={list} render={(t) => row(t)} />
+                <CappedRows
+                  list={list}
+                  render={(t) =>
+                    dayRow(
+                      list,
+                      dayParts
+                        .slice(0, i)
+                        .reduce((n, [, l]) => n + l.length, 0),
+                      t
+                    )
+                  }
+                />
               </PkSection>
             ))
           )}
