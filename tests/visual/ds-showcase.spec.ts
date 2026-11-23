@@ -29,6 +29,22 @@ const SECTIONS = [
   "field",
 ] as const;
 
+/**
+ * The phone's floating bar and the assistant pill are fixed to the window, so
+ * they would sit on top of whichever section is scrolled under them. Hide
+ * everything fixed that is not the showcase itself (or holds it).
+ */
+async function hideFixedChrome(page: Page) {
+  await page.evaluate(() => {
+    const lab = document.querySelector("[data-ds-showcase]");
+    for (const el of document.querySelectorAll<HTMLElement>("body *")) {
+      if (lab && (lab.contains(el) || el.contains(lab))) continue;
+      if (getComputedStyle(el).position === "fixed")
+        el.style.visibility = "hidden";
+    }
+  });
+}
+
 async function open(
   page: Page,
   phone: boolean,
@@ -70,6 +86,7 @@ for (const theme of ["light", "dark"] as const) {
     for (const id of SECTIONS) {
       const section = scope.locator(`section#${id}`);
       await section.scrollIntoViewIfNeeded();
+      await hideFixedChrome(page);
       await expect(section).toHaveScreenshot(`ds-${tag}-${theme}-${id}.png`, {
         animations: "disabled",
       });
