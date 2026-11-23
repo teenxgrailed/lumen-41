@@ -4,10 +4,11 @@
  * completion. An in-memory stand-in plays the HubItem table; nothing here
  * touches a database, Redis or the realtime channel.
  */
-import type { HubAgent, HubItem } from "@prisma/client";
+import { type HubAgent, type HubItem, Prisma } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 
+import { findAgentByRef } from "../agents";
 import type { AgentScope, HubScope } from "../context";
 import { HubError } from "../errors";
 import { completeItem, createItem } from "../items";
@@ -88,6 +89,12 @@ const db: Record<string, unknown> = {
       events.push(data);
     }),
     findMany: jest.fn(async () => []),
+    findFirst: jest.fn(
+      async ({ where }: { where: { itemId: string; type: string } }) =>
+        events.find(
+          (event) => event.itemId === where.itemId && event.type === where.type
+        ) ?? null
+    ),
   },
   hubItemLink: { findMany: jest.fn(async () => []) },
   hubAgent: { findMany: jest.fn(async () => []) },
@@ -229,6 +236,59 @@ describe("idempotent create", () => {
     expect(rows).toHaveLength(1);
   });
 
+  it("looks the key up before checking the brief: a retry gets the first answer even if the assignee is gone (L2)", async () => {
+    (findAgentByRef as jest.Mock).mockResolvedValueOnce({
+      id: "agent-codex",
+      name: "Codex",
+      disabledAt: null,
+      connectionKey: "token:x",
+    });
+    const first = await createItem(scope, {
+      ...brief,
+      assignee: "Codex",
+      idempotencyKey: "assigned-1",
+    });
+    // The assignee is disabled since: a fresh create would be INVALID.
+    (findAgentByRef as jest.Mock).mockResolvedValue(null);
+    await expect(
+      createItem(scope, {
+        ...brief,
+        assignee: "Codex",
+        idempotencyKey: "other",
+      })
+    ).rejects.toMatchObject({ code: "INVALID" });
+    const retry = await createItem(scope, {
+      ...brief,
+      assignee: "Codex",
+      idempotencyKey: "assigned-1",
+    });
+    expect(retry.created).toBe(false);
+    expect(retry.item.id).toBe(first.item.id);
+    (findAgentByRef as jest.Mock).mockResolvedValue(null);
+  });
+
+  it("two owner creates with one key at once: the loser returns the winner (M2)", async () => {
+    const owner: HubScope = {
+      userId: "u1",
+      workspaceId: "ws1",
+      actor: { kind: "owner" },
+    };
+    // Both pass the lookup; the other request's insert lands first, so ours
+    // hits the partial unique index (userId, clientRef) where creator is null.
+    const insert = hubItem.create.getMockImplementation()!;
+    hubItem.create.mockImplementationOnce(async (args) => {
+      await insert(args);
+      throw new Prisma.PrismaClientKnownRequestError("unique", {
+        code: "P2002",
+        clientVersion: "test",
+      });
+    });
+    const loser = await createItem(owner, { ...brief, idempotencyKey: "race" });
+    expect(loser.created).toBe(false);
+    expect(loser.item.id).toBe(rows[0].id);
+    expect(rows).toHaveLength(1);
+  });
+
   it("accepts the new parameter without changing the old schema", () => {
     expect(createItemInput.safeParse(brief).success).toBe(true);
     expect(
@@ -310,6 +370,107 @@ describe("idempotent complete", () => {
     await expect(
       completeItem(other, { ...finish, id: row.id, idempotencyKey: "k" })
     ).rejects.toBeInstanceOf(HubError);
+  });
+
+  it("the same key with another outcome or summary is refused, not replayed (M3)", async () => {
+    const row = await claimed();
+    await completeItem(scope, { ...finish, id: row.id, idempotencyKey: "k" });
+    await expect(
+      completeItem(scope, {
+        ...finish,
+        id: row.id,
+        outcome: "failed",
+        idempotencyKey: "k",
+      })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    await expect(
+      completeItem(scope, {
+        ...finish,
+        id: row.id,
+        result: { summary: "Something else happened." },
+        idempotencyKey: "k",
+      })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    // The true retry still replays, and the item was not touched.
+    await expect(
+      completeItem(scope, { ...finish, id: row.id, idempotencyKey: "k" })
+    ).resolves.toMatchObject({ replayed: true });
+    expect(row.status).toBe("done");
+  });
+
+  describe("complete after the hub closed the occurrence as missed (M1)", () => {
+    function missed(heldBy: string | null) {
+      return createItem(scope, brief).then((made) => {
+        const row = rows.find((candidate) => candidate.id === made.item.id)!;
+        Object.assign(row, {
+          status: "cancelled",
+          claimedByAgentId: heldBy,
+          leaseExpiresAt: null,
+          closedAt: newDate(),
+        });
+        events.push({
+          itemId: row.id,
+          type: "occurrence_expired",
+          at: newDate("2026-11-09T14:00:00Z"),
+        });
+        return row;
+      });
+    }
+
+    it("accepts the result from the agent that held it: done, result kept", async () => {
+      const row = await missed(grok.id);
+      const result = await completeItem(scope, { ...finish, id: row.id });
+      expect(result.item.status).toBe("done");
+      expect(row.status).toBe("done");
+      expect(row.result).toMatchObject({
+        outcome: "done",
+        summary: "Reel is live.",
+      });
+      const completed = events.find((event) => event.type === "completed");
+      expect(completed).toMatchObject({ fromStatus: "cancelled" });
+      expect(completed?.data).toMatchObject({ late: true });
+    });
+
+    it("accepts a late failed report too", async () => {
+      const row = await missed(grok.id);
+      await completeItem(scope, {
+        ...finish,
+        outcome: "failed",
+        id: row.id,
+      });
+      expect(row.status).toBe("failed");
+    });
+
+    it("answers any other agent with OCCURRENCE_EXPIRED that names the expiry, never NOT_HELD", async () => {
+      const row = await missed(grok.id);
+      const other: AgentScope = {
+        ...scope,
+        actor: { kind: "agent", agent: { ...grok, id: "agent-other" } },
+      } as AgentScope;
+      const error = await completeItem(other, { ...finish, id: row.id }).catch(
+        (e) => e
+      );
+      expect(error).toBeInstanceOf(HubError);
+      expect(error.code).toBe("OCCURRENCE_EXPIRED");
+      expect(error.message).toContain("2026-11-09T14:00:00.000Z");
+      expect(row.status).toBe("cancelled");
+    });
+
+    it("an occurrence nobody held also answers OCCURRENCE_EXPIRED", async () => {
+      const row = await missed(null);
+      await expect(
+        completeItem(scope, { ...finish, id: row.id })
+      ).rejects.toMatchObject({ code: "OCCURRENCE_EXPIRED" });
+    });
+
+    it("an owner cancel is not an expiry: still TERMINAL", async () => {
+      const made = await createItem(scope, brief);
+      const row = rows.find((candidate) => candidate.id === made.item.id)!;
+      Object.assign(row, { status: "cancelled", claimedByAgentId: grok.id });
+      await expect(
+        completeItem(scope, { ...finish, id: row.id })
+      ).rejects.toMatchObject({ code: "TERMINAL" });
+    });
   });
 
   it("when two completes race, the loser gets the winner's answer", async () => {

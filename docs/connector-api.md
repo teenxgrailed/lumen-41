@@ -433,12 +433,18 @@ createdAt, url, urlExpiresAt }`. `url` is a signed GET valid 24 hours (the
 /api/connect/agent-hub/items`) takes an optional `idempotencyKey` (up to 100
 characters): repeating the create with the same key returns the item already
 made (`created: false`) instead of a duplicate. It is the same key as the older
-`clientRef`; send either, `idempotencyKey` wins when both are present.
+`clientRef`; send either, `idempotencyKey` wins when both are present. The key
+has no expiry and the first answer wins: the same key with a different brief
+returns the first item unchanged (`created: false`), so use a new key for each
+new piece of work (for example one per date). It holds for agents and for the
+owner, and for plans (`needt_agent_plan_create`).
 `needt_agent_task_complete` (and `POST /api/connect/agent-hub/items/{id}/complete`)
 takes an optional `idempotencyKey` too: if the first complete went through and
 its answer was lost, the retry with the same key returns the finished item with
-`replayed: true`, writes nothing a second time and is not an error. Without a
-key a second complete is refused (`TERMINAL`), as before.
+`replayed: true`, writes nothing a second time and is not an error. The key
+has no expiry and the first answer wins: the same key with a different outcome
+or summary is refused (`CONFLICT`). Without a key a second complete is refused
+(`TERMINAL`), as before.
 
 **Recurring items (Pro).** `needt_agent_task_create` takes an optional
 `recurrence`: `{ "rrule": "FREQ=WEEKLY;BYDAY=MO;BYHOUR=9", "timezone":
@@ -460,9 +466,13 @@ occurrence, so a standing job reaches the inbox without anyone re-creating it.
   the next one.
 - Each occurrence has a lease: 24 hours after it opened, or until the next
   occurrence if that is sooner (`occurrenceExpiresAt` on the item). An
-  occurrence still unfinished then is closed as missed (status `cancelled`,
-  event `occurrence_expired`) and no longer blocks the next one. An agent
-  holding it under a live claim lease keeps it until 24 hours after it opened.
+  occurrence still `open`, `claimed` or `in_progress` then is closed as missed
+  (status `cancelled`, event `occurrence_expired`) and no longer blocks the
+  next one. It is never closed while an agent holds it under a live claim
+  lease, nor while it is `needs_owner` or `blocked` (waiting is not a hang;
+  those keep blocking until answered or finished). The agent that held a
+  missed occurrence can still complete it and the result is kept; any other
+  caller gets `OCCURRENCE_EXPIRED` (409).
 - No new occurrence while the previous one is unfinished and inside its lease
   (status not done, failed or cancelled), unless `allowOverlap` is true. That
   occurrence is skipped, not queued.

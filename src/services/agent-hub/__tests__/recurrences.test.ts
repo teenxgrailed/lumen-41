@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 
 import type { HubScope } from "../context";
 import { HubError } from "../errors";
+import { nextOccurrence } from "../recurrence-rule";
 import {
   createItemWithRecurrence,
   expireStaleOccurrences,
@@ -306,7 +307,6 @@ describe("occurrence lease", () => {
       where: { id: "item1", version: 4 },
       data: expect.objectContaining({
         status: "cancelled",
-        claimedByAgentId: null,
         closedAt: NOW,
       }),
     });
@@ -369,7 +369,7 @@ describe("occurrence lease", () => {
     expect(t.hubItemEvent.create).not.toHaveBeenCalled();
   });
 
-  it("an item an agent is working on right now keeps its place until the 24 hour cap", () => {
+  it("an item under a live claim lease is never expired, however old", () => {
     const working = openItem({
       status: "in_progress",
       claimedByAgentId: "a1",
@@ -378,20 +378,97 @@ describe("occurrence lease", () => {
       createdAt: new Date(NOW.getTime() - 23 * HOUR),
     });
     expect(occurrenceExpired(working, NOW)).toBe(false);
-    // Past the cap even a live claim lease does not hold it.
+    // Three days old, the agent still renews its claim: still not expired.
     expect(
       occurrenceExpired(
-        { ...working, createdAt: new Date(NOW.getTime() - 25 * HOUR) },
+        {
+          ...working,
+          createdAt: new Date(NOW.getTime() - 72 * HOUR),
+          occurrenceExpiresAt: new Date(NOW.getTime() - 48 * HOUR),
+        },
         NOW
       )
-    ).toBe(true);
-    // A claim lease that ran out does not hold it either.
+    ).toBe(false);
+    // A claim lease that ran out does not hold it.
     expect(
       occurrenceExpired(
         { ...working, leaseExpiresAt: new Date(NOW.getTime() - 1) },
         NOW
       )
     ).toBe(true);
+  });
+
+  it("never expires an item that waits on the owner or is blocked (H1)", () => {
+    const past = new Date(NOW.getTime() - 3 * DAY);
+    for (const status of ["needs_owner", "blocked"]) {
+      expect(
+        occurrenceExpired(
+          openItem({
+            status,
+            occurrenceExpiresAt: past,
+            createdAt: past,
+            occurrenceAt: past,
+          }),
+          NOW
+        )
+      ).toBe(false);
+    }
+    // Also with no stored lease (a row from before leases existed).
+    expect(
+      occurrenceExpired(
+        openItem({
+          status: "needs_owner",
+          occurrenceExpiresAt: null,
+          createdAt: past,
+          occurrenceAt: past,
+        }),
+        NOW
+      )
+    ).toBe(false);
+    // An open, claimed or in_progress one with no live lease does expire.
+    for (const status of ["open", "claimed", "in_progress"]) {
+      expect(
+        occurrenceExpired(
+          openItem({ status, occurrenceExpiresAt: past, leaseExpiresAt: null }),
+          NOW
+        )
+      ).toBe(true);
+    }
+  });
+
+  it("an expired needs_owner occurrence keeps blocking: nothing is closed and its alert stays", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({
+        status: "needs_owner",
+        occurrenceExpiresAt: new Date(NOW.getTime() - 2 * DAY),
+      }),
+    ]);
+    const outcome = await processDueRecurrence(
+      tx() as never,
+      recurrence(),
+      NOW
+    );
+    expect(outcome).toEqual({ kind: "skipped", reason: "previous_open" });
+    expect(db.hubItem.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("closing an occurrence keeps who held it and the owner's unread mark", async () => {
+    db.hubItem.findMany.mockResolvedValue([
+      openItem({
+        status: "claimed",
+        claimedByAgentId: "a1",
+        leaseExpiresAt: new Date(NOW.getTime() - 1),
+        occurrenceExpiresAt: new Date(NOW.getTime() - 1),
+      }),
+    ]);
+    const t = tx();
+    await processDueRecurrence(t as never, recurrence(), NOW);
+    const data = db.hubItem.updateMany.mock.calls[0][0].data;
+    expect(data).not.toHaveProperty("claimedByAgentId");
+    expect(data).not.toHaveProperty("ownerUnread");
+    expect(t.hubItemEvent.create.mock.calls[0][0].data.data).toMatchObject({
+      heldBy: "a1",
+    });
   });
 
   it("gives an item from before leases existed the plain 24 hours", () => {
@@ -437,6 +514,27 @@ describe("occurrence lease", () => {
     it("is the next fire when that comes sooner", () => {
       const next = new Date(NOW.getTime() + 6 * HOUR);
       expect(occurrenceLeaseEnd(NOW, next)).toEqual(next);
+    });
+
+    it("stays below the next fire on a 25 hour fall-back day (DST)", () => {
+      // Daily 09:00 New York. Sat 2026-10-31 09:00 EDT, then Sun 2026-11-01
+      // 09:00 EST: 25 wall-clock-to-wall-clock hours.
+      const rule = "FREQ=DAILY;BYHOUR=9";
+      const openedAt = new Date("2026-10-31T13:00:00Z");
+      const next = nextOccurrence(rule, "America/New_York", openedAt, openedAt);
+      expect(next?.toISOString()).toBe("2026-11-01T14:00:00.000Z");
+      const lease = occurrenceLeaseEnd(openedAt, next);
+      expect(lease.getTime()).toBe(openedAt.getTime() + DAY);
+      expect(lease.getTime()).toBeLessThan(next!.getTime());
+    });
+
+    it("is the next fire on a 23 hour spring-forward day (DST)", () => {
+      // Sat 2027-03-13 09:00 EST, then Sun 2027-03-14 09:00 EDT: 23 hours.
+      const rule = "FREQ=DAILY;BYHOUR=9";
+      const openedAt = new Date("2027-03-13T14:00:00Z");
+      const next = nextOccurrence(rule, "America/New_York", openedAt, openedAt);
+      expect(next?.toISOString()).toBe("2027-03-14T13:00:00.000Z");
+      expect(occurrenceLeaseEnd(openedAt, next)).toEqual(next);
     });
 
     it("is stored on the occurrence the worker opens (weekly: 24 hours)", async () => {
@@ -718,9 +816,18 @@ describe("sweep", () => {
     expect(result).toEqual({ spawned: 0, skipped: 0, expired: 1 });
     const where = db.hubItem.findMany.mock.calls[0][0].where;
     expect(where.recurrenceId).toEqual({ not: null });
-    expect(where.OR).toEqual(
+    // Only what can be closed: never needs_owner or blocked (H1)...
+    expect(where.status).toEqual({ in: ["open", "claimed", "in_progress"] });
+    expect(where.AND[0].OR).toEqual(
       expect.arrayContaining([{ occurrenceExpiresAt: { lte: NOW } }])
     );
+    // ...and held items with a live claim lease are left out in SQL, so they
+    // cannot fill the batch and starve the stale ones (L4).
+    expect(where.AND[1].OR).toEqual([
+      { status: "open" },
+      { leaseExpiresAt: null },
+      { leaseExpiresAt: { lte: NOW } },
+    ]);
     expect(db.hubItem.updateMany).toHaveBeenCalledTimes(1);
     expect(db.hubItem.updateMany.mock.calls[0][0].where.id).toBe("item1");
   });

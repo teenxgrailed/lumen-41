@@ -4,6 +4,7 @@ import {
   type HubItemEvent,
   Prisma,
 } from "@prisma/client";
+import { createHash } from "node:crypto";
 
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
@@ -679,7 +680,14 @@ export interface CreateItemHooks {
   ) => Promise<HubItem>;
 }
 
-/** The item an earlier create with the same key already made, if any. */
+/**
+ * The item an earlier create with the same key already made, if any. The key
+ * has no expiry and the first answer wins: a different brief under the same
+ * key returns the first item. Agents are protected by the unique index on
+ * (userId, creatorAgentId, clientRef), the owner (no agent id, NULLs are
+ * distinct) by the partial unique index on (userId, clientRef) where
+ * creatorAgentId is null.
+ */
 export async function findByCreateKey(
   scope: HubScope,
   clientRef: string | undefined
@@ -701,9 +709,10 @@ export async function createItem(
 ) {
   // idempotencyKey and clientRef are one key; it lives in the clientRef column.
   const input = withCreateKey(rawInput);
-  const prepared = await prepareItem(scope, input);
   const creatorAgentId = actorAgentId(scope.actor);
 
+  // The key is looked up before the brief is checked: a retry gets the first
+  // answer even when the assignee was disabled or a link target removed since.
   const earlier = await findByCreateKey(scope, input.clientRef);
   if (earlier) {
     return {
@@ -711,6 +720,7 @@ export async function createItem(
       item: await viewOne(scope, earlier, { recent: 5, untrusted: true }),
     };
   }
+  const prepared = await prepareItem(scope, input);
 
   await assertHubLimitFor(scope.userId, scope.actor, "items");
   const now = newDate();
@@ -741,7 +751,6 @@ export async function createItem(
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002" &&
-      creatorAgentId &&
       input.clientRef
     ) {
       const winner = await findByCreateKey(scope, input.clientRef);
@@ -1066,7 +1075,23 @@ async function findCompletion(scope: AgentScope, id: string, key: string) {
   });
 }
 
-async function replayCompletion(scope: AgentScope, item: HubItem) {
+/** What a complete says, for telling a true retry from a reused key. */
+function completionHash(outcome: string, summary: string) {
+  return createHash("sha256").update(`${outcome}\n${summary}`).digest("hex");
+}
+
+async function replayCompletion(
+  scope: AgentScope,
+  item: HubItem,
+  hash: string
+) {
+  if (item.completionHash && item.completionHash !== hash) {
+    throw new HubError(
+      "CONFLICT",
+      `This idempotencyKey already finished the item as ${item.status} with a different result. Use a new key for a different complete.`,
+      { status: item.status }
+    );
+  }
   return {
     item: await viewOne(scope, item, { recent: 3, untrusted: true }),
     replayed: true,
@@ -1076,15 +1101,22 @@ async function replayCompletion(scope: AgentScope, item: HubItem) {
 /**
  * Finishes the item as done or failed with a structured result. With an
  * idempotencyKey a retry of a complete that already went through (the answer
- * was lost) returns the finished item with `replayed: true` instead of an error
- * and records nothing twice.
+ * was lost) returns the finished item with `replayed: true` instead of an
+ * error and records nothing twice. A retry with the same key but another
+ * outcome or summary is refused (`CONFLICT`). The key has no expiry; the first
+ * answer wins.
+ *
+ * An occurrence the hub closed as missed while this agent held it still takes
+ * the agent's complete: the result is kept and the item ends done or failed.
+ * Anyone else gets OCCURRENCE_EXPIRED.
  */
 export async function completeItem(scope: AgentScope, input: CompleteInput) {
   const agent = scope.actor.agent;
   const key = input.idempotencyKey?.trim() || undefined;
+  const hash = completionHash(input.outcome, input.result.summary.trim());
   if (key) {
     const done = await findCompletion(scope, input.id, key);
-    if (done) return replayCompletion(scope, done);
+    if (done) return replayCompletion(scope, done, hash);
   }
   const summary = input.result.summary.trim();
   if (!summary) {
@@ -1131,8 +1163,25 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
       scope,
       input.id,
       input.expectedVersion,
-      (item, _tx, now) => {
-        assertHolder(item, agent);
+      async (item, tx, now) => {
+        let late = false;
+        if (item.status === "cancelled") {
+          const expiry = await tx.hubItemEvent.findFirst({
+            where: { itemId: item.id, type: "occurrence_expired" },
+            select: { at: true },
+          });
+          if (expiry) {
+            if (item.claimedByAgentId !== agent.id) {
+              throw new HubError(
+                "OCCURRENCE_EXPIRED",
+                `This occurrence was not finished before its lease ended and the hub closed it as missed at ${expiry.at.toISOString()}. Only the agent that held it can still report its result; the next occurrence opens on schedule.`,
+                { closedAt: expiry.at.toISOString() }
+              );
+            }
+            late = true;
+          }
+        }
+        if (!late) assertHolder(item, agent);
         const entries = item.criteriaItems ?? [];
         let checks: boolean[] | null = null;
         if (entries.length && input.criteriaMet !== undefined) {
@@ -1199,10 +1248,12 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
             blockedOn: null,
             closedAt: now,
             completionKey: key ?? null,
+            completionHash: key ? hash : null,
             ...usageData(input.usage),
           },
+          // A missed occurrence already released what it was holding back.
           after:
-            input.outcome === "done"
+            input.outcome === "done" && !late
               ? async (tx: Tx) => {
                   await noteUnblocked(tx, item, newDate(now.getTime() + 5));
                 }
@@ -1217,6 +1268,7 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
                 ...(met !== undefined ? { criteriaMet: met } : {}),
                 ...(answers ? { checklist: answers } : {}),
                 ...(input.usage ? { usage: input.usage } : {}),
+                ...(late ? { late: true } : {}),
                 links,
               },
             },
@@ -1228,7 +1280,7 @@ export async function completeItem(scope: AgentScope, input: CompleteInput) {
     // The first attempt won while this one was in flight: same key, same answer.
     if (key && error instanceof HubError) {
       const done = await findCompletion(scope, input.id, key);
-      if (done) return replayCompletion(scope, done);
+      if (done) return replayCompletion(scope, done, hash);
     }
     throw error;
   }

@@ -1,4 +1,4 @@
-import type { HubItem, Prisma } from "@prisma/client";
+import { type HubItem, Prisma } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
@@ -14,6 +14,7 @@ import { HubError } from "./errors";
 import {
   type PreparedItem,
   createdMessage,
+  findByCreateKey,
   prepareItem,
   viewOne,
   visibleToAgent,
@@ -271,19 +272,11 @@ async function planView(scope: HubScope, parentId: string) {
 export async function createPlan(scope: HubScope, input: PlanCreateInput) {
   const { children, sequential, ...rest } = input;
   const parentInput = withCreateKey(rest);
-  const creatorAgentId = actorAgentId(scope.actor);
-
-  if (creatorAgentId && parentInput.clientRef) {
-    const existing = await prisma.hubItem.findFirst({
-      where: {
-        userId: scope.userId,
-        creatorAgentId,
-        clientRef: parentInput.clientRef,
-      },
-    });
-    if (existing) {
-      return { created: false, plan: await planView(scope, existing.id) };
-    }
+  // Same key, same answer, for agents and the owner; looked up before any
+  // brief is checked, as for a single item.
+  const existing = await findByCreateKey(scope, parentInput.clientRef);
+  if (existing) {
+    return { created: false, plan: await planView(scope, existing.id) };
   }
 
   const parent = await prepareItem(scope, parentInput);
@@ -307,65 +300,81 @@ export async function createPlan(scope: HubScope, input: PlanCreateInput) {
   const now = newDate();
   const author = createdBy(scope);
   const createdItems: HubItem[] = [];
-  const parentId = await prisma.$transaction(async (tx) => {
-    const made = await tx.hubItem.create({ data: parent.data });
-    createdItems.push(made);
-    await writeEvents(
-      tx,
-      made.id,
-      scope.actor,
-      [
-        {
-          type: "created",
-          to: "open",
-          message: `${createdMessage(parent)} Plan with ${steps.length} ${steps.length === 1 ? "step" : "steps"}; ready when they are finished.`,
-        },
-      ],
-      now
-    );
-    const ids: string[] = [];
-    for (const [index, step] of steps.entries()) {
-      const created = await tx.hubItem.create({ data: step.data });
-      createdItems.push(created);
-      ids.push(created.id);
+  let parentId: string;
+  try {
+    parentId = await prisma.$transaction(async (tx) => {
+      const made = await tx.hubItem.create({ data: parent.data });
+      createdItems.push(made);
       await writeEvents(
         tx,
-        created.id,
+        made.id,
         scope.actor,
         [
           {
             type: "created",
             to: "open",
-            message: `Step ${index + 1} of ${steps.length}. ${createdMessage(step)}`,
-            data: { planId: made.id, step: index + 1 },
+            message: `${createdMessage(parent)} Plan with ${steps.length} ${steps.length === 1 ? "step" : "steps"}; ready when they are finished.`,
           },
         ],
         now
       );
-    }
-    const base = {
-      userId: scope.userId,
-      workspaceId: scope.workspaceId,
-      createdBy: author,
-    };
-    // Each link gets its own millisecond so the steps keep their order.
-    const links: Prisma.HubItemLinkCreateManyInput[] = [];
-    const add = (fromId: string, toId: string, kind: string) =>
-      links.push({
-        ...base,
-        fromId,
-        toId,
-        kind,
-        createdAt: newDate(now.getTime() + links.length),
+      const ids: string[] = [];
+      for (const [index, step] of steps.entries()) {
+        const created = await tx.hubItem.create({ data: step.data });
+        createdItems.push(created);
+        ids.push(created.id);
+        await writeEvents(
+          tx,
+          created.id,
+          scope.actor,
+          [
+            {
+              type: "created",
+              to: "open",
+              message: `Step ${index + 1} of ${steps.length}. ${createdMessage(step)}`,
+              data: { planId: made.id, step: index + 1 },
+            },
+          ],
+          now
+        );
+      }
+      const base = {
+        userId: scope.userId,
+        workspaceId: scope.workspaceId,
+        createdBy: author,
+      };
+      // Each link gets its own millisecond so the steps keep their order.
+      const links: Prisma.HubItemLinkCreateManyInput[] = [];
+      const add = (fromId: string, toId: string, kind: string) =>
+        links.push({
+          ...base,
+          fromId,
+          toId,
+          kind,
+          createdAt: newDate(now.getTime() + links.length),
+        });
+      ids.forEach((id, index) => {
+        add(made.id, id, "parent");
+        add(id, made.id, "blocks");
+        if (sequential && index > 0) add(ids[index - 1], id, "blocks");
       });
-    ids.forEach((id, index) => {
-      add(made.id, id, "parent");
-      add(id, made.id, "blocks");
-      if (sequential && index > 0) add(ids[index - 1], id, "blocks");
+      await tx.hubItemLink.createMany({ data: links });
+      return made.id;
     });
-    await tx.hubItemLink.createMany({ data: links });
-    return made.id;
-  });
+  } catch (error) {
+    // Two creates with the same key at once: the loser returns the winner's plan.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      parentInput.clientRef
+    ) {
+      const winner = await findByCreateKey(scope, parentInput.clientRef);
+      if (winner) {
+        return { created: false, plan: await planView(scope, winner.id) };
+      }
+    }
+    throw error;
+  }
   for (const item of createdItems) {
     emitHubEvent(scope, "item.created", { item: itemPayload(item) });
   }

@@ -43,7 +43,9 @@ this protocol.
    item keeps its dependents waiting until the owner or the creator unlinks or
    cancels them. Send an `idempotencyKey` so a retry after a lost answer
    returns the finished item with `replayed: true` instead of an error (a
-   second complete without a key is refused as `TERMINAL`).
+   second complete without a key is refused as `TERMINAL`). The key has no
+   expiry and the first answer wins; the same key with a different outcome or
+   summary is refused (`CONFLICT`).
 
 ## Risk and the owner
 
@@ -67,7 +69,9 @@ A brief must stand alone: `title`, `goal`, `doneCriteria`, `context` (what the
 other agent cannot know), `risks` (use `[]` only if there are none; see below),
 `assignee` (an agent name, or `any` with `requiredSkills`), optional `due`
 and `idempotencyKey` (makes a retry safe: the same key returns the item
-already made; `clientRef` is the older name for the same key). The creator
+already made; `clientRef` is the older name for the same key). A key never
+expires and the first answer wins: the same key with a different brief returns
+the first item, so use a new key per piece of work (for example one per date). The creator
 reads the result with `needt_agent_inbox` `view: "created"`.
 
 `doneCriteria` may be a sentence or a list of short checks (a checklist, at
@@ -88,10 +92,14 @@ through daylight-saving changes.
   next one.
 - Every occurrence has a lease: 24 hours after it opened, or until the next
   run if that comes sooner (`occurrenceExpiresAt` on the item). One that is
-  still unfinished then is closed as missed (status `cancelled`, log entry
-  `occurrence_expired`) and the next occurrence opens as usual. An agent that
-  is holding it under a live claim lease keeps it until 24 hours after it
-  opened.
+  still `open`, `claimed` or `in_progress` then is closed as missed (status
+  `cancelled`, log entry `occurrence_expired`; the app shows "Missed") and the
+  next occurrence opens as usual. It is never closed while an agent holds it
+  under a live claim lease, and never while it is `needs_owner` or `blocked`:
+  waiting is not a hang, so those keep blocking the next occurrence until they
+  are answered, unblocked or finished. If the agent that held a missed
+  occurrence completes it afterwards, the result is accepted; anyone else gets
+  `OCCURRENCE_EXPIRED`.
 - While the previous occurrence is unfinished and inside its lease, no new
   one opens, unless `allowOverlap: true`. A skipped occurrence is not queued.
 - A missed run (downtime) is not caught up.

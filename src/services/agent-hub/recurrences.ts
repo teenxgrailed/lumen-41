@@ -196,16 +196,27 @@ type LeasedItem = Pick<
   | "leaseExpiresAt"
 >;
 
+/** Only these can be closed as missed. See occurrenceExpired. */
+const EXPIRABLE_STATUSES: readonly string[] = [
+  "open",
+  "claimed",
+  "in_progress",
+];
+
 /**
- * True when an unfinished occurrence has outlived its lease. A row from before
- * leases existed has none stored: it gets the plain 24 hours from when it
- * opened. An agent that holds the item under a live claim lease (it is working
- * on it right now) keeps it until the 24 hour cap, so a run in progress is not
- * pulled away at the next fire.
+ * True when an unfinished occurrence has outlived its lease and may be closed
+ * as missed. Never closed: an item waiting on the owner (`needs_owner`) or
+ * parked by its agent (`blocked`), because waiting is not a hang, and an item
+ * an agent holds under a live claim lease (the claim lease, at most 240
+ * minutes per renewal, bounds it). A row from before leases existed has none
+ * stored and gets the plain 24 hours from when it opened.
  */
 export function occurrenceExpired(item: LeasedItem, now: Date): boolean {
-  if (TERMINAL_STATUSES.includes(item.status)) return false;
+  if (!EXPIRABLE_STATUSES.includes(item.status)) return false;
   const openedAt = item.occurrenceAt ?? item.createdAt;
+  //todo: drop this fallback (contract step) once no unfinished recurring
+  // item has a null occurrenceExpiresAt; it covers rows written by a server
+  // that predates the lease during a rolling deploy.
   const end =
     item.occurrenceExpiresAt ??
     newDate(openedAt.getTime() + OCCURRENCE_LEASE_MS);
@@ -214,12 +225,11 @@ export function occurrenceExpired(item: LeasedItem, now: Date): boolean {
     HELD_STATUSES.includes(item.status) &&
     item.leaseExpiresAt !== null &&
     item.leaseExpiresAt.getTime() > now.getTime();
-  const hardCap = item.createdAt.getTime() + OCCURRENCE_LEASE_MS;
-  return !(working && hardCap > now.getTime());
+  return !working;
 }
 
 /**
- * Closes one expired occurrence as missed: status cancelled, claim released,
+ * Closes one expired occurrence as missed: status cancelled, lease cleared,
  * one `occurrence_expired` event. Conditional on the version, so two sweeps
  * cannot both close it and a late write by an agent wins over the sweep.
  */
@@ -232,11 +242,11 @@ async function expireOccurrence(
     where: { id: item.id, version: item.version },
     data: {
       status: "cancelled",
-      claimedByAgentId: null,
+      // claimedByAgentId stays: the agent that held it can still report a
+      // result (completeItem accepts it), and the log shows who held it.
       leaseExpiresAt: null,
       leaseExpiredNotedAt: null,
       blockedOn: null,
-      ownerUnread: false,
       closedAt: now,
       version: { increment: 1 },
     },
@@ -254,6 +264,7 @@ async function expireOccurrence(
         message:
           "Missed: this occurrence was not finished before its lease ended, so the hub closed it and the series moved on.",
         data: {
+          heldBy: item.claimedByAgentId,
           recurrenceId: item.recurrenceId,
           occurrenceAt: item.occurrenceAt?.toISOString() ?? null,
           leaseEndedAt: (
@@ -284,11 +295,24 @@ export async function expireStaleOccurrences(now: Date = newDate()) {
   const rows = await prisma.hubItem.findMany({
     where: {
       recurrenceId: { not: null },
-      status: { notIn: [...TERMINAL_STATUSES] },
-      OR: [
-        { occurrenceExpiresAt: { lte: now } },
-        // Opened before leases existed.
-        { occurrenceExpiresAt: null, createdAt: { lte: staleBefore } },
+      // Never needs_owner or blocked, and never an item under a live claim
+      // lease: they would match every sweep and crowd out the stale ones.
+      status: { in: [...EXPIRABLE_STATUSES] },
+      AND: [
+        {
+          OR: [
+            { occurrenceExpiresAt: { lte: now } },
+            // Opened before leases existed.
+            { occurrenceExpiresAt: null, createdAt: { lte: staleBefore } },
+          ],
+        },
+        {
+          OR: [
+            { status: "open" },
+            { leaseExpiresAt: null },
+            { leaseExpiresAt: { lte: now } },
+          ],
+        },
       ],
     },
     orderBy: { createdAt: "asc" },

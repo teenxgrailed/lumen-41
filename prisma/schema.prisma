@@ -4374,6 +4374,8 @@ model HubItem {
   occurrenceExpiresAt DateTime?
   /// The idempotency key of the call that finished this item; a repeat with it returns the same result.
   completionKey       String?
+  /// sha256 of outcome + summary of that call: a replay with the same key but another result is refused.
+  completionHash      String?
   /// The done-criteria as a checklist; doneCriteria keeps the same text for readers of the old shape.
   criteriaItems       String[]            @default([])
   /// Reported by the agent on update / complete: running totals for the item.
@@ -4397,7 +4399,9 @@ model HubItem {
   @@unique([userId, creatorAgentId, clientRef])
   @@unique([recurrenceId, occurrenceAt])
   @@index([recurrenceId, status])
-  @@index([occurrenceExpiresAt])
+  // Two partial indexes live only in migration 20261123100000_hub_occurrence_lease (Prisma cannot
+  // express or see them): HubItem_occurrenceExpiresAt_idx where occurrenceExpiresAt is not null, and
+  // the unique HubItem_owner_userId_clientRef_key on (userId, clientRef) where creatorAgentId is null.
   @@index([workspaceId, status, assigneeAgentId])
   @@index([status, leaseExpiresAt])
   @@index([workspaceId, closedAt])

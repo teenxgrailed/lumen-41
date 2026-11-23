@@ -23,6 +23,8 @@ import {
   hashConnectorToken,
 } from "@/services/connectors/auth-tokens";
 import { WorkspaceKind } from "@prisma/client";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { prisma } from "@/lib/prisma";
 import { closeRedisConnection } from "@/lib/queue/connection";
@@ -30,6 +32,7 @@ import { closeRedisConnection } from "@/lib/queue/connection";
 import { ownerUpdateAgent } from "../agents";
 import { agentForConnection, assistantAgentScope } from "../context";
 import { HubError } from "../errors";
+import { createPlan } from "../graph";
 import { createItem, listItems } from "../items";
 import { writeNote } from "../notes";
 import { spawnDueRecurrences } from "../recurrences";
@@ -1505,6 +1508,207 @@ describeIntegration("Agent hub (real database)", () => {
         where: { itemId: next, type: "completed" },
       })
     ).toBe(1);
+  });
+
+  describe("occurrence lease edge cases (real rows)", () => {
+    const standing = (title: string) =>
+      brief({
+        title,
+        requiredSkills: ["browser"],
+        recurrence: {
+          rrule: "FREQ=WEEKLY;BYDAY=MO;BYHOUR=9",
+          timezone: "UTC",
+        },
+      });
+    const past = () => new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
+    async function standingJob(title: string) {
+      const made = await tool(
+        claude,
+        "needt_agent_task_create",
+        standing(title)
+      );
+      expect(made.isError).toBe(false);
+      const item: Json = made.data.item;
+      // Age the occurrence: opened three days ago, its recurrence due now.
+      await prisma.hubItem.update({
+        where: { id: item.id },
+        data: { occurrenceAt: past(), createdAt: past() },
+      });
+      return item.id as string;
+    }
+    const dueNow = (itemId: string) =>
+      prisma.hubItem.findUniqueOrThrow({ where: { id: itemId } }).then((row) =>
+        prisma.hubRecurrence.update({
+          where: { id: row.recurrenceId! },
+          data: { nextRunAt: new Date(Date.now() - 60_000), active: true },
+        })
+      );
+    const row = (id: string) =>
+      prisma.hubItem.findUniqueOrThrow({ where: { id } });
+
+    // The lease backfill of the migration, run as written on rows without a lease.
+    const backfill = readFileSync(
+      join(
+        process.cwd(),
+        "prisma/migrations/20261123100000_hub_occurrence_lease/migration.sql"
+      ),
+      "utf8"
+    ).match(/UPDATE "HubItem"\nSET "occurrenceExpiresAt"[\s\S]*?;/)![0];
+
+    it("the migration backfill and the first sweep leave needs_owner and blocked occurrences alone, and keep ownerUnread (H1)", async () => {
+      const waits = await standingJob("Waits for the owner");
+      const parked = await standingJob("Parked by its agent");
+      const hung = await standingJob("Never claimed");
+      expect(
+        (await tool(grok, "needt_agent_task_claim", { id: waits })).isError
+      ).toBe(false);
+      expect(
+        (
+          await tool(grok, "needt_agent_task_escalate", {
+            id: waits,
+            question: "Post it at 18:00?",
+          })
+        ).isError
+      ).toBe(false);
+      await tool(grok, "needt_agent_task_claim", { id: parked });
+      const blocked = await tool(grok, "needt_agent_task_update", {
+        id: parked,
+        status: "blocked",
+        blockedOn: "waiting for the upload to finish",
+      });
+      expect(blocked.isError).toBe(false);
+      expect((await row(waits)).ownerUnread).toBe(true);
+
+      // As if they came from before the lease existed.
+      const ids = [waits, parked, hung];
+      await prisma.hubItem.updateMany({
+        where: { id: { in: ids } },
+        data: { occurrenceExpiresAt: null },
+      });
+      await prisma.$executeRawUnsafe(backfill);
+      expect((await row(waits)).occurrenceExpiresAt).toBeNull();
+      expect((await row(parked)).occurrenceExpiresAt).toBeNull();
+      // Open items get the 24 h lease, long past for this one.
+      expect((await row(hung)).occurrenceExpiresAt!.getTime()).toBeLessThan(
+        Date.now()
+      );
+
+      for (const id of ids) await dueNow(id);
+      await spawnDueRecurrences();
+      const kept = await row(waits);
+      expect(kept.status).toBe("needs_owner");
+      expect(kept.ownerUnread).toBe(true);
+      expect((await row(parked)).status).toBe("blocked");
+      // The never-claimed one was closed as missed and its recurrence moved on.
+      expect((await row(hung)).status).toBe("cancelled");
+      const waitsRecurrence = await prisma.hubRecurrence.findUniqueOrThrow({
+        where: { id: kept.recurrenceId! },
+      });
+      expect(waitsRecurrence.lastSkipReason).toBe("previous_open");
+    });
+
+    it("never closes an item under a live claim lease, then takes a late complete from the agent that held it, once (M1, M3)", async () => {
+      const id = await standingJob("Long running");
+      await tool(grok, "needt_agent_task_claim", { id, leaseMinutes: 30 });
+      await prisma.hubItem.update({
+        where: { id },
+        data: { occurrenceExpiresAt: past() },
+      });
+      await dueNow(id);
+      await spawnDueRecurrences();
+      expect((await row(id)).status).toBe("claimed");
+
+      // Its claim lease runs out: the next sweep closes it as missed.
+      await prisma.hubItem.update({
+        where: { id },
+        data: { leaseExpiresAt: past() },
+      });
+      await dueNow(id);
+      await spawnDueRecurrences();
+      const closed = await row(id);
+      expect(closed.status).toBe("cancelled");
+      expect(closed.claimedByAgentId).toBe(grokId);
+
+      // Another agent is told the occurrence expired (not NOT_HELD).
+      const stranger = await tool(codex, "needt_agent_task_complete", {
+        id,
+        outcome: "done",
+        result: { summary: "Done by someone else." },
+        criteriaMet: true,
+      });
+      expect(stranger.isError).toBe(true);
+      expect(stranger.data.error).toBe("OCCURRENCE_EXPIRED");
+
+      // The holder reports late: accepted, result kept, retry replays.
+      const finish = {
+        id,
+        outcome: "done",
+        result: { summary: "Finished after the lease ended." },
+        criteriaMet: true,
+        idempotencyKey: "late-1",
+      };
+      const late = await tool(grok, "needt_agent_task_complete", finish);
+      expect(late.isError).toBe(false);
+      expect(late.data.item.status).toBe("done");
+      expect(late.data.item.result.summary).toBe(
+        "Finished after the lease ended."
+      );
+      const replay = await tool(grok, "needt_agent_task_complete", finish);
+      expect(replay.data).toMatchObject({ replayed: true });
+      // The same key with another outcome is refused.
+      const mismatch = await tool(grok, "needt_agent_task_complete", {
+        ...finish,
+        outcome: "failed",
+      });
+      expect(mismatch.isError).toBe(true);
+      expect(mismatch.data.error).toBe("CONFLICT");
+      expect((await row(id)).status).toBe("done");
+    });
+
+    it("two owner creates and two owner plans with one key at once make one each (M2)", async () => {
+      const owner = {
+        userId: ownerId,
+        workspaceId: ownerWorkspace,
+        actor: { kind: "owner" as const },
+      };
+      const input = {
+        ...brief({ title: "Owner once" }),
+        idempotencyKey: "owner-race",
+      };
+      const [a, b] = await Promise.all([
+        createItem(owner, input as never),
+        createItem(owner, input as never),
+      ]);
+      expect(a.item.id).toBe(b.item.id);
+      expect([a.created, b.created].sort()).toEqual([false, true]);
+      expect(
+        await prisma.hubItem.count({
+          where: { userId: ownerId, clientRef: "owner-race" },
+        })
+      ).toBe(1);
+
+      const plan = {
+        ...brief({ title: "Owner plan" }),
+        idempotencyKey: "owner-plan-race",
+        children: [brief({ title: "Step one" }), brief({ title: "Step two" })],
+      };
+      const [p, q] = await Promise.all([
+        createPlan(owner, plan as never),
+        createPlan(owner, plan as never),
+      ]);
+      expect([p.created, q.created].sort()).toEqual([false, true]);
+      expect(
+        await prisma.hubItem.count({
+          where: { userId: ownerId, clientRef: "owner-plan-race" },
+        })
+      ).toBe(1);
+      expect(
+        await prisma.hubItem.count({
+          where: { userId: ownerId, title: { in: ["Step one", "Step two"] } },
+        })
+      ).toBe(2);
+    });
   });
 
   describe("Free plan limits against real rows", () => {

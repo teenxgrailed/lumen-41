@@ -64,6 +64,8 @@ export interface HubItemRow {
   status: string;
   /** Set when the item was opened by a recurrence (or is its first occurrence). */
   recurrenceId?: string | null;
+  /** When this occurrence's lease ends; it is closed as missed if unfinished by then. */
+  occurrenceExpiresAt?: string | null;
   goal: string;
   doneCriteria: string;
   /** The done-criteria as a checklist; `met` is null until the item is done. */
@@ -185,9 +187,32 @@ function repeatsLine(recurrence: HubRecurrenceRow) {
   return parts.join(", ");
 }
 
+/**
+ * An occurrence of a repeating item that the hub closed because its lease
+ * ended unfinished: cancelled, with a lease that has passed and the
+ * `occurrence_expired` entry as its latest event. An owner cancel looks
+ * different (no such entry), so the two are not mixed up.
+ */
+export function isMissed(
+  item: Pick<HubItemRow, "status" | "occurrenceExpiresAt" | "latestEvent">
+) {
+  return (
+    item.status === "cancelled" &&
+    Boolean(item.occurrenceExpiresAt) &&
+    item.latestEvent?.type === "occurrence_expired"
+  );
+}
+
+export function statusLabel(
+  item: Pick<HubItemRow, "status" | "occurrenceExpiresAt" | "latestEvent">
+) {
+  return isMissed(item) ? "Missed" : (STATUS_LABEL[item.status] ?? item.status);
+}
+
 function latest(item: HubItemRow) {
   const event = item.latestEvent;
   if (!event) return "No updates yet";
+  if (isMissed(item)) return event.message ?? "Missed";
   const who = event.actor?.name ?? event.actor?.kind ?? "system";
   return `${who}: ${event.message ?? event.type.replace(/_/g, " ")}`;
 }
@@ -694,7 +719,7 @@ function ItemDetail({ id, fallback }: { id: string; fallback: HubItemRow }) {
           <dt>Agent</dt>
           <dd>{who?.name ?? "Any capable agent"}</dd>
           <dt>Status</dt>
-          <dd>{STATUS_LABEL[item.status] ?? item.status}</dd>
+          <dd>{statusLabel(item)}</dd>
           {started ? (
             <>
               <dt>Started</dt>
