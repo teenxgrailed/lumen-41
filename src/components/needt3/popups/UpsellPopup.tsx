@@ -29,8 +29,11 @@ export interface UpsellPopupProps {
   title: string;
   /** What happened and what the two ways out are. One or two sentences. */
   body: string;
-  /** Exactly two cards. Free and trial accounts only: the caller decides who sees it. */
-  cards: readonly [UpsellCard, UpsellCard];
+  /**
+   * Two cards, or one when the second way out is closed (Lifetime sold out).
+   * Free and trial accounts only: the caller decides who sees it.
+   */
+  cards: readonly [UpsellCard] | readonly [UpsellCard, UpsellCard];
   /** The quiet way out under the cards ("Not now"). Omit for none. */
   dismissLabel?: string;
 }
@@ -73,7 +76,7 @@ export function UpsellPopup({
       <p className="pp-text pp-rise" style={rise(1)}>
         {body}
       </p>
-      <div className="pp-opts">
+      <div className="pp-opts" data-pp-count={cards.length}>
         {cards.map((card, i) => (
           <section
             key={card.key}

@@ -47,7 +47,12 @@ function anotherDialogOpen(): boolean {
     '[role="dialog"], [role="alertdialog"]'
   );
   for (const el of dialogs) {
-    if (!el.closest("[data-popup]")) return true;
+    // A shut phone sheet stays mounted (inert, visibility hidden) so it can
+    // slide back; only a dialog a person can see counts.
+    if (el.closest("[inert]")) continue;
+    if (window.getComputedStyle(el).visibility === "hidden") continue;
+    // Our own popups wear a dialog too: the one that holds a popup does not count.
+    if (!el.querySelector("[data-pp]")) return true;
   }
   return false;
 }

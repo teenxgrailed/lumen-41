@@ -1,0 +1,1 @@
+- What's new and the upgrade pop-ups share one look now: a serif headline, a picture, and the two ways forward as cards; on a phone they are a sheet from the bottom.
