@@ -33,17 +33,22 @@ const SCOPE = [
 const CALL =
   /\.task\.(findMany|findFirst|findUnique|findFirstOrThrow|findUniqueOrThrow|count|groupBy)\(/g;
 
-function sourceFiles(path: string): string[] {
-  const full = join(ROOT, path);
-  if (statSync(full).isFile()) return [full];
-  return readdirSync(full).flatMap((name) => {
-    if (name === "__tests__" || name === "node_modules") return [];
-    const child = join(path, name);
-    if (statSync(join(ROOT, child)).isDirectory()) return sourceFiles(child);
-    return /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)
-      ? [join(ROOT, child)]
-      : [];
-  });
+/**
+ * Every non-test .ts/.tsx file under the listed roots, as absolute paths.
+ * Paths are built from the fixed roots and directory listings only.
+ */
+function sourceFiles(root: string): string[] {
+  const base = `${ROOT}/${root}`;
+  if (statSync(base).isFile()) return [base];
+  return (readdirSync(base, { recursive: true }) as string[])
+    .map((rel) => `${base}/${rel}`)
+    .filter(
+      (file) =>
+        !/(^|\/)(__tests__|node_modules)(\/|$)/.test(file) &&
+        /\.tsx?$/.test(file) &&
+        !/\.test\.tsx?$/.test(file) &&
+        statSync(file).isFile()
+    );
 }
 
 /** The text between the call's parentheses, or null when they do not close. */

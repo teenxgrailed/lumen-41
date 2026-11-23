@@ -4,3 +4,6 @@
 d2195f00c916393f3dd55081105f2e5d09d7a3ee:src/lib/apple-iap/__tests__/verifier.test.ts:generic-api-key:45
 d2195f00c916393f3dd55081105f2e5d09d7a3ee:src/services/billing/__tests__/apple-iap.test.ts:generic-api-key:66
 d2195f00c916393f3dd55081105f2e5d09d7a3ee:src/services/billing/__tests__/apple-iap.test.ts:generic-api-key:67
+# Documentation placeholder "needt_REPLACE_ME" in a curl example, not a secret
+# (the same placeholder appears earlier in this file's history).
+912d62bfc63015b5fbf24c92ad259a767f386977:docs/connector-api.md:curl-auth-header:1587

@@ -70,11 +70,24 @@ export function ideaPatchRefused(patch: object): boolean {
 
 /* ---------- words ---------- */
 
-const LETTER_EDGE = (body: string) =>
-  new RegExp(`(?<![\\p{L}\\p{N}])(?:${body})(?![\\p{L}\\p{N}])`, "iu");
+/**
+ * Whole-word matching without building a regex from data: the title and each
+ * listed word or phrase are cut into letter/digit runs, lower-cased and joined
+ * by single spaces, then compared as space-padded strings. "listen to" matches
+ * "Listen  to" and "LISTEN-TO", and "read" does not match "ready".
+ */
+const WORD_RUN = /[\p{L}\p{N}]+/gu;
 
-const phrase = (words: readonly string[]) =>
-  words.map((word) => word.replace(/\s+/g, "\\s+")).join("|");
+const normalize = (text: string) =>
+  ` ${(text.toLowerCase().match(WORD_RUN) ?? []).join(" ")} `;
+
+const wordMatcher = (words: readonly string[]) => {
+  const needles = words.map(normalize).filter((w) => w.trim() !== "");
+  return (title: string) => {
+    const hay = normalize(title);
+    return needles.some((needle) => hay.includes(needle));
+  };
+};
 
 /**
  * Titles that name something optional to read, watch or look at (EN, RU, UK,
@@ -198,11 +211,8 @@ export const COMMITMENT_WORDS = [
   "dringend",
 ] as const;
 
-const ACTIVITY_RE = LETTER_EDGE(phrase(ACTIVITY_WORDS));
-const COMMITMENT_RE = LETTER_EDGE(phrase(COMMITMENT_WORDS));
-
-export const hasActivityWord = (title: string) => ACTIVITY_RE.test(title);
-export const hasCommitmentWord = (title: string) => COMMITMENT_RE.test(title);
+export const hasActivityWord = wordMatcher(ACTIVITY_WORDS);
+export const hasCommitmentWord = wordMatcher(COMMITMENT_WORDS);
 
 /** The title reads as an optional activity and carries no commitment. */
 export const looksLikeIdea = (title: string) =>
