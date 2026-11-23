@@ -141,6 +141,20 @@
     box-shadow 0.2s ease,
     color 0.2s ease;
 }
+/* A press keeps the slot where it stands. The app-wide press rule
+ * (`.needt-v2 button:active { transform: scale(0.965) }`) replaces `transform`,
+ * which here is the slots place: the disc jumped to the capsules left edge
+ * under the finger, so the tap ended on the capsule and never reached the
+ * button. Same place, scaled. */
+.needt-v3 .nfb-slot:active {
+  transform: translateX(
+      calc(
+        var(--nfb-pad) + var(--nfb-j) * (var(--nfb-d) + var(--nfb-gap)) +
+          var(--nfb-s) * var(--nfb-xw)
+      )
+    )
+    scale(0.94);
+}
 /* the slot you are in: its disc steps back into the ink pill under it, and
  * its mark turns to the pill's colour */
 .needt-v3 .nfb-slot.is-on {

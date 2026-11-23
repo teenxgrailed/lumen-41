@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, memo } from "react";
 
 import { GLYPHS, type GlyphName } from "./glyph-data";
 
@@ -11,7 +11,7 @@ export { GLYPH_NAMES, type GlyphName } from "./glyph-data";
  * is only ever a mark here, never a fill behind one. Decorative: aria-hidden;
  * the control that holds it carries the label.
  */
-export function Glyph({
+export const Glyph = memo(function Glyph({
   name,
   size = 24,
   className,
@@ -35,4 +35,4 @@ export function Glyph({
       dangerouslySetInnerHTML={{ __html: g.body }}
     />
   );
-}
+});
