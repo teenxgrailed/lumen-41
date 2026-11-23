@@ -248,16 +248,30 @@ describe("phone page ground", () => {
       expect(nfb).not.toContain("--v3-dock-lift");
     });
 
-    it("the tail is the dock's top edge plus 42 px, or the fog plus 16, plus the viewport terms", () => {
-      const at = css.indexOf("--v3-tail-h: calc(");
+    it("the tail is the dock's top edge plus 42 px, or the fog plus 16, plus the gap", () => {
+      const at = css.indexOf("--v3-tail-base: max(");
       expect(at).toBeGreaterThanOrEqual(0);
-      const tail = css.slice(at, css.indexOf(");\n}", at));
+      const base = css.slice(at, css.indexOf(");", at));
       // the same expression `112px + --v3-dock-lift` was: lift + 70 + 42
-      expect(tail).toContain("var(--v3-dock-top) + 42px");
-      expect(tail).toContain("var(--ps-fog-h) + 16px");
-      expect(tail).toContain("var(--v3-vp-gap)");
-      expect(tail).toContain("var(--v3-tail-extra, 0px)");
+      expect(base).toContain("var(--v3-dock-top) + 42px");
+      expect(base).toContain("var(--ps-fog-h) + 16px");
+      expect(css).toContain(
+        "--v3-tail-h: calc(var(--v3-tail-base) + var(--v3-vp-gap))"
+      );
       expect(css).not.toContain("112px + var(--v3-dock-lift)");
+      // no measured extra any more
+      expect(css).not.toContain("tail-extra");
+    });
+
+    it("the calendar's Auto-fit pill reads the base, so the gap never moves it", () => {
+      expect(rule('.needt-v3[data-ui="phone"] .v2p-autofit')).toContain(
+        "bottom: calc(var(--v3-tail-base) + var(--v3-sab, 0px))"
+      );
+      expect(
+        rule('.needt-v3[data-ui="phone"]:has(.pov-snack) .v2p-autofit')
+      ).toContain(
+        "bottom: calc(var(--v3-tail-base) + var(--v3-sab, 0px) + 64px)"
+      );
     });
 
     it("the dock is 70 px of lift and margin plus its 60 px: top = lift + 70", () => {
@@ -271,7 +285,7 @@ describe("phone page ground", () => {
       );
     });
 
-    it("the viewport gap is only the installed app's, and only where the units exist", () => {
+    it("the viewport gap is only the installed app's, capped, and only where the units exist", () => {
       expect(rule('.needt-v3[data-ui="phone"]')).toContain("--v3-vp-gap: 0px");
       const at = css.indexOf("@supports (height: 100dvh) and (height: 100lvh)");
       expect(at).toBeGreaterThanOrEqual(0);
@@ -280,16 +294,17 @@ describe("phone page ground", () => {
       expect(block).toContain(
         'html[data-display-mode="standalone"] .needt-v3[data-ui="phone"]'
       );
-      expect(block.match(/max\(0px, calc\(100lvh - 100dvh\)\)/g)).toHaveLength(
-        2
+      const gap = block.match(
+        /clamp\(\s*0px,\s*max\(calc\(100lvh - 100dvh\), var\(--v3-screen-gap, 0px\)\),\s*100px\s*\)/g
       );
+      expect(gap).toHaveLength(2);
       // never in a Safari tab
       expect(block).not.toContain('data-display-mode="browser"');
     });
 
     it("the gap rules come after the scope's own 0, or the zero would win", () => {
       const zero = css.indexOf("--v3-vp-gap: 0px");
-      const gap = css.indexOf("--v3-vp-gap: max(0px");
+      const gap = css.indexOf("--v3-vp-gap: clamp(");
       expect(zero).toBeGreaterThanOrEqual(0);
       expect(gap).toBeGreaterThan(zero);
     });

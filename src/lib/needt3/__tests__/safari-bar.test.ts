@@ -1,8 +1,10 @@
 import {
   BOTTOM_BAR_MIN_GAP_PX,
+  SCREEN_GAP_MAX_PX,
   VIEWPORT_BOOT_SCRIPT,
   type ViewportReading,
   safariBarOf,
+  screenGapOf,
 } from "@/lib/needt3/safari-bar";
 
 /** iOS 26 simulator, iPhone 17 Pro, the safari-phone probe's numbers. */
@@ -42,6 +44,49 @@ describe("safariBarOf (measured layouts)", () => {
   });
 });
 
+describe("screenGapOf (the installed app's short viewport)", () => {
+  const app = (innerHeight: number, innerWidth = 402): ViewportReading => ({
+    standalone: true,
+    ios: true,
+    largeViewport: 874,
+    screenWidth: 402,
+    screenHeight: 874,
+    innerWidth,
+    innerHeight,
+  });
+  const gap = (r: ViewportReading) => screenGapOf(r, SCREEN_GAP_MAX_PX);
+
+  it("iPhone 17 Pro, innerHeight 812 of 874: the gap is 62", () => {
+    expect(gap(app(812))).toBe(62);
+  });
+
+  it("a healthy app, innerHeight 874 of 874: 0", () => {
+    expect(gap(app(874))).toBe(0);
+  });
+
+  it("a viewport taller than the screen: 0", () => {
+    expect(gap(app(900))).toBe(0);
+  });
+
+  it("landscape: 0, whatever the numbers", () => {
+    expect(gap({ ...app(402, 874), screenWidth: 402, screenHeight: 874 })).toBe(
+      0
+    );
+    expect(gap({ ...app(300, 700), screenHeight: 874 })).toBe(0);
+  });
+
+  it("a Safari tab: 0 (its bars are not this gap)", () => {
+    expect(gap({ ...app(714), standalone: false })).toBe(0);
+  });
+
+  it("is capped at 100", () => {
+    expect(SCREEN_GAP_MAX_PX).toBe(100);
+    expect(gap(app(600))).toBe(100);
+    expect(gap(app(774))).toBe(100);
+    expect(gap(app(775))).toBe(99);
+  });
+});
+
 type Attrs = Record<string, string>;
 
 function boot(opts: {
@@ -49,10 +94,16 @@ function boot(opts: {
   standalone?: boolean;
   lvh: number;
   innerHeight?: number;
+  screenHeight?: number;
 }) {
   const attrs: Attrs = {};
   const listeners: Record<string, Array<(e?: unknown) => void>> = {};
+  const style: Record<string, string> = {};
   const html = {
+    style: {
+      getPropertyValue: (k: string) => style[k] ?? "",
+      setProperty: (k: string, v: string) => (style[k] = v),
+    },
     setAttribute: (k: string, v: string) => (attrs[k] = v),
     getAttribute: (k: string) => attrs[k] ?? null,
     removeAttribute: (k: string) => delete attrs[k],
@@ -68,7 +119,7 @@ function boot(opts: {
       platform: "iPhone",
       maxTouchPoints: 5,
     },
-    screen: { width: 402, height: 874 },
+    screen: { width: 402, height: opts.screenHeight ?? 874 },
     innerWidth: 402,
     innerHeight: opts.innerHeight ?? 714,
     matchMedia: () => ({ matches: false }),
@@ -81,7 +132,7 @@ function boot(opts: {
     createElement: () => ({ style: {}, offsetHeight: opts.lvh }),
   };
   new Function("window", "document", VIEWPORT_BOOT_SCRIPT)(win, doc);
-  return { attrs, listeners, win };
+  return { attrs, listeners, win, style };
 }
 
 describe("VIEWPORT_BOOT_SCRIPT", () => {
@@ -117,6 +168,37 @@ describe("VIEWPORT_BOOT_SCRIPT", () => {
     expect(listeners.resize).toHaveLength(1);
     expect(listeners.load).toHaveLength(1);
     expect(() => listeners.resize[0]({ type: "resize" })).not.toThrow();
+  });
+
+  it("writes the screen gap on <html> in the installed app only", () => {
+    expect(
+      boot({ lvh: 874, standalone: true, innerHeight: 812 }).style[
+        "--v3-screen-gap"
+      ]
+    ).toBe("62px");
+    expect(
+      boot({ lvh: 874, standalone: true, innerHeight: 874 }).style[
+        "--v3-screen-gap"
+      ]
+    ).toBe("0px");
+    // a Safari tab: its viewport is short because of the bars, not this gap
+    expect(boot({ lvh: 754 }).style["--v3-screen-gap"]).toBe("0px");
+  });
+
+  it("follows the viewport on resize, rotation and pageshow with one handler", () => {
+    const { listeners, win, style } = boot({
+      lvh: 874,
+      standalone: true,
+      innerHeight: 812,
+    });
+    expect(style["--v3-screen-gap"]).toBe("62px");
+    expect(listeners.orientationchange).toHaveLength(1);
+    expect(listeners.pageshow).toHaveLength(1);
+    expect(listeners.pageshow[0]).toBe(listeners.resize[0]);
+    expect(listeners.orientationchange[0]).toBe(listeners.resize[0]);
+    win.innerHeight = 874;
+    listeners.pageshow[0]({ type: "pageshow" });
+    expect(style["--v3-screen-gap"]).toBe("0px");
   });
 
   it("never throws without a DOM", () => {

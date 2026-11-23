@@ -65,54 +65,16 @@
       if (r.width < innerWidth * 0.5 || r.height < 1) continue;
       const atTop = r.top <= 2 && r.bottom > 0;
       const atBottom = r.bottom >= h - 2 && r.top < h;
-      if (atTop || atBottom)
-        out.push(`  ${atTop ? "TOP" : ""}${atBottom ? "BOT" : ""} ${desc(el)}`);
+      if (atTop || atBottom) out.push(`  ${atTop ? "TOP" : ""}${atBottom ? "BOT" : ""} ${desc(el)}`);
     }
     return out.slice(0, 12).join("\n") || "  none";
-  };
-
-  // Viewport units and the dock against the page's tail: where the last row
-  // ends at the bottom of the page and where the dock begins (tail rows).
-  const unit = (v) => {
-    const u = document.createElement("div");
-    u.style.cssText = `position:absolute;visibility:hidden;pointer-events:none;top:0;left:0;width:0;height:${v}`;
-    document.documentElement.appendChild(u);
-    const n = u.offsetHeight;
-    u.remove();
-    return n;
-  };
-  const dockLine = () => {
-    const rect = (sel) => {
-      const el = document.querySelector(sel);
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return `${Math.round(r.top)}..${Math.round(r.bottom)}`;
-    };
-    const root = document.documentElement;
-    const sh = (document.scrollingElement || root).scrollHeight;
-    const vv = window.visualViewport;
-    const vis = Math.max(innerHeight, vv ? vv.height + vv.offsetTop : 0);
-    const cs = getComputedStyle(root);
-    return [
-      `units lvh=${unit("100lvh")} dvh=${unit("100dvh")} svh=${unit("100svh")} vh=${unit("100vh")} html.minH=${cs.minHeight}`,
-      `mode=${root.getAttribute("data-display-mode")} tailExtra=${root.style.getPropertyValue("--v3-tail-extra") || "0"}`,
-      `dock .nfb-pill=${rect(".nfb-pill")}  tail .pk-tail=${rect(".pk-tail")}  fog=${rect(".pk-fog")}`,
-      `page end at scrollY=${Math.round(scrollY)}: doc bottom on screen=${Math.round(sh - scrollY)}  max scrollY=${Math.round(sh - vis)}`,
-    ].join("\n");
   };
 
   const report = () => {
     const ps = getComputedStyle(probe);
     const vv = window.visualViewport;
-    const metas = [
-      ...document.querySelectorAll(
-        'meta[name="theme-color"],meta[name="color-scheme"],meta[name="viewport"],meta[name="apple-mobile-web-app-status-bar-style"]'
-      ),
-    ]
-      .map(
-        (m) =>
-          `  ${m.name}${m.media ? " [" + m.media + "]" : ""} = ${m.content}`
-      )
+    const metas = [...document.querySelectorAll('meta[name="theme-color"],meta[name="color-scheme"],meta[name="viewport"],meta[name="apple-mobile-web-app-status-bar-style"]')]
+      .map((m) => `  ${m.name}${m.media ? " [" + m.media + "]" : ""} = ${m.content}`)
       .join("\n");
     const h = innerHeight;
     return [
@@ -124,7 +86,6 @@
       `prefers dark=${matchMedia("(prefers-color-scheme: dark)").matches}`,
       `html class="${document.documentElement.className}" bg=${getComputedStyle(document.documentElement).backgroundColor} scheme=${getComputedStyle(document.documentElement).colorScheme} overflow=${getComputedStyle(document.documentElement).overflowY}`,
       `body bg=${getComputedStyle(document.body).backgroundColor} overflow=${getComputedStyle(document.body).overflowY} pos=${getComputedStyle(document.body).position}`,
-      `dock vs tail:\n${dockLine()}`,
       `metas:\n${metas}`,
       `fixed/sticky at edges:\n${edgeElems()}`,
       `at y=0:\n${stack(0)}`,
@@ -155,9 +116,7 @@
     }
     setTimeout(() => (btn.textContent = "Copy"), 1500);
   });
-  addEventListener("scroll", () => requestAnimationFrame(tick), {
-    passive: true,
-  });
+  addEventListener("scroll", () => requestAnimationFrame(tick), { passive: true });
   addEventListener("resize", tick);
   setInterval(tick, 1000);
   tick();
