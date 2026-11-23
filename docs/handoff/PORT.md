@@ -30,14 +30,16 @@ any one of them is how the kit slid backwards, repeatedly.
    measured from the longest real label. A label that does not fit gets
    **shortened**; widening the column re-opens the defect it was introduced to
    close.
-5. **Elevation is ring-first.** Depth = 1px hairline + a ground shift. Controls
-   are recessed, objects are raised. No card gets a shadow to "pop" — if it
-   does not read, the ground is wrong.
+5. **Elevation is the shared raised material.** Controls and surfaces take
+   their depth from the raised tokens (`src/styles/ds/tokens.css`) and from
+   nothing else: one raised level per stack, so a raised surface inside a raised
+   surface is flat, a hairline. No ad-hoc shadows. (Owner decision, 23.11.26;
+   `docs/handoff/design-system.md`.)
 
 **One screen is exempt, and only from rule 5.** The upgrade sheet is a
 landing page that happens to live inside the application, printed on the same
 torn paper as the marketing pages (`site/css/paper.css`). Grain and a torn
-edge are the point there, so ring-first elevation does not apply to it. Rule 2
+edge are the point there, so the shared elevation rule does not apply to it. Rule 2
 still holds on it everywhere except the headline — a price is a display
 figure, not chrome — and every other rule, including the accent one, stands.
 Nothing else in the product gets this exemption.

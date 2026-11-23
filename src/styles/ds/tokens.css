@@ -1,0 +1,155 @@
+/*
+ * The Needt design system: every token a shared component reads, in one file
+ * (2026-11-23, owner decisions of that day; docs/handoff/design-system.md).
+ *
+ * Nothing here repeats a value that already exists. The ink ladder, the fills,
+ * the type shorthands and the raised material are the app's own tokens
+ * (v3/ds-tokens.css, v3-overrides/raised.css); this file gives them the names
+ * a component uses, and adds only what did not exist: a space scale, six
+ * radii, the control heights, the surface material, the press and disabled
+ * constants.
+ *
+ *   space    2 4 6 8 12 16 20 24
+ *   radius   8 12 16 22 28 pill     (the phone's most used values, 39 -> 6)
+ *   ink      100 85 70 55 40 25     (PORT.md rule 1)
+ *   fill     2 3 4 6 8 12           (PORT.md rule 1)
+ *   type     chrome 13 / 12, phone row title 16, sheet title 28; no 14
+ *   raised   control, control pressed, well, surface, floating  (+ ink: the
+ *            control that is on)
+ *
+ * The phone's own ink (v2p: 52% and 28%) is not a ladder step. When a screen
+ * moves onto a shared component it moves onto these: 52 becomes 55, 28 becomes
+ * 25 (or 40 where the text has to be read), the 16% lavender wash becomes 12%.
+ *
+ * Only src/styles/ds/ and src/components/needt3/ds/ may write a shadow, a grey
+ * or a size of their own: src/styles/__tests__/ds-guard.test.ts fails any other
+ * CSS file that adds one.
+ *
+ * Light by default; dark under data-theme="dark" | "dim", a `.dark` subtree or
+ * `.v3-raised-dark`, the same scopes raised.css reads. A custom property that
+ * holds var() is substituted where it is declared, so the raised aliases are
+ * declared again in the dark block: they mirror light, inverted.
+ */
+.needt-v3 {
+  /* ── space ── */
+  --ds-space-2: 2px;
+  --ds-space-4: 4px;
+  --ds-space-6: 6px;
+  --ds-space-8: 8px;
+  --ds-space-12: 12px;
+  --ds-space-16: 16px;
+  --ds-space-20: 20px;
+  --ds-space-24: 24px;
+
+  /* ── radius: tag / control / card / plate / sheet / pill ── */
+  --ds-radius-tag: 8px;
+  --ds-radius-control: 12px;
+  --ds-radius-card: 16px;
+  --ds-radius-plate: 22px;
+  --ds-radius-sheet: 28px;
+  --ds-radius-pill: 999px;
+
+  /* ── heights: what a control measures, and the hit area it always has ── */
+  --ds-h-24: 24px;
+  --ds-h-28: 28px;
+  --ds-h-32: 32px;
+  --ds-h-44: 44px;
+  --ds-h-52: 52px;
+  --ds-h-64: 64px;
+  --ds-hit: 44px;
+
+  /* ── ink ladder (text and marks): PORT.md rule 1 ── */
+  --ds-ink-100: var(--text-primary);
+  --ds-ink-85: var(--text-secondary);
+  --ds-ink-70: var(--text-tertiary);
+  --ds-ink-55: var(--text-quaternary);
+  --ds-ink-40: var(--text-muted);
+  --ds-ink-25: var(--text-disabled);
+
+  /* ── fills: the same ink at 2 / 3 / 4 / 6 / 8 / 12 % ──
+   * (the app's --fill-1 … --fill-6 are those six steps, in that order) */
+  --ds-fill-2: var(--fill-1);
+  --ds-fill-3: var(--fill-2);
+  --ds-fill-4: var(--fill-3);
+  --ds-fill-6: var(--fill-4);
+  --ds-fill-8: var(--fill-5);
+  --ds-fill-12: var(--fill-6);
+
+  /* ── marks: the accent is a mark, never a fill (PORT.md rule 3) ── */
+  --ds-mark: var(--accent);
+  --ds-mark-wash: var(--fill-accent);
+  --ds-mark-wash-strong: var(--fill-accent-strong);
+  --ds-danger: var(--destructive);
+  --ds-ring: var(--ring-accent);
+
+  /* ── type ── */
+  --ds-type-ui: var(--type-ui); /* chrome 13 */
+  --ds-type-ui-medium: var(--type-ui-medium);
+  --ds-type-meta: var(--type-meta); /* chrome 12 */
+  --ds-type-meta-medium: var(--type-meta-medium);
+  --ds-type-row: 500 16px / 22px var(--font-sans); /* phone row title */
+  --ds-type-button-lg: 600 16px / 20px var(--font-sans);
+  --ds-type-sheet-title: 600 28px / 32px var(--font-sans);
+  --ds-tracking-sheet-title: -0.02em;
+
+  /* ── state: one press scale, one disabled opacity ── */
+  --ds-press-scale: 0.97;
+  --ds-disabled-opacity: 0.4;
+  --ds-ease: var(--transition-hover);
+
+  /* ── the raised material, light ──
+   * control   a button, chip or icon button standing on a ground
+   * pressed   the same control pushed in (the top edge goes into shadow)
+   * well      a recessed track a control runs in (switch, segmented groove)
+   * surface   a card or a plate: a soft lift, no strong ambient
+   * floating  a bar, a dock, a sheet: the largest lift
+   * ink       the control that is on, in neutral ink (never the accent) */
+  --ds-raised-control-bg: linear-gradient(
+    180deg,
+    var(--v3-raised-disc-top) 0%,
+    var(--v3-raised-disc) 100%
+  );
+  --ds-raised-control-shadow: var(--v3-raised-disc-shadow);
+  --ds-raised-control-pressed: var(--v3-raised-disc-press);
+  --ds-raised-well: var(--v3-raised-well);
+  --ds-raised-knob: var(--v3-raised-knob-shadow);
+  --ds-raised-surface-bg: var(--surface-raised);
+  --ds-raised-surface-shadow:
+    inset 0 0 0 1px var(--v3-raised-edge), 0 0 0 1px var(--v3-raised-rim),
+    inset 0 1px 0 var(--v3-raised-hi), 0 1px 2px rgba(18, 16, 40, 0.05),
+    0 10px 24px -14px rgba(18, 16, 40, 0.18);
+  --ds-raised-floating-bg: var(--v3-raised-fill);
+  --ds-raised-floating-shadow: var(--v3-raised-shadow);
+  --ds-raised-ink-bg: var(--v3-raised-ink);
+  --ds-raised-ink-on: var(--v3-raised-on-ink);
+  --ds-raised-ink-shadow: var(--v3-raised-ink-shadow);
+  --ds-knob-off: var(--v3-raised-disc-top);
+  /* a surface inside a lifted surface: flat, a hairline and nothing else */
+  --ds-flat-ring: var(--shadow-ring);
+}
+
+.needt-v3:is([data-theme="dark"], [data-theme="dim"]),
+.needt-v3 .dark,
+.needt-v3 .v3-raised-dark {
+  --ds-raised-control-bg: linear-gradient(
+    180deg,
+    var(--v3-raised-disc-top) 0%,
+    var(--v3-raised-disc) 100%
+  );
+  --ds-raised-control-shadow: var(--v3-raised-disc-shadow);
+  --ds-raised-control-pressed: var(--v3-raised-disc-press);
+  --ds-raised-well: var(--v3-raised-well);
+  --ds-raised-knob: var(--v3-raised-knob-shadow);
+  --ds-raised-surface-bg: var(--surface-raised);
+  --ds-raised-surface-shadow:
+    inset 0 0 0 1px var(--v3-raised-edge), 0 0 0 1px var(--v3-raised-rim),
+    inset 0 1px 0 var(--v3-raised-hi), 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 12px 26px -14px rgba(0, 0, 0, 0.55);
+  --ds-raised-floating-bg: var(--v3-raised-fill);
+  --ds-raised-floating-shadow: var(--v3-raised-shadow);
+  --ds-raised-ink-bg: var(--v3-raised-ink);
+  --ds-raised-ink-on: var(--v3-raised-on-ink);
+  --ds-raised-ink-shadow: var(--v3-raised-ink-shadow);
+  --ds-knob-off: var(--v3-raised-disc-top);
+  --ds-flat-ring: var(--shadow-ring);
+}

@@ -4,6 +4,7 @@ import { expect, request as playwrightRequest, test } from "@playwright/test";
 import { createHash } from "node:crypto";
 
 import { getAuthOptions } from "@/lib/auth/auth-options";
+import { EMAIL_VERIFICATION_SETTING_TTL_MS } from "@/lib/auth/email-verification-access";
 import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
@@ -32,6 +33,30 @@ async function keepVerificationOptional() {
         requireEmailVerificationBeforeAccess: false,
       },
     });
+  }
+}
+
+/**
+ * The server keeps the verification setting for EMAIL_VERIFICATION_SETTING_TTL_MS
+ * (src/lib/auth/email-verification-access.ts). A spec that ran just before this
+ * one can have filled that cache with `true`, so the first /api/billing call
+ * of an unverified user may still answer 403 for up to 15 s after
+ * keepVerificationOptional() wrote `false`. Wait for the server to see the
+ * write instead of racing it (the old test failed on every fast retry).
+ */
+async function billingWhenSettingIsSeen(
+  authenticated: Awaited<ReturnType<typeof playwrightRequest.newContext>>
+) {
+  const deadline =
+    newDate().getTime() + EMAIL_VERIFICATION_SETTING_TTL_MS + 10_000;
+  for (;;) {
+    const response = await authenticated.get("/api/billing");
+    const gated =
+      response.status() === 403 &&
+      (await response.json().catch(() => ({}))).code ===
+        "EMAIL_VERIFICATION_REQUIRED";
+    if (!gated || newDate().getTime() > deadline) return response;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
 }
 
@@ -83,7 +108,7 @@ test.describe("no-card Pro trial", () => {
       baseURL,
       extraHTTPHeaders: { cookie: await sessionCookie(user.id, email) },
     });
-    const freeBilling = await authenticated.get("/api/billing");
+    const freeBilling = await billingWhenSettingIsSeen(authenticated);
     expect((await freeBilling.json()).plan).toBe("FREE");
 
     const booking = await authenticated.post("/api/booking-pages", {
