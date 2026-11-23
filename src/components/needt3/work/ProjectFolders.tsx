@@ -1,5 +1,6 @@
 "use client";
 
+import { useNow } from "@/lib/needt3/hooks/clock";
 import type { V3Project, V3Task } from "@/lib/needt3/map";
 
 import { ProjectCard } from "./ProjectCards";
@@ -25,6 +26,7 @@ export function ProjectsGrid({
   onOpenTask: (id: string) => void;
   onPick: (id: string) => void;
 }) {
+  const now = useNow().getTime();
   return (
     <div className={`wk-pgrid${folders ? " is-folders" : ""}`} data-wk-pgrid="">
       {projects.map((p, i) =>
@@ -35,6 +37,7 @@ export function ProjectsGrid({
             tasks={tasks}
             today={today}
             index={i}
+            now={now}
           />
         ) : (
           <ProjectCard

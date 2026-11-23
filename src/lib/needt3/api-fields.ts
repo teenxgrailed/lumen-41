@@ -53,6 +53,8 @@ export const taskV3FieldsSchema = z.object({
 export const projectV3FieldsSchema = z.object({
   ground: nullableShort(64).optional(),
   position: z.number().finite().optional(),
+  /** Which of the six folder looks (1..6); null is Auto. */
+  folderStyle: z.number().int().min(1).max(6).nullable().optional(),
   /** Move to Trash (true) or restore from it (false). */
   trashed: z.boolean().optional(),
 });

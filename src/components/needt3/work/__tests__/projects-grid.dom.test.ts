@@ -41,6 +41,8 @@ const project = (id: string, name: string): V3Project => ({
   ground: null,
   position: 0,
   archived: false,
+  // look 2 presses the glyph into the front, so the sticker checks can see it
+  folderStyle: 2,
 });
 const task = (id: string, projectId: string, dueDate: string | null) =>
   ({
@@ -80,14 +82,14 @@ describe("ProjectsGrid", () => {
   it("is the old card grid with the flag off", () => {
     render(false);
     expect(host.querySelectorAll("[data-wk-pcard]")).toHaveLength(2);
-    expect(host.querySelector(".nx-folder")).toBeNull();
+    expect(host.querySelector(".fl, .nx-folder")).toBeNull();
     expect(host.querySelector(".wk-pgrid.is-folders")).toBeNull();
   });
 
   it("is folders with the flag on: next tasks, open count, link", () => {
     render(true);
     expect(host.querySelector("[data-wk-pcard]")).toBeNull();
-    const folders = host.querySelectorAll("a.nx-folder");
+    const folders = host.querySelectorAll("a.fl");
     expect(folders).toHaveLength(2);
     const first = folders[0];
     expect(first.getAttribute("href")).toBe("/projects/p1");
@@ -96,9 +98,7 @@ describe("ProjectsGrid", () => {
     // three sheets, the soonest in front
     expect(first.querySelectorAll("[data-folder-peek]")).toHaveLength(3);
     expect(
-      [...first.querySelectorAll(".nx-folder-peek-title")].map(
-        (e) => e.textContent
-      )
+      [...first.querySelectorAll(".fl-sheet-title")].map((e) => e.textContent)
     ).toEqual(["Task b", "Task d", "Task a"]);
     expect(first.querySelector(".nx-folder-caption")).toBeNull();
     expect((folders[1] as HTMLElement).style.animationDelay).toBe("40ms");

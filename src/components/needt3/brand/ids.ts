@@ -88,3 +88,16 @@ export function brandIdForConnection(c: {
   }
   return brandIdFor(p);
 }
+
+/**
+ * The mark for a task app a project syncs with (`TaskProvider.type`), or
+ * `null` when we have none (the folder then leaves that app out).
+ */
+export function brandIdForTaskProvider(
+  type: string | null | undefined
+): BrandId | null {
+  const p = norm(type ?? "");
+  if (p === "google") return "gtasks";
+  if (p === "outlook" || p === "microsoft") return "outlook";
+  return brandIdFor(p);
+}
