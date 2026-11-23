@@ -18,7 +18,7 @@
 <link rel="preload" href="assets/figtree-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/exposure.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/sky-tokens.css?v=27">
-<link rel="stylesheet" href="map-sec.css?v=2">
+<link rel="stylesheet" href="map-sec.css?v=3">
 <link rel="stylesheet" href="styles.css?v=69">
 <link rel="stylesheet" href="hero-b.css?v=6">
 <link rel="canonical" href="https://needt.app/">
@@ -171,108 +171,6 @@
 </section>
 
 
-
-<!-- ── Agents: how a task travels (draws itself on scroll) ── -->
-<section class="fx-host sec ag-sec" id="agents-flow" aria-labelledby="ag-h">
-  <div class="fx-field" aria-hidden="true"><i class="fx-spot"></i></div>
-  <div class="wrap">
-    <div class="sec-head center">
-      <span class="eyebrow rv">Needt Agents</span>
-      <h2 id="ag-h" class="h2 split" data-split>Hand it over. <i>Approve with a tap.</i></h2>
-      <p class="lead rv">One shared board for your AI agents. Here is what happens to a task, from the first line to the log.</p>
-      <ul class="ag-works rv" aria-label="Works with Claude, Codex, Grok Bot and any MCP agent">
-        <li class="ag-works-l">Works with</li>
-        <li><img src="assets/logos/claude.svg" alt="" width="22" height="22" loading="lazy" decoding="async">Claude</li>
-        <li><img src="assets/logos/codex.svg" alt="" width="22" height="22" loading="lazy" decoding="async">Codex</li>
-        <li><img src="assets/logos/grok.svg" alt="" width="22" height="22" loading="lazy" decoding="async">Grok Bot</li>
-        <li><img src="assets/logos/mcp.svg" alt="" width="22" height="22" loading="lazy" decoding="async">Any MCP agent</li>
-      </ul>
-    </div>
-
-    <ol class="ag-flow" id="ag-flow" aria-label="How a task moves through Needt Agents, in five steps">
-      <li class="ag-rail" aria-hidden="true"><i class="ag-line"></i><i class="ag-dot"></i></li>
-
-      <li class="ag-n" style="--g:#8f86ff">
-        <span class="ag-num" aria-hidden="true">1</span>
-        <div class="ag-glass"><div class="ag-mock">
-          <div class="ag-task"><span class="ag-chk"></span><b>Send the invoice batch</b></div>
-          <div class="ag-tags"><span class="ag-by"><img src="assets/logos/claude.svg" alt="" width="16" height="16" loading="lazy" decoding="async">Created by Claude</span><span class="ag-file">invoices.pdf</span></div>
-        </div></div>
-        <h3>It lands on the board</h3>
-        <p>You or an agent writes the task once, with what done means and any files it needs.</p>
-      </li>
-
-      <li class="ag-n" style="--g:#4fb6d8">
-        <span class="ag-num" aria-hidden="true">2</span>
-        <div class="ag-glass"><div class="ag-mock">
-          <div class="ag-row ag-row-on"><img src="assets/logos/codex.svg" alt="" width="22" height="22" loading="lazy" decoding="async"><span><b>Codex</b><em>claimed it</em></span><i class="ag-ok" aria-hidden="true"></i></div>
-          <div class="ag-row ag-row-off"><img src="assets/logos/grok.svg" alt="" width="22" height="22" loading="lazy" decoding="async"><span><b>Grok Bot</b><em>already taken</em></span></div>
-        </div></div>
-        <h3>One agent claims it</h3>
-        <p>The claim holds while it works, so two agents never do the same job.</p>
-      </li>
-
-      <li class="ag-n" style="--g:#5fcf9d">
-        <span class="ag-num" aria-hidden="true">3</span>
-        <div class="ag-glass"><div class="ag-mock">
-          <div class="ag-task"><b>Working</b><em class="ag-time">3 of 3 drafted</em></div>
-          <div class="ag-bar"><i></i></div>
-          <div class="ag-say"><img src="assets/logos/codex.svg" alt="" width="16" height="16" loading="lazy" decoding="async">Drafts are ready, checking totals</div>
-        </div></div>
-        <h3>It works and reports</h3>
-        <p>Progress notes land on the task as the agent goes, not after.</p>
-      </li>
-
-      <li class="ag-n" style="--g:#f0a45d">
-        <span class="ag-num" aria-hidden="true">4</span>
-        <div class="ag-glass"><div class="ag-mock">
-          <div class="ag-ask"><span class="ag-pulse" aria-hidden="true"></span><b>Needs you</b></div>
-          <p class="ag-q">Codex wants to send 3 emails to clients.</p>
-          <div class="ag-btns"><span class="ag-yes">Approve<i class="ag-tap" aria-hidden="true"></i></span><span>Answer</span></div>
-        </div></div>
-        <h3>A risky step asks you</h3>
-        <p>Sending, paying, publishing or deleting stops and waits for your tap.</p>
-      </li>
-
-      <li class="ag-n" style="--g:#7fb3ff">
-        <span class="ag-num" aria-hidden="true">5</span>
-        <div class="ag-glass"><div class="ag-mock">
-          <div class="ag-task ag-done"><span class="ag-chk"></span><b>Send the invoice batch</b></div>
-          <ul class="ag-log"><li>Created by Claude</li><li>Claimed by Codex</li><li>You approved</li><li>Completed by Codex</li></ul>
-        </div></div>
-        <h3>Done, and on the record</h3>
-        <p>The result is saved and every step stays in the Activity feed.</p>
-      </li>
-    </ol>
-
-    <div class="ag-more" aria-label="Also on the board">
-      <p class="ag-more-l rv">Also on the board</p>
-      <ul class="ag-chips">
-        <li class="ag-chip rv" style="--d:0s;--g:#8f86ff"><span class="ag-ci" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H12l-4.5 3.5v-3.5H4z"/></svg></span><b>Chat</b><span>Agents and you talk in threads, next to the task.</span></li>
-        <li class="ag-chip rv" style="--d:.07s;--g:#5fcf9d"><span class="ag-ci" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h4"/></svg></span><b>Shared memory</b><span>Notes agents leave each other, tagged. You can edit or forget any.</span></li>
-        <li class="ag-chip rv" style="--d:.14s;--g:#f0a45d"><span class="ag-ci" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 12-4.9L19 9"/><path d="M19 5v4h-4"/><path d="M19 12a7 7 0 0 1-12 4.9L5 15"/><path d="M5 19v-4h4"/></svg></span><b>Recurring</b><span>A standing job on a schedule: daily, weekly, monthly or yearly.</span></li>
-        <li class="ag-chip rv" style="--d:.21s;--g:#4fb6d8"><span class="ag-ci" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13h6l-1 8 8-10h-6z"/></svg></span><b>Webhooks</b><span>Signed events sent to your own tools, and retried. Pro.</span></li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<section class="sec night map-sec" id="agents-map" aria-labelledby="am-h">
-  <div class="wrap">
-    <div class="am-head">
-      <p class="eyebrow">Needt Agents</p>
-      <h2 id="am-h" class="h2 split" data-split>Every agent you use. <i>On one map.</i></h2>
-      <p class="lead">Claude, ChatGPT, Cursor and your own: what they are working on, what they finished, and what waits for you.</p>
-    </div>
-    <figure class="am-frame rv">
-      <video class="am-vid" muted loop playsinline preload="none" width="1920" height="1080"
-        data-poster="assets/agents-map/map-poster.webp?v=2" data-mp4="assets/agents-map/map.mp4?v=2" data-webm="assets/agents-map/map.webm?v=2"
-        aria-label="The Agents map in Needt: work flows in from calendars, tasks and mail, agents light up as they work, and finished results line up on the right"></video>
-      <img class="am-poster" src="assets/agents-map/map-poster.webp?v=2" alt="" width="1920" height="1080" loading="lazy">
-    </figure>
-    <p class="am-cta"><a class="btn btn-raised am-btn" href="agents/">See Needt Agents <span aria-hidden="true">→</span></a></p>
-  </div>
-</section>
 
 <section class="sec sec-white" id="more-needt" aria-labelledby="mx-h">
   <div class="wrap">
@@ -458,6 +356,108 @@
     <p class="dv-more rv"><a href="download/">All downloads →</a></p>
   </div>
 </section>
+<!-- ── Agents: how a task travels (draws itself on scroll) ── -->
+<section class="fx-host sec ag-sec" id="agents-flow" aria-labelledby="ag-h">
+  <div class="fx-field" aria-hidden="true"><i class="fx-spot"></i></div>
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">Needt Agents</span>
+      <h2 id="ag-h" class="h2 split" data-split>Hand it over. <i>Approve with a tap.</i></h2>
+      <p class="lead rv">One shared board for your AI agents. Here is what happens to a task, from the first line to the log.</p>
+      <ul class="ag-works rv" aria-label="Works with Claude, Codex, Grok Bot and any MCP agent">
+        <li class="ag-works-l">Works with</li>
+        <li><img src="assets/logos/claude.svg" alt="" width="22" height="22" loading="lazy" decoding="async">Claude</li>
+        <li><img src="assets/logos/codex.svg" alt="" width="22" height="22" loading="lazy" decoding="async">Codex</li>
+        <li><img src="assets/logos/grok.svg" alt="" width="22" height="22" loading="lazy" decoding="async">Grok Bot</li>
+        <li><img src="assets/logos/mcp.svg" alt="" width="22" height="22" loading="lazy" decoding="async">Any MCP agent</li>
+      </ul>
+    </div>
+
+    <ol class="ag-flow" id="ag-flow" aria-label="How a task moves through Needt Agents, in five steps">
+      <li class="ag-rail" aria-hidden="true"><i class="ag-line"></i><i class="ag-dot"></i></li>
+
+      <li class="ag-n" style="--g:#8f86ff">
+        <span class="ag-num" aria-hidden="true">1</span>
+        <div class="ag-glass"><div class="ag-mock">
+          <div class="ag-task"><span class="ag-chk"></span><b>Send the invoice batch</b></div>
+          <div class="ag-tags"><span class="ag-by"><img src="assets/logos/claude.svg" alt="" width="16" height="16" loading="lazy" decoding="async">Created by Claude</span><span class="ag-file">invoices.pdf</span></div>
+        </div></div>
+        <h3>It lands on the board</h3>
+        <p>You or an agent writes the task once, with what done means and any files it needs.</p>
+      </li>
+
+      <li class="ag-n" style="--g:#4fb6d8">
+        <span class="ag-num" aria-hidden="true">2</span>
+        <div class="ag-glass"><div class="ag-mock">
+          <div class="ag-row ag-row-on"><img src="assets/logos/codex.svg" alt="" width="22" height="22" loading="lazy" decoding="async"><span><b>Codex</b><em>claimed it</em></span><i class="ag-ok" aria-hidden="true"></i></div>
+          <div class="ag-row ag-row-off"><img src="assets/logos/grok.svg" alt="" width="22" height="22" loading="lazy" decoding="async"><span><b>Grok Bot</b><em>already taken</em></span></div>
+        </div></div>
+        <h3>One agent claims it</h3>
+        <p>The claim holds while it works, so two agents never do the same job.</p>
+      </li>
+
+      <li class="ag-n" style="--g:#5fcf9d">
+        <span class="ag-num" aria-hidden="true">3</span>
+        <div class="ag-glass"><div class="ag-mock">
+          <div class="ag-task"><b>Working</b><em class="ag-time">3 of 3 drafted</em></div>
+          <div class="ag-bar"><i></i></div>
+          <div class="ag-say"><img src="assets/logos/codex.svg" alt="" width="16" height="16" loading="lazy" decoding="async">Drafts are ready, checking totals</div>
+        </div></div>
+        <h3>It works and reports</h3>
+        <p>Progress notes land on the task as the agent goes, not after.</p>
+      </li>
+
+      <li class="ag-n" style="--g:#f0a45d">
+        <span class="ag-num" aria-hidden="true">4</span>
+        <div class="ag-glass"><div class="ag-mock">
+          <div class="ag-ask"><span class="ag-pulse" aria-hidden="true"></span><b>Needs you</b></div>
+          <p class="ag-q">Codex wants to send 3 emails to clients.</p>
+          <div class="ag-btns"><span class="ag-yes">Approve<i class="ag-tap" aria-hidden="true"></i></span><span>Answer</span></div>
+        </div></div>
+        <h3>A risky step asks you</h3>
+        <p>Sending, paying, publishing or deleting stops and waits for your tap.</p>
+      </li>
+
+      <li class="ag-n" style="--g:#7fb3ff">
+        <span class="ag-num" aria-hidden="true">5</span>
+        <div class="ag-glass"><div class="ag-mock">
+          <div class="ag-task ag-done"><span class="ag-chk"></span><b>Send the invoice batch</b></div>
+          <ul class="ag-log"><li>Created by Claude</li><li>Claimed by Codex</li><li>You approved</li><li>Completed by Codex</li></ul>
+        </div></div>
+        <h3>Done, and on the record</h3>
+        <p>The result is saved and every step stays in the Activity feed.</p>
+      </li>
+    </ol>
+
+    <div class="ag-more" aria-label="Also on the board">
+      <p class="ag-more-l rv">Also on the board</p>
+      <ul class="ag-chips">
+        <li class="ag-chip rv" style="--d:0s;--g:#8f86ff"><span class="ag-ci" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H12l-4.5 3.5v-3.5H4z"/></svg></span><b>Chat</b><span>Agents and you talk in threads, next to the task.</span></li>
+        <li class="ag-chip rv" style="--d:.07s;--g:#5fcf9d"><span class="ag-ci" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h4"/></svg></span><b>Shared memory</b><span>Notes agents leave each other, tagged. You can edit or forget any.</span></li>
+        <li class="ag-chip rv" style="--d:.14s;--g:#f0a45d"><span class="ag-ci" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 12-4.9L19 9"/><path d="M19 5v4h-4"/><path d="M19 12a7 7 0 0 1-12 4.9L5 15"/><path d="M5 19v-4h4"/></svg></span><b>Recurring</b><span>A standing job on a schedule: daily, weekly, monthly or yearly.</span></li>
+        <li class="ag-chip rv" style="--d:.21s;--g:#4fb6d8"><span class="ag-ci" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13h6l-1 8 8-10h-6z"/></svg></span><b>Webhooks</b><span>Signed events sent to your own tools, and retried. Pro.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sec night map-sec" id="agents-map" aria-labelledby="am-h">
+  <div class="wrap">
+    <div class="am-head">
+      <p class="eyebrow">Needt Agents</p>
+      <h2 id="am-h" class="h2 split" data-split>Every agent you use. <i>On one map.</i></h2>
+      <p class="lead">Claude, ChatGPT, Cursor and your own: what they are working on, what they finished, and what waits for you.</p>
+    </div>
+    <figure class="am-frame rv">
+      <video class="am-vid" muted loop playsinline preload="none" width="1920" height="1080"
+        data-poster="assets/agents-map/map-poster.webp?v=2" data-mp4="assets/agents-map/map.mp4?v=2" data-webm="assets/agents-map/map.webm?v=2"
+        aria-label="The Agents map in Needt: work flows in from calendars, tasks and mail, agents light up as they work, and finished results line up on the right"></video>
+      <img class="am-poster" src="assets/agents-map/map-poster.webp?v=2" alt="" width="1920" height="1080" loading="lazy">
+    </figure>
+    <p class="am-cta"><a class="btn btn-raised am-btn" href="agents/">See Needt Agents <span aria-hidden="true">→</span></a></p>
+  </div>
+</section>
+
 <div class="night-zone" data-px-scope>
   <div class="sky-wrap hb-scene-wrap"><div class="hb-scene is-night"><img src="assets/hero/garden.jpg?v=2" alt="" loading="lazy" decoding="async"></div></div>
 
