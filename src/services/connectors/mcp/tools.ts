@@ -44,6 +44,12 @@ import type { BearerAuth } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
 import { createLocalEvent } from "@/services/connectors/local-events";
 import {
+  INTERNAL_TASK_KEYS,
+  compact,
+  compactPage,
+  compactRow,
+} from "@/services/connectors/mcp/compact";
+import {
   DayPlanError,
   buildDraft,
   cleanupSomeday,
@@ -237,8 +243,9 @@ function defineTool<S extends z.ZodTypeAny>(
 }
 
 export function toolResult(payload: unknown): McpToolResult {
+  // No indent: whitespace is ~17% of a pretty-printed answer, all of it tokens.
   return {
-    content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+    content: [{ type: "text", text: JSON.stringify(payload) }],
   };
 }
 
@@ -342,6 +349,18 @@ const taskPartsInclude = {
     select: { id: true, name: true, mimeType: true, size: true },
   },
 };
+
+/** `verbose` on needt_get and needt_list: the full row, nulls included. */
+const VERBOSE_FIELD = z
+  .boolean()
+  .optional()
+  .describe(
+    "Return every column, including null, empty and internal ones. Off by default: a field that is missing from the answer is null or empty."
+  );
+
+/** Internal columns the compact answer leaves out, by object type. */
+const dropKeysFor = (type: string) =>
+  type === "task" ? INTERNAL_TASK_KEYS : undefined;
 
 const LIST_TYPES = [
   "task",
@@ -805,14 +824,16 @@ export const MCP_TOOLS: McpTool[] = [
         ? args.types
         : (args.types ?? [...SEARCHABLE_TYPES]).filter((t) => t !== "mail");
       return toolResult({
-        results: await searchWorkspace({
-          userId: ctx.userId,
-          workspace: access.workspace,
-          query: args.query,
-          take: args.limit,
-          types,
-          ai: true,
-        }),
+        results: compact(
+          await searchWorkspace({
+            userId: ctx.userId,
+            workspace: access.workspace,
+            query: args.query,
+            take: args.limit,
+            types,
+            ai: true,
+          })
+        ),
       });
     },
   }),
@@ -862,11 +883,15 @@ export const MCP_TOOLS: McpTool[] = [
         .describe(
           "Tasks only: task (default) lists tasks, idea lists the optional ideas (needt_list_ideas pages them by state), any lists both."
         ),
+      verbose: VERBOSE_FIELD,
     }),
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
       if ("error" in access) return access.error;
-      return toolResult(await listRows(args.type, ctx, access.workspace, args));
+      const rows = await listRows(args.type, ctx, access.workspace, args);
+      return toolResult(
+        args.verbose ? rows : compactPage(rows, dropKeysFor(args.type))
+      );
     },
   }),
   defineTool({
@@ -881,7 +906,11 @@ export const MCP_TOOLS: McpTool[] = [
     },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
-    input: z.object({ type: z.enum(LIST_TYPES), id: z.string().min(1) }),
+    input: z.object({
+      type: z.enum(LIST_TYPES),
+      id: z.string().min(1),
+      verbose: VERBOSE_FIELD,
+    }),
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
       if ("error" in access) return access.error;
@@ -895,7 +924,9 @@ export const MCP_TOOLS: McpTool[] = [
               : `${args.type} not found`,
         });
       }
-      return toolResult(row);
+      return toolResult(
+        args.verbose ? row : compactRow(row, dropKeysFor(args.type))
+      );
     },
   }),
   defineTool({
