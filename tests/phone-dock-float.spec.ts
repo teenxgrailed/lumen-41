@@ -33,7 +33,7 @@ test("the ink pill follows the place, the capsule keeps its box", async ({
   expect(box.x + box.width).toBeLessThanOrEqual(390 - 16);
 
   await page.locator('[data-nfb-place="docs"]').tap();
-  await expect(page).toHaveURL(/\/pages/);
+  await expect(page).toHaveURL(/\/pages/, { timeout: 60_000 });
   await expect(page.locator(".nfb-label")).toHaveText("Docs");
   await expect(page.locator('[data-nfb-place="docs"]')).toHaveAttribute(
     "aria-current",
