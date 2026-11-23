@@ -1,5 +1,6 @@
 import {
   type DaySetTask,
+  TIMED_DEFAULT_MINUTES,
   daySummary,
   nextTimedTask,
   taskMinutes,
@@ -110,16 +111,55 @@ describe("daySummary: done of total, and minutes", () => {
 });
 
 describe("taskMinutes", () => {
-  it("estimate first, then the scheduled block, else none invented", () => {
+  it("estimate first, else 30 for a task with a time (as the Calendar draws it), else 0", () => {
     expect(taskMinutes({ estimatedMinutes: 45 })).toBe(45);
     expect(
       taskMinutes({
         estimatedMinutes: null,
         scheduledStart: "2026-09-02T09:00",
-        scheduledEnd: "2026-09-02T10:15",
       })
-    ).toBe(75);
+    ).toBe(TIMED_DEFAULT_MINUTES);
     expect(taskMinutes({ estimatedMinutes: null })).toBe(0);
+    expect(taskMinutes({ estimatedMinutes: 0, scheduledStart: null })).toBe(0);
+  });
+
+  it("a timed task with no estimate is 30 booked in the day total", () => {
+    const s = daySummary([t("a", { scheduledStart: `${TODAY}T10:00` })], TODAY);
+    expect(s.minutes).toBe(30);
+  });
+});
+
+describe("plan picks (include)", () => {
+  const pick = new Set(["p"]);
+  it("an undated pick and an overdue pick join today", () => {
+    expect(tasksOnDay([t("p")], TODAY, pick)).toHaveLength(1);
+    expect(
+      tasksOnDay([t("p", { dueDate: "2026-09-01" })], TODAY, pick)
+    ).toHaveLength(1);
+  });
+
+  it("a pick moved to a later day does not count today", () => {
+    expect(
+      tasksOnDay([t("p", { dueDate: "2026-09-04" })], TODAY, pick)
+    ).toEqual([]);
+    expect(
+      tasksOnDay([t("p", { scheduledStart: "2026-09-03T09:00" })], TODAY, pick)
+    ).toEqual([]);
+  });
+
+  it("a pick that is a no-slot task still joins (the plan chose it)", () => {
+    expect(tasksOnDay([t("p", { noSlot: true })], TODAY, pick)).toHaveLength(1);
+  });
+});
+
+describe("a done task due earlier but scheduled today", () => {
+  it("sits on its due day (taskDay), so it is not in today's set, as on Home", () => {
+    const x = t("x", {
+      done: true,
+      dueDate: "2026-09-01",
+      scheduledStart: `${TODAY}T09:00`,
+    });
+    expect(tasksOnDay([x], TODAY)).toEqual([]);
   });
 });
 
@@ -132,7 +172,7 @@ describe("the person's day, timezone edge", () => {
     expect(tasksOnDay(list, TODAY).map((x) => x.id)).toEqual(["late"]);
   });
 
-  it("22:30 UTC is already tomorrow in Zurich, so tomorrow's tasks are the set", () => {
+  it("the day comes from the caller's zone: 22:30 UTC is tomorrow in Zurich", () => {
     const now = new Date("2026-09-02T22:30:00Z");
     expect(dayAt(now, "UTC")).toBe("2026-09-02");
     const zurich = dayAt(now, "Europe/Zurich");
@@ -154,12 +194,12 @@ describe("nextTimedTask", () => {
     t("untimed", { dueDate: TODAY }),
   ];
   it("the earliest open timed task still to start", () => {
-    expect(nextTimedTask(list, `${TODAY}T10:00`)).toEqual({
+    expect(nextTimedTask(tasksOnDay(list, TODAY), `${TODAY}T10:00`)).toEqual({
       title: "first",
       at: "11:30",
     });
   });
   it("null when nothing timed is left", () => {
-    expect(nextTimedTask(list, `${TODAY}T13:00`)).toBeNull();
+    expect(nextTimedTask(tasksOnDay(list, TODAY), `${TODAY}T13:00`)).toBeNull();
   });
 });

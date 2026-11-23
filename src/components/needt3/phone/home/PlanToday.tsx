@@ -54,8 +54,8 @@ export function PlanDate({ date, year }: { date: string; year: string }) {
 /**
  * The greeting sentence and the stats line under the header. The sentence is
  * a template filled from data (no AI call): connective words in ladder grey,
- * the facts in full ink, each after its small icon. The line under it is the
- * limit used and the focus total.
+ * the facts in full ink, each after its small icon. The line under it is tasks
+ * done of the day and the focus total.
  */
 export function PlanHello({
   day,

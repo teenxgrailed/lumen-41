@@ -11,6 +11,7 @@ import { proFromPlan } from "@/components/needt3/home/derive";
 import { daySummary } from "@/lib/needt3/day-set";
 import { addDays, addMinutes, project, stamp } from "@/lib/needt3/derive";
 import { cvDur } from "@/lib/needt3/derive";
+import { usePlanPickIds } from "@/lib/needt3/hooks/day-plan";
 import { useCalendars, useEvents } from "@/lib/needt3/hooks/events";
 import {
   useCheckins,
@@ -186,6 +187,9 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       }),
     [tasks, events, projects, calendarNames, ownCalendarIds, today, hideDone]
   );
+  // //todo: the week and month dots still count calendar items (events
+  // included) per date; move them to `daySummary` per day when the dots are
+  // next touched.
   const counts = useMemo(() => {
     const m = new Map<string, number>();
     [...timed, ...loose].forEach((b) =>
@@ -196,8 +200,14 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   const count = (d: string) => counts.get(d) ?? 0;
 
   const plan = dayPlan(timed, loose, day, today, hour);
-  // the day's tasks, counted as Home counts them (one set, no view filter)
-  const daySum = daySummary(tasksQuery.data ?? [], day);
+  // the day's tasks, counted as Home counts them (one set, no view filter);
+  // the plan's picks join only on today, where Home has them
+  const picks = usePlanPickIds(today);
+  const daySum = useMemo(
+    () =>
+      daySummary(tasksQuery.data ?? [], day, day === today ? picks : undefined),
+    [tasksQuery.data, day, today, picks]
+  );
   const d = calDay(day);
   const week = weekOf(day, startDay);
   const grid = monthGrid(day, startDay);
@@ -493,7 +503,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
     <div className="v2p-dayhead">
       <span className="v2p-dayhead-name">{name}</span>
       <span className="v2p-dayhead-meta">
-        {dayMeta(plan, daySum)}
+        {dayMeta(plan, daySum, hideDone ? daySum.done : 0)}
         {plan.pairs ? (
           <span className="v2p-dayhead-clash">
             {` · ${plan.pairs} ${plan.pairs === 1 ? "overlap" : "overlaps"}`}

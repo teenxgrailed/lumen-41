@@ -135,6 +135,15 @@ describe("dayPlan", () => {
       "5 planned · 2 h 30 min booked · 1 event"
     );
   });
+  it("with Hide done on, the line says how many done tasks it holds back", () => {
+    const p = dayPlan([], [], TODAY, TODAY, 9);
+    expect(dayMeta(p, { total: 5, minutes: 150 }, 2)).toBe(
+      "5 planned · 2 h 30 min booked · 2 done hidden"
+    );
+    expect(dayMeta(p, { total: 5, minutes: 150 }, 0)).toBe(
+      "5 planned · 2 h 30 min booked"
+    );
+  });
   it("a day of meetings only is not 'planned' tasks", () => {
     const p = dayPlan([ev("m", 9, 60), ev("n", 11, 30)], [], TODAY, TODAY, 9);
     expect(dayMeta(p, { total: 0, minutes: 0 })).toBe("2 events");

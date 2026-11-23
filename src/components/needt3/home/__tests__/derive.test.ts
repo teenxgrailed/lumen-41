@@ -87,6 +87,20 @@ describe("dayStats and dayState", () => {
     expect(dayStats(day)).toEqual({ total: 3, done: 1, left: 2, mins: 60 });
   });
 
+  it("counts a timed open task with no estimate as 30 min (desktop Home too)", () => {
+    const day = [
+      task({ estimatedMinutes: null, scheduledStart: "2026-09-01T10:00" }),
+      task({ estimatedMinutes: null, scheduledStart: null }),
+      task({ estimatedMinutes: 20 }),
+      task({
+        done: true,
+        estimatedMinutes: null,
+        scheduledStart: "2026-09-01T09:00",
+      }),
+    ];
+    expect(dayStats(day).mins).toBe(50);
+  });
+
   it("is empty with nothing due and nothing overdue", () => {
     expect(dayState([], 0)).toBe("empty");
     expect(dayState([], 2)).toBe("open");

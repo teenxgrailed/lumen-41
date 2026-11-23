@@ -70,7 +70,6 @@ export function timeLeft(o: {
     done: boolean;
     estimatedMinutes?: number | null;
     scheduledStart?: string | null;
-    scheduledEnd?: string | null;
   }[];
 }): TimeLeft | null {
   if (o.capacity == null || o.capacity <= 0) return null;

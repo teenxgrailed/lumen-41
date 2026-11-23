@@ -7,6 +7,7 @@
  * tasks out (events are never hidden). A task closed on an earlier day than its
  * slot is a done row of the day it was closed, not a block at the stale slot.
  */
+import { taskMinutes } from "@/lib/needt3/day-set";
 import {
   type ProjectLike,
   addDays,
@@ -59,7 +60,10 @@ function taskItem(
     id: t.id,
     date,
     at,
-    len: t.estimatedMinutes || (at == null ? 0 : 30),
+    len: taskMinutes({
+      estimatedMinutes: t.estimatedMinutes,
+      scheduledStart: at == null ? null : t.scheduledStart,
+    }),
     title: t.title,
     done: t.done,
     project: project(t.projectId, projects)?.name ?? null,

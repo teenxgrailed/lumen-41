@@ -10,6 +10,7 @@
  */
 import {
   type DaySetTask,
+  type DaySummary,
   daySummary,
   nextTimedTask,
 } from "@/lib/needt3/day-set";
@@ -50,11 +51,12 @@ export function agoLabel(ageMs: number): string {
  * The next timed thing still to start today, its title, clock time and
  * minutes away: a calendar event, or an open task of today with a time (the
  * Calendar shows both, so "Free" may only say so when neither is left).
+ * `dayTasks` = today's set (`daySummary().items`), built once by the caller.
  */
 export function nextEventOf(
   events: readonly Pick<V3Event, "title" | "startAt" | "isAllDay">[],
   now: string,
-  tasks: readonly (DaySetTask & { title: string })[] = []
+  dayTasks: readonly (DaySetTask & { title: string })[] = []
 ) {
   const today = now.slice(0, 10);
   let next: { title: string; startAt: string } | null = null;
@@ -64,7 +66,7 @@ export function nextEventOf(
     if (!next || e.startAt < next.startAt)
       next = { title: e.title, startAt: e.startAt };
   }
-  const task = nextTimedTask(tasks, now);
+  const task = nextTimedTask(dayTasks, now);
   if (task) {
     const startAt = `${today}T${task.at}`;
     if (!next || startAt < next.startAt) next = { title: task.title, startAt };
@@ -95,17 +97,21 @@ export interface CountsInput {
   habits?: readonly V3Habit[];
   checkins?: readonly Checkin[];
   connections?: readonly V3Connection[];
+  /** Today's plan picks (`planPickIds`): they count for today like on Home. */
+  planPicks?: ReadonlySet<string>;
 }
 
 export function buildMenuCounts(i: CountsInput): MenuCounts {
   const today = i.now.slice(0, 10);
   const c: MenuCounts = {};
+  let sum: DaySummary<V3Task> | null = null;
 
   if (i.tasks) {
     const open = i.tasks.filter((t) => !t.done);
+    sum = daySummary(i.tasks, today, i.planPicks);
     c.overdue = overdueCount(i.tasks, today);
     // left today = open tasks of today's set (due or scheduled today)
-    c.today = daySummary(i.tasks, today).open;
+    c.today = sum.open;
     c.open = open.length;
     c.unplaced = open.filter(
       (t) => !t.isFixed && !t.noSlot && !t.scheduledStart
@@ -114,7 +120,7 @@ export function buildMenuCounts(i: CountsInput): MenuCounts {
 
   if (i.mail) c.mail = unreadCount(i.mail);
   if (i.events) {
-    const next = nextEventOf(i.events, i.now, i.tasks ?? []);
+    const next = nextEventOf(i.events, i.now, sum?.items ?? []);
     // "Free" is only said once the tasks are in too: a timed task may be next
     if (next || i.tasks) c.nextEvent = next;
   }

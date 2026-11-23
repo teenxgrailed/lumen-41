@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { readPref } from "@/components/needt3/settings/derive";
 
 import { clock } from "@/lib/needt3/day";
-import { planIsShown } from "@/lib/needt3/day-plan";
+import { planIsShown, planPickIds } from "@/lib/needt3/day-plan";
 import { dayHeader, freeAfterHour } from "@/lib/needt3/day-plan-view";
 import { daySummary } from "@/lib/needt3/day-set";
 import { addDays } from "@/lib/needt3/derive";
@@ -270,9 +270,13 @@ export function PhoneHome({
   // Today's tasks, counted once for every number on this screen: the greeting,
   // "x of y", the focus total, the progress line and the time-left card. The
   // plan's own picks belong to the day even when no date says so.
+  const pickIds = useMemo(
+    () => planPickIds(dayPlan.snapshot),
+    [dayPlan.snapshot]
+  );
   const sum = useMemo(
-    () => daySummary(all, today, planIds),
-    [all, today, planIds]
+    () => daySummary(all, today, pickIds),
+    [all, today, pickIds]
   );
   const [fullList, setFullList] = useState(false);
   const [somedayOpen, setSomedayOpen] = useState(false);

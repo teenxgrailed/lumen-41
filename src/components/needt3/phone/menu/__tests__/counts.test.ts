@@ -132,6 +132,22 @@ describe("buildMenuCounts", () => {
     expect(buildMenuCounts(base).nextEvent).toBeUndefined();
   });
 
+  it("a plan pick with no date counts as left today; one resolved away does not", () => {
+    const tasks = [
+      task({ id: "p1" }),
+      task({ id: "p2", dueDate: "2026-09-05" }),
+      task({ id: "b", dueDate: "2026-09-01" }),
+    ];
+    const c = buildMenuCounts({
+      now: NOW,
+      nowMs: NOW_MS,
+      tasks,
+      planPicks: new Set(["p1", "p2"]),
+    });
+    // p1 (undated pick) + b (due today); p2 is dated later: not today
+    expect(c.today).toBe(2);
+  });
+
   it("left today counts tasks scheduled today, not only those due today", () => {
     const c = buildMenuCounts({
       now: NOW,

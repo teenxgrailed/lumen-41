@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -16,6 +17,7 @@ import {
   type DayPlanSnapshot,
   isOverflow,
   isPlanOff,
+  planPickIds,
 } from "@/lib/needt3/day-plan";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
@@ -115,6 +117,18 @@ export function useDayPlanToday(today: string) {
   }, [off, noPlan, today, qc]);
 
   return { off, snapshot: off ? undefined : query.data, query };
+}
+
+/**
+ * Today's plan picks for the counters (`planPickIds`), read without drafting
+ * a plan: the Calendar and the menu count the day the way Home does, and only
+ * Home asks for a draft. Shares the day's query with `useDayPlanToday`.
+ */
+export function usePlanPickIds(today: string): ReadonlySet<string> {
+  const off = useDayPlanOff();
+  const query = useDayPlan(today, !off);
+  const data = off ? undefined : query.data;
+  return useMemo(() => planPickIds(data), [data]);
 }
 
 export type CloseOutcome = "closed" | "overflow" | "off" | "error";
