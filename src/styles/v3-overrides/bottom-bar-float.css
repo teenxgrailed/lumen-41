@@ -183,6 +183,34 @@
 .needt-v3 .nfb.is-dark .nfb-slot.is-on .nva-glyph {
   filter: brightness(0);
 }
+/* A mark that is a solid shape with a detail cut into it (DOCK_DUO in
+ * menu/Glyph.tsx) cannot go through `brightness(0)`: the detail would turn
+ * black with the rest and the mark would be a black square. The glyph's own
+ * hues are tokens, so here they are all set to the one ink, and the detail
+ * (`--surface-raised`) to the colour of the button under the mark. The few
+ * hues that have no token are `--g-*` variables with the landing's colour as
+ * their default (scripts/gen-glyphs.mjs). */
+.needt-v3 .nfb .nfb-slot .nva-glyph.nfb-duo {
+  --nfb-mark: var(--v3-raised-mark);
+  --nfb-cut: var(--v3-raised-disc);
+  --accent: var(--nfb-mark);
+  --success: var(--nfb-mark);
+  --destructive: var(--nfb-mark);
+  --text-primary: var(--nfb-mark);
+  --g-amber: var(--nfb-mark);
+  --g-violet: var(--nfb-mark);
+  --g-halo: color-mix(in oklch, var(--nfb-mark) 18%, transparent);
+  --surface-raised: var(--nfb-cut);
+  filter: none;
+  opacity: 0.86;
+}
+/* the slot you are in: the mark is the pill's colour, the detail the pill's */
+.needt-v3 .nfb .nfb-slot.is-on .nva-glyph.nfb-duo {
+  --nfb-mark: var(--v3-raised-on-ink);
+  --nfb-cut: var(--v3-raised-ink);
+  filter: none;
+  opacity: 1;
+}
 .needt-v3 .nfb-slot svg {
   transition: transform 0.18s var(--nfb-ease);
 }
