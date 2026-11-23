@@ -52,7 +52,7 @@ export type GlyphName = (typeof GLYPH_NAMES)[number];
 export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   ai: {
     vb: "0 0 24 24",
-    body: '<path d="M10 2.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5Z" fill="oklch(0.62 0.19 300)"/><path d="M17.5 13c.35 2.2 1.45 3.3 3.5 3.5-2.05.35-3.15 1.45-3.5 3.5-.35-2.05-1.45-3.15-3.5-3.5 2.05-.2 3.15-1.3 3.5-3.5Z" fill="color-mix(in oklch, oklch(0.62 0.19 300) 45%, transparent)"/>',
+    body: '<path d="M10 2.5c.6 3.9 2.6 5.9 6.5 6.5-3.9.6-5.9 2.6-6.5 6.5-.6-3.9-2.6-5.9-6.5-6.5 3.9-.6 5.9-2.6 6.5-6.5Z" fill="var(--g-violet, oklch(0.62 0.19 300))"/><path d="M17.5 13c.35 2.2 1.45 3.3 3.5 3.5-2.05.35-3.15 1.45-3.5 3.5-.35-2.05-1.45-3.15-3.5-3.5 2.05-.2 3.15-1.3 3.5-3.5Z" fill="color-mix(in oklch, var(--g-violet, oklch(0.62 0.19 300)) 45%, transparent)"/>',
   },
   api: {
     vb: "0 0 24 24",
@@ -60,19 +60,19 @@ export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   },
   bell: {
     vb: "0 0 24 24",
-    body: '<path d="M12 3a6 6 0 0 1 6 6v3.6l1.6 2.6a1 1 0 0 1-.9 1.5H5.3a1 1 0 0 1-.9-1.5L6 12.6V9a6 6 0 0 1 6-6Z" fill="#ed990e"/><path d="M9.4 18.6a2.7 2.7 0 0 0 5.2 0z" fill="color-mix(in oklch, #ed990e 55%, transparent)"/><circle cx="18" cy="5" r="2.6" fill="var(--destructive)"/>',
+    body: '<path d="M12 3a6 6 0 0 1 6 6v3.6l1.6 2.6a1 1 0 0 1-.9 1.5H5.3a1 1 0 0 1-.9-1.5L6 12.6V9a6 6 0 0 1 6-6Z" fill="var(--g-amber, #ed990e)"/><path d="M9.4 18.6a2.7 2.7 0 0 0 5.2 0z" fill="color-mix(in oklch, var(--g-amber, #ed990e) 55%, transparent)"/><circle cx="18" cy="5" r="2.6" fill="var(--destructive)"/>',
   },
   blog: {
     vb: "0 0 24 24",
-    body: '<path d="M6 2.8h8.2L19 7.6V19.6A1.6 1.6 0 0 1 17.4 21.2H6A1.6 1.6 0 0 1 4.4 19.6V4.4A1.6 1.6 0 0 1 6 2.8z" fill="var(--surface-raised)" stroke="color-mix(in oklch, var(--text-primary) 8%, transparent)"/><rect x="7" y="10" width="8.5" height="1.9" rx=".95" fill="color-mix(in oklch, var(--text-primary) 85%, transparent)"/><rect x="7" y="13.6" width="5.5" height="1.9" rx=".95" fill="color-mix(in oklch, var(--text-primary) 85%, transparent)"/><path d="M13.2 20.4l.6-3 6.8-6.8a1.7 1.7 0 0 1 2.4 2.4l-6.8 6.8z" fill="#ed990e"/>',
+    body: '<path d="M6 2.8h8.2L19 7.6V19.6A1.6 1.6 0 0 1 17.4 21.2H6A1.6 1.6 0 0 1 4.4 19.6V4.4A1.6 1.6 0 0 1 6 2.8z" fill="var(--surface-raised)" stroke="color-mix(in oklch, var(--text-primary) 8%, transparent)"/><rect x="7" y="10" width="8.5" height="1.9" rx=".95" fill="color-mix(in oklch, var(--text-primary) 85%, transparent)"/><rect x="7" y="13.6" width="5.5" height="1.9" rx=".95" fill="color-mix(in oklch, var(--text-primary) 85%, transparent)"/><path d="M13.2 20.4l.6-3 6.8-6.8a1.7 1.7 0 0 1 2.4 2.4l-6.8 6.8z" fill="var(--g-amber, #ed990e)"/>',
   },
   boards: {
     vb: "0 0 24 24",
-    body: '<rect x="2.5" y="3.5" width="5.6" height="17" rx="1.8" fill="color-mix(in oklch, #ed990e 30%, transparent)"></rect><rect x="9.2" y="3.5" width="5.6" height="12" rx="1.8" fill="#ed990e"></rect><rect x="15.9" y="3.5" width="5.6" height="8" rx="1.8" fill="color-mix(in oklch, #ed990e 55%, transparent)"></rect>',
+    body: '<rect x="2.5" y="3.5" width="5.6" height="17" rx="1.8" fill="color-mix(in oklch, var(--g-amber, #ed990e) 30%, transparent)"></rect><rect x="9.2" y="3.5" width="5.6" height="12" rx="1.8" fill="var(--g-amber, #ed990e)"></rect><rect x="15.9" y="3.5" width="5.6" height="8" rx="1.8" fill="color-mix(in oklch, var(--g-amber, #ed990e) 55%, transparent)"></rect>',
   },
   book: {
     vb: "0 0 24 24",
-    body: '<path d="M4 4.6A2.1 2.1 0 0 1 6.1 2.5H19v16H6.1A2.1 2.1 0 0 0 4 20.6z" fill="oklch(0.62 0.19 300)"/><path d="M4 20.6a2.1 2.1 0 0 1 2.1-2.1H19v3H6.1A2.1 2.1 0 0 1 4 20.6z" fill="color-mix(in oklch, oklch(0.62 0.19 300) 35%, transparent)"/><rect x="8" y="6.6" width="7.5" height="1.9" rx=".95" fill="var(--surface-raised)"/><rect x="8" y="10.2" width="5" height="1.9" rx=".95" fill="var(--surface-raised)" opacity=".7"/>',
+    body: '<path d="M4 4.6A2.1 2.1 0 0 1 6.1 2.5H19v16H6.1A2.1 2.1 0 0 0 4 20.6z" fill="var(--g-violet, oklch(0.62 0.19 300))"/><path d="M4 20.6a2.1 2.1 0 0 1 2.1-2.1H19v3H6.1A2.1 2.1 0 0 1 4 20.6z" fill="color-mix(in oklch, var(--g-violet, oklch(0.62 0.19 300)) 35%, transparent)"/><rect x="8" y="6.6" width="7.5" height="1.9" rx=".95" fill="var(--surface-raised)"/><rect x="8" y="10.2" width="5" height="1.9" rx=".95" fill="var(--surface-raised)" opacity=".7"/>',
   },
   booking: {
     vb: "0 0 24 24",
@@ -92,7 +92,7 @@ export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   },
   connect: {
     vb: "0 0 24 24",
-    body: '<rect x="2.5" y="6.5" width="11" height="11" rx="5.5" fill="color-mix(in oklch, #ed990e 35%, transparent)"/><rect x="10.5" y="6.5" width="11" height="11" rx="5.5" fill="color-mix(in oklch, var(--success) 45%, transparent)"/><circle cx="8" cy="12" r="3" fill="#ed990e"/><circle cx="16" cy="12" r="3" fill="var(--success)"/>',
+    body: '<rect x="2.5" y="6.5" width="11" height="11" rx="5.5" fill="color-mix(in oklch, var(--g-amber, #ed990e) 35%, transparent)"/><rect x="10.5" y="6.5" width="11" height="11" rx="5.5" fill="color-mix(in oklch, var(--success) 45%, transparent)"/><circle cx="8" cy="12" r="3" fill="var(--g-amber, #ed990e)"/><circle cx="16" cy="12" r="3" fill="var(--success)"/>',
   },
   devices: {
     vb: "0 0 24 24",
@@ -100,7 +100,7 @@ export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   },
   docs: {
     vb: "0 0 24 24",
-    body: '<path d="M6 2.8h8.2L19 7.6V19.6A1.6 1.6 0 0 1 17.4 21.2H6A1.6 1.6 0 0 1 4.4 19.6V4.4A1.6 1.6 0 0 1 6 2.8z" fill="var(--surface-raised)" stroke="color-mix(in oklch, var(--text-primary) 8%, transparent)" stroke-width="1"></path><path d="M14.2 2.8v4.8H19" fill="color-mix(in oklch, var(--text-primary) 8%, transparent)"></path><rect x="7" y="10" width="8.5" height="1.9" rx=".95" fill="var(--accent)"></rect><rect x="7" y="13.6" width="6" height="1.9" rx=".95" fill="var(--success)"></rect><rect x="7" y="17.2" width="7.4" height="1.9" rx=".95" fill="#ed990e"></rect>',
+    body: '<path d="M6 2.8h8.2L19 7.6V19.6A1.6 1.6 0 0 1 17.4 21.2H6A1.6 1.6 0 0 1 4.4 19.6V4.4A1.6 1.6 0 0 1 6 2.8z" fill="var(--surface-raised)" stroke="color-mix(in oklch, var(--text-primary) 8%, transparent)" stroke-width="1"></path><path d="M14.2 2.8v4.8H19" fill="color-mix(in oklch, var(--text-primary) 8%, transparent)"></path><rect x="7" y="10" width="8.5" height="1.9" rx=".95" fill="var(--accent)"></rect><rect x="7" y="13.6" width="6" height="1.9" rx=".95" fill="var(--success)"></rect><rect x="7" y="17.2" width="7.4" height="1.9" rx=".95" fill="var(--g-amber, #ed990e)"></rect>',
   },
   download: {
     vb: "0 0 24 24",
@@ -112,7 +112,7 @@ export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   },
   "focus-moon": {
     vb: "0 0 24 24",
-    body: '<path d="M13.8 3.2a8.8 8.8 0 1 0 7 13.4A7.4 7.4 0 0 1 13.8 3.2z" fill="oklch(0.62 0.19 300)"/><circle cx="18.4" cy="6" r="1.4" fill="color-mix(in oklch, oklch(0.62 0.19 300) 55%, transparent)"/>',
+    body: '<path d="M13.8 3.2a8.8 8.8 0 1 0 7 13.4A7.4 7.4 0 0 1 13.8 3.2z" fill="var(--g-violet, oklch(0.62 0.19 300))"/><circle cx="18.4" cy="6" r="1.4" fill="color-mix(in oklch, var(--g-violet, oklch(0.62 0.19 300)) 55%, transparent)"/>',
   },
   focus: {
     vb: "0 0 40 40",
@@ -132,11 +132,11 @@ export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   },
   habits: {
     vb: "0 0 40 40",
-    body: '<circle cx="20" cy="20" r="14" fill="#d0e5d0"></circle><path d="M27.5 15A9 9 0 1 0 29 22" fill="none" stroke="var(--success)" stroke-width="3.2" stroke-linecap="round"></path><path d="M24 13.6l4.4 1.5L29.6 10" fill="none" stroke="var(--success)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>',
+    body: '<circle cx="20" cy="20" r="14" fill="var(--g-halo, #d0e5d0)"></circle><path d="M27.5 15A9 9 0 1 0 29 22" fill="none" stroke="var(--success)" stroke-width="3.2" stroke-linecap="round"></path><path d="M24 13.6l4.4 1.5L29.6 10" fill="none" stroke="var(--success)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>',
   },
   help: {
     vb: "0 0 24 24",
-    body: '<circle cx="12" cy="12" r="9.2" fill="color-mix(in oklch, #ed990e 30%, transparent)"/><path d="M9.4 9.4a2.7 2.7 0 1 1 3.8 2.5c-.8.4-1.2.9-1.2 1.7v.3" fill="none" stroke="#ed990e" stroke-width="2.3" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.3" fill="#ed990e"/>',
+    body: '<circle cx="12" cy="12" r="9.2" fill="color-mix(in oklch, var(--g-amber, #ed990e) 30%, transparent)"/><path d="M9.4 9.4a2.7 2.7 0 1 1 3.8 2.5c-.8.4-1.2.9-1.2 1.7v.3" fill="none" stroke="var(--g-amber, #ed990e)" stroke-width="2.3" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.3" fill="var(--g-amber, #ed990e)"/>',
   },
   home: {
     vb: "0 0 24 24",
@@ -148,7 +148,7 @@ export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   },
   import: {
     vb: "0 0 40 40",
-    body: '<path d="M6 22h7l2 4h10l2-4h7v8a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z" fill="#ed990e"></path><path d="M6 22l4-11a3 3 0 0 1 2.8-2h14.4a3 3 0 0 1 2.8 2l4 11h-7l-2 4H15l-2-4z" fill="#fad7b1"></path><path d="M20 8v11m-4.5-4.5L20 19l4.5-4.5" fill="none" stroke="#774a03" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path>',
+    body: '<path d="M6 22h7l2 4h10l2-4h7v8a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z" fill="var(--g-amber, #ed990e)"></path><path d="M6 22l4-11a3 3 0 0 1 2.8-2h14.4a3 3 0 0 1 2.8 2l4 11h-7l-2 4H15l-2-4z" fill="#fad7b1"></path><path d="M20 8v11m-4.5-4.5L20 19l4.5-4.5" fill="none" stroke="#774a03" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path>',
   },
   island: {
     vb: "0 0 24 24",
@@ -156,11 +156,11 @@ export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   },
   later: {
     vb: "0 0 40 40",
-    body: '<rect x="5" y="9" width="30" height="23" rx="5" fill="#fce1c4"></rect><rect x="5" y="9" width="30" height="8" rx="4" fill="#ed990e"></rect><rect x="10" y="21" width="20" height="3" rx="1.5" fill="var(--surface-raised)"></rect><rect x="10" y="26" width="13" height="3" rx="1.5" fill="var(--surface-raised)" opacity=".7"></rect>',
+    body: '<rect x="5" y="9" width="30" height="23" rx="5" fill="#fce1c4"></rect><rect x="5" y="9" width="30" height="8" rx="4" fill="var(--g-amber, #ed990e)"></rect><rect x="10" y="21" width="20" height="3" rx="1.5" fill="var(--surface-raised)"></rect><rect x="10" y="26" width="13" height="3" rx="1.5" fill="var(--surface-raised)" opacity=".7"></rect>',
   },
   mail: {
     vb: "0 0 24 24",
-    body: '<rect x="2.5" y="5" width="19" height="14" rx="2.6" fill="#ed990e"></rect><path d="M3.6 6.6 12 12.8l8.4-6.2" fill="none" stroke="var(--surface-raised)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>',
+    body: '<rect x="2.5" y="5" width="19" height="14" rx="2.6" fill="var(--g-amber, #ed990e)"></rect><path d="M3.6 6.6 12 12.8l8.4-6.2" fill="none" stroke="var(--surface-raised)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path>',
   },
   markdown: {
     vb: "0 0 40 40",
@@ -172,23 +172,23 @@ export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   },
   more: {
     vb: "0 0 24 24",
-    body: '<circle cx="5" cy="8" r="3" fill="var(--accent)"></circle><circle cx="12" cy="8" r="3" fill="var(--destructive)"></circle><circle cx="19" cy="8" r="3" fill="#ed990e"></circle><circle cx="5" cy="16" r="3" fill="var(--success)"></circle><circle cx="12" cy="16" r="3" fill="color-mix(in oklch, var(--text-primary) 70%, transparent)"></circle><circle cx="19" cy="16" r="3" fill="color-mix(in oklch, var(--accent) 60%, transparent)"></circle>',
+    body: '<circle cx="5" cy="8" r="3" fill="var(--accent)"></circle><circle cx="12" cy="8" r="3" fill="var(--destructive)"></circle><circle cx="19" cy="8" r="3" fill="var(--g-amber, #ed990e)"></circle><circle cx="5" cy="16" r="3" fill="var(--success)"></circle><circle cx="12" cy="16" r="3" fill="color-mix(in oklch, var(--text-primary) 70%, transparent)"></circle><circle cx="19" cy="16" r="3" fill="color-mix(in oklch, var(--accent) 60%, transparent)"></circle>',
   },
   page: {
     vb: "0 0 40 40",
-    body: '<rect x="8" y="5" width="24" height="30" rx="4" fill="var(--surface-raised)" stroke="color-mix(in oklch, var(--text-primary) 8%, transparent)" stroke-width="1"></rect><rect x="12" y="11" width="11" height="3" rx="1.5" fill="color-mix(in oklch, var(--text-primary) 85%, transparent)"></rect><rect x="12" y="17" width="16" height="2.2" rx="1.1" fill="var(--accent)"></rect><rect x="12" y="21" width="13" height="2.2" rx="1.1" fill="var(--success)"></rect><rect x="12" y="25" width="15" height="2.2" rx="1.1" fill="#ed990e"></rect>',
+    body: '<rect x="8" y="5" width="24" height="30" rx="4" fill="var(--surface-raised)" stroke="color-mix(in oklch, var(--text-primary) 8%, transparent)" stroke-width="1"></rect><rect x="12" y="11" width="11" height="3" rx="1.5" fill="color-mix(in oklch, var(--text-primary) 85%, transparent)"></rect><rect x="12" y="17" width="16" height="2.2" rx="1.1" fill="var(--accent)"></rect><rect x="12" y="21" width="13" height="2.2" rx="1.1" fill="var(--success)"></rect><rect x="12" y="25" width="15" height="2.2" rx="1.1" fill="var(--g-amber, #ed990e)"></rect>',
   },
   people: {
     vb: "0 0 24 24",
-    body: '<circle cx="16" cy="8" r="3.4" fill="color-mix(in oklch, var(--success) 55%, transparent)"/><path d="M10.6 20.5a5.4 5.4 0 0 1 10.8 0z" fill="color-mix(in oklch, var(--success) 45%, transparent)"/><circle cx="9" cy="8.6" r="3.8" fill="#ed990e"/><path d="M2.6 20.5a6.4 6.4 0 0 1 12.8 0z" fill="#ed990e"/>',
+    body: '<circle cx="16" cy="8" r="3.4" fill="color-mix(in oklch, var(--success) 55%, transparent)"/><path d="M10.6 20.5a5.4 5.4 0 0 1 10.8 0z" fill="color-mix(in oklch, var(--success) 45%, transparent)"/><circle cx="9" cy="8.6" r="3.8" fill="var(--g-amber, #ed990e)"/><path d="M2.6 20.5a6.4 6.4 0 0 1 12.8 0z" fill="var(--g-amber, #ed990e)"/>',
   },
   planday: {
     vb: "0 0 24 24",
-    body: '<rect x="3" y="4" width="18" height="17" rx="3" fill="var(--surface-raised)" stroke="color-mix(in oklch, var(--text-primary) 8%, transparent)"/><path d="M6 4h12a3 3 0 0 1 3 3v2H3V7a3 3 0 0 1 3-3z" fill="var(--accent)"/><rect x="6" y="11.4" width="8" height="2.2" rx="1.1" fill="color-mix(in oklch, var(--accent) 40%, transparent)"/><rect x="6" y="15.4" width="12" height="2.2" rx="1.1" fill="var(--accent)"/><path d="M17.6 1.6c.3 1.6 1 2.3 2.6 2.6-1.6.3-2.3 1-2.6 2.6-.3-1.6-1-2.3-2.6-2.6 1.6-.3 2.3-1 2.6-2.6Z" fill="oklch(0.62 0.19 300)"/>',
+    body: '<rect x="3" y="4" width="18" height="17" rx="3" fill="var(--surface-raised)" stroke="color-mix(in oklch, var(--text-primary) 8%, transparent)"/><path d="M6 4h12a3 3 0 0 1 3 3v2H3V7a3 3 0 0 1 3-3z" fill="var(--accent)"/><rect x="6" y="11.4" width="8" height="2.2" rx="1.1" fill="color-mix(in oklch, var(--accent) 40%, transparent)"/><rect x="6" y="15.4" width="12" height="2.2" rx="1.1" fill="var(--accent)"/><path d="M17.6 1.6c.3 1.6 1 2.3 2.6 2.6-1.6.3-2.3 1-2.6 2.6-.3-1.6-1-2.3-2.6-2.6 1.6-.3 2.3-1 2.6-2.6Z" fill="var(--g-violet, oklch(0.62 0.19 300))"/>',
   },
   projects: {
     vb: "0 0 24 24",
-    body: '<rect x="6" y="3" width="15" height="11.5" rx="2.4" fill="color-mix(in oklch, oklch(0.62 0.19 300) 30%, transparent)"></rect><rect x="3" y="8" width="15" height="12.5" rx="2.4" fill="oklch(0.62 0.19 300)"></rect><rect x="6" y="12" width="7" height="1.8" rx=".9" fill="var(--surface-raised)"></rect><rect x="6" y="15.6" width="9" height="1.8" rx=".9" fill="var(--surface-raised)" opacity=".7"></rect>',
+    body: '<rect x="6" y="3" width="15" height="11.5" rx="2.4" fill="color-mix(in oklch, var(--g-violet, oklch(0.62 0.19 300)) 30%, transparent)"></rect><rect x="3" y="8" width="15" height="12.5" rx="2.4" fill="var(--g-violet, oklch(0.62 0.19 300))"></rect><rect x="6" y="12" width="7" height="1.8" rx=".9" fill="var(--surface-raised)"></rect><rect x="6" y="15.6" width="9" height="1.8" rx=".9" fill="var(--surface-raised)" opacity=".7"></rect>',
   },
   rebuild: {
     vb: "0 0 24 24",
@@ -208,7 +208,7 @@ export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   },
   spark: {
     vb: "0 0 24 24",
-    body: '<path d="M11 2.8c.5 3.4 2.2 5.1 5.6 5.6-3.4.5-5.1 2.2-5.6 5.6-.5-3.4-2.2-5.1-5.6-5.6 3.4-.5 5.1-2.2 5.6-5.6Z" fill="#ed990e"/><path d="M17.4 13.4c.3 1.9 1.3 2.9 3.2 3.2-1.9.3-2.9 1.3-3.2 3.2-.3-1.9-1.3-2.9-3.2-3.2 1.9-.3 2.9-1.3 3.2-3.2Z" fill="var(--destructive)"/><circle cx="5.4" cy="17.6" r="1.8" fill="color-mix(in oklch, var(--accent) 55%, transparent)"/>',
+    body: '<path d="M11 2.8c.5 3.4 2.2 5.1 5.6 5.6-3.4.5-5.1 2.2-5.6 5.6-.5-3.4-2.2-5.1-5.6-5.6 3.4-.5 5.1-2.2 5.6-5.6Z" fill="var(--g-amber, #ed990e)"/><path d="M17.4 13.4c.3 1.9 1.3 2.9 3.2 3.2-1.9.3-2.9 1.3-3.2 3.2-.3-1.9-1.3-2.9-3.2-3.2 1.9-.3 2.9-1.3 3.2-3.2Z" fill="var(--destructive)"/><circle cx="5.4" cy="17.6" r="1.8" fill="color-mix(in oklch, var(--accent) 55%, transparent)"/>',
   },
   stack: {
     vb: "0 0 40 40",
@@ -224,7 +224,7 @@ export const GLYPHS: Record<GlyphName, { vb: string; body: string }> = {
   },
   templates: {
     vb: "0 0 40 40",
-    body: '<path d="M9 33 24 15" stroke="#5d3b8e" stroke-width="3.2" stroke-linecap="round"></path><path d="M27 6.5l1.9 4.3 4.6.5-3.5 3.1 1 4.6-4-2.4-4 2.4 1-4.6-3.5-3.1 4.6-.5z" fill="#b18dee" stroke="oklch(0.62 0.19 300)" stroke-width="1" stroke-linejoin="round"></path><path d="M9 9l.9 2.1 2.1.9-2.1.9L9 15l-.9-2.1L6 12l2.1-.9z" fill="#f2b265"></path><path d="M32 26l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z" fill="#f2b265"></path>',
+    body: '<path d="M9 33 24 15" stroke="#5d3b8e" stroke-width="3.2" stroke-linecap="round"></path><path d="M27 6.5l1.9 4.3 4.6.5-3.5 3.1 1 4.6-4-2.4-4 2.4 1-4.6-3.5-3.1 4.6-.5z" fill="#b18dee" stroke="var(--g-violet, oklch(0.62 0.19 300))" stroke-width="1" stroke-linejoin="round"></path><path d="M9 9l.9 2.1 2.1.9-2.1.9L9 15l-.9-2.1L6 12l2.1-.9z" fill="#f2b265"></path><path d="M32 26l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z" fill="#f2b265"></path>',
   },
   trash: {
     vb: "0 0 40 40",
