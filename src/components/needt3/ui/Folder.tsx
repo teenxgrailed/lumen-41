@@ -34,12 +34,28 @@
  * --text-tertiary, --text-muted, --shadow-ring, --shadow-focus, --foreground-rgb,
  * --transition-hover, --font-sans. `--accent` is not used.
  *
+ * `folderStyle` (1..6, see `lib/needt3/folder-style.ts`) draws one of the six
+ * looks instead of the plain folder (`FolderStyled.tsx`); it reads these too:
+ *
+ *   glyph       ReactNode?   The mark pressed into the front (emoji, letter or icon).
+ *   unit        string?      What `count` counts ("open", "pages").
+ *   statusLabel string?      The look-1 pill ("3 due today"); none without it.
+ *   updatedAt   number?      ms; "Updated 12m" under the label.
+ *   now         number?      ms; the clock `updatedAt` is read against.
+ *   members     {id,name}[]? Avatars on look 6, only when known.
+ *   apps        BrandId[]?   The connected apps (look 5, whose absence means look 1).
+ *
  * Hover and keyboard focus lift the sheets a few pixels; under
  * `prefers-reduced-motion` they do not move. Focus draws `--shadow-focus`.
  */
-import { type CSSProperties, type ReactNode, useId } from "react";
+import { type CSSProperties, type ReactNode, useId, useState } from "react";
 
 import Link from "next/link";
+
+import { type FolderStyleId } from "@/lib/needt3/folder-style";
+
+import { type BrandId } from "../brand";
+import { FolderArt, effectiveStyle, folderMeta } from "./FolderStyled";
 
 export interface FolderPeek {
   key: string;
@@ -63,6 +79,16 @@ export interface FolderProps {
   caption?: string;
   style?: CSSProperties;
   extra?: Record<`data-${string}`, string>;
+  /** One of the six looks; without it the plain folder is drawn. */
+  folderStyle?: FolderStyleId;
+  glyph?: ReactNode;
+  unit?: string;
+  statusLabel?: string;
+  updatedAt?: number | null;
+  now?: number;
+  members?: readonly { id: string; name: string }[];
+  apps?: readonly BrandId[];
+  kind?: "project" | "docs" | "topic";
 }
 
 /** How many sheets a folder shows. */
@@ -107,17 +133,77 @@ export function Folder({
   caption,
   style: extraStyle,
   extra,
+  folderStyle,
+  glyph,
+  unit,
+  statusLabel,
+  updatedAt,
+  now,
+  members,
+  apps,
+  kind,
 }: FolderProps) {
   const descId = useId();
+  const [mountedAt] = useState(() => Date.now());
   const shown = peeks.slice(0, FOLDER_MAX_PEEKS);
   const fan = FAN[shown.length];
   const real = shown.filter((p) => !p.muted);
-  const cls = `nx-folder${className ? ` ${className}` : ""}`;
+  const look = folderStyle ? effectiveStyle(folderStyle, apps) : null;
+  const cls = look
+    ? `fl fl-v${look}${className ? ` ${className}` : ""}`
+    : `nx-folder${className ? ` ${className}` : ""}`;
   const style = {
-    ...(hue ? { "--nx-folder-hue": hue } : null),
+    ...(hue ? { "--nx-folder-hue": hue, "--fl-hue": hue } : null),
     ...extraStyle,
   } as CSSProperties;
-  const body = (
+  const styled = look ? (
+    <>
+      <span className="fl-card" aria-hidden="true" />
+      <span className="fl-art" aria-hidden="true">
+        <span className="fl-glow" />
+        <span className="fl-back" />
+        <FolderArt
+          style={look}
+          d={{
+            count,
+            unit,
+            glyph: glyph ?? sticker,
+            peeks: shown,
+            caption,
+            statusLabel,
+            updatedAt,
+            now: now ?? mountedAt,
+            members,
+            apps,
+            kind,
+          }}
+        />
+      </span>
+      <span className="fl-foot">
+        <span className="fl-title" title={label}>
+          {label}
+        </span>
+        <span className="fl-meta">
+          {folderMeta(look, {
+            count,
+            unit,
+            peeks: shown,
+            caption,
+            updatedAt,
+            now: now ?? mountedAt,
+            members,
+            apps,
+          })}
+        </span>
+      </span>
+      {real.length ? (
+        <span className="nx-folder-desc" id={descId}>
+          {`Next: ${real.map((p) => (p.meta ? `${p.title} (${p.meta})` : p.title)).join("; ")}`}
+        </span>
+      ) : null}
+    </>
+  ) : null;
+  const body = styled ?? (
     <>
       <span className="nx-folder-art" aria-hidden="true">
         <span className="nx-folder-back" />

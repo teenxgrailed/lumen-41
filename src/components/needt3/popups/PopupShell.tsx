@@ -55,7 +55,12 @@ export function PopupShell({
         bodyClass="pp-phone-body"
         footer={actions ? <div className="pp-actions">{actions}</div> : null}
       >
-        <div className="pp-pane" data-pp={name} data-pp-size={size}>
+        <div
+          className="pp-pane"
+          data-pp={name}
+          data-pp-size={size}
+          data-assistant-avoid
+        >
           {art ? <div className="pp-art-band">{art}</div> : null}
           {children}
         </div>
@@ -72,7 +77,12 @@ export function PopupShell({
       exitMs={170}
       initialFocus="card"
     >
-      <div className="pp-pane" data-pp={name} data-pp-size={size}>
+      <div
+        className="pp-pane"
+        data-pp={name}
+        data-pp-size={size}
+        data-assistant-avoid
+      >
         <div className="pp-copy">
           {children}
           {actions ? <div className="pp-actions">{actions}</div> : null}

@@ -2809,7 +2809,7 @@ MCP_TOOLS.push(
   defineTool({
     name: "needt_update_project",
     description:
-      "Change a project: name, description, color, icon (null clears description, color or icon), or archived (true archives it, false brings it back; its tasks stay as they are). Only the fields given change. The answer carries actionId for undo. To delete a project use needt_delete (it archives).",
+      "Change a project: name, description, color, icon (null clears description, color or icon), folderStyle (1-6 picks one of the six folder looks; null is Auto, a random look per project), or archived (true archives it, false brings it back; its tasks stay as they are). Only the fields given change. The answer carries actionId for undo. To delete a project use needt_delete (it archives).",
     annotations: {
       title: "Update project",
       readOnlyHint: false,
@@ -2824,6 +2824,7 @@ MCP_TOOLS.push(
         description: z.string().max(5000).nullable().optional(),
         color: z.string().max(32).nullable().optional(),
         icon: z.string().max(64).nullable().optional(),
+        folderStyle: z.number().int().min(1).max(6).nullable().optional(),
         archived: z.boolean().optional(),
       })
       .strict(),

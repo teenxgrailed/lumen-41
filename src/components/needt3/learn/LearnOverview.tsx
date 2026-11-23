@@ -10,6 +10,7 @@ import { LuPlus } from "react-icons/lu";
 
 import { useIsPro } from "@/components/needt3/paywall/Pro";
 
+import { autoFolderStyle } from "@/lib/needt3/folder-style";
 import { useCreateTopic, useLearn } from "@/lib/needt3/hooks/learn";
 import {
   LEARN_NEW_HREF,
@@ -153,8 +154,12 @@ function TopicFolder({
       <Folder
         label={topic.title}
         count={open.length}
+        unit="to learn"
+        folderStyle={autoFolderStyle(topic.id)}
+        kind="topic"
         hue={hueVar(topic.color)}
         sticker={<LearnGlyph icon={topic.icon} size={18} />}
+        glyph={<LearnGlyph icon={topic.icon} size={40} />}
         peeks={peeks.map((l) => ({
           key: l.id,
           title: l.title,

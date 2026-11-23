@@ -693,6 +693,8 @@ model Project {
   // Design v3: frame tint and manual order.
   ground     String?
   position   Float       @default(0)
+  // Folder look 1..6 (src/lib/needt3/folder-style.ts); null = Auto (random by id).
+  folderStyle Int?
   pages      Page[]
   moodboards Moodboard[]
 

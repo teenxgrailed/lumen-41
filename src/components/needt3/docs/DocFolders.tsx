@@ -1,8 +1,15 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 import { LuFileText, LuFolder } from "react-icons/lu";
 
+import { useUpdateProject } from "@/lib/needt3/hooks/projects";
+import { notify } from "@/lib/notifications";
+
+import { type CtxRow, registerCtx } from "../ctx/registry";
 import { Folder } from "../ui/Folder";
+import { folderStyleRows } from "../ui/folder-style-rows";
 import { projectHue } from "../work/model";
 import { docsCopy } from "./DocParts";
 import { type DocGroup, UNSORTED, folderModel } from "./folders";
@@ -23,6 +30,38 @@ export function DocFolders({
   phone?: boolean;
   onOpen: (key: string) => void;
 }) {
+  const updateProject = useUpdateProject();
+  const live = useRef({ groups, onOpen, updateProject });
+  live.current = { groups, onOpen, updateProject };
+  // A project's folder takes the project's look, so Folder style here writes
+  // the project; Unsorted and archived projects have none to change.
+  useEffect(
+    () =>
+      registerCtx("docs-folder", ({ id }) => {
+        const { groups: gs, onOpen: open, updateProject: up } = live.current;
+        const g = gs.find((x) => x.key === id);
+        if (!g) return null;
+        const menu: CtxRow[][] = [[{ label: "Open", run: () => open(g.key) }]];
+        if (g.key !== UNSORTED && !g.muted)
+          menu.push([
+            {
+              label: "Folder style…",
+              sub: folderStyleRows(g.folderStyle ?? null, (folderStyle) => {
+                void up
+                  .mutateAsync({ id: g.key, patch: { folderStyle } })
+                  .then(({ undo }) =>
+                    notify.success("Folder style changed", {
+                      action: { label: "Undo", onClick: () => void undo() },
+                    })
+                  )
+                  .catch(() => undefined);
+              }),
+            },
+          ]);
+        return menu;
+      }),
+    []
+  );
   return (
     <div
       className={phone ? "ptk-plist is-folders" : "wk-pgrid is-folders"}
@@ -36,7 +75,6 @@ export function DocFolders({
             className={"nx-swap" + (g.muted ? " is-muted" : "")}
             style={{ animationDelay: `${Math.min(i * 40, 240)}ms` }}
             label={m.label}
-            caption={m.caption}
             count={m.count}
             hue={
               m.hue ? projectHue({ id: m.key, color: m.hue }) : projectHue(null)
@@ -48,10 +86,26 @@ export function DocFolders({
                 <LuFolder size={40} aria-hidden />
               )
             }
+            glyph={
+              m.key === UNSORTED ? (
+                <LuFileText aria-hidden />
+              ) : (
+                <LuFolder aria-hidden />
+              )
+            }
+            folderStyle={m.style}
+            unit={m.count === 1 ? "page" : "pages"}
+            kind="docs"
+            updatedAt={m.updatedAt}
+            now={now}
             peeks={m.peeks}
             onClick={() => onOpen(m.key)}
             ariaLabel={docsCopy.Folders.open(m.label, m.count)}
-            extra={{ "data-docs-folder": m.key }}
+            extra={{
+              "data-docs-folder": m.key,
+              "data-ctx": "docs-folder",
+              "data-ctx-id": m.key,
+            }}
           />
         );
       })}

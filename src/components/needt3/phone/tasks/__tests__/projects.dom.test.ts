@@ -76,6 +76,7 @@ const project = (id: string, name: string): V3Project => ({
   ground: null,
   position: 0,
   archived: false,
+  folderStyle: 2,
 });
 
 const OPS = project("p-ops", "Operations");
@@ -210,7 +211,7 @@ describe("PhoneProjects: folders_v1", () => {
     const list = q(".ptk-plist");
     expect(list.classList.contains("is-folders")).toBe(true);
     expect(host.querySelector("[data-ptk-project]")).toBeNull();
-    const links = host.querySelectorAll<HTMLAnchorElement>("a.nx-folder");
+    const links = host.querySelectorAll<HTMLAnchorElement>("a.fl");
     expect(links).toHaveLength(2);
     expect(links[0].getAttribute("href")).toBe("/projects/p-ops");
     expect(links[1].getAttribute("href")).toBe("/projects/p-lab");
@@ -218,7 +219,7 @@ describe("PhoneProjects: folders_v1", () => {
       "2"
     );
     expect(links[0].getAttribute("aria-label")).toBe("Open Operations, 2 open");
-    expect(links[1].querySelector(".nx-folder-peek-title")?.textContent).toBe(
+    expect(links[1].querySelector(".fl-sheet-title")?.textContent).toBe(
       "Task d"
     );
     expect(links[1].querySelector("[data-sticker=letter]")?.textContent).toBe(
@@ -230,7 +231,7 @@ describe("PhoneProjects: folders_v1", () => {
     mount(null, false);
     expect(q(".ptk-plist").classList.contains("is-folders")).toBe(false);
     expect(host.querySelectorAll("[data-ptk-project]")).toHaveLength(2);
-    expect(host.querySelector(".nx-folder")).toBeNull();
+    expect(host.querySelector(".fl, .nx-folder")).toBeNull();
   });
 });
 
