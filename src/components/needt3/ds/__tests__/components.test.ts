@@ -28,10 +28,12 @@ const html = (node: Parameters<typeof renderToStaticMarkup>[0]) =>
 
 /** The attributes of the first element of `tag` in `markup`. */
 function attrs(markup: string, tag: string): Record<string, string> {
-  const open = markup.match(new RegExp(`<${tag}\\b([^>]*)>`));
+  const open = [...markup.matchAll(/<([a-z0-9]+)\b([^>]*)>/g)].find(
+    (m) => m[1] === tag
+  );
   if (!open) throw new Error(`no <${tag}> in ${markup}`);
   const out: Record<string, string> = {};
-  for (const m of open[1].matchAll(/([\w:-]+)(?:="([^"]*)")?/g))
+  for (const m of open[2].matchAll(/([\w:-]+)(?:="([^"]*)")?/g))
     out[m[1]] = m[2] ?? "";
   return out;
 }

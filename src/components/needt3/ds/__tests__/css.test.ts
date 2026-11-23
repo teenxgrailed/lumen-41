@@ -171,12 +171,12 @@ describe("the system draws only from its tokens", () => {
 });
 
 describe("the scales", () => {
-  const values = (prefix: string, unit = "px") =>
-    [
-      ...tokens.matchAll(
-        new RegExp(`--ds-${prefix}[\\w-]*:\\s*([0-9]+${unit})`, "g")
-      ),
-    ].map((m) => m[1]);
+  const values = (prefix: string) =>
+    tokens
+      .split("\n")
+      .filter((line) => line.trim().startsWith(`--ds-${prefix}`))
+      .map((line) => line.match(/:\s*(\d+px)/)?.[1])
+      .filter((value): value is string => !!value);
 
   it("space is 2 4 6 8 12 16 20 24", () => {
     expect(values("space-")).toEqual(
@@ -185,7 +185,7 @@ describe("the scales", () => {
   });
 
   it("six radii: 8 12 16 22 28 pill", () => {
-    expect(values("radius-", "px")).toEqual([
+    expect(values("radius-")).toEqual([
       "8px",
       "12px",
       "16px",
