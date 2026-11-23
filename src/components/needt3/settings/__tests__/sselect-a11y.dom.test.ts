@@ -82,3 +82,29 @@ it("draws the keyboard-highlighted menu row", () => {
     /\.needt-v3 button\.menu-row \{ background: transparent; \}/
   );
 });
+
+it("does not tick or ring a checked menu row (it outgrew the menu and flashed a scrollbar)", () => {
+  const read = (rel: string) => readFileSync(join(__dirname, rel), "utf8");
+  for (const [file, scope] of [
+    ["../../../../styles/v3/app.css", ".needt-v3"],
+    ["../../../../styles/needt-motion.css", ".needt-v2"],
+  ] as const) {
+    const css = read(file);
+    // The global tick still exists for marks ...
+    expect(css).toContain(`${scope} [aria-checked="true"] { animation:`);
+    // ... and rows opt out of it, for both attributes Radix sets.
+    for (const attr of ['[aria-checked="true"]', '[data-state="checked"]']) {
+      const rule = css.match(
+        new RegExp(
+          `\\${scope}\\s*:is\\(\\[role="menuitemradio"\\], \\[role="menuitemcheckbox"\\], \\[role="option"\\]\\)${attr.replace(/[[\]"=]/g, "\\$&")}`
+        )
+      );
+      expect(rule).not.toBeNull();
+    }
+    expect(css).toMatch(/\{ animation: none; \}\n/);
+  }
+  // The Settings menu never has a sideways scroll axis.
+  expect(read("../kit.tsx")).toMatch(
+    /overflowY: "auto",[\s\S]{0,200}overflowX: "hidden"/
+  );
+});
