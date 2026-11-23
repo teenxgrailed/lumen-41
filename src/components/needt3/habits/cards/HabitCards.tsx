@@ -4,8 +4,10 @@ import { type CSSProperties, type ReactNode, useEffect, useRef } from "react";
 
 import { habitColor } from "@/lib/needt3/derive";
 import type { V3Habit } from "@/lib/needt3/map";
+import { isTaskIconKey, taskIconKey } from "@/lib/needt3/task-icon";
 import { notify } from "@/lib/notifications";
 
+import { TaskGlyphBare } from "../../phone/home/TaskGlyph";
 import { MONTH_LONG, habitCard } from "../derive";
 import type { HabitsController } from "../useHabitsController";
 import { cellLabel, chipGlyph, habitStack, monthGrid, pastelAt } from "./model";
@@ -32,6 +34,18 @@ const Check = () => (
 
 /** Writes in flight, so a double press cannot send (or announce) one twice. */
 const writing = new Set<string>();
+
+/** The chip's face: the habit's emoji, else the glyph its title earns. */
+function HabitChip({ h }: { h: { title: string; icon?: string | null } }) {
+  const g = chipGlyph(h);
+  if (g) return <>{g}</>;
+  return (
+    <TaskGlyphBare
+      iconKey={isTaskIconKey(h.icon) ? h.icon : taskIconKey(h.title)}
+      size={18}
+    />
+  );
+}
 
 /**
  * Marks a habit kept today, and only once the server has it says so, with an
@@ -100,7 +114,7 @@ function StackCard({
       onKeyDown={top ? swipe.onKeyDown : undefined}
     >
       <span className="hc-chip" aria-hidden="true">
-        {chipGlyph(h)}
+        <HabitChip h={h} />
       </span>
       <span className="hc-card-main">
         <span className="hc-card-title">{h.title}</span>
@@ -145,7 +159,7 @@ function KeptCard({ h, ctl }: { h: V3Habit; ctl: HabitsController }) {
       inert
     >
       <span className="hc-chip" aria-hidden="true">
-        {chipGlyph(h)}
+        <HabitChip h={h} />
       </span>
       <span className="hc-card-main">
         <span className="hc-card-title">{h.title}</span>

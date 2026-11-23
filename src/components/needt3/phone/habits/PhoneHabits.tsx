@@ -723,7 +723,8 @@ export function PhoneHabits({
             />
           ) : (
             <>
-              {ctl.quitGate !== "off" ? (
+              {ctl.quitGate !== "off" &&
+              (ctl.quitList.length > 0 || ctl.quitGate === "upgrade") ? (
                 <PkSection title="Quit" className="phb-sec">
                   <div className="hq-phone">
                     <QuitList

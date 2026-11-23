@@ -893,7 +893,11 @@ export function PhoneHome({
               {chrono.anytime.length ? (
                 <PkSection
                   title="Anytime"
-                  count={chrono.anytime.length}
+                  count={
+                    fold.anytimeOpen !== true
+                      ? chrono.anytime.length
+                      : undefined
+                  }
                   folded={fold.anytimeOpen !== true}
                   onFold={flip("anytimeOpen")}
                 >
@@ -903,7 +907,7 @@ export function PhoneHome({
             </>
           ) : (
             dayParts.map(([p, list]) => (
-              <PkSection key={p} title={p} count={list.length}>
+              <PkSection key={p} title={p}>
                 <CappedRows list={list} render={(t) => row(t)} />
               </PkSection>
             ))
@@ -917,11 +921,7 @@ export function PhoneHome({
             </OverdueRow>
           ) : null}
           {!folded && inboxRows.length ? (
-            <PkSection
-              title={copy.V2pHome.inbox}
-              glyph="tasks"
-              count={inboxRows.length}
-            >
+            <PkSection title={copy.V2pHome.inbox}>
               <CappedRows list={inboxRows} render={(t) => row(t)} />
             </PkSection>
           ) : null}
@@ -929,7 +929,7 @@ export function PhoneHome({
             <div ref={tomorrowRef} className="v2p-anchor">
               <PkSection
                 title={copy.V2pHome.tomorrow}
-                count={v.tomorrowRows.length}
+                count={fold.tomorrow ? v.tomorrowRows.length : undefined}
                 folded={fold.tomorrow}
                 onFold={flip("tomorrow")}
               >

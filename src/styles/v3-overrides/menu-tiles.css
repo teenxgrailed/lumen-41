@@ -1147,3 +1147,21 @@
 .needt-v3 .ntm .pk-scrim-tint {
   background: none;
 }
+
+/* ── 22.11.26 audit ───────────────────────────────────────────────────────
+ * A person with no photo is a neutral glyph on the raised ground, never a
+ * letter tile or a lavender gradient (accent is a mark, not a fill). Habit
+ * marks in the Habits tile are real icons in the habit's own colour and sit
+ * apart (two empty circles overlapping read as a placeholder). */
+.needt-v3 .ntm-avatar:not(:has(img)),
+.needt-v3 .ps-avatar:not(:has(img)),
+.needt-v3 .nva-avatar {
+  background: var(--v2p-raise-2);
+  color: var(--v2p-ink-2);
+}
+.needt-v3 .ntm-av:not([data-done]):not(.is-more) {
+  color: var(--dot, var(--v2p-ink-2));
+}
+.needt-v3 .ntm-stack .ntm-av {
+  margin-right: 8px;
+}

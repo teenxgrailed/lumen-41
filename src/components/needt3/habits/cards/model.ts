@@ -49,11 +49,18 @@ export function pastelAt(index: number): string {
   return PASTELS[((index % PASTELS.length) + PASTELS.length) % PASTELS.length];
 }
 
-/** The round chip's glyph: the habit's own short icon, else its first letter. */
-export function chipGlyph(h: { title: string; icon?: string | null }): string {
+/**
+ * The round chip's text glyph: the habit's own short icon (an emoji). Null when
+ * it has none: the chip then draws a real icon from the title (`HabitChip`),
+ * never the first letter (a letter tile is not an icon).
+ */
+export function chipGlyph(h: {
+  title: string;
+  icon?: string | null;
+}): string | null {
   const icon = h.icon?.trim();
   if (icon && [...icon].length <= 2) return icon;
-  return ([...h.title.trim()][0] ?? "·").toUpperCase();
+  return null;
 }
 
 /* ---------- the month grid ---------- */

@@ -4,7 +4,12 @@ import { useRef, useState } from "react";
 
 import { signOut, useSession } from "next-auth/react";
 
-import { LuKey, LuMonitorSmartphone, LuUsers } from "react-icons/lu";
+import {
+  LuKey,
+  LuMonitorSmartphone,
+  LuUserRound,
+  LuUsers,
+} from "react-icons/lu";
 
 import { AccountSettings } from "@/components/settings/AccountSettings";
 
@@ -23,7 +28,6 @@ import {
   EVERYWHERE_COPY,
   useSignOutEverywhere,
 } from "../../settings/sign-out-everywhere";
-import { initialsOf } from "../../shell/Avatar";
 import { PkButton } from "../kit";
 import { PsGlyph, PsGroup, PsRow } from "./parts";
 
@@ -86,7 +90,7 @@ export function AccountPage() {
             // eslint-disable-next-line @next/next/no-img-element
             <img className="ps-avatar-img" src={user.image} alt="" />
           ) : (
-            initialsOf(name)
+            <LuUserRound size={36} aria-hidden />
           )}
         </span>
       </div>
