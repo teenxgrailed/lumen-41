@@ -8,8 +8,10 @@ import { LuCheck, LuChevronDown } from "react-icons/lu";
 
 import { proFromPlan } from "@/components/needt3/home/derive";
 
+import { daySummary } from "@/lib/needt3/day-set";
 import { addDays, addMinutes, project, stamp } from "@/lib/needt3/derive";
 import { cvDur } from "@/lib/needt3/derive";
+import { usePlanPicks } from "@/lib/needt3/hooks/day-plan";
 import { useCalendars, useEvents } from "@/lib/needt3/hooks/events";
 import {
   useCheckins,
@@ -172,7 +174,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
     () => (tasksQuery.data ?? []).filter((t) => showsTask(t, taskView, today)),
     [tasksQuery.data, taskView, today]
   );
-  const { timed, loose } = useMemo(
+  const { timed, loose, doneHiddenByDay } = useMemo(
     () =>
       calendarItems({
         tasks,
@@ -185,6 +187,9 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
       }),
     [tasks, events, projects, calendarNames, ownCalendarIds, today, hideDone]
   );
+  // //todo: the week and month dots still count calendar items (events
+  // included) per date; move them to the day set (`daySummary`, tasks only)
+  // per day when the dots are next touched.
   const counts = useMemo(() => {
     const m = new Map<string, number>();
     [...timed, ...loose].forEach((b) =>
@@ -195,6 +200,21 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   const count = (d: string) => counts.get(d) ?? 0;
 
   const plan = dayPlan(timed, loose, day, today, hour);
+  // The day line counts the day's TASKS from the one day set Home reads (the
+  // plan's picks join on today), events apart. Only "done hidden" is what
+  // Hide done really took off the grid for this day.
+  const picks = usePlanPicks(today);
+  const holdTasks = day === today && !picks.settled;
+  const daySum = useMemo(
+    () =>
+      daySummary(
+        tasksQuery.data ?? [],
+        day,
+        day === today ? picks.ids : undefined
+      ),
+    [tasksQuery.data, day, today, picks.ids]
+  );
+  const hiddenDone = doneHiddenByDay[day] ?? 0;
   const d = calDay(day);
   const week = weekOf(day, startDay);
   const grid = monthGrid(day, startDay);
@@ -490,7 +510,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
     <div className="v2p-dayhead">
       <span className="v2p-dayhead-name">{name}</span>
       <span className="v2p-dayhead-meta">
-        {dayMeta(plan)}
+        {dayMeta(plan, holdTasks ? null : daySum, hiddenDone)}
         {plan.pairs ? (
           <span className="v2p-dayhead-clash">
             {` · ${plan.pairs} ${plan.pairs === 1 ? "overlap" : "overlaps"}`}

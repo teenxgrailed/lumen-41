@@ -269,7 +269,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
     leaving[t.id] === "strike" && !!completion.departing[t.id];
   const pickLate = late.filter((t) => !leaving[t.id] || stays(t));
   const pickDay = day.filter((t) => (!t.done && !leaving[t.id]) || stays(t));
-  const stats = dayStats(day);
+  const stats = dayStats(day, today);
   const state = dayState(day, late.length, leavingIds);
   const closedDay = state === "closed";
   const doneToday = day.filter(
@@ -385,6 +385,7 @@ function DesktopHome({ ctl, v2 }: { ctl: HomeController; v2: boolean }) {
       nowHour
     ),
     openTasks: dayOpen,
+    day: today,
   });
   // Overbooked: Spread gives today's untimed tasks (and, from the Overdue
   // section, the late ones) the next days with room; one Undo puts them back.

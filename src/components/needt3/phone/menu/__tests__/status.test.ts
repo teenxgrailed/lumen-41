@@ -13,12 +13,19 @@ describe("menuStatus", () => {
       text: "3 overdue · 4 left today",
       alert: true,
     });
-    expect(menuStatus("home", { overdue: 2 })).toEqual({
-      text: "2 overdue · 0 left today",
-      alert: true,
-    });
     expect(menuStatus("home", { overdue: 0, today: 0 })).toEqual({
       text: "0 left today",
+    });
+  });
+
+  it("Home: while the plan is pending only the overdue part, never '0 left today'", () => {
+    expect(menuStatus("home", { overdue: 2 })).toEqual({
+      text: "2 overdue",
+      alert: true,
+    });
+    expect(menuStatus("home", { overdue: 2, today: 0 })).toEqual({
+      text: "2 overdue · 0 left today",
+      alert: true,
     });
   });
 

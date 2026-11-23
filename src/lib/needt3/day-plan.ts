@@ -55,6 +55,31 @@ export function planSections(snapshot: DayPlanSnapshot | undefined | null) {
   return sections;
 }
 
+/**
+ * The ids of the plan's picks that still belong to today's count: items not
+ * yet resolved, and the ones that are done. A leftover the evening close sent
+ * to tomorrow or Someday keeps its item (with a resolution) but is no longer
+ * today's. The one source of `include` for `daySummary` on Home, the Calendar
+ * and the menu.
+ */
+const NO_PICKS: ReadonlySet<string> = new Set();
+export function planPickIds(
+  snapshot: DayPlanSnapshot | undefined | null
+): ReadonlySet<string> {
+  const items = snapshot?.plan?.items;
+  if (!items?.length) return NO_PICKS;
+  return new Set(
+    items
+      .filter(
+        (i) =>
+          i.resolution == null ||
+          i.resolution === "done" ||
+          i.status === "completed"
+      )
+      .map((i) => i.taskId)
+  );
+}
+
 /** Whether Today should be drawn from the plan: one exists for the day. */
 export const planIsShown = (snapshot: DayPlanSnapshot | undefined | null) =>
   !!snapshot?.plan && snapshot.plan.taskCount > 0;

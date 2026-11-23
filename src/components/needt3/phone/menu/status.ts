@@ -10,7 +10,7 @@ import { type MenuPlaceId, menuSub } from "./places";
 export interface MenuCounts {
   /** Open tasks due before today. */
   overdue?: number;
-  /** Open tasks due today. */
+  /** Open tasks of today's set: due or scheduled today (`daySummary`). */
   today?: number;
   /** Open tasks. */
   open?: number;
@@ -20,7 +20,11 @@ export interface MenuCounts {
   mail?: number;
   /** Mail accounts that need the person (by label). */
   mailDown?: readonly string[];
-  /** The next timed event still to start today; null = none, undefined = not loaded. */
+  /**
+   * The next timed thing still to start today, an event or an open task with a
+   * time (the Calendar shows both, so a task badges the tile too); null =
+   * none, undefined = not loaded.
+   */
   nextEvent?: { title: string; at: string; inMin: number } | null;
   /** Live pages, and when the latest was edited ("5 min ago"). */
   docs?: number;
@@ -65,7 +69,11 @@ export function menuStatus(id: MenuPlaceId, c: MenuCounts = {}): MenuStatus {
     case "home":
       if (c.overdue)
         return {
-          text: `${c.overdue} overdue · ${c.today ?? 0} left today`,
+          // left today waits for the plan: say only what is known
+          text:
+            c.today === undefined
+              ? `${c.overdue} overdue`
+              : `${c.overdue} overdue · ${c.today} left today`,
           alert: true,
         };
       return c.today === undefined ? sub : { text: `${c.today} left today` };

@@ -9,6 +9,12 @@
  * last successful sync, which no existing route returns.
  */
 import {
+  type DaySetTask,
+  type DaySummary,
+  daySummary,
+  nextTimedTask,
+} from "@/lib/needt3/day-set";
+import {
   type Checkin,
   habitDoneOn,
   liveHabits,
@@ -41,17 +47,29 @@ export function agoLabel(ageMs: number): string {
   return "a while ago";
 }
 
-/** The next timed event still to start today: its title, clock time and minutes away. */
+/**
+ * The next timed thing still to start today, its title, clock time and
+ * minutes away: a calendar event, or an open task of today with a time (the
+ * Calendar shows both, so "Free" may only say so when neither is left).
+ * `dayTasks` = today's set (`daySummary().items`), built once by the caller.
+ */
 export function nextEventOf(
   events: readonly Pick<V3Event, "title" | "startAt" | "isAllDay">[],
-  now: string
+  now: string,
+  dayTasks: readonly (DaySetTask & { title: string })[] = []
 ) {
   const today = now.slice(0, 10);
-  let next: (typeof events)[number] | null = null;
+  let next: { title: string; startAt: string } | null = null;
   for (const e of events) {
     if (e.isAllDay || e.startAt.slice(0, 10) !== today || e.startAt < now)
       continue;
-    if (!next || e.startAt < next.startAt) next = e;
+    if (!next || e.startAt < next.startAt)
+      next = { title: e.title, startAt: e.startAt };
+  }
+  const task = nextTimedTask(dayTasks, now);
+  if (task) {
+    const startAt = `${today}T${task.at}`;
+    if (!next || startAt < next.startAt) next = { title: task.title, startAt };
   }
   return next
     ? {
@@ -79,16 +97,26 @@ export interface CountsInput {
   habits?: readonly V3Habit[];
   checkins?: readonly Checkin[];
   connections?: readonly V3Connection[];
+  /** Today's plan picks (`planPickIds`): they count for today like on Home. */
+  planPicks?: ReadonlySet<string>;
+  /**
+   * The plan has not been asked for yet: the counts that depend on its picks
+   * (left today, and the Calendar's "free") wait rather than jump.
+   */
+  planPending?: boolean;
 }
 
 export function buildMenuCounts(i: CountsInput): MenuCounts {
   const today = i.now.slice(0, 10);
   const c: MenuCounts = {};
+  let sum: DaySummary<V3Task> | null = null;
 
   if (i.tasks) {
     const open = i.tasks.filter((t) => !t.done);
+    sum = daySummary(i.tasks, today, i.planPicks);
     c.overdue = overdueCount(i.tasks, today);
-    c.today = open.filter((t) => !t.noSlot && t.dueDate === today).length;
+    // left today = open tasks of today's set (due or scheduled today)
+    if (!i.planPending) c.today = sum.open;
     c.open = open.length;
     c.unplaced = open.filter(
       (t) => !t.isFixed && !t.noSlot && !t.scheduledStart
@@ -96,7 +124,11 @@ export function buildMenuCounts(i: CountsInput): MenuCounts {
   }
 
   if (i.mail) c.mail = unreadCount(i.mail);
-  if (i.events) c.nextEvent = nextEventOf(i.events, i.now);
+  if (i.events) {
+    const next = nextEventOf(i.events, i.now, sum?.items ?? []);
+    // "Free" is only said once the tasks are in too: a timed task may be next
+    if (next || (i.tasks && !i.planPending)) c.nextEvent = next;
+  }
 
   if (i.docs) {
     const live = i.docs.filter((d) => !d.trashedAt);

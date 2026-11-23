@@ -8,6 +8,7 @@ import {
   leftoversOf,
   planIsShown,
   planLine,
+  planPickIds,
   planSections,
   tomorrowPreview,
 } from "../day-plan";
@@ -85,6 +86,29 @@ describe("what Today shows of a plan", () => {
   it("says the limit and the focus total in one quiet line", () => {
     const line = planLine(plan([item("a"), item("b")], { focusMinutes: 130 }));
     expect(line).toBe("2 of 5 tasks · 2 h 10 min of 4 h focus");
+  });
+});
+
+describe("planPickIds: which picks still count for today", () => {
+  it("keeps open and done picks, drops those the close sent away", () => {
+    const ids = planPickIds(
+      snap(
+        plan([
+          item("open"),
+          item("done", { status: "completed" }),
+          item("resolvedDone", { resolution: "done" }),
+          item("tomorrow", { resolution: "tomorrow" }),
+          item("later", { resolution: "someday" }),
+          item("gone", { resolution: "deleted" }),
+        ])
+      )
+    );
+    expect([...ids].sort()).toEqual(["done", "open", "resolvedDone"]);
+  });
+
+  it("is empty with no plan", () => {
+    expect(planPickIds(undefined).size).toBe(0);
+    expect(planPickIds(snap(null)).size).toBe(0);
   });
 });
 

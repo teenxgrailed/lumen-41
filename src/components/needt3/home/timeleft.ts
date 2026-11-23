@@ -2,7 +2,7 @@
  * The time-left line, pure: today's planned work against the working time
  * that is still left.
  */
-import type { V3Task } from "@/lib/needt3/map";
+import { taskMinutes } from "@/lib/needt3/day-set";
 
 import { dur } from "./derive";
 
@@ -65,14 +65,21 @@ export function timeLeft(o: {
   capacity: number | null;
   blocked?: number;
   eventsAhead: number;
-  openTasks: readonly Pick<V3Task, "done" | "estimatedMinutes">[];
+  /** The day the tasks sit on: a block on another day adds no minutes. */
+  day: string;
+  /** Today's tasks (`daySummary(...).items`); the open ones are counted. */
+  openTasks: readonly {
+    done: boolean;
+    estimatedMinutes?: number | null;
+    scheduledStart?: string | null;
+  }[];
 }): TimeLeft | null {
   if (o.capacity == null || o.capacity <= 0) return null;
   const planned =
     o.eventsAhead +
     o.openTasks
       .filter((t) => !t.done)
-      .reduce((s, t) => s + (t.estimatedMinutes || 0), 0);
+      .reduce((s, t) => s + taskMinutes(t, o.day), 0);
   if (planned < 5) return null;
   const free = Math.max(0, o.capacity - (o.blocked ?? 0));
   const over = planned > free;
