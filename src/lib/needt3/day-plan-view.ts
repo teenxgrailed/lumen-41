@@ -146,7 +146,7 @@ export function dayPart(hour: number | null | undefined): DayPart {
 export const DAY_PART_LABEL: Record<DayPart, string> = {
   anytime: "Anytime",
   morning: "Morning",
-  day: "Day",
+  day: "Afternoon",
   evening: "Evening",
 };
 

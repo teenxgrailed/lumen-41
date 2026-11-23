@@ -214,7 +214,7 @@ export function TileFace({
           ) : (
             <Swap
               className="ntm-obj"
-              items={pages(rows, 2)}
+              items={pages(rows, 1)}
               offset={offset}
               active={active}
               render={(pg) => (
@@ -222,7 +222,6 @@ export function TileFace({
                   {pg.map((r, i) => (
                     <li key={i} className="ntm-chip-row">
                       <span className="ntm-check" aria-hidden="true" />
-                      <span className="ntm-time">{r.time ?? "any"}</span>
                       <span className="ntm-txt">{r.title}</span>
                     </li>
                   ))}

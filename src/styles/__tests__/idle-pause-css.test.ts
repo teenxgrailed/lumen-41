@@ -20,6 +20,23 @@ describe("idle pause stylesheet", () => {
     expect(css).not.toMatch(/animation-(name|duration|iteration-count):/);
   });
 
+  it("never freezes an entry animation of the phone Today on its first frame", () => {
+    // the rows rise from opacity 0: paused at frame 0 they stay invisible
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const entry of [
+      ".dp-rise",
+      ".dp-hello",
+      ".dp-main > .pk-rw",
+      ".dp-part > .pk-rw",
+      ".v2p-next",
+    ]) {
+      // once in each of the three selectors (element, ::before, ::after)
+      expect(rules.split(entry).length - 1).toBe(3);
+    }
+    // :is() is rewritten with a :-moz-any() copy that :where() drops in WebKit
+    expect(rules).not.toContain(":is(");
+  });
+
   it("covers pseudo-elements and leaves wait indicators moving", () => {
     expect(css).toContain("::before");
     expect(css).toContain("::after");

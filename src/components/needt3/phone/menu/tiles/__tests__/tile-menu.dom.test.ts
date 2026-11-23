@@ -211,9 +211,11 @@ describe("the tile menu", () => {
     expect(q('[data-tile="project"] .ntm-kind')!.textContent).toBe("Project");
     const today = q('[data-tile="today"]')!;
     expect(today.textContent).toContain("Plan the week");
-    expect(today.textContent).toContain("09:00");
-    expect(today.textContent).toContain("Call the factory");
-    expect(today.textContent).not.toContain("Stretch"); // the fifth is on the third page
+    // the Plan tile shows titles, not start times (the title gets the width)
+    expect(today.textContent).not.toContain("09:00");
+    // one line per page: a title may take two lines, two of them would not fit
+    expect(today.textContent).not.toContain("Call the factory");
+    expect(today.textContent).not.toContain("Stretch");
     expect(q('[data-tile="ask"] .ntm-title')!.textContent).toBe("Ask Needt");
     const papers = qa('[data-tile="project"] .ntm-paper').map(
       (n) => n.textContent
@@ -231,7 +233,7 @@ describe("the tile menu", () => {
     act(() => {
       jest.advanceTimersByTime(400); // the old one blurs out, the next goes in
     });
-    expect(today()).toContain("Pay rent");
+    expect(today()).toContain("Call the factory");
     expect(today()).not.toContain("Plan the week");
     // editing: nothing listens, so the clock stops
     act(() => q<HTMLButtonElement>("[data-ntm-customize]")!.click());
