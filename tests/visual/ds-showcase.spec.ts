@@ -40,7 +40,7 @@ async function hideFixedChrome(page: Page) {
     for (const el of document.querySelectorAll<HTMLElement>("body *")) {
       if (lab && (lab.contains(el) || el.contains(lab))) continue;
       if (getComputedStyle(el).position === "fixed")
-        el.style.visibility = "hidden";
+        el.style.setProperty("display", "none", "important");
     }
   });
 }
