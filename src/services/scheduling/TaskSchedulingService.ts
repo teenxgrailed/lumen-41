@@ -526,6 +526,7 @@ async function scheduleAllTasksForUserLocked(
     // //todo: an in-progress task whose timer outlasts its slot
     // (`scheduledEnd` < now) holds no time here; the stored slot is all we know.
     const horizon = addDays(now, DEFAULT_HORIZON_DAYS);
+    // idea-exempt: heldTasksWhere() spreads openTaskWhere(), which drops ideas.
     const heldRows = await prisma.task.findMany({
       where: heldTasksWhere(userId, now, horizon),
       select: heldTasksSelect,
