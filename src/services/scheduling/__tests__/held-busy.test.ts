@@ -1,4 +1,5 @@
 import { scheduleAllTasksForUserDetailed } from "../TaskSchedulingService";
+import { heldBusyBlocks, heldBusyEvents } from "../held-busy";
 
 /**
  * An auto-scheduled task that is not part of the run but still holds a future
@@ -171,7 +172,9 @@ function overlapsWindow(
 }
 
 async function runScheduler(
-  runTasks = Array.from({ length: 3 }, (_, i) => dbTask(i)),
+  runTasks: Array<Record<string, unknown>> = Array.from({ length: 3 }, (_, i) =>
+    dbTask(i)
+  ),
   options: { workspaceId?: string } = {}
 ) {
   const queue: unknown[][] = [runTasks, []]; // the tasks to place, then the reload
@@ -223,7 +226,9 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-describe("TaskSchedulingService with auto-scheduled tasks held outside the run", () => {
+const at = (h: number, m = 0) => new Date(2026, 9, 19, h, m, 0);
+
+describe("TaskSchedulingService with tasks that hold time outside the run", () => {
   it("control: without a held task, a block lands in the morning", async () => {
     const monday = await runScheduler();
     expect(monday.some((b) => overlapsWindow(b, 9, 11))).toBe(true);
@@ -236,30 +241,96 @@ describe("TaskSchedulingService with auto-scheduled tasks held outside the run",
     expect(monday.filter((b) => overlapsWindow(b, 9, 11))).toEqual([]);
   });
 
-  it("asks for in-progress tasks: only completed ones are left out", async () => {
+  it("asks for in-progress tasks: only completed ones and Someday are left out", async () => {
     await runScheduler();
     const call = prisma.task.findMany.mock.calls
       .map((c: unknown[]) => c[0] as { where: Record<string, unknown> })
-      .find(
-        (c: { where: Record<string, unknown> }) =>
-          c.where.scheduledStart && c.where.isAutoScheduled === undefined
-      );
+      .find((c: { where: Record<string, unknown> }) => c.where.scheduledStart);
     expect(call?.where).toMatchObject({
       assigneeId: "user-1",
       isArchived: false,
       trashedAt: null,
+      somedayAt: null,
       status: { not: "completed" },
     });
   });
 
-  it("a task the plan's limit cut from the run still holds its slot", async () => {
-    // limit 1 with three tasks: task-0 is placed, task-1 and task-2 are cut.
-    canAutoScheduleMore.mockResolvedValue({ limit: 1, remaining: 1 });
-    const runTasks = Array.from({ length: 3 }, (_, i) => dbTask(i));
-    // task-2 was cut, and still carries the 09:00-11:00 slot from before
-    mockDb.held = [heldTask({ id: "task-2", status: "todo", title: "Task 2" })];
+  it("asks for a split task through its chunks, not only the task's own span", async () => {
+    await runScheduler();
+    const call = prisma.task.findMany.mock.calls
+      .map((c: unknown[]) => c[0] as { where: { AND?: unknown[] } })
+      .find((c: { where: Record<string, unknown> }) => c.where.scheduledStart);
+    expect(JSON.stringify(call?.where.AND)).toContain(
+      JSON.stringify({
+        OR: [
+          { scheduledEnd: { gt: NOW } },
+          { scheduledBlocks: { some: { end: { gt: NOW } } } },
+        ],
+      })
+    );
+  });
+
+  it("a split task whose first chunk is over still holds its later chunks", async () => {
+    // chunk 0 ended at 07:30 (the task row's own span), chunk 1 is 10:00-11:00
+    mockDb.held = [
+      heldTask({
+        status: "in_progress",
+        scheduledStart: at(7, 0),
+        scheduledEnd: at(7, 30),
+        scheduledBlocks: [
+          { start: at(7, 0), end: at(7, 30) },
+          { start: at(10, 0), end: at(11, 0) },
+        ],
+      }),
+    ];
+    const monday = await runScheduler();
+    expect(monday.length).toBeGreaterThan(0);
+    expect(monday.filter((b) => overlapsWindow(b, 10, 11))).toEqual([]);
+  });
+
+  it("a task the plan's limit cut loses its slot and does not block the others", async () => {
+    // limit 1: task-0 stays in the run, task-1 (scheduled before) is cut
+    canAutoScheduleMore.mockResolvedValue({ limit: 1, remaining: 0 });
+    const runTasks = [
+      { ...dbTask(0), scheduledStart: at(12, 0), scheduledEnd: at(13, 0) },
+      { ...dbTask(1), scheduledStart: at(9, 0), scheduledEnd: at(11, 0) },
+    ];
     const monday = await runScheduler(runTasks);
+    // the cut task's row and blocks are cleared...
+    const cleared = prisma.task.updateMany.mock.calls
+      .map((c: unknown[]) => c[0] as { where: { id: { in: string[] } } })
+      .filter((c: { where: { id: { in: string[] } } }) =>
+        c.where.id.in.includes("task-1")
+      );
+    expect(cleared).toHaveLength(1);
+    expect(cleared[0].where.id.in).toEqual(["task-1"]);
+    expect(prisma.scheduledBlock.deleteMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", taskId: { in: ["task-1"] } },
+    });
+    // ...so the selected task is placed in the morning slot it held
     expect(monday.map((b) => b.taskId)).toEqual(["task-0"]);
+    expect(monday.some((b) => overlapsWindow(b, 9, 11))).toBe(true);
+  });
+
+  it("a locked task the limit cut keeps its slot, and it stays busy", async () => {
+    canAutoScheduleMore.mockResolvedValue({ limit: 1, remaining: 0 });
+    const runTasks = [
+      { ...dbTask(0), scheduledStart: at(12, 0), scheduledEnd: at(13, 0) },
+      {
+        ...dbTask(1),
+        scheduleLocked: true,
+        scheduledStart: at(9, 0),
+        scheduledEnd: at(11, 0),
+      },
+    ];
+    mockDb.held = [heldTask({ id: "task-1", status: "todo" })];
+    const monday = await runScheduler(runTasks);
+    const cleared = prisma.task.updateMany.mock.calls.filter((c: unknown[]) =>
+      (c[0] as { where: { id: { in: string[] } } }).where.id.in.includes(
+        "task-1"
+      )
+    );
+    expect(cleared).toHaveLength(0);
     expect(monday.filter((b) => overlapsWindow(b, 9, 11))).toEqual([]);
   });
 
@@ -271,7 +342,7 @@ describe("TaskSchedulingService with auto-scheduled tasks held outside the run",
     expect(monday.some((b) => overlapsWindow(b, 9, 11))).toBe(true);
   });
 
-  it("another workspace's task is read too: no workspace filter on the held or pinned read", async () => {
+  it("another workspace's task is read too: no workspace filter on the held read", async () => {
     mockDb.held = [heldTask({ status: "todo" })];
     const monday = await runScheduler(
       Array.from({ length: 3 }, (_, i) => dbTask(i)),
@@ -281,34 +352,44 @@ describe("TaskSchedulingService with auto-scheduled tasks held outside the run",
     const reads = prisma.task.findMany.mock.calls
       .map((c: unknown[]) => (c[0] as { where: Record<string, unknown> }).where)
       .filter((w: Record<string, unknown>) => w.scheduledStart);
-    expect(reads).toHaveLength(2); // pinned + held
-    for (const w of reads) expect(w).not.toHaveProperty("workspaceId");
+    expect(reads).toHaveLength(1); // pinned and held are one read
+    expect(reads[0]).not.toHaveProperty("workspaceId");
     // the run's own read stays inside the workspace
     const own = prisma.task.findMany.mock.calls
       .map((c: unknown[]) => (c[0] as { where: Record<string, unknown> }).where)
       .find((w: Record<string, unknown>) => "OR" in w);
     expect(own).toMatchObject({ workspaceId: "ws-1" });
   });
+});
 
-  it("holds every chunk of a split task", async () => {
-    mockDb.held = [
-      heldTask({
-        status: "todo",
-        scheduledStart: new Date(2026, 9, 19, 9, 0, 0),
-        scheduledEnd: new Date(2026, 9, 19, 9, 30, 0),
-        scheduledBlocks: [
-          {
-            start: new Date(2026, 9, 19, 9, 0, 0),
-            end: new Date(2026, 9, 19, 9, 30, 0),
-          },
-          {
-            start: new Date(2026, 9, 19, 10, 0, 0),
-            end: new Date(2026, 9, 19, 11, 0, 0),
-          },
-        ],
-      }),
-    ];
-    const monday = await runScheduler();
-    expect(monday.filter((b) => overlapsWindow(b, 10, 11))).toEqual([]);
+describe("heldBusyBlocks and heldBusyEvents (shared by the run and the preview)", () => {
+  const now = at(8);
+  const horizon = new Date(2026, 10, 9);
+  const row = {
+    id: "held",
+    title: "Held",
+    scheduledStart: at(7, 0),
+    scheduledEnd: at(7, 30),
+    scheduledBlocks: [
+      { start: at(7, 0), end: at(7, 30) },
+      { start: at(10, 0), end: at(11, 0) },
+      { start: new Date(2026, 11, 1, 10), end: new Date(2026, 11, 1, 11) },
+    ],
+  };
+
+  it("keeps only the spans that are still ahead and inside the horizon", () => {
+    expect(heldBusyBlocks([row], new Set(), now, horizon)).toEqual([
+      expect.objectContaining({ start: at(10, 0), end: at(11, 0) }),
+    ]);
+  });
+
+  it("leaves out the tasks of the run", () => {
+    expect(heldBusyBlocks([row], new Set(["held"]), now, horizon)).toEqual([]);
+  });
+
+  it("gives the preview the same time as events", () => {
+    expect(heldBusyEvents([row], new Set(), now, horizon)).toEqual([
+      { start: at(10, 0), end: at(11, 0), description: null },
+    ]);
   });
 });

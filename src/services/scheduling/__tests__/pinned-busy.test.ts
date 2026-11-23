@@ -177,8 +177,7 @@ async function runScheduler() {
       };
     }) => {
       if (args?.where?.blockEventId) return [];
-      if (args?.where?.isAutoScheduled === false) return mockDb.pinned;
-      if (args?.where?.scheduledStart) return []; // held outside the run
+      if (args?.where?.scheduledStart) return mockDb.pinned; // held outside the run
       return queue.shift() ?? [];
     }
   );
@@ -228,20 +227,16 @@ describe("TaskSchedulingService with pinned tasks", () => {
     expect(monday.filter((b) => overlapsWindow(b, 9, 11))).toEqual([]);
   });
 
-  it("asks only for open, unarchived, assigned, non-auto tasks", async () => {
+  it("asks only for open, unarchived, assigned tasks that are not completed or in Someday", async () => {
     mockDb.pinned = [pinnedTask()];
     await runScheduler();
     const call = prisma.task.findMany.mock.calls
       .map((c: unknown[]) => c[0] as { where: Record<string, unknown> })
-      .find(
-        (c: { where: Record<string, unknown> }) =>
-          c.where.isAutoScheduled === false
-      );
+      .find((c: { where: Record<string, unknown> }) => c.where.scheduledStart);
     expect(call?.where).toMatchObject({
-      isAutoScheduled: false,
-      autoScheduled: false,
       assigneeId: "user-1",
       isArchived: false,
+      somedayAt: null,
       status: { not: "completed" },
     });
   });
@@ -250,9 +245,7 @@ describe("TaskSchedulingService with pinned tasks", () => {
     await runScheduler();
     const wheres = prisma.task.findMany.mock.calls
       .map((c: unknown[]) => (c[0] as { where: Record<string, unknown> }).where)
-      .filter(
-        (w: Record<string, unknown>) => "OR" in w || w.isAutoScheduled === false
-      );
+      .filter((w: Record<string, unknown>) => "OR" in w || w.scheduledStart);
     expect(wheres).toHaveLength(2);
     for (const w of wheres) expect(w).toMatchObject({ trashedAt: null });
   });

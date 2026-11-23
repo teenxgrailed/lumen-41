@@ -5,6 +5,11 @@ import {
   resolveBusyFeedIds,
 } from "@/services/scheduling/busy-feeds";
 import {
+  heldBusyEvents,
+  heldTasksSelect,
+  heldTasksWhere,
+} from "@/services/scheduling/held-busy";
+import {
   type ScopedReplanSkipReason,
   overlaps,
   planScopedReplan,
@@ -160,54 +165,60 @@ async function computeStagedSnapshot(
   unscheduled: Array<{ taskId: string; title: string; reason: string }>;
 }> {
   const now = newDate();
-  const [legacy, preferences, energyWindows, sourceTasks] = await Promise.all([
-    prisma.autoScheduleSettings.findUnique({ where: { userId } }),
-    prisma.schedulingPreferences.findUnique({ where: { userId } }),
-    prisma.energyProfileWindow.findMany({ where: { userId } }),
-    prisma.task.findMany({
-      where: {
-        ...workspaceDataScopeWhere(workspace, userId),
-        ...openTaskWhere(),
-        isArchived: false,
-        OR: [{ isAutoScheduled: true }, { autoScheduled: true }],
-        status: { notIn: ["completed", "in_progress"] },
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        status: true,
-        dueDate: true,
-        startDate: true,
-        duration: true,
-        priority: true,
-        energyLevel: true,
-        preferredTime: true,
-        energyRequired: true,
-        estimatedMinutes: true,
-        estLikely: true,
-        minChunkMinutes: true,
-        maxChunkMinutes: true,
-        deadline: true,
-        priorityLevel: true,
-        contextTag: true,
-        isFrozen: true,
-        dependsOnId: true,
-        autoScheduled: true,
-        isAutoScheduled: true,
-        scheduleLocked: true,
-        scheduledStart: true,
-        scheduledEnd: true,
-        scheduleScore: true,
-        lastScheduled: true,
-        postponedUntil: true,
-        isRecurring: true,
-        recurrenceRule: true,
-        lastCompletedDate: true,
-        completedAt: true,
-      },
-    }),
-  ]);
+  const horizon = addCalendarDays(now, 21);
+  const [legacy, preferences, energyWindows, sourceTasks, heldRows] =
+    await Promise.all([
+      prisma.autoScheduleSettings.findUnique({ where: { userId } }),
+      prisma.schedulingPreferences.findUnique({ where: { userId } }),
+      prisma.energyProfileWindow.findMany({ where: { userId } }),
+      prisma.task.findMany({
+        where: {
+          ...workspaceDataScopeWhere(workspace, userId),
+          ...openTaskWhere(),
+          isArchived: false,
+          OR: [{ isAutoScheduled: true }, { autoScheduled: true }],
+          status: { notIn: ["completed", "in_progress"] },
+        },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          status: true,
+          dueDate: true,
+          startDate: true,
+          duration: true,
+          priority: true,
+          energyLevel: true,
+          preferredTime: true,
+          energyRequired: true,
+          estimatedMinutes: true,
+          estLikely: true,
+          minChunkMinutes: true,
+          maxChunkMinutes: true,
+          deadline: true,
+          priorityLevel: true,
+          contextTag: true,
+          isFrozen: true,
+          dependsOnId: true,
+          autoScheduled: true,
+          isAutoScheduled: true,
+          scheduleLocked: true,
+          scheduledStart: true,
+          scheduledEnd: true,
+          scheduleScore: true,
+          lastScheduled: true,
+          postponedUntil: true,
+          isRecurring: true,
+          recurrenceRule: true,
+          lastCompletedDate: true,
+          completedAt: true,
+        },
+      }),
+      prisma.task.findMany({
+        where: heldTasksWhere(userId, now, horizon),
+        select: heldTasksSelect,
+      }),
+    ]);
   if (!legacy) {
     throw new Error("Auto-schedule settings not found for user");
   }
@@ -238,8 +249,20 @@ async function computeStagedSnapshot(
     select: { id: true },
   });
   try {
+    // The real run holds pinned tasks, in-progress tasks and other workspaces'
+    // tasks as busy time; the staging user owns none of them, so they go in as
+    // busy events, and the preview places what the run will.
+    const heldEvents = heldBusyEvents(
+      heldRows,
+      new Set(sourceTasks.map((task) => task.id)),
+      now,
+      horizon
+    );
     const stagedFeeds = await Promise.all(
-      sourceFeeds.map((feed) =>
+      [
+        ...sourceFeeds,
+        ...(heldEvents.length ? [{ id: "held", events: heldEvents }] : []),
+      ].map((feed) =>
         prisma.calendarFeed.create({
           data: {
             userId: stagingUser.id,
