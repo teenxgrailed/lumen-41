@@ -220,7 +220,7 @@ export async function resolveNamedPersonalToken(token: string) {
     !row.lastUsedAt ||
     now.getTime() - row.lastUsedAt.getTime() > PERSONAL_TOKEN_TOUCH_MS
   ) {
-    await touch(() =>
+    touch(() =>
       prisma.personalApiToken.update({
         where: { id: row.id },
         data: { lastUsedAt: now },
@@ -230,8 +230,11 @@ export async function resolveNamedPersonalToken(token: string) {
   return { id: row.id, userId: row.userId, name: row.name };
 }
 
-/** Records use of the legacy token, at most once a minute. */
-export async function touchLegacyToken(
+/**
+ * Records use of the legacy token, at most once a minute. The write is not
+ * waited for: the call goes on at once.
+ */
+export function touchLegacyToken(
   userId: string,
   lastUsedAt: Date | null | undefined
 ) {
@@ -242,7 +245,7 @@ export async function touchLegacyToken(
   ) {
     return;
   }
-  await touch(() =>
+  touch(() =>
     prisma.connectorSettings.update({
       where: { userId },
       data: { tokenLastUsedAt: now },
@@ -250,15 +253,20 @@ export async function touchLegacyToken(
   );
 }
 
-/** "Last used" is a courtesy: a failed write never fails the call. */
-async function touch(write: () => Promise<unknown>) {
-  try {
-    await write();
-  } catch (error) {
+/**
+ * "Last used" is a courtesy: a failed write never fails the call, and the call
+ * does not wait for it (fire and forget; a failure is only logged).
+ */
+function touch(write: () => Promise<unknown>) {
+  const fail = (error: unknown) =>
     logger.warn(
       "Could not record token use",
       { error: error instanceof Error ? error.message : String(error) },
       LOG_SOURCE
     );
+  try {
+    void write().catch(fail);
+  } catch (error) {
+    fail(error);
   }
 }

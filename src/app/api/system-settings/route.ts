@@ -10,6 +10,7 @@ import { clearResendInstance } from "@/lib/email/resend";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { sealSystemSettingsSecrets } from "@/lib/system-settings-secrets";
+import { clearTtlCaches } from "@/lib/ttl-cache";
 
 const LOG_SOURCE = "SystemSettingsAPI";
 
@@ -87,6 +88,9 @@ export async function PATCH(request: NextRequest) {
         });
       }
     });
+
+    // The email-verification requirement is cached for a few seconds.
+    clearTtlCaches("system-settings");
 
     // The cached Resend client holds the old key; drop it here, on the server
     // that caches it, so the next email uses the new one.

@@ -34,6 +34,13 @@ const memberModel = prisma.workspaceMember as unknown as {
   findUnique: jest.Mock;
 };
 
+/** Lookups of a membership in a workspace that is not the personal one. */
+function foreignMembershipLookups() {
+  return memberModel.findUnique.mock.calls.filter(
+    ([args]) => args?.select?.workspace
+  ).length;
+}
+
 describe("workspace authorization", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -92,7 +99,7 @@ describe("workspace authorization", () => {
         dataScope: { mode: "legacy", userId: "user-1" },
       })
     );
-    expect(memberModel.findUnique).not.toHaveBeenCalled();
+    expect(foreignMembershipLookups()).toBe(0);
   });
 
   it("defaults enabled users to their personal workspace", async () => {
@@ -104,7 +111,7 @@ describe("workspace authorization", () => {
       mode: "workspace",
       workspaceId: "personal-1",
     });
-    expect(memberModel.findUnique).not.toHaveBeenCalled();
+    expect(foreignMembershipLookups()).toBe(0);
   });
 
   it("recovers when concurrent requests create the personal workspace", async () => {

@@ -144,13 +144,12 @@ async function callTool(ctx: McpToolContext, id: JsonRpcId, params: unknown) {
   const tool = findMcpTool(name);
   if (!tool)
     return failure(id, INVALID_PARAMS, `Unknown tool: ${String(name)}`);
-  if (await hubToolHidden(tool, ctx.userId)) {
-    return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
-  }
-  if (await quitToolHidden(tool, ctx.userId)) {
-    return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
-  }
-  if (await dayPlanToolHidden(tool, ctx.userId)) {
+  const hidden = await Promise.all([
+    hubToolHidden(tool, ctx.userId),
+    quitToolHidden(tool, ctx.userId),
+    dayPlanToolHidden(tool, ctx.userId),
+  ]);
+  if (hidden.some(Boolean)) {
     return failure(id, METHOD_NOT_FOUND, `Unknown method: ${tool.name}`);
   }
 
@@ -211,18 +210,20 @@ export async function handleMcpMessage(
         capabilities: { tools: { listChanged: false } },
         serverInfo: MCP_SERVER_INFO,
         instructions:
-          "Needt holds the person's tasks, projects, calendars, pages, habits and mail. Start with needt_whoami to see the account, scopes and workspaces; find things with needt_search or needt_list, read with needt_get, change with needt_update_task, needt_complete_task, needt_create_task, needt_add_subtasks, needt_complete_subtask, needt_create_event, needt_create_page, needt_append_page, needt_log_habit and needt_control. Break non-trivial work into subtasks: needt_create_task takes entry (the first small step) and subtasks in the order they are done, and the task itself is the closing step. The scheduler places tasks by itself, but you can place one: start on needt_create_task or needt_update_task puts it at that time and pins it so the scheduler leaves it; pinned: false hands it back. Every tool takes an optional workspaceId.",
+          "Needt holds the person's tasks, projects, calendars, pages, habits and mail. Start with needt_whoami to see the account, scopes and workspaces; find things with needt_search or needt_list, read with needt_get, change with needt_update_task, needt_complete_task, needt_create_task, needt_add_subtasks, needt_complete_subtask, needt_create_event, needt_create_page, needt_append_page, needt_log_habit and needt_control. Break non-trivial work into subtasks: needt_create_task takes entry (the first small step) and subtasks in the order they are done, and the task itself is the closing step. The scheduler places tasks by itself, but you can place one: start on needt_create_task or needt_update_task puts it at that time and pins it so the scheduler leaves it; pinned: false hands it back. Every tool takes an optional workspaceId. needt_get, needt_list and needt_search answer compactly: a field that is null, empty or internal is left out (start, end, due date, completion, project and status stay, null when unset); pass verbose: true for every column.",
       });
     case "ping":
       return result(id, {});
-    case "tools/list":
+    case "tools/list": {
+      const [hub, quit, dayPlan] = await Promise.all([
+        agentHubEnabled(ctx.userId),
+        isFeatureEnabled(HABITS_QUIT, ctx.userId),
+        dayPlanEnabled(ctx.userId),
+      ]);
       return result(id, {
-        tools: listMcpTools(ctx.auth.scopes, {
-          hub: await agentHubEnabled(ctx.userId),
-          quit: await isFeatureEnabled(HABITS_QUIT, ctx.userId),
-          dayPlan: await dayPlanEnabled(ctx.userId),
-        }),
+        tools: listMcpTools(ctx.auth.scopes, { hub, quit, dayPlan }),
       });
+    }
     case "tools/call":
       return callTool(ctx, id, params);
     default:
