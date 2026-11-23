@@ -192,6 +192,18 @@ export const SOMEDAY_SWEEP = "someday_sweep";
  */
 export const DAY_PLAN_TOUCHES = "day_plan_touches";
 
+/**
+ * Kill switches: a flag whose job is to stop something at once. Reads of these
+ * never come from the in-process cache, so turning one off takes effect on the
+ * next call everywhere.
+ */
+export const KILL_SWITCH_FLAGS: ReadonlySet<string> = new Set([
+  DAY_PLAN,
+  DAY_PLAN_TOUCHES,
+  ALWAYS_EASY_START,
+  IDEA_CARDS,
+]);
+
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
   [BILLING_CHECKOUT]: "The paywall's checkout button.",
   [SIGNUPS_OPEN]: "New accounts (needs 100% rollout; no per-user overrides).",

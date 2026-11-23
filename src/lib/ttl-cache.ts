@@ -12,6 +12,7 @@
  * between calls sees the change; a cache test turns it on with
  * `setTtlCachesEnabled(true)`.
  */
+import { newDate } from "@/lib/date-utils";
 
 interface Entry<V> {
   expiresAt: number;
@@ -47,11 +48,16 @@ export function clearTtlCaches(name?: string) {
 export function createTtlCache<V>(options: {
   name: string;
   ttlMs: number;
-  /** Past this many keys the cache is emptied rather than grown. */
+  /** Past this many keys the oldest entry is dropped to make room. */
   maxEntries?: number;
   now?: () => number;
 }): TtlCache<V> {
-  const { name, ttlMs, maxEntries = 5000, now = () => Date.now() } = options;
+  const {
+    name,
+    ttlMs,
+    maxEntries = 5000,
+    now = () => newDate().getTime(),
+  } = options;
   const entries = new Map<string, Entry<V>>();
 
   const cache: TtlCache<V> = {
@@ -61,7 +67,12 @@ export function createTtlCache<V>(options: {
       const hit = entries.get(key);
       if (hit && hit.expiresAt > at) return hit.value;
       if (hit) entries.delete(key);
-      if (entries.size >= maxEntries) entries.clear();
+      // Past the cap the oldest entry goes (a Map keeps insertion order).
+      while (entries.size >= maxEntries) {
+        const oldest = entries.keys().next();
+        if (oldest.done) break;
+        entries.delete(oldest.value);
+      }
       const value = load();
       const entry: Entry<V> = { expiresAt: at + ttlMs, value };
       entries.set(key, entry);

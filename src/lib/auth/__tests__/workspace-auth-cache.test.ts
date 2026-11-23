@@ -102,4 +102,64 @@ describe("workspace access, warm path", () => {
     await resolveWorkspaceAccess({ userId: "u3" });
     expect(started.slice(0, 3).sort()).toEqual(["flag", "user", "workspace"]);
   });
+
+  it("keeps two users apart with a warm cache", async () => {
+    workspace.mockImplementation(
+      async (args: { where: { personalOwnerId: string } }) =>
+        args.where.personalOwnerId === "u1"
+          ? { id: "ws-1", kind: WorkspaceKind.PERSONAL }
+          : { id: "ws-2", kind: WorkspaceKind.PERSONAL }
+    );
+    user.mockImplementation(async (args: { where: { id: string } }) => ({
+      id: args.where.id,
+      isActive: true,
+    }));
+
+    const first = await resolveWorkspaceAccess({ userId: "u1" });
+    const other = await resolveWorkspaceAccess({ userId: "u2" });
+    const again = await resolveWorkspaceAccess({ userId: "u1" });
+
+    expect(first.workspaceId).toBe("ws-1");
+    expect(other.workspaceId).toBe("ws-2");
+    expect(again.workspaceId).toBe("ws-1");
+    expect(workspace).toHaveBeenCalledTimes(2);
+    // The membership is always looked up in the cached workspace of that user.
+    expect(memberFind).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { workspaceId_userId: { workspaceId: "ws-1", userId: "u1" } },
+      })
+    );
+  });
+
+  it("does not grant a stale cached workspace after it was recreated", async () => {
+    await resolveWorkspaceAccess({ userId: "u1" }); // caches ws-1
+
+    // The workspace was deleted (its membership went with it) and recreated.
+    workspace.mockResolvedValue({ id: "ws-new", kind: WorkspaceKind.PERSONAL });
+    memberFind.mockImplementation(
+      async (args: {
+        where: { workspaceId_userId: { workspaceId: string } };
+      }) =>
+        args.where.workspaceId_userId.workspaceId === "ws-new"
+          ? { role: WorkspaceRole.OWNER }
+          : null
+    );
+
+    const healed = await resolveWorkspaceAccess({ userId: "u1" });
+    expect(healed.workspaceId).toBe("ws-new");
+    expect(healed.dataScope).toEqual({
+      mode: "workspace",
+      workspaceId: "ws-new",
+    });
+
+    // The next call caches the new one; the one after reads it from the cache.
+    expect((await resolveWorkspaceAccess({ userId: "u1" })).workspaceId).toBe(
+      "ws-new"
+    );
+    workspace.mockClear();
+    expect((await resolveWorkspaceAccess({ userId: "u1" })).workspaceId).toBe(
+      "ws-new"
+    );
+    expect(workspace).not.toHaveBeenCalled();
+  });
 });

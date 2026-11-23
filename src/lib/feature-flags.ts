@@ -15,6 +15,7 @@ import {
   HABIT_EVENING_PUSH,
   HOME_V2,
   IDEA_CARDS,
+  KILL_SWITCH_FLAGS,
   SOMEDAY_SWEEP,
 } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
@@ -23,17 +24,13 @@ import { createTtlCache } from "@/lib/ttl-cache";
 
 /**
  * One read per flag and person per 30 s in this process (a flag read is two
- * statements, and a single MCP call asks for several). A change an admin makes
+ * statements, and a single MCP call asks for several). Kill switches
+ * (`KILL_SWITCH_FLAGS`) are never cached. A change an admin makes
  * through the admin route clears it at once in that process; in other
  * instances it shows within the TTL, which is fine for a rollout switch.
  */
 export const FEATURE_FLAG_CACHE_TTL_MS = 30_000;
 const flagCache = createTtlCache<boolean>({
-  name: "feature-flags",
-  ttlMs: FEATURE_FLAG_CACHE_TTL_MS,
-});
-
-const hubPlanCache = createTtlCache<boolean>({
   name: "feature-flags",
   ttlMs: FEATURE_FLAG_CACHE_TTL_MS,
 });
@@ -47,6 +44,8 @@ export function isFeatureEnabled(
   flagKey: string,
   userId: string
 ): Promise<boolean> {
+  // A kill switch is always read fresh.
+  if (KILL_SWITCH_FLAGS.has(flagKey)) return readFeatureFlag(flagKey, userId);
   return flagCache.get(`${flagKey}:${userId}`, () =>
     readFeatureFlag(flagKey, userId)
   );
@@ -90,13 +89,8 @@ export async function isFeatureEnabledForEveryone(flagKey: string) {
  */
 export async function agentHubEnabled(userId: string) {
   if (!(await isFeatureEnabled(AGENT_HUB, userId))) return false;
-  // Only "allowed" is kept (30 s): a person who has just upgraded must not
-  // wait out a remembered "no".
-  return hubPlanCache.get(userId, async () => {
-    const allowed = (await canUseAgentHub(userId)).allowed;
-    if (!allowed) hubPlanCache.delete(userId);
-    return allowed;
-  });
+  // The plan check is read every time: a plan change shows at once.
+  return (await canUseAgentHub(userId)).allowed;
 }
 
 /**

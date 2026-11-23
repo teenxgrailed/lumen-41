@@ -25,41 +25,67 @@ function event(itemId: string, minute: number) {
   };
 }
 
+/** A database with these events: honours itemId, `at` and take, newest first. */
+function database(rows: ReturnType<typeof event>[]) {
+  findMany.mockImplementation(
+    async (args: {
+      where: { itemId: string; at?: { gte: Date } };
+      take?: number;
+    }) =>
+      rows
+        .filter(
+          (row) =>
+            row.itemId === args.where.itemId &&
+            (!args.where.at || row.at >= args.where.at.gte)
+        )
+        .sort((a, b) => b.at.getTime() - a.at.getTime())
+        .slice(0, args.take)
+  );
+}
+
 describe("inbox events", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(historyWindow).mockResolvedValue({ since, limited: false });
   });
 
-  it("reads the events of every item in one query", async () => {
-    findMany.mockResolvedValue([event("a", 3), event("b", 2), event("a", 1)]);
+  it("gives each item its own events, oldest first", async () => {
+    database([event("a", 3), event("b", 2), event("a", 1)]);
 
     const byItem = await eventsFor("u1", ["a", "b", "c"]);
 
-    expect(findMany).toHaveBeenCalledTimes(1);
-    expect(findMany).toHaveBeenCalledWith({
-      where: { itemId: { in: ["a", "b", "c"] }, at: { gte: since } },
-      orderBy: [{ at: "desc" }],
-    });
     expect(byItem.get("a")?.map((row) => row.id)).toEqual(["a-1", "a-3"]);
     expect(byItem.get("b")?.map((row) => row.id)).toEqual(["b-2"]);
     expect(byItem.get("c")).toEqual([]);
   });
 
-  it("keeps the newest five per item, oldest first", async () => {
-    findMany.mockResolvedValue(
-      [9, 8, 7, 6, 5, 4, 3].map((minute) => event("a", minute))
-    );
+  it("limits every item to its newest five", async () => {
+    database([1, 2, 3, 4, 5, 6, 7, 8].map((minute) => event("a", minute)));
 
     const byItem = await eventsFor("u1", ["a"]);
 
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 5 }));
     expect(byItem.get("a")?.map((row) => row.id)).toEqual([
+      "a-4",
       "a-5",
       "a-6",
       "a-7",
       "a-8",
-      "a-9",
     ]);
+  });
+
+  it("starts every item query at once (one round trip deep)", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    findMany.mockImplementation(async () => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      inFlight -= 1;
+      return [];
+    });
+    await eventsFor("u1", ["a", "b", "c", "d"]);
+    expect(peak).toBe(4);
   });
 
   it("asks for nothing when there are no items", async () => {
@@ -67,21 +93,20 @@ describe("inbox events", () => {
     expect(findMany).not.toHaveBeenCalled();
   });
 
-  it("on a limited history gives an item without events its latest one, in one more query", async () => {
+  it("on a limited history an item without events keeps only its latest one", async () => {
     jest.mocked(historyWindow).mockResolvedValue({ since, limited: true });
-    findMany
-      .mockResolvedValueOnce([event("a", 3)])
-      .mockResolvedValueOnce([event("b", 9), event("b", 1), event("c", 2)]);
-
-    const byItem = await eventsFor("u1", ["a", "b", "c"]);
-
-    expect(findMany).toHaveBeenCalledTimes(2);
-    expect(findMany).toHaveBeenLastCalledWith({
-      where: { itemId: { in: ["b", "c"] } },
-      orderBy: [{ at: "desc" }],
+    const old = (minute: number) => ({
+      ...event("b", minute),
+      at: new Date(Date.UTC(2026, 9, 1, 12, minute)),
     });
+    database([event("a", 3), old(1), old(9), old(5)]);
+
+    const byItem = await eventsFor("u1", ["a", "b"]);
+
     expect(byItem.get("a")?.map((row) => row.id)).toEqual(["a-3"]);
     expect(byItem.get("b")?.map((row) => row.id)).toEqual(["b-9"]);
-    expect(byItem.get("c")?.map((row) => row.id)).toEqual(["c-2"]);
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ take: 1 })
+    );
   });
 });

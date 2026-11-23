@@ -105,4 +105,25 @@ describe("personal token lookup", () => {
     });
     expect(await authenticateBearer(request)).toBeNull();
   });
+
+  it("a failing named lookup does not refuse a valid legacy token", async () => {
+    legacyFind.mockResolvedValue({
+      userId: "u1",
+      tokenExpiresAt: null,
+      tokenLastUsedAt: new Date(),
+    });
+    namedFind.mockRejectedValue(new Error("named table down"));
+
+    expect(await authenticateBearer(request)).toMatchObject({
+      userId: "u1",
+      kind: "personal",
+    });
+  });
+
+  it("still fails loudly when the legacy token is not found and the named lookup errors", async () => {
+    namedFind.mockRejectedValue(new Error("named table down"));
+    await expect(authenticateBearer(request)).rejects.toThrow(
+      "named table down"
+    );
+  });
 });

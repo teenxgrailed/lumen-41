@@ -64,22 +64,30 @@ describe("feature flag cache", () => {
     expect(await isFeatureEnabled("x", "u1")).toBe(false);
   });
 
-  it("three simultaneous hub checks cost one flag read and one plan read", async () => {
-    hubPlan.mockResolvedValue({ allowed: true });
-    const answers = await Promise.all([
-      agentHubEnabled("u1"),
-      agentHubEnabled("u1"),
-      agentHubEnabled("u1"),
-    ]);
-    expect(answers).toEqual([true, true, true]);
-    expect(findFlag).toHaveBeenCalledTimes(1);
-    expect(hubPlan).toHaveBeenCalledTimes(1);
+  it("never serves a kill switch from the cache", async () => {
+    expect(await isFeatureEnabled("day_plan", "u1")).toBe(true);
+    findFlag.mockResolvedValue({
+      key: "day_plan",
+      enabled: false,
+      rolloutPercentage: 100,
+      overrides: [],
+    });
+    expect(await isFeatureEnabled("day_plan", "u1")).toBe(false);
+    for (const key of ["day_plan_touches", "always_easy_start", "idea_cards"]) {
+      findFlag.mockClear();
+      await isFeatureEnabled(key, "u1");
+      await isFeatureEnabled(key, "u1");
+      expect(findFlag).toHaveBeenCalledTimes(2);
+    }
   });
 
-  it("does not remember a plan that is not allowed (an upgrade shows at once)", async () => {
+  it("reads the hub plan every time, so an upgrade shows at once", async () => {
     hubPlan.mockResolvedValueOnce({ allowed: false });
     expect(await agentHubEnabled("u1")).toBe(false);
     hubPlan.mockResolvedValueOnce({ allowed: true });
     expect(await agentHubEnabled("u1")).toBe(true);
+    hubPlan.mockResolvedValueOnce({ allowed: false });
+    expect(await agentHubEnabled("u1")).toBe(false); // a downgrade too
+    expect(findFlag).toHaveBeenCalledTimes(1); // the flag itself is cached
   });
 });

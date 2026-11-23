@@ -196,6 +196,11 @@ export async function resolveWorkspaceAccess(input: {
     );
   }
 
+  if (!existing) {
+    // The cached workspace may be gone or replaced (no OWNER membership in
+    // it): forget it, and let the writing path find or create the real one.
+    personalWorkspaceCache.delete(input.userId);
+  }
   const personal = existing ?? (await ensurePersonalWorkspace(input.userId));
   const requiredRole = input.requiredRole ?? WorkspaceRole.VIEWER;
 

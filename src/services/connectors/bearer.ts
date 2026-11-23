@@ -78,12 +78,17 @@ async function personalToken(token: string): Promise<BearerAuth | null> {
   if (!token.startsWith(PERSONAL_PREFIX)) return null;
   // A token is either the legacy one or a named one, never both: look both up
   // at once (the legacy hit wins, as before) instead of one after the other.
-  const [settings, named] = await Promise.all([
+  // A failed named lookup must not refuse a valid legacy token: its error is
+  // held back and thrown only when the legacy lookup found nothing.
+  const [settings, namedResult] = await Promise.all([
     prisma.connectorSettings.findUnique({
       where: { tokenHash: hashConnectorToken(token) },
       select: { userId: true, tokenExpiresAt: true, tokenLastUsedAt: true },
     }),
-    resolveNamedPersonalToken(token),
+    resolveNamedPersonalToken(token).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error })
+    ),
   ]);
   if (settings) {
     if (isConnectorTokenExpired(settings.tokenExpiresAt)) return null;
@@ -94,6 +99,8 @@ async function personalToken(token: string): Promise<BearerAuth | null> {
       kind: "personal",
     };
   }
+  if (!namedResult.ok) throw namedResult.error;
+  const named = namedResult.value;
   return named
     ? {
         userId: named.userId,

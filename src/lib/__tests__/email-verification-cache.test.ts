@@ -1,6 +1,7 @@
 import {
   EMAIL_VERIFICATION_SETTING_TTL_MS,
   getEmailVerificationStatus,
+  requiresEmailVerificationBeforeAccess,
 } from "@/lib/auth/email-verification-access";
 import { prisma } from "@/lib/prisma";
 import { clearTtlCaches, setTtlCachesEnabled } from "@/lib/ttl-cache";
@@ -51,5 +52,17 @@ describe("email verification status", () => {
     });
     clearTtlCaches("system-settings");
     expect((await getEmailVerificationStatus("u1")).required).toBe(false);
+  });
+
+  it("the admin gate reads the setting fresh every time", async () => {
+    findUser.mockResolvedValue({ email: "a@b.c", emailVerified: null });
+    await getEmailVerificationStatus("u1"); // warms the cache
+    findSettings.mockClear();
+    findSettings.mockResolvedValue({
+      requireEmailVerificationBeforeAccess: false,
+    });
+    expect(await requiresEmailVerificationBeforeAccess()).toBe(false);
+    expect(await requiresEmailVerificationBeforeAccess()).toBe(false);
+    expect(findSettings).toHaveBeenCalledTimes(2);
   });
 });

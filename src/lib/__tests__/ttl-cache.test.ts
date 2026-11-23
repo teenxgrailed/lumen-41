@@ -80,7 +80,7 @@ describe("ttl cache", () => {
     expect(cache.size).toBe(0);
   });
 
-  it("empties itself instead of growing past maxEntries", async () => {
+  it("drops only the oldest entry when it is full", async () => {
     const cache = createTtlCache<number>({
       name: "t-max",
       ttlMs: 1000,
@@ -90,6 +90,12 @@ describe("ttl cache", () => {
     await cache.get("a", load);
     await cache.get("b", load);
     await cache.get("c", load);
-    expect(cache.size).toBe(1);
+    expect(cache.size).toBe(2);
+    expect(load).toHaveBeenCalledTimes(3);
+    await cache.get("b", load); // still cached
+    await cache.get("c", load); // still cached
+    expect(load).toHaveBeenCalledTimes(3);
+    await cache.get("a", load); // was evicted
+    expect(load).toHaveBeenCalledTimes(4);
   });
 });
