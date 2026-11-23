@@ -80,10 +80,12 @@ function Mirror({
   text,
   marks,
   projectHue,
+  mirrorRef,
 }: {
   text: string;
   marks: readonly CoMark[];
   projectHue: string;
+  mirrorRef?: React.Ref<HTMLDivElement>;
 }) {
   const out: ReactNode[] = [];
   let at = 0;
@@ -116,7 +118,7 @@ function Mirror({
   } else if (tail) out.push(<span key="t">{tail}</span>);
   /* A trailing newline would collapse; the space keeps the last line's height. */
   return (
-    <div className="pov-mirror" aria-hidden="true">
+    <div className="pov-mirror" aria-hidden="true" ref={mirrorRef}>
       {out}
       {"​"}
     </div>
@@ -158,7 +160,7 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
   const inflight = useRef(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const noteField = useRef<HTMLTextAreaElement>(null);
-  const line = useRef<HTMLDivElement>(null);
+  const mirror = useRef<HTMLDivElement>(null);
   const rowRef = useRef<Row | null>(null);
   rowRef.current = row;
 
@@ -189,8 +191,8 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
      caret. A long title scrolls the textarea (the layers stop at 240px), so
      the mirror follows its scrollTop or the words and the caret part. */
   const syncMirror = () => {
-    const mirror = line.current?.querySelector<HTMLElement>(".pov-mirror");
-    if (mirror && input.current) mirror.scrollTop = input.current.scrollTop;
+    if (mirror.current && input.current)
+      mirror.current.scrollTop = input.current.scrollTop;
   };
   useLayoutEffect(syncMirror, [text]);
   const vocabulary = useMemo(() => vocabularyOf(projects), [projects]);
@@ -362,8 +364,13 @@ export function PkComposer({ open, onClose }: PkComposerProps) {
         >
           <ShownGlyph size={20} aria-hidden="true" />
         </button>
-        <div className="pov-line" ref={line}>
-          <Mirror text={text} marks={parse.marks} projectHue={projectHue} />
+        <div className="pov-line">
+          <Mirror
+            text={text}
+            marks={parse.marks}
+            projectHue={projectHue}
+            mirrorRef={mirror}
+          />
           <textarea
             ref={input}
             className="pov-big"

@@ -17,6 +17,14 @@ import { isAhead, projectOf } from "./model";
 import { SAY } from "./strings";
 
 const none = () => undefined;
+/** The write went through: a throw while telling the person is not a failed write. */
+const told = (say: () => void) => {
+  try {
+    say();
+  } catch {
+    // the change is saved; the toast is only a courtesy
+  }
+};
 
 type ExitKind = "check" | "done" | "later" | "trash";
 
@@ -68,13 +76,14 @@ export function useTaskRows({
     if (kind === "later")
       return update
         .mutateAsync({ id: t.id, patch: laterPatch(t, today) })
-        .then(({ undo }) => snack(SAY.tomorrow, undo));
+        .then(({ undo }) => told(() => snack(SAY.tomorrow, undo)));
     const alsoUndo = stepUndo.current.get(t.id);
     stepUndo.current.delete(t.id);
     return update
       .mutateAsync({ id: t.id, patch: { done: true } })
       .then(({ undo }) => {
-        if (alsoUndo) snack(`Done · “${t.title}”`, () => undo().then(alsoUndo));
+        if (alsoUndo)
+          told(() => snack(`Done · “${t.title}”`, () => undo().then(alsoUndo)));
       });
   };
   const writeRef = useRef(write);

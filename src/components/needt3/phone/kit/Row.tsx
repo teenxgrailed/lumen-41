@@ -536,7 +536,7 @@ export interface PkTaskRowProps {
   canLater?: boolean;
   onCheck?: (t: V3Task) => void;
   onOpen?: (t: V3Task) => void;
-  onSwipe?: (side: SwipeSide) => void;
+  onSwipe?: (side: SwipeSide) => void | Promise<unknown>;
   /** Swipe left shows Schedule / Delete (see `PkRowActions`). */
   actions?: PkRowActions;
   /** Inside a project's own page the project is not repeated. */

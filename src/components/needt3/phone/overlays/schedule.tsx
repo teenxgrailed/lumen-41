@@ -113,5 +113,11 @@ export function useTrashWithUndo() {
   const trash = useTrashTask();
   // A failed write rejects, so the row that was thrown off the edge returns.
   return (t: V3Task) =>
-    trash.trash(t.id).then(({ undo }) => snack("Moved to Trash", undo));
+    trash.trash(t.id).then(({ undo }) => {
+      try {
+        snack("Moved to Trash", undo);
+      } catch {
+        // the task is trashed; the toast is only a courtesy
+      }
+    });
 }

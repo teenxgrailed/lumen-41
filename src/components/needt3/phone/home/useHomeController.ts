@@ -19,6 +19,14 @@ import { snack } from "../overlays/snack";
 import { dayIn } from "../overlays/today";
 
 const none = () => undefined;
+/** The write went through: a throw while telling the person is not a failed write. */
+const told = (say: () => void) => {
+  try {
+    say();
+  } catch {
+    // the change is saved; the toast is only a courtesy
+  }
+};
 
 /** A row's exit on the desktop Home: the strike plays, then the row collapses. */
 export type HomePhase = "strike" | "collapse";
@@ -92,12 +100,14 @@ export function useHomeController() {
               patch: laterPatch(t, dayIn(newDate(), tzRef.current)),
             })
             .then(({ undo }) =>
-              snack(strings["mobile-v2-plates.jsx"].X.moved_to_tomorrow, undo)
+              told(() =>
+                snack(strings["mobile-v2-plates.jsx"].X.moved_to_tomorrow, undo)
+              )
             )
         : kind === "trash"
           ? trashTask
               .trash(t.id)
-              .then(({ undo }) => snack("Moved to Trash", undo))
+              .then(({ undo }) => told(() => snack("Moved to Trash", undo)))
           : toggleTask.toggle(t);
     // Returned, so a failed write brings a swiped row back (PkRow); the
     // `hide` is put back either way.

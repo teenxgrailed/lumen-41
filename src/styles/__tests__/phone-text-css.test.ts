@@ -20,7 +20,6 @@ describe("phone text selection", () => {
     const body = css.slice(start, css.indexOf("}", start));
     for (const c of [
       ".pk-title",
-      ".pk-row-title",
       ".pk-empty-line",
       ".ptk-edit-err",
       ".phb-item-note",
@@ -28,6 +27,22 @@ describe("phone text selection", () => {
       expect(body).toContain(c);
     expect(body).toContain("user-select: text");
     expect(body).toContain("-webkit-user-select: text");
+  });
+
+  it("a row's title and meta are not listed: a long press there is PkHold's", () => {
+    const start = css.indexOf(".needt-v3 .pk-title");
+    const body = css.slice(start, css.indexOf("}", start));
+    expect(body).not.toContain(".pk-row-title");
+    expect(body).not.toContain(".pk-row-meta");
+  });
+
+  it("a guard after the block keeps none for holds and drag zones", () => {
+    const guard = css.indexOf(".needt-v3 .pk-hold,");
+    expect(guard).toBeGreaterThan(css.indexOf(".needt-v3 .pk-title"));
+    const body = css.slice(guard, css.indexOf("}", guard));
+    for (const c of [".pk-hold", "[data-pd-zone]", ".is-pd-drag *"])
+      expect(body).toContain(c);
+    expect(body).toContain("user-select: none");
   });
 
   it("controls keep none: no button, tab bar or check is listed", () => {

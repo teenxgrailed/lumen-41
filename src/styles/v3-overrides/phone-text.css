@@ -2,15 +2,13 @@
    scrolls. HAND-WRITTEN, loaded after the vendored phone sheets.
    phone-kit.css:23 turns selection off for the whole `.pk-scroll`, which is
    right for controls (buttons, the tab bar, swipe handles, the check ring) but
-   also took it from a task's title, its note and an error line, so none of it
+   also took it from a page title, a note and an error line, so none of it
    could be selected or copied. Controls keep none; the words below get text
    back. Look is unchanged: this touches selection and scrolling only. */
 
 /* ── 1 · words on a phone page can be selected and copied ── */
 .needt-v3 .pk-title,
 .needt-v3 .pk-sub,
-.needt-v3 .pk-row-title,
-.needt-v3 .pk-row-meta,
 .needt-v3 .pk-empty-title,
 .needt-v3 .pk-empty-line,
 .needt-v3 .ptk-sub,
@@ -26,6 +24,19 @@
 .needt-v3 .pd-sp-note {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* A guard: whatever matches above, a hold, a drag zone and a drag in progress
+   never select text. A row's own title and meta are left out of the list on
+   purpose: a long press there is PkHold's, and the lift's. */
+.needt-v3 .pk-hold,
+.needt-v3 .pk-hold *,
+.needt-v3 [data-pd-zone],
+.needt-v3 [data-pd-zone] *,
+.needt-v3.is-pd-drag *,
+.needt-v3 .is-pd-drag * {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* ── 2 · the composer's title scrolls past its 240px cap ──
