@@ -9,9 +9,10 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
-import { skipToken, useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useNeedtReducedMotion } from "@/components/providers/MotionRuntime";
 
@@ -112,11 +113,16 @@ export function useCompletion(options: CompletionOptions = {}) {
   // A task another writer closed (a second device, the MCP, the API) does not
   // blink out: it folds like any other, without the pop. Compared while
   // rendering, so the row never has a frame with the data changed and the
-  // phase not yet set. The cache is only read here (nothing is fetched).
-  const tasks = useQuery({
-    queryKey: qk.tasks({}),
-    queryFn: skipToken,
-  }).data as readonly Pick<V3Task, "id" | "done" | "title">[] | undefined;
+  // phase not yet set. The cache is only read here (nothing is fetched), and
+  // through the cache, not a query observer: an observer on the key the list
+  // itself uses, with a skipToken queryFn, wins the key last render and makes
+  // every invalidate of the list throw instead of refetching.
+  const qc = useQueryClient();
+  const tasks = useSyncExternalStore(
+    (notify) => qc.getQueryCache().subscribe(notify),
+    () => qc.getQueryData(qk.tasks({})),
+    () => undefined
+  ) as readonly Pick<V3Task, "id" | "done" | "title">[] | undefined;
   const [seen, setSeen] = useState(tasks);
   if (tasks !== seen) {
     setSeen(tasks);
