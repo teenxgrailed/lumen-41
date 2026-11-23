@@ -86,7 +86,8 @@ export const SCREEN_GAP_MAX_PX = 100;
  * imports, the cap is passed in.
  */
 export function screenGapOf(r: ViewportReading, cap: number): number {
-  if (!r.standalone) return 0;
+  // iOS only: another platform's installed app has no such shortfall.
+  if (!r.standalone || !r.ios) return 0;
   // Landscape: the phone UI is not drawn.
   if (r.innerWidth > r.innerHeight) return 0;
   const gap = Math.max(r.screenWidth, r.screenHeight) - r.innerHeight;

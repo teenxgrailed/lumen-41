@@ -138,21 +138,21 @@ html[data-ground="page"]:has(
  * `data-display-mode` (set from `navigator.standalone`, the one iOS always
  * has). These rules come after the scope's own `--v3-vp-gap: 0px`. */
 @supports (height: 100dvh) and (height: 100lvh) {
-  @media (display-mode: standalone) {
-    .needt-v3[data-ui="phone"] {
-      --v3-vp-gap: clamp(
-        0px,
-        max(calc(100lvh - 100dvh), var(--v3-screen-gap, 0px)),
-        100px
-      );
-    }
-  }
-  html[data-display-mode="standalone"] .needt-v3[data-ui="phone"] {
-    --v3-vp-gap: clamp(
+  /* the one place the clamp is written */
+  .needt-v3[data-ui="phone"] {
+    --v3-vp-gap-app: clamp(
       0px,
       max(calc(100lvh - 100dvh), var(--v3-screen-gap, 0px)),
       100px
     );
+  }
+  @media (display-mode: standalone) {
+    .needt-v3[data-ui="phone"] {
+      --v3-vp-gap: var(--v3-vp-gap-app);
+    }
+  }
+  html[data-display-mode="standalone"] .needt-v3[data-ui="phone"] {
+    --v3-vp-gap: var(--v3-vp-gap-app);
   }
 }
 

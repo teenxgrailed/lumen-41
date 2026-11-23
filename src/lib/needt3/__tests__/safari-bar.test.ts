@@ -75,6 +75,10 @@ describe("screenGapOf (the installed app's short viewport)", () => {
     expect(gap({ ...app(300, 700), screenHeight: 874 })).toBe(0);
   });
 
+  it("an installed app off iOS (Android standalone): 0", () => {
+    expect(gap({ ...app(812), ios: false })).toBe(0);
+  });
+
   it("a Safari tab: 0 (its bars are not this gap)", () => {
     expect(gap({ ...app(714), standalone: false })).toBe(0);
   });

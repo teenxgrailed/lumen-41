@@ -294,17 +294,22 @@ describe("phone page ground", () => {
       expect(block).toContain(
         'html[data-display-mode="standalone"] .needt-v3[data-ui="phone"]'
       );
-      const gap = block.match(
-        /clamp\(\s*0px,\s*max\(calc\(100lvh - 100dvh\), var\(--v3-screen-gap, 0px\)\),\s*100px\s*\)/g
+      // the clamp is written once; both rules read it
+      expect(
+        block.match(
+          /clamp\(\s*0px,\s*max\(calc\(100lvh - 100dvh\), var\(--v3-screen-gap, 0px\)\),\s*100px\s*\)/g
+        )
+      ).toHaveLength(1);
+      expect(block.match(/--v3-vp-gap: var\(--v3-vp-gap-app\)/g)).toHaveLength(
+        2
       );
-      expect(gap).toHaveLength(2);
       // never in a Safari tab
       expect(block).not.toContain('data-display-mode="browser"');
     });
 
     it("the gap rules come after the scope's own 0, or the zero would win", () => {
       const zero = css.indexOf("--v3-vp-gap: 0px");
-      const gap = css.indexOf("--v3-vp-gap: clamp(");
+      const gap = css.indexOf("--v3-vp-gap: var(--v3-vp-gap-app)");
       expect(zero).toBeGreaterThanOrEqual(0);
       expect(gap).toBeGreaterThan(zero);
     });
