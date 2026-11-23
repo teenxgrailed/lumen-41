@@ -11,20 +11,12 @@ import { flowSteps } from "../../work/flow";
 import { isOverdue } from "../../work/model";
 import { PkTaskRow, usePkExit } from "../kit";
 import { useTaskActions, useTrashWithUndo } from "../overlays/schedule";
-import { snack } from "../overlays/snack";
+import { snackAfterWrite } from "../overlays/snackAfterWrite";
 import { usePhoneOverlays } from "../overlays/store";
 import { isAhead, projectOf } from "./model";
 import { SAY } from "./strings";
 
 const none = () => undefined;
-/** The write went through: a throw while telling the person is not a failed write. */
-const told = (say: () => void) => {
-  try {
-    say();
-  } catch {
-    // the change is saved; the toast is only a courtesy
-  }
-};
 
 type ExitKind = "check" | "done" | "later" | "trash";
 
@@ -76,14 +68,14 @@ export function useTaskRows({
     if (kind === "later")
       return update
         .mutateAsync({ id: t.id, patch: laterPatch(t, today) })
-        .then(({ undo }) => told(() => snack(SAY.tomorrow, undo)));
+        .then(({ undo }) => snackAfterWrite(SAY.tomorrow, undo));
     const alsoUndo = stepUndo.current.get(t.id);
     stepUndo.current.delete(t.id);
     return update
       .mutateAsync({ id: t.id, patch: { done: true } })
       .then(({ undo }) => {
         if (alsoUndo)
-          told(() => snack(`Done · “${t.title}”`, () => undo().then(alsoUndo)));
+          snackAfterWrite(`Done · “${t.title}”`, () => undo().then(alsoUndo));
       });
   };
   const writeRef = useRef(write);

@@ -40,8 +40,11 @@ describe("phone text selection", () => {
     const guard = css.indexOf(".needt-v3 .pk-hold,");
     expect(guard).toBeGreaterThan(css.indexOf(".needt-v3 .pk-title"));
     const body = css.slice(guard, css.indexOf("}", guard));
-    for (const c of [".pk-hold", "[data-pd-zone]", ".is-pd-drag *"])
+    for (const c of [".pk-hold", "[data-pd-zone]", ".needt-v3.is-pd-drag *"])
       expect(body).toContain(c);
+    // fields stay editable, and the drag selector is not listed twice
+    expect(body).toContain("*:not(input, textarea, [contenteditable])");
+    expect(body).not.toContain(".needt-v3 .is-pd-drag");
     expect(body).toContain("user-select: none");
   });
 

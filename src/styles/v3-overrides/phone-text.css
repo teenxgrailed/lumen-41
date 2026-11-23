@@ -28,13 +28,13 @@
 
 /* A guard: whatever matches above, a hold, a drag zone and a drag in progress
    never select text. A row's own title and meta are left out of the list on
-   purpose: a long press there is PkHold's, and the lift's. */
+   purpose: a long press there is PkHold's, and the lift's. Fields stay
+   editable, so they are skipped. */
 .needt-v3 .pk-hold,
-.needt-v3 .pk-hold *,
+.needt-v3 .pk-hold *:not(input, textarea, [contenteditable]),
 .needt-v3 [data-pd-zone],
-.needt-v3 [data-pd-zone] *,
-.needt-v3.is-pd-drag *,
-.needt-v3 .is-pd-drag * {
+.needt-v3 [data-pd-zone] *:not(input, textarea, [contenteditable]),
+.needt-v3.is-pd-drag *:not(input, textarea, [contenteditable]) {
   -webkit-user-select: none;
   user-select: none;
 }

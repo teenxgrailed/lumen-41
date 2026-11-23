@@ -10,6 +10,7 @@ import type { V3Task } from "@/lib/needt3/map";
 
 import { PkButton, PkSheet } from "../kit";
 import { snack } from "./snack";
+import { snackAfterWrite } from "./snackAfterWrite";
 import { usePkToday } from "./today";
 
 const none = () => undefined;
@@ -113,11 +114,7 @@ export function useTrashWithUndo() {
   const trash = useTrashTask();
   // A failed write rejects, so the row that was thrown off the edge returns.
   return (t: V3Task) =>
-    trash.trash(t.id).then(({ undo }) => {
-      try {
-        snack("Moved to Trash", undo);
-      } catch {
-        // the task is trashed; the toast is only a courtesy
-      }
-    });
+    trash
+      .trash(t.id)
+      .then(({ undo }) => snackAfterWrite("Moved to Trash", undo));
 }
