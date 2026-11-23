@@ -120,7 +120,12 @@ describe("task parts and waits routes", () => {
       expect(res.status).toBe(404);
       expect(db.task.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: TASK.id, workspaceId: "ws-b" },
+          where: expect.objectContaining({
+            id: TASK.id,
+            workspaceId: "ws-b",
+            // another member's idea stays private to its owner
+            NOT: { kind: "IDEA", userId: { not: "user-ws-b" } },
+          }),
         })
       );
       expect(db.taskPart.create).not.toHaveBeenCalled();

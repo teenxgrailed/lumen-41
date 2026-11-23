@@ -1,9 +1,9 @@
 import { getPlanSettings } from "@/services/day-plan/settings";
 import { queueEasyStart } from "@/services/easy-start/queue";
-import { readIdeaCards } from "@/services/ideas/cards";
+import { countVisibleTasks, readIdeaCards } from "@/services/ideas/cards";
 import {
-  CARDS_PER_DAY,
   TAKE_DEFAULT_MINUTES,
+  cardSlots,
   isOffered,
   localDay,
   skipResult,
@@ -238,13 +238,15 @@ async function shownStamp(
 export const ideaShown = defineOp({
   name: "idea.shown",
   description:
-    "Mark an idea card as displayed now: it counts against the day's 2 cards and records idea_shown once. Idempotent for the day; refused (conflict) when 2 other ideas were already shown today or the idea is snoozed or archived. Not undoable.",
+    "Mark an idea card as displayed now: it counts against the day's 2 cards and records idea_shown once. Idempotent for the day; refused (conflict) when the day's cards are already shown (2, or 1 when visibleTasks is 0, the same cap as idea.cards) or the idea is snoozed or archived. Pass the same visibleTasks as idea.cards. Not undoable.",
   risk: "reversible",
   input: z
     .object({
       taskId,
       /** The card's `after` hint, for the measurement. */
       position: z.number().int().min(0).max(50).optional(),
+      /** How many tasks the list shows, as for idea.cards; counted when omitted. */
+      visibleTasks: z.number().int().min(0).max(500).optional(),
     })
     .strict(),
   async run(ctx, input) {
@@ -264,10 +266,18 @@ export const ideaShown = defineOp({
     await ctx.tx.$executeRaw(
       Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`idea-cards:${ctx.userId}`}, 0))`
     );
+    // Decide on what the lock holder sees, not on the row read before the lock:
+    // another screen may have marked this idea (or used the day's slots) while
+    // this call waited.
+    const fresh = await ctx.tx.task.findFirst({
+      where: { id: idea.id, ...ctx.scope, userId: ctx.userId },
+      select: { ideaLastShownAt: true },
+    });
+    if (!fresh) throw new OpError("NOT_FOUND", "Idea not found");
     const already =
-      !!idea.ideaLastShownAt &&
-      idea.ideaLastShownAt >= today.start &&
-      idea.ideaLastShownAt < today.end;
+      !!fresh.ideaLastShownAt &&
+      fresh.ideaLastShownAt >= today.start &&
+      fresh.ideaLastShownAt < today.end;
     if (already) return noChange(true, "already");
     const stamped = await ctx.tx.task.count({
       where: {
@@ -275,7 +285,16 @@ export const ideaShown = defineOp({
         ideaLastShownAt: { gte: today.start, lt: today.end },
       },
     });
-    if (stamped >= CARDS_PER_DAY) {
+    // The same cap idea.cards uses (rules.cardSlots), so a day with no visible
+    // task gets one card here as there.
+    const visibleTasks =
+      input.visibleTasks ??
+      (await countVisibleTasks(ctx.tx, {
+        userId: ctx.userId,
+        scope: ctx.scope,
+        today,
+      }));
+    if (cardSlots({ stampedToday: stamped, visibleTasks }) <= 0) {
       throw new OpError("CONFLICT", "The day's cards are already shown");
     }
     const updated = await ctx.tx.task.update({

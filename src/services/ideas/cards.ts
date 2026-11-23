@@ -46,6 +46,37 @@ export type CardSurface = "today" | "home" | "review" | "plan";
 const OPEN = ["todo", "in_progress"];
 
 /**
+ * How many open tasks the person has on the local day: what the Today list
+ * shows, and what the day's card cap and the card positions are measured
+ * against. `idea.cards` and `idea.shown` both count it here, so they never
+ * disagree about how many cards the day may have.
+ */
+export async function countVisibleTasks(
+  db: { task: Pick<Prisma.TransactionClient["task"], "count"> },
+  input: {
+    userId: string;
+    scope: Prisma.TaskWhereInput;
+    today: { start: Date; end: Date };
+  }
+): Promise<number> {
+  return db.task.count({
+    where: {
+      ...input.scope,
+      userId: input.userId,
+      ...openTaskWhere(),
+      isArchived: false,
+      trashedAt: null,
+      somedayAt: null,
+      status: { in: OPEN },
+      OR: [
+        { scheduledStart: { gte: input.today.start, lt: input.today.end } },
+        { dueDate: { gte: input.today.start, lt: input.today.end } },
+      ],
+    },
+  });
+}
+
+/**
  * The cards for today: at most two ideas per local day, least recently shown
  * first, never-shown first. A read writes nothing (a token with read scope cannot
  * use up the day's slots); the screen marks a card shown with `idea.shown` when it
@@ -90,19 +121,10 @@ export async function readIdeaCards(input: {
 
   const visibleTasks =
     input.visibleTasks ??
-    (await prisma.task.count({
-      where: {
-        ...own,
-        ...openTaskWhere(),
-        isArchived: false,
-        trashedAt: null,
-        somedayAt: null,
-        status: { in: OPEN },
-        OR: [
-          { scheduledStart: { gte: today.start, lt: today.end } },
-          { dueDate: { gte: today.start, lt: today.end } },
-        ],
-      },
+    (await countVisibleTasks(prisma, {
+      userId: input.userId,
+      scope: input.scope,
+      today,
     }));
 
   // Reading never writes: it only says which ideas are today's cards. Those

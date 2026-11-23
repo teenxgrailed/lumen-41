@@ -10,6 +10,7 @@ import {
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
+import { kindWhere } from "@/lib/tasks/open-task";
 
 /**
  * Parts (TaskPart) and waits (TaskWait) of one task. Every route resolves the
@@ -80,6 +81,8 @@ export async function scopedTaskId(auth: PartsWaitsAuth, taskId: string) {
     where: {
       id: taskId,
       ...workspaceDataScopeWhere(auth.workspace, auth.userId),
+      // Another member's idea stays private to its owner.
+      ...kindWhere("any", auth.userId),
     },
     select: { id: true },
   });

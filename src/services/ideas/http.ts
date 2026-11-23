@@ -131,7 +131,7 @@ export const ideaHandlers = {
   take: (caller: Caller, id: string, logSource: string) =>
     respond(logSource, () => runOp("idea.take", { taskId: id }, caller)),
 
-  /** POST /ideas/:id/shown { position? }: the screen displayed the card. */
+  /** POST /ideas/:id/shown { position?, visibleTasks? }: the screen displayed the card. */
   shown: (
     request: NextRequest,
     caller: Caller,
@@ -140,13 +140,13 @@ export const ideaHandlers = {
   ) =>
     respond(logSource, async () => {
       const body = await readBody(request);
-      const position =
-        body && typeof body === "object" && "position" in body
-          ? (body as { position?: unknown }).position
-          : undefined;
+      const field = (key: "position" | "visibleTasks") =>
+        body && typeof body === "object" && key in body
+          ? { [key]: (body as Record<string, unknown>)[key] }
+          : {};
       return runOp(
         "idea.shown",
-        { taskId: id, ...(position === undefined ? {} : { position }) },
+        { taskId: id, ...field("position"), ...field("visibleTasks") },
         caller
       );
     }),

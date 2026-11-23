@@ -134,6 +134,7 @@ describe("connector recoverable mutations", () => {
       where: {
         id: "task-1",
         workspaceId: "workspace-1",
+        NOT: { kind: "IDEA", userId: { not: "user-1" } },
         isArchived: true,
       },
       data: { isArchived: false, archivedAt: null },
