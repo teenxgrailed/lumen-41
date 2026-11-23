@@ -656,6 +656,7 @@ describe("idea.cards", () => {
   const shown = (taskId: string, extra: Record<string, unknown> = {}) =>
     run<{ shown: boolean; reason?: string }>("idea.shown", {
       taskId,
+      visibleTasks: 8,
       ...extra,
     });
   const stamped = () => db.tables.task.filter((r) => r.ideaLastShownAt);
@@ -737,6 +738,62 @@ describe("idea.cards", () => {
       code: "CONFLICT",
     });
     expect(stamped()).toHaveLength(2);
+  });
+
+  it("decides on the row read after the advisory lock, not before it", async () => {
+    const idea = await seedIdea({ title: "Raced" });
+    // Another screen marks this very idea while this call waits for the lock.
+    db.client.$executeRaw = async () => {
+      taskRow(db, idea.id).ideaLastShownAt = NOW;
+      return 0;
+    };
+    const out = await shown(idea.id);
+    expect(out.result).toMatchObject({ shown: true, reason: "already" });
+    // the pre-lock read said "not shown": it must not stamp or record again
+    expect(recordActivation).not.toHaveBeenCalled();
+    expect(iso(taskRow(db, idea.id).ideaLastShownAt)).toBe(NOW.toISOString());
+  });
+
+  it("counts the day's slots after the lock too", async () => {
+    const ideas: Awaited<ReturnType<typeof seedIdea>>[] = [];
+    for (let i = 0; i < 3; i += 1)
+      ideas.push(await seedIdea({ title: `I${i}` }));
+    await shown(ideas[0].id);
+    // a second screen takes the last slot while the third idea waits
+    db.client.$executeRaw = async () => {
+      taskRow(db, ideas[1].id).ideaLastShownAt = NOW;
+      return 0;
+    };
+    await expect(shown(ideas[2].id)).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+    expect(taskRow(db, ideas[2].id).ideaLastShownAt).toBeNull();
+  });
+
+  it("allows one card on a day with no visible task, like idea.cards", async () => {
+    const [a, b] = [await seedIdea({ title: "A" }), await seedIdea()];
+    // no task today and none said: the server counts zero itself
+    const mark = (taskId: string) =>
+      run<{ shown: boolean }>("idea.shown", { taskId });
+    const first = await mark(a.id);
+    expect(first.result.shown).toBe(true);
+    await expect(mark(b.id)).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(stamped()).toHaveLength(1);
+    // and the read agrees: nothing left to show
+    expect(
+      (await cards({ visibleTasks: 0 })).result.cards.map((c) => c.id)
+    ).toEqual([a.id]);
+  });
+
+  it("uses the client's visibleTasks for the cap, as idea.cards does", async () => {
+    const [a, b] = [await seedIdea({ title: "A" }), await seedIdea()];
+    await shown(a.id, { visibleTasks: 0 });
+    await expect(shown(b.id, { visibleTasks: 0 })).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+    // with tasks on the list the second slot is open
+    const out = await shown(b.id, { visibleTasks: 8 });
+    expect(out.result.shown).toBe(true);
   });
 
   it("refuses an idea that is snoozed or archived, and a task", async () => {

@@ -52,11 +52,20 @@ import {
   ChangeType,
   TaskChangeTracker,
 } from "@/lib/task-sync/task-change-tracker";
+import { kindWhere } from "@/lib/tasks/open-task";
 import { normalizeRecurrenceRule } from "@/lib/utils/normalize-recurrence-rules";
 
 import { TaskStatus } from "@/types/task";
 
 const LOG_SOURCE = "task-route";
+
+/**
+ * Another member's idea is not found by id (an idea is personal). The shared
+ * `kindWhere("any")` rule, narrowed to the `NOT` key it sets so the unique
+ * lookups below keep their include types.
+ */
+const personalIdeasOnly = (userId: string) =>
+  kindWhere("any", userId) as Required<Pick<Prisma.TaskWhereInput, "NOT">>;
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -74,6 +83,8 @@ export async function GET(
       where: {
         id,
         ...workspaceDataScopeWhere(auth.workspace, userId),
+        // an idea is personal: another member's is not found
+        ...personalIdeasOnly(userId),
       },
       include: {
         tags: true,
@@ -126,6 +137,8 @@ export async function PUT(
       where: {
         id,
         ...workspaceDataScopeWhere(auth.workspace, userId),
+        // an idea is personal: another member's is not found
+        ...personalIdeasOnly(userId),
       },
       include: {
         tags: true,
@@ -640,10 +653,10 @@ export async function DELETE(
 
     // `?permanent=true` deletes a task that is already in Trash for good.
     if (request.nextUrl.searchParams.get("permanent") === "true") {
-      const outcome = await deleteTaskForever(
-        id,
-        workspaceDataScopeWhere(auth.workspace, userId)
-      );
+      const outcome = await deleteTaskForever(id, {
+        ...workspaceDataScopeWhere(auth.workspace, userId),
+        ...personalIdeasOnly(userId),
+      });
       if (outcome === "not-found")
         return new NextResponse("Task not found", { status: 404 });
       if (outcome === "not-trashed")
@@ -658,6 +671,8 @@ export async function DELETE(
       where: {
         id,
         ...workspaceDataScopeWhere(auth.workspace, userId),
+        // an idea is personal: another member's is not found
+        ...personalIdeasOnly(userId),
       },
       include: {
         project: true,

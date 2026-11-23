@@ -15,7 +15,7 @@ import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
-import { openTaskWhere } from "@/lib/tasks/open-task";
+import { kindWhere, openTaskWhere } from "@/lib/tasks/open-task";
 
 import { TaskStatus } from "@/types/task";
 
@@ -323,7 +323,13 @@ async function handleControl(
     const target =
       action === "delete_task"
         ? await prisma.task.findFirst({
-            where: { id: body.id, ...scope, isArchived: false },
+            where: {
+              id: body.id,
+              ...scope,
+              // an idea is personal: another member's is not found
+              ...kindWhere("any", userId),
+              isArchived: false,
+            },
             select: {
               id: true,
               title: true,
