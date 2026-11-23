@@ -13,8 +13,13 @@ const mix = (c, a) =>
   a >= 0.995
     ? c
     : `color-mix(in oklch, ${c} ${Math.round(a * 100)}%, transparent)`;
-const VIOLET = "oklch(0.62 0.19 300)";
-const AMBER = "#ed990e";
+// The hues that have no design-system token carry a placeholder through the
+// swap and leave as `var(--g-…, <the landing colour>)`: the default is the
+// landing's colour, and a surface that draws a glyph in one ink (the phone's
+// dock) sets the variables to its ink.
+const VIOLET = "@@VIOLET@@";
+const AMBER = "@@AMBER@@";
+const HALO = "@@HALO@@";
 
 function hueOf(r, g, b) {
   if (Math.max(r, g, b) - Math.min(r, g, b) < 24) return "var(--text-primary)";
@@ -37,6 +42,7 @@ function swap(s) {
     "#9964e5": VIOLET,
     "#ed990e": AMBER,
     "#1a1c1e": "var(--text-primary)",
+    "#d0e5d0": HALO,
   };
   return s.replace(/#[0-9a-fA-F]{6}\b/g, (h) => hex[h.toLowerCase()] ?? h);
 }
@@ -47,7 +53,11 @@ for (const f of readdirSync(join(dir, "svg")).sort()) {
   if (!m) throw new Error(f);
   out[f.replace(".svg", "")] = {
     vb: m[1],
-    body: swap(m[2]).replace(/\s*\/>/g, "/>"),
+    body: swap(m[2])
+      .replace(/\s*\/>/g, "/>")
+      .replaceAll(VIOLET, "var(--g-violet, oklch(0.62 0.19 300))")
+      .replaceAll(AMBER, "var(--g-amber, #ed990e)")
+      .replaceAll(HALO, "var(--g-halo, #d0e5d0)"),
   };
 }
 const names = Object.keys(out);
