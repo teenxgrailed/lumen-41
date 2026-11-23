@@ -1,0 +1,215 @@
+/*
+ * Who wears the raised material (raised.css), 2026-11-23. Owner: the soft
+ * volume is for every small object you can press, not only the floating bar:
+ * buttons, chips, switches and segmented controls. One material, one set of
+ * tokens (`--v3-raised-*`, light and dark); this file only lists who wears it,
+ * by the app's own class names, so nothing here carries a shadow of its own.
+ *
+ * Loaded last (v3-entry.css): a member rule must outrank the vendored sheets
+ * and the per-screen overrides at equal specificity, and it does so by coming
+ * after them. Four shapes, one per job:
+ *
+ *   disc   background (a slightly lit fill) + box-shadow: a button or a chip
+ *   ink    box-shadow only: the primary button keeps its own ink fill
+ *   well   box-shadow only: a track the discs run in (a switch, a segmented
+ *          control's groove)
+ *   knob   box-shadow only: a switch knob, which keeps its own fill so a
+ *          light knob on a dark track still reads
+ *
+ * Rules that go with it (docs/handoff/PORT.md still wins):
+ * - Geometry never changes here: no size, radius, padding or transform. The
+ *   app-wide press rule owns `transform` (it replaces it), so nothing here
+ *   sets one.
+ * - The accent is never a fill: a chosen segment is the theme's neutral pick
+ *   (ink on light, a raised grey on dark), never the accent.
+ * - box-shadow only, no filter and no backdrop-filter: a list of N chips is N
+ *   shadows, not N live blurs. (The glass chip's blur goes: its fill is a disc
+ *   now, so a blur under it would be paid for and invisible.)
+ * - Selected and open states that draw a 1.5 px inset ring on the same
+ *   `box-shadow` keep it: their rules are more specific than the plain member
+ *   rules below, or are composed with the disc on purpose (the ring first).
+ * - Not here, on purpose: big surfaces (sheets, cards, rows, plates), flat
+ *   icon buttons and text buttons (they have no ground to lift), the sky
+ *   plates' glass, the Agents night screens (their own material), and the
+ *   dark desktop segmented controls (a selected ring on purpose, for contrast).
+ */
+
+/* ── phone: buttons and chips ─────────────────────────────────────────────
+ * .pk-btn is the kit's button: the 54 px sheet buttons ("Close", "Cancel"),
+ * the 32 px chips ("New", "Move to today"), the 26 px inline ones. Ghost is
+ * text and stays flat; the sky plates keep their glass. The `:not(... .pk-btn)`
+ * raises this rule above the plate and muted-plate variants on purpose. */
+.needt-v3
+  .pk-btn:not(.is-primary):not(.is-ghost):not(.ptk-add-go):not(
+    .pk-skyplate .pk-btn
+  ) {
+  background: linear-gradient(
+    180deg,
+    var(--v3-raised-disc-top) 0%,
+    var(--v3-raised-disc) 100%
+  );
+  box-shadow: var(--v3-raised-disc-shadow);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.needt-v3
+  .pk-btn:not(.is-primary):not(.is-ghost):not(.ptk-add-go):not(
+    .pk-skyplate .pk-btn
+  ):not(:disabled):active {
+  box-shadow: var(--v3-raised-disc-press);
+}
+.needt-v3 .pk-btn.is-primary:not(.pk-skyplate .pk-btn):not(:disabled),
+.needt-v3 .ptk-add-go.pk-btn:not(:disabled) {
+  box-shadow: var(--v3-raised-ink-shadow);
+}
+.needt-v3 .ha-btn:not(.is-primary):not(.is-text) {
+  background: linear-gradient(
+    180deg,
+    var(--v3-raised-disc-top) 0%,
+    var(--v3-raised-disc) 100%
+  );
+  box-shadow: var(--v3-raised-disc-shadow);
+}
+.needt-v3 .ha-btn:not(.is-primary):not(.is-text):active {
+  box-shadow: var(--v3-raised-disc-press);
+}
+.needt-v3 .ha-btn.is-primary {
+  box-shadow: var(--v3-raised-ink-shadow);
+}
+.needt-v3 .ps-mini,
+.needt-v3 .ps11-back,
+.needt-v3 .phb-proj,
+.needt-v3 .ps-avatar-cam,
+.needt-v3 .pov-icon-btn:not(.is-sheet) {
+  background: linear-gradient(
+    180deg,
+    var(--v3-raised-disc-top) 0%,
+    var(--v3-raised-disc) 100%
+  );
+  box-shadow: var(--v3-raised-disc-shadow);
+}
+/* the habit sheet's project chips: the chosen one keeps its ink ring */
+.needt-v3 .phb-proj.is-on {
+  box-shadow:
+    inset 0 0 0 1.5px var(--v2p-ink),
+    var(--v3-raised-disc-shadow);
+}
+/* the options button of the Ask composer, when its menu is open: the ring,
+ * then the disc under it */
+.needt-v3 .pov-icon-btn.is-open {
+  box-shadow:
+    inset 0 0 0 1.5px var(--v2p-lav-ring),
+    var(--v3-raised-disc-shadow);
+}
+.needt-v3 .pov-ask-send:not(:disabled):not(.is-stop) {
+  box-shadow: var(--v3-raised-ink-shadow);
+}
+
+/* ── phone: segmented controls ────────────────────────────────────────────
+ * The groove is a well; the chosen segment is a disc (a white one on light)
+ * or the theme's own pick (ink on light, a raised grey on dark). */
+.needt-v3 .ps-seg,
+.needt-v3 .phb-seg,
+.needt-v3 .pd-seg,
+.needt-v3 .ptk-seg {
+  box-shadow: var(--v3-raised-well);
+}
+.needt-v3 .ps-seg-btn.is-on,
+.needt-v3 .phb-seg-btn.is-on,
+.needt-v3 .pd-seg-btn.is-on {
+  background: linear-gradient(
+    180deg,
+    var(--v3-raised-disc-top) 0%,
+    var(--v3-raised-disc) 100%
+  );
+  box-shadow: var(--v3-raised-disc-shadow);
+}
+.needt-v3 .ptk-seg-btn.is-on,
+.needt-v3 .v2p-seg-btn.is-on {
+  box-shadow: var(--v3-raised-pick-shadow);
+}
+
+/* ── phone: switches ──────────────────────────────────────────────────────
+ * The track is a groove; the knob is a small disc standing in it. The knob's
+ * fill is the switch's own (light on a dark off-track, the ground on the ink
+ * on-track), so only its shadow changes. */
+.needt-v3 .ps-switch,
+.needt-v3 .phb-switch,
+.needt-v3 .ppl-switch,
+.needt-v3 .pd-switch {
+  box-shadow: var(--v3-raised-well);
+}
+.needt-v3 .ps-switch:not(.is-on) {
+  box-shadow:
+    var(--v3-raised-well),
+    inset 0 0 0 1px var(--v2p-line);
+}
+.needt-v3 .ps-switch-knob,
+.needt-v3 .phb-switch-knob,
+.needt-v3 .ppl-switch-knob,
+.needt-v3 .pd-switch-knob {
+  box-shadow: var(--v3-raised-knob-shadow);
+}
+
+/* ── desktop and tablet ───────────────────────────────────────────────────
+ * The button system (app.css: ink, secondary, text, danger). Secondary is the
+ * raised one; primary keeps its ink fill and takes the ink volume. Its hover
+ * overlay (a background-image rule, more specific) still wins on hover. */
+.needt-v3 .nx-btn-secondary {
+  background: linear-gradient(
+    180deg,
+    var(--v3-raised-disc-top) 0%,
+    var(--v3-raised-disc) 100%
+  );
+  box-shadow: var(--v3-raised-disc-shadow);
+}
+.needt-v3 .nx-btn-primary {
+  box-shadow: var(--v3-raised-ink-shadow);
+}
+/* the task sheet's property chips (when, project, estimate ...); the empty
+ * "+ add" ones stay a hairline outline, and an open one keeps its ring */
+.needt-v3 .tdc-chip:not(.is-empty) {
+  background: linear-gradient(
+    180deg,
+    var(--v3-raised-disc-top) 0%,
+    var(--v3-raised-disc) 100%
+  );
+  box-shadow: var(--v3-raised-disc-shadow);
+}
+.needt-v3 .tdc-chip:not(.is-empty):hover {
+  background: var(--fill-4);
+}
+.needt-v3 .tdc-chip:not(.is-empty)[aria-expanded="true"] {
+  box-shadow:
+    var(--text-primary) 0 0 0 1.5px inset,
+    var(--v3-raised-disc-shadow);
+}
+/* segmented: the groove, and the chosen one a disc (the dark desktop keeps
+ * its selected ring, base.css) */
+.needt-v3 .tdc-seg,
+.needt-v3 .toggle-group {
+  box-shadow: var(--v3-raised-well);
+}
+.needt-v3 .tdc-seg > button[aria-pressed="true"],
+.needt-v3 .pl-seg-btn[aria-pressed="true"],
+.needt-v3 .toggle-group > button[aria-pressed="true"],
+.needt-v3 .toggle-group > button[aria-checked="true"],
+.needt-v3 .toggle-group > button.is-selected,
+.needt-v3 .segment[aria-selected="true"],
+.needt-v3 .segment.is-selected {
+  background: linear-gradient(
+    180deg,
+    var(--v3-raised-disc-top) 0%,
+    var(--v3-raised-disc) 100%
+  );
+  box-shadow: var(--v3-raised-disc-shadow);
+}
+/* the settings switch (V3Switch): a groove and a small disc. A checked knob is
+ * the accent as a mark, which is allowed; it only gains the volume. */
+.needt-v3 .nt-switch-track {
+  box-shadow: var(--v3-raised-well);
+}
+.needt-v3 .nt-switch-knob,
+.needt-v3 .nt-switch[data-checked="true"] .nt-switch-knob {
+  box-shadow: var(--v3-raised-knob-shadow);
+}
