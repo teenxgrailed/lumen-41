@@ -3,17 +3,17 @@ import { join } from "node:path";
 
 import {
   APP_ICONS,
+  ICON_RELEASE_AT,
+  accountPredatesIcons,
+  iconIntroSeenLocally,
+  markIconIntroSeenLocally,
   APP_ICON_PREF,
   DEFAULT_APP_ICON,
-  ICON_RELEASE_AT,
   SEEN_ICON_PICKER_PREF,
-  accountPredatesIcons,
   appIconFromPrefs,
   appIconLocked,
   appIconPrefsError,
-  iconIntroSeenLocally,
   iconLinkHref,
-  markIconIntroSeenLocally,
   nativeIconName,
   seenIconPickerFromPrefs,
   shouldShowIconPicker,
@@ -110,7 +110,9 @@ describe("app icon: the one-time popup", () => {
     expect(accountPredatesIcons("2026-11-02T08:00:00Z")).toBe(false);
     expect(accountPredatesIcons(null)).toBe(false);
     expect(accountPredatesIcons("nonsense")).toBe(false);
-    expect(shouldShowIconPicker({ ...base, predatesIcons: false })).toBe(false);
+    expect(shouldShowIconPicker({ ...base, predatesIcons: false })).toBe(
+      false
+    );
   });
 
   it("waits while another overlay is open and stays shut once dismissed here", () => {
