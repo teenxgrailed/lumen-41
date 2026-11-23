@@ -15,7 +15,11 @@
  * `verbose: true` on the tool skips the pass and returns the full row.
  */
 
-/** Kept even when null or empty, so every item stays self-describing. */
+/**
+ * Kept even when null or empty, so every item stays self-describing and a
+ * client that checks `=== null` (a task with no start, no project) keeps
+ * working.
+ */
 const ALWAYS_KEEP: ReadonlySet<string> = new Set([
   "id",
   "title",
@@ -25,16 +29,32 @@ const ALWAYS_KEEP: ReadonlySet<string> = new Set([
   "position",
   "kind",
   "type",
+  "scheduledStart",
+  "scheduledEnd",
+  "dueDate",
+  "completedAt",
+  "projectId",
+  "parentId",
 ]);
 
-/** Person-written JSON: copied as it is, never pruned. */
+/**
+ * Person-written or free-form JSON: copied as it is, never pruned. Only a
+ * null or missing value is left out; `{}` and "" are content (an empty page
+ * block, an empty custom field).
+ */
 const OPAQUE: ReadonlySet<string> = new Set([
   "content",
   "value",
   "style",
   "config",
   "options",
+  "properties",
+  "attendees",
+  "organizer",
 ]);
+
+/** Booleans that are noise when false, and information when true. */
+const DROP_WHEN_FALSE: ReadonlySet<string> = new Set(["isSample"]);
 
 /**
  * Task columns that are scheduler, estimate or sync bookkeeping: no tool
@@ -66,8 +86,6 @@ export const INTERNAL_TASK_KEYS: ReadonlySet<string> = new Set([
   "ideaLastShownAt",
   "ideaSkipCount",
   "simplifiedAt",
-  "lastTouchedAt",
-  "isSample",
 ]);
 
 function isEmpty(value: unknown): boolean {
@@ -104,7 +122,12 @@ export function compact(input: unknown, drop?: ReadonlySet<string>): unknown {
   for (const [key, child] of Object.entries(value)) {
     if (drop?.has(key)) continue;
     if (child === undefined) continue;
-    const resolved = OPAQUE.has(key) ? child : compact(child, drop);
+    if (DROP_WHEN_FALSE.has(key) && child === false) continue;
+    if (OPAQUE.has(key)) {
+      if (child !== null) out[key] = plain(child);
+      continue;
+    }
+    const resolved = compact(child, drop);
     if (!ALWAYS_KEEP.has(key) && isEmpty(resolved)) continue;
     out[key] = resolved;
   }
