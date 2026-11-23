@@ -209,7 +209,9 @@ for (const size of ["desktop", "phone"] as const) {
       test(`Docs grid, mixed looks, ${theme}`, async ({ page }) => {
         await open(page, theme, "/pages");
         const grid = page.locator("[data-docs-folders]");
-        await expect(grid.locator(".fl")).toHaveCount(PROJECTS.length, {
+        // the eight projects, plus Unsorted (the seeded "Visual design notes"
+        // page belongs to no project)
+        await expect(grid.locator(".fl")).toHaveCount(PROJECTS.length + 1, {
           timeout: 60_000,
         });
         await page.waitForTimeout(400);
@@ -220,6 +222,11 @@ for (const size of ["desktop", "phone"] as const) {
 
       test(`Folder style picker, ${theme}`, async ({ page }) => {
         await open(page, theme, `/projects/${ID(2)}?rename=1`);
+        if (size === "phone") {
+          // the phone has no ?rename flag: project options, then Edit project
+          await page.getByRole("button", { name: "Project options" }).click();
+          await page.getByRole("button", { name: /Edit project/ }).click();
+        }
         const picker = page.locator("[data-folder-style-picker]");
         await expect(picker).toBeVisible({ timeout: 60_000 });
         await expect(picker.getByRole("radio")).toHaveCount(7);
