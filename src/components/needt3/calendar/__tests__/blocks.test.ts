@@ -136,6 +136,47 @@ describe("calendarItems", () => {
     expect(hidden.doneHidden).toBe(1);
   });
 
+  it("Hide done reports what it removed, by the day each would be drawn on", () => {
+    const tasks = [
+      // drawn by its block on the 2nd although due earlier
+      task({
+        id: "blk",
+        done: true,
+        status: "completed",
+        dueDate: "2026-09-01",
+        scheduledStart: "2026-09-02T09:00",
+      }),
+      // loose on its due day
+      task({ id: "due", done: true, status: "completed", dueDate: today }),
+      task({ id: "open", dueDate: today }),
+    ];
+    const r = calendarItems({ tasks, events: [], today, hideDone: true });
+    expect(r.doneHiddenByDay).toEqual({ "2026-09-02": 1, [today]: 1 });
+    expect(
+      calendarItems({ tasks, events: [], today, hideDone: false })
+        .doneHiddenByDay
+    ).toEqual({});
+  });
+
+  it("Hide done counts a task closed before its slot on the day it was closed", () => {
+    const tasks = [
+      task({
+        id: "early",
+        done: true,
+        status: "completed",
+        scheduledStart: "2026-09-03T09:00",
+        completedAt: "2026-08-31T18:48",
+      }),
+    ];
+    const hidden = calendarItems({ tasks, events: [], today, hideDone: true });
+    expect(hidden.doneHiddenByDay).toEqual({ "2026-08-31": 1 });
+    // and it is the day the row is drawn on when Hide done is off
+    const shown = calendarItems({ tasks, events: [], today, hideDone: false });
+    expect(shown.loose.map((b) => [b.id, b.date])).toEqual([
+      ["early", "2026-08-31"],
+    ]);
+  });
+
   it("draws events grey with their calendar's name; own ones are deletable", () => {
     const { timed } = calendarItems({
       tasks: [],

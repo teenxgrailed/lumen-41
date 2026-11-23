@@ -3,9 +3,9 @@
  * sentence (a template filled from data, no AI call), and the one stats line.
  * Nothing here reads the clock or the network.
  */
-import type { PlanView } from "@/services/day-plan/plan";
-
 import { formatInTimeZone } from "@/lib/date-utils";
+
+import type { DaySummary } from "./day-set";
 
 export interface DayHeader {
   /** "Fri" */
@@ -168,16 +168,22 @@ export function groupByDayPart<T>(
 }
 
 export interface PlanStats {
-  /** "3 of 5" */
+  /** "2 of 5": tasks done of the tasks on the day */
   used: string;
   /** "2 h focus" */
   focus: string;
 }
 
-/** The stats line: the limit used, and the focus time the plan adds up to. */
-export function planStats(plan: PlanView): PlanStats {
+/**
+ * The stats line: tasks done of the tasks on the day, and the focus time they
+ * add up to. Both come from the one day set (`daySummary` in `day-set`), the
+ * same numbers the greeting and the Calendar read.
+ */
+export function planStats(
+  day: Pick<DaySummary, "done" | "total" | "minutes">
+): PlanStats {
   return {
-    used: `${plan.taskCount} of ${plan.limit}`,
-    focus: `${duration(plan.focusMinutes)} focus`,
+    used: `${day.done} of ${day.total}`,
+    focus: `${duration(day.minutes)} focus`,
   };
 }

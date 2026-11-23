@@ -1,0 +1,1 @@
+- Agents connected through MCP get shorter answers from reading tools: needt_get, needt_list and needt_search leave out empty and internal fields (about 75% smaller for a task list), and `verbose: true` brings the full row back.

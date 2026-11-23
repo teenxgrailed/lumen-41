@@ -84,7 +84,34 @@ describe("dayStats and dayState", () => {
       task({ estimatedMinutes: 45 }),
       task({ estimatedMinutes: 15 }),
     ];
-    expect(dayStats(day)).toEqual({ total: 3, done: 1, left: 2, mins: 60 });
+    expect(dayStats(day, "2026-09-01")).toEqual({
+      total: 3,
+      done: 1,
+      left: 2,
+      mins: 60,
+    });
+  });
+
+  it("counts a timed open task with no estimate as 30 min (desktop Home too)", () => {
+    const day = [
+      task({ estimatedMinutes: null, scheduledStart: "2026-09-01T10:00" }),
+      task({ estimatedMinutes: null, scheduledStart: null }),
+      task({ estimatedMinutes: 20 }),
+      task({
+        done: true,
+        estimatedMinutes: null,
+        scheduledStart: "2026-09-01T09:00",
+      }),
+    ];
+    expect(dayStats(day, "2026-09-01").mins).toBe(50);
+  });
+
+  it("a block on another day adds no 30 min when the day is given", () => {
+    const stale = task({
+      estimatedMinutes: null,
+      scheduledStart: "2026-08-31T19:00",
+    });
+    expect(dayStats([stale], "2026-09-01").mins).toBe(0);
   });
 
   it("is empty with nothing due and nothing overdue", () => {

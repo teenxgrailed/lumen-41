@@ -10,6 +10,7 @@ import type { V3Task } from "@/lib/needt3/map";
 
 import { PkButton, PkSheet } from "../kit";
 import { snack } from "./snack";
+import { snackAfterWrite } from "./snackAfterWrite";
 import { usePkToday } from "./today";
 
 const none = () => undefined;
@@ -97,10 +98,13 @@ export function ScheduleSheet() {
  * Delete moves the task to Trash (Undo restores it). The row has already
  * thrown itself off the edge; `leave` plays the exit and writes (usePkExit).
  */
-export function useTaskActions(leave: (t: V3Task, kind: "trash") => void) {
+export function useTaskActions(
+  leave: (t: V3Task, kind: "trash") => void | Promise<unknown>
+) {
   const open = useScheduleSheet((s) => s.open);
   return (t: V3Task) => ({
     onSchedule: () => open(t),
+    // returned: a failed write brings the row back (PkRow)
     onDelete: () => leave(t, "trash"),
   });
 }
@@ -108,6 +112,9 @@ export function useTaskActions(leave: (t: V3Task, kind: "trash") => void) {
 /** Trash a task, with the Undo that restores it. */
 export function useTrashWithUndo() {
   const trash = useTrashTask();
+  // A failed write rejects, so the row that was thrown off the edge returns.
   return (t: V3Task) =>
-    trash.trash(t.id).then(({ undo }) => snack("Moved to Trash", undo), none);
+    trash
+      .trash(t.id)
+      .then(({ undo }) => snackAfterWrite("Moved to Trash", undo));
 }

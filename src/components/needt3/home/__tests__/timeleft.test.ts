@@ -44,6 +44,7 @@ describe("timeLeft", () => {
 
   it("compares planned work with the free time", () => {
     const t = timeLeft({
+      day: "2026-09-01",
       capacity: 240,
       eventsAhead: 60,
       openTasks: [open(60), open(30), { done: true, estimatedMinutes: 500 }],
@@ -53,8 +54,36 @@ describe("timeLeft", () => {
     expect(timeLeftLine(t!)).toBe("2 h 30 planned · 1 h 30 free");
   });
 
+  it("counts 30 for a timed task with no estimate, but only a block on the day", () => {
+    const day = "2026-09-01";
+    const today = {
+      done: false,
+      estimatedMinutes: null,
+      scheduledStart: `${day}T10:00`,
+    };
+    const stale = {
+      done: false,
+      estimatedMinutes: null,
+      scheduledStart: "2026-08-31T19:00",
+    };
+    expect(
+      timeLeft({ capacity: 240, eventsAhead: 0, day, openTasks: [today] })
+        ?.planned
+    ).toBe(30);
+    // a stale block adds nothing (30 alone is still above the 5 min floor)
+    expect(
+      timeLeft({
+        capacity: 240,
+        eventsAhead: 0,
+        day,
+        openTasks: [today, stale],
+      })?.planned
+    ).toBe(30);
+  });
+
   it("warns softly when overbooked", () => {
     const t = timeLeft({
+      day: "2026-09-01",
       capacity: 120,
       eventsAhead: 60,
       openTasks: [open(120)],
@@ -65,6 +94,7 @@ describe("timeLeft", () => {
 
   it("lets personal blocks take from the free time", () => {
     const t = timeLeft({
+      day: "2026-09-01",
       capacity: 240,
       blocked: 120,
       eventsAhead: 0,
@@ -75,13 +105,28 @@ describe("timeLeft", () => {
 
   it("is null on a day off, after work, or with nothing planned", () => {
     expect(
-      timeLeft({ capacity: null, eventsAhead: 0, openTasks: [open(60)] })
+      timeLeft({
+        day: "2026-09-01",
+        capacity: null,
+        eventsAhead: 0,
+        openTasks: [open(60)],
+      })
     ).toBeNull();
     expect(
-      timeLeft({ capacity: 0, eventsAhead: 0, openTasks: [open(60)] })
+      timeLeft({
+        day: "2026-09-01",
+        capacity: 0,
+        eventsAhead: 0,
+        openTasks: [open(60)],
+      })
     ).toBeNull();
     expect(
-      timeLeft({ capacity: 200, eventsAhead: 0, openTasks: [open(null)] })
+      timeLeft({
+        day: "2026-09-01",
+        capacity: 200,
+        eventsAhead: 0,
+        openTasks: [open(null)],
+      })
     ).toBeNull();
   });
 });

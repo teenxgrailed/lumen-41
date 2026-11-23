@@ -71,7 +71,8 @@ interface Drag {
 /** The buttons behind a row, revealed by a swipe left. */
 export interface PkRowActions {
   onSchedule?: () => void;
-  onDelete?: () => void;
+  /** A promise that rejects puts the thrown row back. */
+  onDelete?: () => void | Promise<unknown>;
 }
 
 export interface PkRowProps {
@@ -93,7 +94,11 @@ export interface PkRowProps {
   canLater?: boolean;
   onCheck?: () => void;
   onOpen?: () => void;
-  onSwipe?: (side: SwipeSide) => void;
+  /**
+   * The swipe was committed and the row is thrown off the edge. If this
+   * returns a promise that rejects (the write failed), the row comes back.
+   */
+  onSwipe?: (side: SwipeSide) => void | Promise<unknown>;
   /**
    * Swipe left shows these buttons (Schedule, Delete) and the row rests open,
    * instead of throwing the row off the edge as "later".
@@ -171,6 +176,7 @@ export function PkRow({
   const [open, setOpen] = useState(false);
   const [thrown, setThrown] = useState(false);
   const openRef = useRef(false);
+  const alive = useRef(true);
   const done = !!doneIn || phase === "check";
   const leftActions = !!(actions && (actions.onSchedule || actions.onDelete));
   const allow = {
@@ -203,8 +209,10 @@ export function PkRow({
     );
 
   useEffect(() => {
+    alive.current = true;
     const w = frame.current;
     return () => {
+      alive.current = false;
       w.cancel();
       G.current?.off();
     };
@@ -229,6 +237,17 @@ export function PkRow({
     set(on ? -ACTIONS_W : 0, on ? 1 : 0, on ? "actions" : null);
     if (on && !was)
       window.dispatchEvent(new CustomEvent(OPENED, { detail: id }));
+  };
+
+  /** Thrown off the edge and the commit failed: the row comes back. */
+  const bringBack = (result: void | Promise<unknown>) => {
+    if (!result || typeof (result as Promise<unknown>).then !== "function")
+      return;
+    (result as Promise<unknown>).then(undefined, () => {
+      if (!alive.current) return;
+      setThrown(false);
+      rest(false);
+    });
   };
 
   // An open row shuts on a touch anywhere else, on a scroll, and when another
@@ -333,7 +352,7 @@ export function PkRow({
     wrap.current?.style.setProperty("--pk-k", "1");
     if (row.current)
       row.current.style.transform = `translate3d(${(raw < 0 ? -1 : 1) * 112}%,0,0)`;
-    onSwipe?.(side);
+    bringBack(onSwipe?.(side));
   };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -374,7 +393,7 @@ export function PkRow({
     haptic("success");
     wrap.current?.style.setProperty("--pk-k", "1");
     if (row.current) row.current.style.transform = "translate3d(-112%,0,0)";
-    actions?.onDelete?.();
+    bringBack(actions?.onDelete?.());
   };
 
   // a swipe is not a tap
@@ -517,7 +536,7 @@ export interface PkTaskRowProps {
   canLater?: boolean;
   onCheck?: (t: V3Task) => void;
   onOpen?: (t: V3Task) => void;
-  onSwipe?: (side: SwipeSide) => void;
+  onSwipe?: (side: SwipeSide) => void | Promise<unknown>;
   /** Swipe left shows Schedule / Delete (see `PkRowActions`). */
   actions?: PkRowActions;
   /** Inside a project's own page the project is not repeated. */
@@ -689,7 +708,7 @@ function without<V>(m: Record<string, V>, key: string) {
 }
 
 export function usePkExit<T extends { id: string }>(
-  commit: (t: T, kind: ExitKind) => void
+  commit: (t: T, kind: ExitKind) => void | Promise<unknown>
 ) {
   const [phase, setPhase] = useState<Record<string, ExitKind>>({});
   const [out, setOut] = useState<Record<string, 1>>({});
@@ -703,24 +722,48 @@ export function usePkExit<T extends { id: string }>(
     return () => t.forEach((id) => window.clearTimeout(id));
   }, []);
 
-  const exit = useCallback((t: T, kind: ExitKind) => {
-    if (busy.current[t.id]) return;
+  /**
+   * Plays the exit, then commits. The returned promise settles with the
+   * commit's own: it rejects when the commit throws or its promise rejects, so
+   * the row that was thrown off the edge can come back (`PkRow` does this when
+   * `onSwipe` returns it). A caller that ignores it loses nothing.
+   */
+  const exit = useCallback((t: T, kind: ExitKind): Promise<void> => {
+    if (busy.current[t.id]) return Promise.resolve();
+    const run = () => {
+      try {
+        return Promise.resolve(commitRef.current(t, kind)).then(
+          () => undefined
+        );
+      } catch (e) {
+        return Promise.reject(e);
+      }
+    };
+    let result: Promise<void>;
     if (pkReduced()) {
-      commitRef.current(t, kind);
-      return;
+      result = run();
+    } else {
+      busy.current[t.id] = 1;
+      setPhase((m) => ({ ...m, [t.id]: kind }));
+      const hold = kind === "check" ? HOLD_CHECK : HOLD_THROWN;
+      result = new Promise<void>((resolve, reject) => {
+        timers.current.push(
+          window.setTimeout(() => setOut((m) => ({ ...m, [t.id]: 1 })), hold),
+          window.setTimeout(() => {
+            // The row is released as soon as the commit has been started, not
+            // when it settles: a slow write must not hold the fold shut.
+            const settled = run();
+            delete busy.current[t.id];
+            setPhase((m) => without(m, t.id));
+            setOut((m) => without(m, t.id));
+            settled.then(resolve, reject);
+          }, hold + FOLD_MS)
+        );
+      });
     }
-    busy.current[t.id] = 1;
-    setPhase((m) => ({ ...m, [t.id]: kind }));
-    const hold = kind === "check" ? HOLD_CHECK : HOLD_THROWN;
-    timers.current.push(
-      window.setTimeout(() => setOut((m) => ({ ...m, [t.id]: 1 })), hold),
-      window.setTimeout(() => {
-        commitRef.current(t, kind);
-        delete busy.current[t.id];
-        setPhase((m) => without(m, t.id));
-        setOut((m) => without(m, t.id));
-      }, hold + FOLD_MS)
-    );
+    // Handled here so a caller that ignores the promise raises nothing.
+    result.catch(() => undefined);
+    return result;
   }, []);
 
   return { phase, out, exit };

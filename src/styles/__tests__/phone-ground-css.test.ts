@@ -217,9 +217,108 @@ describe("phone page ground", () => {
     expect(rule('.needt-v3[data-ui="phone"] .pk-tail')).toContain(
       "height: var(--v3-tail-h)"
     );
-    expect(css).toContain("112px + var(--v3-dock-lift)");
     expect(css).toContain("var(--ps-fog-h) + 16px");
     expect(css).toContain("--v3-sab: env(safe-area-inset-bottom, 0px)");
+  });
+
+  describe("the tail and the floating bar share one set of numbers", () => {
+    const float = readFileSync(
+      path.join(process.cwd(), "src/styles/v3-overrides/bottom-bar-float.css"),
+      "utf8"
+    );
+    const scope = () => rule('.needt-v3[data-ui="phone"]');
+
+    it("the dock's bottom, height and top are variables of the scope", () => {
+      expect(css).toContain("--v3-dock-h: 60px");
+      expect(css).toContain(
+        "--v3-dock-bottom: calc(var(--v3-dock-lift) + 10px)"
+      );
+      expect(css).toContain(
+        "--v3-dock-top: calc(var(--v3-dock-bottom) + var(--v3-dock-h))"
+      );
+      expect(scope()).toContain("--v3-dock-top");
+    });
+
+    it("the floating bar is placed with --v3-dock-bottom, not its own sum", () => {
+      const nfb = float.slice(
+        float.indexOf(".needt-v3 .nfb {"),
+        float.indexOf("}", float.indexOf(".needt-v3 .nfb {"))
+      );
+      expect(nfb).toContain("bottom: var(--v3-dock-bottom, 30px)");
+      expect(nfb).not.toContain("--v3-dock-lift");
+    });
+
+    it("the tail is the dock's top edge plus 42 px, or the fog plus 16, plus the gap", () => {
+      const at = css.indexOf("--v3-tail-base: max(");
+      expect(at).toBeGreaterThanOrEqual(0);
+      const base = css.slice(at, css.indexOf(");", at));
+      // the same expression `112px + --v3-dock-lift` was: lift + 70 + 42
+      expect(base).toContain("var(--v3-dock-top) + 42px");
+      expect(base).toContain("var(--ps-fog-h) + 16px");
+      expect(css).toContain(
+        "--v3-tail-h: calc(var(--v3-tail-base) + var(--v3-vp-gap))"
+      );
+      expect(css).not.toContain("112px + var(--v3-dock-lift)");
+      // no measured extra any more
+      expect(css).not.toContain("tail-extra");
+    });
+
+    it("the calendar's Auto-fit pill reads the base, so the gap never moves it", () => {
+      expect(rule('.needt-v3[data-ui="phone"] .v2p-autofit')).toContain(
+        "bottom: calc(var(--v3-tail-base) + var(--v3-sab, 0px))"
+      );
+      expect(
+        rule('.needt-v3[data-ui="phone"]:has(.pov-snack) .v2p-autofit')
+      ).toContain(
+        "bottom: calc(var(--v3-tail-base) + var(--v3-sab, 0px) + 64px)"
+      );
+    });
+
+    it("the dock is 70 px of lift and margin plus its 60 px: top = lift + 70", () => {
+      // 10 + 60 = 70, the number the first reading pinned
+      expect(10 + 60).toBe(70);
+      expect(css).toContain("--v3-dock-h: 60px");
+      // and the capsule is that tall: a 44 px disc and 8 px padding twice
+      expect(float).toContain("--nfb-pad: 8px");
+      expect(float).toMatch(
+        /clamp\(36px, calc\(\(100vw - 80px\) \/ 6\.7\), 44px\)/
+      );
+    });
+
+    it("the viewport gap is only the installed app's, capped, and only where the units exist", () => {
+      expect(rule('.needt-v3[data-ui="phone"]')).toContain("--v3-vp-gap: 0px");
+      const at = css.indexOf("@supports (height: 100dvh) and (height: 100lvh)");
+      expect(at).toBeGreaterThanOrEqual(0);
+      const block = css.slice(at, css.indexOf("\n}\n", at));
+      expect(block).toContain("@media (display-mode: standalone)");
+      expect(block).toContain(
+        'html[data-display-mode="standalone"] .needt-v3[data-ui="phone"]'
+      );
+      // the clamp is written once; both rules read it
+      expect(
+        block.match(
+          /clamp\(\s*0px,\s*max\(calc\(100lvh - 100dvh\), var\(--v3-screen-gap, 0px\)\),\s*100px\s*\)/g
+        )
+      ).toHaveLength(1);
+      expect(block.match(/--v3-vp-gap: var\(--v3-vp-gap-app\)/g)).toHaveLength(
+        2
+      );
+      // never in a Safari tab
+      expect(block).not.toContain('data-display-mode="browser"');
+    });
+
+    it("the gap rules come after the scope's own 0, or the zero would win", () => {
+      const zero = css.indexOf("--v3-vp-gap: 0px");
+      const gap = css.indexOf("--v3-vp-gap: var(--v3-vp-gap-app)");
+      expect(zero).toBeGreaterThanOrEqual(0);
+      expect(gap).toBeGreaterThan(zero);
+    });
+
+    it("no phone scroller is sized in 100vh", () => {
+      // 100vh is the viewport with Safari's bars away; dvh follows them
+      expect(css).not.toMatch(/\b100vh\b/);
+      expect(float).not.toMatch(/\b100vh\b/);
+    });
   });
 
   it("the sign-in scope is fixed to the viewport (unchanged)", () => {

@@ -1,5 +1,3 @@
-import type { PlanView } from "@/services/day-plan/plan";
-
 import {
   dayHeader,
   dayPart,
@@ -117,19 +115,25 @@ describe("freeAfterHour", () => {
 });
 
 describe("planStats", () => {
-  const plan = (o: Partial<PlanView>) =>
-    ({ taskCount: 3, limit: 5, focusMinutes: 120, ...o }) as PlanView;
+  const day = (o: Partial<Parameters<typeof planStats>[0]> = {}) => ({
+    done: 2,
+    total: 5,
+    minutes: 120,
+    ...o,
+  });
 
-  it("gives the limit used and the focus total", () => {
-    expect(planStats(plan({}))).toEqual({ used: "3 of 5", focus: "2 h focus" });
+  it("gives tasks done of the day and the focus total", () => {
+    expect(planStats(day())).toEqual({ used: "2 of 5", focus: "2 h focus" });
+  });
+
+  it("is not the plan's limit: 5 tasks, none done, reads 0 of 5", () => {
+    expect(planStats(day({ done: 0 })).used).toBe("0 of 5");
   });
 
   it("spells minutes and mixed durations", () => {
-    expect(planStats(plan({ focusMinutes: 45 })).focus).toBe("45 min focus");
-    expect(planStats(plan({ focusMinutes: 130 })).focus).toBe(
-      "2 h 10 min focus"
-    );
-    expect(planStats(plan({ focusMinutes: 0 })).focus).toBe("0 min focus");
+    expect(planStats(day({ minutes: 45 })).focus).toBe("45 min focus");
+    expect(planStats(day({ minutes: 130 })).focus).toBe("2 h 10 min focus");
+    expect(planStats(day({ minutes: 0 })).focus).toBe("0 min focus");
   });
 });
 

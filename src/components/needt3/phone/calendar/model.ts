@@ -6,6 +6,7 @@
  * coming, what is over, the overlap marks, the month grid. Nothing reads the
  * clock: `today` and `nowHour` are arguments.
  */
+import type { DaySummary } from "@/lib/needt3/day-set";
 import { addDays, cvDur, dayLabel, daysBetween } from "@/lib/needt3/derive";
 
 import type { CalItem, CalTimed } from "../../calendar/blocks";
@@ -120,7 +121,8 @@ export function dayPlan(
   if (plate && plate === nowB) plateLine = `until ${c2Time(end(plate))}`;
   else if (plate && isToday) {
     const min = Math.round((plate.at - nowHour) * 60);
-    plateLine = `in ${min >= 60 ? cvDur(min) : `${min} min`}`;
+    plateLine =
+      min <= 0 ? "now" : `in ${min >= 60 ? cvDur(min) : `${min} min`}`;
   }
   return {
     isToday,
@@ -199,12 +201,29 @@ export function itemLabel(b: CalItem) {
   return b.project || "Task";
 }
 
-/** The day heading's second line: "3 planned · 2 h booked · 1 overlap". */
-export function dayMeta(p: Pick<DayPlan, "timed" | "allDay" | "booked">) {
-  const n = p.timed.length + p.allDay.length;
-  return n
-    ? `${n} planned${p.booked ? ` · ${cvDur(p.booked)} booked` : ""}`
-    : "Nothing planned";
+/**
+ * The day heading's second line: "3 planned · 2 h booked · 2 events · 1
+ * overlap". "Planned" and "booked" are the day's TASKS from the one day set
+ * (`daySummary`: Home's count and minutes, done included, the 30 min rule);
+ * events are counted apart, so a meeting never makes the tasks look like more.
+ * `tasks` is null while the day plan has not answered: only the events show.
+ * With Hide done on, `hiddenDone` is how many done tasks it took off the grid
+ * for this day.
+ */
+export function dayMeta(
+  p: Pick<DayPlan, "timed" | "allDay">,
+  tasks: Pick<DaySummary, "total" | "minutes"> | null,
+  hiddenDone = 0
+) {
+  const events = [...p.timed, ...p.allDay].filter((b) => b.event).length;
+  const n = tasks?.total ?? 0;
+  const parts = [
+    n ? `${n} planned` : "",
+    n && tasks?.minutes ? `${cvDur(tasks.minutes)} booked` : "",
+    events ? `${events} ${events === 1 ? "event" : "events"}` : "",
+    hiddenDone ? `${hiddenDone} done hidden` : "",
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : tasks ? "Nothing planned" : "";
 }
 
 /** What the event sheet shows for a tapped item (PkEventSheet's `facts`). */

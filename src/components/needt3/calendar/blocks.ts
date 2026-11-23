@@ -7,6 +7,7 @@
  * tasks out (events are never hidden). A task closed on an earlier day than its
  * slot is a done row of the day it was closed, not a block at the stale slot.
  */
+import { taskMinutes } from "@/lib/needt3/day-set";
 import {
   type ProjectLike,
   addDays,
@@ -59,7 +60,8 @@ function taskItem(
     id: t.id,
     date,
     at,
-    len: t.estimatedMinutes || (at == null ? 0 : 30),
+    // a drawn block is a timed one: the one rule; a loose row has its estimate
+    len: at == null ? t.estimatedMinutes || 0 : taskMinutes(t, date),
     title: t.title,
     done: t.done,
     project: project(t.projectId, projects)?.name ?? null,
@@ -115,6 +117,29 @@ function eventItem(
   };
 }
 
+/**
+ * Where the calendar draws a task: the day, and the hour when it is a timed
+ * block (`hour` null = a loose row), or null when it has no place. A task done
+ * on an earlier day than its planned slot is a done row of the day it was
+ * closed on: the slot it kept is stale (the scheduler already freed it), so it
+ * is not drawn there on top of whatever now sits at that time.
+ */
+function placeOf(t: V3Task): { day: string; hour: number | null } | null {
+  const hour = hourOf(t.scheduledStart);
+  const closedDay = t.completedAt?.slice(0, 10);
+  if (
+    t.done &&
+    t.scheduledStart &&
+    closedDay &&
+    closedDay < t.scheduledStart.slice(0, 10)
+  )
+    return { day: closedDay, hour: null };
+  if (t.scheduledStart && hour != null && !t.noSlot)
+    return { day: t.scheduledStart.slice(0, 10), hour };
+  if (t.dueDate) return { day: t.dueDate, hour: null };
+  return null;
+}
+
 export function calendarItems({
   tasks,
   events,
@@ -131,26 +156,10 @@ export function calendarItems({
   const loose: CalItem[] = [];
 
   shown.forEach((t) => {
-    const at = hourOf(t.scheduledStart);
-    const closedDay = t.completedAt?.slice(0, 10);
-    if (
-      t.done &&
-      t.scheduledStart &&
-      closedDay &&
-      closedDay < t.scheduledStart.slice(0, 10)
-    ) {
-      // Finished on an earlier day than its planned slot: the slot it kept is
-      // stale (the scheduler already freed it), so it is not drawn there on top
-      // of whatever now sits at that time. It is a done row of the day it was
-      // closed on.
-      loose.push(taskItem(t, closedDay, null, projects));
-    } else if (t.scheduledStart && at != null && !t.noSlot) {
-      timed.push(
-        taskItem(t, t.scheduledStart.slice(0, 10), at, projects) as CalTimed
-      );
-    } else if (t.dueDate) {
-      loose.push(taskItem(t, t.dueDate, null, projects));
-    }
+    const at = placeOf(t);
+    if (!at) return;
+    if (at.hour == null) loose.push(taskItem(t, at.day, null, projects));
+    else timed.push(taskItem(t, at.day, at.hour, projects) as CalTimed);
   });
 
   events.forEach((e) => {
@@ -181,7 +190,16 @@ export function calendarItems({
   const doneHidden = hideDone
     ? live.filter((t) => t.done && (t.scheduledStart || t.dueDate)).length
     : 0;
-  return { timed, loose, doneHidden };
+  // The done tasks Hide done took off the grid, by the day each would have
+  // been drawn on (`placeOf`, the same rule the rows use): what a day line says.
+  const doneHiddenByDay: Record<string, number> = {};
+  if (hideDone)
+    live.forEach((t) => {
+      if (!t.done) return;
+      const at = placeOf(t);
+      if (at) doneHiddenByDay[at.day] = (doneHiddenByDay[at.day] ?? 0) + 1;
+    });
+  return { timed, loose, doneHidden, doneHiddenByDay };
 }
 
 /** Title for the Hide done toggle (prototype wording). */

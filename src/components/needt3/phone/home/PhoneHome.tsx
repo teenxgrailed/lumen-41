@@ -7,8 +7,9 @@ import { useRouter } from "next/navigation";
 import { readPref } from "@/components/needt3/settings/derive";
 
 import { clock } from "@/lib/needt3/day";
-import { planIsShown } from "@/lib/needt3/day-plan";
+import { planIsShown, planPickIds } from "@/lib/needt3/day-plan";
 import { dayHeader, freeAfterHour } from "@/lib/needt3/day-plan-view";
+import { daySummary } from "@/lib/needt3/day-set";
 import { addDays } from "@/lib/needt3/derive";
 import { project } from "@/lib/needt3/derive";
 import { highEnergyHours } from "@/lib/needt3/energy";
@@ -266,6 +267,20 @@ export function PhoneHome({
     () => new Set(dayPlan.snapshot?.plan?.items.map((i) => i.taskId) ?? []),
     [dayPlan.snapshot]
   );
+  // Today's tasks, counted once for every number on this screen: the greeting,
+  // "x of y", the focus total, the progress line and the time-left card. The
+  // plan's own picks belong to the day even when no date says so.
+  // The counts wait for the plan's answer (data or error) instead of jumping
+  // when the picks arrive; with the plan off there is nothing to wait for.
+  const planSettled = dayPlan.off || dayPlan.query.isFetched;
+  const pickIds = useMemo(
+    () => planPickIds(dayPlan.snapshot),
+    [dayPlan.snapshot]
+  );
+  const sum = useMemo(
+    () => daySummary(all, today, pickIds),
+    [all, today, pickIds]
+  );
   const [fullList, setFullList] = useState(false);
   const [somedayOpen, setSomedayOpen] = useState(false);
   const someday = useSomeday(somedayOpen);
@@ -297,19 +312,22 @@ export function PhoneHome({
   const personal = usePersonalDay(today);
   const [band, setBand] = useState<DayBand | null>(null);
   const workCap = capacityFrom(prefs);
-  const left = timeLeft({
-    capacity: freeMinutesLeft(workCap, today, nowHour, []),
-    blocked: blockedMinutes(
-      personal,
-      Math.max(nowHour, hourOfClock(workCap.start)),
-      hourOfClock(workCap.end)
-    ),
-    eventsAhead: minutesAhead(
-      calendarItems.filter((x) => x.event),
-      nowHour
-    ),
-    openTasks: v.open(v.sec.day),
-  });
+  const left = !planSettled
+    ? null
+    : timeLeft({
+        capacity: freeMinutesLeft(workCap, today, nowHour, []),
+        blocked: blockedMinutes(
+          personal,
+          Math.max(nowHour, hourOfClock(workCap.start)),
+          hourOfClock(workCap.end)
+        ),
+        eventsAhead: minutesAhead(
+          calendarItems.filter((x) => x.event),
+          nowHour
+        ),
+        openTasks: sum.items,
+        day: today,
+      });
   // Overbooked: Spread gives today's untimed tasks (and, from Overdue, the
   // late ones) the next days with room; the snack's Undo puts them back.
   const spreader = useSpread(sayOnPhone);
@@ -632,13 +650,13 @@ export function PhoneHome({
 
   /* Progress is a small part of the header; a finished day is one line. */
   const progress =
-    v2 || !ready || v.dayClosed ? null : v.total ? (
-      <div className="v2p-prog" data-v2p-count={`${v.done}/${v.total}`}>
+    v2 || !ready || !planSettled || v.dayClosed ? null : sum.total ? (
+      <div className="v2p-prog" data-v2p-count={`${sum.done}/${sum.total}`}>
         <p className="v2p-prog-line">
           <span className="v2p-prog-count">
             {`${copy.V2pHome.done} `}
-            <PkNumber value={v.done} label={String(v.done)} />
-            {` of ${v.total}`}
+            <PkNumber value={sum.done} label={String(sum.done)} />
+            {` of ${sum.total}`}
           </span>
           {v.lateN ? (
             <span className="v2p-prog-late">
@@ -651,7 +669,9 @@ export function PhoneHome({
           <span
             className="v2p-prog-fill"
             style={
-              { "--p": (v.done / v.total).toFixed(3) } as React.CSSProperties
+              {
+                "--p": (sum.done / sum.total).toFixed(3),
+              } as React.CSSProperties
             }
           />
         </span>
@@ -672,7 +692,7 @@ export function PhoneHome({
   const free = freeAfterHour(dayMeetings, nowHour, hourOfClock(workCap.end));
   const planHead = planShown ? (
     <PlanHello
-      plan={dayPlan.snapshot!.plan!}
+      day={sum}
       hour={nowHour}
       meetings={dayMeetings.length}
       habits={haHabits.length}
@@ -718,10 +738,10 @@ export function PhoneHome({
       title={hdr ? <PlanWeekday weekday={hdr.weekday} /> : copy.V2pHome.today}
       right={hdr ? <PlanDate date={hdr.date} year={hdr.year} /> : undefined}
       sub={
-        hdr ? undefined : v2 && ready && !v.dayClosed ? (
+        hdr ? undefined : v2 && ready && planSettled && !v.dayClosed ? (
           <span className="hv2-sub">
             {dateLine}
-            <DayCount done={v.done} total={v.total} />
+            <DayCount done={sum.done} total={sum.total} />
           </span>
         ) : (
           dateLine

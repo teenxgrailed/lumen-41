@@ -8,6 +8,7 @@ import {
   isKnownFeatureFlag,
 } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
+import { clearTtlCaches } from "@/lib/ttl-cache";
 
 const HISTORY_LIMIT = 20;
 
@@ -192,6 +193,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       }
       return saved;
     });
+    clearTtlCaches("feature-flags");
     return NextResponse.json({ override });
   }
   const hasRollout = body.rolloutPercentage !== undefined;
@@ -247,6 +249,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     }
     return saved;
   });
+  clearTtlCaches("feature-flags");
   return NextResponse.json({ flag });
 }
 

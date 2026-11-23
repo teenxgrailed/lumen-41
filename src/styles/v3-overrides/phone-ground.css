@@ -54,7 +54,6 @@ html:has(.needt-v3[data-ui="phone"][data-theme="dim"]) body {
     min-height: 100lvh;
   }
 }
-
 /* A page whose own paper reaches the top edge (the document reader without a
  * backdrop) is the ground while it is open: ReaderPhone writes the paper's
  * light / dark pair onto <html> with data-ground="page". Same rule as above,
@@ -85,6 +84,17 @@ html[data-ground="page"]:has(
    * is the menu's own margin, the rest is the lift. With Safari's tab bar at
    * the bottom of a tab it lifts 54 px more (below). */
   --v3-dock-lift: max(20px, calc(var(--v3-sab) - 6px));
+  /* Where the floating bar stands: its bottom edge (menu A's 10 px of margin
+   * on the lift), its height (a 44 px disc and 8 px of padding all round,
+   * bottom-bar-float.css) and so its top edge, all measured up from the bottom
+   * of the layout viewport. The bar is placed with --v3-dock-bottom and the
+   * page's tail is sized from --v3-dock-top: one set of numbers. */
+  --v3-dock-h: 60px;
+  --v3-dock-bottom: calc(var(--v3-dock-lift) + 10px);
+  --v3-dock-top: calc(var(--v3-dock-bottom) + var(--v3-dock-h));
+  /* How far the large viewport runs past the dynamic one (installed app only,
+   * set below). */
+  --v3-vp-gap: 0px;
   /* How far a full-screen fixed layer stands in from the top and bottom edge. */
   --v3-edge: 8px;
   /* Height of the fog under the dock, from the display edge: 128 px, or the
@@ -111,6 +121,41 @@ html[data-ground="page"]:has(
   }
 }
 
+/* The installed app: fixed layers (the dock, the fog) hang from the layout
+ * viewport's bottom, the page scrolls against the whole screen. Where iOS lays
+ * the app out in a viewport shorter than the screen (812 of 874 pt on an
+ * iPhone 17 Pro, see the standalone rule above), the dock stands that much
+ * higher than the end of the page and the last row ends under it. The tail
+ * grows by the larger of two readings of that shortfall, so it is never
+ * smaller than needed and is 0 where the viewports agree:
+ * - 100lvh - 100dvh, live in CSS;
+ * - --v3-screen-gap, `screen.height - innerHeight` in portrait, written on
+ *   <html> by VIEWPORT_BOOT_SCRIPT (src/lib/needt3/safari-bar.ts, screenGapOf)
+ *   on load, resize, orientationchange and pageshow, in the installed app only.
+ * Capped at 100 px: at worst that much empty tail, never a runaway. Not in a
+ * Safari tab: there the bars come and go with the scroll and the dock moves
+ * with them. The installed app is told by the display mode and by
+ * `data-display-mode` (set from `navigator.standalone`, the one iOS always
+ * has). These rules come after the scope's own `--v3-vp-gap: 0px`. */
+@supports (height: 100dvh) and (height: 100lvh) {
+  /* the one place the clamp is written */
+  .needt-v3[data-ui="phone"] {
+    --v3-vp-gap-app: clamp(
+      0px,
+      max(calc(100lvh - 100dvh), var(--v3-screen-gap, 0px)),
+      100px
+    );
+  }
+  @media (display-mode: standalone) {
+    .needt-v3[data-ui="phone"] {
+      --v3-vp-gap: var(--v3-vp-gap-app);
+    }
+  }
+  html[data-display-mode="standalone"] .needt-v3[data-ui="phone"] {
+    --v3-vp-gap: var(--v3-vp-gap-app);
+  }
+}
+
 /* No ancestor of the page clips it vertically or fixes its height. Sideways
  * overflow is still clipped. */
 .needt-v3[data-ui="phone"] .v2p-frame,
@@ -131,18 +176,36 @@ html[data-ground="page"]:has(
   padding-top: var(--v3-top);
 }
 .needt-v3[data-ui="phone"] .pk-tail {
-  /* The last row ends 16 px above the fog (and above the dock's lift), so it
-   * is never half under the dotted fade, with or without Safari's tab bar. */
+  /* The last row ends 16 px above the fog (and 42 px above the dock's top
+   * edge), so it is never half under the dotted fade, with or without Safari's
+   * tab bar. */
   height: var(--v3-tail-h);
 }
-/* One number for "how far the last row stands off the bottom": the tail uses
- * it, and so does the calendar's sticky Auto-fit pill (it must never sit lower
- * than the tail, nor on the snack, which stands 92 px up). */
+/* How far the last row stands off the bottom, in two numbers:
+ *
+ * - `--v3-tail-base`: the dock's top edge plus 42 px, or the fog plus 16 px.
+ *   `--v3-dock-top` (above) is the same variable the floating bar (`.nfb`,
+ *   bottom-bar-float.css) is placed with, so the page cannot end lower than
+ *   the dock begins, whatever the inset or the Safari bar do to
+ *   `--v3-dock-lift`. The calendar's sticky Auto-fit pill reads this one (it
+ *   must never sit lower than the tail, nor on the snack, which stands 92 px
+ *   up) and so does not move with the gap.
+ * - `--v3-tail-h`: the base plus `--v3-vp-gap`, what the tail is. The gap is
+ *   0 outside the installed app and wherever the viewports agree (below). */
 .needt-v3[data-ui="phone"] {
-  --v3-tail-h: max(
-    calc(112px + var(--v3-dock-lift)),
+  --v3-tail-base: max(
+    calc(var(--v3-dock-top) + 42px),
     calc(var(--ps-fog-h) + 16px)
   );
+  --v3-tail-h: calc(var(--v3-tail-base) + var(--v3-vp-gap));
+}
+/* The sticky Auto-fit pill keeps the base (vendored mobile-v2-plates.css reads
+ * --v3-tail-h): its place does not change with the gap. */
+.needt-v3[data-ui="phone"] .v2p-autofit {
+  bottom: calc(var(--v3-tail-base) + var(--v3-sab, 0px));
+}
+.needt-v3[data-ui="phone"]:has(.pov-snack) .v2p-autofit {
+  bottom: calc(var(--v3-tail-base) + var(--v3-sab, 0px) + 64px);
 }
 /* In a Safari tab the status bar is Safari's own and lies outside the page
  * (the inset is 0): the header starts at the top of the viewport, right under

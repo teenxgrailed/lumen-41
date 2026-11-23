@@ -16,6 +16,14 @@ function withDescription(schema: z.ZodType, json: JsonSchema): JsonSchema {
     : json;
 }
 
+function isRealBound(value: number | null): value is number {
+  return (
+    value !== null &&
+    Number.isFinite(value) &&
+    Math.abs(value) !== Number.MAX_SAFE_INTEGER
+  );
+}
+
 function isOptional(schema: z.ZodType): boolean {
   return (
     schema instanceof z.ZodOptional ||
@@ -51,8 +59,11 @@ export function zodToJsonSchema(schema: z.ZodType): JsonSchema {
   }
   if (schema instanceof z.ZodNumber) {
     const json: JsonSchema = { type: schema.isInt ? "integer" : "number" };
-    if (schema.minValue !== null) json.minimum = schema.minValue;
-    if (schema.maxValue !== null) json.maximum = schema.maxValue;
+    // zod 4 reports an unbounded number as ±Infinity (and an int as
+    // ±MAX_SAFE_INTEGER); JSON has no Infinity, so it would ship as
+    // `"maximum": null`, which clients reject for the whole tool.
+    if (isRealBound(schema.minValue)) json.minimum = schema.minValue;
+    if (isRealBound(schema.maxValue)) json.maximum = schema.maxValue;
     return withDescription(schema, json);
   }
   if (schema instanceof z.ZodBoolean) {
