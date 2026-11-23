@@ -15,6 +15,7 @@ import {
 import { announceEarlyFinish, parseFocusEnded } from "@/lib/needt3/focus-early";
 import { sendJson } from "@/lib/needt3/hooks/core";
 import { useUpdateTask } from "@/lib/needt3/hooks/tasks";
+import { announceIdeaCards, parseIdeaCards } from "@/lib/needt3/idea-notice";
 import { qk } from "@/lib/needt3/query-keys";
 import { notify } from "@/lib/notifications";
 import {
@@ -119,6 +120,18 @@ export function useRealtimeSync(): void {
       });
     };
 
+    // The idea sweep moved tasks to Ideas: one summed line with Undo, which
+    // reverses the whole run, then the lists refresh.
+    const onIdeaCards = (event: Event) => {
+      refreshTasks();
+      announceIdeaCards(parseIdeaCards((event as MessageEvent<string>).data), {
+        undo: async (runId) => {
+          await sendJson(`/api/agent/runs/${runId}/undo`, "POST");
+          refreshTasks();
+        },
+      });
+    };
+
     const connect = () => {
       if (stopped) return;
       eventSource = new EventSource(
@@ -129,6 +142,7 @@ export function useRealtimeSync(): void {
       eventSource.addEventListener("docs-updated", refreshDocs);
       eventSource.addEventListener("focus-ended", onFocusEnded);
       eventSource.addEventListener("easy-start", onEasyStart);
+      eventSource.addEventListener("idea-cards", onIdeaCards);
       eventSource.onopen = () => {
         reconnectDelayMs = INITIAL_REALTIME_RECONNECT_DELAY_MS;
       };
