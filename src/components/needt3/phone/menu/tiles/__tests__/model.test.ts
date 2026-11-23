@@ -17,6 +17,7 @@ import {
   mailRows,
   packTiles,
   placesOnGrid,
+  planEmptyText,
   reflow,
   removed,
   resized,
@@ -98,6 +99,17 @@ describe("layoutFromRow", () => {
   });
   it("reads anything but card as tiles", () => {
     expect(layoutFromRow({ style: "wat", tiles: [] }).style).toBe("tiles");
+  });
+});
+
+describe("planEmptyText", () => {
+  it("does not say 'Nothing planned' while work is overdue", () => {
+    expect(planEmptyText({ overdue: 19 })).toBe("Nothing due today");
+    expect(planEmptyText({ overdue: 1 })).toBe("Nothing due today");
+  });
+  it("says it plainly on a clear day", () => {
+    expect(planEmptyText({ overdue: 0 })).toBe("Nothing planned");
+    expect(planEmptyText({})).toBe("Nothing planned");
   });
 });
 

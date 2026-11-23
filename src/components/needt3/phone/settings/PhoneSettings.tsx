@@ -12,7 +12,7 @@ import {
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
-import { LuCheck, LuChevronLeft } from "react-icons/lu";
+import { LuCheck, LuChevronLeft, LuUserRound } from "react-icons/lu";
 
 import { useAlerts, useSchedule } from "@/lib/needt3/hooks/account";
 import { useConnections } from "@/lib/needt3/hooks/connections";
@@ -34,7 +34,6 @@ import {
   planInfo,
   readPref,
 } from "../../settings/derive";
-import { initialsOf } from "../../shell/Avatar";
 import { PkButton, PkGlyph, PkSheet, PkSkyPlate, pkCx } from "../kit";
 import { type MenuPlaceId, menuTilesRanked, menuWord } from "../menu/places";
 import { usePhoneOverlays } from "../overlays/store";
@@ -262,7 +261,7 @@ function MainList({ go }: { go: (id: PsPageId) => void }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img className="ps-avatar-img" src={user.image} alt="" />
           ) : (
-            initialsOf(name)
+            <LuUserRound size={24} aria-hidden />
           )}
         </span>
         <span className="ps-profile-text">

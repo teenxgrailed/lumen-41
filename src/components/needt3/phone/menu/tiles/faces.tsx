@@ -2,14 +2,22 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
+import { LuUserRound } from "react-icons/lu";
+
+import { taskIconKey } from "@/lib/needt3/task-icon";
 import type { MenuTile } from "@/lib/phone-menu/layout";
 
 import { DocThumb, useDocTokens } from "../../../docs/DocParts";
 import { Glyph } from "../../../glyphs/Glyph";
-import { initialsOf } from "../../../shell/Avatar";
+import { TaskGlyphBare } from "../../home/TaskGlyph";
 import { pkCx } from "../../kit/util";
 import { Swap, pages } from "./Swap";
-import type { DayEvent, TileFacts, TileView } from "./model";
+import {
+  type DayEvent,
+  type TileFacts,
+  type TileView,
+  planEmptyText,
+} from "./model";
 
 /**
  * What a tile draws (owner ref 2026-11-21, menu-tiles-2011/ref-tiles-profile):
@@ -202,7 +210,7 @@ export function TileFace({
           {rows === undefined ? (
             <Skel />
           ) : rows.length === 0 ? (
-            <Empty>Nothing planned</Empty>
+            <Empty>{planEmptyText(facts.counts)}</Empty>
           ) : (
             <Swap
               className="ntm-obj"
@@ -261,7 +269,9 @@ export function TileFace({
                   ))}
                 </ul>
               ) : null}
-              <DayStrip events={ev} nowMin={facts.nowMin ?? 0} />
+              {ev.length ? (
+                <DayStrip events={ev} nowMin={facts.nowMin ?? 0} />
+              ) : null}
             </div>
           )}
         </>
@@ -300,7 +310,9 @@ export function TileFace({
                         strokeLinejoin="round"
                       />
                     </svg>
-                  ) : null}
+                  ) : (
+                    <TaskGlyphBare iconKey={taskIconKey(h.title)} size={16} />
+                  )}
                 </span>
               ))}
               {rows.length > 4 ? (
@@ -357,7 +369,7 @@ export function TileFace({
                     className="ntm-av is-sm"
                     data-unread={m.unread ? "" : undefined}
                   >
-                    {initialsOf(m.from)}
+                    <LuUserRound size={14} aria-hidden />
                   </span>
                   <span className="ntm-mail-t">
                     <span className="ntm-txt ntm-strong">{m.from}</span>

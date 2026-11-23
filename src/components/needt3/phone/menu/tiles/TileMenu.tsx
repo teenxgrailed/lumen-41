@@ -26,6 +26,7 @@ import {
   LuSettings,
   LuSlidersHorizontal,
   LuSparkles,
+  LuUserRound,
   LuX,
 } from "react-icons/lu";
 
@@ -42,7 +43,6 @@ import {
   tileKey,
 } from "@/lib/phone-menu/layout";
 
-import { initialsOf } from "../../../shell/Avatar";
 import { PkScrim } from "../../kit/Scrim";
 import { pkTrack } from "../../kit/pointer";
 import { pkCx } from "../../kit/util";
@@ -524,7 +524,7 @@ function TileMenuLayer({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={user.image} alt="" onError={() => setBrokenImg(true)} />
           ) : (
-            initialsOf(userName)
+            <LuUserRound size={30} aria-hidden />
           )}
         </span>
         <button

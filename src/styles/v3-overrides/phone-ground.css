@@ -152,6 +152,18 @@ html[data-ground="page"]:has(
 html[data-display-mode="browser"] .needt-v3[data-ui="phone"] {
   --v3-top: env(safe-area-inset-top, 0px);
 }
+/* The installed app on iOS: the web view starts BELOW the status bar (the
+ * document is 100lvh minus the bar's height, see the display-mode rule above)
+ * and the inset is 0, so the design's 52 px floor was a second status bar on
+ * top of the real one: a 52 px empty band over every title and the menu's
+ * header (owner screenshots, 22.11.26). Where the web view does run under the
+ * bar the inset is the bar's height and this rule gives the same number as the
+ * max() above. Other platforms keep the design's 52 px (no real bar there). */
+@supports (-webkit-touch-callout: none) {
+  html[data-display-mode="standalone"] .needt-v3[data-ui="phone"] {
+    --v3-top: env(safe-area-inset-top, 0px);
+  }
+}
 /* The dock lifts above Safari's tab bar only where that bar is at the bottom
  * (Compact and Bottom layouts, .ps.is-safari of the design). With the address
  * bar on top (Top layout) the bottom toolbar takes its own room and hides on

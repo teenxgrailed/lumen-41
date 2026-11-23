@@ -164,7 +164,9 @@ describe("the stack", () => {
       expect(card.querySelector(".hc-card-meta")).not.toBeNull();
       expect(card.querySelector(".hc-check")).not.toBeNull();
     }
-    expect(topCard().querySelector(".hc-chip")!.textContent).toBe("R");
+    // no emoji: a real icon from the title, never its first letter
+    expect(topCard().querySelector(".hc-chip")!.textContent).toBe("");
+    expect(topCard().querySelector(".hc-chip svg")).not.toBeNull();
   });
 
   it("a habit with no colour gets a fixed pastel by its place in the list", () => {

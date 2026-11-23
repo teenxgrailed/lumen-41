@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 
-import { LuPlus } from "react-icons/lu";
+import { LuPlus, LuUserRound } from "react-icons/lu";
 
 import {
   NVA_HIDE_BELOW,
@@ -1251,7 +1251,7 @@ export function Menu(props: MenuProps) {
                     data-nva-row="profile"
                   >
                     <span className="nva-avatar" aria-hidden="true">
-                      {me.initial}
+                      <LuUserRound size={24} aria-hidden />
                     </span>
                     <span className="nva-row-text">
                       <span className="nva-me-row-name">{me.name}</span>

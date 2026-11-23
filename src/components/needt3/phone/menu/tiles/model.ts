@@ -203,6 +203,15 @@ export interface TileView {
 const plural = (n: number, one: string, many: string) =>
   `${n} ${n === 1 ? one : many}`;
 
+/**
+ * The Plan tile's line when nothing is due or placed today. With work overdue
+ * "Nothing planned" under "19 overdue" reads as a contradiction, so it says
+ * what is true: nothing is due today, and the overdue ones are the catch-up.
+ */
+export function planEmptyText(c: Pick<MenuCounts, "overdue">): string {
+  return c.overdue ? "Nothing due today" : "Nothing planned";
+}
+
 /** A tile of the catalogue, said from the facts. */
 export function tileView(tile: MenuTile, f: TileFacts): TileView {
   return { ...tileSay(tile, f), name: nameOf(tile, f) };
