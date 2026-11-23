@@ -6,10 +6,7 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
-import {
-  parseV3Fields,
-  projectV3FieldsSchema,
-} from "@/lib/needt3/api-fields";
+import { parseV3Fields, projectV3FieldsSchema } from "@/lib/needt3/api-fields";
 import { prisma } from "@/lib/prisma";
 import { deriveProjectProgress } from "@/lib/projects/progress";
 
@@ -49,14 +46,15 @@ export async function GET(request: NextRequest) {
       },
       include: {
         tasks: {
-          where: { isArchived: false },
+          // An idea is not project work (idea cards).
+          where: { isArchived: false, kind: "TASK" },
           select: { status: true, isArchived: true },
         },
         stages: {
           orderBy: { position: "asc" },
           include: {
             tasks: {
-              where: { isArchived: false },
+              where: { isArchived: false, kind: "TASK" },
               select: { status: true, isArchived: true },
             },
           },

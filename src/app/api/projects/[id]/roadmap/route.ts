@@ -15,6 +15,7 @@ import {
 } from "@/lib/needt3/roadmap";
 import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 const LOG_SOURCE = "project-roadmap-route";
 const NO_STORE = { "Cache-Control": "private, no-store, max-age=0" } as const;
@@ -52,7 +53,12 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       // Every task, not only this project's: a blocker in another project
       // still blocks a station here.
       prisma.task.findMany({
-        where: { ...scope, isArchived: false, AND: [activeProjectTaskWhere] },
+        where: {
+          ...scope,
+          ...openTaskWhere(),
+          isArchived: false,
+          AND: [activeProjectTaskWhere],
+        },
         select: {
           id: true,
           title: true,

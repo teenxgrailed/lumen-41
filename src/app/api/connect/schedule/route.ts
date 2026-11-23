@@ -10,12 +10,14 @@ import {
 } from "@/lib/auth/workspace-auth";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 async function readSchedule(userId: string, workspace: WorkspaceAccess) {
   const now = new Date();
   const tasks = await prisma.task.findMany({
     where: {
       ...workspaceDataScopeWhere(workspace, userId),
+      ...openTaskWhere(),
       isArchived: false,
       trashedAt: null,
       status: { not: "completed" },

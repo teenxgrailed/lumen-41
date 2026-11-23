@@ -40,7 +40,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       },
       include: {
         tasks: {
-          where: { isArchived: false },
+          // An idea is not project work (idea cards).
+          where: { isArchived: false, kind: "TASK" },
           include: {
             tags: true,
             assignee: {
