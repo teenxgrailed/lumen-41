@@ -57,7 +57,7 @@ const SECRET_KEY =
 
 function result(payload: unknown): McpToolResult {
   return {
-    content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+    content: [{ type: "text", text: JSON.stringify(payload) }],
   };
 }
 

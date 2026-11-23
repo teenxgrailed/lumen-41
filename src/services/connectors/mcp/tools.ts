@@ -44,6 +44,12 @@ import type { BearerAuth } from "@/services/connectors/bearer";
 import { CONNECTOR_CONTROL_ACTIONS } from "@/services/connectors/control-actions";
 import { createLocalEvent } from "@/services/connectors/local-events";
 import {
+  INTERNAL_TASK_KEYS,
+  compact,
+  compactPage,
+  compactRow,
+} from "@/services/connectors/mcp/compact";
+import {
   DayPlanError,
   buildDraft,
   cleanupSomeday,
@@ -237,8 +243,9 @@ function defineTool<S extends z.ZodTypeAny>(
 }
 
 export function toolResult(payload: unknown): McpToolResult {
+  // No indent: whitespace is ~17% of a pretty-printed answer, all of it tokens.
   return {
-    content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+    content: [{ type: "text", text: JSON.stringify(payload) }],
   };
 }
 
@@ -342,6 +349,21 @@ const taskPartsInclude = {
     select: { id: true, name: true, mimeType: true, size: true },
   },
 };
+
+// TODO: the needt_view_* tools (saved views) return raw rows too; give them the
+// same compact pass and a `verbose` flag when they land.
+
+/** `verbose` on needt_get, needt_list and needt_search: the full row, nulls included. */
+const VERBOSE_FIELD = z
+  .boolean()
+  .optional()
+  .describe(
+    "Return every column, including null, empty and internal ones. Off by default: a field that is missing from the answer is null or empty."
+  );
+
+/** Internal columns the compact answer leaves out, by object type. */
+const dropKeysFor = (type: string) =>
+  type === "task" ? INTERNAL_TASK_KEYS : undefined;
 
 const LIST_TYPES = [
   "task",
@@ -792,6 +814,7 @@ export const MCP_TOOLS: McpTool[] = [
         .max(MCP_LIST_LIMIT_MAX)
         .default(10)
         .describe("Maximum results per type."),
+      verbose: VERBOSE_FIELD,
     }),
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
@@ -804,22 +827,21 @@ export const MCP_TOOLS: McpTool[] = [
       const types = mailAllowed
         ? args.types
         : (args.types ?? [...SEARCHABLE_TYPES]).filter((t) => t !== "mail");
-      return toolResult({
-        results: await searchWorkspace({
-          userId: ctx.userId,
-          workspace: access.workspace,
-          query: args.query,
-          take: args.limit,
-          types,
-          ai: true,
-        }),
+      const results = await searchWorkspace({
+        userId: ctx.userId,
+        workspace: access.workspace,
+        query: args.query,
+        take: args.limit,
+        types,
+        ai: true,
       });
+      return toolResult({ results: args.verbose ? results : compact(results) });
     },
   }),
   defineTool({
     name: "needt_list",
     description:
-      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard, personal_time (lunch, walks, gym and other time kept for the person; tasks are never scheduled in it), goal (with progress; never scheduled).",
+      "List objects of one type from the active Needt workspace, newest first, with cursor pagination. Types: task, project, event, calendar, page, habit, mail, moodboard, personal_time (lunch, walks, gym and other time kept for the person; tasks are never scheduled in it), goal (with progress; never scheduled). Answers are compact: a field that is null, empty or an internal column is left out (start, end, due date, completion, project and status always stay, null when unset); verbose: true returns every column.",
     annotations: {
       title: "List objects",
       readOnlyHint: true,
@@ -862,17 +884,21 @@ export const MCP_TOOLS: McpTool[] = [
         .describe(
           "Tasks only: task (default) lists tasks, idea lists the optional ideas (needt_list_ideas pages them by state), any lists both."
         ),
+      verbose: VERBOSE_FIELD,
     }),
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
       if ("error" in access) return access.error;
-      return toolResult(await listRows(args.type, ctx, access.workspace, args));
+      const rows = await listRows(args.type, ctx, access.workspace, args);
+      return toolResult(
+        args.verbose ? rows : compactPage(rows, dropKeysFor(args.type))
+      );
     },
   }),
   defineTool({
     name: "needt_get",
     description:
-      "Read one object in full by type and id: task (with scheduled blocks and its subtasks in order, plus entry and dependsOnId), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body), or moodboard (title and your access role), or goal (progress, subgoals, the tasks that count towards it, recent check-ins).",
+      "Read one object in full by type and id: task (with scheduled blocks and its subtasks in order, plus entry and dependsOnId), project, event, calendar, page (with blocks), habit, or mail (metadata only: sender, subject, snippet, labels — no body), or moodboard (title and your access role), or goal (progress, subgoals, the tasks that count towards it, recent check-ins). Answers are compact: a field that is null, empty or an internal column is left out (start, end, due date, completion, project and status always stay, null when unset); verbose: true returns every column.",
     annotations: {
       title: "Get object",
       readOnlyHint: true,
@@ -881,7 +907,11 @@ export const MCP_TOOLS: McpTool[] = [
     },
     scopes: (args) =>
       args.type === "mail" ? ["needt.read", "mail.read"] : ["needt.read"],
-    input: z.object({ type: z.enum(LIST_TYPES), id: z.string().min(1) }),
+    input: z.object({
+      type: z.enum(LIST_TYPES),
+      id: z.string().min(1),
+      verbose: VERBOSE_FIELD,
+    }),
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
       if ("error" in access) return access.error;
@@ -895,7 +925,9 @@ export const MCP_TOOLS: McpTool[] = [
               : `${args.type} not found`,
         });
       }
-      return toolResult(row);
+      return toolResult(
+        args.verbose ? row : compactRow(row, dropKeysFor(args.type))
+      );
     },
   }),
   defineTool({

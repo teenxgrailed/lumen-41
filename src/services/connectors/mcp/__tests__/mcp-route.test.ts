@@ -544,7 +544,6 @@ describe("remote MCP endpoint", () => {
         id: "task-1",
         title: "Mine",
         workspaceId: "workspace-1",
-        originPageId: null,
       },
     ]);
     const args = (prisma.task.findMany as jest.Mock).mock.calls[0][0];
