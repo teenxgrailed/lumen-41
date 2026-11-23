@@ -1,0 +1,1 @@
+- Calendar: a task you finished on an earlier day than its planned slot is no longer drawn at that stale time, where it looked like a second task booked at the same hour as a new one. It shows as a done row on the day you closed it.
