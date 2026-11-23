@@ -19,8 +19,11 @@ export { PkScrim } from "./Scrim";
 
 /* ══ Blur band (additions-2/phone-shell, ps-) ═════════════════════════════
    The fog under the dock is progressive blur in two masked steps (4 / 14 px)
-   plus a wash. Nothing is fixed at the top of the phone (owner decision
-   2026-10-25): content scrolls under the status bar and Safari's bar.
+   plus a wash. Nothing is fixed at the top of the phone in a Safari tab, where
+   content scrolls under Safari's bar (owner decision 2026-10-25). In the
+   installed app the status bar has a ground of its own (owner decision
+   23.11.26, cancelling "content scrolls under the status bar" there): see
+   StatusBg.tsx and phone-status-bg.css.
    The band must not sit under an ancestor with opacity / filter / mask, or
    the blur sees nothing — the fade (--pk-fog-k) goes on each layer itself
    (phone-shell.css). The layers wear `pk-blur` so the rest-while-moving and

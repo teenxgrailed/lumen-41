@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import type { PhoneUi } from "@/lib/needt3/phone-ui";
 
 import { V3PortalScope } from "../ctx/PortalScope";
+import { PkStatusBg } from "../phone/kit/StatusBg";
 import { PkThemeRoot } from "../phone/kit/theme";
 
 /** The landmark the "Skip to content" link jumps to. */
@@ -85,6 +86,7 @@ export function ShellFrame({
           Skip to content
         </a>
         <V3PortalScope>
+          <PkStatusBg />
           {top}
           <div className="shell-app-row">
             {rail}
