@@ -200,12 +200,16 @@ async function place() {
   const queue: unknown[][] = [[dbTask()], []];
   prisma.task.findMany.mockImplementation(
     async (args?: {
-      where?: { blockEventId?: unknown; isAutoScheduled?: unknown };
+      where?: {
+        blockEventId?: unknown;
+        isAutoScheduled?: unknown;
+        scheduledStart?: unknown;
+      };
     }) =>
       args?.where?.blockEventId
         ? mockDb.pushedBlockIds.map((blockEventId) => ({ blockEventId }))
-        : args?.where?.isAutoScheduled === false
-          ? [] // pinned tasks: none here
+        : args?.where?.isAutoScheduled === false || args?.where?.scheduledStart
+          ? [] // pinned and held tasks: none here
           : (queue.shift() ?? [])
   );
   await scheduleAllTasksForUserDetailed("user-1");

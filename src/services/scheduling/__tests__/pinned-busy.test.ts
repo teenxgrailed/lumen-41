@@ -170,10 +170,15 @@ async function runScheduler() {
   const queue: unknown[][] = [tasks, []]; // the tasks to place, then the reload
   prisma.task.findMany.mockImplementation(
     async (args?: {
-      where?: { blockEventId?: unknown; isAutoScheduled?: unknown };
+      where?: {
+        blockEventId?: unknown;
+        isAutoScheduled?: unknown;
+        scheduledStart?: unknown;
+      };
     }) => {
       if (args?.where?.blockEventId) return [];
       if (args?.where?.isAutoScheduled === false) return mockDb.pinned;
+      if (args?.where?.scheduledStart) return []; // held outside the run
       return queue.shift() ?? [];
     }
   );

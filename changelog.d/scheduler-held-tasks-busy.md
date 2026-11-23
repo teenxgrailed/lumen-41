@@ -1,0 +1,1 @@
+- Scheduler: an auto-scheduled task that is not part of the run but still holds a future time (in progress, cut by the plan's auto-schedule limit, or in another workspace) now counts as busy time, so a new task is no longer placed on top of it. Tasks pinned in another workspace count too.

@@ -186,9 +186,15 @@ async function runScheduler() {
   const queue: unknown[][] = [tasks, []]; // the tasks to place, then the reload
   prisma.task.findMany.mockImplementation(
     async (args?: {
-      where?: { blockEventId?: unknown; isAutoScheduled?: unknown };
+      where?: {
+        blockEventId?: unknown;
+        isAutoScheduled?: unknown;
+        scheduledStart?: unknown;
+      };
     }) =>
-      args?.where?.blockEventId || args?.where?.isAutoScheduled === false
+      args?.where?.blockEventId ||
+      args?.where?.isAutoScheduled === false ||
+      args?.where?.scheduledStart
         ? []
         : (queue.shift() ?? [])
   );

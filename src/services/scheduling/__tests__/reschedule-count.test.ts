@@ -122,10 +122,15 @@ async function runWith(tasks: ReturnType<typeof dbTask>[]) {
   const queue: unknown[][] = [tasks, []];
   prisma.task.findMany.mockImplementation(
     async (args?: {
-      where?: { blockEventId?: unknown; isAutoScheduled?: unknown };
+      where?: {
+        blockEventId?: unknown;
+        isAutoScheduled?: unknown;
+        scheduledStart?: unknown;
+      };
     }) => {
       if (args?.where?.blockEventId) return [];
       if (args?.where?.isAutoScheduled === false) return [];
+      if (args?.where?.scheduledStart) return []; // tasks held outside the run
       return queue.shift() ?? [];
     }
   );

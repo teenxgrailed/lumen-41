@@ -428,9 +428,10 @@ async function scheduleAllTasksForUserLocked(
 
     // A task with fixed times that Needt does not schedule (pinned by hand,
     // made with a start through MCP, dragged) still occupies its slot.
+    // The person's time is one calendar across their workspaces, so this reads
+    // every workspace.
     const pinnedRows = await prisma.task.findMany({
       where: {
-        ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
         ...openTaskWhere(),
         isAutoScheduled: false,
         autoScheduled: false,
@@ -521,6 +522,52 @@ async function scheduleAllTasksForUserLocked(
         task.scheduledStart !== null || Boolean(task.scheduledBlocks?.length)
     );
 
+    // An auto-scheduled task that is not part of this run (in progress, cut by
+    // the plan's auto-schedule limit, or in another workspace) keeps its time
+    // and is not moved: nothing may be placed on top of it.
+    const runTaskIds = new Set(dbTasks.map((task) => task.id));
+    const heldRows = await prisma.task.findMany({
+      where: {
+        ...openTaskWhere(),
+        assigneeId: userId,
+        isArchived: false,
+        trashedAt: null,
+        status: { not: TaskStatus.COMPLETED },
+        scheduledStart: { not: null, lt: addDays(now, DEFAULT_HORIZON_DAYS) },
+        scheduledEnd: { not: null, gt: now },
+        AND: [
+          activeProjectTaskWhere,
+          { OR: [{ isAutoScheduled: true }, { autoScheduled: true }] },
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        scheduledStart: true,
+        scheduledEnd: true,
+        scheduledBlocks: { select: { start: true, end: true } },
+      },
+    });
+    const heldBusy: CalendarBusyBlock[] = heldRows
+      .filter((task) => !runTaskIds.has(task.id))
+      .flatMap((task) => {
+        const spans = [
+          ...(task.scheduledStart && task.scheduledEnd
+            ? [{ start: task.scheduledStart, end: task.scheduledEnd }]
+            : []),
+          ...(task.scheduledBlocks ?? []),
+        ];
+        return spans.map(
+          (span): CalendarBusyBlock => ({
+            id: task.id,
+            title: task.title,
+            start: span.start,
+            end: span.end,
+            source: "task",
+          })
+        );
+      });
+
     const engineResult = scheduleTasks({
       tasks: dbTasks.map(toSchedulableTask),
       busyBlocks: [
@@ -537,6 +584,7 @@ async function scheduleAllTasksForUserLocked(
         // in it, repeats and blocks linked to an event included.
         ...personalBusy,
         ...pinnedBusy,
+        ...heldBusy,
       ],
       // Energy windows no longer constrain placement. They narrowed the day to
       // a few hours, so tasks either piled into those hours or found no slot at
