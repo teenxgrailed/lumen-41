@@ -173,6 +173,7 @@ async function run() {
       where?: {
         blockEventId?: unknown;
         isAutoScheduled?: unknown;
+        scheduledStart?: unknown;
         kind?: string;
       };
     }) => {
@@ -181,6 +182,7 @@ async function run() {
       if (args?.where?.isAutoScheduled === false) {
         return filtered([pinnedIdea], args?.where);
       }
+      if (args?.where?.scheduledStart) return []; // held outside the run
       return filtered([real, idea], args?.where);
     }
   );
