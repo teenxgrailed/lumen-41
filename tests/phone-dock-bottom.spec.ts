@@ -6,7 +6,8 @@ import { createV3User, signInAs } from "./helpers/v3-user";
 
 /*
  * The bottom of a phone page never clips: scrolled to the end, the page's tail
- * is taller than the fog under the dock, so the last row ends above it.
+ * is taller than the fog under the dock, so the last row ends above it, and
+ * at least 12 px above the floating bar's top edge.
  * The screenshot goes to test-results/phone-dock-bottom (uploaded with the e2e
  * report) so the bottom of the page can be looked at.
  */
@@ -51,13 +52,21 @@ test("phone page ends above the fog under the dock", async ({ browser }) => {
       fogH = probe.getBoundingClientRect().height;
       probe.remove();
     }
+    // The floating bar's top edge and the end of the last row, in viewport
+    // px at the bottom of the page: the row must end 12 px above the bar.
+    const pill = document.querySelector(".nfb-pill");
     return {
       tail: tail ? tail.getBoundingClientRect().height : -1,
+      tailTop: tail ? tail.getBoundingClientRect().top : -1,
+      dockTop: pill ? pill.getBoundingClientRect().top : -1,
       fog: fogH,
     };
   });
   expect(room.fog).toBeGreaterThan(0);
   expect(room.tail).toBeGreaterThanOrEqual(room.fog + 16);
+  if (room.dockTop >= 0) {
+    expect(room.tailTop).toBeLessThanOrEqual(room.dockTop - 12);
+  }
   await page.screenshot({ path: path.join(OUT, "bottom.png") });
   await context.close();
 });

@@ -69,6 +69,31 @@ export function safariBarOf(
   return tall - r.largeViewport > minGap ? "bottom" : "top";
 }
 
+/** The most the screen gap may add to the page's tail. */
+export const SCREEN_GAP_MAX_PX = 100;
+
+/**
+ * How far the layout viewport falls short of the screen in the installed app:
+ * `screen.height` less `innerHeight`, in portrait only, 0 when the viewport is
+ * as tall as the screen or taller. This is the state measured on an iPhone 17
+ * Pro (innerHeight 812, screen 874): the fixed dock hangs from the 812 line
+ * while the page scrolls against the whole screen, so the dock stands that much
+ * higher than the end of the page. phone-ground.css adds it to the tail
+ * (`--v3-screen-gap`, capped there too). 0 everywhere else: a Safari tab, a
+ * landscape phone, a healthy installed app.
+ *
+ * Serialised into VIEWPORT_BOOT_SCRIPT with `toString`: self-contained, no
+ * imports, the cap is passed in.
+ */
+export function screenGapOf(r: ViewportReading, cap: number): number {
+  // iOS only: another platform's installed app has no such shortfall.
+  if (!r.standalone || !r.ios) return 0;
+  // Landscape: the phone UI is not drawn.
+  if (r.innerWidth > r.innerHeight) return 0;
+  const gap = Math.max(r.screenWidth, r.screenHeight) - r.innerHeight;
+  return gap > 0 ? Math.min(Math.round(gap), cap) : 0;
+}
+
 /**
  * Runs as a child of `.needt-v3` right after the look script, before anything
  * below it paints. Again on resize (Safari's bars collapse and grow, the phone
@@ -80,6 +105,7 @@ export function safariBarOf(
 export const VIEWPORT_BOOT_SCRIPT = `(function(){try{
 var w=window,d=document,h=d.documentElement,n=w.navigator,lv=0,lw=-1;
 var rule=${safariBarOf.toString()};
+var gapOf=${screenGapOf.toString()};
 var lvh=function(){var p=d.createElement("div");p.style.cssText="position:absolute;visibility:hidden;pointer-events:none;top:0;left:0;width:0;height:100lvh";h.appendChild(p);var v=p.offsetHeight;h.removeChild(p);return v};
 var set=function(force){var s=w.screen||{};
 if(force===true||w.innerWidth!==lw){lw=w.innerWidth;lv=lvh()}
@@ -88,9 +114,12 @@ ios:/iP(hone|ad|od)/.test(n.userAgent)||(n.platform==="MacIntel"&&n.maxTouchPoin
 largeViewport:lv,screenWidth:s.width||0,screenHeight:s.height||0,
 innerWidth:w.innerWidth,innerHeight:w.innerHeight},b=rule(r,${BOTTOM_BAR_MIN_GAP_PX});
 h.setAttribute("data-display-mode",r.standalone?"standalone":"browser");
-if(b){if(h.getAttribute("data-safari-bar")!==b)h.setAttribute("data-safari-bar",b)}else h.removeAttribute("data-safari-bar")};
+if(b){if(h.getAttribute("data-safari-bar")!==b)h.setAttribute("data-safari-bar",b)}else h.removeAttribute("data-safari-bar");
+if(h.style){var g=gapOf(r,${SCREEN_GAP_MAX_PX})+"px";if(h.style.getPropertyValue("--v3-screen-gap")!==g)h.style.setProperty("--v3-screen-gap",g)}};
 set(true);
 if(!w.__needtSafariBar){w.__needtSafariBar=1;
 w.addEventListener("resize",set);
+w.addEventListener("orientationchange",set);
+w.addEventListener("pageshow",set);
 w.addEventListener("load",function(){setTimeout(function(){set(true)},1200)})}
 }catch(x){}})();`;

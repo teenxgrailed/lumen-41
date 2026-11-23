@@ -63,13 +63,14 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: CHUNK_RELOAD_SCRIPT }}
         />
         {/* ?edgedebug loads a panel that reports what sits at the screen
-         * edges (Safari 26 bar bands). Nothing loads without the param. */}
+         * edges (Safari 26 bar bands); edge-debug-dock.js reports the dock, the
+         * page's tail and the viewport. Nothing loads without the param. */}
         <Script
           id="edge-debug-loader"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html:
-              'if(/[?&]edgedebug\\b/.test(location.search)){var s=document.createElement("script");s.src="/edge-debug.js";document.head.appendChild(s);}',
+              'if(/[?&]edgedebug\\b/.test(location.search)){var s=document.createElement("script");s.src="/edge-debug.js";document.head.appendChild(s);var d=document.createElement("script");d.src="/edge-debug-dock.js";document.head.appendChild(d);}',
           }}
         />
         {FIGMA_CAPTURE_ENABLED ? (
