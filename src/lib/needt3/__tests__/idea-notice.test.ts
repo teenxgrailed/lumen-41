@@ -1,6 +1,10 @@
 import { notify } from "@/lib/notifications";
 
-import { announceIdeaCards, parseIdeaCards } from "../idea-notice";
+import {
+  announceIdeaCards,
+  parseIdeaCards,
+  useIdeaMoved,
+} from "../idea-notice";
 
 jest.mock("@/lib/notifications", () => ({
   notify: { info: jest.fn(), error: jest.fn() },
@@ -82,5 +86,26 @@ describe("announceIdeaCards", () => {
     shownAction()!.onClick();
     await settle();
     expect(error.mock.calls[0][0]).toMatch(/you changed a task since/);
+  });
+
+  it("on Today the line goes to the screen's own note, not the pill, and Undo reaches the run", async () => {
+    const undo = jest.fn().mockResolvedValue(undefined);
+    const stop = useIdeaMoved.getState().mount();
+    expect(
+      announceIdeaCards(
+        { message: "Moved 3 to Ideas: a, b, ...", runId: "r1" },
+        { undo }
+      )
+    ).toBe(true);
+    expect(info).not.toHaveBeenCalled();
+    const held = useIdeaMoved.getState().notice;
+    expect(held?.message).toBe("Moved 3 to Ideas: a, b, ...");
+    await held?.undo?.();
+    expect(undo).toHaveBeenCalledWith("r1");
+    // Today closing without an answer drops the line; the next one is a pill
+    stop();
+    expect(useIdeaMoved.getState().notice).toBeNull();
+    announceIdeaCards({ message: "Moved to Ideas: x" }, { undo });
+    expect(info).toHaveBeenCalledTimes(1);
   });
 });

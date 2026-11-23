@@ -1,0 +1,313 @@
+/* Idea cards on the phone's Today (design lab variant V1, the owner's pick).
+   One soft raised card that sits between two tasks. Rules kept (PORT.md): every
+   grey is the one text colour at a ladder alpha; the accent is never a fill (the
+   idea's own colour is a mark, a tile and a glow); icons are the real ones
+   (react-icons/lu); no count over rows that are already visible. The phone keeps
+   its own row scale (17 / 13), as its rows do. The volume layers are written
+   here until the shared raised material lands; then they move to it. */
+
+/* ── The slot: folds by height so the rows around it move with it ───────── */
+.needt-v3 {
+  --ic-ease: var(--pk-ease, cubic-bezier(0.2, 0.9, 0.24, 1));
+}
+.needt-v3 .ic-slot {
+  position: relative;
+  margin: 0 0 8px;
+  transition: margin 0.32s var(--ic-ease);
+}
+.needt-v3 .ic-slot[data-phase="gone"] {
+  margin-bottom: 0;
+}
+.needt-v3 .ic-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.32s var(--ic-ease),
+    opacity 0.2s ease;
+}
+.needt-v3 .ic-fold[data-open="1"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows 0.32s var(--ic-ease),
+    opacity 0.26s ease 0.08s;
+}
+/* the padding keeps a card's shadow inside the clip; the negative margin
+   hands the room back, and the pad itself is never a hit target */
+.needt-v3 .ic-fold-in {
+  min-height: 0;
+  overflow: hidden;
+  padding: 36px;
+  margin: -36px;
+  pointer-events: none;
+}
+.needt-v3 .ic-fold-in > * {
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ic-slot,
+  .needt-v3 .ic-fold,
+  .needt-v3 .ic-fold[data-open="1"] {
+    transition: none;
+  }
+  .needt-v3 .ic-slot[data-phase="took"] .ic-landed {
+    animation: none;
+  }
+}
+
+/* ── The card: soft raised, the volume material ─────────────────────────── */
+.needt-v3 .ic {
+  --ic-hue: var(--hue, var(--text-muted));
+  --ic-hl: rgba(255, 255, 255, 0.95);
+  --ic-ring: rgba(var(--foreground-rgb), 0.07);
+  --ic-c1: rgba(var(--foreground-rgb), 0.05);
+  --ic-c2: rgba(var(--foreground-rgb), 0.07);
+  --ic-c3: rgba(var(--foreground-rgb), 0.13);
+  --ic-btn-a: #ffffff;
+  --ic-btn-b: #efeee9;
+  --ic-glow: rgba(255, 255, 255, 0.7);
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 14px;
+  row-gap: 14px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 26px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), transparent 46%),
+    var(--surface-raised);
+  box-shadow:
+    inset 0 1px 0 var(--ic-hl),
+    0 0 0 1px var(--ic-ring),
+    0 1px 2px var(--ic-c1),
+    0 6px 12px -4px var(--ic-c2),
+    0 18px 30px -14px var(--ic-c3);
+}
+.needt-v3[data-theme="dark"] .ic {
+  --ic-hl: rgba(255, 255, 255, 0.11);
+  --ic-ring: rgba(255, 255, 255, 0.05);
+  --ic-c1: rgba(0, 0, 0, 0.35);
+  --ic-c2: rgba(0, 0, 0, 0.4);
+  --ic-c3: rgba(0, 0, 0, 0.55);
+  --ic-btn-a: #34343b;
+  --ic-btn-b: #29292f;
+  --ic-glow: rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 48%),
+    var(--surface-raised);
+  box-shadow:
+    inset 0 1px 0 var(--ic-hl),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.45),
+    0 0 0 1px var(--ic-ring),
+    0 1px 2px var(--ic-c1),
+    0 8px 14px -4px var(--ic-c2),
+    0 20px 34px -14px var(--ic-c3);
+}
+.needt-v3 .ic-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.needt-v3 .ic-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+  font: 600 12px/16px var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.needt-v3 .ic-title {
+  margin: 0;
+  color: var(--text-primary);
+  font: 500 17px/22px var(--font-sans);
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.needt-v3 .ic-meta {
+  margin: 2px 0 0;
+  color: var(--text-quaternary);
+  font: 400 13px/17px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.needt-v3 .ic-tile {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  color: color-mix(in oklab, var(--ic-hue) 86%, #000);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--ic-hue) 30%, #fff) 0%,
+    color-mix(in oklab, var(--ic-hue) 14%, var(--surface-raised)) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 var(--ic-glow),
+    inset 0 0 0 1px color-mix(in oklab, var(--ic-hue) 24%, transparent),
+    0 1px 1px var(--ic-c1),
+    0 5px 9px -4px color-mix(in oklab, var(--ic-hue) 55%, transparent);
+}
+.needt-v3[data-theme="dark"] .ic-tile {
+  color: var(--ic-hue);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--ic-hue) 38%, #2d2d33) 0%,
+    color-mix(in oklab, var(--ic-hue) 16%, #1f1f23) 100%
+  );
+}
+
+/* the two answers: the raised default, the quiet other. The lift is the
+   invitation, not a fill. */
+.needt-v3 .ic-acts {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.needt-v3 .ic-btn {
+  height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 14px;
+  font: 500 15px/20px var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.12s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.needt-v3 .ic-btn:active {
+  transform: translateY(1px) scale(0.985);
+}
+.needt-v3 .ic-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.needt-v3 .ic-btn:focus-visible,
+.needt-v3 .ic-undo:focus-visible {
+  outline: 2px solid var(--v2p-lav);
+  outline-offset: 2px;
+}
+.needt-v3 .ic-btn.is-take {
+  flex: 1;
+  color: var(--text-primary);
+  background: linear-gradient(180deg, var(--ic-btn-a), var(--ic-btn-b));
+  box-shadow:
+    inset 0 1px 0 var(--ic-hl),
+    0 0 0 1px var(--ic-ring),
+    0 1px 2px var(--ic-c1),
+    0 4px 8px -3px var(--ic-c2);
+}
+.needt-v3 .ic-btn.is-skip {
+  padding-inline: 12px;
+  color: var(--text-quaternary);
+  background: transparent;
+}
+@media (hover: hover) {
+  .needt-v3 .ic-btn.is-skip:hover {
+    color: var(--text-tertiary);
+  }
+}
+
+/* ── Took: the task that replaces it, and a short confirmation ─────────── */
+.needt-v3 .ic-landed {
+  position: relative;
+}
+.needt-v3 .ic-slot[data-phase="took"] .ic-landed {
+  animation: ic-land 1.1s var(--ic-ease) 0.1s both;
+}
+@keyframes ic-land {
+  0% {
+    box-shadow: 0 0 0 0
+      color-mix(in oklab, var(--hue, transparent) 45%, transparent);
+    border-radius: 22px;
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+    border-radius: 22px;
+  }
+}
+.needt-v3 .ic-added {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 0 14px;
+  font: 400 12px/16px var(--font-sans);
+  color: var(--text-quaternary);
+}
+.needt-v3 .ic-added .ic-undo {
+  margin-left: 6px;
+  padding: 0 6px;
+  min-height: 20px;
+  font-size: 12px;
+}
+
+/* ── Skipped, and the sweep's notice: one quiet line, with the way back ── */
+.needt-v3 .ic-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 0 8px 0 16px;
+  border-radius: 16px;
+  color: var(--text-quaternary);
+  background: var(--fill-2);
+  font: 400 15px/20px var(--font-sans);
+}
+.needt-v3 .ic-note-t {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.needt-v3 .ic-note-t svg {
+  flex: none;
+}
+.needt-v3 .ic-note-m {
+  min-width: 0;
+  padding: 10px 0;
+  overflow-wrap: anywhere;
+}
+.needt-v3 .ic-moved {
+  margin: 0 0 12px;
+}
+.needt-v3 .ic-undo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 0 8px;
+  height: 100%;
+  min-height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.needt-v3 .ic-undo:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+@media (hover: hover) {
+  .needt-v3 .ic-undo:not(:disabled):hover {
+    color: var(--text-primary);
+    background: var(--fill-4);
+  }
+}

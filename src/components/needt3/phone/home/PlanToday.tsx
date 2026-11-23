@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { Fragment, type ReactNode, useState } from "react";
 
 import {
   LuCalendar,
@@ -26,6 +26,7 @@ import {
 import { at as hourAt } from "@/lib/needt3/derive";
 import type { V3Task } from "@/lib/needt3/map";
 
+import type { IdeaSlots } from "../../idea-cards/useIdeaSlots";
 import { TaskGlyph } from "./TaskGlyph";
 
 const FACT_ICON: Record<FactKind, typeof LuCheck> = {
@@ -177,6 +178,7 @@ export function PlanToday({
   onAll,
   onSomeday,
   late,
+  ideas,
 }: {
   snapshot: DayPlanSnapshot;
   byId: ReadonlyMap<string, V3Task>;
@@ -198,27 +200,41 @@ export function PlanToday({
     onSpread: () => void;
     onMove: () => void;
   } | null;
+  /** Idea cards, each after the visible row the server asked for. */
+  ideas?: IdeaSlots;
 }) {
   const [decideFolded, setDecideFolded] = useState(true);
   const { main, rest, needsDecision } = planSections(snapshot);
-  const one = (t: V3Task, size: "big" | "compact") =>
-    row(t, { size, icon: <TaskGlyph title={t.title} icon={t.icon} /> });
-  const rows = (items: typeof main, size: "big" | "compact") =>
-    items.flatMap((i) => {
-      const t = byId.get(i.taskId);
-      return t ? [one(t, size)] : [];
-    });
+  const mainTasks = main.flatMap((i) => {
+    const t = byId.get(i.taskId);
+    return t ? [t] : [];
+  });
   // the rest, by part of the day: Anytime, Morning, Day, Evening
   const restTasks = rest.flatMap((i) => {
     const t = byId.get(i.taskId);
     return t ? [t] : [];
   });
+  // Every visible row counts, main first, then the parts in the order drawn;
+  // an idea card sits right after the row its `after` names.
+  const total = mainTasks.length + restTasks.length;
+  let seen = 0;
+  const plain = (t: V3Task, size: "big" | "compact") =>
+    row(t, { size, icon: <TaskGlyph title={t.title} icon={t.icon} /> });
+  const one = (t: V3Task, size: "big" | "compact") => {
+    seen += 1;
+    return (
+      <Fragment key={t.id}>
+        {plain(t, size)}
+        {ideas?.after(seen, total)}
+      </Fragment>
+    );
+  };
   const parts = groupByDayPart(restTasks, (t) => hourAt(t));
   return (
     <div className="v2p-day dp-list" data-day-plan="">
-      {main.length ? (
+      {mainTasks.length ? (
         <div className="dp-group dp-main" data-day-main="">
-          {rows(main, "big")}
+          {mainTasks.map((t) => one(t, "big"))}
         </div>
       ) : null}
       {parts.length ? (
@@ -256,7 +272,7 @@ export function PlanToday({
               {needsDecision.map((t) => {
                 const task = byId.get(t.id);
                 return task ? (
-                  one(task, "compact")
+                  plain(task, "compact")
                 ) : (
                   <div key={t.id} className="dp-orphan">
                     {t.title}
