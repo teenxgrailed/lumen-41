@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { movedToLaterDay } from "@/services/easy-start/moves";
 import { endFocusForCompletedTask } from "@/services/focus/completion-ends-focus";
+import { IDEA_NO_DATES, ideaPatchRefused } from "@/services/ideas/rules";
 import { rescheduleRemindersSoon } from "@/services/reminders/reminders";
 import { scheduleAllTasksForUser } from "@/services/scheduling/TaskSchedulingService";
 import { findTaskProjectMoveConflict } from "@/services/tasks/dependencies";
@@ -183,6 +184,10 @@ export async function PUT(
       assigneeId: requestedAssigneeId,
       ...columns
     } = input.data;
+    // An idea (idea cards) carries no date or schedule and is never finished.
+    if (task.kind === "IDEA" && ideaPatchRefused(columns)) {
+      return NextResponse.json({ error: IDEA_NO_DATES }, { status: 400 });
+    }
     const fields = { ...columns, ...expandOriginPage(v3.data) };
     // The archive time is the server's: set below when `isArchived` changes.
     const updates: typeof fields & { archivedAt?: Date | null } = fields;

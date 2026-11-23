@@ -41,6 +41,11 @@ export const ACTIVATION_EVENTS = [
   /* A handled message in a linked messenger chat. Props: channel, kind
      (text | voice | button) and tasksCreated; never the message text. */
   "channel_reply",
+  /* Idea cards (openspec idea-cards). Props: short kinds and counts only
+     (source, position, skipCount, placedToday), never an idea's title. */
+  "idea_shown",
+  "idea_taken",
+  "idea_skipped",
 ] as const;
 
 /** Events that count once per account; a unique index enforces it. */

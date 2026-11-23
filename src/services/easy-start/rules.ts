@@ -46,6 +46,8 @@ export function fallbackPlan(): EntryPlan {
 /* ---------- eligibility ---------- */
 
 export interface EasyTaskFacts {
+  /** Idea cards: an idea is never changed by easy start. */
+  kind?: "TASK" | "IDEA";
   status: string;
   isArchived: boolean;
   trashedAt: Date | null;
@@ -67,6 +69,7 @@ export function isPersonalOpenTask(
   task: EasyTaskFacts,
   excludedProjectIds: readonly string[] = []
 ): boolean {
+  if (task.kind === "IDEA") return false;
   if (task.projectId && excludedProjectIds.includes(task.projectId)) {
     return false;
   }

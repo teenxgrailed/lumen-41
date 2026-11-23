@@ -9,7 +9,9 @@ import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
   EASY_START_HELP,
   EASY_START_MODES,
+  IDEA_CARDS_HELP,
   useEasyStart,
+  useIdeaCardsSwitch,
   useSetPref,
   useSetPrefs,
   useSettings,
@@ -221,6 +223,21 @@ function EasyStartRows({
   );
 }
 
+function IdeaCardsRow() {
+  const ideas = useIdeaCardsSwitch();
+  const mark = useMark();
+  return (
+    <SRow title="Idea cards" desc={IDEA_CARDS_HELP}>
+      <V3Switch
+        label="Idea cards"
+        checked={ideas.on}
+        disabled={ideas.disabled}
+        onChange={(v) => void ideas.set(v).then((saved) => saved && mark())}
+      />
+    </SRow>
+  );
+}
+
 export function TasksSection() {
   const p = usePrefs();
   const projects = useProjects();
@@ -252,6 +269,7 @@ export function TasksSection() {
           />
         </SRow>
         <EasyStartRows projects={list} />
+        <IdeaCardsRow />
       </SGroup>
       <SGroup title="Display">
         <SRow

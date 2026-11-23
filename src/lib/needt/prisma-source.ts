@@ -33,6 +33,7 @@ import {
   normalizeUserTimeZone,
 } from "@/lib/habit-completion-date";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import type { NeedtDataSource } from "./adapter";
 import {
@@ -170,6 +171,8 @@ async function getTasks(
     prisma.task.findMany({
       where: {
         ...scope,
+        // Ideas come through the idea cards, never as rows (or as overdue).
+        ...openTaskWhere(),
         isArchived: false,
       },
       include: taskNeedtInclude,
@@ -363,7 +366,7 @@ async function getCalendarEntries(
 
   const [tasks, ownEvents, busyEvents, settings] = await Promise.all([
     prisma.task.findMany({
-      where: { ...scope, isArchived: false },
+      where: { ...scope, ...openTaskWhere(), isArchived: false },
       include: taskNeedtInclude,
       orderBy: { createdAt: "desc" },
     }),

@@ -5,6 +5,7 @@ import { DAY_PLAN, SOMEDAY_SWEEP } from "@/lib/feature-flags-keys";
 import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import {
   type SomedayExclusion,
@@ -42,7 +43,12 @@ export async function moveTasksToSomeday(
   if (taskIds.length === 0) return 0;
   const run = async (db: SomedayWriter) => {
     const { count } = await db.task.updateMany({
-      where: { id: { in: taskIds }, userId, somedayAt: null },
+      where: {
+        id: { in: taskIds },
+        userId,
+        ...openTaskWhere(),
+        somedayAt: null,
+      },
       data: {
         somedayAt: options.now,
         somedayReason: options.reason,
@@ -138,6 +144,7 @@ export async function scanSomedayCandidates(
     const rows = await db.task.findMany({
       where: {
         userId: { not: null },
+        ...openTaskWhere(),
         // The wide read adds in-progress tasks so the dry run can count them.
         status: wide ? { in: ["todo", "in_progress"] } : "todo",
         createdAt: { lt: cutoff },
@@ -318,7 +325,12 @@ export async function restoreSomeday(
 ): Promise<string[]> {
   if (taskIds.length === 0) return [];
   const rows = await prisma.task.findMany({
-    where: { id: { in: taskIds }, userId, somedayAt: { not: null } },
+    where: {
+      id: { in: taskIds },
+      userId,
+      ...openTaskWhere(),
+      somedayAt: { not: null },
+    },
     select: { id: true, somedayReason: true },
   });
   if (rows.length === 0) return [];
@@ -371,6 +383,7 @@ export async function listSomeday(
   const rows = await prisma.task.findMany({
     where: {
       userId,
+      ...openTaskWhere(),
       somedayAt: { not: null },
       isArchived: Boolean(options.archived),
       trashedAt: null,
@@ -413,6 +426,7 @@ export async function cleanupSomeday(
   const rows = await prisma.task.findMany({
     where: {
       userId,
+      ...openTaskWhere(),
       somedayAt: { not: null, lte: cleanupCutoff(now) },
       isArchived: false,
       trashedAt: null,
@@ -465,6 +479,7 @@ export async function restoreSomedayMigration(
       where: {
         id: { in: taskIds.slice(i, i + PAGE) },
         userId,
+        ...openTaskWhere(),
         somedayAt: { not: null },
       },
       select: { id: true },

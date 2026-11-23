@@ -31,6 +31,7 @@ import { signUnsubscribeToken, unsubscribeUrl } from "@/lib/email/unsubscribe";
 import { SUPPORT_EMAIL } from "@/lib/legal/operator";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { candidateIds } from "./candidates";
 import { byPriority, decide } from "./decide";
@@ -143,6 +144,7 @@ async function recapNumbers(userId: string, now: Date) {
     prisma.task.count({
       where: {
         userId,
+        ...openTaskWhere(),
         isSample: false,
         completedAt: { gte: lastMonth, lt: thisMonth },
       },
@@ -150,6 +152,7 @@ async function recapNumbers(userId: string, now: Date) {
     prisma.task.count({
       where: {
         userId,
+        ...openTaskWhere(),
         isSample: false,
         completedAt: { gte: before, lt: lastMonth },
       },

@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/workspace-auth";
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { TaskStatus } from "@/types/task";
 
@@ -39,6 +40,8 @@ export async function startTaskNow(input: {
       where: {
         id: input.taskId,
         ...workspaceDataScopeWhere(input.workspace, input.userId),
+        // An idea has no time to start now (idea cards): not found.
+        ...openTaskWhere(),
         isArchived: false,
       },
       select: { id: true, scheduleId: true },

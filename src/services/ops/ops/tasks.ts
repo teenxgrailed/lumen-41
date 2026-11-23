@@ -1,6 +1,7 @@
 import { sendConnectorWebhook } from "@/services/connectors/webhooks";
 import { movedToLaterDay } from "@/services/easy-start/moves";
 import { queueEasyStart } from "@/services/easy-start/queue";
+import { ideaPatchRefused } from "@/services/ideas/rules";
 import {
   SPREAD_DEFAULT_DAYS,
   spreadAcrossDays,
@@ -44,6 +45,7 @@ import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { getPlan } from "@/lib/entitlements";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
 import { defaultTaskReminderRows } from "@/lib/task-default-reminders";
+import { kindWhere, openTaskWhere } from "@/lib/tasks/open-task";
 import { normalizeRecurrenceRule } from "@/lib/utils/normalize-recurrence-rules";
 
 import { sanitizeDescriptionForStorage as sanitizeTaskDescriptionForStorage } from "../description-sanitizer";
@@ -51,9 +53,7 @@ import { OpError } from "../errors";
 import {
   assertProjectActive,
   dateInputSchema,
-  dateOrNull,
   dayKeySchema,
-  findScopedProject,
   findScopedTask,
   isoOrNull,
   moveInstantToDay,
@@ -67,11 +67,32 @@ import {
 } from "../helpers";
 import { defineOp } from "../types";
 import type { OpContext, TouchedRow } from "../types";
+import {
+  IDEA_NO_DATES,
+  convertTask,
+  createIdeaRow,
+  sourceForActor,
+} from "./idea-core";
+import {
+  assertGoalUsable,
+  assertProjectUsable,
+  assertTagsOwned,
+} from "./task-asserts";
+import {
+  type BlockSnapshot,
+  type RestorableFields,
+  activity,
+  blockSnapshot,
+  pickRestorable,
+  replaceBlocks,
+  restorableFields,
+  restorableToData,
+  snapshotBlocks,
+} from "./task-snapshots";
 
 const taskId = z.string().min(1);
 /** NONE is "No priority"; it is stored in the legacy `priority` column. */
 const priority = z.enum(["NONE", "LOW", "MEDIUM", "HIGH", "URGENT"]);
-const levelPriority = z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]);
 /** An RRULE such as FREQ=WEEKLY;BYDAY=MO. Parsed, not just shaped. */
 const recurrenceRule = z
   .string()
@@ -94,165 +115,6 @@ const OPEN_STATUSES = ["todo", "in_progress"] as const;
 /** The most tasks one spread (or its undo) moves. */
 const SPREAD_MAX_TASKS = 100;
 
-/** One scheduled chunk, as stored in snapshots for exact restores. */
-const blockSnapshot = z
-  .object({
-    start: z.string().datetime({ offset: true }),
-    end: z.string().datetime({ offset: true }),
-    chunkIndex: z.number().int().min(0),
-    chunkCount: z.number().int().min(1),
-    isFrozen: z.boolean(),
-    userId: z.string().nullable(),
-  })
-  .strict();
-
-/**
- * Every task column an inverse may write back. Keys mirror Prisma; dates are
- * ISO strings so the inverse survives the JSON column.
- */
-const restorableFields = z
-  .object({
-    title: z.string(),
-    /** The task's first small step (Always easy start). */
-    entry: z.string().nullable(),
-    description: z.string().nullable(),
-    status: z.string(),
-    dueDate: isoOrNull,
-    deadline: isoOrNull,
-    priorityLevel: levelPriority,
-    priority: z.string().nullable(),
-    isRecurring: z.boolean(),
-    recurrenceRule: z.string().nullable(),
-    scheduleId: z.string().nullable(),
-    projectId: z.string().nullable(),
-    goalId: z.string().nullable(),
-    estimatedMinutes: z.number().int().nullable(),
-    duration: z.number().int().nullable(),
-    completedAt: isoOrNull,
-    isArchived: z.boolean(),
-    archivedAt: isoOrNull,
-    trashedAt: isoOrNull,
-    scheduledStart: isoOrNull,
-    scheduledEnd: isoOrNull,
-    scheduleLocked: z.boolean(),
-    isAutoScheduled: z.boolean(),
-    autoScheduled: z.boolean(),
-    scheduleScore: z.number().nullable(),
-    startDate: isoOrNull,
-    lastCompletedDate: isoOrNull,
-    /** The scheduler's not-before date (Always easy start sets it on a spread). */
-    postponedUntil: isoOrNull,
-    /** Always easy start's bookkeeping, put back with the entry on undo. */
-    rescheduleCount: z.number().int().min(0),
-    simplifiedAt: isoOrNull,
-  })
-  .partial()
-  .strict();
-
-type RestorableFields = z.infer<typeof restorableFields>;
-type BlockSnapshot = z.infer<typeof blockSnapshot>;
-
-const DATE_FIELDS = new Set([
-  "dueDate",
-  "deadline",
-  "completedAt",
-  "archivedAt",
-  "trashedAt",
-  "scheduledStart",
-  "scheduledEnd",
-  "startDate",
-  "lastCompletedDate",
-  "postponedUntil",
-  "simplifiedAt",
-]);
-
-function pickRestorable(
-  task: Record<string, unknown>,
-  keys: (keyof RestorableFields)[]
-): RestorableFields {
-  const out: Record<string, unknown> = {};
-  for (const key of keys) {
-    const value = task[key];
-    out[key] = value instanceof Date ? value.toISOString() : (value ?? null);
-  }
-  return out as RestorableFields;
-}
-
-function restorableToData(fields: RestorableFields) {
-  const data: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(fields)) {
-    data[key] = DATE_FIELDS.has(key)
-      ? dateOrNull(value as string | null)
-      : value;
-  }
-  return data as Prisma.TaskUncheckedUpdateInput;
-}
-
-async function snapshotBlocks(
-  ctx: OpContext,
-  id: string,
-  userId?: string | null
-) {
-  const blocks = await ctx.tx.scheduledBlock.findMany({
-    where: { taskId: id, ...(userId ? { userId } : {}) },
-    orderBy: { chunkIndex: "asc" },
-  });
-  return blocks.map(
-    (block): BlockSnapshot => ({
-      start: block.start.toISOString(),
-      end: block.end.toISOString(),
-      chunkIndex: block.chunkIndex,
-      chunkCount: block.chunkCount,
-      isFrozen: block.isFrozen,
-      userId: block.userId,
-    })
-  );
-}
-
-async function replaceBlocks(
-  ctx: OpContext,
-  id: string,
-  blocks: BlockSnapshot[],
-  userId?: string | null
-) {
-  await ctx.tx.scheduledBlock.deleteMany({
-    where: { taskId: id, ...(userId ? { userId } : {}) },
-  });
-  if (blocks.length) {
-    await ctx.tx.scheduledBlock.createMany({
-      data: blocks.map((block) => ({
-        taskId: id,
-        userId: block.userId,
-        start: newDate(block.start),
-        end: newDate(block.end),
-        chunkIndex: block.chunkIndex,
-        chunkCount: block.chunkCount,
-        isFrozen: block.isFrozen,
-      })),
-    });
-  }
-}
-
-function activity(ctx: OpContext, action: string, workspaceId: string | null) {
-  return workspaceId
-    ? {
-        activities: {
-          create: { workspaceId, actorId: ctx.userId, action },
-        },
-      }
-    : {};
-}
-
-async function assertTagsOwned(ctx: OpContext, tagIds: string[]) {
-  if (!tagIds.length) return;
-  const owned = await ctx.tx.tag.count({
-    where: { id: { in: tagIds }, userId: ctx.userId },
-  });
-  if (owned !== new Set(tagIds).size) {
-    throw new OpError("INVALID_INPUT", "Unknown tag id");
-  }
-}
-
 /** Hours: a schedule the task's planner owns, as PUT /api/tasks/[id] checks it. */
 async function assertScheduleOwned(
   ctx: OpContext,
@@ -264,22 +126,6 @@ async function assertScheduleOwned(
     select: { id: true },
   });
   if (!schedule) throw new OpError("INVALID_INPUT", "Unknown work schedule");
-}
-
-/** A live goal in this workspace; linking a task needs no plan. */
-async function assertGoalUsable(ctx: OpContext, goalId: string) {
-  const goal = await ctx.tx.goal.findFirst({
-    where: { id: goalId, ...ctx.scope, archivedAt: null },
-    select: { id: true },
-  });
-  if (!goal) throw new OpError("INVALID_INPUT", "Unknown goal id");
-}
-
-async function assertProjectUsable(ctx: OpContext, projectId: string) {
-  const project = await findScopedProject(ctx, projectId);
-  if (project.status === "archived") {
-    throw new OpError("CONFLICT", "That project is archived");
-  }
 }
 
 /** A refused placement as an op error: 409 is a conflict, the rest bad input. */
@@ -295,11 +141,12 @@ function placementError(plan: { status: number; error: string }) {
 export const taskList = defineOp({
   name: "task.list",
   description:
-    "List tasks in the workspace. Filters: status (open, completed, all), projectId, text query.",
+    "List tasks in the workspace. Filters: status (open, completed, all), projectId, text query, kind (task by default; idea or any to list ideas, the optional things offered as cards).",
   risk: "read",
   input: z
     .object({
       status: z.enum(["open", "completed", "all"]).default("open"),
+      kind: z.enum(["task", "idea", "any"]).default("task"),
       projectId: z.string().min(1).optional(),
       query: z.string().min(1).max(200).optional(),
       includeArchived: z.boolean().default(false),
@@ -310,6 +157,9 @@ export const taskList = defineOp({
     const tasks = await ctx.tx.task.findMany({
       where: {
         ...ctx.scope,
+        // Ideas only when the caller asks: an agent that lists tasks never sees
+        // one by surprise.
+        ...kindWhere(input.kind, ctx.userId),
         ...(input.includeArchived
           ? {}
           : { isArchived: false, trashedAt: null }),
@@ -368,11 +218,38 @@ export const taskCreate = defineOp({
       subtasks: subtaskListSchema.optional(),
       dependsOnId: z.string().min(1).optional(),
       goalId: z.string().min(1).optional(),
+      /** `idea` saves an optional thing (no date, no schedule) instead of a task. */
+      kind: z.enum(["task", "idea"]).optional(),
     })
     .strict(),
   async run(ctx, input) {
     if (input.projectId) await assertProjectUsable(ctx, input.projectId);
     if (input.goalId) await assertGoalUsable(ctx, input.goalId);
+    if (input.kind === "idea") {
+      // Refused, not dropped: a client that sends a date to an idea has a
+      // different idea of what it is making.
+      if (
+        input.dueDate !== undefined ||
+        input.recurrenceRule !== undefined ||
+        input.start !== undefined ||
+        input.autoSchedule === true ||
+        input.scheduleId !== undefined ||
+        input.dependsOnId !== undefined
+      ) {
+        throw new OpError("INVALID_INPUT", IDEA_NO_DATES);
+      }
+      if (input.tagIds) await assertTagsOwned(ctx, input.tagIds);
+      return createIdeaRow(ctx, {
+        title: input.title,
+        notes: input.notes,
+        projectId: input.projectId,
+        goalId: input.goalId,
+        tagIds: input.tagIds,
+        estimateMinutes: input.estimateMinutes,
+        priority: input.priority,
+        source: sourceForActor(ctx.actor),
+      });
+    }
     if (input.dependsOnId) {
       const blocker = await checkBlocker(
         { userId: ctx.userId, workspace: ctx.workspace },
@@ -504,6 +381,8 @@ export const taskUpdate = defineOp({
       recurrenceRule: recurrenceRule.nullable().optional(),
       scheduleId: z.string().min(1).nullable().optional(),
       goalId: z.string().min(1).nullable().optional(),
+      /** `idea` turns the task into an idea (its dates are cleared, undo restores them); `task` turns an idea into a plain task. Send it alone. */
+      kind: z.enum(["task", "idea"]).optional(),
       ...placementFields,
     })
     .strict()
@@ -513,12 +392,32 @@ export const taskUpdate = defineOp({
   async run(ctx, input) {
     const task = await findScopedTask(ctx, input.taskId);
     assertProjectActive(task);
+    if (input.kind !== undefined) {
+      if (Object.keys(input).length > 2) {
+        throw new OpError(
+          "INVALID_INPUT",
+          "Change kind on its own, without other fields"
+        );
+      }
+      return convertTask(ctx, task, {
+        to: input.kind,
+        source: sourceForActor(ctx.actor),
+      });
+    }
+    if (task.kind === "IDEA" && ideaPatchRefused(input)) {
+      throw new OpError("INVALID_INPUT", IDEA_NO_DATES);
+    }
     const data: Prisma.TaskUncheckedUpdateInput = {};
     const keys: (keyof RestorableFields)[] = [];
 
     if (input.title !== undefined) {
       data.title = input.title;
       keys.push("title");
+      // A new title is a new thing for the idea sweep to look at.
+      if (task.ideaCheckedAt) {
+        data.ideaCheckedAt = null;
+        keys.push("ideaCheckedAt");
+      }
     }
     if (input.notes !== undefined) {
       data.description =
@@ -773,6 +672,12 @@ export const taskComplete = defineOp({
   async run(ctx, input) {
     const task = await findScopedTask(ctx, input.taskId);
     assertProjectActive(task);
+    if (task.kind === "IDEA") {
+      throw new OpError(
+        "INVALID_INPUT",
+        "An idea is never completed. Take it to make it a task, or archive it."
+      );
+    }
     if (task.status === "completed") {
       return { result: { task: taskView(task), changed: false } };
     }
@@ -1002,6 +907,7 @@ export const taskMoveToDay = defineOp({
   async run(ctx, input) {
     const task = await findScopedTask(ctx, input.taskId);
     assertProjectActive(task);
+    if (task.kind === "IDEA") throw new OpError("INVALID_INPUT", IDEA_NO_DATES);
     const timeZone = await userTimeZone(ctx.tx, ctx.userId);
     const blocks = await snapshotBlocks(ctx, task.id);
 
@@ -1087,6 +993,10 @@ export const taskRestore = defineOp({
       /** Undo of `task.simplify`: start the cooldown now and clear the reschedule
        *  count, so the next sweep or backfill leaves the task alone. */
       startCooldown: z.boolean().optional(),
+      /** Undo of a task made an idea: the reminders it cancelled. */
+      uncancelReminderIds: z.array(z.string()).max(50).optional(),
+      /** Undo of a task made an idea: tell the idea sweep to leave it a task. */
+      markIdeaChecked: z.boolean().optional(),
     })
     .strict(),
   async run(ctx, input) {
@@ -1105,6 +1015,12 @@ export const taskRestore = defineOp({
         where: { id: { in: input.removePartIds }, taskId: task.id },
       });
     }
+    if (input.uncancelReminderIds?.length) {
+      await ctx.tx.taskReminder.updateMany({
+        where: { id: { in: input.uncancelReminderIds }, taskId: task.id },
+        data: { canceledAt: null },
+      });
+    }
     if (input.removeOccurrenceAt) {
       await ctx.tx.task.deleteMany({
         where: {
@@ -1120,6 +1036,7 @@ export const taskRestore = defineOp({
         ...(input.startCooldown
           ? { simplifiedAt: newDate(), rescheduleCount: 0 }
           : {}),
+        ...(input.markIdeaChecked ? { ideaCheckedAt: newDate() } : {}),
         ...(input.tagIds
           ? { tags: { set: input.tagIds.map((id) => ({ id })) } }
           : {}),
@@ -1233,6 +1150,9 @@ export const taskSimplify = defineOp({
   async run(ctx, input) {
     const task = await findScopedTask(ctx, input.taskId);
     assertProjectActive(task);
+    if (task.kind === "IDEA") {
+      throw new OpError("CONFLICT", "An idea is not made easier to start");
+    }
     if (
       (input.reason === "create" || input.reason === "backfill") &&
       (task.entry ?? "").trim()
@@ -1352,6 +1272,7 @@ export const taskSpread = defineOp({
     const found = await ctx.tx.task.findMany({
       where: {
         ...ctx.scope,
+        ...openTaskWhere(),
         isArchived: false,
         trashedAt: null,
         noSlot: false,

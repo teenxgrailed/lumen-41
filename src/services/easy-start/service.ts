@@ -19,6 +19,7 @@ import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { generateEntryPlan } from "./generate";
 import {
@@ -58,6 +59,7 @@ export type SimplifyOutcome =
 
 export const taskSelect = {
   id: true,
+  kind: true,
   userId: true,
   workspaceId: true,
   projectId: true,
@@ -165,6 +167,7 @@ export async function simplifyTask(input: {
   holdHostedAi?: boolean;
 }): Promise<SimplifyOutcome> {
   const now = input.now ?? newDate();
+  // idea-exempt: `kind` is in taskSelect and isPersonalOpenTask refuses an idea.
   const task = await prisma.task.findUnique({
     where: { id: input.taskId },
     select: taskSelect,
@@ -342,6 +345,7 @@ export async function applyProposal(
   const settings = await easyStartSettings(userId);
   if (settings.mode === "off") return { status: "off" };
 
+  // idea-exempt: `kind` is in taskSelect and isPersonalOpenTask refuses an idea.
   const task = await prisma.task.findUnique({
     where: { id: proposal.taskId },
     select: taskSelect,
@@ -562,6 +566,7 @@ async function balanceWorkspace(
   const rows: DayRow[] = await prisma.task.findMany({
     where: {
       ...workspaceDataScopeWhere(workspace, userId),
+      ...openTaskWhere(),
       isArchived: false,
       trashedAt: null,
       somedayAt: null,

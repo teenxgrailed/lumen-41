@@ -26,6 +26,7 @@ import { normalizeUserTimeZone } from "@/lib/habit-completion-date";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 import { ensureDefaultWorkSchedule } from "@/lib/work-schedules";
 import { windowsToWeek } from "@/lib/work-week";
 
@@ -107,7 +108,7 @@ export async function captureSnapshot(
   const scope = workspaceDataScopeWhere(workspace, userId);
   const [tasks, blocks] = await Promise.all([
     client.task.findMany({
-      where: { ...scope, isArchived: false },
+      where: { ...scope, ...openTaskWhere(), isArchived: false },
       select: {
         id: true,
         title: true,
@@ -166,6 +167,7 @@ async function computeStagedSnapshot(
     prisma.task.findMany({
       where: {
         ...workspaceDataScopeWhere(workspace, userId),
+        ...openTaskWhere(),
         isArchived: false,
         OR: [{ isAutoScheduled: true }, { autoScheduled: true }],
         status: { notIn: ["completed", "in_progress"] },
@@ -499,7 +501,11 @@ export async function restoreSnapshot(
 ) {
   const scope = workspaceDataScopeWhere(workspace, userId);
   const ownedTasks = await (client ?? prisma).task.findMany({
-    where: { ...scope, id: { in: snapshot.tasks.map((task) => task.id) } },
+    where: {
+      ...scope,
+      ...openTaskWhere(),
+      id: { in: snapshot.tasks.map((task) => task.id) },
+    },
     select: { id: true },
   });
   const ownedIds = new Set(ownedTasks.map((task) => task.id));
@@ -825,6 +831,7 @@ export async function createScopedReschedulePreview(
     prisma.task.findMany({
       where: {
         ...scope,
+        ...openTaskWhere(),
         isArchived: false,
         trashedAt: null,
         OR: [
@@ -1056,6 +1063,7 @@ async function assertScopedSlotsFree(
     client.task.findMany({
       where: {
         ...outside,
+        ...openTaskWhere(),
         scheduledStart: { lt: to },
         scheduledEnd: { gt: from },
       },

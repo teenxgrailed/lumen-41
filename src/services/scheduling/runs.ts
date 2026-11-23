@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
 import { repushDirtyBlocks } from "@/lib/task-block-push";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 type ScheduleSnapshot = Map<
   string,
@@ -21,6 +22,7 @@ async function scheduleSnapshot(
   const tasks = await prisma.task.findMany({
     where: {
       assigneeId: userId,
+      ...openTaskWhere(),
       ...(workspaceId ? { workspaceId } : {}),
       isArchived: false,
       AND: [activeProjectTaskWhere],

@@ -69,7 +69,9 @@ export type ReminderJobData =
   | { kind: "easy-start-create"; taskId: string }
   /** Always easy start: stuck tasks made smaller, overloaded days eased. */
   | { kind: "easy-start-sweep" }
-  | { kind: "easy-start-backfill" };
+  | { kind: "easy-start-backfill" }
+  /** Idea cards: open tasks that are really ideas move to Ideas (with Undo). */
+  | { kind: "idea-sweep" };
 
 /** A delayed job per running Focus session, due at its planned end. */
 export interface FocusJobData {

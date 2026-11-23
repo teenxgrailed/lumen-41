@@ -25,6 +25,7 @@ import type { WorkspaceAccess } from "@/lib/auth/workspace-auth";
 import { addCalendarDays, newDate } from "@/lib/date-utils";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 const LOG_SOURCE = "notification-feed";
 
@@ -385,6 +386,7 @@ async function activityCandidates(
     }),
     prisma.task.findMany({
       where: {
+        ...openTaskWhere(),
         isArchived: false,
         status: { not: "completed" },
         ...workspaceOnly(scope),
@@ -591,6 +593,7 @@ async function reminderCandidates(
       where: {
         ...taskScope,
         ...mine,
+        ...openTaskWhere(),
         dueDate: { gte: now, lte: addCalendarDays(now, 2) },
       },
       orderBy: { dueDate: "asc" },

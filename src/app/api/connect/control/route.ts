@@ -15,6 +15,7 @@ import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
 import { schedulePushTaskBlock } from "@/lib/task-block-push";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { TaskStatus } from "@/types/task";
 
@@ -56,7 +57,10 @@ async function handleControl(
   );
   if (!userId) return forbidden();
 
-  const body = ((await request.json().catch(() => null)) ?? {}) as Record<string, unknown>;
+  const body = ((await request.json().catch(() => null)) ?? {}) as Record<
+    string,
+    unknown
+  >;
   const action = body.action;
   if (!isConnectorControlAction(action)) {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
@@ -75,7 +79,12 @@ async function handleControl(
   if (action === "overview") {
     const [tasks, projects, calendars, events] = await Promise.all([
       prisma.task.findMany({
-        where: { ...scope, isArchived: false, trashedAt: null },
+        where: {
+          ...scope,
+          ...openTaskWhere(),
+          isArchived: false,
+          trashedAt: null,
+        },
         orderBy: [{ scheduledStart: "asc" }, { createdAt: "desc" }],
       }),
       prisma.project.findMany({
@@ -179,7 +188,8 @@ async function handleControl(
               : {}),
           };
     const result = await prisma.task.updateMany({
-      where: { id: body.id, ...scope, isArchived: false },
+      // An idea is never changed here (no date, no completion): not found.
+      where: { id: body.id, ...scope, ...openTaskWhere(), isArchived: false },
       data,
     });
     if (!result.count)

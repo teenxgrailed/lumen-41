@@ -33,6 +33,7 @@ import {
   ChangeType,
   TaskChangeTracker,
 } from "@/lib/task-sync/task-change-tracker";
+import { kindWhere } from "@/lib/tasks/open-task";
 import { normalizeRecurrenceRule } from "@/lib/utils/normalize-recurrence-rules";
 
 import { EnergyLevel, TaskStatus, TimePreference } from "@/types/task";
@@ -73,10 +74,14 @@ export async function GET(request: NextRequest) {
     // Tasks that came from one page: `?originPageId=<page id>`.
     const originPageId = searchParams.get("originPageId");
 
+    // Tasks by default: an idea (idea cards) is listed only when asked for,
+    // `?kind=idea` or `?kind=any`, so a client that does nothing never sees one.
+    const kind = searchParams.get("kind");
     const now = newDate();
     const tasks = await prisma.task.findMany({
       where: {
         ...workspaceDataScopeWhere(auth.workspace, userId),
+        ...kindWhere(kind, userId),
         isArchived: archived,
         ...(originPageId && { originKind: DOC_ORIGIN, originId: originPageId }),
         ...(!archived && { AND: [activeProjectTaskWhere] }),

@@ -4,6 +4,7 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { markOnboardingComplete } from "@/lib/onboarding/entry";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 const LOG_SOURCE = "OnboardingAPI";
 
@@ -23,6 +24,7 @@ export async function GET(request: NextRequest) {
   const hasTask = await prisma.task.count({
     where: {
       ...workspaceDataScopeWhere(auth.workspace, auth.userId),
+      ...openTaskWhere(),
       isArchived: false,
       isSample: false,
     },

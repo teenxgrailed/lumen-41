@@ -4,6 +4,7 @@ import { ReminderDeliveryStatus, TaskReminderKind } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { VapidVariableName, getVapidConfiguration } from "@/lib/push-config";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import {
   getNotificationPrefs,
@@ -51,7 +52,12 @@ const LIVE = {
   canceledAt: null,
   deliveredAt: null,
   AND: [
-    { OR: [{ taskId: null }, { task: { isArchived: false } }] },
+    {
+      OR: [
+        { taskId: null },
+        { task: { isArchived: false, ...openTaskWhere() } },
+      ],
+    },
     { OR: [{ eventId: null }, { event: { archivedAt: null } }] },
   ],
 };
@@ -220,6 +226,7 @@ export async function deliverTaskReminder(
           deadline: true,
           dueDate: true,
           status: true,
+          kind: true,
         },
       },
       event: { select: { start: true } },
@@ -227,6 +234,14 @@ export async function deliverTaskReminder(
     },
   });
   if (!peek || peek.deliveredAt || peek.canceledAt) {
+    return { delivered: false, skipped: true };
+  }
+  // An idea (idea cards) is never reminded about; the reminder is closed.
+  if (peek.task?.kind === "IDEA") {
+    await prisma.taskReminder.update({
+      where: { id: reminderId },
+      data: { canceledAt: now },
+    });
     return { delivered: false, skipped: true };
   }
   const timeZone = peek.user.userSettings?.timeZone ?? "UTC";

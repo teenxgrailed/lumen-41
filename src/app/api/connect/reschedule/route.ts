@@ -8,6 +8,7 @@ import { WorkspaceRole } from "@prisma/client";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 export async function POST(request: NextRequest) {
   const auth = await authenticateConnectorRequest(
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
   const tasks = await prisma.task.findMany({
     where: {
       ...workspaceDataScopeWhere(auth.workspace, auth.userId),
+      ...openTaskWhere(),
       isArchived: false,
       trashedAt: null,
     },

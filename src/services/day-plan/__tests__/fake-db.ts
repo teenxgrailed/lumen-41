@@ -26,6 +26,8 @@ const num = (value: unknown) =>
 
 const DEFAULTS: Record<string, () => Row> = {
   task: () => ({
+    // Idea cards: a row is a task unless it says otherwise.
+    kind: "TASK",
     isArchived: false,
     archivedAt: null,
     trashedAt: null,

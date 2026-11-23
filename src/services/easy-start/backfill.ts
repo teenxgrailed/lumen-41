@@ -5,6 +5,7 @@ import { ALWAYS_EASY_START } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { FALLBACK_ENTRY, simplifiedLine } from "./rules";
 import { simplifyTask, stampLookedAt } from "./service";
@@ -39,6 +40,7 @@ const noEntry: Prisma.TaskWhereInput = {
 };
 
 const candidateTasks: Prisma.TaskWhereInput = {
+  ...openTaskWhere(),
   status: "todo",
   isArchived: false,
   trashedAt: null,
@@ -90,6 +92,7 @@ export async function runEasyStartBackfill(
       by: ["userId"],
       where: {
         ...candidateTasks,
+        ...openTaskWhere(),
         userId: userCursor ? { gt: userCursor } : { not: null },
         user: notAutoMode,
       },
@@ -141,7 +144,7 @@ async function aiBackfilledToday(userId: string, now: Date): Promise<number> {
 async function backfillUser(userId: string, now: Date): Promise<number> {
   let aiToday = await aiBackfilledToday(userId, now);
   const batch = await prisma.task.findMany({
-    where: { ...candidateTasks, userId },
+    where: { ...candidateTasks, ...openTaskWhere(), userId },
     select: { id: true },
     orderBy: { id: "asc" },
     take: BACKFILL_PER_USER,

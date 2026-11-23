@@ -16,8 +16,10 @@ import { useProjects } from "@/lib/needt3/hooks/projects";
 import {
   EASY_START_HELP,
   EASY_START_MODES,
+  IDEA_CARDS_HELP,
   useEasyStart,
   useFeedbackPromptsSwitch,
+  useIdeaCardsSwitch,
   useSetPref,
   useSetPrefs,
   useSettings,
@@ -119,6 +121,7 @@ export function GeneralPage() {
 export function TasksPage() {
   const p = usePrefs();
   const easy = useEasyStart();
+  const ideas = useIdeaCardsSwitch();
   const mark = useMark();
   const projects = useProjects();
   const list = (projects.data ?? []).filter((x) => !x.archived);
@@ -178,6 +181,20 @@ export function TasksPage() {
           onChange={(id) => {
             if (id !== "none") void easy.toggleExcluded(id).then(mark, noop);
           }}
+        />
+        <PsRow
+          title="Idea cards"
+          desc={IDEA_CARDS_HELP}
+          control={
+            <PsSwitch
+              label="Idea cards"
+              on={ideas.on}
+              disabled={ideas.disabled}
+              onChange={(v) =>
+                void ideas.set(v).then((saved) => saved && mark())
+              }
+            />
+          }
         />
       </PsGroup>
       <PsGroup title="Display">

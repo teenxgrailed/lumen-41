@@ -6,6 +6,7 @@ import { recordActivation } from "@/lib/activation-events";
 import { ensurePersonalWorkspaceRow } from "@/lib/auth/personal-workspace";
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { appendEveningNote } from "./note";
 import {
@@ -279,6 +280,7 @@ async function openPool(userId: string): Promise<TaskRow[]> {
   return (await prisma.task.findMany({
     where: {
       userId,
+      ...openTaskWhere(),
       status: { not: "completed" },
       isArchived: false,
       trashedAt: null,
@@ -308,6 +310,7 @@ async function datedCandidates(
   const rows = (await prisma.task.findMany({
     where: {
       userId,
+      ...openTaskWhere(),
       status: { not: "completed" },
       isArchived: false,
       trashedAt: null,
@@ -732,8 +735,9 @@ export async function updateDayPlan(
   if (new Set(ids).size !== ids.length) {
     throw new DayPlanError("invalid_input", 400, "A task is listed twice");
   }
+  // An idea is not planned: it is answered like a task that is not there.
   const tasks = (await prisma.task.findMany({
-    where: { id: { in: ids }, userId },
+    where: { id: { in: ids }, userId, ...openTaskWhere() },
     select: TASK_SELECT,
   })) as TaskRow[];
   const byId = new Map(tasks.map((task) => [task.id, task]));

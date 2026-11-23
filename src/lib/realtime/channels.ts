@@ -4,12 +4,14 @@ export type RealtimeEventType =
   | "docs-updated"
   | "schedule-run-updated"
   | "focus-ended"
-  | "easy-start";
+  | "easy-start"
+  | "idea-cards";
 
 export interface RealtimeEvent {
   type: RealtimeEventType;
   occurredAt: string;
   feedId?: string;
+  /** schedule-run-updated, or idea-cards: the run whose actions Undo reverses (POST /api/agent/runs/:id/undo). */
   runId?: string;
   status?: string;
   sessionId?: string;

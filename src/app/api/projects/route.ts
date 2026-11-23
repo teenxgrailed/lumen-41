@@ -46,14 +46,15 @@ export async function GET(request: NextRequest) {
       },
       include: {
         tasks: {
-          where: { isArchived: false },
+          // An idea is not project work (idea cards).
+          where: { isArchived: false, kind: "TASK" },
           select: { status: true, isArchived: true },
         },
         stages: {
           orderBy: { position: "asc" },
           include: {
             tasks: {
-              where: { isArchived: false },
+              where: { isArchived: false, kind: "TASK" },
               select: { status: true, isArchived: true },
             },
           },

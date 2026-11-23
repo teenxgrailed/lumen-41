@@ -155,7 +155,7 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | ---------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `needt_whoami`               | —                                              | The person, token kind, scopes, current workspace and all workspaces, and `plan`: `FREE`, `PRO` or `LIFETIME`, `trial` (Pro from the free trial) and `features` (goals, aiAgent, planMyDay, focusStats, advancedFocusModes, advancedNudges) and `limits`. Owner and admin roles do not change the plan        |
 | `needt_search`               | `needt.read` (+`mail.read` for mail)           | Text search across tasks, projects, events, pages, habits, mail                                                                                                                                                                                                                                               |
-| `needt_list`                 | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard, personal_time, goal); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page                                                                                                                  |
+| `needt_list`                 | `needt.read` (+`mail.read` for mail)           | Paginated list by `type` (task, project, event, calendar, page, habit, mail, moodboard, personal_time, goal); `limit` ≤ 50, `cursor`; `originPageId` lists the tasks that came from one page; `kind` (`task` default, `idea`, `any`) for tasks                                                                |
 | `needt_get`                  | `needt.read` (+`mail.read` for mail)           | One object in full by `type` and `id`; mail is metadata only, never the body                                                                                                                                                                                                                                  |
 | `needt_create_task`          | `needt.write`                                  | `POST /api/connect/tasks`; also takes `projectId`, `entry`, `fullTime`, `subtasks` (ordered), `dependsOnId`, `originPageId` (the page it came from) and `goalId`, so a task and its steps arrive in one call; `start` places and pins it, `autoSchedule: false` keeps the scheduler off it. See Place and pin |
 | `needt_schedule`             | `needt.write` (`needt.read` with `run: false`) | `POST` (or `GET` with `run: false`) `/api/connect/schedule`                                                                                                                                                                                                                                                   |
@@ -192,6 +192,10 @@ Every tool carries `readOnlyHint` and `destructiveHint` annotations.
 | `needt_bulk` | `needt.write` | Up to 100 operations (`task.update`, `task.complete`, `project.update`, ...) in one transaction, one write, one undo. See Bulk changes |
 | `needt_create_project` | `needt.write` | Create a project: `name`, `description`, `color`, `icon` |
 | `needt_update_project` | `needt.write` | Change a project (`name`, `description`, `color`, `icon`, `archived`); only the fields given change |
+| `needt_create_idea` | `needt.write` | Save an idea (an optional thing to read or watch; no date, never overdue): `title`, `notes`, `projectId`, `estimateMinutes`. Source `agent`; the `actionId` undoes it. See Ideas |
+| `needt_list_ideas` | `needt.read` | The person's ideas by `state` (`ready`, `snoozed`, `all`), paged by `cursor`. See Ideas |
+| `needt_take_idea` | `needt.write` | Take an idea: it becomes a task and the scheduler places it now. See Ideas |
+| `needt_skip_idea` | `needt.write` | Hide an idea for 7 days; the 3rd skip archives it. See Ideas |
 
 `needt_create_task`, `needt_schedule`, `needt_reschedule` and `needt_control`
 run the connector routes in-process with the caller's own token, so auth,
@@ -669,6 +673,10 @@ Response:
 curl http://localhost:3000/api/connect/tasks \
   -H "Authorization: Bearer needt_REPLACE_ME"
 ```
+
+Tasks only: an idea (see Ideas) is listed with `?kind=idea`, or both with
+`?kind=any`. Every task carries `kind` (`task` or `idea`) in the operations
+(`task.list`, `task.get`) and in `needt_list`.
 
 Response:
 
@@ -1536,6 +1544,75 @@ curl -X POST http://localhost:3000/api/connect/ops/personal.create \
 
 Ask can do the same in words ("block Friday evening for a party"), with Undo.
 In MCP, `needt_list` and `needt_get` take `type: "personal_time"`.
+
+## Ideas
+
+Some things a person writes down are not work with a date: read the AI agents
+news, watch a breakdown, try a tutorial. An **idea** is a task of kind `idea`:
+it has no due date, deadline, start, schedule, reminder or repeat, it cannot be
+completed, and it is never overdue. Needt offers up to two a day as a card
+between the person's tasks, and the person takes or skips it. A task row is one
+model, so projects, labels, pages, attachments and undo work on an idea.
+
+An attempt to give an idea a date or a schedule (a `dueDate`, `deadline`,
+`start`, `pinned`, `autoSchedule: true`, a repeat, or `status: completed`) is
+refused with `400` and the message "An idea has no due date, deadline, start
+date or schedule"; it is never silently dropped. Setting a date to `null` is
+fine.
+
+An idea is personal: in a shared workspace another member's ideas are never
+listed, read, edited, taken or skipped (they answer `404`). A task other tasks
+wait on (a dependency or a project blocker) cannot be made an idea (`409`).
+
+Task lists (`GET /api/tasks`, `GET /api/connect/tasks`, `task.list`,
+`needt_list`) return **tasks only** unless asked: `kind=idea` or `kind=any`
+(your own ideas only).
+Ideas are left out of every overdue list and count, reminder, nudge and digest,
+the day plan, Always easy start's cap and rewrites, and scheduler capacity.
+
+| Verb                                  | Does                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/connect/ideas`              | `idea.list`: `state` (`ready`, `snoozed`, `all`), `query`, `limit`, `cursor`                                                                                                                                                                                                                                |
+| `POST /api/connect/ideas`             | `idea.create`: `title`, `notes`, `projectId`, `goalId`, `tagIds`, `estimateMinutes`, `priority`. Source `agent`                                                                                                                                                                                             |
+| `GET /api/connect/ideas/cards`        | `idea.cards`: the cards for the day (`day`, `surface`, `visibleTasks`). A pure read: it writes nothing and names the same cards until something changes                                                                                                                                                     |
+| `PATCH /api/connect/ideas/:id`        | Edit an idea (`task.update`); a date is refused                                                                                                                                                                                                                                                             |
+| `POST /api/connect/ideas/:id/take`    | `idea.take`: the idea becomes an open, auto-scheduled task (its estimate, or 30 minutes) placed in the first free slot today from now, or on the first later day with room. No due date. Answers with `placed`                                                                                              |
+| `POST /api/connect/ideas/:id/shown`   | `idea.shown` (`position` optional): a screen displayed this card. It counts against the day's 2 and records `idea_shown` once; a second call the same day changes nothing; refused (`409`) when 2 other ideas were already shown today or the idea is snoozed or archived. Needs write access, not undoable |
+| `POST /api/connect/ideas/:id/skip`    | `idea.skip`: hidden for 7 days; the 3rd skip archives it (still listed with `state=all`)                                                                                                                                                                                                                    |
+| `POST /api/connect/ideas/:id/convert` | `idea.convert` with `{ "to": "idea" }` (a task becomes an idea: its due date, schedule, blocks and reminders are cleared) or `{ "to": "task" }` (a plain task, no placement)                                                                                                                                |
+
+The app's own screens use the same verbs at `/api/ideas/*` with the session.
+Every write answers with `actionId`; `POST /api/agent/actions/:id/undo` reverses
+it (a Take goes back to an idea with its old state, a conversion brings the
+task back with its due date). Through the operations route the same things are
+`idea.create`, `idea.list`, `idea.cards`, `idea.convert`, `idea.take` and
+`idea.skip`, and `task.update` / `needt_update_task` accept `kind` (alone) to
+convert.
+
+```bash
+curl -X POST http://localhost:3000/api/connect/ideas \
+  -H "Authorization: Bearer needt_REPLACE_ME" \
+  -H "Content-Type: application/json" \
+  -d '{ "title": "Watch the Figma config talk", "estimateMinutes": 25 }'
+# -> { "result": { "task": { "id": "…", "kind": "idea", "dueDate": null, … } }, "actionId": "…", … }
+```
+
+**Where ideas come from.** The person saves one, an agent creates one, or a task
+is converted. A background job also converts open tasks that are really ideas:
+the title names something optional (read, watch, news, tutorial, explore, look
+at, and the equivalents in Russian, Ukrainian and German) with no commitment
+word (before, by, submit, send, pay, call), and the task has no due date, is
+overdue 2 or more days, or was moved to a later day. A task with a future due
+date, a hard deadline, high priority, a repeat or a synced source is never
+touched. At most 5 per person per run and 20 a day, each an undoable action
+with the old dates, and the person sees one line ("Moved 3 to Ideas: ...") with
+Undo that reverses the whole run. A task whose conversion was undone is not
+converted again until its title changes.
+
+**Setting.** `ideaCardsEnabled` on `GET` and `PATCH /api/user-settings`, on by
+default ("Idea cards" in Settings > Tasks). Off: no card is offered and nothing
+is converted; stored ideas stay and remain usable through the API. The server
+flag `idea_cards` stops cards and the job for everyone without a deploy.
 
 ## Goals
 

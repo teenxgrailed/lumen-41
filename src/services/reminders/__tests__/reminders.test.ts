@@ -172,6 +172,34 @@ describe("createReminder", () => {
   });
 });
 
+describe("createReminder on an idea", () => {
+  it("is refused: an idea has no reminders", async () => {
+    db.task.findFirst.mockResolvedValue({ id: "t1", kind: "IDEA" });
+    const result = await createReminder("u1", {
+      taskId: "t1",
+      offsetMinutes: 10,
+    });
+    expect(result).toEqual({
+      ok: false,
+      status: 400,
+      error: "An idea has no reminders",
+    });
+    expect(db.taskReminder.create).not.toHaveBeenCalled();
+  });
+
+  it("a task still gets one", async () => {
+    db.task.findFirst.mockResolvedValue({ id: "t1", kind: "TASK" });
+    db.taskReminder.create.mockImplementation(({ data }) =>
+      Promise.resolve(row(data))
+    );
+    const result = await createReminder("u1", {
+      taskId: "t1",
+      offsetMinutes: 10,
+    });
+    expect(result.ok).toBe(true);
+  });
+});
+
 describe("updateReminder (snooze)", () => {
   it("re-arms a delivered reminder for the snooze time", async () => {
     db.taskReminder.findFirst.mockResolvedValue(

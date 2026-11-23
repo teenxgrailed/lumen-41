@@ -18,6 +18,7 @@ import {
   fromZonedTime,
 } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 import { loadWeekHours } from "@/lib/work-week-server";
 
 import { type SpreadDay, spreadMinutes, taskDayInZone } from "./spread";
@@ -97,6 +98,7 @@ export async function loadSpreadDays(input: {
     prisma.task.findMany({
       where: {
         ...workspaceDataScopeWhere(input.workspace, userId),
+        ...openTaskWhere(),
         id: { notIn: [...input.exclude] },
         isArchived: false,
         noSlot: false,

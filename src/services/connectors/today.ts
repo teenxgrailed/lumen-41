@@ -27,6 +27,7 @@ import {
 import { logger } from "@/lib/logger";
 import { parseCityPlace } from "@/lib/needt3/city";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { loadHighlight } from "../highlight/highlight-service";
 
@@ -331,6 +332,7 @@ export async function todayView(ctx: ConnectContext, now: Date) {
     prisma.task.findMany({
       where: {
         ...scope,
+        ...openTaskWhere(),
         isArchived: false,
         trashedAt: null,
         habitId: null,
@@ -361,6 +363,7 @@ export async function todayView(ctx: ConnectContext, now: Date) {
     prisma.task.count({
       where: {
         ...scope,
+        ...openTaskWhere(),
         isArchived: false,
         trashedAt: null,
         habitId: null,

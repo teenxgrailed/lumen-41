@@ -82,7 +82,8 @@ describe("prismaDataSource workspace scope", () => {
 
     expect(prisma.task.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { workspaceId: "workspace-1", isArchived: false },
+        // ideas are never rows of the lists (idea cards)
+        where: { workspaceId: "workspace-1", kind: "TASK", isArchived: false },
       })
     );
     expect(tasks.map(({ id, blockedBy }) => ({ id, blockedBy }))).toEqual([

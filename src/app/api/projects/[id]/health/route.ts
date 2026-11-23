@@ -36,7 +36,8 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       },
     },
   });
-  if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  if (!project)
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
   return NextResponse.json(project);
 }
 
@@ -46,13 +47,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   });
   if ("response" in auth) return auth.response;
   const parsed = updateSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Invalid health update" }, { status: 400 });
+  if (!parsed.success)
+    return NextResponse.json(
+      { error: "Invalid health update" },
+      { status: 400 }
+    );
   const { id } = await params;
   const existing = await prisma.project.findFirst({
     where: { id, ...workspaceDataScopeWhere(auth.workspace, auth.userId) },
     select: { healthStatus: true, healthVersion: true, workspaceId: true },
   });
-  if (!existing) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  if (!existing)
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
   if (existing.healthVersion !== parsed.data.expectedVersion) {
     return NextResponse.json(
       {
@@ -97,5 +103,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { status: 409 }
     );
   }
-  return NextResponse.json({ update: created, healthVersion: nextVersion }, { status: 201 });
+  return NextResponse.json(
+    { update: created, healthVersion: nextVersion },
+    { status: 201 }
+  );
 }

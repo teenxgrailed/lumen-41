@@ -87,6 +87,9 @@ export const userSettingsV3FieldsSchema = z.object({
     .array(z.string().min(1).max(64))
     .max(200)
     .optional(),
+  // Idea cards (typed column the worker reads): off means no card is offered
+  // and no task is moved to Ideas; stored ideas stay.
+  ideaCardsEnabled: z.boolean().optional(),
   // The occasional feedback prompt: on or off (src/services/feedback).
   feedbackPrompts: z.boolean().optional(),
   // `prefs.taskView` is the one task-list view setting (task-view.ts); when

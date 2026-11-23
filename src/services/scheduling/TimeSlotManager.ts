@@ -19,6 +19,7 @@ import type { Chronotype } from "@/lib/needt3/chronotype";
 import { type PersonalOccurrence, overlapsPersonal } from "@/lib/personal-time";
 import { prisma } from "@/lib/prisma";
 import { activeProjectTaskWhere } from "@/lib/projects/archive";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 import { useSettingsStore } from "@/store/settings";
 
@@ -84,6 +85,7 @@ export class TimeSlotManagerImpl implements TimeSlotManager {
     // Fetch all scheduled tasks
     const scheduledTasks = await prisma.task.findMany({
       where: {
+        ...openTaskWhere(),
         isAutoScheduled: true,
         scheduledStart: { not: null },
         scheduledEnd: { not: null },

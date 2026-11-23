@@ -134,6 +134,23 @@ describe("PATCH /api/user-settings prefs", () => {
     expect(raw).not.toHaveBeenCalled();
   });
 
+  it("stores the Idea cards switch as a typed column", async () => {
+    for (const ideaCardsEnabled of [false, true]) {
+      upsert.mockClear();
+      const res = await patch({ ideaCardsEnabled });
+      expect(res.status).toBe(200);
+      expect(upsert.mock.calls[0][0].update).toEqual({ ideaCardsEnabled });
+    }
+    // typed column, so no prefs merge ran
+    expect(raw).not.toHaveBeenCalled();
+  });
+
+  it("refuses an Idea cards value that is not a boolean", async () => {
+    expect((await patch({ ideaCardsEnabled: "off" })).status).toBe(400);
+    expect((await patch({ ideaCardsEnabled: null })).status).toBe(400);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
   it("accepts each mode and an empty exclusion list", async () => {
     for (const easyStartMode of ["auto", "suggest", "off"]) {
       expect((await patch({ easyStartMode })).status).toBe(200);

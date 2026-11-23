@@ -29,6 +29,7 @@ import { deliverFocusEnded } from "@/services/focus/focus-end-notification";
 import { expireProGifts } from "@/services/gifts/gifts";
 import { runHabitEveningPush } from "@/services/habits/evening-push";
 import { runHabitPresenceSweep } from "@/services/habits/presence-sweep";
+import { runIdeaSweep } from "@/services/ideas/sweep";
 import {
   processImportRun,
   sweepStuckImportRuns,
@@ -306,6 +307,13 @@ async function processReminder(job: Job<ReminderJobData>) {
   if (job.data.kind === "easy-start-sweep") {
     // One flag row read while the kill switch is off.
     await runEasyStartSweep();
+    return;
+  }
+  if (job.data.kind === "idea-sweep") {
+    // One flag row read while `idea_cards` is off. A task that becomes an idea
+    // leaves easy start's candidate set (it reads kind TASK), so whichever
+    // sweep runs first, an idea is never rewritten.
+    await runIdeaSweep();
     return;
   }
   if (job.data.kind === "easy-start-backfill") {
@@ -661,6 +669,14 @@ export async function start(): Promise<void> {
     "easy-start-sweep",
     { every: 30 * 60_000 },
     { name: "sweep-easy-start", data: { kind: "easy-start-sweep" } }
+  );
+  // Every 15 minutes: open tasks that are really ideas (read the news, watch a
+  // breakdown) move to Ideas, at most 5 per person per run, each with Undo. The
+  // sweep reads one flag row while `idea_cards` is off.
+  await getReminderQueue().upsertJobScheduler(
+    "idea-sweep",
+    { every: 15 * 60_000 },
+    { name: "sweep-ideas", data: { kind: "idea-sweep" } }
   );
   // Every 3 hours: a small batch of existing tasks with no entry gets one
   // (the backfill). The run reads one flag row while the kill switch is off.

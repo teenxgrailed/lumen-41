@@ -58,6 +58,23 @@ describe("needsEntryOnCreate", () => {
   });
 });
 
+describe("ideas (idea cards)", () => {
+  it("easy start never changes an idea: no entry, no backfill, never stuck", () => {
+    const idea = { ...base, kind: "IDEA" as const, entry: null };
+    expect(needsEntryOnCreate(idea)).toBe(false);
+    expect(needsBackfill(idea)).toBe(false);
+    expect(
+      stuckReason({ ...idea, rescheduleCount: 3, startDate: daysAgo(9) }, NOW)
+    ).toBeNull();
+  });
+
+  it("a task of kind TASK is as before", () => {
+    expect(needsEntryOnCreate({ ...base, kind: "TASK", entry: null })).toBe(
+      true
+    );
+  });
+});
+
 describe("stuckReason", () => {
   it("is null for a fresh task", () => {
     expect(stuckReason(base, NOW)).toBeNull();

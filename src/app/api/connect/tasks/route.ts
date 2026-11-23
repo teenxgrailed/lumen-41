@@ -27,6 +27,7 @@ import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { DOC_ORIGIN, withOriginPageId } from "@/lib/needt3/origin-page";
 import { prisma } from "@/lib/prisma";
 import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
+import { kindWhere } from "@/lib/tasks/open-task";
 
 import {
   SchedulingEnergyLevel,
@@ -60,10 +61,13 @@ export async function GET(request: NextRequest) {
   const { userId, workspace } = auth;
   // `?originPageId=<page id>`: the tasks that came from one page.
   const originPageId = request.nextUrl.searchParams.get("originPageId");
+  // Tasks by default; `?kind=idea` or `?kind=any` lists ideas (idea cards).
+  const kind = request.nextUrl.searchParams.get("kind");
 
   const tasks = await prisma.task.findMany({
     where: {
       ...workspaceDataScopeWhere(workspace, userId),
+      ...kindWhere(kind, userId),
       isArchived: false,
       trashedAt: null,
       ...(originPageId

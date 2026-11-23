@@ -7,6 +7,7 @@ import { authenticateRequest } from "@/lib/auth/api-auth";
 import { workspaceDataScopeWhere } from "@/lib/auth/workspace-auth";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { openTaskWhere } from "@/lib/tasks/open-task";
 
 const LOG_SOURCE = "project-blockers-route";
 type RouteContext = { params: Promise<{ id: string }> };
@@ -51,7 +52,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     );
     const [taskCount, stageCount] = await Promise.all([
       taskIds.length
-        ? prisma.task.count({ where: { id: { in: taskIds }, projectId } })
+        ? prisma.task.count({
+            where: { id: { in: taskIds }, projectId, ...openTaskWhere() },
+          })
         : Promise.resolve(0),
       stageId
         ? prisma.projectStage.count({ where: { id: stageId, projectId } })

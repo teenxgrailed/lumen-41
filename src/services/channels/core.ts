@@ -119,6 +119,7 @@ async function openPlanItem(userId: string, taskId: string, dateKey: string) {
     where: { id: taskId, userId },
     select: {
       id: true,
+      kind: true,
       status: true,
       trashedAt: true,
       isRecurring: true,
@@ -126,7 +127,8 @@ async function openPlanItem(userId: string, taskId: string, dateKey: string) {
       workspaceId: true,
     },
   });
-  if (!task || task.trashedAt) return null;
+  // An idea is not planned (idea cards).
+  if (!task || task.trashedAt || task.kind === "IDEA") return null;
   const items = await prisma.dayPlanItem.findMany({
     where: {
       taskId,
