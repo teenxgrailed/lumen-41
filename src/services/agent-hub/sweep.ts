@@ -90,6 +90,5 @@ export async function raiseNoCapableAgent(key: WorkspaceKey) {
 
 /** Everything lazy that a hub read should settle first. */
 export async function sweepHub(key: WorkspaceKey) {
-  await noteExpiredLeases(key);
-  await raiseNoCapableAgent(key);
+  await Promise.all([noteExpiredLeases(key), raiseNoCapableAgent(key)]);
 }

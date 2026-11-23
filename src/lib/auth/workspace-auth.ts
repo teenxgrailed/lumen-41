@@ -5,9 +5,11 @@ import { SubscriptionPlan, WorkspaceKind, WorkspaceRole } from "@prisma/client";
 import { ensurePersonalWorkspaceRow } from "@/lib/auth/personal-workspace";
 import { getPlan } from "@/lib/entitlements";
 import { isFeatureEnabled } from "@/lib/feature-flags";
+import { WORKSPACES } from "@/lib/feature-flags-keys";
 import { prisma } from "@/lib/prisma";
+import { createTtlCache } from "@/lib/ttl-cache";
 
-export const WORKSPACES_FEATURE_FLAG = "workspaces";
+export const WORKSPACES_FEATURE_FLAG = WORKSPACES;
 export const WORKSPACE_HEADER = "x-workspace-id";
 
 // These resources intentionally follow the user across workspace switches.
@@ -89,6 +91,48 @@ function isUniqueConstraintRace(error: unknown) {
   );
 }
 
+/**
+ * The id and kind of a person's personal workspace never change once it
+ * exists, so they are kept for 60 s per person. Only the workspace row is
+ * cached: whether the person is active and still owns it is read every call.
+ */
+export const PERSONAL_WORKSPACE_CACHE_TTL_MS = 60_000;
+const personalWorkspaceCache = createTtlCache<{
+  id: string;
+  kind: WorkspaceKind;
+} | null>({
+  name: "personal-workspace",
+  ttlMs: PERSONAL_WORKSPACE_CACHE_TTL_MS,
+});
+
+function personalWorkspaceRow(userId: string) {
+  return personalWorkspaceCache.get(userId, async () => {
+    const found = await prisma.workspace.findUnique({
+      where: { personalOwnerId: userId },
+      select: { id: true, kind: true },
+    });
+    // A missing row is not remembered: it is created right after.
+    if (!found) personalWorkspaceCache.delete(userId);
+    return found;
+  });
+}
+
+/**
+ * Read-only: the personal workspace with the person's OWNER membership, or
+ * null when either is missing (the writing path below then creates it). It
+ * never writes, so it is safe to run before the person is known to be active.
+ */
+async function readPersonalWorkspace(userId: string) {
+  const workspace = await personalWorkspaceRow(userId);
+  if (!workspace) return null;
+  const membership = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId: workspace.id, userId } },
+    select: { role: true },
+  });
+  if (membership?.role !== WorkspaceRole.OWNER) return null;
+  return { ...workspace, role: membership.role };
+}
+
 async function ensurePersonalWorkspace(userId: string) {
   const workspace = await ensurePersonalWorkspaceRow(userId);
   let membership;
@@ -134,10 +178,17 @@ export async function resolveWorkspaceAccess(input: {
   requestedWorkspaceId?: string;
   requiredRole?: WorkspaceRole;
 }): Promise<WorkspaceAccess> {
-  const user = await prisma.user.findUnique({
-    where: { id: input.userId },
-    select: { id: true, isActive: true },
-  });
+  // Independent reads, run together. The personal workspace read does not
+  // write; a missing workspace or membership is created only after the
+  // person is known to be active, so a deactivated user is refused first.
+  const [user, enabled, existing] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { id: true, isActive: true },
+    }),
+    isFeatureEnabled(WORKSPACES_FEATURE_FLAG, input.userId),
+    readPersonalWorkspace(input.userId),
+  ]);
   if (!user?.isActive) {
     throw new WorkspaceAuthorizationError(
       "The authenticated user is no longer active.",
@@ -146,8 +197,12 @@ export async function resolveWorkspaceAccess(input: {
     );
   }
 
-  const personal = await ensurePersonalWorkspace(input.userId);
-  const enabled = await isFeatureEnabled(WORKSPACES_FEATURE_FLAG, input.userId);
+  if (!existing) {
+    // The cached workspace may be gone or replaced (no OWNER membership in
+    // it): forget it, and let the writing path find or create the real one.
+    personalWorkspaceCache.delete(input.userId);
+  }
+  const personal = existing ?? (await ensurePersonalWorkspace(input.userId));
   const requiredRole = input.requiredRole ?? WorkspaceRole.VIEWER;
 
   if (!enabled) {

@@ -1,4 +1,4 @@
-import { type HubItem, Prisma } from "@prisma/client";
+import { type HubItem, type HubItemEvent, Prisma } from "@prisma/client";
 
 import { newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
@@ -32,10 +32,35 @@ import { myReservations } from "./reservations";
 import type { InboxInput, NextInput } from "./schemas";
 import { sweepHub } from "./sweep";
 
-async function eventsFor(userId: string, itemIds: readonly string[]) {
+/** At most this many per-item event queries are in flight at once. */
+const EVENT_QUERY_CONCURRENCY = 5;
+
+/** Runs `work` over `items`, never more than `limit` at the same time. */
+async function mapLimit<T>(
+  items: readonly T[],
+  limit: number,
+  work: (item: T) => Promise<void>
+) {
+  let next = 0;
+  const lane = async () => {
+    while (next < items.length) await work(items[next++]);
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, lane)
+  );
+}
+
+/**
+ * The latest events of each item, oldest first, at most INBOX_EVENTS_PER_ITEM
+ * per item. The per-item queries run in lanes of 5 (not one after another, and
+ * not 25 at once), each with its own limit.
+ */
+export async function eventsFor(userId: string, itemIds: readonly string[]) {
   const window = await historyWindow(userId);
-  const byItem = new Map<string, Awaited<ReturnType<typeof fetchEvents>>>();
-  for (const id of itemIds) byItem.set(id, await fetchEvents(id, window));
+  const byItem = new Map<string, HubItemEvent[]>();
+  await mapLimit(itemIds, EVENT_QUERY_CONCURRENCY, async (id) => {
+    byItem.set(id, await fetchEvents(id, window));
+  });
   return byItem;
 }
 
