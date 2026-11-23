@@ -148,6 +148,21 @@ describe("buildMenuCounts", () => {
     expect(c.today).toBe(2);
   });
 
+  it("waits for the plan: left today and 'free' are not said while it is pending", () => {
+    const base = {
+      now: NOW,
+      nowMs: NOW_MS,
+      events: [] as never,
+      tasks: [task({ id: "a", dueDate: "2026-09-01" })],
+    };
+    const wait = buildMenuCounts({ ...base, planPending: true });
+    expect(wait.today).toBeUndefined();
+    expect(wait.nextEvent).toBeUndefined();
+    const done = buildMenuCounts({ ...base, planPending: false });
+    expect(done.today).toBe(1);
+    expect(done.nextEvent).toBeNull();
+  });
+
   it("left today counts tasks scheduled today, not only those due today", () => {
     const c = buildMenuCounts({
       now: NOW,

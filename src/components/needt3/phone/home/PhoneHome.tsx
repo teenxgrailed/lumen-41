@@ -270,6 +270,9 @@ export function PhoneHome({
   // Today's tasks, counted once for every number on this screen: the greeting,
   // "x of y", the focus total, the progress line and the time-left card. The
   // plan's own picks belong to the day even when no date says so.
+  // The counts wait for the plan's answer (data or error) instead of jumping
+  // when the picks arrive; with the plan off there is nothing to wait for.
+  const planSettled = dayPlan.off || dayPlan.query.isFetched;
   const pickIds = useMemo(
     () => planPickIds(dayPlan.snapshot),
     [dayPlan.snapshot]
@@ -309,19 +312,22 @@ export function PhoneHome({
   const personal = usePersonalDay(today);
   const [band, setBand] = useState<DayBand | null>(null);
   const workCap = capacityFrom(prefs);
-  const left = timeLeft({
-    capacity: freeMinutesLeft(workCap, today, nowHour, []),
-    blocked: blockedMinutes(
-      personal,
-      Math.max(nowHour, hourOfClock(workCap.start)),
-      hourOfClock(workCap.end)
-    ),
-    eventsAhead: minutesAhead(
-      calendarItems.filter((x) => x.event),
-      nowHour
-    ),
-    openTasks: sum.items,
-  });
+  const left = !planSettled
+    ? null
+    : timeLeft({
+        capacity: freeMinutesLeft(workCap, today, nowHour, []),
+        blocked: blockedMinutes(
+          personal,
+          Math.max(nowHour, hourOfClock(workCap.start)),
+          hourOfClock(workCap.end)
+        ),
+        eventsAhead: minutesAhead(
+          calendarItems.filter((x) => x.event),
+          nowHour
+        ),
+        openTasks: sum.items,
+        day: today,
+      });
   // Overbooked: Spread gives today's untimed tasks (and, from Overdue, the
   // late ones) the next days with room; the snack's Undo puts them back.
   const spreader = useSpread(sayOnPhone);
@@ -644,7 +650,7 @@ export function PhoneHome({
 
   /* Progress is a small part of the header; a finished day is one line. */
   const progress =
-    v2 || !ready || v.dayClosed ? null : sum.total ? (
+    v2 || !ready || !planSettled || v.dayClosed ? null : sum.total ? (
       <div className="v2p-prog" data-v2p-count={`${sum.done}/${sum.total}`}>
         <p className="v2p-prog-line">
           <span className="v2p-prog-count">
@@ -732,7 +738,7 @@ export function PhoneHome({
       title={hdr ? <PlanWeekday weekday={hdr.weekday} /> : copy.V2pHome.today}
       right={hdr ? <PlanDate date={hdr.date} year={hdr.year} /> : undefined}
       sub={
-        hdr ? undefined : v2 && ready && !v.dayClosed ? (
+        hdr ? undefined : v2 && ready && planSettled && !v.dayClosed ? (
           <span className="hv2-sub">
             {dateLine}
             <DayCount done={sum.done} total={sum.total} />

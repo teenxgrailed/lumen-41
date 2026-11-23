@@ -99,6 +99,11 @@ export interface CountsInput {
   connections?: readonly V3Connection[];
   /** Today's plan picks (`planPickIds`): they count for today like on Home. */
   planPicks?: ReadonlySet<string>;
+  /**
+   * The plan has not been asked for yet: the counts that depend on its picks
+   * (left today, and the Calendar's "free") wait rather than jump.
+   */
+  planPending?: boolean;
 }
 
 export function buildMenuCounts(i: CountsInput): MenuCounts {
@@ -111,7 +116,7 @@ export function buildMenuCounts(i: CountsInput): MenuCounts {
     sum = daySummary(i.tasks, today, i.planPicks);
     c.overdue = overdueCount(i.tasks, today);
     // left today = open tasks of today's set (due or scheduled today)
-    c.today = sum.open;
+    if (!i.planPending) c.today = sum.open;
     c.open = open.length;
     c.unplaced = open.filter(
       (t) => !t.isFixed && !t.noSlot && !t.scheduledStart
@@ -122,7 +127,7 @@ export function buildMenuCounts(i: CountsInput): MenuCounts {
   if (i.events) {
     const next = nextEventOf(i.events, i.now, sum?.items ?? []);
     // "Free" is only said once the tasks are in too: a timed task may be next
-    if (next || i.tasks) c.nextEvent = next;
+    if (next || (i.tasks && !i.planPending)) c.nextEvent = next;
   }
 
   if (i.docs) {

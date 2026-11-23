@@ -124,17 +124,17 @@ export interface DayStats {
   total: number;
   done: number;
   left: number;
-  /** Minutes of estimated work still open today. */
+  /** Minutes of work still open today (`taskMinutes`: the estimate, else 30 for a timed task). */
   mins: number;
 }
 
-export function dayStats(day: readonly V3Task[]): DayStats {
+export function dayStats(day: readonly V3Task[], today?: string): DayStats {
   const open = day.filter((t) => !t.done);
   return {
     total: day.length,
     done: day.length - open.length,
     left: open.length,
-    mins: open.reduce((s, t) => s + taskMinutes(t), 0),
+    mins: open.reduce((s, t) => s + taskMinutes(t, today), 0),
   };
 }
 

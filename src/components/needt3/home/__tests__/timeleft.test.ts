@@ -53,6 +53,33 @@ describe("timeLeft", () => {
     expect(timeLeftLine(t!)).toBe("2 h 30 planned · 1 h 30 free");
   });
 
+  it("counts 30 for a timed task with no estimate, but only a block on the day", () => {
+    const day = "2026-09-01";
+    const today = {
+      done: false,
+      estimatedMinutes: null,
+      scheduledStart: `${day}T10:00`,
+    };
+    const stale = {
+      done: false,
+      estimatedMinutes: null,
+      scheduledStart: "2026-08-31T19:00",
+    };
+    expect(
+      timeLeft({ capacity: 240, eventsAhead: 0, day, openTasks: [today] })
+        ?.planned
+    ).toBe(30);
+    // a stale block adds nothing (30 alone is still above the 5 min floor)
+    expect(
+      timeLeft({
+        capacity: 240,
+        eventsAhead: 0,
+        day,
+        openTasks: [today, stale],
+      })?.planned
+    ).toBe(30);
+  });
+
   it("warns softly when overbooked", () => {
     const t = timeLeft({
       capacity: 120,

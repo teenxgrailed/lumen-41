@@ -174,6 +174,14 @@ const seed = (tasks: V3Task[] | undefined = TASKS) => {
     prefs: {},
   });
   if (tasks) client.setQueryData(qk.tasks({}), tasks);
+  // the plan has answered (none yet): the day's counts wait for it
+  client.setQueryData(qk.dayPlan(TODAY), {
+    date: TODAY,
+    plan: null,
+    settings: {},
+    needsDecision: [],
+    limitSuggestion: null,
+  });
   client.setQueryData(qk.projects(), []);
   client.setQueryData(qk.habits(), [
     {
@@ -498,6 +506,22 @@ describe("Home", () => {
     expect(rows).toEqual(["am", "pm", "inbox"]);
     expect(q("[data-v2p-count]").getAttribute("data-v2p-count")).toBe("1/3");
     expect(host.textContent).toContain("Wednesday, 2 September · week 36");
+  });
+
+  it("the day's count waits until the plan has answered, then shows", () => {
+    client.removeQueries({ queryKey: qk.dayPlan(TODAY) });
+    mount(PhoneHome);
+    expect(host.querySelector("[data-v2p-count]")).toBeNull();
+    act(() => {
+      client.setQueryData(qk.dayPlan(TODAY), {
+        date: TODAY,
+        plan: null,
+        settings: {},
+        needsDecision: [],
+        limitSuggestion: null,
+      });
+    });
+    expect(q("[data-v2p-count]").getAttribute("data-v2p-count")).toBe("1/3");
   });
 
   it("the title opens the task sheet; a row opens it too", () => {

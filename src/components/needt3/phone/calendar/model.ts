@@ -202,17 +202,16 @@ export function itemLabel(b: CalItem) {
 
 /**
  * The day heading's second line: "3 planned · 2 h booked · 2 events · 1
- * overlap". "Planned" and "booked" are the day's TASKS, counted from the one
- * day set (`daySummary`), so they match Home's count and focus total for the
- * same day; the calendar's events are counted apart, so a meeting never makes
- * the tasks look like more than Home says. Done tasks stay in the count (Home
- * counts them), so with Hide done on the rows are fewer than "planned": the
- * line says how many done ones it holds back.
+ * overlap". "Planned" and "booked" are the TASKS drawn for the day (`tasks`:
+ * their count and minutes, the same 30 min rule as the grid), so the line never
+ * claims a row that is not there; events are counted apart, so a meeting never
+ * makes the tasks look like more. With Hide done on, done tasks are not drawn:
+ * `hiddenDone` says how many the line holds back.
  */
 export function dayMeta(
   p: Pick<DayPlan, "timed" | "allDay">,
   tasks: Pick<DaySummary, "total" | "minutes">,
-  /** Done tasks the Hide done setting keeps out of the rows (still counted). */
+  /** Done tasks the Hide done setting keeps out of the rows (not in `tasks`). */
   hiddenDone = 0
 ) {
   const events = [...p.timed, ...p.allDay].filter((b) => b.event).length;

@@ -121,14 +121,21 @@ export function useDayPlanToday(today: string) {
 
 /**
  * Today's plan picks for the counters (`planPickIds`), read without drafting
- * a plan: the Calendar and the menu count the day the way Home does, and only
- * Home asks for a draft. Shares the day's query with `useDayPlanToday`.
+ * a plan: the menu counts the day the way Home does, and only Home asks for a
+ * draft. `settled` is false until the snapshot has been asked for once (data
+ * or error), so a counter that depends on the picks can wait instead of
+ * jumping when they arrive; with the plan switched off it is settled.
+ * Shares the day's query with `useDayPlanToday`.
  */
-export function usePlanPickIds(today: string): ReadonlySet<string> {
+export function usePlanPicks(today: string): {
+  ids: ReadonlySet<string>;
+  settled: boolean;
+} {
   const off = useDayPlanOff();
   const query = useDayPlan(today, !off);
   const data = off ? undefined : query.data;
-  return useMemo(() => planPickIds(data), [data]);
+  const ids = useMemo(() => planPickIds(data), [data]);
+  return { ids, settled: off || query.isFetched };
 }
 
 export type CloseOutcome = "closed" | "overflow" | "off" | "error";

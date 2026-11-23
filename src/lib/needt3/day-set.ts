@@ -12,13 +12,17 @@
  *   or scheduled that day; overdue work is NOT part of today (a done task due
  *   earlier is not today's either, whatever day it was ticked);
  * - the day plan's picks (`include`) join even with no date or an overdue one,
- *   never when the task now sits on a later day;
+ *   never when the task now sits on a later day. A pick the evening close sent
+ *   away (resolution tomorrow or Someday) leaves `include`, but a task that is
+ *   still DATED today stays in today's set: the close never changes a date,
+ *   and the plan list still draws it;
  * - done tasks stay in the set (they are what "x of y" counts), and `done`
  *   says which. A hidden-done view setting never changes a count.
  *
  * Minutes are the task's estimate, else 30 for a task with a time (the length
  * the Calendar draws it at, `taskMinutes` is the one rule), else 0.
  */
+import { hourOf } from "./derive";
 import { hourOn, taskDay } from "./task-day";
 import type { DayFields } from "./task-day";
 
@@ -33,15 +37,19 @@ export interface DaySetTask extends DayFields {
 }
 
 /**
- * Minutes a task takes: its estimate, else 30 when it has a time, else 0. The
- * Calendar draws its blocks with this same rule (`blocks.ts`), so "booked"
- * here is what the grid shows.
+ * Minutes a task takes: its estimate, else 30 when it has a time ON `day` (a
+ * stale block on another day is not a time today), else 0. The Calendar draws
+ * its blocks with this same rule (`blocks.ts`), so "booked" is what the grid
+ * shows. Without `day`, any valid `scheduledStart` is a time.
  */
 export function taskMinutes(
-  t: Pick<DaySetTask, "estimatedMinutes" | "scheduledStart">
+  t: Pick<DaySetTask, "estimatedMinutes" | "scheduledStart">,
+  day?: string
 ): number {
   if (t.estimatedMinutes && t.estimatedMinutes > 0) return t.estimatedMinutes;
-  return t.scheduledStart ? TIMED_DEFAULT_MINUTES : 0;
+  const timed =
+    day != null ? hourOn(t, day) != null : hourOf(t.scheduledStart) != null;
+  return timed ? TIMED_DEFAULT_MINUTES : 0;
 }
 
 /**
@@ -90,7 +98,8 @@ export function daySummary<T extends DaySetTask>(
 ): DaySummary<T> {
   const items = tasksOnDay(tasks, day, include);
   const open = items.filter((t) => !t.done);
-  const sum = (l: readonly T[]) => l.reduce((s, t) => s + taskMinutes(t), 0);
+  const sum = (l: readonly T[]) =>
+    l.reduce((s, t) => s + taskMinutes(t, day), 0);
   return {
     items,
     total: items.length,

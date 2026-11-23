@@ -123,6 +123,25 @@ describe("taskMinutes", () => {
     expect(taskMinutes({ estimatedMinutes: 0, scheduledStart: null })).toBe(0);
   });
 
+  it("30 only for a block on the counted day: a stale block yesterday adds nothing", () => {
+    const stale = {
+      estimatedMinutes: null,
+      scheduledStart: "2026-09-01T19:00",
+    };
+    expect(taskMinutes(stale)).toBe(30); // no day given: any valid block
+    expect(taskMinutes(stale, TODAY)).toBe(0);
+    expect(
+      taskMinutes({ ...stale, scheduledStart: `${TODAY}T10:00` }, TODAY)
+    ).toBe(30);
+    const s = daySummary(
+      [t("late", { dueDate: TODAY, scheduledStart: "2026-09-01T19:00" })],
+      TODAY
+    );
+    expect(s.total).toBe(1); // due today: it is in the set...
+    expect(s.minutes).toBe(0); // ...but a block yesterday is not a time today
+    expect(s.openMinutes).toBe(0);
+  });
+
   it("a timed task with no estimate is 30 booked in the day total", () => {
     const s = daySummary([t("a", { scheduledStart: `${TODAY}T10:00` })], TODAY);
     expect(s.minutes).toBe(30);
@@ -149,6 +168,16 @@ describe("plan picks (include)", () => {
 
   it("a pick that is a no-slot task still joins (the plan chose it)", () => {
     expect(tasksOnDay([t("p", { noSlot: true })], TODAY, pick)).toHaveLength(1);
+  });
+});
+
+describe("a pick the close sent away", () => {
+  it("leaves the picks, but a task still dated today stays in today's set", () => {
+    // planPickIds drops resolution "tomorrow"; the close never changes the date
+    const x = t("x", { dueDate: TODAY });
+    expect(tasksOnDay([x], TODAY, new Set())).toHaveLength(1);
+    // an undated one sent away is gone
+    expect(tasksOnDay([t("y")], TODAY, new Set())).toEqual([]);
   });
 });
 

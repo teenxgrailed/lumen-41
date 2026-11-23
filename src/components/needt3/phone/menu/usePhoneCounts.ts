@@ -8,7 +8,7 @@ import { useAgentHubNav } from "@/lib/needt3/hooks/agent-hub";
 import { useBoards } from "@/lib/needt3/hooks/boards";
 import { useBudgetNav } from "@/lib/needt3/hooks/budget";
 import { useConnections } from "@/lib/needt3/hooks/connections";
-import { usePlanPickIds } from "@/lib/needt3/hooks/day-plan";
+import { usePlanPicks } from "@/lib/needt3/hooks/day-plan";
 import { useDocs } from "@/lib/needt3/hooks/docs";
 import { useEvents } from "@/lib/needt3/hooks/events";
 import { useCheckins, useHabits } from "@/lib/needt3/hooks/habits";
@@ -65,7 +65,7 @@ export function usePhoneCounts(): MenuCounts {
   const agentHub = useAgentHubNav();
   const budgetNav = useBudgetNav();
   const plan = usePlan();
-  const planPicks = usePlanPickIds(now.stamp.slice(0, 10));
+  const picks = usePlanPicks(now.stamp.slice(0, 10));
   const settings = useSettings();
   const budget = budgetNavItem({
     enabled: budgetNav.enabled,
@@ -100,7 +100,8 @@ export function usePhoneCounts(): MenuCounts {
         habits: habits.data,
         checkins: checkins.data,
         connections: connections.data,
-        planPicks,
+        planPicks: picks.ids,
+        planPending: !picks.settled,
       }),
       ...(agentHub.enabled ? { agents: { unread: agentHub.unread } } : {}),
       ...(budgetLocked === null ? {} : { budget: { locked: budgetLocked } }),
@@ -118,7 +119,8 @@ export function usePhoneCounts(): MenuCounts {
       habits.data,
       checkins.data,
       connections.data,
-      planPicks,
+      picks.ids,
+      picks.settled,
       agentHub.enabled,
       agentHub.unread,
       budgetLocked,

@@ -65,6 +65,8 @@ export function timeLeft(o: {
   capacity: number | null;
   blocked?: number;
   eventsAhead: number;
+  /** The day the tasks sit on: a block on another day adds no minutes. */
+  day?: string;
   /** Today's tasks (`daySummary(...).items`); the open ones are counted. */
   openTasks: readonly {
     done: boolean;
@@ -75,7 +77,9 @@ export function timeLeft(o: {
   if (o.capacity == null || o.capacity <= 0) return null;
   const planned =
     o.eventsAhead +
-    o.openTasks.filter((t) => !t.done).reduce((s, t) => s + taskMinutes(t), 0);
+    o.openTasks
+      .filter((t) => !t.done)
+      .reduce((s, t) => s + taskMinutes(t, o.day), 0);
   if (planned < 5) return null;
   const free = Math.max(0, o.capacity - (o.blocked ?? 0));
   const over = planned > free;

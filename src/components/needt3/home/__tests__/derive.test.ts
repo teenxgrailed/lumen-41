@@ -101,6 +101,14 @@ describe("dayStats and dayState", () => {
     expect(dayStats(day).mins).toBe(50);
   });
 
+  it("a block on another day adds no 30 min when the day is given", () => {
+    const stale = task({
+      estimatedMinutes: null,
+      scheduledStart: "2026-08-31T19:00",
+    });
+    expect(dayStats([stale], "2026-09-01").mins).toBe(0);
+  });
+
   it("is empty with nothing due and nothing overdue", () => {
     expect(dayState([], 0)).toBe("empty");
     expect(dayState([], 2)).toBe("open");
