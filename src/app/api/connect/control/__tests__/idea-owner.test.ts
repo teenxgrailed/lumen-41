@@ -30,6 +30,10 @@ jest.mock("@/lib/security/rate-limit", () => ({
   enforceRateLimits: jest.fn().mockResolvedValue(null),
   accountRule: jest.fn(),
 }));
+jest.mock("@/lib/realtime/publish", () => ({
+  publishRealtimeEvent: jest.fn(),
+  publishRealtimeEventSafe: jest.fn(),
+}));
 jest.mock("@/lib/task-block-push", () => ({
   schedulePushTaskBlock: jest.fn(),
 }));
