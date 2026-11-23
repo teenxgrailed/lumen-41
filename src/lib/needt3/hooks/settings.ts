@@ -26,6 +26,8 @@ export interface V3Settings {
   easyStartMode: "auto" | "suggest" | "off";
   /** Projects whose tasks easy start never touches. */
   easyStartExcludedProjectIds: string[];
+  /** Idea cards: optional ideas offered between tasks; on unless turned off. */
+  ideaCardsEnabled: boolean;
   /** The occasional "how is Needt?" prompt; on unless turned off. */
   feedbackPrompts: boolean;
   /** UI-only keys: sidebarTiles, docsSort, boardsSort, accent, … */
@@ -62,6 +64,7 @@ export function useSettings() {
               (id): id is string => typeof id === "string"
             )
           : [],
+        ideaCardsEnabled: row.ideaCardsEnabled !== false,
         feedbackPrompts: row.feedbackPrompts !== false,
         prefs:
           row.prefs && typeof row.prefs === "object"
@@ -213,6 +216,28 @@ export const EASY_START_MODES = [
 
 export const EASY_START_HELP =
   "New tasks get an easy first step and a task that keeps slipping is made smaller. Automatic changes can be undone; Suggest asks first.";
+
+/**
+ * The "Idea cards" switch (`UserSettings.ideaCardsEnabled`, on by default).
+ * Disabled until the settings have loaded, so it never shows a default and then
+ * flips a stored value.
+ */
+export function useIdeaCardsSwitch() {
+  const settings = useSettings();
+  const update = useUpdateSettings();
+  return {
+    on: settings.data?.ideaCardsEnabled ?? true,
+    disabled: !settings.data,
+    set: (ideaCardsEnabled: boolean) =>
+      update.mutateAsync({ ideaCardsEnabled }).then(
+        () => true,
+        () => false
+      ),
+  };
+}
+
+export const IDEA_CARDS_HELP =
+  "Now and then, one optional idea between your tasks: something to read or watch, never late. Skip hides it for a week.";
 
 /**
  * The "Ask me for feedback" switch (`UserSettings.feedbackPrompts`, on by

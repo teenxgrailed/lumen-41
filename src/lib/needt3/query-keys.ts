@@ -56,6 +56,12 @@ export const qk = {
   docs: (sort?: DocsSort) =>
     sort ? ([V3, "docs", sort] as const) : ([V3, "docs"] as const),
   doc: (id: string) => [V3, "doc", id] as const,
+  /** Today's idea cards (`GET /api/ideas/cards`), optionally for one local day. */
+  ideaCards: (day?: string) =>
+    day ? ([V3, "idea-cards", day] as const) : ([V3, "idea-cards"] as const),
+  /** The person's ideas (`GET /api/ideas`), optionally one state. */
+  ideas: (state?: string) =>
+    state ? ([V3, "ideas", state] as const) : ([V3, "ideas"] as const),
   /** The day plan of a date (`GET /api/day-plan?date=`). */
   dayPlan: (date?: string) =>
     date ? ([V3, "day-plan", date] as const) : ([V3, "day-plan"] as const),

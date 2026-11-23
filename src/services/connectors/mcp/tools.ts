@@ -152,6 +152,7 @@ import { PLAN_LIMITS } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma";
 import type { RealtimeEventType } from "@/lib/realtime/channels";
 import { publishRealtimeEventSafe } from "@/lib/realtime/publish";
+import { ideaWhere, openTaskWhere } from "@/lib/tasks/open-task";
 
 import { TaskStatus } from "@/types/task";
 
@@ -444,6 +445,7 @@ async function listRows(
     from?: string;
     to?: string;
     originPageId?: string;
+    kind?: "task" | "idea" | "any";
   }
 ) {
   const { userId } = ctx;
@@ -459,6 +461,12 @@ async function listRows(
           await prisma.task.findMany({
             where: {
               ...scope,
+              // Tasks unless asked: an idea (idea cards) is never a surprise.
+              ...(args.kind === "idea"
+                ? ideaWhere()
+                : args.kind === "any"
+                  ? {}
+                  : openTaskWhere()),
               ...(args.includeArchived
                 ? {}
                 : { isArchived: false, trashedAt: null }),
@@ -851,6 +859,12 @@ export const MCP_TOOLS: McpTool[] = [
         .describe(
           "Tasks only: the ones that came from this page (a to-do ticked in a document)."
         ),
+      kind: z
+        .enum(["task", "idea", "any"])
+        .optional()
+        .describe(
+          "Tasks only: task (default) lists tasks, idea lists the optional ideas (needt_list_ideas pages them by state), any lists both."
+        ),
     }),
     async invoke(ctx, args) {
       const access = await readAccess(ctx);
@@ -1198,15 +1212,124 @@ const WRITE_TOOLS: McpTool[] = [
       input: z
         .object({
           id: z.string().min(1).describe("Task id."),
+          kind: z
+            .enum(["task", "idea"])
+            .optional()
+            .describe(
+              "idea turns the task into an idea (optional, never late: its due date, schedule and reminders are cleared and the answer's actionId undoes it); task turns an idea back into a plain task. Send it alone."
+            ),
           ...taskUpdateFields,
         })
         .strict(),
       async invoke(ctx, args) {
-        const { id, ...body } = args;
+        const { id, kind, ...body } = args;
+        if (kind) {
+          if (Object.values(body).some((value) => value !== undefined)) {
+            return toolError({
+              status: 400,
+              error: "Change kind on its own, without other fields",
+            });
+          }
+          return goalOp(ctx, "idea.convert", { taskId: id, to: kind });
+        }
         const parsed = taskFieldPatchFrom(body);
         if (!parsed.ok) return toolError({ status: 400, error: parsed.error });
         return updateTask(ctx, id, parsed.patch);
       },
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_create_idea",
+      description:
+        'Save an idea: something optional to read, watch or try ("check the AI agents news"). It has no due date or schedule and is never overdue; Needt offers it now and then, at most 2 a day, as a card the person can take or skip. A date or schedule is refused. Put it in a project with projectId. Answers with the idea and actionId for undo. To make an existing task an idea use needt_update_task with kind: idea.',
+      annotations: {
+        title: "Create idea",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+      input: z
+        .object({
+          title: z.string().min(1).max(160),
+          notes: z.string().max(20000).optional(),
+          projectId: z
+            .string()
+            .min(1)
+            .optional()
+            .describe("An active project in this workspace."),
+          estimateMinutes: z
+            .number()
+            .int()
+            .min(5)
+            .max(1440)
+            .optional()
+            .describe("How long taking it is planned for (30 when unset)."),
+          priority: priorityOrNone.optional(),
+          labelIds: labelIds.optional(),
+        })
+        .strict(),
+      invoke: (ctx, args) => {
+        const { labelIds: tagIds, ...rest } = args;
+        return goalOp(ctx, "idea.create", {
+          ...rest,
+          ...(tagIds ? { tagIds } : {}),
+        });
+      },
+    },
+    ["tasks-updated"]
+  ),
+  defineTool({
+    name: "needt_list_ideas",
+    description:
+      "List the person's ideas (optional things offered as cards, never late), with cursor pagination. state: ready (can be offered now, default), snoozed (skipped, hidden for 7 days) or all (archived ones too).",
+    annotations: {
+      title: "List ideas",
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
+    scopes: () => ["needt.read"],
+    input: z
+      .object({
+        state: z.enum(["ready", "snoozed", "all"]).optional(),
+        query: z.string().min(1).max(200).optional(),
+        limit: z.number().int().min(1).max(200).optional(),
+        cursor: z.string().min(1).optional(),
+      })
+      .strict(),
+    invoke: (ctx, args) => goalOp(ctx, "idea.list", args),
+  }),
+  defineTool(
+    {
+      name: "needt_take_idea",
+      description:
+        "Take an idea: it becomes an open task, placed by the scheduler in the first free slot today from now (or on the first later day with room), with no due date. Answers with the task, where it was placed and actionId; undo makes it an idea again.",
+      annotations: {
+        title: "Take idea",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+      input: z.object({ id: z.string().min(1).describe("Idea id.") }).strict(),
+      invoke: (ctx, args) => goalOp(ctx, "idea.take", { taskId: args.id }),
+    },
+    ["tasks-updated"]
+  ),
+  defineTool(
+    {
+      name: "needt_skip_idea",
+      description:
+        "Skip an idea: it is hidden for 7 days; the 3rd skip archives it (still listed with state all). Answers with actionId for undo.",
+      annotations: {
+        title: "Skip idea",
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+      },
+      input: z.object({ id: z.string().min(1).describe("Idea id.") }).strict(),
+      invoke: (ctx, args) => goalOp(ctx, "idea.skip", { taskId: args.id }),
     },
     ["tasks-updated"]
   ),

@@ -21,6 +21,7 @@ const settings: V3Settings = {
   timeFormat: "24h",
   easyStartMode: "auto",
   easyStartExcludedProjectIds: [],
+  ideaCardsEnabled: true,
   feedbackPrompts: true,
   prefs: { accent: "green", docsSort: "viewed" },
 };
