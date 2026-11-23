@@ -192,16 +192,55 @@ export const SOMEDAY_SWEEP = "someday_sweep";
  */
 export const DAY_PLAN_TOUCHES = "day_plan_touches";
 
+/** The workspaces rollout (`WORKSPACES_FEATURE_FLAG` in workspace-auth). */
+export const WORKSPACES = "workspaces";
+
 /**
- * Kill switches: a flag whose job is to stop something at once. Reads of these
- * never come from the in-process cache, so turning one off takes effect on the
- * next call everywhere.
+ * Flags whose reads may be served from the 30 s in-process cache
+ * (`isFeatureEnabled`): plain rollout flags where a lag of 30 s is harmless.
+ * It is an allowlist: a flag that is not listed here is read from the database
+ * every time, so a flag nobody classified is never cached. When in doubt, leave
+ * a flag out. A kill switch, a per-account override that gates access, a
+ * payment or onboarding flag never belongs here.
+ *
+ * Note: the BullMQ worker is a separate process. The admin PATCH clears the
+ * cache of the web process that served it, not the worker's, so a cached flag
+ * can lag up to 30 s there.
  */
-export const KILL_SWITCH_FLAGS: ReadonlySet<string> = new Set([
+export const CACHEABLE_FLAGS: ReadonlySet<string> = new Set([
+  WORKSPACES,
+  HABITS_QUIT,
+  ENERGY_CURVE,
+  FOCUS_BLOCKING,
+  HABITS_CARDS_V1,
+  FOLDERS_V1,
+  BUDGET_MODULE,
+]);
+
+/**
+ * Every other known flag, listed on purpose: read fresh on each call. Kill
+ * switches (day plan, easy start, idea cards, the day-plan touches), the
+ * agent hub (a per-account override gates access), payments, onboarding, signups,
+ * the sandbox and the pushes. A known flag must be in exactly one of
+ * `CACHEABLE_FLAGS` and this list (a test checks it).
+ */
+export const UNCACHED_FLAGS: ReadonlySet<string> = new Set([
+  BILLING_CHECKOUT,
+  SIGNUPS_OPEN,
+  ONBOARDING_V3,
+  SANDBOX_ACCOUNTS,
+  APPLE_IAP,
+  AGENT_HUB,
+  AI_CHATGPT_PLAN,
+  FIRST_REPLAN_ONBOARDING,
+  HABIT_EVENING_PUSH,
+  HOME_V2,
+  BUDGET_PRO_ACCESS,
   DAY_PLAN,
-  DAY_PLAN_TOUCHES,
   ALWAYS_EASY_START,
   IDEA_CARDS,
+  SOMEDAY_SWEEP,
+  DAY_PLAN_TOUCHES,
 ]);
 
 export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {

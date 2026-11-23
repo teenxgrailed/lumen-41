@@ -67,7 +67,8 @@ export function createTtlCache<V>(options: {
       const hit = entries.get(key);
       if (hit && hit.expiresAt > at) return hit.value;
       if (hit) entries.delete(key);
-      // Past the cap the oldest entry goes (a Map keeps insertion order).
+      // Past the cap the oldest entry goes (first in, first out; a Map keeps
+      // insertion order). It is not least-recently-used.
       while (entries.size >= maxEntries) {
         const oldest = entries.keys().next();
         if (oldest.done) break;

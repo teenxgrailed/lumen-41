@@ -74,7 +74,7 @@ describe("inbox events", () => {
     ]);
   });
 
-  it("starts every item query at once (one round trip deep)", async () => {
+  it("runs the item queries together but never more than five at a time", async () => {
     let inFlight = 0;
     let peak = 0;
     findMany.mockImplementation(async () => {
@@ -84,8 +84,9 @@ describe("inbox events", () => {
       inFlight -= 1;
       return [];
     });
-    await eventsFor("u1", ["a", "b", "c", "d"]);
-    expect(peak).toBe(4);
+    await eventsFor("u1", ["a", "b", "c", "d", "e", "f", "g", "h"]);
+    expect(findMany).toHaveBeenCalledTimes(8);
+    expect(peak).toBe(5);
   });
 
   it("asks for nothing when there are no items", async () => {

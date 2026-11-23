@@ -7,6 +7,7 @@ import {
   AI_CHATGPT_PLAN,
   ALWAYS_EASY_START,
   BUDGET_MODULE,
+  CACHEABLE_FLAGS,
   DAY_PLAN,
   DAY_PLAN_TOUCHES,
   FOLDERS_V1,
@@ -15,7 +16,6 @@ import {
   HABIT_EVENING_PUSH,
   HOME_V2,
   IDEA_CARDS,
-  KILL_SWITCH_FLAGS,
   SOMEDAY_SWEEP,
 } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
@@ -24,8 +24,9 @@ import { createTtlCache } from "@/lib/ttl-cache";
 
 /**
  * One read per flag and person per 30 s in this process (a flag read is two
- * statements, and a single MCP call asks for several). Kill switches
- * (`KILL_SWITCH_FLAGS`) are never cached. A change an admin makes
+ * statements, and a single MCP call asks for several). Only flags in
+ * `CACHEABLE_FLAGS` are cached (kill switches, payments and the agent hub are
+ * not). A change an admin makes
  * through the admin route clears it at once in that process; in other
  * instances it shows within the TTL, which is fine for a rollout switch.
  */
@@ -44,8 +45,8 @@ export function isFeatureEnabled(
   flagKey: string,
   userId: string
 ): Promise<boolean> {
-  // A kill switch is always read fresh.
-  if (KILL_SWITCH_FLAGS.has(flagKey)) return readFeatureFlag(flagKey, userId);
+  // Only an allowlisted rollout flag is cached; every other read is fresh.
+  if (!CACHEABLE_FLAGS.has(flagKey)) return readFeatureFlag(flagKey, userId);
   return flagCache.get(`${flagKey}:${userId}`, () =>
     readFeatureFlag(flagKey, userId)
   );
