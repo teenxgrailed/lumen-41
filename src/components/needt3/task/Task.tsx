@@ -13,6 +13,7 @@ import { useDesignV3 } from "@/components/needt3/root/V3Root";
 
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { NEUTRAL_MARK, type ProjectLike } from "@/lib/needt3/derive";
+import { useEasyStartRow } from "@/lib/needt3/easy-start-row";
 import { useProjects } from "@/lib/needt3/hooks/projects";
 import { useTimeZone } from "@/lib/needt3/hooks/settings";
 import { useTaskView } from "@/lib/needt3/hooks/task-view";
@@ -22,6 +23,7 @@ import { C2_H } from "../calendar/layout";
 import { TaskCheck } from "./TaskCheck";
 import { StepsBlock, StepsCount, useTaskSteps } from "./TaskSteps";
 import { DeskMeta, LineMeta, PinMark, TaskValue } from "./chips";
+import { EsrText } from "./easy-start-row";
 import { useCompletionScope } from "./useCompletion";
 import { type TaskEntry, isTaskEvent, taskView } from "./view";
 
@@ -141,6 +143,17 @@ function TaskContent(props: TaskProps) {
     found && hideSteps
       ? { ...found, mode: "count" as const, canFold: false }
       : found;
+  const esrApi = useEasyStartRow({
+    id: v.id,
+    entry: isTaskEvent(task) ? null : v.entry,
+    done: v.done,
+  });
+  // A project page that draws the first step in its own flow (`hideEntry`)
+  // keeps the row as it is; only the Suggest button still shows there.
+  const esrOn =
+    !isTaskEvent(task) &&
+    !!esrApi &&
+    (!hideEntry || esrApi.state === "suggest");
   const density = props.density ?? (props.dense ? "mini" : "desk");
   const late = props.late ?? (layout === "card" && v.overdue);
   const canOpen = !!onOpen && !v.event;
@@ -381,9 +394,18 @@ function TaskContent(props: TaskProps) {
         </span>
         <span className="tk-touch-body">
           <span className="tk-touch-line">
-            <span className={`tk-touch-title${v.done ? " is-done" : ""}`}>
-              {v.title}
-            </span>
+            {esrOn && esrApi ? (
+              <EsrText
+                api={esrApi}
+                title={v.title}
+                entry={v.entry}
+                titleClass="tk-touch-title"
+              />
+            ) : (
+              <span className={`tk-touch-title${v.done ? " is-done" : ""}`}>
+                {v.title}
+              </span>
+            )}
             <PinMark view={v} />
             {steps ? <StepsCount steps={steps} /> : null}
             <TaskValue view={v} />
@@ -495,12 +517,21 @@ function TaskContent(props: TaskProps) {
           >
             {check}
             <span className="tk-desk-body">
-              <span
-                title={v.title}
-                className={`hd-title tk-desk-title${phase ? " is-struck" : ""}${v.done ? " is-done" : ""}${v.done && !phase ? " is-crossed" : ""}`}
-              >
-                {v.title}
-              </span>
+              {esrOn && esrApi ? (
+                <EsrText
+                  api={esrApi}
+                  title={v.title}
+                  entry={v.entry}
+                  titleClass="hd-title tk-desk-title"
+                />
+              ) : (
+                <span
+                  title={v.title}
+                  className={`hd-title tk-desk-title${phase ? " is-struck" : ""}${v.done ? " is-done" : ""}${v.done && !phase ? " is-crossed" : ""}`}
+                >
+                  {v.title}
+                </span>
+              )}
               <PinMark view={v} />
               {steps ? <StepsCount steps={steps} /> : null}
               <TaskValue view={v} />
@@ -515,6 +546,7 @@ function TaskContent(props: TaskProps) {
           {steps ? <StepsBlock steps={steps} /> : null}
           {v.entry &&
           !hideEntry &&
+          !esrOn &&
           (!steps || steps.mode === "count") &&
           (!v.done || phase) ? (
             <div className="tk-entry">
