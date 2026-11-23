@@ -170,6 +170,14 @@ export const DAY_PLAN = "day_plan";
 export const ALWAYS_EASY_START = "always_easy_start";
 
 /**
+ * Idea cards (openspec idea-cards): optional ideas offered between tasks, and
+ * tasks that are really ideas moved to Ideas. On at 100% for every account
+ * (migration 20261123000100_idea_cards_on); it stays a kill switch. Off stops
+ * the cards and the idea sweep; stored ideas stay readable through the API.
+ */
+export const IDEA_CARDS = "idea_cards";
+
+/**
  * The nightly Someday sweep. Ships OFF with no data migration: run on existing
  * data it would be the one-time launch migration (PR E) without the owner's
  * yes. Only the launch migration turns it on. The job is registered and does
@@ -212,6 +220,8 @@ export const KNOWN_FEATURE_FLAGS: Readonly<Record<string, string>> = {
     "Day plan kill switch: plan touches, Someday sweep and scheduler plan guard (on for everyone).",
   [ALWAYS_EASY_START]:
     "Always easy start kill switch: entry on new tasks, smaller stuck tasks, eased overloaded days (on for everyone).",
+  [IDEA_CARDS]:
+    "Idea cards kill switch: ideas offered between tasks and the sweep that moves optional tasks to Ideas (on for everyone).",
   [SOMEDAY_SWEEP]:
     "Nightly Someday sweep (off until the launch migration; per-user override for testing).",
   [DAY_PLAN_TOUCHES]:

@@ -34,7 +34,7 @@ describe("getAdminActivation", () => {
     expect(by.keep_applied).toMatchObject({ users7Days: 2, users14Days: 3 });
     expect(by.task_created).toMatchObject({ users7Days: 0, users14Days: 1 });
     expect(by.account_created).toMatchObject({ users7Days: 0, users14Days: 0 });
-    expect(result.events).toHaveLength(14);
+    expect(result.events).toHaveLength(17);
   });
 
   it("asks only for external users: no admin, no sandbox, 14 days back", async () => {

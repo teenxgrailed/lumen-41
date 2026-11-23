@@ -1066,6 +1066,19 @@ model Task {
   /// When Always easy start last rewrote this task's entry and title; a 7-day cooldown.
   simplifiedAt           DateTime?
   easyStartProposals     EasyStartProposal[]
+  /// Idea cards (openspec idea-cards): TASK is work the person owes, IDEA is an
+  /// optional thing offered now and then between tasks. An idea has no due date,
+  /// no schedule and is never overdue (src/services/ideas, src/lib/tasks).
+  kind                   TaskKind               @default(TASK)
+  /// user | converted | agent (later: suggested). Null on a plain task.
+  ideaSource             String?
+  /// Skip hides the idea until this time.
+  ideaSnoozedUntil       DateTime?
+  /// When a card for this idea was last shown: rotation and the per-day cap.
+  ideaLastShownAt        DateTime?
+  ideaSkipCount          Int                    @default(0)
+  /// The idea sweep looked at this task (cleared when the title changes).
+  ideaCheckedAt          DateTime?
   dayPlanItems           DayPlanItem[]
   somedayMigrationMoves  SomedayMigrationMove[]
   previousScheduledStart DateTime? // Backs `movedFrom`: where the scheduler moved it from.
@@ -1128,6 +1141,7 @@ model Task {
   @@index([blockFeedId])
   @@index([globalStage])
   @@index([userId, somedayAt])
+  @@index([userId, kind, ideaLastShownAt])
   @@index([habitId, habitOccurrenceAt])
   @@index([userId, trashedAt])
   @@index([originKind, originId])
@@ -2918,6 +2932,9 @@ model UserSettings {
   // the person applies) or "off". Tasks in the listed projects are never touched.
   easyStartMode               String    @default("auto")
   easyStartExcludedProjectIds String[]  @default([])
+  // Idea cards (openspec idea-cards): "Idea cards" in Tasks settings. Off: no
+  // card is offered and no task is converted to an idea; stored ideas stay.
+  ideaCardsEnabled            Boolean   @default(true)
   // Onboarding v3 (ob3): the answers behind the first week, as the API validates
   // them (src/lib/onboarding/answers.ts). Null until someone has saved a week.
   onboarding                  Json?
@@ -3593,6 +3610,12 @@ enum TaskStage {
   DOING
   REVIEW
   DONE
+}
+
+/// Idea cards: a task row is either work (TASK) or an optional idea (IDEA).
+enum TaskKind {
+  TASK
+  IDEA
 }
 
 enum ProjectTemplateKind {

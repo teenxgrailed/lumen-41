@@ -14,6 +14,7 @@ import {
   HABITS_QUIT,
   HABIT_EVENING_PUSH,
   HOME_V2,
+  IDEA_CARDS,
   SOMEDAY_SWEEP,
 } from "@/lib/feature-flags-keys";
 import { logger } from "@/lib/logger";
@@ -222,5 +223,32 @@ export async function easyStartSettings(
       "feature-flags"
     );
     return EASY_START_OFF;
+  }
+}
+
+/**
+ * Whether idea cards may be offered to this account: the `idea_cards` kill
+ * switch, then the person's own `ideaCardsEnabled` (on by default; a person
+ * with no settings row has the default). Fails closed: no user, or a read that
+ * throws, is "off", so nothing is shown or converted on a doubt.
+ */
+export async function ideaCardsEnabled(
+  userId: string | null | undefined
+): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    if (!(await isFeatureEnabled(IDEA_CARDS, userId))) return false;
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId },
+      select: { ideaCardsEnabled: true },
+    });
+    return settings?.ideaCardsEnabled ?? true;
+  } catch (error) {
+    logger.warn(
+      "Idea cards settings could not be read; treating them as off",
+      { error: error instanceof Error ? error.message : String(error) },
+      "feature-flags"
+    );
+    return false;
   }
 }
