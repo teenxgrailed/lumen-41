@@ -1,0 +1,840 @@
+/*
+ * The Needt design system: the shared components' styles (2026-11-23).
+ * Components: src/components/needt3/ds/. Tokens: ./tokens.css. Rules and the
+ * reason for each: docs/handoff/design-system.md. This is the only CSS (with
+ * tokens.css) that may carry a shadow, a size or a colour of its own; to add a
+ * variant, edit this file, never a screen's sheet.
+ *
+ * How a component is written:
+ * - A variant and a size are data attributes (data-variant, data-size), never
+ *   modifier classes, so a component has one spelling for each.
+ * - Selected is `data-state="on"` and nothing else. The components write it
+ *   together with the right ARIA attribute from one helper (state.ts), so the
+ *   style never reads aria-pressed, aria-selected, aria-checked or .is-on.
+ * - Press is one scale (--ds-press-scale), disabled is one opacity
+ *   (--ds-disabled-opacity), focus is one outline.
+ * - Every control has a 44px hit area, drawn by ::after, so the visible size
+ *   stays 24 / 28 / 32.
+ * - Hover is a fill layered over the control's own background (--ds-hover) and
+ *   only where there is a pointer that hovers. `data-force` shows a state the
+ *   pointer cannot hold still (the /admin/ds page); no screen sets it.
+ * - Elevation is the shared raised material (tokens.css) and nothing else. One
+ *   raised level per stack: a lifted surface inside a lifted surface is flat.
+ * - The accent is a mark (the switch knob) or a 12 / 24 % wash, never a fill.
+ */
+
+/* ── shared: interactive, press, disabled, focus, hit area ── */
+.needt-v3
+  :is(
+    .ds-btn,
+    .ds-icon-btn,
+    .ds-chip,
+    .ds-chip-x,
+    .ds-seg-item,
+    .ds-dock-item,
+    .ds-row
+  ) {
+  /* each control starts with no hover layer: a hovered row must not tint the
+   * chip inside it, so the layer is reset on every control, not inherited */
+  --ds-hover: transparent;
+}
+.needt-v3 .ds-i {
+  position: relative;
+  box-sizing: border-box;
+  margin: 0;
+  font-family: var(--font-sans);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    transform 140ms ease,
+    box-shadow var(--ds-ease),
+    color var(--ds-ease);
+}
+.needt-v3 .ds-i::after {
+  content: "";
+  position: absolute;
+  inset-block: min(0px, calc((var(--ds-h, var(--ds-hit)) - var(--ds-hit)) / 2));
+  inset-inline: min(
+    0px,
+    calc((var(--ds-w, var(--ds-hit)) - var(--ds-hit)) / 2)
+  );
+}
+@media (hover: hover) {
+  .needt-v3 .ds-i:hover:not(:disabled):not([aria-disabled="true"]) {
+    --ds-hover: var(--ds-hover-fill, var(--ds-fill-4));
+  }
+}
+.needt-v3 .ds-i[data-force="hover"] {
+  --ds-hover: var(--ds-hover-fill, var(--ds-fill-4));
+}
+.needt-v3 .ds-i:is(:disabled, [aria-disabled="true"]) {
+  opacity: var(--ds-disabled-opacity);
+  pointer-events: none;
+}
+.needt-v3 .ds-i:focus-visible,
+.needt-v3 .ds-i[data-force="focus"] {
+  outline: 2px solid var(--ds-ring);
+  outline-offset: 2px;
+}
+.needt-v3
+  .ds-press:is(:active, [data-force="pressed"]):not(:disabled):not(
+    [aria-disabled="true"]
+  ) {
+  transform: scale(var(--ds-press-scale));
+  transition-duration: 90ms;
+}
+.needt-v3 .ds-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Button ── */
+.needt-v3 .ds-btn {
+  --ds-h: var(--ds-h-32);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-6);
+  height: var(--ds-h);
+  padding: 0 var(--ds-space-12);
+  border: 0;
+  border-radius: var(--ds-radius-control);
+  font: var(--ds-type-ui-medium);
+  color: var(--ds-ink-100);
+  white-space: nowrap;
+  background: linear-gradient(var(--ds-hover), var(--ds-hover)), transparent;
+}
+.needt-v3 .ds-btn[data-size="lg"] {
+  --ds-h: var(--ds-h-52);
+  padding: 0 var(--ds-space-20);
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-type-button-lg);
+}
+.needt-v3 .ds-btn[data-block] {
+  display: flex;
+  width: 100%;
+}
+.needt-v3 .ds-btn[data-variant="text"] {
+  color: var(--ds-ink-85);
+}
+.needt-v3 .ds-btn[data-variant="secondary"] {
+  background:
+    linear-gradient(var(--ds-hover), var(--ds-hover)),
+    var(--ds-raised-control-bg);
+  box-shadow: var(--ds-raised-control-shadow);
+}
+.needt-v3
+  .ds-btn[data-variant="secondary"]:is(:active, [data-force="pressed"]):not(
+    :disabled
+  ):not([aria-disabled="true"]):not([data-state="on"]) {
+  box-shadow: var(--ds-raised-control-pressed);
+}
+/* danger changes the text colour and nothing else; on the ink fill it is
+ * ignored (a red name on ink would not read in either theme) */
+.needt-v3
+  .ds-btn[data-danger]:not([data-variant="primary"]):not([data-state="on"]) {
+  color: var(--ds-danger);
+}
+.needt-v3 .ds-btn svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.needt-v3 .ds-btn[data-size="lg"] svg {
+  width: 20px;
+  height: 20px;
+}
+.needt-v3 .ds-btn[aria-busy="true"] {
+  pointer-events: none;
+}
+.needt-v3 .ds-spin {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  opacity: 0.7;
+  animation: ds-spin 0.8s linear infinite;
+}
+@keyframes ds-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .needt-v3 .ds-spin {
+    animation-duration: 3s;
+  }
+}
+
+/* ── Icon button ── */
+.needt-v3 .ds-icon-btn {
+  --ds-h: var(--ds-h-32);
+  --ds-w: var(--ds-h-32);
+  --ds-icon: 16px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--ds-w);
+  height: var(--ds-h);
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  color: var(--ds-ink-100);
+  background: linear-gradient(var(--ds-hover), var(--ds-hover)), transparent;
+}
+.needt-v3 .ds-icon-btn[data-size="lg"] {
+  --ds-h: var(--ds-h-44);
+  --ds-w: var(--ds-h-44);
+  --ds-icon: 20px;
+}
+.needt-v3 .ds-icon-btn svg {
+  width: var(--ds-icon);
+  height: var(--ds-icon);
+}
+.needt-v3 .ds-icon-btn[data-variant="flat"] {
+  color: var(--ds-ink-85);
+}
+.needt-v3 .ds-icon-btn[data-variant="disc"] {
+  background:
+    linear-gradient(var(--ds-hover), var(--ds-hover)),
+    var(--ds-raised-control-bg);
+  box-shadow: var(--ds-raised-control-shadow);
+}
+.needt-v3
+  .ds-icon-btn[data-variant="disc"]:is(:active, [data-force="pressed"]):not(
+    :disabled
+  ):not([aria-disabled="true"]):not([data-state="on"]) {
+  box-shadow: var(--ds-raised-control-pressed);
+}
+
+/* ── Chip (also the pill, the badge and the tag) ── */
+.needt-v3 .ds-chip {
+  --ds-h: var(--ds-h-24);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+  max-width: 100%;
+  height: var(--ds-h);
+  padding: 0 var(--ds-space-8);
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-type-meta-medium);
+  color: var(--ds-ink-85);
+  white-space: nowrap;
+  vertical-align: middle;
+  background: linear-gradient(var(--ds-hover), var(--ds-hover)), transparent;
+}
+.needt-v3 .ds-chip[data-size="md"] {
+  --ds-h: var(--ds-h-32);
+  padding: 0 var(--ds-space-12);
+  font: var(--ds-type-ui-medium);
+}
+.needt-v3 .ds-chip > svg,
+.needt-v3 .ds-chip > .ds-chip-icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+.needt-v3 .ds-chip[data-size="md"] > svg,
+.needt-v3 .ds-chip[data-size="md"] > .ds-chip-icon {
+  width: 16px;
+  height: 16px;
+}
+.needt-v3 .ds-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.needt-v3 .ds-chip[data-variant="disc"] {
+  background:
+    linear-gradient(var(--ds-hover), var(--ds-hover)),
+    var(--ds-raised-control-bg);
+  box-shadow: var(--ds-raised-control-shadow);
+}
+.needt-v3
+  .ds-chip[data-variant="disc"]:is(:active, [data-force="pressed"]):not(
+    :disabled
+  ):not([aria-disabled="true"]):not([data-state="on"]) {
+  box-shadow: var(--ds-raised-control-pressed);
+}
+.needt-v3 .ds-chip[data-variant="wash"] {
+  background:
+    linear-gradient(var(--ds-hover), var(--ds-hover)), var(--ds-fill-6);
+}
+/* a hue is a 12 % wash and nothing stronger */
+.needt-v3 .ds-chip[data-variant="wash"][data-tone] {
+  background:
+    linear-gradient(var(--ds-hover), var(--ds-hover)),
+    color-mix(in srgb, var(--ds-tone) 12%, transparent);
+}
+.needt-v3 .ds-chip[data-tone="orange"] {
+  --ds-tone: var(--hue-orange);
+}
+.needt-v3 .ds-chip[data-tone="blue"] {
+  --ds-tone: var(--hue-blue);
+}
+.needt-v3 .ds-chip[data-tone="violet"] {
+  --ds-tone: var(--hue-violet);
+}
+.needt-v3 .ds-chip[data-tone="green"] {
+  --ds-tone: var(--hue-green);
+}
+.needt-v3 .ds-chip[data-tone="yellow"] {
+  --ds-tone: var(--hue-yellow);
+}
+.needt-v3 .ds-chip[data-tone="pink"] {
+  --ds-tone: var(--hue-pink);
+}
+.needt-v3 .ds-chip[data-variant="empty"] {
+  padding-inline: calc(var(--ds-space-8) - 1px);
+  border: 1px dashed var(--ds-ink-25);
+  color: var(--ds-ink-55);
+}
+.needt-v3 .ds-chip[data-variant="empty"][data-size="md"] {
+  padding-inline: calc(var(--ds-space-12) - 1px);
+}
+.needt-v3 .ds-chip-x {
+  --ds-h: 16px;
+  --ds-w: 16px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-inline: calc(var(--ds-space-4) * -1) calc(var(--ds-space-4) * -1);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--ds-ink-55);
+  background: linear-gradient(var(--ds-hover), var(--ds-hover)), transparent;
+}
+.needt-v3 .ds-chip-x svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* ── the control that is on: neutral ink, never the accent ── */
+.needt-v3 .ds-btn[data-variant="primary"],
+.needt-v3 .ds-icon-btn[data-variant="ink"],
+.needt-v3 :is(.ds-btn, .ds-icon-btn, .ds-chip, .ds-dock-item)[data-state="on"] {
+  --ds-hover-fill: color-mix(in srgb, var(--ds-raised-ink-on) 12%, transparent);
+  color: var(--ds-raised-ink-on);
+  background:
+    linear-gradient(var(--ds-hover), var(--ds-hover)), var(--ds-raised-ink-bg);
+  box-shadow: var(--ds-raised-ink-shadow);
+  border-color: transparent;
+}
+
+/* ── Switch: a groove and a disc standing in it; the knob is the mark ── */
+.needt-v3 .ds-switch {
+  --ds-w: 50px;
+  --ds-h: 30px;
+  --ds-knob: 24px;
+  --ds-knob-gap: 3px;
+  display: inline-block;
+  flex: none;
+  width: var(--ds-w);
+  height: var(--ds-h);
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-fill-8);
+  box-shadow: var(--ds-raised-well);
+  transition:
+    background-color var(--ds-ease),
+    box-shadow var(--ds-ease);
+}
+.needt-v3 .ds-switch[data-size="sm"] {
+  --ds-w: 28px;
+  --ds-h: 16px;
+  --ds-knob: 12px;
+  --ds-knob-gap: 2px;
+}
+.needt-v3 .ds-switch-knob {
+  position: absolute;
+  top: var(--ds-knob-gap);
+  left: var(--ds-knob-gap);
+  width: var(--ds-knob);
+  height: var(--ds-knob);
+  border-radius: 50%;
+  background: var(--ds-knob-off);
+  box-shadow: var(--ds-raised-knob);
+  transition:
+    transform 180ms cubic-bezier(0.3, 0.9, 0.3, 1),
+    background-color var(--ds-ease);
+}
+.needt-v3 .ds-switch[data-state="on"] {
+  background: var(--ds-mark-wash-strong);
+}
+.needt-v3 .ds-switch[data-state="on"] .ds-switch-knob {
+  background: var(--ds-mark);
+  transform: translateX(
+    calc(var(--ds-w) - var(--ds-knob) - 2 * var(--ds-knob-gap))
+  );
+}
+.needt-v3 .ds-switch:is(:active, [data-force="pressed"]):not(:disabled) {
+  background: var(--ds-fill-12);
+}
+.needt-v3
+  .ds-switch[data-state="on"]:is(:active, [data-force="pressed"]):not(
+    :disabled
+  ) {
+  background: var(--ds-mark-wash-strong);
+}
+
+/* ── Segmented control (also the tabs) ── */
+.needt-v3 .ds-seg {
+  --ds-h: var(--ds-h-28);
+  --ds-seg-pad: var(--ds-space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: var(--ds-seg-pad);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-fill-4);
+  box-shadow: var(--ds-raised-well);
+}
+.needt-v3 .ds-seg[data-size="md"] {
+  --ds-h: var(--ds-h-44);
+  --ds-seg-pad: var(--ds-space-4);
+}
+.needt-v3 .ds-seg[data-fill] {
+  display: flex;
+  width: 100%;
+}
+.needt-v3 .ds-seg[data-variant="square"] {
+  border-radius: var(--ds-radius-control);
+}
+.needt-v3 .ds-seg[data-variant="tabs"] {
+  gap: var(--ds-space-4);
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.needt-v3 .ds-seg-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-6);
+  flex: 0 1 auto;
+  min-width: 0;
+  height: var(--ds-h);
+  padding: 0 var(--ds-space-12);
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  font: var(--ds-type-ui-medium);
+  color: var(--ds-ink-55);
+  white-space: nowrap;
+  background: linear-gradient(var(--ds-hover), var(--ds-hover)), transparent;
+}
+.needt-v3 .ds-seg[data-size="md"] .ds-seg-item {
+  padding: 0 var(--ds-space-16);
+}
+.needt-v3 .ds-seg[data-fill] .ds-seg-item {
+  flex: 1 1 0;
+}
+.needt-v3 .ds-seg[data-variant="square"] .ds-seg-item {
+  border-radius: calc(var(--ds-radius-control) - var(--ds-seg-pad));
+}
+.needt-v3 .ds-seg-item svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.needt-v3 .ds-seg-item[data-state="on"] {
+  color: var(--ds-ink-100);
+  background:
+    linear-gradient(var(--ds-hover), var(--ds-hover)),
+    var(--ds-raised-control-bg);
+  box-shadow: var(--ds-raised-control-shadow);
+}
+
+/* ── Dock: a raised bar with a raised disc per place; the one you are in is ink.
+ * API and styles only (docs/handoff/design-system.md); the live dock keeps its
+ * own sheet until its wave. ── */
+.needt-v3 .ds-dock {
+  --ds-dock-item: clamp(36px, 11.5vw, var(--ds-h-44));
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-4);
+  box-sizing: border-box;
+  padding: var(--ds-space-6);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-raised-floating-bg);
+  box-shadow: var(--ds-raised-floating-shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+}
+.needt-v3 .ds-dock-item {
+  --ds-h: var(--ds-dock-item);
+  --ds-w: var(--ds-dock-item);
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--ds-w);
+  height: var(--ds-h);
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-radius-pill);
+  color: var(--ds-ink-70);
+  text-decoration: none;
+  background:
+    linear-gradient(var(--ds-hover), var(--ds-hover)),
+    var(--ds-raised-control-bg);
+  box-shadow: var(--ds-raised-control-shadow);
+}
+.needt-v3 .ds-dock-item svg {
+  width: 20px;
+  height: 20px;
+}
+.needt-v3
+  .ds-dock-item:is(:active, [data-force="pressed"]):not(:disabled):not(
+    [data-state="on"]
+  ) {
+  box-shadow: var(--ds-raised-control-pressed);
+}
+
+/* ── Surface: a card, a plate, a tile ──
+ * raised  the white object (the soft lift)
+ * well    recessed: a groove other things sit in
+ * glass   the floating material, for what hangs over the screen
+ * One raised level per stack: a lifted surface (raised, glass, a sheet's
+ * panel) inside another lifted surface is flat, a hairline and nothing else.
+ * "A card on a card" is two stacked lifts (PORT.md rule 6). */
+.needt-v3 .ds-surface {
+  box-sizing: border-box;
+  min-width: 0;
+  border-radius: var(--ds-radius-card);
+  color: var(--ds-ink-100);
+}
+.needt-v3 .ds-surface[data-size="lg"] {
+  border-radius: var(--ds-radius-plate);
+}
+.needt-v3 .ds-surface[data-pad="md"] {
+  padding: var(--ds-space-16);
+}
+.needt-v3 .ds-surface[data-pad="lg"] {
+  padding: var(--ds-space-20);
+}
+.needt-v3 .ds-surface[data-variant="raised"] {
+  background: var(--ds-raised-surface-bg);
+  box-shadow: var(--ds-raised-surface-shadow);
+}
+.needt-v3 .ds-surface[data-variant="well"] {
+  background: var(--ds-fill-4);
+  box-shadow: var(--ds-raised-well);
+}
+.needt-v3 .ds-surface[data-variant="glass"] {
+  background: var(--ds-raised-floating-bg);
+  box-shadow: var(--ds-raised-floating-shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+}
+.needt-v3 :is([data-ds-lift], .ds-sheet) [data-ds-lift] {
+  background: transparent;
+  box-shadow: var(--ds-flat-ring);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ── Row, and the Tile that leads it ── */
+.needt-v3 .ds-row {
+  --ds-h: var(--ds-h-52);
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-12);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--ds-h);
+  padding: var(--ds-space-8) var(--ds-space-12);
+  border: 0;
+  border-radius: 0;
+  text-align: start;
+  font: var(--ds-type-ui);
+  color: var(--ds-ink-100);
+  background: linear-gradient(var(--ds-hover), var(--ds-hover)), transparent;
+}
+.needt-v3 .ds-row[data-size="lg"] {
+  --ds-h: var(--ds-h-64);
+}
+.needt-v3 .ds-row[data-variant="plain"],
+.needt-v3 .ds-row[data-variant="nav"] {
+  border-radius: var(--ds-radius-control);
+}
+.needt-v3 .ds-row[data-variant="grouped"] + .ds-row[data-variant="grouped"] {
+  border-top: 1px solid var(--ds-fill-8);
+}
+.needt-v3 .ds-row.ds-i:is(:active, [data-force="pressed"]):not(:disabled) {
+  --ds-hover: var(--ds-fill-8);
+}
+.needt-v3 .ds-row-lead {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+}
+.needt-v3 .ds-row-main {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 1px;
+  min-width: 0;
+}
+.needt-v3 .ds-row-title {
+  font: var(--ds-type-row);
+  color: var(--ds-ink-100);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .ds-row-meta {
+  font: var(--ds-type-meta);
+  color: var(--ds-ink-55);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.needt-v3 .ds-row-trail {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-8);
+  flex: none;
+  font: var(--ds-type-meta);
+  color: var(--ds-ink-55);
+}
+.needt-v3 .ds-row-chev {
+  width: 16px;
+  height: 16px;
+  color: var(--ds-ink-40);
+}
+.needt-v3 .ds-tile {
+  --ds-tile: 40px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--ds-tile);
+  height: var(--ds-tile);
+  border-radius: var(--ds-radius-control);
+  color: var(--ds-ink-85);
+  background: var(--ds-fill-6);
+}
+.needt-v3 .ds-tile[data-size="sm"] {
+  --ds-tile: 28px;
+  border-radius: var(--ds-radius-tag);
+}
+.needt-v3 .ds-tile svg {
+  width: 20px;
+  height: 20px;
+}
+.needt-v3 .ds-tile[data-size="sm"] svg {
+  width: 16px;
+  height: 16px;
+}
+.needt-v3 .ds-tile[data-tone] {
+  background: color-mix(in srgb, var(--ds-tone) 12%, transparent);
+}
+.needt-v3 .ds-tile[data-tone="orange"] {
+  --ds-tone: var(--hue-orange);
+}
+.needt-v3 .ds-tile[data-tone="blue"] {
+  --ds-tone: var(--hue-blue);
+}
+.needt-v3 .ds-tile[data-tone="violet"] {
+  --ds-tone: var(--hue-violet);
+}
+.needt-v3 .ds-tile[data-tone="green"] {
+  --ds-tone: var(--hue-green);
+}
+.needt-v3 .ds-tile[data-tone="yellow"] {
+  --ds-tone: var(--hue-yellow);
+}
+.needt-v3 .ds-tile[data-tone="pink"] {
+  --ds-tone: var(--hue-pink);
+}
+
+/* ── Sheet: the phone kit's PkSheet wearing the system's title, and the panel
+ * the dialog and the popover are drawn on ── */
+.needt-v3 .ds-sheet .pk-sheet-title {
+  font: var(--ds-type-sheet-title);
+  letter-spacing: var(--ds-tracking-sheet-title);
+}
+.needt-v3 .ds-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--ds-space-16);
+  background: color-mix(in srgb, var(--ds-ink-100) 25%, transparent);
+}
+.needt-v3 .ds-sheet-panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-12);
+  max-width: 100%;
+  max-height: 100%;
+  padding: var(--ds-space-20);
+  border-radius: var(--ds-radius-plate);
+  color: var(--ds-ink-100);
+  background: var(--ds-raised-floating-bg);
+  box-shadow: var(--ds-raised-floating-shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+}
+.needt-v3 .ds-sheet-panel[data-variant="bottom"] {
+  border-radius: var(--ds-radius-sheet) var(--ds-radius-sheet) 0 0;
+}
+.needt-v3 .ds-sheet-panel[data-variant="anchored"] {
+  gap: var(--ds-space-8);
+  padding: var(--ds-space-8);
+  border-radius: var(--ds-radius-card);
+}
+.needt-v3 .ds-sheet-panel[data-size="md"] {
+  width: 360px;
+}
+.needt-v3 .ds-sheet-panel[data-size="lg"] {
+  width: 520px;
+}
+.needt-v3 .ds-sheet-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ds-space-12);
+}
+.needt-v3 .ds-sheet-title {
+  margin: 0;
+  font: var(--ds-type-sheet-title);
+  letter-spacing: var(--ds-tracking-sheet-title);
+  color: var(--ds-ink-100);
+}
+.needt-v3 .ds-sheet-panel[data-variant="anchored"] .ds-sheet-title {
+  font: var(--ds-type-ui-medium);
+  letter-spacing: 0;
+  color: var(--ds-ink-55);
+}
+.needt-v3 .ds-sheet-body {
+  min-height: 0;
+  overflow: auto;
+  font: var(--ds-type-ui);
+  color: var(--ds-ink-85);
+}
+.needt-v3 .ds-sheet-foot {
+  display: flex;
+  gap: var(--ds-space-8);
+  justify-content: flex-end;
+}
+
+/* ── Field ── */
+.needt-v3 .ds-field {
+  --ds-h: var(--ds-h-32);
+  display: grid;
+  gap: var(--ds-space-4);
+  min-width: 0;
+  font: var(--ds-type-ui);
+  color: var(--ds-ink-100);
+}
+.needt-v3 .ds-field[data-size="lg"] {
+  --ds-h: var(--ds-h-52);
+}
+.needt-v3 .ds-field-label {
+  font: var(--ds-type-meta-medium);
+  color: var(--ds-ink-55);
+}
+.needt-v3 .ds-field-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-8);
+  box-sizing: border-box;
+  min-height: var(--ds-h);
+  padding: 0 var(--ds-space-12);
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-fill-4);
+  box-shadow: var(--shadow-inset-ring);
+  transition:
+    background-color var(--ds-ease),
+    box-shadow var(--ds-ease);
+}
+.needt-v3 .ds-field-box::after {
+  content: "";
+  position: absolute;
+  inset-block: min(0px, calc((var(--ds-h) - var(--ds-hit)) / 2));
+  inset-inline: 0;
+}
+.needt-v3 .ds-field[data-size="lg"] .ds-field-box {
+  padding: 0 var(--ds-space-16);
+  border-radius: var(--ds-radius-plate);
+}
+.needt-v3 .ds-field[data-variant="bare"] .ds-field-box {
+  padding-inline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.needt-v3 .ds-field[data-variant="search"] .ds-field-box {
+  border-radius: var(--ds-radius-pill);
+}
+.needt-v3 .ds-field-input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: var(--ds-type-ui);
+  color: var(--ds-ink-100);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.needt-v3 .ds-field[data-size="lg"] .ds-field-input {
+  font: var(--ds-type-row);
+}
+.needt-v3 .ds-field-input::placeholder {
+  color: var(--ds-ink-25);
+}
+.needt-v3 textarea.ds-field-input {
+  display: block;
+  resize: none;
+  min-height: calc(var(--ds-h) - var(--ds-space-16));
+  margin-block: var(--ds-space-8);
+  field-sizing: content;
+}
+.needt-v3 .ds-field-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  color: var(--ds-ink-55);
+}
+.needt-v3 .ds-field-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.needt-v3 .ds-field-box:is(:focus-within, [data-force="focus"]) {
+  background: var(--ds-fill-2);
+  box-shadow: var(--shadow-focus);
+}
+.needt-v3 .ds-field[data-invalid] .ds-field-box {
+  box-shadow: var(--shadow-focus-destructive);
+}
+.needt-v3 .ds-field-hint {
+  margin: 0;
+  font: var(--ds-type-meta);
+  color: var(--ds-ink-55);
+}
+.needt-v3 .ds-field[data-invalid] .ds-field-hint {
+  color: var(--ds-danger);
+}
+.needt-v3 .ds-field[data-disabled] {
+  opacity: var(--ds-disabled-opacity);
+}

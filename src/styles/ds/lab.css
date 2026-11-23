@@ -1,0 +1,142 @@
+/*
+ * The layout of the /admin/ds page and nothing else: a frame for each theme,
+ * a row per variant and size, a caption under each state. Components are
+ * styled in components.css; nothing here is for a screen to reuse.
+ */
+.ds-lab {
+  display: grid;
+  gap: var(--space-20, 20px);
+  font: var(--type-ui);
+  color: var(--text-primary);
+}
+.ds-lab-head h1 {
+  margin: 0;
+  font: var(--type-page-title);
+  color: var(--text-primary);
+}
+.ds-lab-head p {
+  margin: var(--space-4, 4px) 0 0;
+  max-width: 64ch;
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.ds-lab-scopes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-16, 16px);
+}
+@media (min-width: 1100px) {
+  .ds-lab[data-scope="both"] .ds-lab-scopes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.ds-lab-scope {
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 22px;
+  background: var(--background);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-ring);
+}
+.ds-lab-scope > h2 {
+  margin: 0;
+  font: var(--type-meta-medium);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ds-lab-section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.ds-lab-section > h3 {
+  margin: 0;
+  font: var(--type-card-title);
+  color: var(--text-primary);
+}
+.ds-lab-note {
+  margin: 0;
+  font: var(--type-meta);
+  color: var(--text-quaternary);
+}
+.ds-lab-row {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.ds-lab-rowname {
+  font: var(--type-meta-medium);
+  color: var(--text-muted);
+}
+.ds-lab-cells {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 16px;
+}
+.ds-lab-cell {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+.ds-lab-cell.is-wide {
+  flex: 1 1 100%;
+}
+.ds-lab-stage {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  max-width: 100%;
+}
+.ds-lab-cell.is-wide .ds-lab-stage {
+  width: 100%;
+}
+.ds-lab-cell figcaption {
+  font: var(--type-meta);
+  color: var(--text-muted);
+}
+.ds-lab-none {
+  font: var(--type-meta);
+  color: var(--text-disabled);
+}
+.ds-lab-swatch {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 32px;
+  border-radius: 8px;
+  font: var(--type-meta);
+  box-shadow: var(--shadow-ring);
+}
+.ds-lab-gap {
+  display: block;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--fill-accent);
+}
+.ds-lab-sheet-room {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  align-items: end;
+  min-height: 220px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--fill-4);
+}
+.ds-lab-sheet-room > .ds-sheet-panel {
+  width: 100%;
+}
+.ds-lab[data-hit] .ds-i::after,
+.ds-lab[data-hit] .ds-field-box::after {
+  outline: 1px dashed var(--accent);
+  outline-offset: -1px;
+}
