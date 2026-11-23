@@ -186,7 +186,9 @@ describe("the tile menu", () => {
 
   it("the top of the menu is the person: avatar, name, plan and email", () => {
     mount();
-    expect(q(".ntm-avatar")!.textContent).toBe("MD");
+    // no photo: a neutral glyph, never the initials
+    expect(q(".ntm-avatar")!.textContent).toBe("");
+    expect(q(".ntm-avatar svg")).not.toBeNull();
     expect(q(".ntm-who")!.textContent).toBe("Maksym Doe");
     expect(q(".ntm-who-sub")!.textContent).toBe(
       "Pro trial \u00b7 9 days leftm@needt.app"

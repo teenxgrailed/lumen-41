@@ -407,3 +407,53 @@
 .needt-v3 .ha-streak-d.is-done { background: var(--ha-mark); color: var(--ha-ground); }
 .needt-v3 .ha-streak-d.is-missed { background: var(--ha-raise); color: var(--ha-ink-3); }
 .needt-v3 .ha-streak-d.is-today { box-shadow: inset 0 0 0 1.5px var(--ha-mark-ring); }
+
+/* ── Phone Today: one rhythm for the stacked cards (22.11.26 audit) ─────────
+ * The Sunday review, the weather, the streak and the overdue row came from
+ * three files with three radii (12, 18, 26 px: the streak read as a capsule)
+ * and three margins. They now share one 14 px radius (a literal: --ha-r-row is
+ * only defined inside .ha-phone, and the overdue row sits outside it) and one
+ * 12 px gap. A missed streak day is a quiet dot (a field of crosses is noise:
+ * the card says how many days in a row, the checks say which). A row's title is
+ * the phone row type, 16 px, and may take two lines: 17 px with an ellipsis cut
+ * "Watch video tutorial and make two vi…" off at the edge. */
+.needt-v3[data-ui="phone"] .ha-ph-stack { gap: 12px; }
+.needt-v3[data-ui="phone"] .ha-ph-stack > .ha-card,
+.needt-v3[data-ui="phone"] .hv2-aux .nd-card,
+.needt-v3[data-ui="phone"] .hv2-late-main { border-radius: 14px; }
+.needt-v3[data-ui="phone"] .hv2-aux .nd-card { margin-bottom: 12px; }
+.needt-v3[data-ui="phone"] .hv2-late { margin: 12px 0; }
+.needt-v3[data-ui="phone"] .hv2-late-main { min-height: 44px; padding: 0 16px; }
+.needt-v3[data-ui="phone"] .ha-streak { padding: 12px 16px; }
+.needt-v3[data-ui="phone"] .ha-streak-n { align-items: baseline; }
+.needt-v3[data-ui="phone"] .ha-streak-n b { line-height: 22px; }
+.needt-v3[data-ui="phone"] .ha-streak-n span { line-height: 22px; }
+.needt-v3[data-ui="phone"] .ha-streak-d.is-missed { background: none; }
+.needt-v3[data-ui="phone"] .ha-streak-d.is-missed::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ha-ink-3);
+  opacity: 0.5;
+}
+/* the weather is one quiet line, set on the page's text edge like the title */
+.needt-v3[data-ui="phone"] .ha-wx { padding: 0 2px; font-size: 13px; }
+/* a section label: 13 px sentence case, not an uppercase eyebrow */
+.needt-v3[data-ui="phone"] .pk-sec:not(.is-big) .pk-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font: 500 13px/16px var(--font-sans);
+  color: var(--v2p-ink-2);
+}
+/* rows: the phone row type at 16 px, up to two lines, a tighter minimum */
+.needt-v3[data-ui="phone"] .v2p-day .pk-row { min-height: 56px; }
+.needt-v3[data-ui="phone"] .v2p-day .pk-row-title {
+  font: 500 16px/22px var(--font-sans);
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}

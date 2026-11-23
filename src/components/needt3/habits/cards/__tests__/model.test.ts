@@ -52,10 +52,10 @@ describe("pastels and chip glyphs", () => {
     expect(pastelAt(-1)).toBe(PASTELS[5]);
   });
 
-  it("uses a short icon, else the first letter", () => {
-    expect(chipGlyph({ title: "read", icon: null })).toBe("R");
+  it("uses a short icon, else none: the chip draws a real icon, never a letter", () => {
+    expect(chipGlyph({ title: "read", icon: null })).toBeNull();
     expect(chipGlyph({ title: "read", icon: "📚" })).toBe("📚");
-    expect(chipGlyph({ title: "read", icon: "book-open" })).toBe("R");
+    expect(chipGlyph({ title: "read", icon: "book-open" })).toBeNull();
   });
 });
 

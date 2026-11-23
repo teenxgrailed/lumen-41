@@ -118,6 +118,11 @@ describe("phone page ground", () => {
     expect(
       rule('html[data-display-mode="browser"] .needt-v3[data-ui="phone"]')
     ).toContain("--v3-top: env(safe-area-inset-top, 0px)");
+    // the installed app on iOS: the web view starts below the status bar, so
+    // the floor must not add a second one (22.11.26)
+    expect(css).toMatch(
+      /@supports \(-webkit-touch-callout: none\) \{\s*html\[data-display-mode="standalone"\] \.needt-v3\[data-ui="phone"\] \{\s*--v3-top: env\(safe-area-inset-top, 0px\);/
+    );
   });
 
   it("the layers that stay put are fixed, and only those", () => {

@@ -54,17 +54,7 @@ export function HaStreak({ streak }: { streak: Streak | null | undefined }) {
                     strokeLinejoin="round"
                   />
                 </svg>
-              ) : open ? null : (
-                <svg viewBox="0 0 12 12" width="8" height="8">
-                  <path
-                    d="M3 3l6 6M9 3 3 9"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              )}
+              ) : null}
             </i>
           );
         })}
