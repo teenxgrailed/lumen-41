@@ -58,6 +58,35 @@ describe("nextEventOf", () => {
     expect(nextEventOf([], NOW)).toBeNull();
   });
 
+  it("a timed task of today still to start is next too (the Calendar shows it)", () => {
+    const t = (o: object) =>
+      ({
+        id: "t",
+        title: "Write brief",
+        done: false,
+        noSlot: false,
+        dueDate: null,
+        scheduledStart: "2026-09-01T11:30",
+        ...o,
+      }) as never;
+    expect(nextEventOf([], NOW, [t({})])).toEqual({
+      title: "Write brief",
+      at: "11:30",
+      inMin: 60,
+    });
+    // an event sooner than the task wins; a done, past or tomorrow task is not next
+    expect(
+      nextEventOf([ev("Call", "2026-09-01T11:00")], NOW, [t({})])?.title
+    ).toBe("Call");
+    expect(nextEventOf([], NOW, [t({ done: true })])).toBeNull();
+    expect(
+      nextEventOf([], NOW, [t({ scheduledStart: "2026-09-01T09:00" })])
+    ).toBeNull();
+    expect(
+      nextEventOf([], NOW, [t({ scheduledStart: "2026-09-02T11:30" })])
+    ).toBeNull();
+  });
+
   it("an untitled event still has a name", () => {
     expect(nextEventOf([ev("", "2026-09-01T12:00")], NOW)?.title).toBe("Event");
   });
@@ -86,6 +115,34 @@ describe("buildMenuCounts", () => {
     expect(c.open).toBe(5);
     // not done, not fixed, not noSlot, no start: a, b
     expect(c.unplaced).toBe(2);
+  });
+
+  it("Calendar is not 'free' while a timed task of today is ahead", () => {
+    const base = { now: NOW, nowMs: NOW_MS, events: [] as never };
+    const late = task({
+      id: "x",
+      title: "Brief",
+      scheduledStart: "2026-09-01T12:00",
+    } as never);
+    expect(buildMenuCounts({ ...base, tasks: [late] }).nextEvent?.at).toBe(
+      "12:00"
+    );
+    expect(buildMenuCounts({ ...base, tasks: [] }).nextEvent).toBeNull();
+    // tasks not loaded: no verdict yet, never "Free"
+    expect(buildMenuCounts(base).nextEvent).toBeUndefined();
+  });
+
+  it("left today counts tasks scheduled today, not only those due today", () => {
+    const c = buildMenuCounts({
+      now: NOW,
+      nowMs: NOW_MS,
+      tasks: [
+        task({ id: "a", scheduledStart: "2026-09-01T11:30" }),
+        task({ id: "b", dueDate: "2026-09-01" }),
+        task({ id: "c", scheduledStart: "2026-09-01T12:00", done: true }),
+      ],
+    });
+    expect(c.today).toBe(2);
   });
 
   it("mail: unread", () => {

@@ -4,6 +4,7 @@
  * where it matters, `nowHour` (decimal hour in their zone); nothing here
  * reads the clock.
  */
+import { taskMinutes } from "@/lib/needt3/day-set";
 import {
   addDays,
   dayLabel,
@@ -133,7 +134,7 @@ export function dayStats(day: readonly V3Task[]): DayStats {
     total: day.length,
     done: day.length - open.length,
     left: open.length,
-    mins: open.reduce((s, t) => s + (t.estimatedMinutes || 0), 0),
+    mins: open.reduce((s, t) => s + taskMinutes(t), 0),
   };
 }
 

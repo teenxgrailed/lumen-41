@@ -9,6 +9,11 @@
  * last successful sync, which no existing route returns.
  */
 import {
+  type DaySetTask,
+  daySummary,
+  nextTimedTask,
+} from "@/lib/needt3/day-set";
+import {
   type Checkin,
   habitDoneOn,
   liveHabits,
@@ -41,17 +46,28 @@ export function agoLabel(ageMs: number): string {
   return "a while ago";
 }
 
-/** The next timed event still to start today: its title, clock time and minutes away. */
+/**
+ * The next timed thing still to start today, its title, clock time and
+ * minutes away: a calendar event, or an open task of today with a time (the
+ * Calendar shows both, so "Free" may only say so when neither is left).
+ */
 export function nextEventOf(
   events: readonly Pick<V3Event, "title" | "startAt" | "isAllDay">[],
-  now: string
+  now: string,
+  tasks: readonly (DaySetTask & { title: string })[] = []
 ) {
   const today = now.slice(0, 10);
-  let next: (typeof events)[number] | null = null;
+  let next: { title: string; startAt: string } | null = null;
   for (const e of events) {
     if (e.isAllDay || e.startAt.slice(0, 10) !== today || e.startAt < now)
       continue;
-    if (!next || e.startAt < next.startAt) next = e;
+    if (!next || e.startAt < next.startAt)
+      next = { title: e.title, startAt: e.startAt };
+  }
+  const task = nextTimedTask(tasks, now);
+  if (task) {
+    const startAt = `${today}T${task.at}`;
+    if (!next || startAt < next.startAt) next = { title: task.title, startAt };
   }
   return next
     ? {
@@ -88,7 +104,8 @@ export function buildMenuCounts(i: CountsInput): MenuCounts {
   if (i.tasks) {
     const open = i.tasks.filter((t) => !t.done);
     c.overdue = overdueCount(i.tasks, today);
-    c.today = open.filter((t) => !t.noSlot && t.dueDate === today).length;
+    // left today = open tasks of today's set (due or scheduled today)
+    c.today = daySummary(i.tasks, today).open;
     c.open = open.length;
     c.unplaced = open.filter(
       (t) => !t.isFixed && !t.noSlot && !t.scheduledStart
@@ -96,7 +113,11 @@ export function buildMenuCounts(i: CountsInput): MenuCounts {
   }
 
   if (i.mail) c.mail = unreadCount(i.mail);
-  if (i.events) c.nextEvent = nextEventOf(i.events, i.now);
+  if (i.events) {
+    const next = nextEventOf(i.events, i.now, i.tasks ?? []);
+    // "Free" is only said once the tasks are in too: a timed task may be next
+    if (next || i.tasks) c.nextEvent = next;
+  }
 
   if (i.docs) {
     const live = i.docs.filter((d) => !d.trashedAt);

@@ -124,11 +124,24 @@ describe("dayPlan", () => {
     expect(past.plate).toBeNull();
     expect(past.coming).toHaveLength(4);
   });
-  it("the head line", () => {
-    expect(dayMeta(dayPlan([], [], TODAY, TODAY, 9))).toBe("Nothing planned");
-    expect(dayMeta(dayPlan(items, loose, TODAY, TODAY, 9))).toBe(
-      "5 planned · 3 h 30 min booked"
+  it("the head line counts the day's TASKS from the day set, events apart", () => {
+    const none = { total: 0, minutes: 0 };
+    expect(dayMeta(dayPlan([], [], TODAY, TODAY, 9), none)).toBe(
+      "Nothing planned"
     );
+    // 5 calendar items, one of them an event: the tasks say what Home says
+    const p = dayPlan(items, loose, TODAY, TODAY, 9);
+    expect(dayMeta(p, { total: 5, minutes: 150 })).toBe(
+      "5 planned · 2 h 30 min booked · 1 event"
+    );
+  });
+  it("a day of meetings only is not 'planned' tasks", () => {
+    const p = dayPlan([ev("m", 9, 60), ev("n", 11, 30)], [], TODAY, TODAY, 9);
+    expect(dayMeta(p, { total: 0, minutes: 0 })).toBe("2 events");
+  });
+  it("tasks without minutes say planned, not booked", () => {
+    const p = dayPlan([], [], TODAY, TODAY, 9);
+    expect(dayMeta(p, { total: 2, minutes: 0 })).toBe("2 planned");
   });
 });
 

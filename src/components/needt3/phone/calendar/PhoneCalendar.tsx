@@ -8,6 +8,7 @@ import { LuCheck, LuChevronDown } from "react-icons/lu";
 
 import { proFromPlan } from "@/components/needt3/home/derive";
 
+import { daySummary } from "@/lib/needt3/day-set";
 import { addDays, addMinutes, project, stamp } from "@/lib/needt3/derive";
 import { cvDur } from "@/lib/needt3/derive";
 import { useCalendars, useEvents } from "@/lib/needt3/hooks/events";
@@ -195,6 +196,8 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
   const count = (d: string) => counts.get(d) ?? 0;
 
   const plan = dayPlan(timed, loose, day, today, hour);
+  // the day's tasks, counted as Home counts them (one set, no view filter)
+  const daySum = daySummary(tasksQuery.data ?? [], day);
   const d = calDay(day);
   const week = weekOf(day, startDay);
   const grid = monthGrid(day, startDay);
@@ -490,7 +493,7 @@ export function PhoneCalendar({ ctl }: { ctl: CalendarController }) {
     <div className="v2p-dayhead">
       <span className="v2p-dayhead-name">{name}</span>
       <span className="v2p-dayhead-meta">
-        {dayMeta(plan)}
+        {dayMeta(plan, daySum)}
         {plan.pairs ? (
           <span className="v2p-dayhead-clash">
             {` · ${plan.pairs} ${plan.pairs === 1 ? "overlap" : "overlaps"}`}

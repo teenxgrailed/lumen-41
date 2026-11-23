@@ -10,11 +10,7 @@ import {
   LuRepeat,
 } from "react-icons/lu";
 
-import {
-  type DayPlanSnapshot,
-  type PlanView,
-  planSections,
-} from "@/lib/needt3/day-plan";
+import { type DayPlanSnapshot, planSections } from "@/lib/needt3/day-plan";
 import {
   DAY_PART_LABEL,
   type FactKind,
@@ -23,6 +19,7 @@ import {
   groupByDayPart,
   planStats,
 } from "@/lib/needt3/day-plan-view";
+import type { DaySummary } from "@/lib/needt3/day-set";
 import { at as hourAt } from "@/lib/needt3/derive";
 import type { V3Task } from "@/lib/needt3/map";
 
@@ -61,13 +58,14 @@ export function PlanDate({ date, year }: { date: string; year: string }) {
  * limit used and the focus total.
  */
 export function PlanHello({
-  plan,
+  day,
   hour,
   meetings,
   habits,
   freeAfter,
 }: {
-  plan: PlanView;
+  /** Today's tasks from the one day set (`daySummary`). */
+  day: Pick<DaySummary, "total" | "done" | "minutes">;
   hour: number;
   meetings: number;
   habits: number;
@@ -76,11 +74,11 @@ export function PlanHello({
   const parts = greetingParts({
     hour,
     meetings,
-    tasks: plan.taskCount,
+    tasks: day.total,
     habits,
     freeAfter,
   });
-  const stats = planStats(plan);
+  const stats = planStats(day);
   return (
     <div className="dp-hello" data-day-hello="">
       <p className="dp-sentence" aria-label={greetingText(parts)}>

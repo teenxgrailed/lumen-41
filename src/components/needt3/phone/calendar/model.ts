@@ -6,6 +6,7 @@
  * coming, what is over, the overlap marks, the month grid. Nothing reads the
  * clock: `today` and `nowHour` are arguments.
  */
+import type { DaySummary } from "@/lib/needt3/day-set";
 import { addDays, cvDur, dayLabel, daysBetween } from "@/lib/needt3/derive";
 
 import type { CalItem, CalTimed } from "../../calendar/blocks";
@@ -199,12 +200,24 @@ export function itemLabel(b: CalItem) {
   return b.project || "Task";
 }
 
-/** The day heading's second line: "3 planned · 2 h booked · 1 overlap". */
-export function dayMeta(p: Pick<DayPlan, "timed" | "allDay" | "booked">) {
-  const n = p.timed.length + p.allDay.length;
-  return n
-    ? `${n} planned${p.booked ? ` · ${cvDur(p.booked)} booked` : ""}`
-    : "Nothing planned";
+/**
+ * The day heading's second line: "3 planned · 2 h booked · 2 events · 1
+ * overlap". "Planned" and "booked" are the day's TASKS, counted from the one
+ * day set (`daySummary`), so they match Home's count and focus total for the
+ * same day; the calendar's events are counted apart, so a meeting never makes
+ * the tasks look like more than Home says.
+ */
+export function dayMeta(
+  p: Pick<DayPlan, "timed" | "allDay">,
+  tasks: Pick<DaySummary, "total" | "minutes">
+) {
+  const events = [...p.timed, ...p.allDay].filter((b) => b.event).length;
+  const parts = [
+    tasks.total ? `${tasks.total} planned` : "",
+    tasks.total && tasks.minutes ? `${cvDur(tasks.minutes)} booked` : "",
+    events ? `${events} ${events === 1 ? "event" : "events"}` : "",
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Nothing planned";
 }
 
 /** What the event sheet shows for a tapped item (PkEventSheet's `facts`). */
