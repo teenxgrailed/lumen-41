@@ -508,21 +508,32 @@ describe("Home", () => {
     expect(host.textContent).toContain("Wednesday, 2 September · week 36");
   });
 
-  it("the day's count waits until the plan has answered, then shows", async () => {
-    client.removeQueries({ queryKey: qk.dayPlan(TODAY) });
-    mount(PhoneHome);
-    expect(host.querySelector("[data-v2p-count]")).toBeNull();
+  it("draws the plain Today even when a plan for today exists (the plan is desktop-only)", async () => {
     act(() => {
       client.setQueryData(qk.dayPlan(TODAY), {
         date: TODAY,
-        plan: null,
+        plan: {
+          date: TODAY,
+          status: "open",
+          taskCount: 1,
+          items: [{ taskId: "am" }],
+        },
         settings: {},
         needsDecision: [],
         limitSuggestion: null,
       });
     });
+    mount(PhoneHome);
     await flush();
+    expect(host.querySelector(".dp-screen")).toBeNull();
     expect(q("[data-v2p-count]").getAttribute("data-v2p-count")).toBe("1/3");
+    // home_v2: the same plain Today, and the Now card is the live sky plate
+    // (no solid project plate)
+    mount(PhoneHomeV2);
+    await flush();
+    expect(host.querySelector(".dp-screen")).toBeNull();
+    expect(q("[data-ha-card]")).not.toBeNull();
+    expect(host.querySelector("[data-dp-plate]")).toBeNull();
   });
 
   it("the title opens the task sheet; a row opens it too", () => {

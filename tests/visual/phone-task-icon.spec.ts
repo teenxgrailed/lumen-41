@@ -75,9 +75,9 @@ async function open(page: Page, theme: "dark" | "light") {
   });
   await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
   await signInVisualUser(page);
-  // The day plan is drawn for the server's day, so the screen must read the
-  // same day: the frozen clock of the other specs is left off here. Only the
-  // sheet is shot, so no date reaches a baseline.
+  // The task is seeded on the server's day, so the screen must read the same
+  // day: the frozen clock of the other specs is left off here. Only the sheet
+  // is shot, so no date reaches a baseline.
   for (const screen of ["today", "calendar", "workspace", "docs"]) {
     await page.unroute(`**/api/needt/${screen}`);
   }
@@ -86,10 +86,6 @@ async function open(page: Page, theme: "dark" | "light") {
     data: { theme },
   });
   expect(res.ok()).toBeTruthy();
-  const draft = await page.request.post("/api/day-plan/draft", {
-    data: { date: serverDay() },
-  });
-  expect(draft.ok()).toBe(true);
   await page.goto("/today");
   await page.addStyleTag({
     content:
@@ -103,8 +99,16 @@ async function open(page: Page, theme: "dark" | "light") {
 for (const theme of ["dark", "light"] as const) {
   test(`Task icon, ${theme}`, async ({ page }) => {
     await open(page, theme);
-    await page.locator("[data-day-plan]").waitFor({ timeout: 60_000 });
-    await page.locator("[data-day-plan]").getByText(TITLE).first().click();
+    // Today (the phone draws no day plan): an untimed task sits in the folded
+    // "Anytime"; open it, then the task from the first place it shows
+    const anytime = page.locator('button.pk-sec-fold[aria-expanded="false"]', {
+      hasText: "Anytime",
+    });
+    await expect(
+      page.getByText(TITLE).filter({ visible: true }).or(anytime).first()
+    ).toBeVisible({ timeout: 60_000 });
+    if (await anytime.isVisible()) await anytime.click();
+    await page.getByText(TITLE).filter({ visible: true }).first().click();
     const sheet = page.locator('[data-pov-task="visual-icon-task"]');
     await expect(sheet).toBeVisible({ timeout: 20_000 });
     await page.waitForTimeout(500);

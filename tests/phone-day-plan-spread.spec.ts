@@ -3,15 +3,16 @@ import { type Page, expect, test } from "@playwright/test";
 import { formatInTimeZone, newDate } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
+import { openOverdue } from "./helpers/home";
 import { createV3User, signInAs } from "./helpers/v3-user";
 
 /**
- * The phone's day plan keeps overdue work behind "All tasks", so Spread and
- * Move to today live in one line under the plan: "3 overdue  Spread  Move to
- * today". Spread asks the server (POST /api/tasks/spread) to give each task
- * the next day with room; Move to today puts every one on today. Both write
- * the task's due day, which is what these specs read back.
- * `PHONE_SHOTS=<dir>` also writes a screenshot of the plan (dark, 390 px).
+ * The phone's Today keeps overdue work in one row, "3 overdue →"; opened, it
+ * offers Spread and Move to today. Spread asks the server (POST
+ * /api/tasks/spread) to give each task the next day with room; Move to today
+ * puts every one on today. Both write the task's due day, which is what these
+ * specs read back. The phone draws no day plan (desktop-only), so none is
+ * drafted here. `PHONE_SHOTS=<dir>` also writes a screenshot (dark, 390 px).
  */
 const TZ = "Europe/Zurich";
 const dayKey = (offset: number) =>
@@ -70,20 +71,14 @@ async function seed(page: Page, label: string) {
 }
 
 async function openToday(page: Page) {
-  // the plan is drafted from today's dated tasks; ask for it up front so the
-  // screen opens on it instead of racing the phone's own request
-  const draft = await page.request.post("/api/day-plan/draft", {
-    data: { date: dayKey(0) },
-  });
-  expect(draft.ok()).toBe(true);
   await page.goto("/today", {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });
-  await page.locator("[data-day-plan]").waitFor({ timeout: 60_000 });
-  const late = page.locator("[data-day-late]");
-  await expect(late).toBeVisible();
+  await openOverdue(page, 60_000);
+  const late = page.locator("[data-hv2-late]");
   await expect(late).toContainText("3 overdue");
+  await expect(late.locator("[data-hv2-late-body]")).toBeVisible();
   return late;
 }
 
@@ -104,7 +99,7 @@ test("Move to today puts every overdue task on today", async ({ page }) => {
   if (process.env.PHONE_SHOTS) {
     await page.screenshot({ path: `${process.env.PHONE_SHOTS}/after.png` });
   }
-  await late.locator("[data-day-move-today]").click();
+  await late.getByRole("button", { name: "Move to today" }).click();
   const today = dayKey(0);
   await expect
     .poll(
@@ -129,7 +124,7 @@ test("Spread gives each overdue task a day that is today or later", async ({
     (r) =>
       r.url().includes("/api/tasks/spread") && r.request().method() === "POST"
   );
-  await late.locator("[data-day-spread]").click();
+  await late.getByRole("button", { name: "Spread" }).click();
   expect((await spread).ok()).toBe(true);
   const today = dayKey(0);
   await expect

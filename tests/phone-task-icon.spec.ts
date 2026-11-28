@@ -65,25 +65,26 @@ test("the icon of a task is changed from its sheet and kept on the task", async 
       url: process.env.TEST_BASE_URL ?? "http://localhost:3000",
     },
   ]);
-  await page.request.post("/api/day-plan/draft", { data: { date: today() } });
   await page.goto("/today", {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
   });
-  await page.locator("[data-day-plan]").waitFor({ timeout: 60_000 });
+  // Today (the phone draws no day plan): untimed tasks sit in the folded
+  // "Anytime"; open it, then the task from the first place it shows
+  const title = "Write pricing page copy";
+  const anytime = page.locator('button.pk-sec-fold[aria-expanded="false"]', {
+    hasText: "Anytime",
+  });
+  await expect(
+    page.getByText(title).filter({ visible: true }).or(anytime).first()
+  ).toBeVisible({ timeout: 60_000 });
+  if (await anytime.isVisible()) await anytime.click();
   if (process.env.PHONE_SHOTS) {
     await page.screenshot({ path: `${process.env.PHONE_SHOTS}/home.png` });
   }
-
-  const glyph = page.locator("[data-day-plan] [data-task-icon]").first();
-  await expect(glyph).toHaveAttribute("data-task-icon", "write");
   expect(await apiIcon(page, id)).toBeNull();
 
-  await page
-    .locator("[data-day-plan]")
-    .getByText("Write pricing page copy")
-    .first()
-    .click();
+  await page.getByText(title).filter({ visible: true }).first().click();
   const sheet = page.locator(`[data-pov-task="${id}"]`);
   await expect(sheet).toBeVisible({ timeout: 30_000 });
   const button = sheet.locator("[data-pov-icon]");

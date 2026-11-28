@@ -85,9 +85,14 @@ export function useDayPlan(date: string, enabled = true) {
  * Today's plan. With none yet, a draft is requested once for the day and drawn
  * when it arrives. `off` is true once the server has said the plan is off.
  */
-export function useDayPlanToday(today: string) {
+export function useDayPlanToday(
+  today: string,
+  /** `skip`: this screen draws no plan (the phone Home), so none is read or drafted. */
+  opts: { skip?: boolean } = {}
+) {
   const qc = useQueryClient();
-  const off = useDayPlanOff();
+  const flagOff = useDayPlanOff();
+  const off = flagOff || !!opts.skip;
   const query = useDayPlan(today, !off);
   const asked = useRef<string | null>(null);
   const noPlan = query.isSuccess && !query.data.plan;

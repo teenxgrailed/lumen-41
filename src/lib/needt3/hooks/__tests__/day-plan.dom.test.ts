@@ -52,13 +52,14 @@ const emptySnapshot = {
 };
 const drafted = { plan: { date: "2026-11-19", taskCount: 1, items: [] } };
 
+let skip = false;
 const api: {
   today?: ReturnType<typeof useDayPlanToday>;
   close?: ReturnType<typeof useCloseDay>;
   restore?: ReturnType<typeof useRestoreSomeday>;
 } = {};
 function Probe() {
-  api.today = useDayPlanToday("2026-11-19");
+  api.today = useDayPlanToday("2026-11-19", { skip });
   api.close = useCloseDay();
   api.restore = useRestoreSomeday();
   return null;
@@ -82,6 +83,7 @@ const mount = async () => {
 beforeEach(() => {
   jest.clearAllMocks();
   resetDayPlanOff();
+  skip = false;
   fetchMock.mockResolvedValue(emptySnapshot);
   send.mockResolvedValue(drafted);
 });
@@ -95,6 +97,16 @@ describe("today's plan", () => {
       date: "2026-11-19",
     });
     expect(api.today?.snapshot?.plan).toEqual(drafted.plan);
+  });
+
+  it("neither reads nor drafts a plan on a screen that skips it (the phone Home)", async () => {
+    skip = true;
+    fetchMock.mockResolvedValue({ ...emptySnapshot, plan: drafted.plan });
+    await mount();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(api.today?.off).toBe(true);
+    expect(api.today?.snapshot).toBeUndefined();
   });
 
   it("leaves Today as it was when the day plan is switched off", async () => {
