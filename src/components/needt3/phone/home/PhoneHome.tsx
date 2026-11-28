@@ -258,9 +258,10 @@ export function PhoneHome({
   const prefs = useSettings().data?.prefs;
   const events = useEvents({ from: today, to: addDays(today, 1) });
   const finish = useFinishDay({ late: v.sec.late, day: v.sec.day, today });
-  // The day plan (flag day_plan): with a plan for today, Today is drawn from
-  // it and the evening End day closes it. Off or none: the old Today.
-  const dayPlan = useDayPlanToday(today);
+  // The day plan (flag day_plan) is drawn on the desktop only: the phone keeps
+  // the plain Today (home_v2 layout) even when a plan for today exists, and
+  // End day is the plain finish, not the plan's close.
+  const dayPlan = useDayPlanToday(today, { skip: true });
   const planOn = planIsShown(dayPlan.snapshot);
   const planOpen = planOn && dayPlan.snapshot?.plan?.status !== "closed";
   const planIds = useMemo(
@@ -573,9 +574,10 @@ export function PhoneHome({
       : v.parts;
   const taskById = new Map(all.map((t) => [t.id, t] as const));
   const chrono = chronological(dayParts);
+  // The Now card is the live sky plate (no hue): the solid project plate is
+  // left to the desktop.
   const nowNode = !nowPick ? null : nowPick.event ? (
     <HaHighlight
-      hue={null}
       phone
       state="nextup"
       kicker={nowKicker(nowPick)}
@@ -610,7 +612,6 @@ export function PhoneHome({
     />
   ) : nowTask ? (
     <HaHighlight
-      {...plateOf(nowTask)}
       phone
       state="nextup"
       kicker={nowKicker(nowPick)}

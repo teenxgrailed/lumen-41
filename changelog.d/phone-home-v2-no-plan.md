@@ -1,0 +1,1 @@
+- Phone Home keeps the plain Today (the home_v2 layout) instead of the day plan, also when a plan for today already exists; the title is "Today" with the date, like the other screens. The Next card is the live sky plate again. Desktop is unchanged.
